@@ -601,11 +601,21 @@ globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
  * caller's options override - written here in English with the trait's key, as the harness
  * loads no Daggerheart language file and an unknown key would count as a missing one;
  * `diceRoll` (:560-566) sets `source.actor` to the actor's uuid
- * and `data` to `getRollData()`, which holds the actor's `id` and `name` (:636-645); the roll
+ * and `data` to `getRollData()`; the roll
  * is built with the config as its options (dhRoll.mjs:45), and `toMessage` (:118, :144-157) writes
  * the speaker by `getSpeaker`, `system` as the config through actorRoll.mjs's schema (a
  * `title`, `source.actor`, `targets`) and the roll. Here the roll's options are that config's
- * serialisable part - title, headerTitle, source.actor, data's id and name, actionType. And
+ * serialisable part - title, headerTitle, source.actor, data, effects, the experiences picked,
+ * `roll` with its statistic, actionType.
+ * `data` AS IT IS WRITTEN (E06 fix r1-G1, 28.09.2026; review M1 = F1). Until this fix the
+ * harness wrote `data` as `{ id, name }`, and C5b's neutral roll was measured against that
+ * shape alone. `getRollData()` (actor.mjs:636-645) is a shallow proxy over the character's
+ * system whose `set` keeps `id`, `name`, `system`, `prof` and `cast` in a table of its own
+ * (helpers/utils.mjs:792-814, no `ownKeys`), so a roll serialised to its message carries the
+ * system - named experiences, a biography, a companion's uuid - and not the id or the name.
+ * Written here as the shim's `getRollData()`, the system's source; read in the source, not
+ * measured on a real message (LIVE-E06-02). The seed gives every student such a system
+ * (lib/seed.mjs `studentActor`). And
  * `system.roll` stays as E30 wrote it, the options its actionType alone: it stands in for
  * actorRoll.mjs's `roll` getter (:64), which finds the roll among the message's rolls and is
  * no field of the source - despair-award and private-rolls read it.
@@ -620,8 +630,12 @@ classes.Actor.prototype.modifyResource = function (resources) { return modifyRes
 
 classes.Actor.prototype.diceRoll = async function diceRoll(config) {
     config.source = { ...(config.source ?? {}), actor: this.uuid };
-    config.data = { ...this.getRollData(), id: this.id, name: this.name };
+    config.data = this.getRollData();
     config.resourceUpdates = new ResourceUpdateMap(this);
+    // The experiences the roll dialog would have picked (d20RollDialog.mjs keeps them on the
+    // config): none, unless a test names them in globalThis.__forceExperiences, as __forceRoll
+    // names the dice (E06 fix r1-G1: the Reroll's bookmark keeps them).
+    config.experiences = [...(config.experiences ?? globalThis.__forceExperiences ?? [])];
 
     const traitKey = config.roll?.trait;
     const forced = globalThis.__forceRoll;
@@ -661,7 +675,11 @@ classes.Actor.prototype.diceRoll = async function diceRoll(config) {
         dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
         options: { title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
-            data: { id: config.data.id, name: config.data.name }, actionType: config.actionType }
+            data: config.data, effects: [...(this.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
+            experiences: [...config.experiences],
+            roll: { trait: traitKey, type: config.actionType,
+                modifiers: traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
+            actionType: config.actionType }
     };
     config.message = await classes.ChatMessage.create({
         author: game.userId,

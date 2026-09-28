@@ -28,11 +28,11 @@
  * already made is re-asked rather than rewritten.
  */
 
-import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING } from "./config.mjs";
+import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { resolveThreshold, easedBy, log, error, plural } from "./utils.mjs";
 import { rollBookmark, keepRollBookmark, searchTier } from "./action-rolls.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
-import { keptRollSubject } from "./private-rolls.mjs";
+import { keptRollSubject, isClaimedRoll, neutralRollOf } from "./private-rolls.mjs";
 
 /**
  * Reroll, with the dice the first roll was actually made with.
@@ -65,20 +65,64 @@ import { keptRollSubject } from "./private-rolls.mjs";
  * game's critical never does, and compensating after its unawaited, clamped
  * write could not know what it had really moved.
  */
-async function rerollKeepingDice(original, actor, message) {
+async function rerollKeepingDice(original, actor, message, bookmark = null) {
     const wanted = advantageDice(original);
+    const thrown = await rollAsThrown(original, actor, message, bookmark);
     if (wanted <= 1) {
-        const rerolled = await original.reroll();
+        const rerolled = await thrown.reroll();
         await settleDualityReroll(original, rerolled, actor, message);
         return rerolled;
     }
 
-    const clone = original.clone();
+    const clone = thrown.clone();
     clone.advantageNumber = wanted;
     clone.constructFormula(clone.options);
     const rerolled = await clone.evaluate();
     await settleDualityReroll(original, rerolled, actor, message);
     return rerolled;
+}
+
+/**
+ * THE ROLL AS IT WAS THROWN (E06 fix r1-G1, 28.09.2026; review M1 = F1). A roll
+ * the module threw keeps nothing of its character in its message
+ * (private-rolls.mjs `neutralRollOf`): its `data` is empty and it has no
+ * statistic, no experiences and no effects. That is all a browser needs to show
+ * it, and not enough to throw it again - `clone()` rebuilds the formula from
+ * the options, and would drop the statistic's value, the experiences' bonuses
+ * and the effects'. So the roll is rebuilt here with them put back: the
+ * character's data from the actor the Reroll was asked for (`getRollData()`, as
+ * actor.mjs `diceRoll` gives it), its effects as `rollTrait` finds them
+ * (actor.mjs:576; none where the system has no such call), and the statistic
+ * and the experiences from this browser's bookmark (action-rolls.mjs
+ * `rememberRoll`) - which is kept only for the roll the bookmark names. A roll
+ * the module threw that the bookmark does not name is refused rather than
+ * thrown weaker: the Reroll's whole point is not to hand back a worse roll
+ * than the one paid to replace. A roll the module did not throw is its own
+ * record and comes back untouched. Exported for the suite; the harness has no
+ * `DualityRoll` to rebuild, so what the rebuild adds up to on a real table is
+ * LIVE-E06-02's.
+ */
+export async function rollAsThrown(original, actor, message, bookmark = null) {
+    if (!isClaimedRoll(message)) return original;
+    const named = Boolean(message.id) && bookmark?.messageId === message.id;
+    const trait = named ? TRAITS[bookmark.trait]?.dh ?? (TRAIT_BY_DH[bookmark.trait] ? bookmark.trait : null) : null;
+    if (!trait) throw new Error(`no statistic is kept in this browser for roll ${message.id}`);
+    const options = foundry.utils.deepClone(original.options ?? {});
+    options.data = actor.getRollData();
+    options.roll = { ...(options.roll ?? {}), trait };
+    options.experiences = Array.isArray(bookmark.experiences) ? [...bookmark.experiences] : [];
+    options.effects = await game.system?.api?.data?.actions?.actionsTypes?.base?.getActionRelevantEffects?.(actor) ?? [];
+    return new original.constructor(original._formula ?? original.formula, {}, options);
+}
+
+/**
+ * A rerolled roll as its message keeps it: for a roll the module threw, what
+ * `rollAsThrown` put back is taken out again (`neutralRollOf`), so the message
+ * a Reroll rewrites says no more than the one the roll made. Exported for the
+ * suite.
+ */
+export function rerolledSource(rerolled, message) {
+    return isClaimedRoll(message) ? neutralRollOf(JSON.stringify(rerolled)) : rerolled;
 }
 
 /**
@@ -251,8 +295,8 @@ export async function rerollLastAction(actor) {
     // result granted - see `settleDualityReroll`.
     let rerolled;
     try {
-        rerolled = await rerollKeepingDice(original, actor, message);
-        await message.update({ rolls: [rerolled] });
+        rerolled = await rerollKeepingDice(original, actor, message, bookmark);
+        await message.update({ rolls: [rerolledSource(rerolled, message)] });
     } catch (err) {
         error("Could not reroll the last action", err);
         ui.notifications.error(game.i18n.localize("DRPG.Reroll.failed"));

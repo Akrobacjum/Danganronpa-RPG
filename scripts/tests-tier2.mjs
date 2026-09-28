@@ -373,20 +373,25 @@ async function relayedDice(run) {
  * their own). Thrown through `rollTrait` as the suite throws every roll. `faces` sets the dice
  * where the harness reads them (`__forceRoll`); a real table throws its own, so a Fear there
  * moves Daggerheart's Fear, which restore() does not put back and this does. `title` is the
- * action's, as `rollTrait` is given one. The caller deletes the message.
+ * action's, as `rollTrait` is given one; `experiences` the ids the roll dialog would have
+ * picked (`__forceExperiences`, E06 fix r1-G1). The caller deletes the message.
  */
-async function neutralRoll(who, { remember = false, faces = null, title = null } = {}) {
+async function neutralRoll(who, { remember = false, faces = null, title = null, experiences = null } = {}) {
     const rolls = await import("./action-rolls.mjs");
     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+    const hadPicks = Object.hasOwn(globalThis, "__forceExperiences"), picks = globalThis.__forceExperiences;
     const { gameSettings } = CONFIG.DH.SETTINGS;
     const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
     try {
         if (faces) globalThis.__forceRoll = faces;
+        if (experiences) globalThis.__forceExperiences = experiences;
         const outcome = await rolls.rollTrait(who, "eye", { remember, ...(title ? { title } : {}) });
         return { outcome, message: outcome?.raw?.message ?? null };
     } finally {
         if (hadForce) globalThis.__forceRoll = force;
         else delete globalThis.__forceRoll;
+        if (hadPicks) globalThis.__forceExperiences = picks;
+        else delete globalThis.__forceExperiences;
         await settle();
         if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
     }
@@ -937,24 +942,31 @@ const SCENARIOS = [
          * nobody. The Reroll itself is not thrown: `Roll#reroll` is not in the harness, and a
          * receipt is a player's, made on the GM's client from that player's rewrite -
          * 33-bridge-paths' A10 makes one. The bookmark store and the message are put back.
+         * E06 fix r1-G1, 28.09.2026: the roll is thrown with the student's experience picked, and
+         * the bookmark keeps it - the roll's message no longer does, and the Reroll rebuilds the
+         * formula from the bookmark's (reroll.mjs `rollAsThrown`, R204).
          */
         const [who] = cast(1);
+        const picked = Object.keys(who.system?.experiences ?? {}).slice(0, 1);
+        must(picked.length, `${who.name} has no experience to pick - this would measure nothing`);
         const R = await import("./reroll.mjs");
         const { actorIdsOf } = await import("./reroll-receipts.mjs");
         const kept = getSetting(SETTINGS.rollBookmarks);
         let message = null;
         try {
-            ({ message } = await neutralRoll(who, { remember: true, faces: { hope: 9, fear: 5 } }));
+            ({ message } = await neutralRoll(who, { remember: true, faces: { hope: 9, fear: 5 }, experiences: picked }));
             must(message && !message.speaker?.actor && !message.system?.source?.actor && message.rolls?.[0],
                 "the roll's document still names its character, or holds no roll - this measured nothing");
             const byMark = R.lastRollOf(who).message?.id ?? null;
+            const marked = R.lastRollOf(who).bookmark?.experiences ?? null;
+            const stored = typeof message.toObject().rolls[0] === "string" ? JSON.parse(message.toObject().rolls[0]) : message.toObject().rolls[0];
             await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, {});
             const byScan = R.lastRollOf(who).message?.id ?? null;
             const original = message.rolls[0];
             const [target, alone] = [await R.rollTarget(original, who), await R.rollTarget(original)];
-            equal(stableJson([byMark, byScan, actorIdsOf(message), target?.id ?? null, alone?.id ?? null]),
-                stableJson([message.id, message.id, [who.id], (who.system?.partner ?? who).id, null]),
-                "a Reroll would not find the roll, or its receipt or its settlement would not name the character");
+            equal(stableJson([byMark, byScan, actorIdsOf(message), target?.id ?? null, alone?.id ?? null, marked, stored?.options?.experiences ?? null]),
+                stableJson([message.id, message.id, [who.id], (who.system?.partner ?? who).id, null, picked, null]),
+                "a Reroll would not find the roll, its receipt or its settlement would not name the character, or its bookmark lost the experiences the roll no longer holds");
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, kept ?? {});
             await message?.delete();
@@ -974,6 +986,13 @@ const SCENARIOS = [
          * whispered to the GMs alone (not to the student's player, whom a GM's roll for them
          * used to add), the second to nobody, as the table chose; and the GM still knows whose
          * roll each was (`rollSubjectNow`, from what it kept as it threw).
+         * WHAT ITS OPTIONS KEPT OF THE SHEET (E06 fix r1-G1, 28.09.2026; review M1 = F1). C5b took
+         * the id and the name out of a roll's `data`, measured on a harness that wrote nothing
+         * else there; Daggerheart writes the character's whole system (client-entry.mjs
+         * `diceRoll`, now in that shape). The roll's data is read empty, its effects, the
+         * experiences picked and its statistic absent, and the source is searched for the
+         * student's experience names and companion's uuid as well as for the id and the name -
+         * the seed's biography names its student. With C5b's cut alone, the name was found.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 1), "the student's player is who the old whisper list named");
         const P = await import("./private-rolls.mjs");
@@ -983,6 +1002,8 @@ const SCENARIOS = [
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const who = livingStudents().find(player);
         const TITLE = "E06 C5b - a secret action";
+        const sheet = [...Object.values(who.system?.experiences ?? {}).map(e => e?.name), who.system?.companion].filter(Boolean);
+        must(sheet.length >= 2, "the student's sheet holds no named experience or companion - this would measure nothing");
         const forced = getSetting(SETTINGS.forcePrivateRolls);
         const made = [];
         const read = async () => {
@@ -995,8 +1016,9 @@ const SCENARIOS = [
             return {
                 fields: [source.speaker?.actor ?? null, source.speaker?.token ?? null, source.system?.title ?? null, source.system?.source?.actor ?? null,
                     roll?.options?.title ?? null, roll?.options?.headerTitle ?? null, roll?.options?.source?.actor ?? null,
-                    roll?.options?.data?.id ?? null, roll?.options?.data?.name ?? null],
-                named: [who.id, who.name, TITLE].filter(x => text.includes(x)),
+                    roll?.options?.data ?? null, roll?.options?.effects ?? null, roll?.options?.experiences ?? null,
+                    roll?.options?.roll?.trait ?? null],
+                named: [who.id, who.name, TITLE, ...sheet].filter(x => text.includes(x)),
                 rule: findWorldSecrets({ messages: [{ id: source._id, flags: source.flags, speaker: source.speaker, system: source.system,
                     rolls: source.rolls, whisper: source.whisper, author: source.author }] }, { ids: [who.id] }).map(h => h.path),
                 whisper: [...(source.whisper ?? [])].sort(),
@@ -1008,7 +1030,7 @@ const SCENARIOS = [
             const privately = await read();
             await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, false);
             const openly = await read();
-            const empty = [null, null, "", "", "", "", "", null, null];
+            const empty = [null, null, "", "", "", "", "", {}, null, null, null];
             equal(stableJson([privately, openly]), stableJson([
                 { fields: empty, named: [], rule: [], whisper: [...gmIds()].sort(), subject: who.id },
                 { fields: empty, named: [], rule: [], whisper: [], subject: who.id }]),

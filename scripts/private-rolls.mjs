@@ -589,15 +589,9 @@ function claimRollMessage(message, data) {
  * - Daggerheart's `system.title`, `system.source.actor` and `system.targets`
  *   are emptied where the source has them (actorRoll.mjs's schema, read in
  *   2.6.5; a message of another shape is not given fields it lacks);
- * - each roll's options - which ARE the roll's whole config in Daggerheart
- *   (dhRoll.mjs:45) - lose their `title` and `headerTitle`, the actor's uuid in
- *   `source.actor`, and the actor's `id` and `name` in `data`, and each roll
- *   keeps the form it came in (Foundry holds them as JSON text);
+ * - each roll is `neutralRollOf`, below, and keeps the form it came in
+ *   (Foundry holds them as JSON text);
  * - the flavour goes.
- *
- * What is left of `data` (`getRollData()`: the trait values and the resources)
- * is the dice's arithmetic, and stays. What a real Daggerheart message holds
- * beyond these fields has been read in its source, not measured (LIVE-E06-02).
  */
 export function neutralRollSource(data, { alias = game.i18n.localize("DRPG.Secret.speaker") } = {}) {
     const changes = { speaker: { alias, actor: null, token: null, scene: null }, flavor: "" };
@@ -607,21 +601,68 @@ export function neutralRollSource(data, { alias = game.i18n.localize("DRPG.Secre
         if (system.source && typeof system.source === "object" && Object.hasOwn(system.source, "actor")) changes["system.source.actor"] = "";
         if (Object.hasOwn(system, "targets")) changes["system.targets"] = [];
     }
-    if (Array.isArray(data?.rolls)) {
-        changes.rolls = data.rolls.map(entry => {
-            let roll;
-            try { roll = typeof entry === "string" ? JSON.parse(entry) : foundry.utils.deepClone(entry); } catch { return entry; }
-            const opts = roll?.options;
-            if (opts && typeof opts === "object") {
-                if (Object.hasOwn(opts, "title")) opts.title = "";
-                if (Object.hasOwn(opts, "headerTitle")) opts.headerTitle = "";
-                if (opts.source && typeof opts.source === "object" && Object.hasOwn(opts.source, "actor")) opts.source.actor = "";
-                if (opts.data && typeof opts.data === "object") { delete opts.data.id; delete opts.data.name; }
-            }
-            return typeof entry === "string" ? JSON.stringify(roll) : roll;
-        });
-    }
+    if (Array.isArray(data?.rolls)) changes.rolls = data.rolls.map(neutralRollOf);
     return changes;
+}
+
+/**
+ * One roll of a roll the module threw, as its message keeps it: its options
+ * without what describes the character (E06 fix r1-G1, 28.09.2026; review M1 =
+ * F1). In Daggerheart a roll's options ARE the roll's whole config
+ * (dhRoll.mjs:45), and C5b emptied only its title, its actor's uuid and the
+ * actor's `id` and `name` in `data`. Read in 2.6.5's source, the rest said
+ * whose it was too: `data` is `getRollData()`, which serialises as the
+ * character's whole system - named experiences, a biography, a companion's
+ * uuid (actor.mjs:560-563, :636-645; character.mjs); `effects` are the
+ * character's ActiveEffects, with names and origins (actor.mjs:576), and
+ * `bonusEffects` are built from them; `experiences` are the ids of the
+ * character's own experiences the dialog picked, and the roll's modifiers are
+ * labelled with their names; `roll.trait` is the statistic, which tells one
+ * action from another where their statistics differ.
+ *
+ * What the roll classes read back when a browser rebuilds the roll from its
+ * JSON, which every browser holding the message does, stays: the dice, the
+ * formula, `roll`'s type, advantage and numbers, `actionType`. So does the rest
+ * of the config as Daggerheart wrote it - the dialog's settings, the module's
+ * own marks - which was read, not measured, to say nothing more of the
+ * character. `data` stays as an empty object, not absent - d20Roll.mjs
+ * `configureModifiers` (:103) reads `options.data.system` as the constructor
+ * runs; `effects` and `experiences` are read with `?.` there and in
+ * dhRoll.mjs `bonusEffectBuilder` (:344-360), which rebuilds `bonusEffects`
+ * from them. Nothing of the character is needed again but by a Reroll, which
+ * rebuilds the formula: it takes the character's data from the actor and the
+ * statistic and experiences from the roller's bookmark (reroll.mjs
+ * `rollAsThrown`). A modifier keeps its value and loses its label - the
+ * formula is summed from the values (dhRoll.mjs `addModifiers`).
+ *
+ * Read in the source, not measured on a real message (LIVE-E06-02); the
+ * harness's roll is written in the shape read here (client-entry.mjs
+ * `diceRoll`). `entry` is JSON text or a plain object, and comes back in the
+ * same form; text that is not JSON comes back as it was. Exported for the
+ * Reroll, which writes a rerolled roll back into the same message.
+ */
+export function neutralRollOf(entry) {
+    let roll;
+    try { roll = typeof entry === "string" ? JSON.parse(entry) : foundry.utils.deepClone(entry); } catch { return entry; }
+    const opts = roll?.options;
+    if (opts && typeof opts === "object") {
+        if (Object.hasOwn(opts, "title")) opts.title = "";
+        if (Object.hasOwn(opts, "headerTitle")) opts.headerTitle = "";
+        if (opts.source && typeof opts.source === "object" && Object.hasOwn(opts.source, "actor")) opts.source.actor = "";
+        if (Object.hasOwn(opts, "data")) opts.data = {};
+        delete opts.effects;
+        delete opts.bonusEffects;
+        delete opts.experiences;
+        if (Object.hasOwn(opts, "targets")) opts.targets = [];
+        if (opts.roll && typeof opts.roll === "object") {
+            delete opts.roll.trait;
+            for (const key of ["modifiers", "baseModifiers"]) {
+                if (!Array.isArray(opts.roll[key])) continue;
+                opts.roll[key] = opts.roll[key].map(m => m && typeof m === "object" && Object.hasOwn(m, "label") ? { ...m, label: "" } : m);
+            }
+        }
+    }
+    return typeof entry === "string" ? JSON.stringify(roll) : roll;
 }
 
 function onPreCreateChatMessage(message, data, options, userId) {

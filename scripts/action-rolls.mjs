@@ -844,6 +844,10 @@ async function rememberRoll(actor, outcome, result, actionKey = null, context = 
             messageId,
             actionKey,
             trait: outcome.trait,
+            // The experiences the dialog picked, which the roll's message no longer
+            // holds and a Reroll's rebuilt formula needs (reroll.mjs `rollAsThrown`,
+            // E06 fix r1-G1): Daggerheart keeps them on the config it hands back.
+            experiences: Array.isArray(result?.experiences) ? [...result.experiences] : [],
             total: outcome.total,
             withFear: outcome.withFear,
             isCritical: outcome.isCritical,

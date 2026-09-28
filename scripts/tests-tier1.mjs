@@ -4547,9 +4547,10 @@ const INVARIANTS = [
          * keeps `fromIncident` beside `isRemnant`. E06 C1: each field of a `messages` rule, and its
          * `flagsOnly`, needs a fixture as well (the list is empty at C1; R202 reads the kinds).
          * E06 C5b: the first rule, a roll the module threw - the clean snapshot holds one as
-         * private-rolls.mjs `neutralRollSource` leaves it (its roll as JSON text, the dice's data
-         * kept, whispered to a GM, written by a player), which reads clean, and each field is
-         * planted in it once, the roll's options inside that text. E06 C10: an armed Call's buyer,
+         * private-rolls.mjs `neutralRollSource` leaves it (its roll as JSON text, whispered to a
+         * GM, written by a player), which reads clean, and each field is
+         * planted in it once, the roll's options inside that text; since its fix r1-G1 the clean
+         * roll holds the empty `data` and the unlabelled modifiers `neutralRollOf` leaves. E06 C10: an armed Call's buyer,
          * the first Actor path through an array - the clean bystander holds an armed Call without
          * one, and the fixture's second entry, a `null` one, is found at its index.
          */
@@ -4573,7 +4574,8 @@ const INVARIANTS = [
                 { id: "R190MESSAGE00002", flags: { [MOD]: { supersededRoll: true } }, author: "R190USER00000001", whisper: ["R190GAMEMASTER001"],
                     speaker: { alias: "Monokuma", actor: null, token: null, scene: null }, system: { title: "", source: { actor: "" }, targets: [] },
                     rolls: [JSON.stringify({ class: "DualityRoll", total: 14, options: { title: "", headerTitle: "", source: { actor: "" },
-                        data: { traits: { eye: { value: 1 } } }, actionType: "action" } })] }],
+                        data: {}, roll: { type: "action", modifiers: [{ label: "", value: 1 }], baseModifiers: [{ label: "", value: 0 }] },
+                        actionType: "action" } })] }],
             items: [{ id: "R190BYSTANDER001.items.R190ITEM00000001", flags: { [MOD]: {
                 category: "truthBullet", isTruthBullet: true, shownType: "neutral", room: "Gym" } } }]
         });
@@ -4619,17 +4621,23 @@ const INVARIANTS = [
             // E06 C5b: a roll the module threw names nobody - each field planted in the neutral one, a roll's inside its JSON text.
             ...[["speaker.actor", KILLER], ["speaker.token", "R190TOKEN0000001"], ["system.title", "R190 Strike"], ["system.source.actor", `Actor.${KILLER}`],
                 ["rolls.*.options.title", "R190 Strike"], ["rolls.*.options.headerTitle", "R190 Strike"], ["rolls.*.options.source.actor", `Actor.${KILLER}`],
-                ["rolls.*.options.data.id", KILLER], ["rolls.*.options.data.name", "R190 Killer"]].map(([f, value]) => [`message supersededRoll: ${f}`,
+                // Fix r1-G1: the character's system in `data` as Daggerheart writes it, its effects, the
+                // experiences picked and the labels naming them, its statistic.
+                ["rolls.*.options.data", { biography: { background: "R190 Killer, as their player wrote them." }, companion: "Actor.R190COMPANION00001" }],
+                ["rolls.*.options.effects", [{ name: "R190 Blessed", origin: "Actor.R190COMPANION00001.Item.R190ITEM00000002" }]],
+                ["rolls.*.options.bonusEffects", { R190EFFECT000001: { name: "R190 Blessed" } }], ["rolls.*.options.experiences", ["R190EXPERIENCE01"]],
+                ["rolls.*.options.roll.trait", "agility"], ["rolls.*.options.roll.modifiers.*.label", "R190 Kendo Captain"],
+                ["rolls.*.options.roll.baseModifiers.*.label", "R190 Kendo Captain"]].map(([f, value]) => [`message supersededRoll: ${f}`,
                 s => {
                     const message = s.messages[1];
                     const inRoll = f.startsWith("rolls.*.");
                     const roll = inRoll ? JSON.parse(message.rolls[0]) : null;
-                    const parts = (inRoll ? f.slice("rolls.*.".length) : f).split(".");
+                    const parts = (inRoll ? f.slice("rolls.*.".length) : f).replaceAll("*", "0").split(".");
                     const node = parts.slice(0, -1).reduce((at, key) => at[key], inRoll ? roll : message);
                     node[parts.at(-1)] = value;
                     if (inRoll) message.rolls[0] = JSON.stringify(roll);
                 },
-                h => h.kind === "messageField" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00002" && h.path === f.replace("*", "0")]),
+                h => h.kind === "messageField" && h.doc === "ChatMessage" && h.id === "R190MESSAGE00002" && h.path === f.replaceAll("*", "0")]),
             // E06 C7a: a private card's document says nothing of itself - its action's title is found.
             ["message secret: only secret, veiled, drpgMessage, thread, kind, gmAsk, settled",
                 s => { s.messages.push({ id: "R190MESSAGE00003", flags: { [MOD]: { secret: true, drpgMessage: true, popupTitle: "R190 Search" } } }); },
@@ -5202,6 +5210,58 @@ const INVARIANTS = [
         equal(JSON.stringify([named, fromWorld, castWins]), JSON.stringify(["K", "V", "KV"]),
             "the stage a caller names does not win over the state's, or a cast without the method does not read the world half's, "
             + "or the world half's overrides a cast that holds it");
+    }],
+
+    ["R204 - a Reroll rebuilds a neutral roll from its character and its bookmark, and writes it back naming nobody", async () => {
+        /*
+         * E06 fix r1-G1, 28.09.2026; review M1 = F1. A roll the module threw keeps nothing of its
+         * character in its message (private-rolls.mjs `neutralRollOf`), and a Reroll rebuilds the
+         * formula from the roll's options - so reroll.mjs `rollAsThrown` puts back what the
+         * rebuild reads: the character's data from the actor, the statistic and the experiences
+         * from the bookmark of the roll's own browser. A made-up roll class stands in for
+         * Daggerheart's, which the harness does not have: a neutral roll comes back rebuilt with
+         * the sheet, the statistic in Daggerheart's key and the experiences, its own options
+         * untouched; a roll the module did not throw comes back as it was; one the bookmark does
+         * not name is refused. Then what the Reroll writes into the message (`rerolledSource`),
+         * from a rerolled roll that carries all of it and an experience's label: no sheet, no
+         * statistic, no experience, no label, and a clean read against the world-secrets rule -
+         * and a roll the module did not throw is written as it is.
+         */
+        const RR = await import("./reroll.mjs");
+        const W = await import("./world-secrets.mjs");
+        const MOD = W.WORLD_SECRET_MODULE;
+        class Thrown { constructor(formula, data, options) { Object.assign(this, { formula, data, options }); } }
+        const sheet = { traits: { instinct: { value: 2 } }, experiences: { R204EXPERIENCE01: { name: "R204 Kendo Captain", value: 2 } },
+            companion: "Actor.R204COMPANION00001" };
+        const actor = { id: "R204ACTOR0000001", getRollData: () => sheet };
+        const message = (id, claimed) => ({ id, getFlag: (scope, key) => claimed && scope === MOD && key === "supersededRoll" });
+        const FORMULA = "1d12 + 1d12 + 2 + 2";
+        const stored = { title: "", data: {}, roll: { type: "action", modifiers: [{ label: "", value: 2 }, { label: "", value: 2 }] }, actionType: "action" };
+        const original = Object.assign(new Thrown(FORMULA, {}, structuredClone(stored)), { _formula: FORMULA });
+        const mark = { messageId: "R204MESSAGE00001", trait: "eye", experiences: ["R204EXPERIENCE01"] };
+
+        const thrown = await RR.rollAsThrown(original, actor, message("R204MESSAGE00001", true), mark);
+        const plain = await RR.rollAsThrown(original, actor, message("R204MESSAGE00002", false), null);
+        let refused = null;
+        try { await RR.rollAsThrown(original, actor, message("R204MESSAGE00003", true), mark); } catch (err) { refused = String(err?.message ?? err); }
+        equal(JSON.stringify([thrown instanceof Thrown, thrown.formula, thrown.options.data === sheet, thrown.options.roll.trait,
+            thrown.options.experiences, thrown.options.effects, JSON.stringify(original.options) === JSON.stringify(stored), plain === original, Boolean(refused)]),
+            JSON.stringify([true, FORMULA, true, "instinct", ["R204EXPERIENCE01"], [], true, true, true]),
+            `a Reroll does not rebuild a neutral roll from its character and bookmark, touches the message's roll, or rebuilds one it cannot (${refused})`);
+
+        thrown.options.roll.modifiers = [{ label: "DAGGERHEART.CONFIG.Traits.instinct.name", value: 2 }, { label: "R204 Kendo Captain", value: 2 }];
+        thrown.options.effects = [{ name: "R204 Blessed", origin: "Actor.R204ACTOR0000001.Item.R204ITEM00000001" }];
+        const rerolled = { toJSON: () => ({ class: "DualityRoll", formula: FORMULA, total: 17, options: thrown.options }) };
+        const written = RR.rerolledSource(rerolled, message("R204MESSAGE00001", true));
+        const back = typeof written === "string" ? JSON.parse(written) : null;
+        const hits = W.findWorldSecrets({ messages: [{ id: "R204MESSAGE00001", flags: { [MOD]: { supersededRoll: true } },
+            speaker: { alias: "Monokuma", actor: null, token: null, scene: null }, system: { title: "", source: { actor: "" }, targets: [] },
+            rolls: [written], whisper: [], author: "R204USER00000001" }] }, { ids: [actor.id] });
+        equal(JSON.stringify([back?.total, back?.options?.data, back?.options?.roll?.modifiers, back?.options?.roll?.trait ?? null,
+            back?.options?.experiences ?? null, back?.options?.effects ?? null, ["R204 Kendo Captain", "R204COMPANION", "R204ACTOR"].filter(x => written.includes(x)),
+            hits.map(h => h.path), RR.rerolledSource(rerolled, message("R204MESSAGE00002", false)) === rerolled]),
+            JSON.stringify([17, {}, [{ label: "", value: 2 }, { label: "", value: 2 }], null, null, null, [], [], true]),
+            "a Reroll writes a rerolled roll the module threw back with its character in it, or rewrites one the module did not throw");
     }]
 ];
 
