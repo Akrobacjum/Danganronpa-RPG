@@ -337,6 +337,11 @@ export const TIMING = {
      *  rewrite and the undo travel as two messages, and the order they are
      *  handled in on the GM's client has not been measured. */
     rerollReceiptRetryMs: 400,
+    /** How long after the primary GM posts a player's safeword card that player's next
+     *  press is logged and not posted again (safeword.mjs `hearSafeword`, E06 C9). A choice,
+     *  not a measurement: long enough to swallow a double press and a held key, short enough
+     *  that a second stop a minute later is a new card. */
+    safewordRepeatMs: 60000,
     /** How long an Observe waits for its ruling before the bookmark is swept. */
     pendingObserveTtlMs: 60 * 60 * 1000,
     /** How many private cards' words a browser keeps; beyond this the oldest go. */

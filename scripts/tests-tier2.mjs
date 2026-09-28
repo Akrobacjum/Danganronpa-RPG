@@ -431,6 +431,34 @@ async function withVerdictOpen(run) {
     }
 }
 
+/**
+ * A safeword press measured on this GM's browser, and put back (E06 C9). `act(fresh)` presses;
+ * `fresh()` is the safeword cards posted since; `read(cards)` turns them into plain readings
+ * before they are deleted. The pause, the popups the press raised and `player`'s entry in the
+ * repeat window (cleared first, so an earlier press does not swallow this one) are put back.
+ */
+async function safewordRun(S, player, act, read) {
+    const before = new Set(game.messages.map(m => m.id));
+    const fresh = () => game.messages.filter(m => !before.has(m.id) && m.getFlag(MODULE_ID, S.SAFEWORD_FLAG));
+    const popups = () => [...document.querySelectorAll(".drpg-popup")];
+    const up = new Set(popups());
+    const wasPaused = game.paused;
+    const held = S.safewordPosts.get(player.id);
+    S.safewordPosts.delete(player.id);
+    try {
+        await act(fresh);
+        await until(() => fresh().length > 0);
+        await settle();
+        return { ...(await read(fresh())), paused: game.paused, popups: popups().filter(p => !up.has(p)).map(p => p.textContent) };
+    } finally {
+        for (const m of fresh()) { try { await m.delete(); } catch { /* already gone */ } }
+        for (const p of popups()) if (!up.has(p)) p.remove();
+        if (held === undefined) S.safewordPosts.delete(player.id);
+        else S.safewordPosts.set(player.id, held);
+        if (game.paused !== wasPaused) await game.togglePause(wasPaused);
+    }
+}
+
 const SCENARIOS = [
     ["a direct murder opens on the killer and tells the victim", async () => {
         const [killer, victim] = cast(2);
@@ -6538,6 +6566,104 @@ const SCENARIOS = [
             for (const m of made) { try { await m.delete(); } catch { /* already gone */ } }
             if (game.paused !== wasPaused) await game.togglePause(wasPaused);
         }
+    }],
+
+    ["the safeword's card names nobody", async () => {
+        /*
+         * E06 C9, 28.09.2026; audit S03-02 (L19). A player's press posted the public card from
+         * that player's browser, so its author - on every console, and in Daggerheart's header -
+         * was the caller the card calls "somebody". A player's press is a packet to the GMs now,
+         * and the primary GM posts the card. The packet is handed to this GM's handler with a
+         * connected player's id, as Foundry hands it, and a `who` naming somebody else: the card
+         * is this GM's under the banner, names neither the player nor the packet's name, stops
+         * the game, and the GMs' detail card names the sender and not the packet's claim. At
+         * 1.2.64 there is no handler to hand it to; 40-flow reads the card a real press posts.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a safeword packet comes from a player, and Foundry names only a connected one");
+        const S = await import("./safeword.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, whose card this is to post");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const run = await safewordRun(S, player,
+            () => S.hearSafeword({ action: S.SAFEWORD_ACTION, who: "Somebody Else", room: null }, player.id),
+            ([card]) => ({ author: card?.author?.id ?? null, alias: card?.speaker?.alias ?? null,
+                actor: card?.speaker?.actor ?? null, doc: JSON.stringify(card?._source ?? null) }));
+        const detail = run.popups.join(" | ");
+        equal(stableJson([run.author, run.alias, run.actor, run.doc.includes(player.id), run.doc.includes(player.name),
+            run.doc.includes("Somebody Else"), run.paused, detail.includes(player.name), detail.includes("Somebody Else")]),
+        stableJson([game.user.id, game.i18n.localize("DRPG.Safeword.banner"), null, false, false, false, true, true, false]),
+        "the card is not the GM's under the banner, names the caller, did not stop the game, or the detail took the packet's name");
+    }],
+
+    ["with no GM online the caller's card carries the alias and the class that hides its header", async () => {
+        /*
+         * E06 C9, 28.09.2026. With no GM connected a player's press has nobody to ask, and the
+         * caller posts the card: the one road where the author is the caller. This browser is a
+         * GM, so it cannot be that player; it asks who posts for each kind of press, posts the
+         * card a player would (a GM may write another user's author), and presses itself - a GM
+         * posts its own. Each card is drawn through the log's render hooks onto a bare card
+         * element: the player's is marked for the stylesheet, the GM's is not, and the
+         * stylesheet hides the marked card's header. Whether a real log then hides it is the
+         * cascade's, which needs a browser; the rule's presence is read from the file.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the caller's card is a player's, and the suite borrows a connected one");
+        const S = await import("./safeword.mjs");
+        const { announce } = await import("./utils.mjs");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const routes = [S.safewordPoster(player, []), S.safewordPoster(player, [game.user.id]), S.safewordPoster(game.user, [game.user.id])];
+        const marked = message => {
+            if (!message) return null;
+            const li = document.createElement("li");
+            li.className = "chat-message message";
+            li.innerHTML = `<header class="message-header"></header><div class="message-content"></div>`;
+            Hooks.callAll("renderChatMessageHTML", message, li);
+            return li.classList.contains("drpg-safeword-unsigned");
+        };
+        const run = await safewordRun(S, player, async () => {
+            await announce({ ...S.safewordCard(), author: player.id });
+            await S.callSafeword({});
+        }, cards => {
+            const by = id => cards.find(m => m.author?.id === id);
+            return { n: cards.length, alias: [by(player.id), by(game.user.id)].map(m => m?.speaker?.alias ?? null),
+                marked: [marked(by(player.id)), marked(by(game.user.id))] };
+        });
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text())).replace(/\/\*[\s\S]*?\*\//g, "");
+        const hides = /\.drpg-safeword-unsigned\s+\.message-header\s*\{[^}]*display:\s*none/.test(css);
+        const banner = game.i18n.localize("DRPG.Safeword.banner");
+        equal(stableJson([routes, run.n, run.alias, run.marked, hides]),
+            stableJson([["caller", "gm", "caller"], 2, [banner, banner], [true, false], true]),
+            "the wrong browser posts, a card lacks the banner, the caller's card is not marked (or the GM's is), or no rule hides the mark's header");
+    }],
+
+    ["a second press inside the window posts nothing", async () => {
+        /*
+         * E06 C9, 28.09.2026. A player's packet makes the primary GM post in public, so a
+         * player's presses are posted once per `TIMING.safewordRepeatMs`: two packets from the
+         * same player post one card, a GM's own packet posts none (that GM posted it), and once
+         * the window has gone by - the player's entry aged past it - the next press posts again.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a safeword packet comes from a player, and Foundry names only a connected one");
+        const S = await import("./safeword.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, whose card this is to post");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const packet = { action: S.SAFEWORD_ACTION, room: null };
+        const counts = [];
+        await safewordRun(S, player, async fresh => {
+            await S.hearSafeword(packet, player.id);
+            await S.hearSafeword(packet, player.id);
+            await S.hearSafeword(packet, game.user.id);
+            await until(() => fresh().length > 0);
+            await settle();
+            counts.push(fresh().length);
+            S.safewordPosts.set(player.id, Date.now() - TIMING.safewordRepeatMs - 1);
+            await S.hearSafeword(packet, player.id);
+            await until(() => fresh().length > 1);
+            counts.push(fresh().length);
+        }, () => ({}));
+        equal(stableJson(counts), stableJson([1, 2]),
+            "a repeat inside the window was posted, a GM's own packet was, or a press after the window was not");
     }],
 
     ["the curtain is recut when the tab comes back", async () => {

@@ -6823,6 +6823,14 @@ body.drpg-pixel-font .drpg-safeword-button {
     letter-spacing: 0.08em;
 }
 
+/* The card a player posted because no GM was connected (safeword.mjs, E06 C9): Daggerheart's
+   header prints its author's name and avatar, so it goes. Daggerheart states the header's
+   `display` without `!important` (styles/less/global/chat.less, 2.6.5), so this needs none;
+   the cascade itself is not measured here (no browser). */
+.chat-message.drpg-safeword-unsigned .message-header {
+    display: none;
+}
+
 /* ==========================================================================
    THE PRE-SESSION NOTE
    ========================================================================== */

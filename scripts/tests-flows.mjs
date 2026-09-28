@@ -111,7 +111,7 @@ export const FLOWS = Object.freeze([
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
         scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
-    { id: "safeword", what: "The safeword: one press stops the table on every screen",
+    { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
         entry: { bridge: ["observe.target", "observe.resolve", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant"],

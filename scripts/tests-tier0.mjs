@@ -377,7 +377,7 @@ const REGRESSIONS = [
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
             "sync.mjs": "world-state fan-out from a GM; carries no actor id",
-            "safeword.mjs": "deliberately trusts nothing from the packet - reads the sender's name",
+            "safeword.mjs": "trusts nothing from the packet but the room it shows the GMs as text; the name is the connected sender's, and the primary posts one public card per player per window, naming nobody",
             "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
             "sfx.mjs": "plays a sound; no actor anywhere in it",
             "voice.mjs": "room membership, keyed by the sender",

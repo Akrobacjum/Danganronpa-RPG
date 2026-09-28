@@ -223,6 +223,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     const sw0 = {};
     for (const c of [gm, p1, p2]) sw0[c.who] = await count(c);
     await canary.chatMark({ who: ["p1", "p2"] });
+    /* The title's own text node, not its textContent: the top card's bar also carries the
+       badge counting the parked cards under it (popup.mjs, "+2"), and read whole, a second
+       safeword card on top reads "THE SCENE IS STOPPED+2" and was not counted (28.09, with the
+       GM's card raising it again: 1 counted of 2 on screen). */
+    const stuck = `const banner = game.i18n.localize("DRPG.Safeword.banner");
+        return [...document.querySelectorAll(".drpg-popup-sticky .drpg-popup-title")].filter(t => t.firstChild?.textContent.trim() === banner).length;`;
+    const p3Stuck0 = await p3.eval(stuck);
     const sw = await p3.eval(`const S = await import("${REPO}/scripts/safeword.mjs"); await S.callSafeword({}); await new Promise(r => setTimeout(r, 600)); return true;`, { timeout: 30000 }).catch(e => String(e));
     await settle(800);
     for (const c of [gm, p1, p2]) {
@@ -230,6 +237,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const heard = { ...(await c.eval(`return { paused: game.paused, notifs: globalThis.__notifications.map(n => n.msg) };`)), cards };
         check(`${c.who}: the safeword reached this client`, heard.cards.some(t => /safe ?word|stop/i.test(t)) || heard.notifs.some(t => /safe ?word|stop/i.test(t)) || heard.paused, JSON.stringify(heard));
     }
+    /* WHO POSTED IT (E06 C9; audit S03-02). p3 asked the GMs, and the primary GM posted the card
+       with the banner as its alias: p2's copy is read for its author. p3 raised the card once - at
+       the press, and not again when the GM's card landed. */
+    const swDoc = await p2.eval(`const S = await import("${REPO}/scripts/safeword.mjs");
+        const m = game.messages.contents.slice(${sw0.p2}).filter(x => x.getFlag("${MOD}", S.SAFEWORD_FLAG));
+        return { n: m.length, author: m[0]?._source.author ?? null, alias: m[0]?.speaker?.alias ?? null,
+            actor: m[0]?.speaker?.actor ?? null, banner: game.i18n.localize("DRPG.Safeword.banner") };`);
+    check("p2: the safeword's card was posted by the GM, under the banner, naming nobody",
+        swDoc.n === 1 && swDoc.author === gm.userId && swDoc.alias === swDoc.banner && !swDoc.actor, JSON.stringify({ ...swDoc, gm: gm.userId }));
+    const p3Stuck = await p3.eval(stuck);
+    check("p3: the caller's screen raised the card once", p3Stuck - p3Stuck0 === 1, JSON.stringify({ before: p3Stuck0, after: p3Stuck }));
     /* WHAT P1'S AND P2'S CHAT SAYS OF WHO CALLED IT (E06 C1; lib/canary.mjs `chatScan`): the cards
        they were sent since p3 called the safeword, read for p3, p3's name and Chie. */
     await canary.chatScan({ who: ["p1", "p2"], actorIds: [IDS.chie], names: ["Chie Mori", "PlayerThree"], userIds: [p3.userId] });
