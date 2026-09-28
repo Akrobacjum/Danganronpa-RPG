@@ -5772,7 +5772,9 @@ const REGRESSIONS = [
          * and narrows the one allowance inside a lift's own file: `neutralTraceNames` was allowed
          * anywhere in remnants.mjs (reviews S2-m11 = F8), so a ready hook there calling it passed;
          * now only inside `migrateRemnantsOnce`'s body, shown a planted hook beside it first.
-         * E06 C12 adds the rewrite of the chat log written before 1.2.65, since 1.2.65.
+         * E06 C12 adds the rewrite of the chat log written before 1.2.65, since 1.2.65, and E06's
+         * fix r2-G1 two clauses for what C10 changed on data 1.2.64 wrote: the buyers of armed
+         * Calls, and a secret project's public repair.
          */
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"],
             // E04's three, given 1.2.64 by E05's fix rounds (r1-G1; the Faint's pass r2-F0b): a world 1.2.63
@@ -5790,7 +5792,9 @@ const REGRESSIONS = [
             // E05 fix r2-G4: the marks of the incidents closed before 1.2.64 off their traces.
             ["retireOldIncidentMarks", "retireOldIncidentMarks", "1.2.64"],
             // E06 C12: the chat log written before 1.2.65 rewritten as it is written today; lifts nothing.
-            ["neutraliseOldCards", "neutraliseOldCards", "1.2.65"]];
+            ["neutraliseOldCards", "neutraliseOldCards", "1.2.65"],
+            // E06 fix r2-G1: an armed Call's buyer off its actor, and a secret project's repair sealed and renamed.
+            ["unsignArmedCalls", "unsignArmedCalls", "1.2.65"], ["sealOldRepairs", "sealOldRepairs", "1.2.65"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.

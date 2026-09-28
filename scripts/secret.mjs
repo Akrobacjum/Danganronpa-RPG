@@ -228,12 +228,42 @@ function splitFlags(flags, veiled) {
  * 1.2.65 has no meta in anybody's store, and without the flag its buttons would come back.
  * The rest goes with nothing kept: the words of a card that old are in its readers' stores
  * already and cannot be given meta from here. Pure; `[]` for a card that is not private.
+ *
+ * AND `callCard` ON A RULING NOBODY HAS SETTLED (E06 fix r2-G1, 28.09.2026; review round 2's
+ * mn3 = m3). A card with no thread to live in - a trap's alert, a Direct Murder declared in
+ * the dark (gm-bridge.mjs `callGm`) - is wired in a GM's chat log only while `cardFlag` finds
+ * `callCard`, and no store holds meta for a card that old: a ruling still waiting at the
+ * upgrade showed its buttons dead on every GM. The flag says that the GMs were asked, which
+ * the card's list of GMs says already. `veil`: the card is being veiled as well (`veilOldCard`),
+ * and gives up everything its meta would carry.
  */
-export function flagsOffOldCard(message) {
+export function flagsOffOldCard(message, { veil = false } = {}) {
     const own = message?.flags?.[MODULE_ID];
     if (!own?.[SECRET_FLAG]) return [];
-    const veiled = own[VEILED_FLAG] === true;
-    return Object.keys(splitFlags(message.flags, veiled).meta ?? {}).filter(key => veiled || key !== "settled");
+    const veiled = veil || own[VEILED_FLAG] === true;
+    const kept = veiled ? [] : ["settled", ...(own.settled ? [] : ["callCard"])];
+    return Object.keys(splitFlags(message.flags, veiled).meta ?? {}).filter(key => !kept.includes(key));
+}
+
+/**
+ * An old private card rewritten as a veiled one (E06 fix r2-G1, 28.09.2026; review round 2's
+ * MJ1): `{ changes, meta }` - what its document is given, as `postSecret` writes a veiled card
+ * (the whole table as its list, the neutral speaker, the flag), and what its words would carry
+ * if it were posted today, placement included. The flags `meta` names come off with
+ * `flagsOffOldCard(message, { veil: true })`. Null for a card that is not private or is veiled
+ * already. Pure but for the table and the speaker's word.
+ */
+export function veilOldCard(message) {
+    const own = message?.flags?.[MODULE_ID];
+    if (!own?.[SECRET_FLAG] || own[VEILED_FLAG]) return null;
+    return {
+        changes: {
+            whisper: everyone(),
+            speaker: { alias: game.i18n.localize("DRPG.Secret.speaker"), actor: null, token: null, scene: null },
+            [`flags.${MODULE_ID}.${VEILED_FLAG}`]: true
+        },
+        meta: splitFlags(message.flags, true).meta
+    };
 }
 
 /** How much a player's packet weighs: its words and its meta, against `MAX_PLAYER_BYTES`. */

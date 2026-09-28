@@ -1287,6 +1287,47 @@ export async function liftProjectSecrets() {
     return { lifted, kept, emptied: true };
 }
 
+/**
+ * A SECRET PROJECT'S REPAIR AS 1.2.65 MAKES IT (E06 fix r2-G1, 28.09.2026; review round 2's
+ * mn5 = m4) - the `sealOldRepairs` clause. Since E06 C10 `sabotageProject` seals a secret
+ * project's repair to its insiders and names it "Repair" alone; a repair 1.2.64 made of one
+ * is public, named "Repair: <the secret project>" in the countdowns every browser holds and
+ * on every player's tray. Once, on the primary, after the project secrets' store has the
+ * other GMs' copies - the builder, an insider, is read there (`builderIds`): each repair of
+ * a project secret now that is public or named otherwise is sealed to its target's insiders
+ * and renamed, as `sabotageProject` makes one; a repair of a project revealed since is left,
+ * as it would be made today. Read back; one still public or named throws with the count, so
+ * the world is not stamped and the next load tries again. What a browser drew or kept of the
+ * old name before the rewrite is not reachable from here.
+ *
+ * @returns {Promise<null|{sealed: number}>}
+ */
+export async function sealOldRepairs() {
+    if (!isPrimaryGm()) return null;
+    if (await projectSecretStore.whenHydrated() === "timedOut") {
+        throw new Error("the other GMs' copies of the project secrets did not arrive; the next load tries again");
+    }
+    const name = game.i18n.localize("DRPG.Project.repairNameSecret");
+    const open = () => allProjects().filter(project => {
+        const targetId = repairs(project.id);
+        return Boolean(targetId) && isSecret(targetId) && (!isSecret(project.id) || project.name !== name);
+    });
+    const found = open();
+    if (!found.length) return null;
+    for (const repair of found) {
+        try {
+            if (!isSecret(repair.id)) await makeSecret(repair.id, insidersOf(repairs(repair.id)));
+            if (repair.name !== name) await updateProject(repair.id, { name });
+        } catch (err) {
+            error(`Could not seal the repair "${repair.name}"`, err);
+        }
+    }
+    const left = open().length;
+    if (left) throw new Error(`${left} of ${found.length} repair(s) of a secret project are still public or named; the next load tries again`);
+    log(`Sealed ${found.length} repair(s) of a secret project made before 1.2.65.`);
+    return { sealed: found.length };
+}
+
 /** Human-readable scale label for a progress target. */
 export function scaleFor(target) {
     const entry = Object.values(PROJECT_SCALE).find(s => s.progress === target);

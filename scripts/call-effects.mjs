@@ -250,6 +250,54 @@ function unsigned(entry) {
 }
 
 /**
+ * THE ARMED CALLS 1.2.64 WROTE, WITHOUT THEIR BUYER (E06 fix r2-G1, 28.09.2026; review round
+ * 2's mn5 = m4) - the `unsignArmedCalls` clause. `unsigned` above applies as a list is next
+ * written, so a Call armed before the upgrade kept its `from` until it was spent: a Monocub's
+ * id on its Confusion's target, a Support's buyer - and R9 at the table, which reads the live
+ * world against world-secrets.mjs's rule `pendingCall.*.from`, failed until then. Once, on
+ * the primary: each list that holds one written back without it, as a list (the shape
+ * `appendArmedCall` writes, which `pendingCalls` reads beside a bare object from before
+ * CALL-02). An array replaces the stored value whole, where an object would be merged into
+ * it and keep the key. Every actor, and every unlinked token's own actor data, whose flags
+ * live in its delta (`dropRollBookmarks`, action-rolls.mjs, and its note on what a real
+ * Foundry does on that path). Read back; one still signed throws with the count, so the
+ * world is not stamped and the next load tries again.
+ *
+ * @returns {Promise<null|{unsigned: number}>}
+ */
+export async function unsignArmedCalls() {
+    if (!isPrimaryGm()) return null;
+    const listOf = flags => flags?.[MODULE_ID]?.[FLAGS.pendingCall] ?? null;
+    const signed = flags => {
+        const stored = listOf(flags);
+        return Boolean(stored) && (Array.isArray(stored) ? stored : [stored])
+            .some(entry => entry && typeof entry === "object" && Object.hasOwn(entry, "from"));
+    };
+    const holding = () => [
+        ...(game.actors?.contents ?? []).filter(actor => signed(actor.flags)),
+        ...(game.scenes?.contents ?? []).flatMap(scene => scene.tokens?.contents ?? [])
+            .filter(token => signed(token.toObject()?.delta?.flags))
+    ];
+    const found = holding();
+    if (!found.length) return null;
+    for (const doc of found) {
+        const onToken = doc.documentName === "Token";
+        const stored = listOf(onToken ? doc.toObject().delta.flags : doc.flags);
+        const list = (Array.isArray(stored) ? stored : [stored])
+            .map(entry => entry && typeof entry === "object" ? unsigned(entry) : entry);
+        try {
+            await doc.update({ [`${onToken ? "delta." : ""}flags.${MODULE_ID}.${FLAGS.pendingCall}`]: list });
+        } catch (err) {
+            error(`Could not unsign the armed Calls of ${doc.name}`, err);
+        }
+    }
+    const left = holding().length;
+    if (left) throw new Error(`${left} of ${found.length} actor(s) or token(s) still name who bought an armed Call; the next load tries again`);
+    log(`Took the buyer off the armed Calls of ${found.length} actor(s) or token(s).`);
+    return { unsigned: found.length };
+}
+
+/**
  * Add one ready payload to the armed list. GM-side, and the one writer: the
  * bridge arms Support and Approval on somebody else's sheet through here, so
  * stacking (CALL-02) holds on that road too.

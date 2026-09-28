@@ -822,6 +822,32 @@ function whisperRoll(message, data, userId, claimed) {
     debug(`Rewrote a roll for ${subject?.name ?? author.name} into a private whisper.`);
 }
 
+/**
+ * Who an old roll the module did not throw may keep on its list at the rewrite of 1.2.65's
+ * first load (E06 fix r2-G1, 28.09.2026; review round 2's MJ1; migrate.mjs
+ * `neutraliseOldCards`): `whisperRoll`'s rule above, as far as a document can say it - the
+ * GMs, the subject's own player (not a Monokuma's) and a player who threw it. Until 1.2.65 an
+ * incident's participants were added to every roll one of them made, a statistic the GM asked
+ * for on a sheet included (d666a2a private-rolls.mjs `incidentAudience`), and such a list
+ * named the cast to every console for as long as the log kept it. What a player's own roll
+ * mode aimed it at is the GMs or that player, both kept. Null for a Monocub's roll, which is
+ * not judged: its room is on its list (the owner's Q3 (b)), and the room it rolled in then is
+ * not known now. A roll a GM or a macro whispered to some other player by hand - no roll mode
+ * does - loses that reader as well: the document cannot tell the two lists apart.
+ */
+export function oldRollReaders(message) {
+    const author = message?.author ?? message?.user ?? null;
+    const subject = subjectActor(message, author);
+    if (subject?.getFlag(MODULE_ID, FLAGS.monocub)) return null;
+    const readers = new Set(gmIds());
+    if (!subject?.getFlag(MODULE_ID, FLAGS.monokuma)) {
+        const owner = ownerOf(subject);
+        if (owner) readers.add(owner.id);
+    }
+    if (author?.id && !author.isGM) readers.add(author.id);
+    return readers;
+}
+
 /* ==========================================================================
  * WHO A ROLL IS ABOUT, KEPT ON THE GM (E06 C5a, 27.09.2026)
  * --------------------------------------------------------------------------

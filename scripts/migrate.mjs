@@ -42,7 +42,7 @@
  * session is one people learn to click past.
  */
 
-import { MODULE_ID, moduleVersion } from "./config.mjs";
+import { MODULE_ID, TIME_OF_DAY_LABELS, moduleVersion } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, error, isPrimaryGm, plural, whisperToGms, gmIds, forcedDeletion, MESSAGE_FLAG } from "./utils.mjs";
 
@@ -876,6 +876,38 @@ const CLAUSES = [
          * card that did not read back throws with the count, so the next load tries again.
          */
         run: async () => neutraliseOldCards()
+    },
+    {
+        key: "unsignArmedCalls",
+        since: "1.2.65",
+        /*
+         * WHO BOUGHT AN ARMED CALL, OFF THE ACTORS 1.2.64 WROTE IT ON (E06 fix r2-G1, 28.09.2026;
+         * review round 2's mn5 = m4). Since E06 C10 an armed Call is stored without `from` - a
+         * Monocub's Confusion named the Monocub on its target, a Support its buyer, on a flag
+         * every browser holds - but only as its list is next written, so a Call armed before the
+         * upgrade kept it until spent, and R9 read the world as leaking. Once, on the primary,
+         * with the rules written on `unsignArmedCalls` (call-effects.mjs).
+         */
+        run: async () => {
+            const { unsignArmedCalls } = await import("./call-effects.mjs");
+            return unsignArmedCalls();
+        }
+    },
+    {
+        key: "sealOldRepairs",
+        since: "1.2.65",
+        /*
+         * A SECRET PROJECT'S REPAIR THAT 1.2.64 MADE PUBLIC (E06 fix r2-G1, 28.09.2026; review
+         * round 2's mn5 = m4). Since E06 C10 a secret project's repair is sealed to whoever can see
+         * what it repairs and named "Repair" alone; one made before the upgrade stayed public,
+         * named "Repair: <the secret project>" on every player's tray. Once, on the primary, after
+         * the project secrets' store has the other GMs' copies (the builder is read there), with
+         * the rules written on `sealOldRepairs` (projects.mjs).
+         */
+        run: async () => {
+            const { sealOldRepairs } = await import("./projects.mjs");
+            return sealOldRepairs();
+        }
     }
 ];
 
@@ -893,23 +925,103 @@ const CLAUSES = [
 const OLD_REPORT = /^<h3>[^<]*<\/h3><pre style="white-space: ?pre-wrap; ?font-size: ?0?\.85em;?">/;
 
 /*
+ * THE OLD CARDS TODAY'S CODE POSTS VEILED (E06 fix r2-G1, 28.09.2026; review round 2's MJ1).
+ * Since E06 a card whose mere existence tells something is posted veiled: the trap's receipt
+ * and a reshape card in their player's thread (C8), Confusion's two cards and the notice of a
+ * Call nobody signs (C10), the time of day told during an incident (C4), and a participant's
+ * Loaded Die notice, worn or broken tool and Hope Call receipt (fix r1-G3). 1.2.64 wrote each
+ * as an ordinary private card whose list and speaker named its people, and C12's first rule
+ * left those alone - measured by the review on a bystander's browser: a 1.2.64 receipt, after
+ * C12's rewrite, still named the builder's player as its thread and on its list.
+ *
+ * An old one is known by what 1.2.64 left on its document - the three sounds below, which no
+ * other card plays - or else by its words, as this browser holds them: a thread card with a
+ * button or a heading of the three rulings, a card saying one of the two sentences, a card
+ * headed by a time of day whose list names a player (while no incident ran, that card was
+ * public). Those are read in the language this browser shows, as `settleCall` reads the
+ * sentence of a card from before its marker class, so one of them whose words this browser does
+ * not hold - posted while it was away, or aged out of its store (the newest 500, a thread's
+ * 2000) - or holds in another language is not recognised, and keeps its list and speaker.
+ *
+ * The three a participant posts are veiled today only while the cast names its character
+ * (settings.mjs `incidentVeil`); an old one does not say whether a fight was on, and every one
+ * is veiled - its reader still holds its words, and it speaks as nobody.
+ */
+const VEILED_SOUNDS = Object.freeze(["meddle", "toolBroke", "hopeCall"]);
+const VEILED_ACTIONS = Object.freeze(["plantTrapItem", "fireTrap", "approveReshape", "declineReshape"]);
+const VEILED_HEADINGS = Object.freeze(["DRPG.Trap.armedTitle", "DRPG.Project.trapReadyTitle", "DRPG.Cleanup.reshapeRulingTitle"]);
+const VEILED_SENTENCES = Object.freeze(["DRPG.Calls.freeCritUsed", "DRPG.Calls.armedByNobody"]);
+
+/** Whether `text` says the sentence `key` names, whatever filled its placeholders. */
+function says(text, key) {
+    const parts = game.i18n.localize(key).split(/\{\w+\}/);
+    if (!parts.join("").trim()) return false;
+    let at = 0;
+    for (const part of parts) {
+        const found = text.indexOf(part, at);
+        if (found < 0) return false;
+        at = found + part.length;
+    }
+    return true;
+}
+
+/** Whether today's code posts this old private card veiled (the note above). `words`: this browser's, or null. */
+function veiledToday(src, words) {
+    const own = src.flags?.[MODULE_ID] ?? {};
+    const sound = own.sfx && typeof own.sfx === "object" ? own.sfx.key : own.sfx;
+    if (VEILED_SOUNDS.includes(sound)) return true;
+    if (!words) return false;
+    // Inert, as `settleCall` parses: an image in the words loads nothing here.
+    const wrap = document.createElement("template");
+    wrap.innerHTML = words;
+    const heading = wrap.content.querySelector("h3")?.textContent.trim() ?? "";
+    if (own.thread && ([...wrap.content.querySelectorAll("[data-drpg-call]")].some(b => VEILED_ACTIONS.includes(b.dataset.drpgCall))
+        || VEILED_HEADINGS.some(key => heading === game.i18n.localize(key)))) return true;
+    if (VEILED_SENTENCES.some(key => says(wrap.content.textContent ?? "", key))) return true;
+    return Object.values(TIME_OF_DAY_LABELS).includes(heading)
+        && (src.whisper ?? []).some(id => { const user = game.users.get(id); return Boolean(user) && !user.isGM; });
+}
+
+/*
  * THE OLD CARDS, REWRITTEN AS THEY WOULD BE WRITTEN TODAY (E06 C12, 28.09.2026; the plan's
- * section 3) - the `neutraliseOldCards` clause. Three kinds of message, told apart by what
+ * section 3) - the `neutraliseOldCards` clause. Four kinds of message, told apart by what
  * they carry:
  *
  * - a roll the module threw (`supersededRoll`): the changes of C5b's `neutralRollSource`
- *   (private-rolls.mjs) that its document still lacks, and, while rolls are forced private
- *   (the default), a whisper to the GMs alone where it names anybody else or nobody - the
- *   list `whisperRoll` gives such a roll today. A table that shows its rolls keeps an old
- *   roll's list as C5b keeps a new one's: the plan's words are "the GMs alone", and read
- *   against the document C5b writes they are the forced-private case, which is also the one
- *   whose old lists named an incident's participants;
+ *   (private-rolls.mjs) that its document still lacks, and a whisper to the GMs alone where
+ *   its list names anybody but a GM - the list `whisperRoll` gives such a roll while rolls are
+ *   forced private. DECIDED BY THE LIST, NOT BY TODAY'S SETTING (E06 fix r2-G1; review round 2's
+ *   mn4 = m2): 1.2.64 wrote an incident's audience onto a roll's list only while the setting
+ *   was on, so a table that turned it off before upgrading kept every such list under C12's
+ *   first rule, which asked the setting as it is now. A list names a player only if the roll
+ *   was private when it was thrown, and the GMs alone keep it private - its roller reads their
+ *   own, and the module's card of the roll is what anybody is shown (the document itself is
+ *   never drawn, `enforceContentVisibility`). An empty list was a roll the table saw, and
+ *   stays one: a list of nobody names nobody;
+ * - a roll the module did not throw, whose list names somebody `whisperRoll` would not name
+ *   today (`oldRollReaders`, private-rolls.mjs): that somebody taken off (fix r2-G1; MJ1).
+ *   1.2.64 added an incident's audience to such a roll too - a statistic the GM asked for on
+ *   a sheet, in the fight. Its speaker stays, as a new one's does;
  * - a private card (`secret`): the module flags `flagsOffOldCard` (secret.mjs) names -
  *   what C7a's split sends with the words today - deleted; `thread`, `kind`, `gmAsk` and
- *   `settled` stay, the messenger's old threads live on them;
+ *   `settled` stay, the messenger's old threads live on them, and `callCard` on a ruling
+ *   nobody has settled (fix r2-G1; mn3 = m3). A card today's code posts VEILED (the note
+ *   above `VEILED_SOUNDS`) is veiled (`veilOldCard`): the whole table on its list, the
+ *   neutral speaker, and all of its flags off its document. A veiled THREAD card's place
+ *   goes into the words - into this browser's own store, and to each reader connected now,
+ *   before the document gives it up (`updateSecret` pins the words by the thread the document
+ *   still names). A reader who is not connected keeps the card's words in their chat log but
+ *   not its place in the thread: nothing here can reach their browser later;
  * - an old report (`OLD_REPORT`): its content replaced by the stub, and the flags a
  *   report asked for today carries. Its words are not kept: they were in the document and
  *   nowhere else, and a report is asked for again at a console.
+ *
+ * WHAT IS NOT REWRITTEN, said here and in the GM handbook's "What the chat still says":
+ * a card whose words are in its document - a whisper from before the module kept its private
+ * words off the document, any whisper the module did not post, 1.2.64's public end of a
+ * secret project's repair - because taking them off would take them from every reader not
+ * connected now; an old card of a veiled kind known by its words only, when this browser does
+ * not hold them; a Monocub's roll; and every card's author (the owner's Q2 (a), until E28).
  *
  * `ChatMessage.updateDocuments` a hundred at a time; a batch that fails is said in the
  * console and left to the read-back. Then every message it changed is read again, after
@@ -927,10 +1039,11 @@ export async function neutraliseOldCards({ messages = null } = {}) {
     if (!isPrimaryGm() || !game.messages) return null;
     const gms = gmIds();
     if (!gms.length) return null;
-    const { neutralRollSource } = await import("./private-rolls.mjs");
-    const { flagsOffOldCard, STUB, isStub, SECRET_FLAG } = await import("./secret.mjs");
+    const { neutralRollSource, oldRollReaders } = await import("./private-rolls.mjs");
+    const { flagsOffOldCard, veilOldCard, secretHtml, updateSecret, STUB, isStub, SECRET_FLAG, VEILED_FLAG } = await import("./secret.mjs");
     const deletion = forcedDeletion();
-    const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls) === true;
+    // Anybody but a GM - a user deleted since included, whose id names nobody the GMs are.
+    const notGm = id => !game.users.get(id)?.isGM;
     // Absent, null and "" are one empty value, and a roll held as JSON text is read as its object.
     const plain = value => {
         if (value === undefined || value === null || value === "") return null;
@@ -944,28 +1057,40 @@ export async function neutraliseOldCards({ messages = null } = {}) {
     const same = (a, b) => JSON.stringify(plain(a)) === JSON.stringify(plain(b));
     const kindOf = src => {
         const own = src.flags?.[MODULE_ID] ?? {};
-        if (own.supersededRoll) return "rolls";
+        if (own.supersededRoll || (src.rolls?.length && !own[SECRET_FLAG])) return "rolls";
         if (own[SECRET_FLAG]) return "cards";
         return OLD_REPORT.test(String(src.content ?? "")) && !isStub(src.content) ? "reports" : null;
     };
     // What `message` still owes, as one update, or null.
     const owed = message => {
         const src = message.toObject();
+        const own = src.flags?.[MODULE_ID] ?? {};
         const kind = kindOf(src);
+        const whisper = Array.from(src.whisper ?? []);
         const out = {};
-        if (kind === "rolls") {
+        let placed = null;
+        if (kind === "rolls" && own.supersededRoll) {
             for (const [path, value] of Object.entries(neutralRollSource(src))) {
                 if (!same(foundry.utils.getProperty(src, path), value)) out[path] = value;
             }
-            const whisper = Array.from(src.whisper ?? []);
-            if (forced && (!whisper.length || whisper.some(id => !game.users.get(id)?.isGM))) {
+            if (whisper.some(notGm)) {
                 Object.assign(out, { whisper: gms, blind: false, "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE });
             }
+        } else if (kind === "rolls" && whisper.length) {
+            const readers = oldRollReaders(message);
+            const kept = readers ? whisper.filter(id => readers.has(id)) : whisper;
+            if (kept.length < whisper.length) out.whisper = kept.length ? kept : gms;
         }
         // Every private card, a roll among them if one ever carried both flags.
         const unset = [];
-        if (src.flags?.[MODULE_ID]?.[SECRET_FLAG]) {
-            for (const key of flagsOffOldCard(src)) {
+        if (own[SECRET_FLAG]) {
+            const words = secretHtml(message);
+            const veil = !own[VEILED_FLAG] && veiledToday(src, words) ? veilOldCard(src) : null;
+            if (veil) {
+                Object.assign(out, veil.changes);
+                if (veil.meta?.thread && words) placed = { words, readers: whisper, meta: veil.meta };
+            }
+            for (const key of flagsOffOldCard(src, { veil: Boolean(veil) })) {
                 if (deletion) out[`flags.${MODULE_ID}.${key}`] = deletion;
                 else unset.push(key);
             }
@@ -973,7 +1098,9 @@ export async function neutraliseOldCards({ messages = null } = {}) {
         if (kind === "reports") {
             Object.assign(out, { content: STUB, [`flags.${MODULE_ID}.${SECRET_FLAG}`]: true, [`flags.${MODULE_ID}.${MESSAGE_FLAG}`]: true });
         }
-        return Object.keys(out).length || unset.length ? { kind, update: { _id: message.id, ...out }, unset } : null;
+        return Object.keys(out).length || unset.length
+            ? { kind, update: { _id: message.id, ...out }, unset, placed, veiled: Boolean(out.whisper && own[SECRET_FLAG]) }
+            : null;
     };
 
     const found = [];
@@ -982,6 +1109,14 @@ export async function neutraliseOldCards({ messages = null } = {}) {
         if (due) found.push({ id: message.id, ...due });
     }
     if (!found.length) return null;
+    for (const entry of found) {
+        if (!entry.placed) continue;
+        try {
+            await updateSecret(game.messages.get(entry.id), entry.placed.words, entry.placed.readers, entry.placed.meta);
+        } catch (err) {
+            error("Could not keep an old thread card's place with its words", err);
+        }
+    }
     for (let i = 0; i < found.length; i += 100) {
         try {
             await ChatMessage.updateDocuments(found.slice(i, i + 100).map(entry => entry.update));
@@ -1006,7 +1141,7 @@ export async function neutraliseOldCards({ messages = null } = {}) {
     if (left) throw new Error(`${left} of ${found.length} old chat card(s) kept what they said in world data; the next load tries again`);
     const report = { rolls: 0, cards: 0, reports: 0 };
     for (const entry of found) report[entry.kind]++;
-    log(`Rewrote ${found.length} old chat card(s) as they are written today.`, report);
+    log(`Rewrote ${found.length} old chat card(s) as they are written today, ${found.filter(entry => entry.veiled).length} of them veiled.`, report);
     return report;
 }
 
