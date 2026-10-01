@@ -395,13 +395,17 @@ export const CAST_SEATS = Object.freeze(["killerId", "victimId", "thirdId", "bet
  * another it wrote since. "Not in it" (`{}`) is a statement about the seats alone, so
  * it carries their stamps and is weighed on them: a bystander asking learns when the
  * seats last changed and nothing of the rest, and a former participant's copy is
- * emptied by a newer seat whatever the other parts say. Pure (R176).
+ * emptied by a newer seat whatever the other parts say. So is a copy that holds the
+ * betrayal offer and nothing else (E32+E07 fix r1-G1, 29.09.2026; the review's M1): its
+ * third stands outside the incident running now, and is sent the seats' stamps alone
+ * (murder.mjs `castPacket`) - weighed on all of them, a copy holding the fight they
+ * fought refused it at 0 in every other part. Pure (R176, R210).
  */
 export function castCombine(held, offered, { cut = 0 } = {}) {
     const seats = stamps => Object.fromEntries(CAST_SEATS.map(part => [part, stamps?.[part] ?? 0]));
-    if (!Object.keys(offered?.value ?? {}).length) {
+    if (Object.keys(offered?.value ?? {}).every(part => part === "betrayal")) {
         const stamps = seats(offered?.stamps);
-        return newerStamps(stamps, seats(held?.stamps), cut) ? { value: {}, stamps } : null;
+        return newerStamps(stamps, seats(held?.stamps), cut) ? { value: { ...(offered?.value ?? {}) }, stamps } : null;
     }
     return newerStamps(offered?.stamps, held?.stamps, cut) ? offered : null;
 }

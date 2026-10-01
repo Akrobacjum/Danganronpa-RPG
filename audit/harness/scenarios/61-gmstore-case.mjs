@@ -633,10 +633,12 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     // Field by field, in one order on both sides: the record answers in INCIDENT_FIGHT's.
     const sortL = pairs => J([...(pairs ?? [])].sort(([a], [b]) => a.localeCompare(b)));
     const heldL = sortL(Object.entries(FIGHT_L));
+    // The Key Remnants' count stays the GMs': no player's copy holds it (murder.mjs `castFor`, E32+E07 fix r1-G1).
+    const copyL = sortL(Object.entries({ ...FIGHT_L, keyRemnants: null }));
     const liftedL = { gm: await fightL(gm), p3: await fightL(p3), p1: await fightL(p1) };
     check("L1: the clause lifts a running incident's fight out of the world half on the primary: its record and the killer's player's copy hold it, and every browser's world half holds the stage alone",
         J(l1.stamped) === "[]" && l1.before === 14 && J(l1.failed) === "[]" && J(l1.done) === J({ lifted: 10, dropped: 2, kept: 0 })
-        && sortL(liftedL.gm.record) === heldL && sortL(liftedL.p3.copy) === heldL && liftedL.p3.turn === 2 && liftedL.p1.turn === null
+        && sortL(liftedL.gm.record) === heldL && sortL(liftedL.p3.copy) === copyL && liftedL.p3.turn === 2 && liftedL.p1.turn === null
         && Object.values(liftedL).every(r => J(r.world) === J(["active", "stage"])), J({ l1, liftedL }));
 
     await connect("gm2");
@@ -714,7 +716,11 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === castAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
         && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(stampsF)
-        && J(answeredF.p1) === J([{ from: IDS.gm, cast: {}, stamps: seatsF }]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
+        && J(answeredF.p1.map(a => [a.from, a.cast])) === J([[IDS.gm, {}]]) && J(Object.keys(answeredF.p1[0].stamps ?? {}).sort()) === J(Object.keys(seatsF).sort())
+        && Object.keys(seatsF).every(k => answeredF.p1[0].stamps[k] <= seatsF[k]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
+    /* The bystander's "not in it" is the one this GM last sent them, repeated (murder.mjs `castSent`, E32+E07 fix
+       r1-G1, 29.09.2026): the seats' stamps it carries are no newer than the record's and need not be the record's -
+       an answer that moved with them timed a Role reversal or a third's arrival for a browser outside the incident. */
 
     /* F7 (E05 C8; audit S04-08): the incident's method is the cast's now, and syncs with it -
        gm2, which connected after the open, holds what the primary wrote; the killer's player's

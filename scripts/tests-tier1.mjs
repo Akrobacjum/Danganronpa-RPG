@@ -5414,6 +5414,31 @@ const INVARIANTS = [
             S.youOrThem([], { you: "a", them: "b" }), S.youOrThem(['R209" onclick="x'], { you: "a", them: "b" })]),
             JSON.stringify([true, true, "b", "b"]),
             "a card with no lines is not sent as written, or a line with nobody (or no id) to say \"you\" to is not the other line alone");
+    }],
+
+    ["R210 - a copy that holds the betrayal offer alone is weighed on the seats, as \"not in it\" is", async () => {
+        /*
+         * E32+E07 fix r1-G1, 29.09.2026; the security review's M1. The offer outlives its
+         * incident (D18), and while another runs its third is sent the offer alone with the
+         * seats' stamps (murder.mjs `castPacket`): the rest of the record's stamps time that
+         * other fight. Weighed on every part, the copy they held of the fight they fought
+         * refused it - 0 against its turn's stamp. Pure (`castCombine`), on fixture stamps.
+         */
+        const { castCombine } = await import("./gm-stores.mjs");
+        const offer = { thirdId: "T", killerId: "K" };
+        const seats = at => ({ killerId: at, victimId: at, thirdId: at, betrayal: 150 });
+        const fought = { value: { killerId: "K", victimId: "V", thirdId: "T", betrayal: offer, turn: 3 },
+            stamps: { ...seats(100), killerTurnId: 100, turn: 300, keyRemnants: 300, lastCrisis: 300 } };
+        const closed = { value: { betrayal: offer }, stamps: seats(400) };
+        equal(JSON.stringify(castCombine(fought, closed)), JSON.stringify(closed),
+            "the offer alone, sent at the close's seats, did not replace the fight's copy, or kept parts beside the seats");
+        equal(castCombine(closed, { value: { betrayal: offer }, stamps: seats(400) }), null, "the offer alone at the seats' own stamps was taken again");
+        equal(castCombine(closed, { value: { betrayal: offer }, stamps: { ...seats(500), thirdId: 300 } }), null,
+            "the offer alone, older in one seat, was taken");
+        equal(castCombine(fought, { value: { betrayal: offer }, stamps: { ...seats(400), turn: 900 } })?.stamps?.turn, undefined,
+            "the offer alone kept a stamp of the fight");
+        const seatedAgain = { value: { killerId: "K2", victimId: "T", betrayal: offer, turn: 1 }, stamps: { ...seats(600), turn: 600, keyRemnants: 600 } };
+        equal(castCombine(closed, seatedAgain), seatedAgain, "the offer's third, seated in the next incident, did not take its cast");
     }]
 ];
 

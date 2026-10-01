@@ -51,13 +51,18 @@ import { ok, must, needs, world, wait, until, expectedRed } from "./tests-kit.mj
 const PUBLIC_FIELDS = Object.freeze(["active", "stage"]);
 
 /**
- * The fight, which every seated copy carries (E32 C2; gm-stores.mjs `INCIDENT_FIGHT`), as
- * the grid's own list: the round and the side to act are what both sides' panels read.
+ * The fight, which the copy of every seat that fought it carries (E32 C2; gm-stores.mjs
+ * `INCIDENT_FIGHT`), as the grid's own list: the round and the side to act are what both
+ * sides' panels read. The Key Remnants' count is in it and in no player's copy - what the
+ * opening bought is the GMs' (fix r1-G1).
  */
 const FIGHT_FIELDS = Object.freeze([
     "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",
     "unlocked", "spent", "drainStopped", "advantageNext", "freeResolution", "thirdActed"
 ]);
+
+/** The parts that say who is in it (gm-stores.mjs `CAST_SEATS`), as the grid's own list: all a packet with no seat in it is stamped with. */
+const SEAT_PARTS = Object.freeze(["killerId", "victimId", "thirdId", "betrayal"]);
 
 const none = v => v === undefined || v === null;
 const emptyList = v => none(v) || (Array.isArray(v) && !v.length);
@@ -748,13 +753,18 @@ async function assertIncidentInvariants(run) {
     const offerUser = run.offer ? ownerOf(game.actors.get(run.offer.thirdId))?.id ?? null : null;
     for (const user of game.users.filter(u => !u.isGM)) {
         const copy = M.castFor(user.id, cast);
+        const packet = M.castPacket(user.id, cast);
         const held = Object.keys(copy).filter(k => !none(copy[k]));
         const offerHeld = copy.betrayal ? `${copy.betrayal.thirdId}>${copy.betrayal.killerId}` : null;
         const offerDue = user.id === offerUser ? `${run.offer.thirdId}>${run.offer.killerId}` : null;
         if (offerHeld !== offerDue) run.violate("I2", `${user.name} is sent the offer ${label(offerHeld)}, the model's ${label(offerDue)}`);
+        if (JSON.stringify(packet.cast) !== JSON.stringify(copy)) run.violate("I2", `${user.name}'s packet holds another copy than castFor's`);
         if (!seated.has(user.id)) {
+            // The offer's third too: the offer and the seats' stamps, nothing that times the fight (fix r1-G1, the review's M1).
             const more = held.filter(k => k !== "betrayal");
             if (more.length) run.violate("I2", `${user.name} holds no seat and is sent ${more.join(", ")}`);
+            const timed = Object.keys(packet.stamps ?? {}).filter(k => !SEAT_PARTS.includes(k));
+            if (timed.length) run.violate("I2", `${user.name} holds no seat and is sent the stamps of ${timed.join(", ")}`);
             continue;
         }
         const killerSide = killersOf(m).some(id => ownerOf(game.actors.get(id))?.id === user.id);
@@ -762,12 +772,23 @@ async function assertIncidentInvariants(run) {
         if ((copy.killerId ?? null) !== killer) run.violate("I2", `${user.name}'s copy names the killer ${nameOf(copy.killerId)}, the model's ${nameOf(killer)}`);
         if ((copy.victimId ?? null) !== m.victimId) run.violate("I2", `${user.name}'s copy names the victim ${nameOf(copy.victimId)}, the model's ${nameOf(m.victimId)}`);
         if (!none(copy.lastCrisis) || "swung" in copy) run.violate("I2", `${user.name}'s copy holds the Reroll receipt or the swing memo`);
-        // The fight as the GMs hold it: a seat reads its turn off its own copy (E32 C2).
-        const unlike = FIGHT_FIELDS.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(state?.[f] ?? null));
+        /* The fight as the GMs hold it: a seat reads its turn off its own copy (E32 C2) - but the Key
+           Remnants' count, the GMs' alone, and for a trap's killers, seated from Stage 6 on, all of it:
+           their rolls' results, which E06 keeps from the builder (fix r1-G1; the review's m1, M2). What
+           a copy holds null its stamp does not tell either: it reads as the newest of the stamps of what
+           the copy shows, so it moves when they do and never alone. */
+        const withheld = m.kind === "trap" && killerSide ? FIGHT_FIELDS : ["keyRemnants"];
+        const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
+        const unlike = FIGHT_FIELDS.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);
+        const stamps = packet.stamps ?? {};
+        const shown = Math.max(0, ...Object.entries(stamps).filter(([f]) => !withheld.includes(f)).map(([, t]) => t ?? 0));
+        const telling = withheld.filter(f => (stamps[f] ?? 0) !== shown);
+        if (telling.length) run.violate("I2", `${user.name}'s packet stamps ${telling.join(", ")}, which the copy holds null, apart from what it shows`);
     }
     for (const packet of run.packets.splice(0)) {
-        const stray = Object.keys(packet.cast ?? {}).length ? packet.to.filter(id => !seated.has(id) && id !== offerUser) : [];
+        const aboutSeats = Object.keys(packet.cast ?? {}).every(k => k === "betrayal") && Object.keys(packet.stamps ?? {}).every(k => SEAT_PARTS.includes(k));
+        const stray = Object.keys(packet.cast ?? {}).length ? packet.to.filter(id => !seated.has(id) && !(id === offerUser && aboutSeats)) : [];
         if (stray.length) run.violate("I2", `a cast packet went to ${stray.join(", ")}, who hold no seat`);
     }
 
@@ -911,7 +932,7 @@ async function watching(run, fn) {
     const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
     const send = socket.emit;
     socket.emit = function (event, packet, options, ...rest) {
-        if (packet?.action === "incident.myCast") run.packets.push({ to: options?.recipients ?? [], cast: packet.cast ?? {} });
+        if (packet?.action === "incident.myCast") run.packets.push({ to: options?.recipients ?? [], cast: packet.cast ?? {}, stamps: packet.stamps ?? {} });
         return send.call(this, event, packet, options, ...rest);
     };
     const closed = Hooks.on("drpgIncidentClosed", () => { run.closes++; });

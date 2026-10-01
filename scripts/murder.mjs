@@ -410,9 +410,10 @@ function pushCastToParticipants(cast, previous, stateNow = null, statePrev = nul
 }
 
 /**
- * The stamps a cast copy carries: one per field a participant's copy holds - every
- * field of the record but the swing memo - and for "not in it" (`{}`) the seats'
- * alone (gm-stores.mjs, `castCombine`, which weighs them).
+ * The record's stamps, one per field a participant's copy holds - every field of the
+ * record but the swing memo. What each packet carries of them is `castPacket`'s: for
+ * "not in it" (`{}`) and the offer alone the seats' (gm-stores.mjs, `castCombine`, which
+ * weighs them).
  */
 function castStamps() {
     return Object.fromEntries(CAST_FIELDS.filter(f => f !== "swung").map(f => [f, castStore.stampOf(RECORD, f)]));
@@ -444,39 +445,118 @@ function castStamps() {
  *     standing betrayal offer ..."); the packet is `sendCast`'s, which sends this.
  * A direct murder keeps the killer's name in every copy: it is fought face to face (D6).
  * The builder's own copy, from Stage 6 on (`castOwners`), keeps every name.
- * THE FIGHT IS IN EVERY SEATED COPY (E32 C2, 28.09.2026): the twelve fields of
- * `INCIDENT_FIGHT`, which left the world half then, go to each holder as they are - both
- * sides' panels and trackers read them, and none of them names anyone. A holder seated
- * for the offer alone is sent the offer alone, the fight not included.
+ * THE FIGHT IS IN THE COPY OF EVERY HOLDER WHO FOUGHT IT (E32 C2, 28.09.2026; fix r1-G1,
+ * 29.09): the fields of `INCIDENT_FIGHT`, which left the world half then, go to each holder
+ * who holds a seat at `incident` as they are - both sides' panels and trackers read them,
+ * and none of them names anyone - but two:
+ *   - The Key Remnants' count, null in every copy (the review's m1). It is what the
+ *     opening roll bought - 5 on Hope, 4 on Despair, 3 on a critical - and what Stage 4
+ *     bought is the GMs' alone; every reader of it runs on a GM's browser (the dashboard,
+ *     the checklist, the tracker, a GM whisper - grep of 29.09). In a direct murder's
+ *     victim's copy it was the band of a roll they are not shown (D6), and in a third's
+ *     how many Key Remnants there are to find.
+ *   - All of it, for a holder seated only after the fight (the review's M2): a trap's
+ *     builder, and a third on their side, who hold no seat at `incident` and one from
+ *     Stage 6 on. E06 keeps every roll of a trap's fight from its builder, and the fight is
+ *     those rolls' results: `drainStopped` is a critical Self-defence, `advantageNext` a
+ *     failure with Hope. Nothing of theirs at Stage 6 reads it (the Event card draws at
+ *     `incident` alone, events.mjs).
+ * A holder seated for the offer alone is sent the offer alone, the fight not included.
  *
- * THE VALUES ARE NULLED AND THE STAMPS KEPT, so `castCombine` (gm-stores.mjs) and R176
- * do not change: a copy takes the nulls at the record's stamps. A third who moves to
+ * THE VALUES ARE NULLED, and what their stamps say is `castPacket`'s. A third who moves to
  * the killers' side moves `thirdSide`'s stamp with them, so the copy they are sent next
  * is newer in that part and taken whole (read off `castCombine`, not measured on its
  * own). "Not in it" (`{}`) stays `{}`. The world half is read for `indirect` as
  * `castOwners` reads it. GM-side; exported for the suite.
  */
 export function castFor(userId, cast, state = null) {
-    const { swung, ...theirs } = cast ?? {};
-    if (!Object.keys(theirs).length) return theirs;
-    const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const indirect = incidentIndirect(theirs, live);
-    const owns = id => Boolean(id) && ownerOf(game.actors.get(id))?.id === userId;
-    const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
-    if (!incidentAudienceIds({ ...live, ...theirs, indirect }).includes(userId)) return offer ? { betrayal: offer } : {};
-    const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
-    if (!indirect || killerIds(theirs).some(owns)) return copy;
-    return { ...copy, killerId: null, killerTurnId: null };
+    return castCopyFor(userId, cast, state).copy;
 }
 
-function sendCast(userId, cast, stamps, state = null) {
+/** `castFor`'s copy, and the fields it holds null for this holder's sake (`castPacket` stamps them). */
+function castCopyFor(userId, cast, state = null) {
+    const { swung, ...theirs } = cast ?? {};
+    if (!Object.keys(theirs).length) return { copy: theirs, withheld: [] };
+    const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const seen = { ...live, ...theirs, indirect: incidentIndirect(theirs, live) };
+    const owns = id => Boolean(id) && ownerOf(game.actors.get(id))?.id === userId;
+    const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
+    if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };
+    const withheld = incidentAudienceIds(seen, { stage: "incident" }).includes(userId) ? ["keyRemnants"] : [...INCIDENT_FIGHT];
+    const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
+    for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
+    if (!seen.indirect || killerIds(theirs).some(owns)) return { copy, withheld };
+    return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };
+}
+
+/**
+ * WHAT ONE HOLDER'S PACKET SAYS BY ITS STAMPS (fix r1-G1, 29.09.2026; the review's M1, M2,
+ * m1). A copy takes a packet only when it is at least as new in every part and newer in
+ * one (gm-stores.mjs `castCombine`), and the cast stamps a field only when its value
+ * changes (`changedOnly`) - so a stamp that moves is a result, whatever the value beside
+ * it says. Until this fix every packet but "not in it" carried the record's stamp for
+ * every field:
+ *   - "Not in it" (`{}`) and the offer alone are statements about the seats, and carry
+ *     the seats' stamps alone (`CAST_SEATS`). The offer alone carried all of them: the
+ *     review's run (91-sec-r1-offer, 28.09) sent the offer's third, standing by while a
+ *     second incident ran, six packets holding the offer alone, whose stamps moved field by
+ *     field - `keyRemnants` and `deniedToVictim` together are an opening on Despair,
+ *     `advantageNext` a failure with Hope.
+ *   - A field the copy holds null for this holder's sake (`castCopyFor`: the Key Remnants'
+ *     count, a trap's fight for its builder) is stamped with the newest stamp of the fields
+ *     it shows. That moves only when they do, so it tells nothing they do not; and as each
+ *     of them only grows it only grows, so a copy that takes the packet on the fields it
+ *     shows takes it on these as well. The record's stamp of `keyRemnants` alone told
+ *     Hope (unmoved) from a critical (moved, nothing denied to the victim).
+ * The rest is the record's stamps. GM-side; exported for the suite (the grid's I2).
+ */
+export function castPacket(userId, cast, { state = null, stamps = castStamps() } = {}) {
+    const { copy, withheld } = castCopyFor(userId, cast, state);
+    if (aboutSeats(copy)) return { cast: copy, stamps: Object.fromEntries(CAST_SEATS.map(f => [f, stamps?.[f] ?? 0])) };
+    const out = { ...stamps };
+    const shown = Math.max(0, ...Object.entries(out).filter(([f]) => !withheld.includes(f)).map(([, s]) => s ?? 0));
+    for (const f of withheld) out[f] = shown;
+    return { cast: copy, stamps: out };
+}
+
+/** A copy that holds nothing, or the betrayal offer alone: a statement about the seats. */
+const aboutSeats = copy => Object.keys(copy ?? {}).every(f => f === "betrayal");
+
+/**
+ * The packet this GM last sent each player (`sendCast`), by user id, for as long as this
+ * browser is open.
+ *
+ * A STANDING PACKET IS SENT ONCE, AND AN ANSWER REPEATS IT (fix r1-G1, 29.09.2026; the
+ * review's M1, and the seat half its "outside this stage" routed here). A packet that
+ * holds nothing or the offer alone carries the seats' stamps, and those move with the
+ * incident running now: a Role reversal that held stamps `killerId` and `victimId`, a
+ * third walking in or away `thirdId`. Pushed on every write, and answered whenever a
+ * console asks, they timed that incident for a browser that stands outside it. So a push
+ * does not send a player a standing packet that is what this GM last sent them - the same
+ * value, the offer's own stamp unmoved - and an answer sends them that packet again as it
+ * was. Stamps a GM sent once are no newer than the record's now, so a copy that takes
+ * the repeat would have taken a fresh one as well: the merge's soundness does not move.
+ * What moves is how late: a copy a repeat does not reach (it holds something newer from
+ * another GM) keeps it until the next change - which is why a GM forgets what it sent
+ * whenever another GM's write is merged here while it is not the primary
+ * (`tellCastChange`), and after a restore (`retellCast`). What is left: the first answer
+ * after a GM's browser opens is the record's seats as they stand.
+ */
+const castSent = new Map();
+
+function sendCast(userId, cast, stamps, state = null, { answer = false } = {}) {
     // While tier 2 holds the stores the cast is a fixture's: no participant is sent it (R2-M1).
     if (gmStoresQuiet()) return;
-    const theirs = castFor(userId, cast, state);
-    const out = Object.keys(theirs).length ? stamps : Object.fromEntries(CAST_SEATS.map(f => [f, stamps?.[f] ?? 0]));
+    let packet = castPacket(userId, cast, { state, stamps });
+    const last = castSent.get(userId);
+    if (last && aboutSeats(packet.cast) && JSON.stringify(last.cast) === JSON.stringify(packet.cast)
+        && (last.stamps?.betrayal ?? 0) === (packet.stamps?.betrayal ?? 0)) {
+        if (!answer) return;
+        packet = last;
+    }
+    castSent.set(userId, packet);
     try {
-        game.socket.emit(SOCKET_EVENT,
-            { action: CAST_MINE, cast: theirs, stamps: out }, { recipients: [userId] });
+        game.socket.emit(SOCKET_EVENT, { action: CAST_MINE, cast: packet.cast, stamps: packet.stamps }, { recipients: [userId] });
     } catch (err) {
         error("Could not deliver an incident cast to a participant", err);
     }
@@ -504,7 +584,11 @@ function tellCastChange() {
     if (!was) { castTold = now; return; }
     if (JSON.stringify(now.stamps) === JSON.stringify(was.stamps)) return;
     if (isPrimaryGm()) pushCastToParticipants(now.cast, was.cast);
-    else castTold = now;
+    else {
+        castTold = now;
+        // What this GM sent is not what the players hold any more (`castSent`).
+        castSent.clear();
+    }
 }
 
 /**
@@ -519,6 +603,7 @@ export function retellCast() {
     if (!game.user?.isGM || gmStoresQuiet()) return 0;
     if (!Object.values(castStamps()).some(s => s > 0)) return 0;
     const cast = readCast();
+    castSent.clear();
     pushCastToParticipants(cast, castTold?.cast ?? cast);
     return castOwners(cast).size;
 }
@@ -3217,7 +3302,8 @@ function registerIncidentCastSync() {
      * (E04). Until then every GM answered from its own copy, and a GM whose browser
      * held no cast answered with nothing and emptied the participant's (the cast
      * half of S06-19); a stamp of 0 from a GM holding nothing now replaces nothing.
-     * The answer carries the stamps of the record's fields (`castStamps`).
+     * The answer is `castPacket`'s, and a standing one - nothing, or the offer alone -
+     * repeats what this GM last sent the asker (`castSent`, fix r1-G1).
      */
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (payload?.action !== CAST_MINE_REQUEST || !isPrimaryGm()) return;
@@ -3228,7 +3314,7 @@ function registerIncidentCastSync() {
             await whenGmStoresAudible();
             await castStore.whenHydrated();
             const cast = readCast();
-            sendCast(sender.id, castOwners(cast).has(sender.id) ? cast : {}, castStamps());
+            sendCast(sender.id, castOwners(cast).has(sender.id) ? cast : {}, castStamps(), null, { answer: true });
         } catch (err) {
             error("Could not answer a participant's cast request", err);
         }

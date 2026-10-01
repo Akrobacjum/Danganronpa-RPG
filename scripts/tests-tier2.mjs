@@ -1049,9 +1049,10 @@ const SCENARIOS = [
          * action, which passes the turn. Each copy is read as `castFor` makes it - tier 2
          * holds the stores and nothing is sent while it does; the packets a player's browser
          * receives are 13-murder-signals' "dice" and 61's F8. The killer's and the victim's
-         * copies hold every field of the fight as the GMs read it; the bystander is sent
-         * nothing and their world half holds the stage alone. Red at c3aea03: no copy held
-         * the turn.
+         * copies hold every field of the fight as the GMs read it but the Key Remnants' count,
+         * which the GMs hold and no copy does (fix r1-G1, 29.09.2026; the review's m1); the
+         * bystander is sent nothing and their world half holds the stage alone. Red at
+         * c3aea03: no copy held the turn; the count, red at 2c9b284: both copies held 5.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player");
         const M = await import("./murder.mjs");
@@ -1063,11 +1064,16 @@ const SCENARIOS = [
         await M.openMurder({ killerId: killer.id, victimId: victim.id });
         if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
-        await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false });
-        await settle();
+        // A pass writes the cast alone, and the GM's tracker and the chime hear it by this hook (settings.mjs; the review's C-m3).
+        let castHooks = 0;
+        const castHook = Hooks.on("drpgCastChanged", () => castHooks++);
+        try { await game.drpg.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false }); await settle(); }
+        finally { Hooks.off("drpgCastChanged", castHook); }
         const state = M.murderState();
         must(state?.stage === "incident" && Number.isFinite(state.turn), `the fixture's fight is not running: ${stableJson(state)}`);
-        const fight = stableJson(S.INCIDENT_FIGHT.map(f => [f, state[f] ?? null]));
+        ok(castHooks > 0, "the victim's action passed the turn and `drpgCastChanged` was not called");
+        const fight = stableJson(S.INCIDENT_FIGHT.map(f => [f, f === "keyRemnants" ? null : state[f] ?? null]));
+        must(Number.isFinite(state.keyRemnants), `the GMs hold no Key Remnants' count: ${stableJson(state)}`);
         const read = a => {
             const copy = M.castFor(player(a).id, incidentCast());
             return { keys: Object.keys(copy).length, fight: stableJson(S.INCIDENT_FIGHT.map(f => [f, copy[f] ?? null])) === fight };
