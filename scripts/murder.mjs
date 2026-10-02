@@ -4466,7 +4466,11 @@ async function afterIncident(state) {
     // So it is a SECOND murder, not a second victim inside the first: this
     // incident is over and closed, and a fresh one opens with the newcomer as
     // the killer and the killer as the victim.
-    const traitor = betrayalCandidate(state, killer);
+    //
+    // Left out in a Class Trial (E32+E07 fix r1-G2; the round-1 correctness review's m5):
+    // the betrayal is closed there (the owner's Q3), and the note's "now" would be untrue.
+    // The offer is armed all the same and the tile lights after the trial.
+    const traitor = getClock()?.phase === "classTrial" ? null : betrayalCandidate(state, killer);
 
     const action = await DialogV2.wait({
         classes: ["drpg-panel"],
@@ -4629,18 +4633,30 @@ export async function betrayAsPlayer(actorId, { note = "" } = {}) {
      * was lost and nothing declared (read at 1.2.65); since C5a `openBetrayal` refused it before
      * taking the offer, so the click did nothing at all. The owner's rule: declared in
      * an Eclipse it costs an action and starts after the Eclipse, like any action declared
-     * there. The offer is taken now (single-use: a second declaration finds none) and parked
-     * with the GMs' declarations (eclipse.mjs `parkBetrayal`), which `judgePendingMurders`
-     * opens when the lights come up. The action was paid on the asking client
-     * (action-rolls.mjs `performBetrayal`), which gets it back on a null here.
+     * there. It is parked with the GMs' declarations (eclipse.mjs `parkBetrayal`), which
+     * `judgePendingMurders` opens when the lights come up. The action was paid on the asking
+     * client (action-rolls.mjs `performBetrayal`), which gets it back on a null here.
+     *
+     * THE OFFER STAYS IN THE CAST UNTIL THE LIGHTS (E32+E07 fix r1-G2, 01.10.2026; the
+     * round-1 security review's m4). C5b took it here, and the take moved the cast's
+     * `betrayal` stamp - which a player's browser that asks for its cast is sent even with no
+     * seat - at a moment only the betrayer knew of: the review measured it on the harness, the
+     * target asking for their cast before and after the declaration read the stamp move. The declaration is held
+     * in the GMs' row alone now, and the lights take the offer (`takeDeclaredBetrayal`). The
+     * tile stays lit until then, so a second declaration is refused here while the row
+     * stands - in the incident's queue, where two in flight run one after the other.
      */
-    const { isEclipse, parkBetrayal } = await import("./eclipse.mjs");
+    const { isEclipse, parkBetrayal, betrayalDeclared } = await import("./eclipse.mjs");
     if (isEclipse()) {
-        const offer = await takeBetrayalOffer(actor, target);
-        if (!offer) return null;
-        const parked = await parkBetrayal({ thirdId: actor.id, killerId: target.id, note, offer });
-        if (!parked) await giveBetrayalOfferBack(offer);
-        return parked;
+        return incidentWrite(async () => {
+            const offer = readCast().betrayal;
+            if (offer?.thirdId !== actor.id || offer.killerId !== target.id) return null;
+            if (betrayalDeclared(actor.id)) {
+                warn(`Refused a betrayal by ${actor.name}: already declared in this Eclipse.`);
+                return null;
+            }
+            return parkBetrayal({ thirdId: actor.id, killerId: target.id, note, offer });
+        });
     }
 
     /*
@@ -4722,19 +4738,30 @@ async function openBetrayal(third, killer, { asked = false, taken = null, note =
      * here for the checklist and for a fight opened since the tile lit. The second is
      * `openMurder`'s, asked here too so that a Stage 6 is not closed below for a betrayal
      * `openMurder` would then refuse. A betrayal declared in an Eclipse comes here at its
-     * lights (`openParkedBetrayal`), its offer `taken` at the declaration: that offer goes
-     * back on a refusal, and what the tile would have asked - the day, and both of them
-     * alive - is asked of it here, since it has not stood in the cast since.
+     * lights (`openParkedBetrayal`), its offer `taken` by the lights before the clock moved
+     * (eclipse.mjs `endEclipse`): that offer goes back on a refusal while its day holds, and
+     * whether both of them are alive - which the tile would have asked - is asked of it here.
+     *
+     * NOT THE DAY, FOR A DECLARATION (E32+E07 fix r1-G2, 01.10.2026; the round-1 correctness
+     * review's M1). The declaration passed the tile's day test, and the owner's Q3 starts it
+     * after the Eclipse. C5b asked the day again here, after `endEclipse` had moved the
+     * clock: an Eclipse after Night ends into the next day, so a betrayal declared in the
+     * Night's Eclipse - the ordinary case, a night murder's third - was refused "the day is
+     * over" with its action paid (the review measured it on the harness: opened from Morning's
+     * Eclipse, not from Night's). Every grid step and test ended its Eclipse with `advance: false`, which
+     * moves no clock.
+     *
+     * NOT IN A CLASS TRIAL (fix r1-G2; the correctness review's m5, the owner's Q3: closed in
+     * a Class Trial). The tile is dark in one (`betrayalTarget`), but the GM's checklist and
+     * the lights asked nothing of the phase: an incident closed during a trial offered the
+     * button and opened it. The offer is not lost, as the tile's is not.
      */
     const { isEclipse } = await import("./eclipse.mjs");
     const running = murderState();
     if (isEclipse()) return refuseBetrayal(third, "eclipse", { asked, offer: taken });
+    if (getClock()?.phase === "classTrial") return refuseBetrayal(third, "trial", { asked, offer: taken });
     if (running?.active && running.stage !== "resolution") return refuseBetrayal(third, "fight", { asked, offer: taken });
-    if (taken) {
-        const clock = getClock();
-        if (taken.chapter !== clock?.chapter || taken.day !== clock?.day) return refuseBetrayal(third, "day", { asked, offer: taken });
-        if (isDeadForGm(third) || isDeadForGm(killer)) return refuseBetrayal(third, "dead", { asked, offer: taken });
-    }
+    if (taken && (isDeadForGm(third) || isDeadForGm(killer))) return refuseBetrayal(third, "dead", { asked, offer: taken });
 
     /*
      * THE ONE PATH, AND IT TAKES THE OFFER FIRST (E32 C5a, 28.09.2026; audit S04-03,
@@ -4775,15 +4802,27 @@ async function openBetrayal(third, killer, { asked = false, taken = null, note =
 
 /**
  * A betrayal declared in an Eclipse, opened at its lights (eclipse.mjs `judgePendingMurders`,
- * E32 C5b): `offer` is the one its declaration took, parked with it. The incident it opened,
- * or null - the offer then back while its chapter and day hold, and the GM told why; the
- * betrayer is told by the lights. GM-side.
+ * E32 C5b): `offer` is the one the lights took for it before the clock moved
+ * (`takeDeclaredBetrayal`), or null when none stood for the two of them then. The incident
+ * it opened, or null - the offer then back while its chapter and day hold, and the GM told
+ * why; the betrayer is told by the lights. GM-side.
  */
-export async function openParkedBetrayal(thirdId, offer, note = "") {
+export async function openParkedBetrayal(thirdId, killerId, offer, note = "") {
     if (!game.user.isGM) return null;
-    const third = game.actors.get(thirdId ?? ""), killer = game.actors.get(offer?.killerId ?? "");
-    if (!third || !killer || offer.thirdId !== third.id) return null;
+    const third = game.actors.get(thirdId ?? ""), killer = game.actors.get(killerId ?? "");
+    if (!third || !killer) return null;
+    if (offer?.thirdId !== third.id || offer.killerId !== killer.id) return refuseBetrayal(third, "spent", { asked: false, offer: null });
     return openBetrayal(third, killer, { taken: offer, note });
+}
+
+/**
+ * The lights take the offer a declaration in the dark was made on (E32+E07 fix r1-G2,
+ * 01.10.2026): before the clock moves, in the incident's queue, as the tile's betrayal takes
+ * it - the offer, or null when it no longer names them. GM-side.
+ */
+export async function takeDeclaredBetrayal(thirdId, killerId) {
+    if (!game.user.isGM) return null;
+    return takeBetrayalOffer(game.actors.get(thirdId ?? ""), game.actors.get(killerId ?? ""));
 }
 
 /** Why a betrayal did not open, in words: literal keys, so R1 reads each. */
@@ -4792,7 +4831,7 @@ const BETRAYAL_WHY = Object.freeze({
     fight: "DRPG.Murder.betrayalWhy.fight",
     spent: "DRPG.Murder.betrayalWhy.spent",
     failed: "DRPG.Murder.betrayalWhy.failed",
-    day: "DRPG.Murder.betrayalWhy.day",
+    trial: "DRPG.Murder.betrayalWhy.trial",
     dead: "DRPG.Murder.betrayalWhy.dead"
 });
 

@@ -1704,8 +1704,9 @@ const SCENARIOS = [
             const unanswered = await withBetrayalWindows(NOTE, async () => { answer = await rolls.performAction(third, "directMurder"); });
             await settle();
             const row = S.pendingMurderStore.get(third.id) ?? null;
+            const standing = incidentCast().betrayal;
             const dark = [Boolean(answer?.parked), left - actionsLeft(third), row?.betrayal?.killerId ?? null, row?.note ?? null,
-                incidentCast().betrayal ?? null, M.murderState()?.stage ?? null, unanswered];
+                standing ? `${standing.thirdId}>${standing.killerId}` : null, M.murderState()?.stage ?? null, unanswered];
             await E.endEclipse({ advance: false });
             await settle();
             if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
@@ -1715,9 +1716,9 @@ const SCENARIOS = [
             const lights = [closes, [killer.id, third.id].every(id => now.includes(id)), now.length - before.length,
                 state?.killerId ?? null, state?.victimId ?? null, state?.stage ?? null, S.pendingMurderStore.has(third.id)];
             equal(stableJson([dark, lights]),
-                stableJson([[true, 1, killer.id, NOTE, null, "resolution", []],
+                stableJson([[true, 1, killer.id, NOTE, `${third.id}>${killer.id}`, "resolution", []],
                     [1, true, [killer.id, third.id].filter(id => !before.includes(id)).length, third.id, killer.id, "incident", false]]),
-                "the betrayal in the Eclipse did not cost one action and park with its offer taken and the first incident left at Stage 6, "
+                "the betrayal in the Eclipse did not cost one action and park with its offer standing until the lights and the first incident left at Stage 6, "
                 + "or the lights did not close the first once with both its killers recorded and open the third's on the killer "
                 + "(in the dark: parked, actions spent, row's killer, row's note, offer, stage, windows unanswered; "
                 + "at the lights: closes, both Blackened, the Blackened grown, killer, victim, stage, row left)");
@@ -1732,9 +1733,10 @@ const SCENARIOS = [
 
     ["refused at the lights, the offer comes back and the betrayer is told", async () => {
         /*
-         * E32 C5b, 28.09.2026; audit S04-13. A betrayal declared in an Eclipse takes its offer at
-         * the declaration, so one the lights cannot open would lose it - the click S04-13 names,
-         * moved to the lights. It goes back now while its chapter and day hold, and the betrayer
+         * E32 C5b, 28.09.2026; audit S04-13. A betrayal declared in an Eclipse has its offer taken
+         * - at the declaration until fix r1-G2, by the lights since - so one the lights cannot open
+         * would lose it - the click S04-13 names, moved to the lights. It goes back now while its
+         * chapter and day hold, and the betrayer
          * is told what a refused murder is told (`murderRefused`, veiled). The refusal is made as
          * "a refused betrayal keeps its offer" makes it: as the lights' betrayal closes the first
          * incident, another is opened in its place from the close's own hook - the killer's on the
@@ -1764,7 +1766,7 @@ const SCENARIOS = [
             must(E.isEclipse(), "the Eclipse did not start");
             await withBetrayalWindows("SUITE E32 C5b refused at the lights", () => rolls.performAction(third, "directMurder"));
             await settle();
-            const parked = Boolean(S.pendingMurderStore.get(third.id)?.betrayal) && !incidentCast().betrayal;
+            const parked = Boolean(S.pendingMurderStore.get(third.id)?.betrayal) && incidentCast().betrayal?.killerId === killer.id;
             lights = true;
             const sent = await wordsSent(async () => {
                 await E.endEclipse({ advance: false });
@@ -1777,7 +1779,7 @@ const SCENARIOS = [
             equal(stableJson([parked, state?.killerId ?? null, state?.victimId ?? null, offer ? `${offer.thirdId}>${offer.killerId}` : null, told, closes,
                 S.pendingMurderStore.has(third.id)]),
                 stableJson([true, killer.id, third.id, `${third.id}>${killer.id}`, 1, 1, false]),
-                "a betrayal declared in the dark was not parked with its offer taken, or the lights that could not open it did not leave the "
+                "a betrayal declared in the dark was not parked with its offer standing, or the lights that could not open it did not leave the "
                 + "other incident running, put the offer back, tell its player once and leave no row "
                 + "(parked, killer, victim, offer, refusals sent to the third's player, closes, row left)");
         } finally {
@@ -1850,6 +1852,178 @@ const SCENARIOS = [
             await S.pendingMurderStore.dropMany([killer.id, third.id].filter(k => S.pendingMurderStore.has(k)));
             if (stood) await stood.back();
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a betrayal declared in the Eclipse after Night opens on the next morning", async () => {
+        /*
+         * E32+E07 fix r1-G2, 01.10.2026; the round-1 correctness review's M1, the owner's Q3
+         * (declared in an Eclipse it costs an action and starts after the Eclipse). An Eclipse
+         * after Night ends into the next day (clock.mjs `advanceTimeOfDay`), and every test
+         * before this one ended its Eclipse with `advance: false`, which moves no clock. The
+         * clock at Night; the accomplice's offer stands after the GM closes the first incident;
+         * in the Eclipse the accomplice declares the betrayal from the tile, and the Eclipse
+         * ends as the GM panel ends it (`endEclipse()`). Read: the declaration parked, the day
+         * moved by one into the morning, the incident that opened, the offer and the row gone.
+         * Red at abf3cff (e32run/g2red, 01.10.2026): parked, the day moved into the morning, and no
+         * incident opened - killer and victim null.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const rolls = await import("./action-rolls.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
+        try {
+            await setClock({ timeOfDay: "night" });
+            await accompliceAtStageSix(M, killer, victim, third);
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            const dark = getClock()?.day;
+            let answer = null;
+            await withBetrayalWindows("SUITE fix r1-G2 declared at Night", async () => { answer = await rolls.performAction(third, "directMurder"); });
+            await settle();
+            await E.endEclipse();
+            await settle();
+            const state = M.murderState();
+            equal(stableJson([Boolean(answer?.parked), (getClock()?.day ?? 0) - dark, getClock()?.timeOfDay ?? null, state?.killerId ?? null,
+                state?.victimId ?? null, incidentCast().betrayal ?? null, S.pendingMurderStore.has(third.id)]),
+            stableJson([true, 1, "morning", third.id, killer.id, null, false]),
+            "a betrayal declared in the Eclipse after Night did not open on the next morning, or left its offer or row "
+                + "(parked, days moved, time of day, killer, victim, offer, row left)");
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.pendingMurderStore.has(third.id)) await S.pendingMurderStore.drop(third.id);
+            await M.clearBetrayalOffer();
+            await setClock({ chapter, day, session, timeOfDay, phase });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a betrayal declared in the dark moves no stamp of the cast before the lights, and a second declaration is refused", async () => {
+        /*
+         * E32+E07 fix r1-G2, 01.10.2026; the round-1 security review's m4. C5b took the offer at
+         * the declaration, which moved the cast's `betrayal` stamp - and every player's browser
+         * that asks for its cast is sent the seats' stamps, a seat or none (gm-stores.mjs
+         * `CAST_SEATS`): the target could read that the betrayal against them was declared, and
+         * when, before the lights. The offer stands until the lights now, the declaration is in
+         * the GMs' row alone, and the tile - still lit - is refused a second one. The offer
+         * stands after the GM closes the first incident; in the Eclipse the accomplice presses
+         * the tile twice. Read: the record's `betrayal` stamp before, after the first and after
+         * the second; the answers, the action the second cost, the row's note and the tile;
+         * at the lights (`endEclipse()`): the stamp moved, the incident, the offer taken.
+         * Red at abf3cff (e32run/g2red, 01.10.2026): the stamp moved at the declaration, and the tile was
+         * dark after it (the offer taken).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const rolls = await import("./action-rolls.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
+        const stamp = () => S.castStore.stampOf("record", "betrayal");
+        const NOTE = "SUITE fix r1-G2 declared once";
+        try {
+            await accompliceAtStageSix(M, killer, victim, third);
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            const before = stamp();
+            const answers = [];
+            await withBetrayalWindows(NOTE, async () => { answers.push(await rolls.performAction(third, "directMurder")); });
+            await settle();
+            const once = [stamp() === before, actionsLeft(third)];
+            await withBetrayalWindows("SUITE fix r1-G2 declared twice", async () => { answers.push(await rolls.performAction(third, "directMurder")); });
+            await settle();
+            const twice = [stamp() === before, once[1] - actionsLeft(third), S.pendingMurderStore.get(third.id)?.note ?? null, M.betrayalTarget(third)?.id ?? null];
+            await E.endEclipse();
+            await settle();
+            const lights = [stamp() > before, M.murderState()?.killerId ?? null, incidentCast().betrayal ?? null];
+            equal(stableJson([Boolean(answers[0]?.parked), once[0], answers[1] ?? null, ...twice, ...lights]),
+                stableJson([true, true, null, true, 0, NOTE, killer.id, true, third.id, null]),
+                "a declaration in the dark moved the cast's betrayal stamp before the lights, or a second one was not refused, cost an action "
+                + "or replaced the first, or the lights did not take the offer and open it (parked, stamp kept, second answer, stamp kept, "
+                + "second's cost, row's note, tile, stamp moved at the lights, killer, offer)");
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (S.pendingMurderStore.has(third.id)) await S.pendingMurderStore.drop(third.id);
+            await M.clearBetrayalOffer();
+            await setClock({ chapter, day, session, timeOfDay, phase });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["the checklist offers no betrayal in a Class Trial, and one pressed as a trial starts is refused with its offer kept", async () => {
+        /*
+         * E32+E07 fix r1-G2, 01.10.2026; the round-1 correctness review's m5, the owner's Q3
+         * (closed in a Class Trial). The tile is dark in a trial (`betrayalTarget`), but the GM's
+         * checklist after a close asked nothing of the phase: it offered the button and its
+         * `openBetrayal` opened the betrayal. Twice, the accomplice's offer armed by the killer's
+         * blow: the GM closes in a Class Trial, and the checklist is read; then, out of the
+         * trial, the GM closes again and the trial starts while the checklist is open, and the
+         * button is pressed. Read: whether each checklist offered the button, the tile and the
+         * offer after the first, the incident and the offer after the press.
+         * Red at abf3cff (e32run/g2red, 01.10.2026): both checklists offered the button, and the press
+         * opened the betrayal - the third the killer, the offer gone.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const phase = getClock()?.phase ?? "dailyLife";
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const title = game.i18n.localize("DRPG.Murder.afterTitle");
+        const offered = [];
+        let press = false;
+        D.wait = async cfg => {
+            if (cfg?.window?.title !== title) return null;
+            offered.push((cfg.buttons ?? []).some(b => b.action === "betrayal"));
+            if (!press) return "close";
+            await setClock({ phase: "classTrial" });
+            return "betrayal";
+        };
+        try {
+            await accompliceAtStageSix(M, killer, victim, third);
+            await setClock({ phase: "classTrial" });
+            await M.endMurder({ reason: "closed", followUp: true });
+            await settle();
+            const inTrial = [M.betrayalTarget(third)?.id ?? null, incidentCast().betrayal?.killerId ?? null];
+            await reviveCharacter(victim, { quiet: true });
+            await setClock({ phase: "investigation" });
+            await accompliceAtStageSix(M, killer, victim, third);
+            press = true;
+            await M.endMurder({ reason: "closed", followUp: true });
+            await settle();
+            equal(stableJson([offered, inTrial, M.murderState()?.killerId ?? null, incidentCast().betrayal?.killerId ?? null]),
+                stableJson([[false, true], [null, killer.id], null, killer.id]),
+                "the checklist offered the betrayal in a Class Trial, or one pressed as the trial started opened or lost its offer "
+                + "(button offered at each close, tile and offer in the trial, the incident's killer, the offer after the press)");
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await M.clearBetrayalOffer();
+            await setClock({ phase });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (isDeadForGm(killer)) await reviveCharacter(killer, { quiet: true });
         }
     }],
 

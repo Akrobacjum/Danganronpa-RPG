@@ -1432,7 +1432,7 @@
         "fight": "another incident is being fought",
         "spent": "it is no longer on offer",
         "failed": "the GM's client could not open it",
-        "day": "the day it was offered on is over",
+        "trial": "a Class Trial is in session",
         "dead": "one of the two is no longer alive"
       },
       "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun and the first turn is yours. Your crisis actions are on your character sheet, under Actions.",

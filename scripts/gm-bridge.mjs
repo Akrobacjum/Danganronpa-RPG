@@ -618,15 +618,18 @@ async function handleParkMurder(payload, sender, ctx) {
     // In an Eclipse it is a declaration (E32 C5b, 28.09.2026; the owner's Q3): the
     // asking client has paid an action for it, so it is answered - parked, or refused
     // and told, and the client gives the action back. Refused here unless the betrayal
-    // is on offer to that character now; `betrayAsPlayer` takes the offer and parks it.
+    // is on offer to that character now, and - the offer stays in the cast until the
+    // lights (fix r1-G2), so the tile stays lit - unless it is declared already;
+    // `betrayAsPlayer` parks it.
 async function handleBetrayal(payload, sender, ctx) {
     const murder = await import("./murder.mjs");
-    const { isEclipse } = await import("./eclipse.mjs");
+    const { isEclipse, betrayalDeclared } = await import("./eclipse.mjs");
     if (!isEclipse()) {
         await murder.betrayAsPlayer(payload.actorId);
         return;
     }
     if (!murder.betrayalTarget(game.actors.get(payload.actorId))) return { refused: "that cannot be done now" };
+    if (betrayalDeclared(payload.actorId)) return { refused: "that betrayal is already declared" };
     const parked = await murder.betrayAsPlayer(payload.actorId, { note: payload.note });
     if (!parked) return { refused: "nothing was carried out: betrayAsPlayer parked nothing" };
     return { reply: true };

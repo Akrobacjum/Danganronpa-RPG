@@ -1451,7 +1451,7 @@
         "fight": "trwa inny incydent",
         "spent": "nie jest już dostępna",
         "failed": "przeglądarka GM-a nie mogła jej otworzyć",
-        "day": "dzień, w którym była dostępna, już minął",
+        "trial": "trwa Class Trial",
         "dead": "jedna z dwóch osób już nie żyje"
       },
       "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Twoje akcje kryzysowe są na karcie postaci, w zakładce Akcje.",

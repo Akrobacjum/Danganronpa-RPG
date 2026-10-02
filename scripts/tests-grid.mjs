@@ -253,7 +253,10 @@ const CASES = {
     XI05: { title: "the blow that killed cannot be rerolled; the armed offer stands", third: true,
         steps: [["open"], ["opening", "hope"], ["enter", "T"], ["act", "K", "finishingBlow"], ["reroll", "K", "finishingBlow", "miss"], ["close"]] },
     XI06: { title: "the season reset's close in the fight",
-        steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["seasonReset"]] }
+        steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["seasonReset"]] },
+    XI07: { title: "a betrayal declared in the Eclipse after Night opens the next morning", third: true,
+        steps: [["night"], ["open"], ["opening", "hope"], ["enter", "T"], ["act", "K", "finishingBlow"], ["close"], ["eclipse", true],
+            ["betray"], ["eclipse", false], ["close"]] }
 };
 
 /* ==========================================================================
@@ -342,6 +345,12 @@ function opens(run, kind, killer, victim) {
 }
 
 /** Whether the betrayal tile is dark: another incident is being fought, or a Class Trial is on (Q3). */
+/* The clock's fields a case may move and `runCase` puts back. */
+const clockOf = () => {
+    const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
+    return { chapter, day, session, timeOfDay, phase };
+};
+
 const offerDark = run => Boolean(run.model && run.model.stage !== "resolution") || run.phase === "classTrial";
 
 /* ==========================================================================
@@ -516,9 +525,10 @@ const STEPS = {
      * THE BETRAYAL FROM THE TILE: the GM's half of `murder.betrayal` (`betrayAsPlayer`).
      * The rules: the offer is spent; the incident still at Stage 6 closes first; the new
      * one opens, its killer the third - or, in an Eclipse, is parked until the lights, at
-     * the cost of an action (Q3). In an Eclipse the tile itself is pressed (action-rolls.mjs
-     * `performBetrayal`, E32 C5b): the action is paid there, on the asking client, and its
-     * confirmation and note are answered by `answerDialogs`.
+     * the cost of an action (Q3), the offer standing until the lights take it (fix r1-G2:
+     * a declaration in the dark moves nothing a player's browser is sent). In an Eclipse the
+     * tile itself is pressed (action-rolls.mjs `performBetrayal`, E32 C5b): the action is paid
+     * there, on the asking client, and its confirmation and note are answered by `answerDialogs`.
      */
     async betray(run) {
         const offer = run.offer;
@@ -527,7 +537,6 @@ const STEPS = {
         const actionsBefore = run.actionsLeft(third);
         if (run.eclipse) await (await import("./action-rolls.mjs")).performAction(third, "directMurder");
         else await run.M.betrayAsPlayer(third.id);
-        run.offer = null;
         if (run.eclipse) {
             run.parked = { third, killer };
             if (run.actionsLeft(third) !== actionsBefore - 1) {
@@ -535,6 +544,7 @@ const STEPS = {
             }
             return;
         }
+        run.offer = null;
         if (run.model) closeIncident(run);
         opens(run, "direct", third, killer);
     },
@@ -624,23 +634,39 @@ const STEPS = {
         run.phase = key;
     },
 
+    /*
+     * The Eclipse, ended as the game ends it: by advancing the clock (`endEclipse()`, what the
+     * GM panel calls). Until fix r1-G2 (01.10.2026; the round-1 correctness review's M1) it was
+     * ended with `advance: false`, which nothing in the game takes and which moves no clock - so
+     * XI02 was green on a path the table does not use, and a betrayal declared in the Eclipse
+     * after Night, which ends into the next day, was refused at the lights. The clock is put back
+     * when the case ends (`runCase`). A declaration's offer is taken at the lights.
+     */
     async eclipse(run, on) {
         const E = await import("./eclipse.mjs");
         if (on) {
+            run.clockBefore ??= clockOf();
             await E.startEclipse();
             must(E.isEclipse(), "the Eclipse did not start");
             run.eclipse = true;
             return;
         }
-        await E.endEclipse({ advance: false });
+        await E.endEclipse();
         run.eclipse = false;
         await wait(200);
         const parked = run.parked;
         run.parked = null;
         if (parked) {
+            run.offer = null;
             if (run.model) closeIncident(run);
             opens(run, "direct", parked.third, parked.killer);
         }
+    },
+
+    /* The last time of day, whose Eclipse ends into the next day. The clock is put back when the case ends. */
+    async night(run) {
+        run.clockBefore ??= clockOf();
+        await setClock({ timeOfDay: "night" });
     },
 
     /* The day turns: the primary GM sweeps the offers of the day it left (`drpgTimeOfDayChanged`). */
@@ -975,7 +1001,7 @@ async function runCase(id) {
     const who = await peopleFor(spec);
     const found = [];
     const run = {
-        spec, who, M, actionsLeft, model: null, opened: 0, closed: 0, closes: 0, offer: null, parked: null, phase: null, eclipse: false,
+        spec, who, M, actionsLeft, model: null, opened: 0, closed: 0, closes: 0, offer: null, parked: null, phase: null, eclipse: false, clockBefore: null,
         blackened: new Set(), blackenedBefore: M.blackenedIds(), bodies: new Map(), dead: new Set(), items: new Map(), broken: new Set(),
         swung: new Map(), places: new Map(), everIn: new Set(), packets: [], messages: [], dialogs: [], ranOuts: 0,
         turnFloor: 0, fresh: false, undone: false, at: 0, stepStarted: 0, stopped: false, beforeAct: null, room: null, checklist: null, brink: false,
@@ -1002,6 +1028,7 @@ async function runCase(id) {
         }));
     } finally {
         if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        if (run.clockBefore) await setClock(run.clockBefore);
         for (const { token, x, y } of run.places.values()) if (token.parent?.tokens?.has(token.id)) await token.update({ x, y }, PLACE);
         for (const item of run.items.values()) if (item.parent?.items?.has(item.id)) await item.delete();
         const { isDeadForGm } = await import("./chapter.mjs");
@@ -1068,7 +1095,8 @@ const GRID = [
     ["grid XI03 - the betrayal tile in a Class Trial, and the offer after it", () => runCase("XI03"), GRID_RED.XI03],
     ["grid XI04 - the day ends on a standing offer", () => runCase("XI04"), GRID_RED.XI04],
     ["grid XI05 - the blow that killed cannot be rerolled; the armed offer stands", () => runCase("XI05"), GRID_RED.XI05],
-    ["grid XI06 - the season reset's close in the fight", () => runCase("XI06"), GRID_RED.XI06]
+    ["grid XI06 - the season reset's close in the fight", () => runCase("XI06"), GRID_RED.XI06],
+    ["grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning", () => runCase("XI07"), GRID_RED.XI07]
 ];
 
 export { GRID, CASES, INVARIANTS };

@@ -242,6 +242,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["notWhereItStood", /^the elevation is not a number$/],
     ["notWhereItStood", /^the token did not stand there a moment ago$/],
     ["alreadyDone", /^that Observe has already been resolved$/],
+    ["alreadyDone", /^that betrayal is already declared$/],
     ["nothingToUndo", /^that Observe has no result to take back$/],
     ["nothingToUndo", /^no Analyze of that bullet this chapter to take back$/],
     // E32+E07 C8b: a Reroll of a crisis action whose own resolution killed (murder.mjs crisisUndoRefusal).

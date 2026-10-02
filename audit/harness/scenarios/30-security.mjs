@@ -1058,6 +1058,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         betray.unchanged && betray.after.row === null && betray.after.offer === null && !betray.forOwnership
             && betray.reasons.some(r => r.includes("that cannot be done now")) && betray.told.some(t => t.what === "murder.betrayal"),
         JSON.stringify(betray));
+
+    /*
+     * 7h2c. A betrayal declared twice in one Eclipse (E32+E07 fix r1-G2, 01.10.2026; the round-1
+     * security review's m4). The offer stays in the cast until the lights now, so the tile stays
+     * lit after a declaration: Aiko is offered the betrayal on Botan and has declared it (the
+     * GMs' row, written as `parkBetrayal` writes it), and p1 sends murder.betrayal for her again.
+     * The GM refuses it as alreadyDone and tells p1; the row and the offer are as they were.
+     */
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { eclipseId } = await import("${repoUrl}/scripts/settings.mjs");
+        const c = game.drpg.getClock(), offer = { thirdId: "${ids.aiko}", killerId: "${ids.botan}", chapter: c.chapter, day: c.day };
+        await S.castStore.patch("record", { betrayal: offer });
+        await S.pendingMurderStore.patch("${ids.aiko}", { room: null, note: "SEC declared once", at: Date.now(), approved: null, eclipse: eclipseId(), betrayal: offer });
+        return true;`);
+    const again = await forge("murder.betrayal", { actorId: ids.aiko, note: "SEC declared twice" }, readBetrayal);
+    check("SECURITY: in an Eclipse, a second murder.betrayal for Aiko, who has declared hers, is refused as alreadyDone and told to p1 - the row and the offer as they were",
+        again.unchanged && again.after.row?.note === "SEC declared once" && again.after.offer?.killerId === ids.botan && !again.forOwnership
+            && again.reasons.some(r => r.includes("that betrayal is already declared")) && again.told.some(t => t.what === "murder.betrayal"),
+        JSON.stringify(again));
+    await gm.eval(`await (await import("${repoUrl}/scripts/murder.mjs")).clearBetrayalOffer(); return true;`);
     await gm.eval(`await (await import("${repoUrl}/scripts/eclipse.mjs")).clearParkedMurders();
         await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(parkClock)} }); return true;`);
 

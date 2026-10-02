@@ -520,8 +520,8 @@ export const projectSecretStore = defineGmStore({
  * killer: `room`, `note`, `at`, `approved` and `eclipse`, the Eclipse it was declared in
  * (settings.mjs `eclipseId`) - the world setting `pendingMurders` until 1.2.64, which every
  * browser held for the whole Eclipse. A betrayal declared in an Eclipse is a row too, keyed by
- * the betrayer, its `betrayal` the offer it took (eclipse.mjs `parkBetrayal`, E32 C5b); a
- * murder's row names `betrayal` null. Read for the running Eclipse only (eclipse.mjs
+ * the betrayer, its `betrayal` a copy of the offer it was declared on, which the lights take
+ * (eclipse.mjs `parkBetrayal`, E32 C5b; fix r1-G2); a murder's row names `betrayal` null. Read for the running Eclipse only (eclipse.mjs
  * `pendingMurders`); the lights judge that Eclipse's rows and drop every other unjudged. In
  * the incident's reset group: a declaration nobody judged is an incident that has not
  * happened yet. No old key: the first rows come out of the world by `liftPendingMurders`.
