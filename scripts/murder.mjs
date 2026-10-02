@@ -460,7 +460,8 @@ function castStamps() {
  *     Stage 6 on. E06 keeps every roll of a trap's fight from its builder, and the fight is
  *     those rolls' results: `drainStopped` is a critical Self-defence, `advantageNext` a
  *     failure with Hope. Nothing of theirs at Stage 6 reads it (the Event card draws at
- *     `incident` alone, events.mjs).
+ *     `incident` alone, events.mjs). Nor who walked into the fight and out of it
+ *     (`departed`, E32+E07 C10): a cast field beside the fight, held null with it.
  * A holder seated for the offer alone is sent the offer alone, the fight not included.
  *
  * THE VALUES ARE NULLED, and what their stamps say is `castPacket`'s. A third who moves to
@@ -482,7 +483,7 @@ function castCopyFor(userId, cast, state = null) {
     const owns = id => Boolean(id) && ownerOf(game.actors.get(id))?.id === userId;
     const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
     if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };
-    const withheld = incidentAudienceIds(seen, { stage: "incident" }).includes(userId) ? ["keyRemnants"] : [...INCIDENT_FIGHT];
+    const withheld = incidentAudienceIds(seen, { stage: "incident" }).includes(userId) ? ["keyRemnants"] : [...INCIDENT_FIGHT, "departed"];
     const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
     if (!seen.indirect || killerIds(theirs).some(owns)) return { copy, withheld };
@@ -918,6 +919,22 @@ export function crisisSituational(actor, key, state = murderState()) {
     return situational;
 }
 
+/**
+ * Whether an action of the crisis table is one this side may take: its own side's, and
+ * `both` for the two sides of the fight.
+ *
+ * NOT FOR THE THIRD (E32+E07 C10, 02.10.2026; audit S04-33). `both` was read as "anybody
+ * in the incident", so a third who had just walked in was offered Use an item beside
+ * their four choices, and taking it spent their one free choice (`thirdActed`) on a roll
+ * none of the four is - the grid's TP13, red at ac5ae66 (e32run/g5f). The guide gives the newcomer
+ * that one choice and nothing else; the sheet's item button already treated a third as
+ * outside the fight (sheet.mjs `inCrisis`). The panel and the GM's judgement
+ * (`crisisRefusal`) both ask this.
+ */
+function forSide(def, side) {
+    return def?.side === side || (def?.side === "both" && side !== "third");
+}
+
 /** Whether THIS action is the one that free take can be spent on. */
 function isFreeTake(def, side, state) {
     return Boolean(def?.kind === "resolution" && !def.noRoll && freeResolutionFor(side, state));
@@ -947,7 +964,7 @@ export function availableCrisisActions(actor) {
         // the same act whoever is doing it. Everything downstream that needs to
         // know WHOSE turn this is asks `sideOf(actor)` instead - see
         // `resolveCrisisAction`.
-        .filter(([, def]) => def.side === side || def.side === "both")
+        .filter(([, def]) => forSide(def, side))
         // The guide takes Role Reversal away from a victim whose killer opened
         // on a Despair success.
         .filter(([key]) => !(state.deniedToVictim ?? []).includes(key))
@@ -1025,6 +1042,8 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         indirect,
         selfInflicted,
         killerId, victimId, thirdId: null, thirdSide: null, lastCrisis: null, swung: null,
+        // Who walked in and walked out again (`thirdLeaves`): nobody yet.
+        departed: [],
         turn: 0,
         turnSide: "victim",
         // Whose turn it is on the killers' side. One name until somebody joins
@@ -1550,7 +1569,7 @@ export function crisisRefusal(actor, key, state = murderState()) {
     if (!state || state.stage !== "incident" || !def || !side) {
         return { why: "no incident is at its incident stage for that character", key: null };
     }
-    if (def.side !== side && def.side !== "both") return { why: "not an action for that side", key: null };
+    if (!forSide(def, side)) return { why: "not an action for that side", key: null };
     if (!isTheirTurn(actor)) return { why: "not their turn", key: "DRPG.Murder.notYourTurn" };
     // The sheet greys these out, but the panel is only rebuilt on render - a
     // window left open across somebody else's turn still has live buttons.
@@ -2281,6 +2300,8 @@ async function applyCrisisAction({
             : def.failureExtraDrain;
         if (extra && side === "victim") await drain(state, extra, done);
         else if (extra) await takeReserves(actor, { stress: extra }, done);
+        // "Only you get out" (config.mjs `sharedEscape.failure`): the third has left (S04-21).
+        if (key === "sharedEscape") await thirdLeaves(actor);
     }
 
     // The third party's decisions are "automatyczny, darmowy wybór" - free in
@@ -2916,7 +2937,7 @@ async function applyHindrance(state, def, band, done) {
  * Neither branch marks the choice as spent any more - `resolveCrisisAction`
  * does that for every third-party action before any of this runs. Averted eyes
  * still clears it, and means to: nulling `thirdId` reopens the slot for the
- * next person who walks in.
+ * next person who walks in - somebody else (`thirdLeaves`).
  */
 async function applyThirdPartyChoice(actor, def, done) {
     if (def.joinsKiller || def.alsoTakesThird) {
@@ -2935,18 +2956,38 @@ async function applyThirdPartyChoice(actor, def, done) {
     }
 
     if (def.leavesIncident) {
-        // Back to one killer, so the rotation collapses to them - otherwise the
-        // side could be left waiting on a turn belonging to somebody who has
-        // walked out of the incident.
-        const state = murderState();
-        await writeState({
-            thirdId: null, thirdSide: null, thirdActed: false,
-            killerTurnId: state?.killerId ?? null
-        });
+        await thirdLeaves(actor);
         done.push(game.i18n.format("DRPG.Murder.thirdLeft", {
             name: foundry.utils.escapeHTML(actor.name)
         }));
     }
+}
+
+/**
+ * THE THIRD WALKS OUT, AND STAYS OUT (E32+E07 C10, 02.10.2026; audit S04-21): Averted eyes,
+ * and an Escape together that failed - "Only you get out" (config.mjs). The seat is
+ * emptied for somebody else, and the third goes on `departed` for the rest of the incident,
+ * which `maybeThirdParty` and `thirdPartyEnters` pass over.
+ *
+ * Until this commit Averted eyes emptied the seat and nothing remembered who had sat in
+ * it, so the same student's token stepping back into the room was a newcomer with a fresh
+ * free choice (the grid's TP08); and a failed escape left the third seated, their choice
+ * spent, so the next student in was "a fourth" and crowded the incident out (TP10) - both
+ * red at ac5ae66 (e32run/g5f). A failed escape loses the betrayal offer either way (the
+ * owner's Q2 (b)); with the third gone, `betrayalCandidate` finds nobody to make it.
+ *
+ * Back to one killer, so the rotation collapses to them - otherwise the side could be
+ * left waiting on a turn belonging to somebody who has walked out of the incident. Only
+ * while `actor` still holds the seat: the write is queued (`incidentWrite`), and a seat
+ * that changed hands in the meantime is not theirs to empty.
+ */
+async function thirdLeaves(actor) {
+    const state = murderState();
+    return writeState({
+        thirdId: null, thirdSide: null, thirdActed: false,
+        killerTurnId: state?.killerId ?? null,
+        departed: [...new Set([...(state?.departed ?? []), actor.id])]
+    }, { expect: { thirdId: actor.id } });
 }
 
 async function swapRoles(state, band, done) {
@@ -3970,6 +4011,10 @@ async function maybeThirdParty(tokenDoc) {
     // to be covered by an early return on `state.thirdId` that also swallowed
     // everybody who came after them.
     if (participantIds(state).has(actor.id)) return;
+    // Nor is walking back into a room one left (`thirdLeaves`, E32+E07 C10): no second free
+    // choice, and no fourth person either - asked before the crowd below, which a third who
+    // came back while somebody else holds the seat would otherwise end.
+    if (state.departed?.includes(actor.id)) return;
     if (isMonokuma(actor)) return;       // the GM on the map is not a witness
     if (isDeadForGm(actor)) return;
     // A token the GM has hidden is not in the scene as far as the fiction is
@@ -4006,12 +4051,15 @@ export async function thirdPartyEnters(actor) {
     if (!state || state.stage !== "incident") return null;
     if (!castHeldHere(state)) return null;
     if (state.thirdId) return null;
+    // A third who left is not let back in by the GM's call either (`thirdLeaves`).
+    if (state.departed?.includes(actor.id)) return null;
 
     // `thirdActed` is written explicitly rather than left undefined: it is what
     // gates their one free action, and a murder opened before this field
     // existed would otherwise carry no value at all.
-    // Nobody else walked in while this was read (E32 C4): the first one in is the third.
-    if (!await writeState({ thirdId: actor.id, thirdActed: false }, { expect: { thirdId: null } })) return null;
+    // Nobody else walked in while this was read (E32 C4): the first one in is the third. Nor
+    // did anybody leave: a leave queued ahead of this write may have named them (E32+E07 C10).
+    if (!await writeState({ thirdId: actor.id, thirdActed: false }, { expect: { thirdId: null, departed: state.departed ?? null } })) return null;
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Murder.thirdTitle")}</h3>
         <p>${game.i18n.localize("DRPG.Murder.thirdIntro")}</p>`);
@@ -4739,8 +4787,9 @@ export async function betrayAsPlayer(actorId, { note = "" } = {}) {
  * to be turned on?
  *
  * The newcomer only. `thirdId` survives every branch of the walk-in choice
- * except Averted eyes, which nulls it - and rightly: somebody who walked back
- * out is not standing there with an opportunity. Partners in crime and Double
+ * except Averted eyes and a failed Escape together, which null it (`thirdLeaves`)
+ * - and rightly: somebody who walked back out is not standing there with an
+ * opportunity. Partners in crime and Double
  * role reversal both leave `thirdSide: "killer"`, and a partner turning on
  * their partner is exactly the betrayal the guide names.
  *
@@ -4761,10 +4810,11 @@ export async function betrayAsPlayer(actorId, { note = "" } = {}) {
  * room (the grid's TP04 and TP09, red at 0642f1a). A body now (`leftABody`), and a third
  * who threw in with the killer or - in a direct murder - stayed and chose nothing: they
  * met the killer, and the owner ruled they keep it (S04-12's premise rejected). Chose
- * nothing is `thirdActed` unset: Averted eyes leaves, Partners and Double role reversal
- * are the killer's side, so a third still there on no side who acted tried Escape
- * together and failed - an escape tried loses the offer - or took an action that is
- * not a third's (Use an item, let through until C10 refuses it; audit S04-33).
+ * nothing is `thirdActed` unset: Averted eyes and a failed escape leave, Partners and
+ * Double role reversal are the killer's side, and Use an item is not a third's (both
+ * E32+E07 C10; audit S04-21, S04-33). A third still there on no side who acted is one
+ * of an incident running since 1.2.65, which tried Escape together and failed or took
+ * Use an item - and an escape tried loses the offer, as it did then.
  */
 function betrayalCandidate(state, killer) {
     if (!state?.thirdId || !killer) return null;

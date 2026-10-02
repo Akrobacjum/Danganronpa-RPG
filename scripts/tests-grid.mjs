@@ -92,6 +92,8 @@ const FRESH = Object.freeze({
     killerTurnId: (v, m) => v === m.killerId,
     thirdId: none,
     thirdSide: none,
+    // Who walked in and out again (E32+E07 C10): nobody yet.
+    departed: emptyList,
     thirdActed: v => !v,
     keyRemnants: v => v === KEY_REMNANTS.prepared,
     deniedToVictim: emptyList,
@@ -275,7 +277,8 @@ const CASES = {
  * marker, read by tools/stages.mjs. `failing` is the whole bracketed list the case
  * breaks (the head comment, WHAT A RED CASE SAYS): a commit that fixes one invariant
  * of several re-points it to the list still red, and the one that fixes the last
- * takes the marker off. The reason names the commit due to fix the last.
+ * takes the marker off. The reason names the commit due to fix the last. E32+E07 C10
+ * took off TP08's, TP10's and TP13's (S04-21, S04-33).
  * ========================================================================== */
 
 const GRID_RED = {
@@ -284,9 +287,6 @@ const GRID_RED = {
     DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "[I12]" }),
     TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a)", { failing: "[I11]" }),
     TP05: expectedRed("E07", "S05-23: the close breaks the first killer's tools only, not the accomplice's swung weapon (C12)", { failing: "[I12]" }),
-    TP08: expectedRed("E07", "S04-21: a third who averted their eyes walks back in by their token (C10)", { failing: "[I2, I6, I13]" }),
-    TP10: expectedRed("E07", "S04-21: a failed escape's third still counts, and a fourth walking in crowds the incident out (C10)", { failing: "[I10, I13]" }),
-    TP13: expectedRed("E07", "S04-33: a third is let take Use an item, an action of the two sides (C10)", { failing: "[I10]" }),
     TR03: expectedRed("E07", "S04-06: Role reversal is offered in a trap (C11a)", { failing: "[I11]" }),
     TR05: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "[I11]" }),
     TR06: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "[I11]" }),
@@ -484,9 +484,11 @@ const STEPS = {
 
     /*
      * A TOKEN WALKS INTO THE INCIDENT'S ROOM, and the primary GM's `updateToken` hook
-     * decides what that is. The rules: a third who left (Averted eyes) does not walk back
-     * in (I13); a failed escape's third no longer counts, so a newcomer becomes the third;
-     * a newcomer on a third who is still there crowds the incident out (it closes).
+     * decides what that is. The rules: a third who left (Averted eyes, a failed escape)
+     * does not walk back in (I13); a newcomer on an empty seat becomes the third - after a
+     * failed escape too, whose third no longer counts; a newcomer on a third who is still
+     * there crowds the incident out (it closes). A failed escape's third leaves at the
+     * escape (`applyAct`, E32+E07 C10): until then the model kept them seated to this move.
      */
     async move(run, who) {
         const { positionIn } = await import("./movement.mjs");
@@ -501,16 +503,15 @@ const STEPS = {
             if (run.M.murderState()?.thirdId === actor.id) run.violate("I13", `${actor.name} left the incident and walked back into it`);
             return;
         }
-        if (m.thirdId && !m.escaped) {
+        if (m.thirdId) {
             closeIncident(run);
             return;
         }
-        if (m.escaped) m.departed.push(m.thirdId);
         Object.assign(m, { thirdId: actor.id, thirdSide: null, thirdChose: false, escaped: false });
         run.everIn.add(actor.id);
         const now = run.M.murderState();
         if (now?.thirdId !== actor.id) {
-            run.violate("I13", `a failed escape's third still counted: ${actor.name} walking in ${now ? "did not become the third" : "crowded the incident out"}`);
+            run.violate("I13", `a third who left still counted: ${actor.name} walking in ${now ? "did not become the third" : "crowded the incident out"}`);
         }
     },
 
@@ -743,6 +744,11 @@ function applyAct(run, actor, key, hit) {
         m.escaped = true;
         m.thirdChose = true;
         if (hit) stageSix(run, { body: false });
+        // "Only you get out" (config.mjs `sharedEscape.failure`; the plan's 3.6): the third has left.
+        else {
+            m.departed.push(m.thirdId);
+            Object.assign(m, { thirdId: null, thirdSide: null });
+        }
     }
     if (!hit) return;
     if (run.brink && (key === "strike" || key === "weaponAttack")) {
@@ -843,10 +849,12 @@ async function assertIncidentInvariants(run) {
            Remnants' count, the GMs' alone, and for a trap's killers, seated from Stage 6 on, all of it:
            their rolls' results, which E06 keeps from the builder (fix r1-G1; the review's m1, M2). What
            a copy holds null its stamp does not tell either: it reads as the newest of the stamps of what
-           the copy shows, so it moves when they do and never alone. */
-        const withheld = m.kind === "trap" && killerSide ? FIGHT_FIELDS : ["keyRemnants"];
+           the copy shows, so it moves when they do and never alone. Who walked in and out again
+           (`departed`, E32+E07 C10) is a cast field beside the fight, and is held as the fight is. */
+        const copied = [...FIGHT_FIELDS, "departed"];
+        const withheld = m.kind === "trap" && killerSide ? copied : ["keyRemnants"];
         const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
-        const unlike = FIGHT_FIELDS.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
+        const unlike = copied.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);
         const stamps = packet.stamps ?? {};
         const shown = Math.max(0, ...Object.entries(stamps).filter(([f]) => !withheld.includes(f)).map(([, t]) => t ?? 0));

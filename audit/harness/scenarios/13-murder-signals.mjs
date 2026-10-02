@@ -22,7 +22,8 @@
  * victim's player as "you" and to the others by name, each sent only their own line
  * (E32+E07 C7, 1d). A weapon a swing wears is worn by the GM after the blow, and its
  * notice reaches the killer's player alone (E32+E07 C8, 1e). In a trap the victim's action
- * hands the turn back to the victim, with no Pass (E32+E07 C9, part 2).
+ * hands the turn back to the victim, with no Pass (E32+E07 C9, part 2). A third who averts
+ * their eyes and walks back in is seated by nobody, and the next student in is (E32+E07 C10, 1b).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -39,7 +40,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const ids = await gm.eval(`return {
         chie: game.actors.getName("Chie Mori").id,
         aiko: game.actors.getName("Aiko Hoshino").id,
-        botan: game.actors.getName("Botan Kage").id
+        botan: game.actors.getName("Botan Kage").id,
+        daichi: game.actors.getName("Daichi Sato").id
     };`);
 
     /* A playlist for the murder, and a room volume on every browser to duck. */
@@ -625,6 +627,46 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         third.bystander?.knowsCast === true && third.bystander?.redEdges === true
         && third.bystander?.roomVolume === 0,
         JSON.stringify(third.bystander));
+
+    /* And walks out, and back in (E32+E07 C10, 02.10.2026; audit S04-21). Botan averts their
+       eyes: the seat is emptied, they go on `departed`, and their browser lets the cast go. Their
+       token is then teleported into the room Aiko stands in, which the primary GM's `updateToken`
+       hook reads as a walk-in (murder.mjs `maybeThirdParty`): it seats nobody. Daichi's token
+       after it takes the seat - the hook reads that room, and the seat is open - and the
+       incident runs on: had the third who left still counted, the second walk-in would have
+       crowded it out. At ac5ae66 Botan's move seated them again (the grid's TP08). The two
+       tokens go back where the seed stood them; Daichi is the third until the trap's close. */
+    const walkedBack = await gm.eval(`
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        const Mv = await import("${repoUrl}/scripts/movement.mjs");
+        const until = async (test, ms = 4000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        // A copy of the list: the eval's answer writes a second reference to one array as "[circular]".
+        const read = () => { const s = M.murderState(); return { stage: s?.stage ?? null, third: s?.thirdId ?? null, departed: s?.departed ? [...s.departed] : null }; };
+        const room = Mv.locateActor(game.actors.get("${ids.aiko}"))?.room ?? null;
+        await game.drpg.resolveCrisisAction({ actorId: "${ids.botan}", key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+        const left = read();
+        const tokens = ["${ids.botan}", "${ids.daichi}"].map(id => canvas.scene.tokens.find(t => t.actorId === id));
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        await tokens[0].update(Mv.positionIn(room, tokens[0]), PLACE);
+        await new Promise(r => setTimeout(r, 1000));
+        const back = { ...read(), there: Mv.roomOfToken(tokens[0]) === room };
+        await tokens[1].update(Mv.positionIn(room, tokens[1]), PLACE);
+        await until(() => M.murderState()?.thirdId === "${ids.daichi}");
+        const next = read();
+        for (const [i, t] of tokens.entries()) await t.update(was[i], PLACE);
+        return { room, left, back, next };
+    `, { timeout: 60000 });
+    await settle(900);
+    const leftSeen = (await readAll()).bystander;
+    check("walk-in: a third who averted their eyes is a bystander again, and walking back in seats nobody",
+        Boolean(walkedBack.room) && walkedBack.left.third === null && JSON.stringify(walkedBack.left.departed) === JSON.stringify([ids.botan])
+        && walkedBack.back.there === true && walkedBack.back.stage === "incident" && walkedBack.back.third === null
+        && leftSeen?.witness === false && leftSeen?.knowsCast === false && leftSeen?.redEdges === false,
+        JSON.stringify({ walkedBack, leftSeen }));
+    check("walk-in: the next student in takes the empty seat, and the incident runs on",
+        walkedBack.next.stage === "incident" && walkedBack.next.third === ids.daichi && JSON.stringify(walkedBack.next.departed) === JSON.stringify([ids.botan]),
+        JSON.stringify(walkedBack.next));
 
     /* ---- 2. the same murder, sprung by a trap ------------------------------- */
     phase("trap", { flow: "trap-fire" });

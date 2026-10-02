@@ -3265,6 +3265,128 @@ const SCENARIOS = [
         "after the victim's action a trap's turn is not the victim's again, the round did not turn, or the drain did not land");
     }],
 
+    ["a third who left does not walk back in", async () => {
+        /* E32+E07 C10, 02.10.2026; audit S04-21. A third who chose Averted eyes left the seat empty
+           and nothing remembered them, so their token stepping back into the room seated them
+           again with a fresh free choice; a third whose Escape together failed ("Only you get
+           out") stayed seated, so the next student in was a fourth and ended the incident. Both
+           leave now and go on `departed`, which the walk-in hook and the GM's call pass over.
+           Every walk is a token teleported in and out of the room the killer and the victim stand
+           alone in, as the primary GM's `updateToken` hook reads a walk-in: the third's first one
+           seats them (the hook reads that room), Averted eyes, out and back in; then the fourth's,
+           the third out and back in while the fourth holds the seat (which, read as a fourth
+           person, would crowd the incident out), a failed escape, and both back in. The killer
+           and the victim are connected players', as the grid picks them; the fourth is any other
+           living student. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer whose player is asked the opening roll, a victim and a third");
+        needs(world.atLeast("livingStudents", 4), "a fourth student to walk in after the third");
+        needs(world.atLeast("studentTokensOnScreen", 4), "the four walk into one room by their tokens");
+        needs(world.atLeast("namedRooms", 2), "one room is left to the incident");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { positionIn } = await import("./movement.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const fourth = livingStudents().find(a => ![killer.id, victim.id, third.id].includes(a.id));
+        const tokens = [third, fourth].map(a => canvas.scene.tokens.find(t => t.actorId === a.id));
+        must(tokens.every(Boolean), "the third or the fourth has no token on the scene on screen");
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const stood = await aloneTogether(killer, victim, { asked: true });
+        const walk = async (i, inside) => {
+            await tokens[i].update(inside ? positionIn(stood.room, tokens[i]) : was[i], PLACE);
+            await settle();
+        };
+        const read = () => { const s = M.murderState(); return [s?.stage ?? null, s?.thirdId ?? null, s?.departed ?? null]; };
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "incident", "the fight did not start");
+            const seen = [];
+            await walk(0, true);
+            await until(() => M.murderState()?.thirdId === third.id, 3000);
+            seen.push(read());
+            await M.resolveCrisisAction({ actorId: third.id, key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+            await walk(0, false);
+            await walk(0, true);
+            seen.push(read());
+            await walk(1, true);
+            await until(() => M.murderState()?.thirdId === fourth.id, 3000);
+            seen.push(read());
+            await walk(0, false);
+            await walk(0, true);
+            seen.push(read());
+            await M.resolveCrisisAction({ actorId: fourth.id, key: "sharedEscape", total: 2, isCritical: false, withHope: true });
+            await settle();
+            seen.push([...read(), M.murderState()?.thirdActed ?? null]);
+            for (const [i, inside] of [[1, false], [1, true], [0, false], [0, true]]) await walk(i, inside);
+            seen.push(read());
+            seen.push(await M.thirdPartyEnters(third) === null, M.castFor(player(victim).id, incidentCast()).departed ?? null);
+            const left = [third.id, fourth.id];
+            equal(stableJson(seen), stableJson([["incident", third.id, []], ["incident", null, [third.id]], ["incident", fourth.id, [third.id]],
+                ["incident", fourth.id, [third.id]], ["incident", null, left, false], ["incident", null, left], true, left]),
+            "a third who left was seated again by their token or the GM's call, a failed escape's third still counted, or the victim's copy does not hold who left");
+        } finally {
+            for (const [i, t] of tokens.entries()) if (canvas.scene.tokens.has(t.id)) await t.update(was[i], PLACE);
+            await stood.back();
+        }
+    }],
+
+    ["a third is offered their own choices, not Use an item", async () => {
+        /* E32+E07 C10, 02.10.2026; audit S04-33. Use an item is written for both sides of the fight
+           (`side: "both"`), and it was read as anybody in the incident: a third who had just walked
+           in was offered it beside their four choices, and the GM let it through - spending their
+           one free choice on a roll none of the four is. The third's list is the crisis table's
+           third-side entries, the GM's judgement refuses Use an item for them, and the killer and
+           the victim are still offered it. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer whose player is asked the opening roll, a victim and a third");
+        const M = await import("./murder.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        must(await M.thirdPartyEnters(third), "the third could not walk into the incident");
+        const keys = a => M.availableCrisisActions(a).map(o => o.key).sort();
+        const thirds = Object.entries(CRISIS_ACTIONS).filter(([, def]) => def.side === "third").map(([key]) => key).sort();
+        equal(stableJson([keys(third), M.crisisRefusal(third, "useItem")?.why ?? null, keys(killer).includes("useItem"), keys(victim).includes("useItem")]),
+            stableJson([thirds, "not an action for that side", true, true]),
+            "the third is offered or let take an action that is not a third's, or a side of the fight lost Use an item");
+    }],
+
+    ["a trap's builder is not told who walked in on the fight and left", async () => {
+        /* E32+E07 C10, 02.10.2026. Who left (`departed`) is a cast field, sent to the seats in their
+           copy as the fight is - and held null, as the fight is, for a trap's builder, who is seated
+           from Stage 6 on and is kept every part of the fight (murder.mjs `castFor`, fix r1-G1). A
+           trap springs, a third walks in on the victim's side and averts their eyes, and the GM
+           moves the incident to Stage 6 - a write after the leave: the victim's copy names the third
+           who left, the builder's holds it null, and its stamp is not the leave's. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a builder, a victim whose player is asked the opening roll, and a third");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [builder, victim, third] = livingStudents().filter(player);
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
+        if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
+        await settle();
+        must(await M.thirdPartyEnters(third), "the third could not walk into the trap's incident");
+        await M.resolveCrisisAction({ actorId: third.id, key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+        must(await M.beginResolution("victimKilled"), "the GM could not move the trap to Stage 6");
+        const copy = a => M.castFor(player(a).id, incidentCast());
+        // A field held null for the holder's sake is stamped as the newest of the rest, so it is the packet's newest.
+        const { cast: held, stamps } = M.castPacket(player(builder).id, incidentCast());
+        equal(stableJson([copy(victim).departed ?? null, copy(builder).victimId === victim.id, held.departed ?? null,
+            stamps.departed === Math.max(...Object.values(stamps))]),
+            stableJson([[third.id], true, null, true]),
+            "the victim's copy does not name the third who left, or the builder's copy at Stage 6 does, or its stamp tells it apart");
+    }],
+
     ["a Finishing Blow leaves the victim unflagged, dead to the GMs, until the discovery publishes it", async () => {
         /* E05 C10, 26.09.2026; audit S06-11. The blow used to write the flag, the "dead" status
            and the Truth Bullets' deletion at once, which every console reads; the victim is a

@@ -262,9 +262,15 @@ export const INCIDENT_FIGHT = Object.freeze([
  * fight (`INCIDENT_FIGHT`). The record's closed set: `resetRecord` stamps each of
  * them, `castStamps` sends a stamp for each but the swing memo, and `castCombine`
  * weighs them all.
+ *
+ * `departed` (E32+E07 C10, 02.10.2026; audit S04-21): the actor ids of the thirds who left
+ * - Averted eyes, a failed Escape together - and may not walk back in. A list of names,
+ * so the cast's and never the world half's; it was never in the world half, so it is not
+ * the fight's either (`INCIDENT_FIGHT` is also what the update lifts out of it), and a
+ * holder seated only after the fight is sent it null (murder.mjs `castFor`).
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT
 ]);
 
