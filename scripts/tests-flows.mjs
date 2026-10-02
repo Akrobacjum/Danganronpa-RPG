@@ -116,7 +116,7 @@ export const FLOWS = Object.freeze([
         scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
-        scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
     { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected or when no card lands in time (fix r2-G3)",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
@@ -130,9 +130,10 @@ export const FLOWS = Object.freeze([
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
-    // E32+E07 C11b (02.10.2026): the crisis actions ask it; C11c the clean-up, and the openings, which a GM picks on its own browser.
+    // E32+E07 C11b (02.10.2026): the crisis actions ask it; C11c the clean-up, and the openings, which a GM picks on its own browser;
+    // C11d a project stored without a statistic, once (40-flow drives a player's first and second Work on one).
     { id: "trait-ruling", what: "A roll that lists several statistics: the player asks, a GM picks on the card in their thread, the roll takes the pick",
-        entry: { bridge: ["trait.ruling"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E32" },
+        entry: { bridge: ["trait.ruling"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "40-flow", "61-gmstore-case"], status: "partial", stage: "E32" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
         entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, and each player's copy of which traces their own came from",

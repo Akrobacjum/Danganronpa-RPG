@@ -18,10 +18,10 @@
 
 | Akcja | Rzut | W skrócie |
 |---|---|---|
-| **Search** | Eye / Hand | Nazwij, czego chcesz. 8+ Tier 0, 12+ Tier 1, 18+ Tier 2, krytyk +1 Tier. Wydaje Search Token. Wzięcie broni albo narzędzia do sprzątania zostawia ślad. |
+| **Search** | Eye | Nazwij, czego chcesz. 8+ Tier 0, 12+ Tier 1, 18+ Tier 2, krytyk +1 Tier. Wydaje Search Token. Wzięcie broni albo narzędzia do sprzątania zostawia ślad. |
 | **Observe** | Eye | Kopiuje Remnant do ekwipunku jako Neutral Truth Bullet. Porażka kosztuje 1 Sanity. |
 | **Analyze** | Head | Zidentyfikuj Truth Bullet (porażka blokuje go do końca rozdziału), poproś GMa o podpowiedź (14+ / 18+) albo znajdź ukrytą skrytkę (16+). |
-| **Projekty** | Hand / Body / Leg / Head | 12+ = +1 postępu, 18+ = +2, krytyk = +2 i akcja wraca. Nowe proponujesz GMowi. Tu też Sabotage, który zawsze zostawia ślad. |
+| **Projekty** | Statystyka projektu | 12+ = +1 postępu, 18+ = +2, krytyk = +2 i akcja wraca. Nowe proponujesz GMowi. Tu też Sabotage, który zawsze zostawia ślad. |
 | **Dynamiczna** | ustala GM | Opisz cokolwiek; GM ustala trudność. Łagodniejsze progi - nagroda za pomysł. |
 | **Rest** | - | Short: 1 akcja, wybierz 1, raz na porę dnia. Long: 2 akcje, wybierz 2, raz na sesję. Sen = Health, Posiłek = Sanity, Oddech = Hope. Tylko w oznaczonych pokojach. |
 | **Listen** | Shadow | 14+ ile osób za ścianą, 18+ kto, krytyk każdy sąsiedni pokój. Pokoje, w których nie byłeś, zostają bez nazwy (Nieodkryty pokój 1, 2...). |

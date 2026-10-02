@@ -559,7 +559,6 @@
         "bonus": "Przewaga, utrudnienie i doświadczenie"
       },
       "chooseTrait": "{action} - która statystyka?",
-      "traitOnlyIfOpen": "Używana tylko wtedy, gdy projekt powyżej nie wymaga własnej.",
       "costActions": "{n} akcja",
       "costFree": "za darmo",
       "cannotAfford": {
@@ -2309,8 +2308,8 @@
       "startNote": "Nic jeszcze nie powstało. To idzie do GM-a jako propozycja - GM ją zatwierdza, poprawia albo odrzuca.",
       "indirectMine": "Morderstwo pośrednie - tajne, więc widzisz je tylko ty i GM-owie",
       "trait": "Wymagana praca",
-      "anyTrait": "- wybiera gracz -",
       "traitFixed": "Ten projekt wymaga: {trait}.",
+      "traitRequired": "Projekt potrzebuje statystyki: wybierz tę, której wymaga jego praca.",
       "repairName": "Naprawa: {name}",
       "repairNameSecret": "Naprawa",
       "repaired": "naprawiony. Nad {name} znów można pracować.",
@@ -2463,7 +2462,6 @@
       "diceFixed": "Ustalone na d12 przez zasady.",
       "traitFixed": "Wybrane, zanim to okno się otworzyło.",
       "traitByGm": "Wybrane przez GM-a.",
-      "pickYourApproach": "Uważne spojrzenie albo szybkie grzebanie - twój wybór.",
       "advantageLocked": "Przewaga i utrudnienie biorą się z Calli, nie stąd.",
       "pickOneExperience": "Wybierz jedno doświadczenie, którego dotyczy ten rzut. Kliknięcie innego przenosi wybór.",
       "experienceLocked": "Użycie doświadczenia to Hope Call „Experience” - poproś GM-a, by je wydać.",

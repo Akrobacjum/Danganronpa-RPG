@@ -14,7 +14,7 @@
  * name, so a system rename cannot quietly disable this.
  */
 
-import { MODULE_ID, TRAITS } from "./config.mjs";
+import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 // Statically imported: the lock runs inside a synchronous render hook and has no
 // opportunity to await. Neither module reaches back here, so no cycle.
@@ -264,53 +264,6 @@ function actorOf(app) {
     return game.user?.character ?? null;
 }
 
-/*
- * WHICH STATISTICS THE NEXT ROLL MAY OFFER.
- *
- * Normally the trait is decided before this window opens and the select is
- * dead, because letting a student pick their own statistic is letting them pick
- * their own difficulty. Search is the exception (Dawid, 29.08): looking for
- * something is either a careful look or a quick rummage, and which one you are
- * doing is a real choice that belongs in the moment of rolling rather than in a
- * menu two windows earlier.
- *
- * A MODULE-LEVEL HANDOFF, NOT A FLAG, and deliberately: this is a permission
- * for ONE window that is about to open on this very client, microseconds from
- * now, in the same call stack. An actor flag would be an asynchronous write
- * racing the dialog it is meant to configure, and a persisted one would outlive
- * the roll it was for - the failure being a player who gets the choice on the
- * next roll too, which is the whole thing this is meant not to do.
- *
- * CLAIMED BY ONE DIALOG, THEN HELD FOR ITS LIFETIME. The first version
- * consumed the permission on read, which was right about "one permission, one
- * roll" and wrong about how often it is read: `lockControls` runs on EVERY
- * render, and this dialog submits on change, so the second render found
- * nothing and locked the select again. Measured on the E23 round - the picker
- * appeared disabled with the "chosen before this window opened" tooltip.
- *
- * So the value is claimed once, by the first dialog to ask, and remembered
- * against that dialog. A later, unrelated roll finds it already taken and is
- * locked as normal.
- */
-let nextTraitChoice = null;
-const claimed = new WeakMap();
-
-/** Let the next roll dialog offer these statistics. See the note above. */
-export function allowTraitsForNextRoll(traits) {
-    nextTraitChoice = Array.isArray(traits) && traits.length ? [...traits] : null;
-}
-
-function traitChoiceFor(app) {
-    if (!app) return null;
-    if (claimed.has(app)) return claimed.get(app);
-    if (!nextTraitChoice) return null;
-
-    const taken = nextTraitChoice;
-    nextTraitChoice = null;
-    claimed.set(app, taken);
-    return taken;
-}
-
 function locking() {
     try {
         return game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
@@ -354,18 +307,15 @@ function lockDice(root) {
 }
 
 /*
- * Trait: chosen before this window opened - with two exceptions.
+ * Trait: chosen before this window opened - with one exception.
  *
  *   Determination (`armed.has("trait")`) buys the whole picker. That is what
  *   the Call is FOR, so nothing is narrowed.
  *
- *   An action may open the door part-way: Search offers Eye or Hand and
- *   nothing else. The options outside the list are removed rather than
- *   disabled, because a select full of greyed rows reads as a broken menu,
- *   while a short menu reads as a short menu.
- *
- * Order matters. The Call is checked first, so a player who paid for the
- * picker is never handed the narrower version of it.
+ * There was a second until 1.2.66: an action could open the door part-way, and
+ * Search offered Eye or Hand through a one-window handoff (`allowTraitsForNextRoll`).
+ * By the owner's rule of 28.09.2026 a Search rolls Eye alone, and no other roll
+ * outside the incident leaves a choice (E32+E07 C11d), so the handoff went with it.
  *
  * A trait a GM picked for a roll whose definition lists several (E32+E07 C11b;
  * trait-ruling.mjs) is locked as every fixed one is, and its tooltip says whose
@@ -378,35 +328,11 @@ function lockDice(root) {
  */
 export function lockTrait(root, app, armed) {
     const trait = root.querySelector('select[name="trait"]');
-    const allowed = traitChoiceFor(app);
 
     if (trait && armed.has("trait")) {
         unlock(trait, "DRPG.RollDialog.unlockedByCall");
     } else if (trait && app?.config?.[TRAIT_BY_GM]) {
         disable(trait, "DRPG.RollDialog.traitByGm");
-    } else if (trait && allowed?.length) {
-        /*
-         * THE SELECT SPEAKS DAGGERHEART, NOT DRPG (found on the E23 round).
-         *
-         * This is the system's own control, so its option values are
-         * `instinct`, `finesse` and the rest. The catalogue hands us `eye` and
-         * `hand`, which are this module's names for two of them. Comparing the
-         * two vocabularies directly matched nothing, so the filter would have
-         * removed EVERY option and left an empty menu - the lock winning the
-         * race is the only reason that never reached a screen.
-         *
-         * `TRAITS[key].dh` is the mapping and the one place it lives.
-         */
-        const speak = new Set(allowed
-            .map(key => TRAITS[key]?.dh)
-            .filter(Boolean));
-
-        for (const option of [...trait.options]) {
-            // The empty placeholder goes with the rest: a menu of two real
-            // choices does not need a "pick one" row above them.
-            if (!speak.has(option.value)) option.remove();
-        }
-        unlock(trait, "DRPG.RollDialog.pickYourApproach");
     } else if (trait) {
         disable(trait, "DRPG.RollDialog.traitFixed");
     }

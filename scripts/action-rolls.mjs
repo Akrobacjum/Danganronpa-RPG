@@ -391,7 +391,10 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
         facts.push(game.i18n.format("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
     }
 
-    if (def.traits?.length) {
+    // Not for a project's roll (E32+E07 C11d): Projects and Sabotage list the four a
+    // project's statistic is given from, and the roll takes that project's one - which
+    // the project list below names beside each project instead.
+    if (def.traits?.length && actionKey !== "project" && actionKey !== "sabotage") {
         facts.push(game.i18n.format("DRPG.Action.usesTrait", {
             traits: def.traits.map(t => TRAITS[t]?.label ?? t).join(" / ")
         }));
@@ -1163,33 +1166,39 @@ function readTraitField(element, traits) {
 }
 
 /**
- * Ask which trait to use, for an action with nothing else to ask.
+ * The trait a generic action rolls, for an action with nothing else to ask:
+ * `{ trait, byGm }`, or null when it is not to be rolled.
  *
  * `intro` is the briefing. An action that folds its briefing in (every one
  * but the keys in NEEDS_OWN_BRIEFING) has a window of its own to carry it; one that does not
  * used to get a briefing window, then this one, then the roll dialog - three
  * windows to answer "Body or Leg?". Passing the briefing here makes it two.
+ *
+ * NOT THE PLAYER'S CHOICE (E32+E07 C11d; the owner's ruling of 28.09.2026). This
+ * window used to carry a Statistic select when the definition listed several. A
+ * definition that lists several asks a GM now (trait-ruling.mjs `traitFor`, kind
+ * `generic`), after this window and before anything is paid; none of the generic
+ * table's does at 1.2.66, so the window is the briefing and its Roll button.
  */
-async function chooseTrait(actor, def, { intro = "" } = {}) {
+async function chooseTrait(actor, actionKey, def, { intro = "" } = {}) {
     const allowed = def.traits ?? [];
     if (!allowed.length) return null;
-    if (allowed.length === 1 && !intro) return allowed[0];
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Action.chooseTrait", { action: def.label }) },
-        classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`${intro}<form>${traitFieldHtml(actor, allowed)}</form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
-                callback: (e, b, d) => readTraitField(d.element, allowed)
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
-
-    return (picked && picked !== "cancel") ? picked : null;
+    if (intro) {
+        const go = await DialogV2.wait({
+            window: { title: game.i18n.format("DRPG.Action.chooseTrait", { action: def.label }) },
+            classes: ["drpg-panel", "drpg-narrow"],
+            content: dialogContent(intro),
+            buttons: [
+                { action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true },
+                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ],
+            rejectClose: false
+        });
+        if (go !== "ok") return null;
+    }
+    const { traitFor } = await import("./trait-ruling.mjs");
+    return traitFor(actor, { kind: "generic", key: actionKey });
 }
 
 /**
@@ -1694,13 +1703,12 @@ async function performSearch(actor, def, options) {
     if (situational) calls.armSituational(situational);
 
     /*
-     * THE ROLL WINDOW GETS THE CHOICE (Dawid, 29.08): a careful look or a quick
-     * rummage. Only these two - everything else stays locked, and Determination
-     * still buys the full picker for anybody who paid for it.
+     * EYE, AND NO CHOICE (the owner's rule of 28.09.2026; E32+E07 C11d). The roll
+     * window used to offer Eye or Hand here - "a careful look or a quick rummage"
+     * (Dawid, 29.08) - which let the searcher pick their own better statistic. A
+     * Search rolls Eye alone now (ACTIONS.search), its select locked like any fixed
+     * trait; Resolve still buys the whole picker, as for every roll.
      */
-    const { allowTraitsForNextRoll } = await import("./roll-dialog.mjs");
-    allowTraitsForNextRoll(ACTIONS.search.traits);
-
     let roll;
     try {
         roll = await rollTrait(actor, trait, {
@@ -1953,11 +1961,8 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         intro: briefingBlock(actor, "search", ACTIONS.search),
         prompt: game.i18n.localize("DRPG.Action.searchGoalHint"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
-        // NO STATISTIC HERE ANY MORE (Dawid, 29.08). This window asks what you
-        // are looking for; how you look for it is asked in the roll window,
-        // where the choice is Eye or Hand and where it can still be seen next
-        // to the dice. Two windows asking two halves of one decision put the
-        // second half three clicks before it mattered.
+        // NO STATISTIC HERE (Dawid, 29.08): this window asks what you are looking
+        // for. Since 1.2.66 there is no "how" to ask either - a Search rolls Eye.
         traits: null,
         options: options.map(o => ({
             value: o.value,
@@ -1983,12 +1988,13 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         return null;
     }
 
-    // Eye by default: a search is a LOOK unless the player says otherwise, and
-    // they say otherwise in the roll window. `def.traits[0]` rather than the
-    // literal, so the catalogue stays the one place that decides.
+    // The one trait the catalogue lists (Eye since 1.2.66): `def.traits[0]` rather
+    // than the literal, so the catalogue stays the one place that decides - and R213
+    // holds that list to one trait, since a first of several would be a choice made
+    // for the player without a GM.
     return {
         goal: picked.value, category: option?.category, request,
-        trait: picked.trait ?? def.traits?.[0] ?? "eye"
+        trait: def.traits?.[0] ?? "eye"
     };
 }
 
@@ -2002,10 +2008,10 @@ async function performProject(actor, def, options) {
     const room = roomOfActor(actor);
     const here = room ? projectsAvailableIn(room) : [];
 
-    // ONE WINDOW: which kind of work, WHICH project, and which statistic.
+    // ONE WINDOW: which kind of work, and WHICH project.
     //
     // It used to be two - pick "Work on", then pick the project on a screen of
-    // its own. Sabotage has never done that; it asks for its target and its
+    // its own. Sabotage never did that; it asked for its target and its
     // statistic together, and there was never a reason for the two to differ.
     // The second window carried one <select> and a button.
     //
@@ -2017,9 +2023,10 @@ async function performProject(actor, def, options) {
     // here to push - the reason is the useful half of the answer, and a player
     // who cannot see the option cannot tell whether they are in the wrong room
     // or the module has forgotten the project exists.
-    // The trait field serves both rows: a project to push and one to break are
-    // both "a project whose statistic may be open".
-    const traitOptions = openTraits(here, def);
+    //
+    // No statistic is asked here any more (E32+E07 C11d; the owner's rules of
+    // 28.09.2026): Work on a project and a Sabotage of it roll the project's own,
+    // and a project stored without one asks a GM once (`projectTrait`).
 
     /*
      * THE THIRD ROW: BREAKING ONE.
@@ -2042,17 +2049,12 @@ async function performProject(actor, def, options) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { sabotageTargetsIn } = await import("./projects.mjs");
     const breakable = sabotageTargetsIn(room, { anyRoom: isMonokuma(actor) });
-    if (!traitOptions.length && openTraits(breakable, ACTIONS.sabotage).length) {
-        traitOptions.push(...ACTIONS.sabotage.traits);
-    }
 
     const picked = await chooseVariant({
         actor,
         title: def.label,
         intro: briefingBlock(actor, "project", def),
         prompt: game.i18n.localize("DRPG.Project.choosePrompt"),
-        traits: traitOptions.length ? traitOptions : null,
-        traitNote: game.i18n.localize("DRPG.Action.traitOnlyIfOpen"),
         options: [
             {
                 value: "work", icon: "fa-hammer",
@@ -2094,23 +2096,18 @@ async function performProject(actor, def, options) {
     if (!picked) return null;
     if (picked.value === "start") return startProject(actor);
     // Straight through to the action it always was - its own concealment roll,
-    // its own trace - with the target and the statistic read off THIS window.
+    // its own trace - with the target read off THIS window.
     if (picked.value === "sabotage") {
         const target = breakable.find(pr => pr.id === picked.form?.querySelector("[name=sabotage]")?.value)
             ?? breakable[0];
-        const trait = resolveProjectTrait(target, picked.trait, ACTIONS.sabotage.traits ?? []);
-        if (!trait) return null;
-        return performSabotage(actor, ACTIONS.sabotage, options, { project: target, trait });
+        return performSabotage(actor, ACTIONS.sabotage, options, { project: target });
     }
 
     // The window is closed by now, but `chooseVariant` hands back the form it
-    // was read from, so the two fields are still there to be read.
+    // was read from, so the field is still there to be read.
     const chosen = here.find(pr => pr.id === picked.form?.querySelector("[name=project]")?.value)
         ?? here[0];
-    const trait = resolveProjectTrait(chosen, picked.trait, def.traits ?? []);
-    if (!trait) return null;
-
-    return workOnProject(actor, def, options, { project: chosen, trait });
+    return workOnProject(actor, def, options, { project: chosen });
 }
 
 /**
@@ -2124,6 +2121,7 @@ async function performProject(actor, def, options) {
  */
 async function startProject(actor) {
     const { allRooms } = await import("./movement.mjs");
+    const { projectTraitOptions } = await import("./projects-ui.mjs");
     const room = roomOfActor(actor);
     const rooms = allRooms();
 
@@ -2147,10 +2145,7 @@ async function startProject(actor) {
             <label>${game.i18n.localize("DRPG.Project.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Project.trait")}
-                <select name="trait">
-                    <option value="">${game.i18n.localize("DRPG.Project.anyTrait")}</option>
-                    ${Object.entries(TRAITS).map(([k, t]) => `<option value="${k}">${t.label}</option>`).join("")}
-                </select></label>
+                <select name="trait" required>${projectTraitOptions()}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="murder" /> ${game.i18n.localize("DRPG.Project.indirectMine")}</label>
             <label>${game.i18n.localize("DRPG.Project.condition")}
@@ -2191,6 +2186,10 @@ async function startProject(actor) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.needsName"));
         return null;
     }
+    if (!Object.hasOwn(TRAITS, result.trait ?? "")) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Project.traitRequired"));
+        return null;
+    }
 
     // A PROPOSAL, NOT A PROJECT.
     //
@@ -2213,7 +2212,7 @@ async function startProject(actor) {
         `<strong>${esc(result.name)}</strong>`,
         `${esc(scaleLabel)} · ${result.target} progress`,
         result.room ? esc(result.room) : game.i18n.localize("DRPG.Project.anyRoom"),
-        result.trait ? (TRAITS[result.trait]?.label ?? result.trait) : game.i18n.localize("DRPG.Project.anyTrait")
+        TRAITS[result.trait].label
     ].join(" · ");
 
     /*
@@ -2296,18 +2295,20 @@ async function workOnProject(actor, def, options, chosen = null) {
         return null;
     }
 
-    // Normally both of these were answered in the window that got us here.
+    // Normally the project was picked in the window that got us here.
     // The fallback is not dead code: this function is the one entry point that
     // knows how to run a project roll, and a caller that has not asked yet -
     // or has asked about a project that has since been finished or frozen -
     // still needs somewhere to ask.
     const stillThere = chosen?.project && here.some(pr => pr.id === chosen.project.id);
-    const picked = stillThere
-        ? chosen
-        : await chooseProjectAndTrait(listed, "DRPG.Project.whichWork", actor, def,
-            { disableComplete: true });
-    if (!picked) return null;
-    const { project, trait } = picked;
+    const project = stillThere
+        ? chosen.project
+        : await chooseProject(listed, "DRPG.Project.whichWork", actor, def, { disableComplete: true });
+    if (!project) return null;
+    // Before anything is paid: a project stored without a statistic waits for a GM here.
+    const ruled = await projectTrait(actor, project);
+    if (!ruled) return null;
+    const { trait, byGm } = ruled;
 
     const indirect = isIndirectMurder(project.id);
     const witnesses = othersInRoom(actor);
@@ -2354,6 +2355,7 @@ async function workOnProject(actor, def, options, chosen = null) {
     try {
         roll = await rollTrait(actor, trait, {
             actionKey: "project",
+            byGm,
             title: game.i18n.localize(indirect ? "DRPG.Roll.murderProject" : "DRPG.Roll.project"),
             dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief)).join(" / "),
             context: { room: roomOfActor(actor), projectId: project.id, bonus, cost }
@@ -2538,6 +2540,8 @@ function projectOptionsHtml(list, { disableComplete = false } = {}) {
     return list.map(p => {
         const target = p.start ? ` - ${p.current}/${p.start}${scaleFor(p.start) ? `, ${scaleFor(p.start)}` : ""}` : "";
         const where = p.room ? ` · ${p.room}` : "";
+        // The statistic its roll takes (C11d): the project's own, said before it is picked.
+        const stat = TRAITS[p.trait] ? ` · ${TRAITS[p.trait].label}` : "";
         const done = disableComplete && p.complete;
 
         let mark = "";
@@ -2553,51 +2557,37 @@ function projectOptionsHtml(list, { disableComplete = false } = {}) {
         // drawn by a browser that will not style an <option>.
         const suffix = done ? ` - ${game.i18n.localize("DRPG.Project.completeTag")}` : "";
         return `<option value="${p.id}"${mark}>${
-            foundry.utils.escapeHTML(p.name)}${target}${where}${suffix}</option>`;
+            foundry.utils.escapeHTML(p.name)}${target}${where}${stat}${suffix}</option>`;
     }).join("");
 }
 
 /**
- * Which statistics this window has to ask about, if any.
+ * The statistic a roll on `project` takes - Work on it, or a Sabotage of it:
+ * `{ trait, byGm }`, or null when it is not to be rolled.
  *
- * A project may fix the statistic its work demands, and most do. The field is
- * only worth showing when the action offers a choice AND at least one project
- * in the list leaves that choice open - otherwise it is a control that changes
- * nothing, which is worse than no control.
+ * THE PROJECT'S OWN, AND NOBODY ELSE'S (E32+E07 C11d; the owner's rules of 28.09.2026).
+ * The Projects window carried a Statistic select for a project that left its
+ * statistic open, and a player could pick the one they were best at - for their own
+ * project, or for one they were breaking. A project's roll takes the statistic it was
+ * given when it was made; a Sabotage takes its target's, because breaking a thing
+ * takes the same kind of work as building it. A project stored without one (both
+ * forms allowed it until 1.2.66) asks a GM once, through the ruling every several-trait
+ * roll asks (trait-ruling.mjs `traitFor`, kind `project`), and the pick becomes the
+ * project's. Shared by both rolls, so Work on Project and Sabotage cannot drift.
  */
-function openTraits(list, def) {
-    const traits = def.traits ?? [];
-    return traits.length > 1 && list.some(p => !p.trait) ? traits : [];
-}
-
-/**
- * The statistic this roll ends up using, and saying so when it was not a choice.
- *
- * Order matters: the project's own demand outranks anything the player picked,
- * because a fixed project is fixed for everybody. Shared by both windows that
- * lead into a project roll, so Work on Project and Sabotage cannot drift.
- */
-function resolveProjectTrait(project, chosen, traitOptions) {
-    const trait = project?.trait ?? chosen ?? (traitOptions.length === 1 ? traitOptions[0] : null);
-    if (!trait) return null;
-
-    if (project?.trait) {
+async function projectTrait(actor, project) {
+    const { traitFor } = await import("./trait-ruling.mjs");
+    const ruled = await traitFor(actor, { kind: "project", key: project.id });
+    if (ruled && project.trait) {
         ui.notifications.info(game.i18n.format("DRPG.Project.traitFixed", {
             trait: TRAITS[project.trait]?.label ?? project.trait
         }));
     }
-    return trait;
+    return ruled;
 }
 
-async function chooseProjectAndTrait(list, promptKey, actor, def, { disableComplete = false } = {}) {
-    const traitOptions = def.traits ?? [];
+async function chooseProject(list, promptKey, actor, def, { disableComplete = false } = {}) {
     const projectOptions = projectOptionsHtml(list, { disableComplete });
-
-    const traitField = openTraits(list, def).length
-        ? traitFieldHtml(actor, traitOptions, {
-            note: game.i18n.localize("DRPG.Action.traitOnlyIfOpen")
-          })
-        : "";
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Project.title") },
@@ -2609,15 +2599,11 @@ async function chooseProjectAndTrait(list, promptKey, actor, def, { disableCompl
         content: dialogContent(`${def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : ""}<form>
             <label>${game.i18n.localize(promptKey)}
                 <select name="project">${projectOptions}</select></label>
-            ${traitField}
         </form>`),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Action.proceed"), default: true,
-                callback: (e, b, d) => ({
-                    id: d.element.querySelector("[name=project]").value,
-                    trait: d.element.querySelector("[name=trait]")?.value ?? null
-                })
+                callback: (e, b, d) => ({ id: d.element.querySelector("[name=project]").value })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -2639,11 +2625,7 @@ async function chooseProjectAndTrait(list, promptKey, actor, def, { disableCompl
         }));
         return null;
     }
-
-    const trait = resolveProjectTrait(project, result.trait, traitOptions);
-    if (!trait) return null;
-
-    return { project, trait };
+    return project;
 }
 
 /* ==========================================================================
@@ -2676,15 +2658,16 @@ async function performSabotage(actor, def, options, preset = null) {
 
     // Breaking a thing takes the same kind of work as building it, so sabotage
     // uses the project's own trait. The player does not get to pick an easier
-    // one than the people who built it had to use - the trait field in this
-    // same dialog only ever matters for a target that left it open, same as
-    // Work on Project. See chooseProjectAndTrait().
+    // one than the people who built it had to use - see `projectTrait`.
     // Already chosen on the Projects window (ROLL-12) - as long as the target
     // is still one that can be broken; the API's direct door still asks here.
-    const chosen = preset?.project && targets.some(p => p.id === preset.project.id) ? preset : null;
-    const picked = chosen ?? await chooseProjectAndTrait(targets, "DRPG.Project.whichSabotage", actor, def);
-    if (!picked) return null;
-    const { project, trait } = picked;
+    const chosen = preset?.project && targets.some(p => p.id === preset.project.id) ? preset.project : null;
+    const project = chosen ?? await chooseProject(targets, "DRPG.Project.whichSabotage", actor, def);
+    if (!project) return null;
+    // Before the action is paid below, and before the concealment roll.
+    const ruled = await projectTrait(actor, project);
+    if (!ruled) return null;
+    const { trait, byGm } = ruled;
 
     const witnesses = othersInRoom(actor);
     const lines = [];
@@ -2720,6 +2703,7 @@ async function performSabotage(actor, def, options, preset = null) {
     try {
         roll = await rollTrait(actor, trait, {
             actionKey: "sabotage",
+            byGm,
             dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief + penalty)).join(" / "),
             context: { room, targetProjectId: project.id, penalty, witnesses: witnesses.length }
         });
@@ -4742,15 +4726,15 @@ async function performGeneric(actor, actionKey, def, options) {
     // The briefing rides in the statistic picker rather than in front of it -
     // this branch has no other window of its own, and two in a row for one
     // choice is exactly what NEEDS_OWN_BRIEFING exists to stop.
-    const trait = await chooseTrait(actor, def, {
+    const ruled = await chooseTrait(actor, actionKey, def, {
         intro: options.skipBriefing ? "" : briefingBlock(actor, actionKey, def)
     });
-    if (!trait) return null;
+    if (!ruled) return null;
 
     // Paid before the dice - see `abort` and ACT-07 above it.
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
-    const roll = await rollTrait(actor, trait, { actionKey });
+    const roll = await rollTrait(actor, ruled.trait, { actionKey, byGm: ruled.byGm });
     if (!roll) return abort(actor, paid);
 
     const hit = roll.isCritical ? def.critical : resolveThreshold(roll.total, def.thresholds ?? []);

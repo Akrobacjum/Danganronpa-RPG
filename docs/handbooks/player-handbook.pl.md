@@ -149,7 +149,7 @@ Opis każdej akcji pokazuje jej koszt, statystyki, którymi rzuca, pokój, w kt�
 > [!NOTE]
 > Kafelek ze znakiem GMa oddaje ruch człowiekowi: twój rzut i prośba trafiają do twojego wątku w komunikatorze i czekasz na decyzję.
 
-### Search - Eye albo Hand, 1 akcja
+### Search - Eye, 1 akcja
 
 Przeszukujesz pokój pod kątem tego, co nazwiesz. Wydaje jeden z Search Tokenów pokoju.
 
@@ -201,7 +201,7 @@ Trzy rzeczy za jednym kafelkiem:
 - **Poproś o wskazówkę.** Brak dowodów w ręku? Poproś GMa, by cię gdzieś skierował. 14+ kupuje subtelną podpowiedź ("jesteś daleko od celu"), 18+ bezpośrednią ("przeszukaj pomieszczenie z basenem"), krytyk pozwala im zadać ci jedno pytanie ("czy ofiara naprawdę zginęła w tym pokoju?"). Poniżej 14 - bez pomocy.
 - **Znajdź ukrytą skrytkę.** 16+ otwiera przed tobą jedną skrytkę w tym pokoju. GM się dowiaduje; właściciel nie.
 
-### Projekty - Hand, Body, Leg albo Head, 1 akcja
+### Projekty - statystyka projektu, 1 akcja
 
 Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmienić to, jak to się skończy.
 
@@ -221,11 +221,11 @@ Powolna gra: wiele akcji przez wiele pór dnia i jedyna rzecz, która może zmie
 
 - Projekt mieszka w pokoju. Pracować nad nim może tylko ten, kto tam stoi.
 - **Zaproponowanie projektu** nie kosztuje akcji i wysyła kartę do GMa. Nic nie istnieje, dopóki GM nie zatwierdzi, a wcześniej może zmienić skalę, pokój albo brzmienie.
-- Projekt może wymagać konkretnej statystyki; inaczej wybierasz sam.
+- Projekt wymaga jednej statystyki, nadanej przy tworzeniu, i każdy rzut na nim bierze właśnie ją - twój i sabotażysty. Projekt zrobiony bez niej przy pierwszym rzucie pyta GMa i zachowuje jego wybór.
 - **Narzędzie w ręku** daje przewagę i zdejmuje swój Tier z każdego progu rzutu.
 - Niektóre projekty są tajne dla osób, które nad nimi pracują. Jeśli któregoś nie widzisz, nie ma go na twojej liście.
 - Projekt przypisany do pokoju stoi też na mapie, jako token z młotkiem, który nigdy nie mówi, który to projekt. Jawny pojawia się, gdy już stałeś w jego pokoju; tajny tylko dla wtajemniczonych. Kliknij go dwukrotnie, by zobaczyć jego kartę.
-- **Sabotage** (ten sam kafelek, te same statystyki): psujesz projekt w pokoju, w którym stoisz, tak by wymagał projektu naprawy. 12+ prosta naprawa, 18+ złożona, krytyk - naprawa o ukrytej trudności. Przy świadkach najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz; porażka cię nie zatrzymuje, tylko wszyscy patrzyli.
+- **Sabotage** (ten sam kafelek, statystyka projektu): psujesz projekt w pokoju, w którym stoisz, tak by wymagał projektu naprawy. 12+ prosta naprawa, 18+ złożona, krytyk - naprawa o ukrytej trudności. Przy świadkach najpierw rzucasz Shadow przeciw **16**, by zamaskować, co robisz; porażka cię nie zatrzymuje, tylko wszyscy patrzyli.
 
 > [!WARNING]
 > Sabotage **zawsze zostawia ślad**, nawet przy porażce, a rzut z Despair pokazuje cię pokojowi.

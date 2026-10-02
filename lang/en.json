@@ -578,7 +578,6 @@
         "bonus": "Advantage, disadvantage and experience"
       },
       "chooseTrait": "{action} - which statistic?",
-      "traitOnlyIfOpen": "Used only if the project above demands nothing of its own.",
       "costActions": "{n} action",
       "costFree": "free",
       "cannotAfford": {
@@ -2227,8 +2226,8 @@
       "startNote": "Nothing is created yet. This goes to the GM as a proposal - they approve it, adjust it, or turn it down.",
       "indirectMine": "Indirect murder - kept secret, so only you and the GMs see it",
       "trait": "Required work",
-      "anyTrait": "- player chooses -",
       "traitFixed": "This project demands {trait}.",
+      "traitRequired": "A project needs a statistic: pick the one its work demands.",
       "repairName": "Repair: {name}",
       "repairNameSecret": "Repair",
       "repaired": "repaired. {name} can be worked on again.",
@@ -2377,7 +2376,6 @@
       "diceFixed": "Fixed at d12 by the rules.",
       "traitFixed": "Chosen before this window opened.",
       "traitByGm": "Chosen by the GM.",
-      "pickYourApproach": "A careful look or a quick rummage - your choice.",
       "advantageLocked": "Advantage and disadvantage come from Calls, not from here.",
       "pickOneExperience": "Pick the one experience this roll relates to. Clicking another moves the choice.",
       "experienceLocked": "Using an experience is the Experience Hope Call - ask the GM to spend it.",

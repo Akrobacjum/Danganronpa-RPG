@@ -697,14 +697,17 @@ async function ruleRefuseDynamic(action, data) {
     // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
     // list is read again from this GM's config for the definition the card names, and a
     // trait not on it is refused here: the button's data is the card's, and the card is
-    // a document. The pick goes to the asker alone and is kept in the card's meta.
+    // a document. The pick goes to the asker alone and is kept in the card's meta. A project
+    // stored without a statistic is given this one before the answer leaves (C11d), so the
+    // roll it is for is the last that asks.
 async function rulePickTrait(action, data) {
-    const { listedTraits } = await import("./trait-ruling.mjs");
+    const { listedTraits, keepProjectPick } = await import("./trait-ruling.mjs");
     const spec = { kind: data.kind ?? "", key: data.key ?? "", variant: data.variant || null };
     if (!game.actors.get(data.by ?? "") || !listedTraits(spec).includes(data.trait)) {
         warn(`A statistic card offered "${data.trait}", which ${spec.kind} "${spec.key}" does not list; nothing was answered.`);
         return null;
     }
+    await keepProjectPick(spec, data.trait);
     const { answerTraitRuling } = await import("./gm-bridge.mjs");
     if (!answerTraitRuling(data.rid, data.asker, data.trait)) return null;
     return { ...settled("DRPG.Bridge.settledAnswered"),

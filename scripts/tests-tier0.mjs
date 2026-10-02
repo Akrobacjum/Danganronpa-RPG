@@ -6262,6 +6262,79 @@ const REGRESSIONS = [
             "resolveKillerOpening", "resolveVictimOpening", "closeIncident", "undoLastCrisis"];
         const blind = TRANSITIONS.filter(fn => !/if \(!await (?:writeState|restoreState)\([^;]*\bexpect: /.test(fnSource(bare, fn)));
         ok(!blind.length, `a transition writes without saying what it read, or goes on when the write is refused: ${blind.join(", ")}`);
+    }],
+
+    ["R213 - no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one, and every definition that lists several is a ruling's", async () => {
+        /*
+         * E32+E07 C11d, 02.10.2026; audit S04-23 and the owner's rules of 28.09.2026. Wherever a
+         * definition lists several traits a GM picks (trait-ruling.mjs `traitFor`), Resolve
+         * excepted. The way round that is code taking a list's first trait - every crisis action
+         * rolled `(variant?.traits ?? def.traits)[0]` until C11b, the openings `def.traits[0]`
+         * until C11c - or a definition that lists several and is no ruling's to ask. Three
+         * readings, the first two tried first on planted text and a planted catalogue:
+         *   1. every `traits ... [0]` in the served sources (comments and strings blanked) stands
+         *      in a function of FIRSTS, which names the definition it reads, and that definition
+         *      lists one trait - so Search back on Eye or Hand fails here;
+         *   2. every object of config.mjs with a `traits` list of two or more is one of
+         *      `ruledDefinitions()`, by identity;
+         *   3. `OWN_PERFORMERS`, the actions trait-ruling.mjs keeps out of the generic kind, are
+         *      the cases of `performAction`'s switch - a new case left out of it would be asked
+         *      about as a generic action, one in it and not the switch never would.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const C = await import("./config.mjs");
+        const FIRST = /\btraits\b\s*\)?\s*(?:\?\.)?\s*\[\s*0\s*\]/g;
+        const firstsIn = text => {
+            const code = blankComments(text), blank = blankLiterals(code);
+            const fns = [...code.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)];
+            return [...blank.matchAll(FIRST)].map(m => fns.filter(f => f.index < m.index).pop()?.[1] ?? "(top level)");
+        };
+        const PLANTED = [
+            "function struck() {\n    return rollTrait(actor, CRISIS_ACTIONS.strike.traits[0]);\n}",
+            "async function variant() {\n    const t = (variant?.traits ?? def.traits)[0];\n    // def.traits[0], in a comment\n    return \"def.traits[0]\";\n}",
+            "function optional() {\n    return def.traits?.[0] ?? \"eye\";\n}"
+        ].join("\n");
+        equal(JSON.stringify(firstsIn(PLANTED)), JSON.stringify(["struck", "variant", "optional"]),
+            "the reader does not find the three planted firsts, or finds the comment's or the string's");
+
+        // The functions that take a list's first, and the definition each reads; measured 02.10.2026.
+        const FIRSTS = {
+            "action-rolls.mjs chooseSearchCategory": ACTIONS.search,
+            "action-rolls.mjs performPalm": ACTIONS.palm,
+            "cleanup.mjs cleanupTrait": ACTIONS.tamper
+        };
+        const sites = [];
+        for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);
+        equal(JSON.stringify([...new Set(sites)].sort()), JSON.stringify(Object.keys(FIRSTS).sort()),
+            "a function takes a list's first trait that this test does not know, or one it knows no longer does");
+        const several = Object.entries(FIRSTS).filter(([, def]) => (def?.traits ?? []).length !== 1).map(([site]) => site);
+        ok(!several.length, `a first trait is taken from a list of several, which a GM should pick from: ${several.join(", ")}`);
+
+        const unruledIn = (roots, ruled) => {
+            const seen = new Set(), found = [];
+            const walk = (value, at) => {
+                if (!value || typeof value !== "object" || seen.has(value)) return;
+                seen.add(value);
+                if (Array.isArray(value.traits) && value.traits.length > 1) found.push([at, ruled.has(value)]);
+                for (const [key, inner] of Object.entries(value)) walk(inner, `${at}.${key}`);
+            };
+            for (const [key, value] of Object.entries(roots)) walk(value, key);
+            return found;
+        };
+        const fake = { A: { x: { traits: ["eye", "hand"] } }, B: [{ traits: ["eye"] }], C: { traits: ["hand", "leg"] } };
+        equal(JSON.stringify(unruledIn(fake, new Set([fake.C]))), JSON.stringify([["A.x", false], ["C", true]]),
+            "the catalogue reader does not find the planted lists of several, or misreads which is a ruling's");
+        const found = unruledIn(C, T.ruledDefinitions());
+        // Not a reading of nothing: 14 definitions list several at 1.2.66 (15 with Search on Eye or Hand).
+        ok(found.length >= 12, `the reader found ${found.length} definitions that list several traits - too few to trust`);
+        log(`R213: ${found.length} definitions list several traits, ${new Set(sites).size} functions take a list's first`);
+        const loose = found.filter(([, ruled]) => !ruled).map(([at]) => at);
+        ok(!loose.length, `a definition lists several traits and no ruling asks a GM about it: ${loose.join(", ")}`);
+
+        const dispatch = fnSource(stripComments(new Map(await otherSources()).get("action-rolls.mjs") ?? ""), "performAction");
+        const cases = [...dispatch.matchAll(/\bcase "(\w+)":/g)].map(m => m[1]);
+        equal(JSON.stringify([...cases].sort()), JSON.stringify([...T.OWN_PERFORMERS].sort()),
+            "trait-ruling.mjs OWN_PERFORMERS is not the list of performAction's own performers");
     }]
 ];
 

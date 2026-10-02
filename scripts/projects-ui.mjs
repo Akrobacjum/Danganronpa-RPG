@@ -667,6 +667,25 @@ function glyphGrid(current) {
 }
 
 /**
+ * The Statistic select's options for a project's form - the GM's editor here, and a
+ * player's proposal (action-rolls.mjs `startProject`).
+ *
+ * A STATISTIC IS REQUIRED (E32+E07 C11d; the owner's rules of 28.09.2026). Both forms
+ * offered "- player chooses -" until 1.2.66, and a roll on such a project let the
+ * player pick. A project's roll - Work on it, or a Sabotage of it - takes the
+ * project's statistic now, so a form has to name one. With none yet (a new project, or
+ * one stored without) the placeholder is blank, disabled and selected: nothing is
+ * guessed for the writer, and the form's own check refuses it ("DRPG.Project.traitRequired").
+ */
+export function projectTraitOptions(current = "") {
+    return [
+        `<option value="" disabled${current ? "" : " selected"}>-</option>`,
+        ...Object.entries(TRAITS).map(([k, t]) =>
+            `<option value="${k}"${k === current ? " selected" : ""}>${t.label}</option>`)
+    ].join("");
+}
+
+/**
  * Create a project, or edit one - the same form either way.
  *
  * Deliberately one function rather than two that drift apart. The GM asks the
@@ -715,12 +734,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     const players = playerList();
 
-    const traitOptions = [
-        `<option value=""${currentTrait ? "" : " selected"}>${
-            game.i18n.localize("DRPG.Project.anyTrait")}</option>`,
-        ...Object.entries(TRAITS).map(([k, t]) =>
-            `<option value="${k}"${k === currentTrait ? " selected" : ""}>${t.label}</option>`)
-    ].join("");
+    const traitOptions = projectTraitOptions(currentTrait);
 
     /*
      * THE NINE TRIGGERS, AND R13 IN BOTH DIRECTIONS.
@@ -772,7 +786,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             <label>${game.i18n.localize("DRPG.Project.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Project.trait")}
-                <select name="trait">${traitOptions}</select></label>
+                <select name="trait" required>${traitOptions}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="murder"${
                     start?.indirectMurder ? " checked" : ""} /> ${
@@ -885,6 +899,10 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
     if (!result.name) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.needsName"));
+        return null;
+    }
+    if (!Object.hasOwn(TRAITS, result.trait ?? "")) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Project.traitRequired"));
         return null;
     }
 

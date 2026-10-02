@@ -577,6 +577,68 @@ function answerTraitWindows() {
 }
 
 /**
+ * EVERY WINDOW, ANSWERED (E32+E07 C11d, 02.10.2026). The actions' own windows - Search's
+ * "what are you looking for", the Projects window, a project's form - and the GM's statistic
+ * window are real windows on this GM (01-runtests draws them), and nobody sits at the suite to
+ * press them. Until `restore()` each `wait` is noted in `asked` (its title, its buttons, and
+ * whether its form carries a Statistic select) and answered by `answer(cfg, root)`, `root`
+ * being the window's content as built; `press(cfg, root)` presses its default button the way
+ * Foundry's would - through the button's own callback on that content.
+ */
+function answerWindows(answer) {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    const handle = {
+        asked: [],
+        restore: () => {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+    };
+    D.wait = async cfg => {
+        const root = cfg?.content instanceof HTMLElement ? cfg.content : document.createElement("div");
+        if (!(cfg?.content instanceof HTMLElement)) root.innerHTML = String(cfg?.content ?? "");
+        handle.asked.push({ title: cfg?.window?.title ?? "", buttons: (cfg?.buttons ?? []).map(b => b.action),
+            statistic: Boolean(root.querySelector('select[name="trait"]')) });
+        return answer(cfg, root);
+    };
+    return handle;
+}
+
+/** A window's default button, pressed on its own content (`answerWindows`). */
+function press(cfg, root) {
+    const button = (cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0];
+    return button?.callback ? button.callback(null, null, { element: root }) : button?.action ?? null;
+}
+
+/**
+ * One student stood alone in a room nobody else is in (E32+E07 C11d), so a Sabotage there asks
+ * no concealment roll and a project made for that room is theirs to reach: the token teleported
+ * to its centre and read back, as `aloneTogether` stands two. `back()` puts it where it was. Ask
+ * the world's rows before calling it - it writes.
+ */
+async function standAlone(actor) {
+    const { allRooms, othersInNamedRoom, othersInRoom, positionIn, roomOfActor } = await import("./movement.mjs");
+    const scene = canvas?.scene;
+    const token = scene?.tokens?.find(t => t.actorId === actor.id);
+    must(token, `${actor.name} has no token on the scene on screen`);
+    const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
+    must(room, "every named room on the scene on screen has somebody in it");
+    const was = { x: token.x, y: token.y };
+    const PLACE = { teleport: true, movementAction: "displace", animate: false };
+    await token.update(positionIn(room, token), PLACE);
+    await settle();
+    const stood = roomOfActor(actor) === room && othersInRoom(actor).length === 0;
+    const back = async () => {
+        if (scene.tokens.has(token.id)) await token.update(was, PLACE);
+        await settle();
+    };
+    if (!stood) await back();
+    must(stood, `the fixture could not stand ${actor.name} alone in ${room}`);
+    return { room, back };
+}
+
+/**
  * A verdict run with its windows answered (E05 C11): every `DialogV2.wait` for the length
  * of `run` is recorded - its classes, title and how many picks a Level Up window offers -
  * and a Level Up window is answered by `answer(entry)`, any other closed. The GM's Level Up
@@ -3923,6 +3985,215 @@ const SCENARIOS = [
             delete killer.rollTrait;
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await stood.back();
+        }
+    }],
+
+    ["Search rolls Eye and its window offers no choice", async () => {
+        /*
+         * E32+E07 C11d, 02.10.2026; the owner's rule of 28.09.2026 (Search on Eye alone). A
+         * Search listed Eye and Hand and handed the next roll window a choice of the two
+         * (roll-dialog.mjs `allowTraitsForNextRoll`), so the searcher picked the better of
+         * their two statistics. A student stood alone in a room with a search token left
+         * (`standAlone`) searches from this GM's browser, free, its window answered as a
+         * player's default; the character's `rollTrait` notes the statistic and throws nothing,
+         * as a closed roll window does. Then the roll window's lock (`lockTrait`) is handed a
+         * Statistic select of its own - the window is Daggerheart's, and the harness has none -
+         * with nothing armed. Read: the throws, the windows that asked a statistic, and the
+         * select. Until C11d the select came back open and cut to Instinct and Finesse.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const [actor] = cast(1);
+        const { TRAIT_BY_GM, performAction } = await import("./action-rolls.mjs");
+        const { lockTrait } = await import("./roll-dialog.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const stood = await standAlone(actor);
+        const ruling = game.i18n.localize("DRPG.TraitRuling.title");
+        const windows = answerWindows((cfg, root) => cfg?.window?.title === ruling ? "cancel" : press(cfg, root));
+        const thrown = [];
+        try {
+            must(SearchTokens.left(stood.room) > 0 && !SearchTokens.sealed(stood.room), `${stood.room} has no search token left`);
+            actor.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            await performAction(actor, "search", { free: true });
+            const root = document.createElement("div");
+            root.innerHTML = `<select name="trait">${["agility", "strength", "finesse", "instinct", "presence", "knowledge"]
+                .map(k => `<option value="${k}">${k}</option>`).join("")}</select>`;
+            lockTrait(root, { config: {} }, new Set());
+            const select = root.querySelector("select");
+            equal(stableJson([thrown, windows.asked.filter(w => w.title === ruling || w.statistic).length,
+                [select.disabled, select.options.length, select.dataset.tooltip ?? null]]),
+            stableJson([[["instinct", false]], 0, [true, 6, game.i18n.localize("DRPG.RollDialog.traitFixed")]]),
+            "a Search threw another statistic or a GM's, asked a statistic in a window, or left the roll window's select open (throws, statistic windows, the select)");
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            await stood.back();
+        }
+    }],
+
+    ["Work on a project and a Sabotage of it roll the project's statistic, nobody asked", async () => {
+        /*
+         * E32+E07 C11d, 02.10.2026; the owner's rules of 28.09.2026 (a Project's roll, and a
+         * Sabotage of it, on the project's statistic). The Projects window carried a Statistic
+         * select whenever a project in the room left its statistic open, and the select was the
+         * player's. A student stood alone in a room (`standAlone`: no witness asks a concealment
+         * roll) with two projects made for it - one demanding Leg, one with no statistic - works
+         * on the first and sabotages it, free, from the Projects window, its row and its project
+         * picked as a player picks them; `rollTrait` notes the statistic and throws nothing.
+         * Read: the throws, the windows that carried a Statistic select, and the GM's statistic
+         * windows. Until C11d the Projects window carried one both times (the second project's).
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the worker alone");
+        const [actor] = cast(1);
+        const { TRAIT_BY_GM, performAction } = await import("./action-rolls.mjs");
+        const P = await import("./projects.mjs");
+        const stood = await standAlone(actor);
+        const made = [];
+        const ruling = game.i18n.localize("DRPG.TraitRuling.title");
+        const pick = { row: "work" };
+        const windows = answerWindows((cfg, root) => {
+            if (cfg?.window?.title === ruling) return "cancel";
+            const radio = root.querySelector(`input[name="variant"][value="${pick.row}"]`);
+            if (radio) radio.checked = true;
+            for (const name of ["project", "sabotage"]) {
+                const select = root.querySelector(`select[name="${name}"]`);
+                if (select) select.value = made[0];
+            }
+            return press(cfg, root);
+        });
+        const thrown = [];
+        try {
+            made.push((await P.createProject({ name: "SUITE C11D demands Leg", target: 4, room: stood.room, trait: "leg" }))?.id);
+            made.push((await P.createProject({ name: "SUITE C11D open", target: 4, room: stood.room }))?.id);
+            must(made.every(Boolean), "the two projects could not be made");
+            actor.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            await performAction(actor, "project", { free: true });
+            pick.row = "sabotage";
+            await performAction(actor, "project", { free: true });
+            equal(stableJson([thrown, windows.asked.filter(w => w.statistic).length, windows.asked.filter(w => w.title === ruling).length]),
+                stableJson([[["agility", false], ["agility", false]], 0, 0]),
+                "a Work or a Sabotage threw another statistic than the project's, or a window offered one, or a GM was asked (throws, windows with a Statistic select, the GM's windows)");
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            for (const id of made.filter(Boolean)) await P.deleteProject(id);
+            await stood.back();
+        }
+    }],
+
+    ["a project without a statistic asks the GM once and keeps the pick", async () => {
+        /*
+         * E32+E07 C11d, 02.10.2026. Both of a project's forms allowed "- player chooses -" until
+         * 1.2.66, and no world data says which statistic the GM meant, so the first roll on such
+         * a project asks a GM (trait-ruling.mjs, kind `project`) and the pick is written to the
+         * project (`keepProjectPick`). A student stood alone in a room works twice, free, on a
+         * project made there with no statistic, from this GM's browser: the GM's statistic
+         * window is answered Body. Read: what the windows offered, the throws, and the project's
+         * statistic after. Until C11d the Projects window's own select answered (Hand, its
+         * first), nobody was asked and the project kept none.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the worker alone");
+        const [actor] = cast(1);
+        const { TRAIT_BY_GM, performAction } = await import("./action-rolls.mjs");
+        const P = await import("./projects.mjs");
+        const stood = await standAlone(actor);
+        let made = null;
+        const ruling = game.i18n.localize("DRPG.TraitRuling.title");
+        const offered = [];
+        const windows = answerWindows((cfg, root) => {
+            if (cfg?.window?.title === ruling) {
+                offered.push((cfg.buttons ?? []).map(b => b.action).filter(a => a !== "cancel"));
+                return "body";
+            }
+            const select = root.querySelector('select[name="project"]');
+            if (select) select.value = made;
+            return press(cfg, root);
+        });
+        const thrown = [];
+        try {
+            made = (await P.createProject({ name: "SUITE C11D no statistic", target: 4, room: stood.room }))?.id ?? null;
+            must(made && P.allProjects().find(p => p.id === made)?.trait === null, "the project could not be made without a statistic");
+            actor.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            await performAction(actor, "project", { free: true });
+            await performAction(actor, "project", { free: true });
+            equal(stableJson([offered, thrown, P.allProjects().find(p => p.id === made)?.trait ?? null]),
+                stableJson([[["hand", "body", "leg", "head"]], [["strength", true], ["strength", false]], "body"]),
+                "the first Work did not ask the GM or threw something else, the pick was not kept, or the second asked again (offered, throws, the project's statistic)");
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            if (made) await P.deleteProject(made);
+            await stood.back();
+        }
+    }],
+
+    ["a project cannot be proposed or saved without a statistic", async () => {
+        /*
+         * E32+E07 C11d, 02.10.2026. A project's roll takes the project's statistic, so the
+         * forms that make one name it: a player's proposal and the GM's editor lost "- player
+         * chooses -" (projects-ui.mjs `projectTraitOptions`). A student proposes a project from
+         * the Projects window with the Statistic left as the form opens; the GM saves a project
+         * made with none, renamed and its Statistic left as the editor opens, then again with
+         * Body. Each form is answered with what its own callback reads - the harness's forms do
+         * not name their fields (`form.name`), so the answer is built beside the select as it
+         * stands. Read: each form's Statistic select (the selected option's value, whether it is
+         * disabled, `required`), what the proposal returned, the windows it opened after its
+         * form, what each save returned, the project after each, and the warnings. Until C11d the
+         * proposal went on to its sentence for the GM and the editor saved the rename.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the proposer alone");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const { openProjectDialog } = await import("./projects-ui.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const P = await import("./projects.mjs");
+        const stood = await standAlone(actor);
+        let made = null;
+        const forms = [];
+        const answer = { trait: null };
+        const startTitle = game.i18n.localize("DRPG.Project.startNew");
+        const editTitle = game.i18n.localize("DRPG.Project.editTitle");
+        const windows = answerWindows((cfg, root) => {
+            const title = cfg?.window?.title ?? "";
+            if (title === ACTIONS.project.label) {
+                root.querySelector('input[name="variant"][value="start"]').checked = true;
+                return press(cfg, root);
+            }
+            if (title !== startTitle && title !== editTitle) return null;
+            const select = root.querySelector('select[name="trait"]');
+            const chosen = [...(select?.options ?? [])].find(o => o.selected);
+            forms.push([chosen?.value ?? null, Boolean(chosen?.disabled), Boolean(select?.required)]);
+            const common = { name: "SUITE C11D renamed", target: 4, room: null, trait: answer.trait, murder: false, condition: "" };
+            return title === startTitle ? common : { ...common, img: null, glyph: null, secret: false, viewers: [],
+                trigger: { kind: "manual", targetId: null, afterDark: false, notBuilder: false } };
+        });
+        const warned = [];
+        const warn = ui.notifications.warn;
+        ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+        const required = game.i18n.localize("DRPG.Project.traitRequired");
+        try {
+            made = (await P.createProject({ name: "SUITE C11D no statistic", target: 4, room: stood.room }))?.id ?? null;
+            must(made, "the project could not be made");
+            const proposed = await performAction(actor, "project", { free: true });
+            const afterForm = windows.asked.map(w => w.title).filter(t => t !== ACTIONS.project.label && t !== startTitle);
+            const project = () => P.allProjects().find(p => p.id === made);
+            const saved = await openProjectDialog({ project: project() });
+            const left = [project()?.name ?? null, project()?.trait ?? null];
+            answer.trait = "body";
+            const savedWith = Boolean(await openProjectDialog({ project: project() }));
+            equal(stableJson([forms, proposed, afterForm, saved, left, savedWith, project()?.trait ?? null,
+                warned.filter(t => t === required).length]),
+            stableJson([[["", true, true], ["", true, true], ["", true, true]], null, [], null, ["SUITE C11D no statistic", null],
+                true, "body", 2]),
+            "a form opened on a statistic or let none be left, a proposal or a save went on without one, or a save with one was refused (forms, proposed, windows after the proposal's form, saved, the project, saved with Body, its statistic, warnings)");
+        } finally {
+            ui.notifications.warn = warn;
+            windows.restore();
+            if (made) await P.deleteProject(made);
             await stood.back();
         }
     }],

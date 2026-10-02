@@ -762,6 +762,69 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ hiddenWork, hiddenRepair, repairOnP1, thawed, repairEnd }));
     await canary.chatScan({ who: ["p1"], titles: [SECRET_WORK], phase: "projects: a secret project's sabotage" });
 
+    /* 7b''. A PROJECT'S STATISTIC (E32+E07 C11d, 02.10.2026; the owner's rules of 28.09.2026). A
+       project's roll - Work on it, or a Sabotage of it - takes the project's statistic, and only a
+       project stored without one asks a GM, by its id, on a card that names it in the asker's
+       thread (bridge-guards.mjs `guardTraitRuling`). p1 asks, through the honest request function,
+       for "SEC secret" (not p1's to see), for a project that does not exist, and for a public
+       project that demands Leg - each refused and told, no card up - and, the control, for a public
+       one with no statistic: the harness's GM presses Hand and the project keeps it. Then Botan,
+       stood alone in Storage beside a project there that demands Leg, sabotages it from p2's
+       browser (its Project window answered with that project); his `rollTrait` notes the
+       statistic and throws nothing, and nobody is asked. */
+    phase("a project's statistic", { flow: "trait-ruling" });
+    const statProjects = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        globalThis.__traitRulings.length = 0;
+        const make = async (name, trait, room) => (await P.createProject({ name, target: 6, room, trait }))?.id ?? null;
+        return { given: await make("SEC statistic given", "leg", null), open: await make("SEC no statistic", null, null),
+            storage: await make("SEC leg work", "leg", "Storage"), mark: game.messages.contents.length,
+            room: (await import("${repoUrl}/scripts/movement.mjs")).roomOfActor(game.actors.get("${ids.aiko}")) };`, { timeout: 60000 });
+    const statAsked = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const ask = async key => { const r = await B.requestTraitRuling({ actorId: "${ids.aiko}", kind: "project", key }); return [r?.ok ?? null, r?.ok ? r.value : r?.reason ?? null]; };
+        return [await ask("${projects.sec}"), await ask("SECNOPROJECT0000"), await ask("${statProjects.given}"), await ask("${statProjects.open}")];`,
+    { timeout: 120000 });
+    await settle(600);
+    const statAfter = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        return { cards: game.messages.contents.length - ${Number(statProjects.mark) || 0}, pressed: globalThis.__traitRulings.length,
+            kept: P.allProjects().find(p => p.id === "${statProjects.open}")?.trait ?? null,
+            logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "trait.ruling"'))
+                .reduce((n, e) => n + (e.count ?? 1), 0) };`);
+    check("SECURITY: a statistic ruling for a project p1 cannot see, one that does not exist, or one with a statistic is refused on the GM, told, and puts no card up; one with none is asked and kept",
+        JSON.stringify(statAsked) === JSON.stringify([[false, "notThere"], [false, "notThere"], [false, "badRequest"], [true, "hand"]])
+            && statAfter.cards === 1 && statAfter.pressed === 1 && statAfter.logged === 3 && statAfter.kept === "hand",
+        JSON.stringify({ statProjects, statAsked, statAfter }), { flow: "trait-ruling" });
+    const PLACE = `{ teleport: true, movementAction: "displace", animate: false }`;
+    const stoodBotan = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const actor = game.actors.get("${ids.botan}"); const t = canvas.scene.tokens.find(x => x.actorId === actor.id);
+        const was = { x: t.x, y: t.y };
+        await t.update(M.positionIn("Storage", t), ${PLACE});
+        await game.drpg.setActions(actor, game.drpg.actionsMax(actor));
+        await new Promise(r => setTimeout(r, 400));
+        return { was, room: M.roomOfActor(actor), others: M.othersInRoom(actor).map(a => a.name) };`, { timeout: 30000 });
+    await settle(600);
+    const sabotaged2 = await p2.eval(`const actor = game.actors.get("${ids.botan}");
+        const rolled = [];
+        actor.rollTrait = async key => { rolled.push(key); return null; };
+        let err = null;
+        globalThis.__notifications.length = 0;
+        // p2 sits still since the crisis phase (__dialogAuto false): the Project window is answered as its callback answers.
+        globalThis.__dialogAnswers.unshift(() => ({ id: "${statProjects.storage}" }));
+        try { await game.drpg.performAction(actor, "sabotage", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        delete actor.rollTrait;
+        return { rolled, err, dialogs: globalThis.__dialogLog.map(d => d.title).slice(-3),
+            notifs: globalThis.__notifications.map(n => n.level + ": " + n.msg).slice(-4) };`, { timeout: 60000 });
+    const sabotageAfter = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const t = canvas.scene.tokens.find(x => x.actorId === "${ids.botan}");
+        await t.update(${JSON.stringify(stoodBotan.was)}, ${PLACE});
+        const pressed = globalThis.__traitRulings.length;
+        for (const id of ${JSON.stringify([statProjects.given, statProjects.open, statProjects.storage].filter(Boolean))}) await P.deleteProject(id);
+        return { pressed, frozen: P.isFrozen("${statProjects.storage}") };`, { timeout: 60000 });
+    check("a Sabotage rolls the statistic of the project it targets (Leg), and nobody is asked",
+        stoodBotan.room === "Storage" && !stoodBotan.others.length && !sabotaged2.err
+            && JSON.stringify(sabotaged2.rolled) === JSON.stringify(["agility"]) && sabotageAfter.pressed === 1,
+        JSON.stringify({ stoodBotan, sabotaged2, sabotageAfter }), { flow: "projects" });
+
     // 7c. observe.resolve with somebody else's key.
     phase("Observe keys", { flow: "search-observe" });
     const observed = await gm.eval(`

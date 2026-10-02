@@ -149,7 +149,7 @@ Every action's briefing shows its cost, the statistics it rolls, the room you ar
 > [!NOTE]
 > A tile with a GM mark on it hands the turn to a human: your roll and your request go into your messenger thread and you wait for a ruling.
 
-### Search - Eye or Hand, 1 action
+### Search - Eye, 1 action
 
 Loot the room for something you name. Spends one of the room's search tokens.
 
@@ -201,7 +201,7 @@ Three things behind one tile:
 - **Ask for a hint.** No evidence in hand? Ask the GM to point you somewhere. 14+ buys a subtle hint ("you are far from the target"), 18+ a direct one ("search the pool room"), a critical lets them ask you one question ("did the victim really die in this room?"). Below 14, no help.
 - **Locate a hidden stash.** 16+ opens one hiding place in this room to you. The GM is told; the owner is not.
 
-### Projects - Hand, Body, Leg or Head, 1 action
+### Projects - the project's statistic, 1 action
 
 The slow game: many actions over many times of day, and the one thing that can change how this ends.
 
@@ -221,11 +221,11 @@ The slow game: many actions over many times of day, and the one thing that can c
 
 - A project lives in a room. Only somebody standing there can work on it.
 - **Proposing a project** costs no action and sends a card to the GM. Nothing exists until they approve it, and they may change the scale, the room or the wording first.
-- A project may demand a specific statistic; otherwise you pick.
+- A project demands one statistic, given when it is made, and every roll on it takes that one - yours, and a saboteur's. A project made without one asks the GM on its first roll and keeps their pick.
 - A **Tool held ready** gives advantage and takes its tier off every threshold on the roll.
 - Some projects are secret to the people working on them. If you cannot see one, it is not on your list.
 - A project with a room also stands on the map, as a hammer token that never says which project it is. A public one appears once you have stood in its room; a secret one only for the people in on it. Double-click it for its card.
-- **Sabotage** (same tile, same statistics): break a project in the room you stand in so it needs a repair project. 12+ a simple repair, 18+ a complex one, a critical a repair of hidden difficulty. With witnesses present you first roll Shadow against **16** to cover what you are doing; failing that does not stop you, it only means everyone watched.
+- **Sabotage** (same tile, the project's statistic): break a project in the room you stand in so it needs a repair project. 12+ a simple repair, 18+ a complex one, a critical a repair of hidden difficulty. With witnesses present you first roll Shadow against **16** to cover what you are doing; failing that does not stop you, it only means everyone watched.
 
 > [!WARNING]
 > Sabotage **always leaves a trace**, even on a failure, and a roll with Despair shows you to the room.

@@ -190,10 +190,10 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 
 | Akcja | Statystyka | Koszt | Co robi | Liczby |
 |---|---|---|---|---|
-| Search | Eye albo Hand | 1 + Search Token pokoju | Przeszukaj pokój pod kątem czegoś, co nazwiesz | 8: Tier 0 (ślad Hidden), 12: Tier 1 (Subtle), 18: Tier 2 (Evident); krytyk: +1 Tier i ślad Obvious. Zabranie Murder Weapon albo Cleaning Tool zostawia Faint Prep Remnant. Porażka nic nie znajduje |
+| Search | Eye | 1 + Search Token pokoju | Przeszukaj pokój pod kątem czegoś, co nazwiesz | 8: Tier 0 (ślad Hidden), 12: Tier 1 (Subtle), 18: Tier 2 (Evident); krytyk: +1 Tier i ślad Obvious. Zabranie Murder Weapon albo Cleaning Tool zostawia Faint Prep Remnant. Porażka nic nie znajduje |
 | Observe | Eye | 1 | Skopiuj Remnant do ekwipunku jako Neutral Truth Bullet | DC z `OBSERVE_DC` (sekcja 14); porażka kosztuje 1 Sanity (`OBSERVE_FAIL_STRESS`) |
 | Analyze | Head | 1 | Rozpoznaj Neutral Truth Bullet albo poproś GMa o wskazówkę | DC z `ANALYZE_DC`; porażka blokuje ten bullet do końca rozdziału. Tryb wskazówki: 14 subtelna, 18 bezpośrednia, krytyk: jedno pytanie do ciebie. Znajdź ukrytą skrytkę: 16 |
-| Projects | Hand, Body, Leg albo Head | 1 | Popchnij projekt w tym pokoju albo zaproponuj nowy do twojej zgody | 12: +1 postępu, 18: +2; krytyk: +2 i zwrot akcji |
+| Projects | statystyka projektu | 1 | Popchnij projekt w tym pokoju albo zaproponuj nowy do twojej zgody | 12: +1 postępu, 18: +2; krytyk: +2 i zwrot akcji |
 | Dynamiczna | wybór GMa | 1 | Gracz opisuje coś, na co gra nie ma nazwy; ty ustalasz próg | pasma poniżej |
 | Rest | brak | 1 (Short) albo 2 (Long) | Odzyskaj | poniżej |
 | Listen | Shadow | 1 | Dowiedz się, kto jest obok, bez GMa | Pokój wybiera się przed rzutem. 14: ile osób w nim jest; 18: kto to jest, z imienia; krytyk: kto jest w każdym sąsiednim pokoju. Odpowiedź to prywatna karta. Sąsiad, którego słuchający nie odkrył, figuruje tylko jako "Nieodkryty pokój 1, 2...", na liście wyboru i w odpowiedzi |
@@ -201,7 +201,9 @@ Dziesięć kafelków na arkuszu, w kolejności rysowania:
 | Tamper | Shadow | 1 albo 1 Sanity, gdy nie ma już akcji | Usuń ślad, przerób go albo podłóż taki, który wskazuje kogoś innego | Zasady Stage 6 (sekcja 13). Sięga tylko śladów w twoim pokoju, które znalazłeś (masz ich Truth Bullet), a przy otwartym incydencie także jego śladów Incident, jeśli jesteś jego ofiarą albo jednym z zabójców |
 | Direct Murder | brak | 1 | Otwórz Direct Murder, uzgodnione z tobą wcześniej | Zgłaszane w Eclipse; sekcja 13 |
 
-**Move** nie jest kafelkiem: akcją jest przeciągnięcie tokenu, a koszt nalicza się, gdy token wejdzie do innego pokoju. **Sabotage** to trzecia gałąź menu Projects.
+**Move** nie jest kafelkiem: akcją jest przeciągnięcie tokenu, a koszt nalicza się, gdy token wejdzie do innego pokoju. **Sabotage** to trzecia gałąź menu Projects i rzuca statystyką projektu, który psuje.
+
+**Kto wybiera statystykę.** Rzut, którego definicja wymienia jedną statystykę, rzuca nią. Taki, który wymienia kilka - otwarcia, akcje kryzysowe, sprzątanie - pyta ciebie: gracz mówi ci w swoim wątku komunikatora, co robi jego postać, a ty wybierasz jedną z wymienionych statystyk na karcie w tym wątku albo w oknie na własnym ekranie, gdy sam rzucasz za postać. **Odmów** znaczy, że akcja nie zostaje wykonana, i nic nie jest wydane. Okno rzutu otwiera się na twoim wyborze, zablokowane. Jedynym wyjątkiem jest Hope Call **Resolve**, po którym gracz wybiera w oknie rzutu. Rzut projektu - praca nad nim albo jego Sabotage - bierze statystykę nadaną projektowi przy tworzeniu; projekt zapisany bez niej pyta cię raz, w ten sam sposób, i zachowuje twój wybór.
 
 **Akcje dynamiczne** (`DYNAMIC_THRESHOLDS`). Opis gracza trafia do ciebie jako karta w jego wątku komunikatora z przyciskami **Ustal trudność** i **Odmów**. Wybierasz pasmo i statystykę; odmowa nic gracza nie kosztuje. Sukces zostawia Faint Prep Remnant o widoczności pasma:
 
@@ -489,7 +491,7 @@ Projekty to Countdowny z Daggerheart liczące *w górę*. Skale:
 | Complex | **6** |
 | Desperate | **8** |
 
-Każdy projekt ma nazwę, obrazek albo ikonę w zasobniku, skalę, pokój (albo dowolny), opcjonalnie wymaganą statystykę, widoczność (tajne projekty widzą proponujący i GMowie; udostępnij je wspólnikom - budującego nie da się odsunąć od jego własnego projektu) oraz flagę morderstwa pośredniego. **Projekty** (kafelek panelu) to menedżer: tworzenie, edycja, udostępnianie, dodawanie i odejmowanie postępu, usuwanie. Projekt z pokojem stoi też na mapie jako token na dwa pola z młotkiem i bez nazwy, który możesz przeciągać; gracz widzi go, gdy już stał w jego pokoju, a tajny projekt - gdy zostanie do niego dopuszczony. Podwójne kliknięcie otwiera jego kartę. *Spójrz poza oczywiste* w Observe może odkryć tajny projekt w pokoju szukającego (DC 18), co dopuszcza go do tego projektu.
+Każdy projekt ma nazwę, obrazek albo ikonę w zasobniku, skalę, pokój (albo dowolny), wymaganą statystykę (bierze ją każdy rzut na nim, także Sabotage; projekt sprzed 1.2.66 bez niej pyta cię przy pierwszym rzucie i zachowuje twój wybór), widoczność (tajne projekty widzą proponujący i GMowie; udostępnij je wspólnikom - budującego nie da się odsunąć od jego własnego projektu) oraz flagę morderstwa pośredniego. **Projekty** (kafelek panelu) to menedżer: tworzenie, edycja, udostępnianie, dodawanie i odejmowanie postępu, usuwanie. Projekt z pokojem stoi też na mapie jako token na dwa pola z młotkiem i bez nazwy, który możesz przeciągać; gracz widzi go, gdy już stał w jego pokoju, a tajny projekt - gdy zostanie do niego dopuszczony. Podwójne kliknięcie otwiera jego kartę. *Spójrz poza oczywiste* w Observe może odkryć tajny projekt w pokoju szukającego (DC 18), co dopuszcza go do tego projektu.
 
 **Propozycje.** Z arkusza gracz albo pracuje nad projektem dostępnym w jego pokoju, albo **proponuje** nowy. Propozycja przychodzi do ciebie jako karta; zatwierdzasz ją (poprawiając po drodze skalę, pokój albo brzmienie) albo odrzucasz. Nic nie istnieje, dopóki tego nie zrobisz. Postęp rośnie tylko przez *Pracuj nad projektem*: 12 daje +1, 18 daje +2, krytyk +2 i zwrot akcji; Contribution dodaje +1, Patronage +2, Game Integrity odejmuje 2, Earthquake odejmuje 1. Ukończony projekt szepcze do proponującego i GMów - nigdy do stołu, bo projekt może być tajny - a co teraz daje, mówisz ty.
 

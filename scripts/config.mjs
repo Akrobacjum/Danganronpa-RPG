@@ -1287,7 +1287,7 @@ export const ACTIONS = {
         kind: "universal",
         label: "Search",
         icon: "fa-magnifying-glass",
-        traits: ["eye", "hand"],
+        traits: ["eye"],
         cost: 1,
         // The count of searches a room allows is a WORLD SETTING (0-10), not the
         // three this sentence used to promise. The briefing reads the real

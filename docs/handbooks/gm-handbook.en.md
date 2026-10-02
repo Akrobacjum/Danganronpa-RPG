@@ -190,10 +190,10 @@ The ten tiles on the sheet, in the order they are drawn:
 
 | Action | Statistic | Cost | What it does | Numbers |
 |---|---|---|---|---|
-| Search | Eye or Hand | 1 + a room search token | Loot the room for something you name | 8: Tier 0 (Hidden trace), 12: Tier 1 (Subtle), 18: Tier 2 (Evident); critical: +1 tier and an Obvious trace. Taking a Murder Weapon or Cleaning Tool leaves a Faint Prep Remnant. Failure finds nothing |
+| Search | Eye | 1 + a room search token | Loot the room for something you name | 8: Tier 0 (Hidden trace), 12: Tier 1 (Subtle), 18: Tier 2 (Evident); critical: +1 tier and an Obvious trace. Taking a Murder Weapon or Cleaning Tool leaves a Faint Prep Remnant. Failure finds nothing |
 | Observe | Eye | 1 | Copy a Remnant into your inventory as a Neutral Truth Bullet | DC from `OBSERVE_DC` (section 14); a failure costs 1 Sanity (`OBSERVE_FAIL_STRESS`) |
 | Analyze | Head | 1 | Identify a Neutral Truth Bullet, or ask the GM for a hint | DC from `ANALYZE_DC`; a failure locks that bullet until the chapter ends. Hint mode: 14 a subtle hint, 18 a direct hint, critical: they may ask you one question. Locate a hidden stash: 16 |
-| Projects | Hand, Body, Leg or Head | 1 | Push a project in this room, or propose a new one for you to approve | 12: +1 progress, 18: +2; critical: +2 and the action refunded |
+| Projects | the project's | 1 | Push a project in this room, or propose a new one for you to approve | 12: +1 progress, 18: +2; critical: +2 and the action refunded |
 | Dynamic | GM's choice | 1 | The player describes something the game has no name for; you set the band | see the bands below |
 | Rest | none | 1 (Short) or 2 (Long) | Recover | see below |
 | Listen | Shadow | 1 | Learn who is next door, no GM needed | The room is picked before the roll. 14: how many people are in it; 18: who they are, by name; critical: who is in every neighbouring room. The answer is a private card. A neighbour the listener has not discovered is named only "Unexplored room 1, 2...", in the picker and in the answer |
@@ -201,7 +201,9 @@ The ten tiles on the sheet, in the order they are drawn:
 | Tamper | Shadow | 1, or 1 Sanity when no action is left | Erase a trace, reshape it, or plant one pointing at somebody else | Uses the Stage 6 rules (section 13). Reaches only traces in your room that you have found (hold a Truth Bullet of), plus, while an incident is open, its Incident traces if you are its victim or one of its killers |
 | Direct Murder | none | 1 | Open a direct murder, agreed with you beforehand | Declared in the Eclipse; section 13 |
 
-**Move** is not a tile: dragging the token is the action, and the cost is applied when the token arrives in another room. **Sabotage** is the third branch of the Projects menu.
+**Move** is not a tile: dragging the token is the action, and the cost is applied when the token arrives in another room. **Sabotage** is the third branch of the Projects menu, and rolls the statistic of the project it breaks.
+
+**Who picks the statistic.** A roll whose definition lists one statistic rolls it. One that lists several - the openings, the crisis actions, the clean-up - asks you: the player tells you in their messenger thread what their character does, and you pick one of the listed statistics on a card in that thread, or in a window on your own screen when you roll for a character yourself. **Refuse** means the action is not taken, and nothing is spent. The roll window opens on your pick, locked. The one exception is the Hope Call **Resolve**, after which the player picks in the roll window. A project's roll - Work on it, or a Sabotage of it - takes the statistic the project was given when it was made; a project stored without one asks you once, the same way, and keeps your pick.
 
 **Dynamic actions** (`DYNAMIC_THRESHOLDS`). The player's description reaches you as a card in their messenger thread with **Set difficulty** and **Refuse** on it. You pick the band and the statistic; a refusal costs the player nothing. A success leaves a Faint Prep Remnant of the band's visibility:
 
@@ -489,7 +491,7 @@ Projects are Daggerheart Countdowns that count *up*. Scales:
 | Complex | **6** |
 | Desperate | **8** |
 
-Each project has a name, a picture or a tray glyph, a scale, a room (or any room), an optional required statistic, a visibility (secret projects are seen by the proposer and the GMs; share them with accomplices - a builder cannot be taken off their own project), and the indirect-murder flag. **Projects** (the panel tile) is the manager: create, edit, share, add or remove progress, delete. A project with a room also stands on the map as a two-square token with a hammer and no name on it, which you can drag; a player sees it once they have stood in its room, or, for a secret project, once they are let in on it. Double-clicking it opens its card. Observe's *Look past the obvious* can uncover a secret project in the searcher's room (DC 18), which lets them in on it.
+Each project has a name, a picture or a tray glyph, a scale, a room (or any room), a required statistic (every roll on it takes that one, a Sabotage's included; a project made before 1.2.66 without one asks you on its first roll and keeps your pick), a visibility (secret projects are seen by the proposer and the GMs; share them with accomplices - a builder cannot be taken off their own project), and the indirect-murder flag. **Projects** (the panel tile) is the manager: create, edit, share, add or remove progress, delete. A project with a room also stands on the map as a two-square token with a hammer and no name on it, which you can drag; a player sees it once they have stood in its room, or, for a secret project, once they are let in on it. Double-clicking it opens its card. Observe's *Look past the obvious* can uncover a secret project in the searcher's room (DC 18), which lets them in on it.
 
 **Proposals.** From the sheet a player either works on a project available in their room or **proposes** one. A proposal reaches you as a card; you approve it (editing the scale, room or wording as you go), or refuse it. Nothing exists until you do. Progress rises only through *Work on a project*: 12 gives +1, 18 gives +2, a critical gives +2 and refunds the action; Contribution adds +1, Patronage +2, Game Integrity removes 2, an Earthquake removes 1. A finished project whispers its proposer and the GMs - never the table, because a project can be secret - and it is yours to say what it now does.
 

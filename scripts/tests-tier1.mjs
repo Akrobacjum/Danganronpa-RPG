@@ -485,7 +485,7 @@ const INVARIANTS = [
         const between = (from, to) => bodyOf(rolls, from, { until: to });
 
         // Project work: the bands come down, not the roll up.
-        const project = between("async function workOnProject", "async function chooseProjectAndTrait");
+        const project = between("async function workOnProject", "async function chooseProject(");
         ok(/easedBy\(def\.thresholds,\s*relief\)/.test(project),
             "project work stopped easing its thresholds with the readied Tool");
 
