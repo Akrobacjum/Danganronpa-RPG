@@ -3771,8 +3771,8 @@ export async function liftIncidentSecrets() {
  * this once, on the primary, after the cast's copies arrived, with the rules written on
  * `liftIntoCast` (below).
  *
- * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0: anything
- *   else throws.
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
+ *   anything else throws; `notPrimary` on a GM that is not the primary (`liftIntoCast`).
  */
 export async function liftIncidentMethod() {
     return liftIntoCast(INCIDENT_METHOD, "the incident's method");
@@ -3789,8 +3789,8 @@ export async function liftIncidentMethod() {
  * the rules written on `liftIntoCast`: a turn a GM passed since the update is the cast's
  * already, and stands over the world's.
  *
- * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0: anything
- *   else throws.
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
+ *   anything else throws; `notPrimary` on a GM that is not the primary (`liftIntoCast`).
  */
 export async function liftIncidentFight() {
     return liftIntoCast(INCIDENT_FIGHT, "the incident's fight");
@@ -3804,18 +3804,34 @@ export async function liftIncidentFight() {
  *
  * WHILE AN INCIDENT RUNS the fields with a value go into the cast weak and fill-only - a
  * value a GM wrote since the update stands - and a field leaves the world half only once
- * the cast reads back from storage holding a value for it; a null there says "none" and
- * leaves with them. Then the participants are sent the cast, so a trap's victim reads the
- * trap from their copy and the killer's player the turn. WITH NO INCIDENT RUNNING they
+ * the cast reads back from storage holding it; a null in the world half says "none" and
+ * leaves with them. A field the cast holds is the cast's whatever its value (E32+E07 fix
+ * r1-G4, the correctness review's m2): a null a GM wrote there since the update - a free
+ * take spent, `writeState({ freeResolution: null })` - is what `murderState()` reads, and
+ * the fill-only patch leaves it; asked for a value there, the lift kept the world's stale
+ * one on every browser and threw at every load until the incident closed (the review's
+ * probe P4 measured it, and the tier-2 test beside the race test is red on 4b54934,
+ * 02.10.2026). It is read off the cast's storage, not its memory, so a field whose save
+ * did not go through still stays in the world half and throws. Then the participants are
+ * sent the cast, so a trap's victim reads the trap from their copy and the killer's
+ * player the turn. WITH NO INCIDENT RUNNING they
  * leave outright: `murderState()` is null then, and nothing reads them. The world half is
  * written as it is after the cast's save - read again then, so a turn another GM passed
  * during that await stands (the correctness review's M9: the copy read before it put the
  * turn back) - and read back; a field still there throws, with the count, so the world is
  * not stamped and the next load tries again (E05 fix r1-G1; migrate.mjs, above the lifts).
  * Idempotent.
+ *
+ * NOT ON THE PRIMARY it answers `{ notPrimary: true }`, never the null "nothing to lift"
+ * (E32+E07 fix r1-G4, the security review's m2): the migration's runner stamped the world on
+ * that null, so a pass on another GM - `game.drpg.migrate1_2_0()` by hand, or the primary's
+ * own pass after a GM whose id sorts first came in - marked the lift done with the fight
+ * still in every browser's world half, and no later load lifted it (the first measured in
+ * scenario 61 on 02.10.2026, the second read, not run). The runner writes no stamp over it
+ * (migrate.mjs `migrate1_2_0`).
  */
 async function liftIntoCast(fields, what) {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await castStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the cast did not arrive; the next load tries again");
     }
@@ -3830,7 +3846,7 @@ async function liftIntoCast(fields, what) {
             await castStore.idle();
         }
         const held = castStore.persisted(RECORD) ?? {};
-        const leave = found.filter(key => !values.includes(key) || (held[key] !== null && held[key] !== undefined));
+        const leave = found.filter(key => !values.includes(key) || Object.hasOwn(held, key));
         if (leave.length) {
             const rest = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}) };
             for (const key of leave) delete rest[key];

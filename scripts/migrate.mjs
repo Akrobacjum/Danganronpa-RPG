@@ -758,7 +758,7 @@ const CLAUSES = [
         run: async () => {
             const { liftIncidentMethod } = await import("./murder.mjs");
             const report = await liftIncidentMethod();
-            return report && (report.lifted || report.dropped) ? report : null;
+            return report && (report.notPrimary || report.lifted || report.dropped) ? report : null;
         }
     },
     {
@@ -941,7 +941,7 @@ const CLAUSES = [
         run: async () => {
             const { liftIncidentFight } = await import("./murder.mjs");
             const report = await liftIncidentFight();
-            return report && (report.lifted || report.dropped) ? report : null;
+            return report && (report.notPrimary || report.lifted || report.dropped) ? report : null;
         }
     }
 ];
@@ -1306,7 +1306,7 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
 
     const inPlay = wasInPlay ?? Boolean(from);
     const report = {
-        from, to, forced: force, wasInPlay: inPlay, clauses: {}, changed: 0, skipped: [], failed: []
+        from, to, forced: force, wasInPlay: inPlay, clauses: {}, changed: 0, skipped: [], failed: [], notPrimary: []
     };
 
     const clauses = Array.isArray(only) ? CLAUSES.filter(clause => only.includes(clause.key)) : CLAUSES;
@@ -1321,6 +1321,10 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
 
         try {
             const result = await clause.run({ from, to, force, wasInPlay: inPlay });
+            if (result?.notPrimary) {
+                report.notPrimary.push(clause.key);
+                continue;
+            }
             if (result) {
                 report.clauses[clause.key] = result;
                 report.changed++;
@@ -1343,6 +1347,23 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
             clauses: report.failed.join(", ")
         }), { permanent: true });
         log("Migration: stamp NOT written, because a clause failed.", report);
+        return report;
+    }
+    /*
+     * No stamp from a GM that is not the primary (E32+E07 fix r1-G4, the security review's m2).
+     * Until 1.2.66 a lift on another GM answered the null "nothing to do", the stamp went on over
+     * it, and no later load lifted what it left in world data: `game.drpg.migrate1_2_0()` by hand
+     * on a second GM did that to the fight's lift (measured in scenario 61, 02.10.2026). Two
+     * questions, because each answers what the other cannot. A clause that ran while this GM was
+     * not the primary says so (`notPrimary`, the cast's two lifts), which holds even if this GM is
+     * the primary by now. And the primacy is asked again here, after the clauses, for the lifts
+     * that still answer a plain null on another GM (E04's, E05's; measured with E04's names in
+     * scenario 61) and for a pass whose GM stopped being the primary while it ran, a GM whose id
+     * sorts first having come in (read, not run). The primary's next load runs the pass.
+     */
+    if (report.notPrimary.length || !isPrimaryGm()) {
+        if (!quiet) ui.notifications.warn(game.i18n.localize("DRPG.Migrate.notPrimary"));
+        log("Migration: stamp NOT written, because this GM is not the primary.", report);
         return report;
     }
 

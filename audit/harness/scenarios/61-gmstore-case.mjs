@@ -40,7 +40,7 @@
  *      whenever the pick arrives, with no player told the part meanwhile (M1).
  *   L  a running incident's fight at the update (E32 C3): the primary's clause lifts it out of the
  *      world half into its record and the killer's player's copy, and a GM that joins after with an
- *      empty browser holds it.
+ *      empty browser holds it; the clause run on that GM, not the primary, lifts and stamps nothing.
  *   F  the incident's cast (S04-24, the cast half of S06-19): a participant's copy
  *      is stamped part by part, and what the primary answers is read off the
  *      packets; a second GM with an empty browser does not answer for it; the fight
@@ -646,6 +646,40 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const joinedL = await fightL(gm2);
     check("L2: a GM that joins after the clause with an empty browser holds the lifted fight in its record, and its world half the stage alone",
         sortL(joinedL.record) === heldL && joinedL.turn === 2 && J(joinedL.world) === J(["active", "stage"]), J(joinedL));
+    /* E32+E07 fix r1-G4 (02.10.2026; the security review's m2): the clause run by hand on gm2, which
+       is not the primary, lifts nothing and writes no stamp, and the GM is told. Until then its lift
+       answered the null "nothing to do", the runner stamped the world over it, and no later load
+       lifted what a 1.2.65 table left. A fight field goes back into the world half and the stamp back
+       to an older version first; the primary's pass after gm2's lifts the field and stamps. E04's lift of
+       the names, which still answers a plain null on gm2, is held to no stamp by the runner's own question. */
+    const stampL = await gm.eval(`const was = game.settings.get("${MOD}", "migratedVersion");
+        await game.settings.set("${MOD}", "murderState", { ...game.settings.get("${MOD}", "murderState"), turn: 9 });
+        await game.settings.set("${MOD}", "migratedVersion", "1.2.64");
+        return was;`);
+    await settle(600);
+    const passL = (client, quiet, key = "liftIncidentFight") => client.eval(`${LIFT_L} const G = await import("${repoUrl}/scripts/migrate.mjs");
+        const told = [], warn = ui.notifications.warn;
+        ui.notifications.warn = text => { told.push(String(text)); return null; };
+        try {
+            const pass = await G.migrate1_2_0({ force: true, quiet: ${quiet}, only: ["${key}"] });
+            return { failed: pass?.failed ?? null, notPrimary: pass?.notPrimary ?? null, done: pass?.clauses?.["${key}"] ?? null, told,
+                stamp: game.settings.get("${MOD}", "migratedVersion"), turn: M.murderState()?.turn ?? null,
+                world: Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort() };
+        } finally {
+            ui.notifications.warn = warn;
+        }`);
+    const l3 = await passL(gm2, false);
+    await settle(400);
+    const l3s = await passL(gm2, true, "liftIncidentSecrets");
+    await settle(400);
+    const l3p = await passL(gm, true);
+    await settle(400);
+    check("L3: the clause on a GM that is not the primary lifts nothing, writes no stamp and tells the GM, nor does E04's lift there, which answers a plain null; the primary's pass after them lifts the field and stamps",
+        l3.stamp === "1.2.64" && J(l3.failed) === "[]" && J(l3.notPrimary) === J(["liftIncidentFight"]) && l3.done === null
+        && l3.told.length === 1 && !l3.told[0].startsWith("DRPG.") && J(l3.world) === J(["active", "stage", "turn"])
+        && l3s.stamp === "1.2.64" && J(l3s.failed) === "[]" && J(l3s.notPrimary) === "[]" && l3s.done === null && l3s.told.length === 0
+        && l3p.stamp === stampL && J(l3p.failed) === "[]" && J(l3p.notPrimary) === "[]" && J(l3p.done) === J({ lifted: 1, dropped: 0, kept: 0 })
+        && l3p.turn === 2 && J(l3p.world) === J(["active", "stage"]), J({ stampL, l3, l3s, l3p }));
     await gm.eval(`${LIFT_L} await M.endMurder({ reason: "E32 61L", followUp: false }); return true;`);
     await settle(800);
     await disconnect("gm2");

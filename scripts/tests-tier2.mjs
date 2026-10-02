@@ -14174,6 +14174,38 @@ const SCENARIOS = [
         }
     }],
 
+    ["a fight field the cast holds as null since the update leaves the world half, and its lift does not throw", async () => {
+        /*
+         * E32+E07 fix r1-G4, 02.10.2026; the correctness review's m2. A field the cast holds is the
+         * cast's, whatever its value: `writeState({ freeResolution: null })` (a free take spent) writes
+         * that null into the cast, the lift's fill-only patch leaves it, and `murderState()` reads it.
+         * The lift asked the cast for a value there before it let the field go, so a 1.2.65 table's
+         * stale free take stayed in the world half on every browser and the lift threw at every load
+         * until the incident closed. Here the world half holds the take and a turn, and the cast the
+         * null alone: the turn is lifted, the take leaves, the null stands and nothing throws.
+         */
+        const E = await import("./gm-store.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        await E.withGmStoreWorld(`suite-liftnull-${foundry.utils.randomID(8)}`, async () => {
+            await game.settings.set(MODULE_ID, SETTINGS.murderState,
+                { active: true, stage: "incident", turn: 2, turnSide: "victim", freeResolution: { side: "victim", turn: 1 } });
+            await S.castStore.patch("record", { freeResolution: null });
+            await S.castStore.idle();
+            let report = null, threw = null;
+            try {
+                report = await M.liftIncidentFight();
+            } catch (err) {
+                threw = String(err?.message ?? err);
+            }
+            const held = S.castStore.persisted("record") ?? {};
+            equal(stableJson([threw, report, Object.keys(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}).sort(),
+                Object.hasOwn(held, "freeResolution") ? held.freeResolution : "absent", [held.turn, held.turnSide], M.murderState()?.freeResolution ?? null]),
+            stableJson([null, { lifted: 3, dropped: 0, kept: 0 }, ["active", "stage"], null, [2, "victim"], null]),
+            "the lift threw, kept the world's free take, or put it over the null the cast holds");
+        });
+    }],
+
     ["a trap a world half still holds is a trap to every reader until the lift reaches it", async () => {
         /*
          * E05 fix r1-G1, 27.09.2026; the correctness review's M2. An incident opened under
