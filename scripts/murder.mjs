@@ -2076,6 +2076,10 @@ export async function resolveCrisisAction(options = {}) {
         return await applyCrisisAction(options);
     } finally {
         resolving--;
+        if (!resolving && victimOwed) {
+            victimOwed = false;
+            checkVictimNow();
+        }
     }
 }
 
@@ -2086,9 +2090,18 @@ export async function resolveCrisisAction(options = {}) {
  * both wrote Stage 6, two ran-out cards (the grid's DM14, red at f177726). The action
  * checks after its damage and again after the pass (`applyCrisisAction`), so the hook
  * leaves this browser's actions to it; a counter, as two actions can be scored at once.
- * An edit made by hand in that moment is read by the action's check that follows it.
+ *
+ * AND WHAT IT LEFT IS OWED (E32+E07 fix r1-G3, 02.10.2026; review C-m1). Until this fix
+ * the comment here said an edit made by hand in that moment was read by the action's
+ * check that follows it; nothing follows the last one (after the pass, or after the card
+ * for a third's action and a critical that keeps the turn), and the review measured a
+ * victim run out as the action's receipt was written left in the fight at 0/0 until the
+ * next update. The hook marks the check owed (`victimOwed`), and the last action scored
+ * on this browser runs it as it ends (`checkVictimNow`), after the action's own checks:
+ * the run-out lands on no action's card, and is told as the hook's is.
  */
 let resolving = 0;
+let victimOwed = false;
 
 async function applyCrisisAction({
     actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null,
@@ -2103,7 +2116,8 @@ async function applyCrisisAction({
     if (!game.user.isGM) return null;
 
     // A Reroll's packet names no weapon (reroll.mjs `settleCrisis`): the replay swings
-    // what the action it takes back swung, as its receipt recorded it (E32+E07 C8).
+    // what the action it takes back swung, as its receipt recorded it (E32+E07 C8) - and
+    // nothing when it recorded nothing, whatever a packet names (fix r1-G3, review S-m3).
     const replayed = undo ? murderState()?.lastCrisis?.swungId ?? null : null;
 
     // Before `murderState()` is read, not after: the undo rewinds that state,
@@ -2113,10 +2127,11 @@ async function applyCrisisAction({
     // A replay that could not rewind must NOT go on to apply itself. It would
     // land on top of the first result rather than in place of it: damage twice,
     // two Remnants, the turn passed twice - the exact opposite of what a Reroll
-    // is for. The player's dice have already been rewritten either way, so this
-    // says so out loud rather than failing quietly - unless the action killed
-    // (E32+E07 C8b): then the first result stands by the rule, not for want of a
-    // record, and "score the new number by hand" would ask the GMs to undo a death.
+    // is for. The GMs are told rather than left to find it - unless the action
+    // killed (E32+E07 C8b): then the first result stands by the rule, not for want
+    // of a record. The asker is answered "nothing was carried out", and its Reroll
+    // puts the first dice back and returns the Hope (reroll.mjs `settleCrisis`,
+    // fix r1-G3); until then the new dice stayed on the card, paid for.
     const deathStands = undo && crisisKilled(murderState()?.lastCrisis);
     if (undo && !await undoLastCrisis({ actorId, key })) {
         if (!deathStands) await whisperToGms(`<p class="drpg-warning">${
@@ -2132,8 +2147,11 @@ async function applyCrisisAction({
     const stage = state.stage;
 
     // What this roll swung (`swungWeapon`): the damage is read off it, the Despair
-    // wears it, and Stage 6 ruins it.
-    const weapon = swungWeapon(actor, def, replayed ?? swungId, Boolean(replayed));
+    // wears it, and Stage 6 ruins it. A replay swings the receipt's weapon or none: until
+    // fix r1-G3 (02.10.2026; review S-m3) a first throw that swung nothing fell through
+    // to the packet's `swungId`, and a knife readied between the throw and the Reroll was
+    // swung by the replay - its tier dealt, its wear taken, its name in the swing memo.
+    const weapon = undo ? swungWeapon(actor, def, replayed, true) : swungWeapon(actor, def, swungId);
 
     // The swing memo, in the cast. Its own sub-key only (E04): two actors swinging
     // on two GMs' clients both stay.
@@ -2427,7 +2445,8 @@ function crisisKilled(receipt) {
  * a death from the Students list or the GM's close is not the action's.
  */
 async function undoLastCrisis({ actorId, key }) {
-    const receipt = murderState()?.lastCrisis ?? null;
+    const live = murderState();
+    const receipt = live?.lastCrisis ?? null;
     if (!receipt) return false;
     if (receipt.actorId !== actorId || receipt.key !== key) {
         warn(`Reroll: the recorded crisis action (${receipt.key} by ${receipt.actorId}) is not the one being replayed.`);
@@ -2435,6 +2454,26 @@ async function undoLastCrisis({ actorId, key }) {
     }
     if (crisisKilled(receipt)) {
         warn(`Reroll: ${receipt.key} by ${receipt.actorId} killed ${receipt.killed.join(", ")}; the death stands and nothing is taken back.`);
+        return false;
+    }
+
+    /*
+     * THE INCIDENT IT WAS TAKEN IN, AS THE ACTION LEFT IT (E32+E07 fix r1-G3, 02.10.2026;
+     * review C-M2). The rewind below was the one whole-state write left without `expect`:
+     * a close, a pass or a stage move queued while the documents below were put back was
+     * overwritten by it - measured by the review, a Leave a clue's undo and `endMurder`
+     * started together left the closed incident running at `incident`, its close hooked
+     * once. It is held to the incident's `openedAt` and to what the action left of the
+     * moves `crisisUndoRefusal` names (`after`), asked here before anything is put back
+     * (and refused while this browser is closing it, `endMurder`) and again by the rewind
+     * itself. A refusal here changes nothing; one at the rewind, from a close that began
+     * while the documents were put back, has put them back and rewinds nothing - the GMs
+     * are told (`rerollLost`). The replay's own writes after a rewind are an action's like
+     * any other's.
+     */
+    const held = { openedAt: live.openedAt ?? null, ...(receipt.after ?? {}) };
+    if (closing.has(String(live.openedAt ?? "open")) || !stillHolds(held)) {
+        warn(`Reroll: the incident that ${receipt.key} by ${receipt.actorId} was taken in has closed or moved on; nothing is taken back.`);
         return false;
     }
 
@@ -2526,7 +2565,10 @@ async function undoLastCrisis({ actorId, key }) {
     // it was taken from `murderState()` - and putting it back unsplit would
     // return every name to world data (LIVE-001).
     try {
-        await restoreState(receipt.state ?? {});
+        if (!await restoreState(receipt.state ?? {}, { expect: held })) {
+            warn(`Reroll: the incident that ${receipt.key} by ${receipt.actorId} was taken in closed or moved on while it was taken back; its state is not rewound.`);
+            return false;
+        }
     } catch (err) {
         error("Could not rewind the incident state for a Reroll", err);
         return false;
@@ -3849,14 +3891,11 @@ export function registerMurder() {
         const r = changes?.system?.resources;
         if (!r?.hitPoints && !r?.stress) return;
         if (murderState()?.victimId !== actor.id) return;
-        if (resolving || victimCheck) return;
-
-        victimCheck = checkVictimSpent()
-            .catch(err => {
-                error("Could not check whether the victim has run out", err);
-                return false;
-            })
-            .finally(() => { victimCheck = null; });
+        if (resolving) {
+            victimOwed = true;
+            return;
+        }
+        checkVictimNow();
     });
 
     // A killer dead in the fight, however it happened (`killerFell`): a death published on
@@ -3883,6 +3922,17 @@ export function registerMurder() {
  * action checks for itself now (`applyCrisisAction`).
  */
 let victimCheck = null;
+
+/** Start the victim-ran-out check unless one is running: the hook's, and the one an action owed (`victimOwed`). */
+function checkVictimNow() {
+    if (victimCheck) return;
+    victimCheck = checkVictimSpent()
+        .catch(err => {
+            error("Could not check whether the victim has run out", err);
+            return false;
+        })
+        .finally(() => { victimCheck = null; });
+}
 
 /**
  * Did this token just walk into the room the incident is happening in?

@@ -6208,6 +6208,8 @@ const REGRESSIONS = [
          * fires) is not followed: only the calls written inside the queue are read. Other
          * files' writes of `murderState` (the season reset's table) are R191's, not this
          * queue's. The reader is shown a planted source of each kind first.
+         * E32+E07 fix r1-G3 (02.10.2026; review C-M2): the Reroll's rewind (`undoLastCrisis`)
+         * is a transition too - without `expect` it brought a closed incident back.
          */
         const LEAVES = ["writeCast", "armBetrayalWindow"];
         const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow)\(/g;
@@ -6257,7 +6259,7 @@ const REGRESSIONS = [
 
         const bare = stripComments(src);
         const TRANSITIONS = ["checkVictimSpent", "finishIncident", "beginResolution", "passTurn", "thirdPartyEnters",
-            "resolveKillerOpening", "resolveVictimOpening", "closeIncident"];
+            "resolveKillerOpening", "resolveVictimOpening", "closeIncident", "undoLastCrisis"];
         const blind = TRANSITIONS.filter(fn => !/if \(!await (?:writeState|restoreState)\([^;]*\bexpect: /.test(fnSource(bare, fn)));
         ok(!blind.length, `a transition writes without saying what it read, or goes on when the write is refused: ${blind.join(", ")}`);
     }]

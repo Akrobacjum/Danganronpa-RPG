@@ -1316,7 +1316,7 @@
       "trackerOver": "Ten incydent jest zakończony.",
       "ranOutTitle": "Skończyły się siły",
       "ranOut": "{name} nie ma już Health ani Sanity. Incydent kończy się śmiercią - Finishing Blow nie był potrzebny i nikt go nie zdobył.",
-      "rerollLost": "Przyszedł Reroll akcji kryzysowej bez zapisu tutaj. Nic nie odtworzono, więc pierwszy wynik zostaje. Oceń nową liczbę ręcznie.",
+      "rerollLost": "Rerolla akcji kryzysowej nie odtworzono: nie było tu jej zapisu albo incydent wcześniej się zamknął lub poszedł dalej. Pierwszy rzut wraca na kartę, a Hope wraca do gracza. Jeśli incydent zamknął się w trakcie cofania, sprawdź ręcznie Remnant tej akcji i karty postaci.",
       "trackerState": "{stage} · tura {turn} · działa: {side}",
       "thirdIs": "{name} wchodzi",
       "passTurn": "Oddaj turę",

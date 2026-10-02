@@ -1471,6 +1471,172 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Reroll's replay swings what its first throw swung, and nothing when it swung nothing", async () => {
+        /*
+         * E32+E07 fix r1-G3, 02.10.2026; review S-m3. A replay swung the receipt's weapon, or
+         * the packet's when the receipt recorded none: a killer whose first swing held nothing
+         * ready readied a knife before the Reroll and replayed with its id - the knife's tier
+         * dealt, its name in the swing memo. At the killer's turn (`swingFixture`) the knife is
+         * put down, the killer swings with no weapon named and lands it, the knife is readied
+         * again, and the replay arrives naming it. Read: the Health marks the first swing left
+         * and the replay's, the weapon the replay's receipt records, and the swing memo.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { M, killer, knife, putBack, health } = await swingFixture();
+        try {
+            await knife.update({ [`flags.${MODULE_ID}.equipped`]: false });
+            const first = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true });
+            await settle();
+            const hit = health();
+            must(first?.success && hit > 0 && (M.murderState()?.lastCrisis?.swungId ?? null) === null,
+                `the fixture's unarmed swing did not land, or recorded a weapon: ${stableJson([first, hit, M.murderState()?.lastCrisis?.swungId ?? null])}`);
+            await knife.update({ [`flags.${MODULE_ID}.equipped`]: true });
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, undo: true, swungId: knife.id });
+            await settle();
+            const s = M.murderState();
+            equal(stableJson([health(), s?.lastCrisis?.swungId ?? null, s?.swung?.[killer.id] ?? null]), stableJson([hit, null, null]),
+                "the replay of a swing that swung nothing swung the knife its packet named (Health marks, the receipt's weapon, the swing memo)");
+        } finally {
+            await putBack();
+        }
+    }],
+
+    ["a Reroll's rewind that meets a close rewinds nothing, and the incident stays closed", async () => {
+        /*
+         * E32+E07 fix r1-G3, 02.10.2026; review C-M2. The rewind (`undoLastCrisis`) put the
+         * whole state back with no `expect`, after awaits of its own: the review started a
+         * Leave a clue's undo and `endMurder` together and found the closed incident running
+         * again at `incident`, its close hooked once. The rewind is held to the incident's
+         * `openedAt` and what the action left now. The killer lands a swing at their turn
+         * (`swingFixture`); a close and the GM's undo of the swing start together, in that
+         * order (started the other way round, the rewind lands first and the close after it,
+         * at HEAD as well - measured 02.10). Read: the closes the hook counts, and the
+         * incident afterwards.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { M, killer, knife, putBack } = await swingFixture();
+        let closes = 0;
+        const closed = Hooks.on("drpgIncidentClosed", () => { closes++; });
+        try {
+            const first = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, swungId: knife.id });
+            await settle();
+            must(first?.success && M.murderState()?.lastCrisis?.key === "weaponAttack", `the fixture's swing did not land: ${stableJson(first)}`);
+            await Promise.all([
+                M.endMurder({ reason: "closed", followUp: false }),
+                M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 0, isCritical: false, withHope: true, undo: true })
+            ]);
+            await settle();
+            equal(stableJson([closes, M.murderState()]), stableJson([1, null]),
+                "a Reroll's rewind racing a close brought the closed incident back, or it closed other than once (closes, the state after)");
+        } finally {
+            Hooks.off("drpgIncidentClosed", closed);
+            await putBack();
+        }
+    }],
+
+    ["a Reroll whose replay the GM refuses gives the Hope and the first dice back", async () => {
+        /*
+         * E32+E07 fix r1-G3, 02.10.2026; C8b's A2. The dice are rewritten and settled before
+         * the GM is asked to replay, and a refused replay left the new dice on the card and the
+         * Hope paid (`settleCrisis` read no refusal); the resources the new dice move are
+         * settled only once the replay stands now. The GM's Finishing blow kills from this
+         * browser (`swingFixture`, one Health left); its bookmark loses the `lethal` mark, as a
+         * lost answer would leave it, so the Call is paid and the GM's `undoLastCrisis` refuses.
+         * The harness has no Daggerheart roll to throw again, so the card's roll is one of the
+         * suite's (`SuiteRoll`), thrown again as Despair. Read: what the Call answered, the
+         * killer's Hope, the card's rolls, how often they were rewritten, the Despair pool,
+         * whether the victim is dead and the receipt as it was.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { spendHopeCall } = await import("./calls.mjs");
+        const { lastRollOf } = await import("./reroll.mjs");
+        const { keepRollBookmark } = await import("./action-rolls.mjs");
+        const { monokumaFor } = await import("./assignments.mjs");
+        const { getDespair } = await import("./despair.mjs");
+        const { M, killer, victim, putBack } = await swingFixture();
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const mk = monokumaFor(killer);
+        const pool = () => (mk ? getDespair(mk.id) : null);
+        class SuiteRoll {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 10, fear: 3 }; }
+            get dHope() { return { total: this.faces.hope }; }
+            get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; }
+            get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new SuiteRoll(this._formula, {}, this.options); r.faces = { hope: 2, fear: 9 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        let rewrites = 0, card = null;
+        const hook = Hooks.on("updateChatMessage", (m, change) => { if (m.id === card?.id && change && "rolls" in change) rewrites++; });
+        try {
+            await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
+            await killer.update({ "system.resources.hope.value": 4 });
+            globalThis.__forceRoll = { hope: 10, fear: 3 };
+            await M.takeCrisisAction(killer, "finishingBlow");
+            await settle();
+            const { bookmark, message } = lastRollOf(killer);
+            card = message;
+            must(isDeadForGm(victim) && bookmark?.crisis === "finishingBlow" && bookmark?.lethal && bookmark?.trait && message,
+                `the fixture's blow did not kill, or left no marked bookmark with its statistic: ${stableJson(bookmark)}`);
+            await keepRollBookmark(killer, { ...bookmark, lethal: false });
+            Object.defineProperty(message, "rolls", { configurable: true, get: () => [new SuiteRoll(`1d12 + 1d12`, {}, { roll: { trait: "body" } })] });
+            const hope = killer.system.resources.hope.value, rolls = stableJson(message.toObject().rolls), despair = pool();
+            const receipt = stableJson(M.murderState()?.lastCrisis ?? null);
+            const spent = await spendHopeCall(killer, "reroll");
+            await settle();
+            equal(stableJson([spent, killer.system.resources.hope.value - hope, stableJson(message.toObject().rolls) === rolls, rewrites, pool() === despair,
+                isDeadForGm(victim), stableJson(M.murderState()?.lastCrisis ?? null) === receipt]),
+            stableJson([null, 0, true, 2, true, true, true]),
+            "a Reroll whose replay the GM refused kept the new dice or the Hope, or moved something (answer, Hope moved, first rolls on the card, rewrites, Despair as it was, victim dead, receipt kept)");
+        } finally {
+            Hooks.off("updateChatMessage", hook);
+            if (card) delete card.rolls;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await putBack();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a victim run out while an action is scored is checked when it ends", async () => {
+        /*
+         * E32+E07 fix r1-G3, 02.10.2026; review C-m1. While an action is scored the
+         * `updateActor` hook leaves the victim to the action's own checks, and nothing checked
+         * an update that landed after the last of them: the review ran the victim out as the
+         * action's receipt was written and found them in the fight at 0/0. The hook marks the
+         * check owed now, and the action runs it as it ends. At the killer's turn
+         * (`swingFixture`) the killer misses; as the action's receipt is written (the cast's
+         * change that carries its `after`), the victim's Health and Sanity are filled. Read,
+         * once the check has had its time: the stage, how it ended, whether the victim is dead.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { M, killer, victim, putBack } = await swingFixture();
+        const r = victim.system.resources;
+        let filled = null;
+        const hook = Hooks.on("drpgCastChanged", () => {
+            const last = M.murderState()?.lastCrisis;
+            if (filled || !last?.after || last.actorId !== killer.id) return;
+            filled = victim.update({ "system.resources.hitPoints.value": r.hitPoints.max, "system.resources.stress.value": r.stress.max });
+        });
+        try {
+            const missed = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 0, isCritical: false, withHope: true });
+            Hooks.off("drpgCastChanged", hook);
+            must(missed && !missed.success && filled, `the fixture's miss did not land, or its receipt was never written: ${stableJson(missed)}`);
+            await filled;
+            await until(() => M.murderState()?.stage !== "incident" && isDeadForGm(victim), 3000);
+            equal(stableJson([M.murderState()?.stage ?? null, M.murderState()?.endedBy ?? null, isDeadForGm(victim)]), stableJson(["resolution", "ranOut", true]),
+                "a victim run out as an action's receipt was written was left in the fight (stage, how it ended, dead)");
+        } finally {
+            Hooks.off("drpgCastChanged", hook);
+            await putBack();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
     ["two closes of one incident close it once", async () => {
         /*
          * E32 C4, 28.09.2026; audit S04-26. `endMurder` awaits at every step between reading

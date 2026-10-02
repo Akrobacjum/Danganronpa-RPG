@@ -60,7 +60,8 @@ import { keptRollSubject, isClaimedRoll, neutralRollOf } from "./private-rolls.m
  *
  * The one-die case still goes through `reroll()`, which rebuilds one die
  * correctly - but without `liveRoll`, so the system settles nothing, and both
- * branches settle through the one port below (review of CALL-08, 17.09).
+ * branches settle through the one port below (review of CALL-08, 17.09) - once the
+ * replay has not been refused (`rerollLastAction`, fix r1-G3), so here they only show.
  * The system's own settlement clears a Sanity mark for a critical, which this
  * game's critical never does, and compensating after its unawaited, clamped
  * write could not know what it had really moved.
@@ -70,7 +71,7 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
     const thrown = await rollAsThrown(original, actor, message, bookmark);
     if (wanted <= 1) {
         const rerolled = await thrown.reroll();
-        await settleDualityReroll(original, rerolled, actor, message);
+        await showRerolledDice(rerolled, message);
         return rerolled;
     }
 
@@ -78,7 +79,7 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
     clone.advantageNumber = wanted;
     clone.constructFormula(clone.options);
     const rerolled = await clone.evaluate();
-    await settleDualityReroll(original, rerolled, actor, message);
+    await showRerolledDice(rerolled, message);
     return rerolled;
 }
 
@@ -180,13 +181,12 @@ export async function showRerolledDice(rerolled, message) {
  *
  * A port of `updateResourcesForDualityReroll` (daggerheart.js, 2.6.5), which
  * the system does not export, ending in the same `modifyResource` the system's
- * own resource map calls. The dice are shown first (`showRerolledDice`), in the
- * system's Hope and Fear colours from `CONFIG.DH.GENERAL.getDiceSoNicePresets`,
- * as a fresh roll's are.
+ * own resource map calls. The dice are shown first (`showRerolledDice`, in
+ * `rerollKeepingDice`), in the system's Hope and Fear colours from
+ * `CONFIG.DH.GENERAL.getDiceSoNicePresets`, as a fresh roll's are; this runs after
+ * the replay (`rerollLastAction`).
  */
-async function settleDualityReroll(original, rerolled, actor, message) {
-    await showRerolledDice(rerolled, message);
-
+async function settleDualityReroll(original, rerolled, actor) {
     if (original.options?.actionType === "reaction") return;
 
     try {
@@ -296,9 +296,11 @@ export async function rerollLastAction(actor) {
     }
 
     const before = dualityOfRoll(original);
+    // The card's rolls as the first throw left them, for a replay the GM refuses (`putFirstRollBack`).
+    const firstRolls = foundry.utils.deepClone(message.toObject().rolls ?? []);
 
-    // `rerollKeepingDice` shows the dice again and reverses the Hope the first
-    // result granted - see `settleDualityReroll`.
+    // `rerollKeepingDice` shows the dice again; the Hope the first result granted
+    // is reversed after the replay - see `settleDualityReroll`.
     let rerolled;
     try {
         rerolled = await rerollKeepingDice(original, actor, message, bookmark);
@@ -314,14 +316,6 @@ export async function rerollLastAction(actor) {
         old: before.total, new: after.total
     }));
 
-    // A reaction roll paid no Despair and no critical Hope, so a reroll of one
-    // has none to move - the same test `settleDualityReroll` makes (review of
-    // CALL-08, 17.09: the one-die path now reaches here for a reaction too).
-    if (original.options?.actionType !== "reaction") {
-        await settleDespair(actor, before, after, done);
-        await settleCritHope(actor, before, after, done);
-    }
-
     // Undo and replay the action itself. Every branch returns the bookmark
     // fields it changed, so the flag is written once, at the end, from the state
     // the replay actually left behind. Writing it from the pre-reroll bookmark -
@@ -329,6 +323,29 @@ export async function rerollLastAction(actor) {
     // flag straight after the replay had corrected it, so a second Reroll
     // subtracted a number the project no longer held.
     const patch = await replayAction(actor, bookmark, after, done);
+    if (patch === null) {
+        await putFirstRollBack(message, firstRolls);
+        return null;
+    }
+
+    /*
+     * SETTLED ONCE THE REPLAY STANDS (E32+E07 fix r1-G3, 02.10.2026). The Hope and Fear
+     * the new duality moves, the Despair and the critical's Hope were settled before the
+     * replay until this fix; a replay the GM refused then had them to move back, and an
+     * inverse is not one at the edges: this fix's first build moved them back, and in the
+     * full suite the Despair pool did not come back to its number (alone it did; e32run
+     * g3f1, 02.10). Read off `adjustDespair`, a point that does not fit a full pool spills
+     * to the overflow, and the point given back is the pool's own. Settled here, a refused
+     * replay has moved none of them.
+     */
+    await settleDualityReroll(original, rerolled, actor);
+    // A reaction roll paid no Despair and no critical Hope, so a reroll of one
+    // has none to move - the same test `settleDualityReroll` makes (review of
+    // CALL-08, 17.09: the one-die path now reaches here for a reaction too).
+    if (original.options?.actionType !== "reaction") {
+        await settleDespair(actor, before, after, done);
+        await settleCritHope(actor, before, after, done);
+    }
 
     try {
         // Replacement, matching `rememberRoll`: the spread below is the whole
@@ -349,6 +366,27 @@ export async function rerollLastAction(actor) {
 
     log(`${actor.name} rerolled ${before.total} into ${after.total} (${bookmark?.actionKey ?? "no action"}).`);
     return done;
+}
+
+/**
+ * A REPLAY THE GM CARRIED OUT NOTHING OF IS NO REROLL (E32+E07 fix r1-G3, 02.10.2026;
+ * C8b's A2). The dice are rewritten and settled before the GM is asked - the GM takes a
+ * player's undo only after a rewrite of their roll (reroll-receipts.mjs) - and until this
+ * fix a refused replay (a crisis action that killed whose bookmark lacked the mark, an
+ * incident closed or moved on, no record) left the new dice on the card and the 3 Hope
+ * paid for nothing. The resources the new dice move are settled only once the replay
+ * stands (`rerollLastAction`), so the card is all there is to put back: it gets its
+ * first rolls again. The caller answers null, and the Call's price comes back by its own
+ * road (call-effects.mjs `rerollEffect`). The put-back is a rewrite of the roll as well,
+ * and the GM keeps a receipt for it as for any (reroll-receipts.mjs). The harness has no Daggerheart roll to throw again; the suite drives this with a roll of
+ * its own, and a real table has not run it.
+ */
+async function putFirstRollBack(message, firstRolls) {
+    try {
+        await message.update({ rolls: firstRolls });
+    } catch (err) {
+        error("Could not put the first roll back on its card after a refused replay", err);
+    }
 }
 
 /* ==========================================================================
@@ -509,7 +547,9 @@ async function settleCritHope(actor, before, after, done) {
  *
  * Failure here is reported, never thrown: the dice have already been rewritten
  * and the Hope already spent, so a branch that cannot finish must say what it
- * could not do rather than take the whole Call down with it.
+ * could not do rather than take the whole Call down with it. One answers null
+ * instead of fields: a crisis replay the GM carried out nothing of
+ * (`settleCrisis`), and the Reroll is then taken back whole (`putFirstRollBack`).
  * ========================================================================== */
 
 async function replayAction(actor, bookmark, after, done) {
@@ -893,6 +933,10 @@ async function settleCrisis(actor, bookmark, after, done) {
         undo: true
     });
 
+    // Refused, or done on this GM's own client with nothing carried out (`resolveCrisisAction`
+    // answers null): nothing was replayed, and the caller puts the first roll back. An answer
+    // that did not come is not a refusal - the GM may have replayed it.
+    if (res.refused || (game.user.isGM && res.ok && !res.value)) return null;
     if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.crisisReplayed"));
     return { crisis: bookmark.crisis };
 }

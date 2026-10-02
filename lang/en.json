@@ -1304,7 +1304,7 @@
       "trackerOver": "This incident is over.",
       "ranOutTitle": "They ran out",
       "ranOut": "{name} is out of Health and out of Sanity. The incident ends and they are dead - no Finishing Blow was needed, and none was earned.",
-      "rerollLost": "A Reroll arrived for a crisis action with no record here. Nothing was replayed, so the first result stands. Score the new number by hand.",
+      "rerollLost": "A Reroll of a crisis action was not replayed: there was no record of it here, or the incident closed or moved on first. Its first roll goes back on the card and the Hope is returned. If the incident closed while it was being taken back, check that action's Remnant and the sheets by hand.",
       "trackerState": "{stage} · turn {turn} · {side} to act",
       "victimMarks": "Victim: Health {hp} marked, Sanity {stress} marked.",
       "thirdIs": "{name} walked in",
