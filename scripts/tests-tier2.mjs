@@ -486,7 +486,10 @@ async function neutralRoll(who, { remember = false, faces = null, title = null, 
  * `identity` is the knife's `drpgItemId`, as a Search hands one over. `putBack` deletes the
  * knife and whatever the killer was handed since, and puts Daggerheart's Fear back as found: a
  * Despair the suite throws moves it, and restore() does not (`neutralRoll`, above). Ask the
- * world's rows before calling it - it writes.
+ * world's rows before calling it - it writes. Since E32+E07 C11b the GM's window that picks a
+ * several-trait action's statistic is answered for the fixture's length (`traits`, from
+ * `answerTraitWindows`; the first listed, the trait the roll took before), and `putBack` puts
+ * Foundry's own `wait` back.
  */
 async function swingFixture(identity = null) {
     const M = await import("./murder.mjs");
@@ -504,16 +507,48 @@ async function swingFixture(identity = null) {
     const [knife] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE knife swung in the fight", type: "loot",
         flags: { [MODULE_ID]: { category: "crimeTool", equipped: true, tier: 1, ...(identity ? { drpgItemId: identity } : {}) } } }]);
     const had = new Set(killer.items.map(i => i.id));
+    const traits = answerTraitWindows();
     const putBack = async () => {
+        traits.restore();
         for (const item of killer.items.filter(i => !had.has(i.id) || i.id === knife?.id)) await item.delete();
         if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
     };
     const ready = M.murderState()?.stage === "incident" && M.isTheirTurn(killer) && Boolean(knife) && equippedFor(killer, "crimeTool")?.id === knife.id;
     if (!ready) await putBack();
     must(ready, `the fixture's fight is not at the killer's turn with the knife in hand: ${stableJson(M.murderState())}`);
-    return { M, killer, victim, knife, putBack,
+    return { M, killer, victim, knife, putBack, traits,
         health: () => victim.system.resources.hitPoints.value,
         handed: () => killer.items.filter(i => !had.has(i.id)).length };
+}
+
+/**
+ * THE GM'S WINDOW THAT PICKS A STATISTIC, ANSWERED (E32+E07 C11b, 02.10.2026). A crisis
+ * action that lists several traits, thrown on a GM's browser, asks the GM in a window
+ * (trait-ruling.mjs `pickHere`); 01-runtests draws real windows on the GM and the suite has
+ * nobody to press one. Until `restore()`, that window - found by its title - is answered by
+ * `pick(offered)` (the first listed unless a test sets another, "cancel" for Cancel) and its
+ * buttons are kept in `asked`; every other `wait` goes to Foundry's own.
+ */
+function answerTraitWindows() {
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "wait");
+    const original = D.wait;
+    const title = game.i18n.localize("DRPG.TraitRuling.title");
+    const handle = {
+        asked: [],
+        pick: offered => offered[0],
+        restore: () => {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+    };
+    D.wait = async cfg => {
+        if (cfg?.window?.title !== title) return original.call(D, cfg);
+        const offered = (cfg.buttons ?? []).map(b => b.action).filter(action => action !== "cancel");
+        handle.asked.push(offered);
+        return handle.pick(offered);
+    };
+    return handle;
 }
 
 /**
@@ -2689,11 +2724,14 @@ const SCENARIOS = [
         must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim), `the incident did not reach the victim's turn: ${stableJson(M.murderState())}`);
         const had = new Set(game.messages.contents.map(m => m.id));
         const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        // The GM picks Leave a clue's statistic in a window since E32+E07 C11b; the first listed, as before.
+        const traits = answerTraitWindows();
         try {
             globalThis.__forceRoll = { hope: 9, fear: 5 };
             await M.takeCrisisAction(victim, "leaveClue");
             await settle();
         } finally {
+            traits.restore();
             if (hadForce) globalThis.__forceRoll = force;
             else delete globalThis.__forceRoll;
         }
@@ -3472,6 +3510,218 @@ const SCENARIOS = [
         equal(stableJson([double, hurtBefore > 0, M.murderState()?.killerId === victim.id, marks(victim)[0]]),
             stableJson([[true, [1, 2], [1, 2]], true, true, 0]),
             "Double role reversal healed somebody or did not swap, or a Role reversal with Hope no longer gave the reverser their Health back");
+    }],
+
+    ["a several-trait crisis roll waits for the GM's pick and rolls it", async () => {
+        /*
+         * E32+E07 C11b, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09). A crisis
+         * action that lists several traits rolled the first of them and asked nobody. At the
+         * killer's turn (`swingFixture`), on this GM's browser, the killer attacks with a weapon
+         * (Body / Hand / Leg) twice: the GM's window is first closed with Cancel, then answered
+         * Leg. The character's own `rollTrait` is replaced by one that notes the trait and the
+         * roll's config and throws nothing, as a closed roll window does. Read: the windows the
+         * GM was shown (their traits), the throws, and what each attack answered. Until C11b no
+         * window, and the attack threw Body (`strength`) with no GM's mark on it.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const { M, killer, putBack, traits } = await swingFixture();
+        const thrown = [];
+        try {
+            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            traits.pick = () => "cancel";
+            const cancelled = await M.takeCrisisAction(killer, "weaponAttack");
+            traits.pick = () => "leg";
+            const picked = await M.takeCrisisAction(killer, "weaponAttack");
+            equal(stableJson([traits.asked, thrown, cancelled, picked]),
+                stableJson([[["body", "hand", "leg"], ["body", "hand", "leg"]], [["agility", true]], null, null]),
+                "the GM was not asked, a Cancel still threw, or the throw did not take the GM's pick with its mark (windows, throws, answers)");
+        } finally {
+            delete killer.rollTrait;
+            await putBack();
+        }
+    }],
+
+    ["with Resolve armed nobody is asked and the window's picker is open; a GM's pick stays locked", async () => {
+        /*
+         * E32+E07 C11b, 02.10.2026. The one exception the owner kept: after the Hope Call Resolve
+         * (`grants: "trait"`) the player picks, in the roll window. At the killer's turn
+         * (`swingFixture`) Resolve is armed on the killer and the killer attacks with a weapon,
+         * the throw noted and not made (as above). Then the roll window's lock (roll-dialog.mjs
+         * `lockTrait`) is handed a Statistic select of its own - the window is Daggerheart's,
+         * and the harness has none: with Resolve armed, and for a roll whose trait a GM picked.
+         * Read: the GM's windows (none), the throw (the first listed, no GM's mark), and each
+         * select's state and tooltip.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const { lockTrait } = await import("./roll-dialog.mjs");
+        const C = await import("./call-effects.mjs");
+        const { M, killer, putBack, traits } = await swingFixture();
+        const thrown = [];
+        const select = (app, armed) => {
+            const root = document.createElement("div");
+            root.innerHTML = '<select name="trait"><option value="strength">Body</option><option value="agility">Leg</option></select>';
+            lockTrait(root, app, new Set(armed));
+            const el = root.querySelector("select");
+            return [el.disabled, el.dataset.tooltip ?? null];
+        };
+        try {
+            must(await C.armCall(killer, { key: "determination", kind: "hope", grants: "trait" }), "Resolve could not be armed on the killer");
+            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            await M.takeCrisisAction(killer, "weaponAttack");
+            equal(stableJson([traits.asked, thrown, select({ config: {} }, ["trait"]), select({ config: { [TRAIT_BY_GM]: true } }, [])]),
+                stableJson([[], [["strength", false]], [false, game.i18n.localize("DRPG.RollDialog.unlockedByCall")],
+                    [true, game.i18n.localize("DRPG.RollDialog.traitByGm")]]),
+                "with Resolve armed the GM was asked or the throw was marked, or a select was not opened by Resolve or not locked as the GM's (windows, throws, Resolve's select, the GM's)");
+        } finally {
+            delete killer.rollTrait;
+            await C.consumeCalls(killer);
+            await putBack();
+        }
+    }],
+
+    ["a ruling for a character the sender does not own, or for an action it cannot take now, is refused and told", async () => {
+        /*
+         * E32+E07 C11b, 02.10.2026. A player's request for the GM's pick (`trait.ruling`) puts
+         * a card in their thread naming the action, so the GM judges it on the world
+         * (bridge-guards.mjs `guardTraitRuling`), as its listener hands it on (`judge`). At the
+         * killer's turn (`swingFixture`): the victim's player asks for the killer's Attack with a
+         * weapon, and for the victim's Leave a clue out of turn; the killer's player for Pin (one
+         * trait), for an opening's statistic, and the victim's player for the trap victim's
+         * table of Leave a clue in a direct murder. Read: what each asker was sent, and whether
+         * any card was posted. Until C11b there was no such request: nothing was sent.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { killer, victim, putBack } = await swingFixture();
+        const [mine, theirs] = [player(killer), player(victim)];
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const ask = async (from, fields) => {
+            const sent = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: `suite-c11b-${foundry.utils.randomID()}`, kind: "crisis",
+                variant: null, ...fields }, from.id, { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null]) });
+            return sent;
+        };
+        try {
+            const told = [
+                await ask(theirs, { actorId: killer.id, key: "weaponAttack" }),
+                await ask(theirs, { actorId: victim.id, key: "leaveClue" }),
+                await ask(mine, { actorId: killer.id, key: "pin" }),
+                await ask(mine, { actorId: killer.id, kind: "opening", key: "killer" }),
+                await ask(theirs, { actorId: victim.id, key: "leaveClue", variant: "indirectVictim" })
+            ];
+            await settle();
+            const refused = code => [["bridge.refused", code]];
+            equal(stableJson([told, game.messages.contents.filter(m => !had.has(m.id)).length]),
+                stableJson([[refused("notYours"), refused("notYourTurn"), refused("badRequest"), refused("gmOnly"), refused("badRequest")], 0]),
+                "a ruling the sender may not ask was let through, refused for another reason, or put a card up (what each asker was sent, cards posted)");
+        } finally {
+            await putBack();
+        }
+    }],
+
+    ["a bystander's copy of the ruling card holds no action's name", async () => {
+        /*
+         * E32+E07 C11b, 02.10.2026. The card that asks the GMs for the statistic names the
+         * action, which is the incident's, so it is veiled (E06 C8): its document names nobody
+         * and addresses everybody, and its words go to the thread's player (and any other GM).
+         * The killer's player asks for the killer's Attack with a weapon at the killer's turn
+         * (`swingFixture`), through the GM's judgement (`judge`). Read: what the asker was sent,
+         * the cards posted, the document (veiled; the action's label, the killer's id or name, or
+         * the player's id anywhere in it; addressed to everybody), which players the words were
+         * sent to (`wordsSent`), and whether the GM's own words name the action.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const label = CRISIS_ACTIONS.weaponAttack.label;
+        const players = game.users.filter(u => !u.isGM).map(u => u.id);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const sent = [];
+        try {
+            const words = await wordsSent(async () => {
+                await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: "suite-c11b-veiled", actorId: killer.id, kind: "crisis",
+                    key: "weaponAttack", variant: null }, mine.id, { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null]) });
+                await settle();
+            });
+            const made = game.messages.contents.filter(m => !had.has(m.id));
+            const doc = made[0]?.toObject() ?? {};
+            const told = JSON.stringify({ ...doc, whisper: [] });
+            equal(stableJson([sent, made.length, doc.flags?.[MODULE_ID]?.veiled === true, [label, killer.id, killer.name, mine.id].filter(x => told.includes(x)),
+                (doc.whisper ?? []).length === game.users.size, words.filter(w => w.id === made[0]?.id).map(w => w.to.filter(u => players.includes(u))),
+                String(contentOf(made[0]) ?? "").includes(label)]),
+            stableJson([[["bridge.ack", null]], 1, true, [], true, [[mine.id]], true]),
+            "the ruling card was not posted once, not veiled, named the action, the character or the player on its document, or its words reached another player (asker sent, cards, veiled, named, everybody, word readers, GM's words)");
+        } finally {
+            await putBack();
+        }
+    }],
+
+    ["the GM's pick goes to the asker alone and is kept with the card, and a trait the action does not list is not answered", async () => {
+        /*
+         * E32+E07 C11b, 02.10.2026. A GM answers the statistic card with one of its buttons
+         * (messenger-app.mjs `rulePickTrait`): the list is read again from this GM's config, a
+         * trait not on it answers nothing, and the pick goes back to the asker alone and is
+         * kept in the settled card's meta for its readers - the record a check of the roll reads
+         * (E28/E29). The killer's player asks for Attack with a weapon (`judge`); the card's
+         * button for Hand is pressed with its trait rewritten to Eye, then the one for Leg.
+         * Read: the answers sent after each press and to whom, whether the card was settled
+         * after the first, the record the card keeps, and the record its player was sent.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const { killer, putBack } = await swingFixture();
+        const mine = player(killer);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const socket = game.socket;
+        const own = Object.getOwnPropertyDescriptor(socket, "emit");
+        const send = socket.emit;
+        const done = [];
+        socket.emit = function (event, packet, options, ...rest) {
+            if (packet?.action === "bridge.done" && packet.requestId === "suite-c11b-pick") done.push([options?.recipients ?? [], packet.value ?? null]);
+            return send.call(this, event, packet, options, ...rest);
+        };
+        try {
+            await G.judge(BRIDGE_ACTIONS, { action: "trait.ruling", requestId: "suite-c11b-pick", actorId: killer.id, kind: "crisis",
+                key: "weaponAttack", variant: null }, mine.id, { send: () => null });
+            await settle();
+            const card = game.messages.contents.find(m => !had.has(m.id));
+            must(String(contentOf(card) ?? "").includes('data-drpg-call="pickTrait"'), "no statistic card was posted for the fixture's request");
+            const press = async (trait, rewritten = null) => {
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                const button = [...body.querySelectorAll('[data-drpg-call="pickTrait"]')].find(b => b.dataset.trait === trait);
+                if (rewritten) button.dataset.trait = rewritten;
+                button?.click();
+                await settle();
+            };
+            await press("hand", "eye");
+            const forged = [done.length, Boolean(cardFlag(card, "settled"))];
+            const readers = await wordsSent(async () => {
+                await press("leg");
+                await until(() => cardFlag(card, "settled"));
+            });
+            const record = { type: "trait", actorId: killer.id, kind: "crisis", key: "weaponAttack", variant: null, trait: "leg" };
+            equal(stableJson([forged, done, cardFlag(card, "ruling") ?? null, readers.filter(w => w.id === card.id && w.to.includes(mine.id)).map(w => w.meta?.ruling ?? null)]),
+                stableJson([[0, false], [[[mine.id], "leg"]], record, [record]]),
+                "a trait the action does not list was answered, or the pick did not go to the asker alone, or the card did not keep it, or its player was not sent it (after the forged press, answers, the card's record, the player's)");
+        } finally {
+            if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+            await putBack();
+        }
     }],
 
     ["a Finishing Blow leaves the victim unflagged, dead to the GMs, until the discovery publishes it", async () => {

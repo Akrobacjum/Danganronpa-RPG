@@ -65,6 +65,13 @@ function toolRelief(tool, tierOf) {
 export const DRPG_ACTION_ROLL = "drpgActionRoll";
 
 /**
+ * The trait on this roll is a GM's pick (E32+E07 C11b; trait-ruling.mjs): the roll
+ * window keeps its Statistic select locked and says who chose it (roll-dialog.mjs
+ * `lockTrait`). A string key for the reason above.
+ */
+export const TRAIT_BY_GM = "drpgTraitByGm";
+
+/**
  * Is the regression suite throwing these dice?
  *
  * A global rather than an import, and deliberately: the suite imports this file
@@ -619,6 +626,9 @@ function dynamicDef() {
  *   an action name it could not act on - which reads exactly like Reroll not
  *   working on Search at all.
  *
+ * @param {boolean} [options.byGm]  The trait is a GM's pick (`TRAIT_BY_GM`), and the
+ *   window says so on its locked select.
+ *
  * Exported because the murder engine rolls through it too: a crisis action and
  * an opening roll are ordinary trait rolls that must commit resources, honour
  * an armed Call and record a Reroll bookmark exactly like a Search does.
@@ -627,7 +637,7 @@ function dynamicDef() {
  * "rollTrait is not a function" before a single die was thrown.
  */
 export async function rollTrait(actor, drpgTrait,
-    { remember = true, actionKey = null, context = null, title = null, dc = null } = {}) {
+    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false } = {}) {
     // "Beat 12" on the window that throws the dice (D1). `dc` may be a number
     // or a ladder written as text ("12 / 18"); a window with no title of its
     // own takes the action's label so the number has something to hang on.
@@ -644,14 +654,14 @@ export async function rollTrait(actor, drpgTrait,
     const supporting = !remember;
     if (supporting) calls.shieldCalls();
     try {
-        return await throwDice(actor, drpgTrait, { remember, actionKey, context, title });
+        return await throwDice(actor, drpgTrait, { remember, actionKey, context, title, byGm });
     } finally {
         if (supporting) calls.unshieldCalls();
     }
 }
 
 /** The roll itself, once it has been decided whether a Call may touch it. */
-async function throwDice(actor, drpgTrait, { remember, actionKey, context, title = null }) {
+async function throwDice(actor, drpgTrait, { remember, actionKey, context, title = null, byGm = false }) {
     const dhTrait = TRAITS[drpgTrait]?.dh ?? drpgTrait;
 
     const { pendingCalls, consumeCalls } = await import("./call-effects.mjs");
@@ -714,6 +724,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // The roll the Loaded Die was bought for, marked on the roll itself -
         // see `LOADED_DIE` in forced-roll.mjs.
         ...(free ? { [LOADED_DIE]: armed?.nonce ?? foundry.utils.randomID() } : {}),
+        // A GM picked the trait: the window's select stays locked and says so.
+        ...(byGm ? { [TRAIT_BY_GM]: true } : {}),
         // Say what the roll is FOR.
         //
         // Left alone, Daggerheart titles the window from the trait - "Body

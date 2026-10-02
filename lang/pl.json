@@ -2450,10 +2450,17 @@
       "everyone": "Jawny: widzą go wszyscy. Zaznaczeni to ci, którzy wiedzieli przed ujawnieniem - oni i budujący będą wiedzieć, jeśli projekt znów zostanie utajniony.",
       "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu."
     },
+    "TraitRuling": {
+      "title": "Która statystyka?",
+      "gmBody": "Ten rzut wymienia kilka statystyk. Wybierz jedną na podstawie tego, co według gracza robi jego postać.",
+      "waiting": "GM wybiera statystykę. Napisz mu w swoim wątku, co robisz.",
+      "refused": "GM nie dopuścił tej akcji. Nic nie zostało wydane."
+    },
     "RollDialog": {
       "locked": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",
       "diceFixed": "Ustalone na d12 przez zasady.",
       "traitFixed": "Wybrane, zanim to okno się otworzyło.",
+      "traitByGm": "Wybrane przez GM-a.",
       "pickYourApproach": "Uważne spojrzenie albo szybkie grzebanie - twój wybór.",
       "advantageLocked": "Przewaga i utrudnienie biorą się z Calli, nie stąd.",
       "pickOneExperience": "Wybierz jedno doświadczenie, którego dotyczy ten rzut. Kliknięcie innego przenosi wybór.",
@@ -2517,6 +2524,7 @@
         "cleanup.traces": "Ślady w zasięgu",
         "call.approve": "Zgoda na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",
+        "trait.ruling": "Wybór statystyki przez GM-a",
         "trap.event": "Zgłoszenie dla pułapek",
         "roll.subject": "Zgłoszenie, czyj to był rzut",
         "searchTokens.spend": "Wydanie Search Tokena",

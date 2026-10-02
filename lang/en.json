@@ -2364,10 +2364,17 @@
       "everyone": "Public: everyone can see it. Ticked: who knew before it was revealed - they and whoever builds it are who will know if it is sealed again.",
       "builderStays": "{name} is building “{project}”: a builder cannot be taken off their own project."
     },
+    "TraitRuling": {
+      "title": "Which statistic?",
+      "gmBody": "The roll lists several statistics. Pick one from what the player says their character does.",
+      "waiting": "The GM is choosing the statistic. Tell them in your thread what you do.",
+      "refused": "The GM turned the action down. Nothing was spent."
+    },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
       "diceFixed": "Fixed at d12 by the rules.",
       "traitFixed": "Chosen before this window opened.",
+      "traitByGm": "Chosen by the GM.",
       "pickYourApproach": "A careful look or a quick rummage - your choice.",
       "advantageLocked": "Advantage and disadvantage come from Calls, not from here.",
       "pickOneExperience": "Pick the one experience this roll relates to. Clicking another moves the choice.",
@@ -2429,6 +2436,7 @@
         "advancement.ask": "Your Level Up offers",
         "call.approve": "Hope Call approval",
         "dynamic.difficulty": "Dynamic action difficulty",
+        "trait.ruling": "The GM's pick of a statistic",
         "trap.event": "A report for the traps",
         "roll.subject": "A report of whose roll it was",
         "searchTokens.spend": "Spend a search token",

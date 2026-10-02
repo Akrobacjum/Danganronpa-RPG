@@ -5466,6 +5466,45 @@ const INVARIANTS = [
             offers(V, fight).includes("roleReversal"), offers(V, trap).includes("roleReversal")]),
             JSON.stringify([DENIED, DENIED, null, true, false]),
             "a denied reversal was let through or refused for another reason, or the third's offered one was refused, or the list was not asked of the state given");
+    }],
+
+    ["R212 - a roll that lists several statistics asks a GM, and only then", async () => {
+        /*
+         * E32+E07 C11b, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09).
+         * `traitFor` (trait-ruling.mjs) decides who picks a roll's statistic: one listed
+         * trait is rolled as it is; several are a GM's pick - in a window on a GM's browser,
+         * through the bridge on a player's; an armed Resolve leaves the pick to the roll
+         * window; and an answer the definition does not list, or none, means no roll. Asked
+         * on stubs (`seams`: who this browser is, whether Resolve is armed, the two ways of
+         * asking, each noting that it was asked), with the lists read from config: Pin (Body),
+         * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Hand / Leg /
+         * Body), and a kind that is none. Pure; nothing is written.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const A = { id: "R212ACTOR0000001", name: "R212" };
+        const asked = [];
+        const seams = over => ({
+            isGm: false, resolveArmed: () => false,
+            pickHere: async (actor, spec, listed) => { asked.push(["here", spec.key]); return listed[1]; },
+            askGms: async (actor, spec) => { asked.push(["gms", spec.key]); return "leg"; },
+            ...over
+        });
+        const attack = { kind: "crisis", key: "weaponAttack" };
+        const read = [
+            await T.traitFor(A, { kind: "crisis", key: "pin" }, seams()),
+            await T.traitFor(A, attack, seams()),
+            await T.traitFor(A, attack, seams({ resolveArmed: () => true })),
+            await T.traitFor(A, attack, seams({ isGm: true })),
+            await T.traitFor(A, attack, seams({ askGms: async () => "eye" })),
+            await T.traitFor(A, attack, seams({ askGms: async () => null })),
+            await T.traitFor(A, { kind: "crisis", key: "leaveClue", variant: "indirectVictim" }, seams({ askGms: async () => "body" })),
+            await T.traitFor(A, { kind: "nonsense", key: "weaponAttack" }, seams())
+        ];
+        const pick = (trait, byGm) => ({ trait, byGm });
+        equal(JSON.stringify([read, asked]), JSON.stringify([
+            [pick("body", false), pick("leg", true), pick("body", false), pick("hand", true), null, null, pick("body", true), null],
+            [["gms", "weaponAttack"], ["here", "weaponAttack"]]
+        ]), "a roll did not take its one trait, or several did not go to a GM, or Resolve was asked, or an answer off the list was rolled (answers, who was asked)");
     }]
 ];
 

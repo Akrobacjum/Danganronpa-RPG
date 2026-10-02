@@ -1649,6 +1649,17 @@ export function crisisUndoRefusal(actor, key, live = murderState()) {
     return null;
 }
 
+/**
+ * The table `actor` rolls `key` from: "indirectVictim" for a trap's victim where the
+ * action carries one (`def.indirectVictim`, see `indirectOverride`), else null. Read by
+ * the GM's judgement of a statistic ruling (bridge-guards.mjs `guardTraitRuling`), so a
+ * packet cannot name the other side's list (E32+E07 C11b).
+ */
+export function crisisVariant(actor, key, state = murderState()) {
+    const def = CRISIS_ACTIONS[key];
+    return def?.indirectVictim && sideOf(actor, state) === "victim" && state?.indirect ? "indirectVictim" : null;
+}
+
 export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     const state = murderState();
     const side = sideOf(actor);
@@ -1721,14 +1732,26 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         return game.user.isGM ? res.value : { pending: true };
     }
 
+    /*
+     * THE GM PICKS THE STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23, the owner's Q4
+     * as corrected on 28.09). An action that lists several traits rolled the first of
+     * them, `(variant?.traits ?? def.traits)[0]`, and nobody was asked. Now a GM picks one
+     * from what the player says in their thread (trait-ruling.mjs `traitFor`); one listed
+     * trait is rolled as it is, and an armed Resolve leaves the pick to the roll window.
+     * After the briefing, so backing out of it asks nobody; before anything is armed for
+     * the dice or paid - the Sanity and the price are the GM's, once the roll is scored -
+     * so a refusal or a request not carried out ends here with nothing spent. In a fight
+     * the turn waits for the GM. The indirect victim is asked about their own table
+     * (Body, not Shadow), named by `crisisVariant`, which the GM checks again.
+     */
+    const { traitFor } = await import("./trait-ruling.mjs");
+    const ruled = await traitFor(actor, { kind: "crisis", key, variant: crisisVariant(actor, key, state) });
+    if (!ruled) return null;
+
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
 
     const situational = crisisSituational(actor, key, state);
-
-    // The indirect victim rolls their own table's stat - Body, not Shadow.
-    const variant = def.indirectVictim && side === "victim" && state.indirect ? def.indirectVictim : null;
-    const trait = (variant?.traits ?? def.traits)?.[0] ?? "body";
     if (situational) calls.armSituational(situational);
 
     /*
@@ -1771,9 +1794,10 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
 
     let roll;
     try {
-        roll = await rollTrait(actor, trait, {
+        roll = await rollTrait(actor, ruled.trait, {
             actionKey: "crisis", context: { crisis: key },
-            title: def?.label ?? game.i18n.localize("DRPG.Roll.crisis")
+            title: def?.label ?? game.i18n.localize("DRPG.Roll.crisis"),
+            byGm: ruled.byGm
         });
     } finally {
         calls.clearSituational();

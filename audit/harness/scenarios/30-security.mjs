@@ -277,6 +277,30 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             && denyReasons.some(r => /that action is not open to that character now/.test(r)),
         JSON.stringify({ denyOpen, denyAnswer, denyAfter, denyReasons }), { flow: "murder-incident" });
 
+    /* A STATISTIC RULING NOBODY MAY ASK (E32+E07 C11b, 02.10.2026; audit S04-23). The card a
+       ruling raises names the action in its player's thread, so the GM asks the world before it
+       posts one (bridge-guards.mjs `guardTraitRuling`): p1 asks, through the honest request
+       function, for Botan's Strike - not Aiko's to ask for - for Aiko's own with no incident
+       running, and for an opening's statistic, which only a GM's own client picks. Each is
+       refused on the GM and told to p1 with its reason; no card goes up and the harness's GM
+       presses nothing (client-entry.mjs `__traitRulings`). */
+    phase("a statistic ruling nobody may ask", { flow: "trait-ruling" });
+    const rulingMark = await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        globalThis.__traitRulings.length = 0;
+        return game.messages.contents.length;`);
+    const rulingAsked = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        if (typeof B.requestTraitRuling !== "function") return "no requestTraitRuling";
+        const ask = async (actorId, kind, key) => { const r = await B.requestTraitRuling({ actorId, kind, key }); return [r?.ok ?? null, r?.reason ?? null]; };
+        return [await ask("${ids.botan}", "crisis", "strike"), await ask("${ids.aiko}", "crisis", "strike"), await ask("${ids.aiko}", "opening", "killer")];`,
+        { timeout: 60000 });
+    await settle(600);
+    const rulingAfter = await gm.eval(`return { cards: game.messages.contents.length - ${Number(rulingMark) || 0}, pressed: globalThis.__traitRulings.length,
+        logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "trait.ruling"')).length };`);
+    check("SECURITY: a statistic ruling for another player's character, for a crisis action with no incident, or for an opening is refused on the GM, told, and puts no card up",
+        JSON.stringify(rulingAsked) === JSON.stringify([[false, "notYours"], [false, "notInIncident"], [false, "gmOnly"]])
+            && rulingAfter.cards === 0 && rulingAfter.pressed === 0 && rulingAfter.logged === 3,
+        JSON.stringify({ rulingAsked, rulingAfter }), { flow: "trait-ruling" });
+
     /*
      * 4d. A CALL ON A BODY NOBODY HAS FOUND (E05 fix r2-G3, 27.09.2026; review S2-m1). Daichi is
      * the blow's kept death now. The GM refused a Call on him as "cannot now" before it asked

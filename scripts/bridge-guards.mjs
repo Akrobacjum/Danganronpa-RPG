@@ -196,6 +196,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that pool is not the rerolling character's Monokuma$/],
     ["badRequest", /^target holds no Despair pool$/],
     ["badRequest", /^a GM asks for nothing here$/],
+    // E32+E07 C11b: a statistic ruling for a roll that has nothing to pick, or another side's table (guardTraitRuling).
+    ["badRequest", /^that roll does not list several statistics$/],
+    ["badRequest", /^that is not the table the character rolls$/],
     ["badRequest", /^that plant was handed to somebody else$/],
     // E05: a pre-session note past the player text cap (gm-bridge.mjs handleNoteSave).
     ["badRequest", /^the note is longer than a player's words may be$/],
@@ -254,6 +257,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^that cannot be done now$/],
     // E05 fix r1-G3: a Direct Murder parked with no Eclipse running (gm-bridge.mjs handleParkMurder).
     ["cannotNow", /^no Eclipse is running$/],
+    // E32+E07 C11b: a statistic ruling for a clean-up the character may not make now (guardTraitRuling).
+    ["cannotNow", /^the character may not clean up now$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],
@@ -417,6 +422,36 @@ export async function guardCrisisReceipt(sender, payload, ctx) {
     if (sender.isGM || !payload.undo) return null;
     const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
     return spendRerollReceipt(payload.actorId, sender.id, "crisis");
+}
+
+/*
+ * WHICH STATISTIC, ASKED OF THE WORLD (E32+E07 C11b, 02.10.2026; audit S04-23). A
+ * player asks the GMs to pick a trait for a roll before anything is paid
+ * (trait-ruling.mjs `traitFor`), and the card it raises puts the action's name in
+ * the thread. So the request is held to what the character could roll now: the
+ * definition named lists several traits in this GM's config; the character is not
+ * dead to the GMs; a crisis action is one `crisisRefusal` lets the character take,
+ * from the table their side rolls (a trap's victim's, `crisisVariant`); a clean-up
+ * is the cleaner's (`cleanupBlocker`). An opening's statistic is picked on the
+ * GM's own client, where the opening is rolled from, so a player never asks it.
+ */
+export async function guardTraitRuling(sender, payload, ctx) {
+    if (sender.isGM) return null;
+    const actor = game.actors.get(payload.actorId);
+    if (!actor) return "no such character";
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    const variant = payload.variant ?? null;
+    if (listedTraits({ kind: payload.kind, key: payload.key, variant }).length < 2) return "that roll does not list several statistics";
+    const { isDeadForGm } = await import("./settings.mjs");
+    if (isDeadForGm(actor)) return "that cannot be done now";
+    if (payload.kind === "opening") return "only a GM picks an opening roll's statistic";
+    if (payload.kind === "crisis") {
+        const { crisisRefusal, crisisVariant } = await import("./murder.mjs");
+        if (crisisVariant(actor, payload.key) !== variant) return "that is not the table the character rolls";
+        return crisisRefusal(actor, payload.key)?.why ?? null;
+    }
+    const { cleanupBlocker } = await import("./cleanup.mjs");
+    return cleanupBlocker(actor) ? "the character may not clean up now" : null;
 }
 
 /** A clean-up taken back is a Reroll's, and is paid for by the receipt of one (E03). Spends it. */

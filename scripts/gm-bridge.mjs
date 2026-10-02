@@ -24,7 +24,7 @@ import {
     guardUnsabotageReceipt, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool,
-    guardDespairReceipt, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
+    guardDespairReceipt, guardTraitRuling, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
@@ -47,6 +47,8 @@ const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
 const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
+/** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
+const ACTION_TRAIT_RULING = "trait.ruling";
 /** player -> GM: "may I spend this Call, and here is what for". */
 const ACTION_HOPE_CALL = "call.approve";
 const ACTION_OBSERVE_TARGET = "observe.target";
@@ -733,6 +735,10 @@ async function handleDifficulty(payload, sender, ctx) {
     return askDynamicByCard(payload, ctx);
 }
 
+async function handleTraitRuling(payload, sender, ctx) {
+    return askTraitByCard(payload, ctx);
+}
+
 async function handleProgress(payload, sender, ctx) {
     const { asker } = ctx;
     // Sight of the project and the size of the step are the declaration's
@@ -1268,6 +1274,19 @@ export const BRIDGE_ACTIONS = table({
         run: handleDifficulty,
         answer: "reply", patient: true, resend: true
     },
+    /*
+     * THE GM PICKS THE STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). Judged on
+     * the world, not the packet: `guardTraitRuling` holds the definition named to
+     * one that lists several traits, and the character to one who may take it now.
+     * No trait travels: the card's come from this GM's config (trait-ruling.mjs).
+     */
+    [ACTION_TRAIT_RULING]: {
+        label: "DRPG.Bridge.what.trait.ruling",
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardTraitRuling],
+        sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText }),
+        run: handleTraitRuling,
+        answer: "reply", patient: true, resend: true, timeoutMs: TIMING.rulingMs
+    },
     [ACTION_PROGRESS]: {
         label: "DRPG.Bridge.what.project.progress",
         guards: [
@@ -1774,6 +1793,52 @@ async function askDynamicByCard(payload, ctx) {
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
 
+/*
+ * THE STATISTIC'S CARD, VEILED (E32+E07 C11b, 02.10.2026). Shaped as the Dynamic
+ * action's: a `callGm` card in the owner's thread with one button per listed trait
+ * and a Refuse, any GM may press either (messenger-app.mjs `rulePickTrait`). Veiled
+ * (E06 C8) because the action it names is the incident's: the document names nobody
+ * and its words go to the thread's player and the GMs. The traits are read from this
+ * GM's config for the definition the guard checked, never from the packet.
+ */
+async function askTraitByCard(payload, ctx) {
+    if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    const { listedTraits, rulingLabel, traitWithValue } = await import("./trait-ruling.mjs");
+    const spec = { kind: payload.kind, key: payload.key, variant: payload.variant ?? null };
+    const listed = listedTraits(spec);
+    if (listed.length < 2) return { refused: "nothing was carried out: the roll lists one statistic or none" };
+    askedByCard.add(ctx.requestId);
+    const actor = game.actors.get(payload.actorId ?? "");
+    const data = trait => ({
+        rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "", kind: spec.kind, key: spec.key,
+        variant: spec.variant ?? "", ...(trait ? { trait } : {})
+    });
+    const posted = await callGm(actor, {
+        title: game.i18n.localize("DRPG.TraitRuling.title"),
+        body: `<strong>${esc(rulingLabel(spec))}</strong> · ${esc(game.i18n.format("DRPG.Action.usesTrait", {
+            traits: listed.map(t => TRAITS[t]?.label ?? t).join(" / ") }))}`,
+        gmBody: game.i18n.localize("DRPG.TraitRuling.gmBody"),
+        actions: [
+            ...listed.map(trait => ({ action: "pickTrait", label: traitWithValue(actor, trait), data: data(trait) })),
+            { action: "refuseTrait", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data: data(null) }
+        ],
+        veiled: true
+    });
+    return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
+}
+
+/**
+ * A GM's answer to a statistic card, sent to the player who asked alone: the
+ * request's `bridge.done`, the trait, or `false` for Refuse.
+ */
+export function answerTraitRuling(requestId, asker, trait) {
+    if (!game.user.isGM || !requestId || !asker) return false;
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_DONE, requestId, userId: asker, value: typeof trait === "string" ? trait : false
+    }, { recipients: [asker] });
+    return true;
+}
+
 /**
  * A GM's answer to a Hope Call card, sent to the player who asked: the request's
  * `bridge.done`, `true` to allow and `false` to refuse. Returns true once sent,
@@ -1828,6 +1893,19 @@ export function requestHopeCallApproval(
  */
 export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = TIMING.rulingMs) {
     return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId }, { timeoutMs, nothingSpent: true });
+}
+
+/**
+ * Ask the GMs which of a roll's listed statistics the character rolls
+ * (trait-ruling.mjs `traitFor`). A human reading a thread, so the clock is the
+ * ruling's, there is none for the "got it", and it is asked again when a GM's
+ * world has loaded; nothing has been paid on this side, so a failure says
+ * "Nothing was spent."
+ *
+ * @returns {Promise<object>} the bridge's result; `value` the trait, or false when the GM refused.
+ */
+export function requestTraitRuling({ actorId, kind, key, variant = null }) {
+    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant }, { nothingSpent: true });
 }
 
 /**
@@ -2312,8 +2390,14 @@ export async function callGm(actor, {
  *
  * @param {ChatMessage} message  The card.
  * @param {string} text          What settled it, in plain words.
+ * @param {object} [ruling]      What was ruled, kept in a private card's meta beside
+ *   `settled` (E32+E07 C11b): the statistic a GM picked, `{ type: "trait", actorId,
+ *   kind, key, variant, trait }` - the record a check of the roll against the pick
+ *   reads (E28/E29). Its readers are the card's: on a veiled thread card the
+ *   thread's player and the GMs. A player's own meta may not carry it (secret.mjs
+ *   `GM_META`). Never written on a document.
  */
-export async function settleCall(message, text) {
+export async function settleCall(message, text, ruling = null) {
     if (!message || !game.user.isGM) return null;
 
     // A `<template>`, not a `<div>` (E02 review): markup parsed into a
@@ -2345,7 +2429,7 @@ export async function settleCall(message, text) {
             // does `settled` since E06 C7a, into the meta its readers keep: on
             // the document it told every browser that a ruling was made, and when.
             const { updateSecret } = await import("./secret.mjs");
-            return await updateSecret(message, wrap.innerHTML, null, flags[MODULE_ID]);
+            return await updateSecret(message, wrap.innerHTML, null, { ...flags[MODULE_ID], ...(ruling ? { ruling } : {}) });
         }
         return await message.update({ content: wrap.innerHTML, flags });
     } catch (err) {

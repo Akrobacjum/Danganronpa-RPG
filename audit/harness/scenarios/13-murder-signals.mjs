@@ -24,6 +24,8 @@
  * notice reaches the killer's player alone (E32+E07 C8, 1e). In a trap the victim's action
  * hands the turn back to the victim, with no Pass (E32+E07 C9, part 2). A third who averts
  * their eyes and walks back in is seated by nobody, and the next student in is (E32+E07 C10, 1b).
+ * A crisis action that lists several statistics waits for the GM's pick on a veiled card in its
+ * player's thread, and rolls the pick (E32+E07 C11b, 1c).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -321,13 +323,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return true;`;
     const ACT = (actorId, key, faces) => `const M = await import("${repoUrl}/scripts/murder.mjs");
         const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
+        const { TRAIT_BY_GM } = await import("${repoUrl}/scripts/action-rolls.mjs");
         const had = new Set(game.messages.contents.map(m => m.id));
+        const actor = game.actors.get("${actorId}");
+        const own = actor.rollTrait;
+        actor.rollTrait = function (dh, config, ...rest) { globalThis.__lastThrow = [dh, config?.[TRAIT_BY_GM] === true]; return own.call(this, dh, config, ...rest); };
+        globalThis.__lastThrow = null;
         globalThis.__dialogAnswers.push(true);
         globalThis.__forceRoll = ${JSON.stringify(faces)};
-        try { await M.takeCrisisAction(game.actors.get("${actorId}"), "${key}"); }
-        finally { delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; }
+        try { await M.takeCrisisAction(actor, "${key}"); }
+        finally { delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; delete actor.rollTrait; }
         const roll = game.messages.contents.find(m => !had.has(m.id) && m.getFlag("${MOD}", "supersededRoll"));
-        return { id: roll?.id ?? null, total: roll?.rolls?.[0]?.total ?? null,
+        return { id: roll?.id ?? null, total: roll?.rolls?.[0]?.total ?? null, thrown: globalThis.__lastThrow,
             label: foundry.utils.escapeHTML(CRISIS_ACTIONS["${key}"].label), stage: game.drpg.murderState()?.stage ?? null };`;
     const DICE_READ = act => `const n = globalThis.__diceNet;
         const card = n.words.find(h => h.includes(${JSON.stringify(act.label)} + " - ")) ?? null;
@@ -337,9 +344,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             shownAt: n.showAt["${act.id}"] ?? null, fell: globalThis.__dsnFell["${act.id}"] ?? null };`;
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
     await p1.eval(`globalThis.__dsnAnimation = async id => { await new Promise(r => setTimeout(r, 1500)); globalThis.__dsnFell[id] ??= Date.now(); }; return true;`);
+    /* Leave a clue lists Hand, Leg and Shadow: the GM picks Shadow - the last, so a roll of
+       the first listed, as before E32+E07 C11b, cannot pass for the pick (client-entry.mjs
+       `__traitRulingAuto`). */
+    await gm.eval(`globalThis.__traitRulings.length = 0; globalThis.__traitRulingAuto = "shadow"; return true;`);
     const clue = await p1.eval(ACT(ids.aiko, "leaveClue", { hope: 9, fear: 5 }), { timeout: 60000 });
+    const ruled = await gm.eval(`globalThis.__traitRulingAuto = true; return globalThis.__traitRulings.slice();`);
     await p1.eval(`delete globalThis.__dsnAnimation; return true;`);
     await settle(900);
+    /* THE GM'S PICK OF A STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). The card asking
+       it is veiled in Aiko's thread: its words reach the victim's browser and no other
+       player's, and its document names nobody on the bystander's. Each browser reads the
+       words it was sent (`__diceNet`) for the card's title, and the bystander the document. */
+    const RULING_READ = `const title = game.i18n.localize("DRPG.TraitRuling.title");
+        const d = game.messages.get(${JSON.stringify(ruled[0]?.message ?? "")})?.toObject() ?? null;
+        return { words: globalThis.__diceNet.words.filter(h => h.includes(title)).length, veiled: d?.flags?.["${MOD}"]?.veiled === true,
+            named: d ? JSON.stringify([d.speaker, d.system, d.flags, d.content]).match(/${ids.aiko}|Aiko Hoshino|${p1.userId}|Leave a clue/) !== null : null };`;
+    const rulingSeen = { victim: await p1.eval(RULING_READ), bystander: await p2.eval(RULING_READ), killer: await p3.eval(RULING_READ) };
+    check("dice: the victim's Leave a clue waits for the GM's pick on a veiled card in her thread, and rolls the pick - Shadow, not the first listed",
+        ruled.length === 1 && JSON.stringify(ruled[0].offered) === JSON.stringify(["hand", "leg", "shadow"]) && ruled[0].picked === "shadow"
+        && JSON.stringify(clue.thrown) === JSON.stringify(["presence", true]) && Boolean(clue.id)
+        && rulingSeen.victim.words >= 1 && rulingSeen.bystander.words === 0 && rulingSeen.killer.words === 0
+        && rulingSeen.bystander.veiled && rulingSeen.bystander.named === false,
+        JSON.stringify({ ruled, thrown: clue.thrown, rulingSeen }), { flow: "trait-ruling" });
     const withDsn = { victim: await p1.eval(DICE_READ(clue)), bystander: await p2.eval(DICE_READ(clue)), killer: await p3.eval(DICE_READ(clue)) };
     check("dice: the victim's crisis roll is played on the killer's screen by the GM's relay, and its card tells the killer the action and the total",
         Boolean(clue.id) && clue.stage === "incident" && withDsn.killer.relayed && withDsn.killer.played.includes(clue.total)

@@ -11,7 +11,8 @@
  *      the shapes Daggerheart's own relay sends for a player. Each lands once, the GM logs no
  *      refusal for it, and its asker is told none. Since E06 C5a also a roll's subject, reported by
  *      its roller for a roll whose document names nobody, and two reports that are not the
- *      sender's to make (A10).
+ *      sender's to make (A10). Since E32+E07 C11b also a crisis action's statistic, put to the GMs
+ *      by its own player and picked on the card (A11).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -342,6 +343,38 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         receipt === mine.id, JSON.stringify({ receipt, mine }));
     await gm.eval(`for (const id of ${JSON.stringify([mine.id, theirs.id])}) await game.messages.get(id ?? "")?.delete(); return true;`);
     await settle(400);
+
+    /* A11. THE GM'S PICK OF A STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). A crisis action
+       that lists several traits asks the GMs which one before anything is paid (trait-ruling.mjs):
+       Botan (p2) opens on Chie (p3) and, at his turn, his player asks for Attack with a weapon's
+       statistic through the honest request function. The card goes up in p2's thread, the primary
+       GM presses its first trait (the harness's GM, client-entry.mjs `__traitRulingAuto`), and the
+       answer comes back once, refused nowhere. Chie's Health and Sanity are put back after. */
+    phase("a statistic ruling", { flow: "trait-ruling" });
+    const chieWas = await gm.eval(`const r = game.actors.get("${IDS.chie}").system.resources;
+        return { hp: r.hitPoints.value, stress: r.stress.value };`);
+    const fightOpen = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        await game.drpg.openMurder({ killerId: "${IDS.botan}", victimId: "${IDS.chie}" });
+        if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        if (M.murderState()?.stage === "incident" && !M.isTheirTurn(game.actors.get("${IDS.botan}"))) await M.passTurn();
+        globalThis.__traitRulings.length = 0;
+        return { stage: M.murderState()?.stage ?? null, turn: M.isTheirTurn(game.actors.get("${IDS.botan}")) };`, { timeout: 60000 });
+    await clearFailures(gm);
+    mark = await refusedCount(p2);
+    const a11answer = await p2.eval(`const B = ${bridge};
+        return typeof B.requestTraitRuling === "function"
+            ? await B.requestTraitRuling({ actorId: "${IDS.botan}", kind: "crisis", key: "weaponAttack" }) : "no requestTraitRuling";`,
+        { timeout: 60000 });
+    await settle(900);
+    const a11 = { fightOpen, answer: a11answer, ruled: await gm.eval(`return globalThis.__traitRulings.slice();`),
+        logged: await refusalsLogged(gm, "trait.ruling"), told: (await refusedSince(p2, mark)).filter(t => t.what === "trait.ruling") };
+    await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false });
+        await game.actors.get("${IDS.chie}").update({ "system.resources.hitPoints.value": ${Number(chieWas?.hp) || 0},
+            "system.resources.stress.value": ${Number(chieWas?.stress) || 0} });
+        return true;`, { timeout: 60000 });
+    check("A11: a crisis action's statistic, asked by the killer's own player at his turn, is put to the GMs once, picked on the card and answered - refused nowhere",
+        fightOpen.stage === "incident" && fightOpen.turn === true && a11answer?.ok === true && a11answer.value === "body"
+        && a11.ruled.length === 1 && a11.ruled[0].picked === "body" && !a11.logged.length && !a11.told.length, JSON.stringify(a11));
 
     /* ------------------------------------------------------ B. what E31 adds */
 

@@ -201,9 +201,10 @@ const PLACEMENT_FLAGS = Object.freeze(["thread", "kind", "gmAsk"]);
  * (`safeword`): the real card is public and carries it on its document, and in a
  * private card's meta it rang the siren on the GMs' screens without pausing anything
  * (E06 fix r1-G5, 28.09.2026; the round-1 review's m3 - sfx.mjs reads it off the
- * document now as well).
+ * document now as well). Nor what a GM ruled on a card (`ruling`, gm-bridge.mjs
+ * `settleCall`, E32+E07 C11b): the record of a statistic the GM picked is the GM's to write.
  */
-const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword"]);
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling"]);
 
 /** A card's meta as a plain object without the document's own flags, or null. Pure. */
 function plainMeta(raw) {

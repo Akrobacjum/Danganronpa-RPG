@@ -20,7 +20,7 @@
 
 import { MODULE_ID, PRICE_CHAINS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, whisperToGms, error, debug } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error, debug, warn } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -606,7 +606,7 @@ export function wireCallActions(body, message = null) {
                 const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
                 if (message && outcome?.settled) {
                     const { settleCall } = await import("./gm-bridge.mjs");
-                    await settleCall(message, outcome.settled);
+                    await settleCall(message, outcome.settled, outcome.ruling ?? null);
                     return; // The card redraws itself; this button is gone.
                 }
             } catch (err) {
@@ -691,6 +691,30 @@ async function ruleSetDifficulty(action, data) {
 async function ruleRefuseDynamic(action, data) {
     const { answerDynamic } = await import("./gm-bridge.mjs");
     if (!answerDynamic(data.rid, data.asker, false)) return null;
+    return settled("DRPG.Bridge.settledDeclined");
+}
+
+    // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
+    // list is read again from this GM's config for the definition the card names, and a
+    // trait not on it is refused here: the button's data is the card's, and the card is
+    // a document. The pick goes to the asker alone and is kept in the card's meta.
+async function rulePickTrait(action, data) {
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    const spec = { kind: data.kind ?? "", key: data.key ?? "", variant: data.variant || null };
+    if (!game.actors.get(data.by ?? "") || !listedTraits(spec).includes(data.trait)) {
+        warn(`A statistic card offered "${data.trait}", which ${spec.kind} "${spec.key}" does not list; nothing was answered.`);
+        return null;
+    }
+    const { answerTraitRuling } = await import("./gm-bridge.mjs");
+    if (!answerTraitRuling(data.rid, data.asker, data.trait)) return null;
+    return { ...settled("DRPG.Bridge.settledAnswered"),
+        ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait } };
+}
+
+    // Refuse: the action is not taken, and nothing was spent for it.
+async function ruleRefuseTrait(action, data) {
+    const { answerTraitRuling } = await import("./gm-bridge.mjs");
+    if (!answerTraitRuling(data.rid, data.asker, false)) return null;
     return settled("DRPG.Bridge.settledDeclined");
 }
 
@@ -1071,6 +1095,8 @@ const CARD_ACTIONS = {
     refuseCall: ruleApproveCallOrRefuseCall,
     setDifficulty: ruleSetDifficulty,
     refuseDynamic: ruleRefuseDynamic,
+    pickTrait: rulePickTrait,
+    refuseTrait: ruleRefuseTrait,
     itemWorks: ruleItemWorksOrItemNoEffectOrItemRefuse,
     itemNoEffect: ruleItemWorksOrItemNoEffectOrItemRefuse,
     itemRefuse: ruleItemWorksOrItemNoEffectOrItemRefuse,

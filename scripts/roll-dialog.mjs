@@ -24,7 +24,7 @@ import { isBrokenDown } from "./character.mjs";
 import { debug } from "./utils.mjs";
 // One string, and nothing in action-rolls.mjs reaches back here - the roll
 // dialog is opened BY the system, not by that file.
-import { DRPG_ACTION_ROLL } from "./action-rolls.mjs";
+import { DRPG_ACTION_ROLL, TRAIT_BY_GM } from "./action-rolls.mjs";
 import { LOADED_DIE } from "./forced-roll.mjs";
 
 export function registerRollDialog() {
@@ -366,13 +366,24 @@ function lockDice(root) {
  *
  * Order matters. The Call is checked first, so a player who paid for the
  * picker is never handed the narrower version of it.
+ *
+ * A trait a GM picked for a roll whose definition lists several (E32+E07 C11b;
+ * trait-ruling.mjs) is locked as every fixed one is, and its tooltip says whose
+ * choice it was ("Chosen by the GM"). Resolve still opens it: a roller with Resolve
+ * armed is not sent to the GM at all, so the two do not meet on one roll unless the
+ * Call was armed while the GM read the thread - and then the player paid for it.
+ *
+ * Exported for the suite (the tier-2 "a GM's pick stays locked in the roll window"),
+ * which hands it a select of its own: the window is Daggerheart's and the harness has none.
  */
-function lockTrait(root, app, armed) {
+export function lockTrait(root, app, armed) {
     const trait = root.querySelector('select[name="trait"]');
     const allowed = traitChoiceFor(app);
 
     if (trait && armed.has("trait")) {
         unlock(trait, "DRPG.RollDialog.unlockedByCall");
+    } else if (trait && app?.config?.[TRAIT_BY_GM]) {
+        disable(trait, "DRPG.RollDialog.traitByGm");
     } else if (trait && allowed?.length) {
         /*
          * THE SELECT SPEAKS DAGGERHEART, NOT DRPG (found on the E23 round).
