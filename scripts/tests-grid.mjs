@@ -23,11 +23,18 @@
  * would make the grid agree with whatever the module does.
  *
  * WHAT A RED CASE SAYS. A case records every violation and fails once at the end, with
- * each as "I<n> at step <k> (<step>): <what>", sorted by invariant. Its marker in
- * `GRID_RED` names the invariant it waits for (`failing`); the kit's judge reads that as
- * a piece of the message, so "I1" would also match I10-I14 - no marker names I1. A case
- * whose stage leaves the model's (I10) stops there: the steps after it were written for
- * the stage the model holds, and driving them on another would measure the fixture.
+ * each as "I<n> at step <k> (<step>): <what>", sorted by invariant, under a head that
+ * lists the invariants it broke, sorted, in brackets: "[I2, I6, I13] - ...". Its marker
+ * in `GRID_RED` names that whole list (`failing`). The kit's judge reads `failing` as a
+ * piece of the message, and the brackets make the piece the whole list: "[I13]" is a
+ * piece of neither "[I2, I6, I13]" nor "[I1, I13]", and no `what` here writes an
+ * invariant's name in brackets. Until fix r1-G5 (02.10.2026; review C-m4) the head was
+ * the bare list and each marker named one invariant of it, so a red case that started
+ * breaking another stayed red: TP08 was red on I2, I6 and I13 under a marker that named
+ * I13 alone (suite of 73b1e89, e32run/g4f3). A marker whose `failing` is not such a list
+ * throws, so its case FAILs (`runCase`). A case whose stage leaves the model's (I10)
+ * stops there: the steps after it were written for the stage the model holds, and
+ * driving them on another would measure the fixture.
  *
  * WHAT IT CANNOT SEE. While tier 2 runs the GM stores send nothing (`gmStoresQuiet`), so
  * no `incident.myCast` packet leaves the GM: I2 reads `castFor` - what each holder would
@@ -142,7 +149,7 @@ const INVARIANTS = Object.freeze({
     I11: "Role reversal is off in a trap and with an accomplice",
     I12: "a close breaks the swung weapons, a discovery the cleaning tools",
     I13: "a third who left stays out",
-    I14: "a victim runs out once"
+    I14: "a victim runs out once: one ran-out card, one death"
 });
 
 /* ==========================================================================
@@ -177,6 +184,9 @@ const CASES = {
     // E32+E07 C8b: the undo path of an action that killed nobody stays open.
     DM15: { title: "a strike that leaves the victim standing, undone by a Reroll and taken again",
         steps: [["open"], ["opening", "hope"], ["act", "K", "strike"], ["reroll", "K", "strike", "hit"], ["close"]] },
+    // E32+E07 fix r1-G5: DM11 by the death a GM's Kill keeps until found - no flag, so only `drpgDeathsChanged` tells the fight.
+    DM16: { title: "the killer dies in the fight by a death the GMs keep",
+        steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["keptDeath", "K"], ["act", "V", "leaveClue"], ["close"]] },
 
     // Direct, with a third.
     TP01: { title: "Partners, the blow, a betrayal from the tile in Stage 6, and the second incident's blow", third: true,
@@ -260,26 +270,28 @@ const CASES = {
 };
 
 /* ==========================================================================
- * THE REDS AT 0642f1a (1.2.65), MEASURED 28.09.2026 on the harness - each a
- * literal marker, read by tools/stages.mjs. A case red on several invariants
- * names in `failing` the one fixed last (the plan's commit order); the commit
- * that fixes an earlier one leaves it, and the one that fixes the last takes it off.
+ * THE REDS LEFT AT 73b1e89 (E32+E07 fix r1-G4), MEASURED 02.10.2026 on the harness
+ * (e32run/g4f3) - 13 of the 28 red at 0642f1a (1.2.65), 28.09.2026; each a literal
+ * marker, read by tools/stages.mjs. `failing` is the whole bracketed list the case
+ * breaks (the head comment, WHAT A RED CASE SAYS): a commit that fixes one invariant
+ * of several re-points it to the list still red, and the one that fixes the last
+ * takes the marker off. The reason names the commit due to fix the last.
  * ========================================================================== */
 
 const GRID_RED = {
-    DM02: expectedRed("E07", "S04-20: the gloves in the killer's hand are not broken by a discovery after the close (C12)", { failing: "I12" }),
-    DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "I10" }),
-    DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "I12" }),
-    TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a)", { failing: "I11" }),
-    TP05: expectedRed("E07", "S05-23: the close breaks the first killer's tools only, not the accomplice's swung weapon (C12)", { failing: "I12" }),
-    TP08: expectedRed("E07", "S04-21: a third who averted their eyes walks back in by their token (C10)", { failing: "I13" }),
-    TP10: expectedRed("E07", "S04-21: a failed escape's third still counts, and a fourth walking in crowds the incident out (C10)", { failing: "I13" }),
-    TP13: expectedRed("E07", "S04-33: a third is let take Use an item, an action of the two sides (C10)", { failing: "I10" }),
-    TR03: expectedRed("E07", "S04-06: Role reversal is offered in a trap (C11a)", { failing: "I11" }),
-    TR05: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
-    TR06: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
-    TR07: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "I11" }),
-    TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "I10" }),
+    DM02: expectedRed("E07", "S04-20: the gloves in the killer's hand are not broken by a discovery after the close (C12)", { failing: "[I12]" }),
+    DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "[I10]" }),
+    DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "[I12]" }),
+    TP04: expectedRed("E07", "S04-06: Role reversal is offered against an accomplice (C11a)", { failing: "[I11]" }),
+    TP05: expectedRed("E07", "S05-23: the close breaks the first killer's tools only, not the accomplice's swung weapon (C12)", { failing: "[I12]" }),
+    TP08: expectedRed("E07", "S04-21: a third who averted their eyes walks back in by their token (C10)", { failing: "[I2, I6, I13]" }),
+    TP10: expectedRed("E07", "S04-21: a failed escape's third still counts, and a fourth walking in crowds the incident out (C10)", { failing: "[I10, I13]" }),
+    TP13: expectedRed("E07", "S04-33: a third is let take Use an item, an action of the two sides (C10)", { failing: "[I10]" }),
+    TR03: expectedRed("E07", "S04-06: Role reversal is offered in a trap (C11a)", { failing: "[I11]" }),
+    TR05: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "[I11]" }),
+    TR06: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "[I11]" }),
+    TR07: expectedRed("E07", "S04-06: Double role reversal is offered to a trap's third (C11a)", { failing: "[I11]" }),
+    TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "[I10]" }),
 };
 
 /* ==========================================================================
@@ -577,7 +589,6 @@ const STEPS = {
      */
     async listDeath(run, who) {
         const { applyAliveStates } = await import("./gm-panel.mjs");
-        const { isDeadForGm } = await import("./chapter.mjs");
         const actor = run.who[who], m = run.model;
         const offers = run.closeOffers;
         must(await applyAliveStates({ [actor.id]: { state: "dead" } }), `${actor.name}'s death from the list was not recorded`);
@@ -586,14 +597,25 @@ const STEPS = {
             stageSix(run, { body: true });
             run.bodies.get(actor.id).discovered = true;
         }
-        if (m?.stage !== "incident" || m.kind === "trap" || !killersOf(m).includes(actor.id)) return;
-        await until(() => {
-            const state = run.M.murderState();
-            return state?.turnSide !== "killer" || !isDeadForGm(game.actors.get(state.killerTurnId ?? state.killerId ?? ""));
-        }, 3000);
-        if (killersOf(m).every(id => run.dead.has(id)) && !await until(() => run.closeOffers > offers, 3000)) {
-            run.violate("I9", "no killer is left alive and the GMs were not offered the close");
-        }
+        await afterKillerDeath(run, actor, offers);
+    },
+
+    /*
+     * A KILLER'S DEATH THE GMS KEEP (E32+E07 fix r1-G5, 02.10.2026; C9's surviving mutant
+     * c9-no-hook): the Kill button's dialog with "kept until found" ticked (chapter.mjs,
+     * `killCharacter` with `secret`). It writes a row of the GMs' `deaths` store and nothing
+     * on the actor, so the fight learns of it by `drpgDeathsChanged` alone - the half of
+     * C9's hook no case reached: `listDeath` publishes the flag, which the actor's half
+     * reads too. A killer's only: a victim's death kept is a body, and that is `runOut`'s.
+     */
+    async keptDeath(run, who) {
+        const { killCharacter } = await import("./chapter.mjs");
+        const actor = run.who[who];
+        must(run.model && killersOf(run.model).includes(actor.id), `keptDeath kills a killer, and ${actor.name} is none`);
+        const offers = run.closeOffers;
+        must(await killCharacter(actor, { secret: true }), `${actor.name}'s death was not kept by the GMs`);
+        run.dead.add(actor.id);
+        await afterKillerDeath(run, actor, offers);
     },
 
     /*
@@ -608,7 +630,7 @@ const STEPS = {
         const { isDeadForGm } = await import("./chapter.mjs");
         await victim.update(brimming(victim, 0));
         await until(() => run.M.murderState()?.stage === "resolution" && isDeadForGm(victim), 3000);
-        run.ranOuts++;
+        run.ranOuts.push(victim.id);
         stageSix(run, { body: true });
     },
 
@@ -687,6 +709,25 @@ const STEPS = {
     }
 };
 
+/**
+ * A killer dead in a direct murder's fight (S04-42, E32+E07 C9): waited out until the turn
+ * is off them - the primary GM's hook moves it after the death lands - and with no killer
+ * left alive the GMs are offered the close; not offered is I9's. `offers` is the count
+ * before the death.
+ */
+async function afterKillerDeath(run, actor, offers) {
+    const m = run.model;
+    if (m?.stage !== "incident" || m.kind === "trap" || !killersOf(m).includes(actor.id)) return;
+    const { isDeadForGm } = await import("./chapter.mjs");
+    await until(() => {
+        const state = run.M.murderState();
+        return state?.turnSide !== "killer" || !isDeadForGm(game.actors.get(state.killerTurnId ?? state.killerId ?? ""));
+    }, 3000);
+    if (killersOf(m).every(id => run.dead.has(id)) && !await until(() => run.closeOffers > offers, 3000)) {
+        run.violate("I9", "no killer is left alive and the GMs were not offered the close");
+    }
+}
+
 /** What a crisis action does to the model, as the rules have it. */
 function applyAct(run, actor, key, hit) {
     const m = run.model;
@@ -706,7 +747,7 @@ function applyAct(run, actor, key, hit) {
     if (!hit) return;
     if (run.brink && (key === "strike" || key === "weaponAttack")) {
         run.brink = false;
-        run.ranOuts++;
+        run.ranOuts.push(m.victimId);
         stageSix(run, { body: true });
         return;
     }
@@ -882,21 +923,40 @@ async function assertIncidentInvariants(run) {
     if (m && state?.thirdId && m.departed.includes(state.thirdId)) run.violate("I13", `${nameOf(state.thirdId)} left and is the third again`);
 }
 
-/** After the last step: every incident closed once, no card spoke as a participant, and each run-out told once. */
+/**
+ * After the last step: every incident closed once, no card spoke as a participant, and
+ * each run-out told once and died once.
+ *
+ * I14'S DEATH IS COUNTED BY ITS CARD (E32+E07 fix r1-G5, 02.10.2026; review C-m6). The plan's
+ * I14 is "one ran-out card, one death", and until this fix the grid counted the cards alone.
+ * The death's record cannot be counted: `killCharacter` refuses an actor already dead for the
+ * GMs, so a second death leaves no second flag or row. What each death that went through
+ * does leave is its whispered card (chapter.mjs, `DRPG.Chapter.deathTitle` and the name), so
+ * the cards naming a victim who ran out are their deaths in the case - one for each run-out.
+ */
 async function assertAtTheEnd(run) {
     const { wordsOf } = await import("./secret.mjs");
     if (!run.stopped && run.closes !== run.opened) run.violate("I4", `${run.closes} close(s) for ${run.opened} incident(s) opened`);
     const names = new Set([...run.everIn].map(nameOf));
     const title = game.i18n.localize("DRPG.Murder.ranOutTitle");
+    const deathTitle = game.i18n.localize("DRPG.Chapter.deathTitle");
+    const ranOut = new Set(run.ranOuts);
+    const deaths = new Map([...ranOut].map(id => [id, 0]));
     let cards = 0;
     for (const { message, at, live } of run.messages) {
         const speaker = message.speaker ?? {};
         if (live && (run.everIn.has(speaker.actor) || names.has(speaker.alias))) {
             run.violate("I7", `a card speaks as ${speaker.alias ?? nameOf(speaker.actor)}`, at);
         }
-        if (String(await wordsOf(message, 300)).includes(title)) cards++;
+        const words = String(await wordsOf(message, 300));
+        if (words.includes(title)) cards++;
+        if (words.includes(deathTitle)) for (const id of ranOut) if (words.includes(nameOf(id))) deaths.set(id, deaths.get(id) + 1);
     }
-    if (cards !== run.ranOuts) run.violate("I14", `${cards} ran-out card(s), the model's ${run.ranOuts}`);
+    if (cards !== run.ranOuts.length) run.violate("I14", `${cards} ran-out card(s), the model's ${run.ranOuts.length}`);
+    for (const [id, n] of deaths) {
+        const due = run.ranOuts.filter(r => r === id).length;
+        if (n !== due) run.violate("I14", `${nameOf(id)} ran out ${due} time(s) and has ${n} death card(s)`);
+    }
 }
 
 const nameOf = id => game.actors.get(id ?? "")?.name ?? String(id ?? null);
@@ -989,6 +1049,11 @@ async function peopleFor(spec) {
 
 async function runCase(id) {
     const spec = CASES[id];
+    // Not a Failure: one would be judged against the marker it is about (WHAT A RED CASE SAYS).
+    const failing = GRID_RED[id]?.failing;
+    if (GRID_RED[id] && !/^\[I\d+(, I\d+)*\]$/.test(failing ?? "")) {
+        throw new Error(`GRID_RED.${id} names ${JSON.stringify(failing)}, not the whole bracketed list of invariants its case breaks`);
+    }
     needs(world.atLeast("studentsWithConnectedPlayer", spec.third ? 3 : 2), "the killer, the victim and any third are each a connected player's");
     if (spec.four) needs(world.atLeast("livingStudents", 4), "a fourth student walks in");
     if (spec.rooms) {
@@ -1003,7 +1068,7 @@ async function runCase(id) {
     const run = {
         spec, who, M, actionsLeft, model: null, opened: 0, closed: 0, closes: 0, offer: null, parked: null, phase: null, eclipse: false, clockBefore: null,
         blackened: new Set(), blackenedBefore: M.blackenedIds(), bodies: new Map(), dead: new Set(), items: new Map(), broken: new Set(),
-        swung: new Map(), places: new Map(), everIn: new Set(), packets: [], messages: [], dialogs: [], ranOuts: 0,
+        swung: new Map(), places: new Map(), everIn: new Set(), packets: [], messages: [], dialogs: [], ranOuts: [],
         turnFloor: 0, fresh: false, undone: false, at: 0, stepStarted: 0, stopped: false, beforeAct: null, room: null, checklist: null, brink: false,
         closeOffers: 0,
         /* One line per distinct violation, at the first step it was seen, and how many steps after it still saw it. */
@@ -1038,7 +1103,7 @@ async function runCase(id) {
     found.sort((a, b) => order(a.inv) - order(b.inv) || a.at - b.at);
     const invariants = [...new Set(found.map(f => f.inv))];
     const line = f => `${f.inv} at step ${f.at} (${stepName(spec.steps[f.at - 1])}): ${f.what}${f.again ? ` (and ${f.again} step(s) after)` : ""}`;
-    ok(!found.length, `${invariants.join(", ")} - ${found.map(line).join("; ")}`
+    ok(!found.length, `[${invariants.join(", ")}] - ${found.map(line).join("; ")}`
         + `${run.dialogs.length ? ` [windows closed unanswered: ${run.dialogs.join(", ")}]` : ""}`);
 }
 
@@ -1064,6 +1129,7 @@ const GRID = [
     ["grid DM13 - a Tier 1 knife in hand and a failed opening", () => runCase("DM13"), GRID_RED.DM13],
     ["grid DM14 - the victim runs out while the hook's check races the action's", () => runCase("DM14"), GRID_RED.DM14],
     ["grid DM15 - a strike that leaves the victim standing, undone by a Reroll and taken again", () => runCase("DM15"), GRID_RED.DM15],
+    ["grid DM16 - the killer dies in the fight by a death the GMs keep", () => runCase("DM16"), GRID_RED.DM16],
     ["grid TP01 - Partners, the blow, a betrayal from the tile in Stage 6, and the second incident's blow", () => runCase("TP01"), GRID_RED.TP01],
     ["grid TP02 - Partners, the blow, the close, and a betrayal from the checklist whose opening fails", () => runCase("TP02"), GRID_RED.TP02],
     ["grid TP03 - Partners, and two killers run the victim out", () => runCase("TP03"), GRID_RED.TP03],

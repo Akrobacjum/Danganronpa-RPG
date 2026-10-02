@@ -161,8 +161,12 @@ function describe(value) {
  * assertion, FAILs as "unexpectedly passed" when it passes, and FAILs once
  * tools/stages.json says its stage has shipped - so a stage cannot ship with the
  * red it was meant to turn green still counted as fine. `failing`, when given, is
- * a piece of the failure message the red has to carry, so a case that starts
- * failing for another reason does not hide under the marker. It never throws at
+ * a piece of the failure message the red has to carry: a test that starts failing
+ * somewhere the piece does not appear FAILs as "red, but not where expectedRed
+ * says". A piece guards only what it spells out - a message that carries it and
+ * more stays red - so the invariant grid heads its message with the whole
+ * bracketed list a case breaks and names that list (tests-grid.mjs, WHAT A RED
+ * CASE SAYS; E32+E07 fix r1-G5, review C-m4). It never throws at
  * load: a throw here would take the whole tier file down, so a malformed marker
  * FAILs its own test instead (`markerProblem`).
  */

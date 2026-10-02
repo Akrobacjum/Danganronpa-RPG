@@ -1754,15 +1754,15 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * they hold the knife for the murder and the gloves for the clean-up, so at
      * closing time the gloves are in hand and the knife walks away.
      *
-     * On the actor rather than on the incident state: the player's own client
-     * runs this roll and can write its own actor, where `murderState` is a
-     * world setting only a GM may touch. One flag, cleared when the incident
-     * ends, holding the id of the thing that was actually used.
+     * It was a flag on the actor until CASE-04 - world data, which told every
+     * console who swung what. The id taken here travels in the crisis packet
+     * below (`swungId`); the GM narrows it to what this actor may have swung
+     * (`swungWeapon`) and keeps it in the cast's `swung`, which no player's copy
+     * carries (`castCopyFor`) and a new incident starts empty
+     * (`freshIncidentState`). Corrected in E32+E07 fix r1-G5 (review C-m7): this
+     * paragraph still described the flag.
      */
     if (swung) {
-        // The id travels in the crisis packet below and is remembered in the
-        // GM's cast, not on the actor - a flag would be world data (CASE-04).
-
         /*
          * AND THE TRACE THAT HANDED IT OVER IS EVIDENCE NOW (Dawid, 28.08).
          *
