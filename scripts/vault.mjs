@@ -1094,9 +1094,10 @@ export async function stealFromVault({
      * Two things call this. `rifleStashDialog` is the drawer-in-a-bedroom case:
      * no action, no roll, and therefore no business opening a hiding place its
      * owner built a project for. The Search action is the other, and it is the
-     * one the concealment penalty exists FOR - `performSearch` subtracts a
-     * situational -1 precisely because the stash is hidden, spends a search
-     * token and an action, and only then asks for a specific item.
+     * one the concealment penalty exists FOR - `performSearch` takes a step of
+     * disadvantage (action-rolls.mjs `stashStep`) precisely because the stash is
+     * hidden, spends a search token and an action, and only then asks for a
+     * specific item.
      *
      * Refusing both left the paid route unable to produce anything at all: a
      * player could roll against a stiffer difficulty, succeed, be told what they

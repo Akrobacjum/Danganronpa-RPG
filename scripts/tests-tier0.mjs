@@ -6335,6 +6335,70 @@ const REGRESSIONS = [
         const cases = [...dispatch.matchAll(/\bcase "(\w+)":/g)].map(m => m[1]);
         equal(JSON.stringify([...cases].sort()), JSON.stringify([...T.OWN_PERFORMERS].sort()),
             "trait-ruling.mjs OWN_PERFORMERS is not the list of performAction's own performers");
+    }],
+
+    ["R214 - the hidden stash's step is the old count's die, exactly: every window from -3 to 3, every die and every draw", async () => {
+        /*
+         * E32+E07 C11e, 02.10.2026; the owner's decision of 28.09.2026 (the hidden stash's
+         * disadvantage die, back, and still out of the roll window). Until 1.2.64 a hidden stash
+         * was -1 in the count the window turns into dice, and Daggerheart's `applyAdvantage`
+         * (dualityRoll.mjs:146-160, 2.6.5) throws |n| dice of one kind, keeps the highest above
+         * one (`kh`), and adds it for advantage or takes it off for disadvantage; roll-dialog.mjs
+         * caps |n| at ADVANTAGE_CAP. Since E06 C11 the window arms the room's count alone and the
+         * stash is a step on the dice it threw (action-rolls.mjs `stashStep`). For every window
+         * count n from -3 to 3, every face of its d6s and every value each `draw(m)` may give
+         * (1 to m, each branch weighted 1/m), the distribution of what the dice put on the total
+         * after the step is compared, exactly - counts over a common denominator, not samples -
+         * with that of the old count's n - 1. Red until C11e (no `stashStep`). This body, run
+         * outside the suite on 02.10.2026 against stand-ins: E06 C11's flat -1 differs at every
+         * n; a d6 simply taken off after the roll (the first proposal of 28.09) at every n but 0;
+         * setting aside the lowest bonus die instead of a drawn one, at n = 2 and 3.
+         */
+        const R = await import("./action-rolls.mjs");
+        ok(typeof R.stashStep === "function", "action-rolls.mjs has no stashStep");
+        if (typeof R.stashStep !== "function") return;
+        const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
+        must(Number.isInteger(ADVANTAGE_CAP), "roll-dialog.mjs exports no ADVANTAGE_CAP");
+        const FACES = 6, SCALE = FACES ** 4, STOP = Symbol("draw");
+        const throws = k => Array.from({ length: FACES ** k }, (_, i) =>
+            Array.from({ length: k }, (__, j) => 1 + Math.floor(i / FACES ** j) % FACES));
+        const kept = (sign, faces) => faces.length ? sign * Math.max(...faces) : 0;
+        const add = (map, value, weight) => map.set(value, (map.get(value) ?? 0) + weight);
+        const stepped = n => {
+            const k = Math.min(ADVANTAGE_CAP, Math.abs(n)), sign = Math.sign(n), out = new Map();
+            for (const results of throws(k)) {
+                const walk = (script, weight) => {
+                    let used = 0, asked = 0;
+                    const draw = m => {
+                        if (used < script.length) return script[used++];
+                        asked = m;
+                        throw STOP;
+                    };
+                    try {
+                        const step = R.stashStep({ sign, results, faces: FACES, cap: ADVANTAGE_CAP }, draw);
+                        add(out, kept(sign, results) + step.change, weight);
+                    } catch (err) {
+                        if (err !== STOP) throw err;
+                        for (let face = 1; face <= asked; face++) walk([...script, face], weight / asked);
+                    }
+                };
+                walk([], SCALE);
+            }
+            return { out, den: FACES ** k * SCALE };
+        };
+        const counted = n => {
+            const m = Math.min(ADVANTAGE_CAP, Math.abs(n)), out = new Map();
+            for (const results of throws(m)) add(out, kept(Math.sign(n), results), 1);
+            return { out, den: FACES ** m };
+        };
+        const differs = [];
+        for (let n = -3; n <= 3; n++) {
+            const now = stepped(n), then = counted(n - 1);
+            const values = [...new Set([...now.out.keys(), ...then.out.keys()])].sort((a, b) => a - b);
+            const off = values.filter(v => (now.out.get(v) ?? 0) * then.den !== (then.out.get(v) ?? 0) * now.den);
+            if (off.length || ![...now.out.values()].every(Number.isInteger)) differs.push(`${n}: ${off.join(" ")}`);
+        }
+        equal(differs.join("; "), "", "the step does not land where the old count's dice did (window count: the values whose odds differ)");
     }]
 ];
 

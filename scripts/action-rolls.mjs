@@ -1293,7 +1293,8 @@ function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
 
 /**
  * What the room is worth to this particular search, in two parts: `situational`, the dice
- * the roll window shows and arms, and `penalty`, what lands on the total after the roll.
+ * the roll window shows and arms, and `stashDie`, a step of disadvantage taken once the dice
+ * have landed (`stashStep`).
  *
  *   +1  it is a sensible place to look for this - the medic's office for
  *       bandages. Set per room by the GM when the map is built.
@@ -1302,16 +1303,20 @@ function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
  *   -1  it is somebody else's stash and they have hidden it. Only bites
  *       when there is actually something in there to find.
  *
- * THE STASH'S -1 IS NOT THE WINDOW'S (E06 C11, audit S02-40). It was the third term of the
+ * THE STASH'S STEP IS NOT THE WINDOW'S (E06 C11, audit S02-40). It was the third term of the
  * one count the roll window shows, as "where you are -1", and the window can be closed:
  * `abort` gives the action back and no token is spent. So opening a Search and closing it
  * again said whether somebody had hidden something in this room, for nothing. The window
  * shows the room's own favour and hindrance, which Room Setup states and the player may
- * know; the stash's -1 is taken off the total once the dice are on the table and the
- * action is paid for, and the card says so (`situationLine`).
+ * know; the stash's step is taken once the dice are on the table and the action is paid
+ * for, and the card says so (`situationLine`).
  *
- * It was a disadvantage die and is a flat -1 now: a die thrown after the window has
- * closed would be a second roll nobody sees, and "-1" is what this list always said.
+ * A DIE AGAIN, NOT A FLAT -1 (E32+E07 C11e, 02.10.2026; the owner's decision of 28.09). E06
+ * C11 made the step a flat -1 on the total on its way out of the window. The owner wanted
+ * the disadvantage die of 1.2.64 back, and a d6 simply taken off after the roll is not it:
+ * with a favouring room it widened the spread, with a hindering room it took two dice off in
+ * full where the old count kept the highest. `stashStep` works on the dice the roll carries
+ * and lands exactly where the old count's dice would have (R214 enumerates it).
  * The concealed stash's other half, finding it at all, is unchanged.
  *
  * `vault` is vault.mjs, which `performSearch` imports when a Search runs.
@@ -1323,29 +1328,120 @@ export function searchOdds(actor, room, category, vault) {
     let situational = 0;
     if (favoursCategory(room, category)) situational += 1;
     if (hindersCategory(room, category)) situational -= 1;
-    const penalty = stashLoot.length && stashConcealed ? -1 : 0;
-    return { situational, penalty, stashOwner, stashLoot };
+    const stashDie = Boolean(stashLoot.length && stashConcealed);
+    return { situational, stashDie, stashOwner, stashLoot };
 }
 
 /**
- * The tier a Search's roll reaches, with `penalty` on its total first - the one reading
- * `performSearch` and a Reroll's `settleSearch` share, so a rerolled Search in a room with
- * a hidden stash is scored as the first roll was. `score` is the total the tiers read; the
- * roll itself, and the roll message, keep the dice's total (E28 compares the GM's copy of
- * that message with what a player reports, and the -1 is this module's, not the dice's).
+ * A die for the stash's step: an integer from 1 to `n`, off Foundry's own randomiser
+ * (`CONFIG.Dice.randomUniform`, mapped as its dice map it - forced-roll.mjs reads the same
+ * `ceil((1 - u) * faces)`). Not a `Roll`: a roll would be a message, or a throw in Dice So
+ * Nice for every screen, and either says a hidden stash is here to people the card does not
+ * reach. The harness has no `randomUniform`, and the dice there are `Math.random`'s.
  */
-export function searchTier(roll, penalty = 0, def = ACTIONS.search) {
-    const score = (Number(roll?.total) || 0) + (Number(penalty) || 0);
+function stashDraw(n) {
+    const u = typeof CONFIG?.Dice?.randomUniform === "function" ? CONFIG.Dice.randomUniform() : Math.random();
+    return Math.min(n, Math.max(1, Math.ceil((1 - u) * n)));
+}
+
+/**
+ * The hidden stash's step of disadvantage, on dice already thrown (E32+E07 C11e). Pure.
+ *
+ * WHAT IT REPRODUCES. Until 1.2.64 the stash was -1 in the window's count, and the count
+ * became dice by Daggerheart's `applyAdvantage` (dualityRoll.mjs:146-160, 2.6.5): `number`
+ * dice of the one kind, `kh` above one, added for advantage and subtracted for disadvantage -
+ * so k disadvantage dice take the HIGHEST of k off - and `ADVANTAGE_CAP` dice at most
+ * (roll-dialog.mjs). One step more of disadvantage on what the window armed, then:
+ *   - k advantage dice: one of them, drawn at random, is set aside and the highest of the
+ *     other k - 1 counts (none left: the bonus is gone). The k - 1 left are k - 1
+ *     independent dice, which is what the old count threw;
+ *   - none: one disadvantage die is rolled and taken off;
+ *   - k disadvantage dice below the cap: one more is rolled, and the highest of the k + 1
+ *     is taken off instead of the highest of k;
+ *   - at the cap: nothing, as the old count was capped too.
+ * A window whose raw net was above the cap is read off its dice like one at the cap: the
+ * step cannot see the raw net (the roll keeps its dice, not the sum that chose them), so
+ * four advantages and a stash would have kept three dice and now keep two. The cap is a
+ * guard nobody meets (roll-dialog.mjs "THREE IS THE CEILING").
+ *
+ * `results` are the faces of the roll's advantage (`sign` 1) or disadvantage (`sign` -1)
+ * dice, `faces` the size of a disadvantage die, `draw(n)` an integer from 1 to n - injected
+ * so a test can fix it. Returns the case (`kind`), the dice it read, the one it set aside
+ * or rolled, and `change`, what lands on the total.
+ */
+export function stashStep({ sign = 0, results = [], faces = 6, cap }, draw = stashDraw) {
+    const read = results.map(Number);
+    const top = list => list.length ? Math.max(...list) : 0;
+    if (sign > 0 && read.length) {
+        const at = draw(read.length) - 1;
+        const rest = read.filter((_, i) => i !== at);
+        return { kind: rest.length ? "setAside" : "setAsideOnly", read, setAside: read[at], rolled: null,
+            change: top(rest) - top(read) };
+    }
+    const held = sign < 0 ? read : [];
+    if (held.length >= cap) return { kind: "capped", read, setAside: null, rolled: null, change: 0 };
+    const rolled = draw(faces);
+    return { kind: held.length ? "rolledMore" : "rolled", read, setAside: null, rolled,
+        change: top(held) - Math.max(rolled, top(held)) };
+}
+
+/**
+ * The dice `stashStep` reads, off a roll as `rollTrait` hands it back (the system's roll is
+ * its `raw.roll`) or off a `Roll` itself, as a Reroll has it. `dAdvantage` / `dDisadvantage`
+ * as reroll.mjs `advantageDice` reads them; a result some reroll replaced is not a die. The
+ * faces of a new disadvantage die are those of the roll's own, else the system's
+ * `defaultDisadvantageDice`, as roll-dialog.mjs `forceAdvantage` reads it, else a d6.
+ */
+export function stashDiceOf(roll, actor = null) {
+    const thrown = roll?.raw?.roll ?? roll;
+    const advantage = thrown?.dAdvantage ?? null;
+    const die = advantage ?? thrown?.dDisadvantage ?? null;
+    const results = (die?.results ?? []).filter(r => !r?.rerolled).map(r => Number(r?.result)).filter(Number.isFinite);
+    const rules = Number.parseInt(actor?.getRollData?.()?.rules?.roll?.defaultDisadvantageDice);
+    const faces = (!advantage && Number(die?.faces)) || (Number.isNaN(rules) ? 6 : rules);
+    return { sign: results.length ? (advantage ? 1 : -1) : 0, results, faces };
+}
+
+/** `stashStep` on this roll's dice, at roll-dialog.mjs's cap - the one call `performSearch` and a Reroll share. */
+export async function stashStepFor(roll, actor, draw = stashDraw) {
+    const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
+    return stashStep({ ...stashDiceOf(roll, actor), cap: ADVANTAGE_CAP }, draw);
+}
+
+/**
+ * The tier a Search's roll reaches, with `change` on its total first - the one reading
+ * `performSearch` and a Reroll's `settleSearch` share. `change` is the hidden stash's step
+ * (`stashStep`), or a 1.2.65 bookmark's -1. `score` is the total the tiers read; the roll
+ * itself, and the roll message, keep the dice's total (E28 compares the GM's copy of that
+ * message with what a player reports, and the step is this module's, not the dice's).
+ */
+export function searchTier(roll, change = 0, def = ACTIONS.search) {
+    const score = (Number(roll?.total) || 0) + (Number(change) || 0);
     const hit = resolveThreshold(score, def.thresholds);
     const baseTier = hit?.tier ?? 0;
     const tier = roll?.isCritical ? Math.min(3, baseTier + (def.critical?.tierBonus ?? 1)) : baseTier;
     return { score, hit, tier };
 }
 
-/** The card's line for a penalty the window did not show - empty when there was none. */
-export function situationLine(penalty, score) {
-    if (!penalty) return "";
-    return `<p><em>${game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(penalty), total: score })}</em></p>`;
+/** The line a step's case says - written out, so each key is a literal the lang check can find. */
+const STASH_LINES = Object.freeze({
+    setAside: "DRPG.Action.stashSetAside",
+    setAsideOnly: "DRPG.Action.stashSetAsideOnly",
+    rolled: "DRPG.Action.stashRolled",
+    rolledMore: "DRPG.Action.stashRolledMore",
+    capped: "DRPG.Action.stashCapped"
+});
+
+/** What the stash's step did and the total that counts, as words - the card's line and a Reroll's receipt. */
+export function stashText(step, score) {
+    const key = STASH_LINES[step?.kind];
+    return key ? game.i18n.format(key, { set: String(step.setAside), rolled: String(step.rolled), total: score }) : "";
+}
+
+/** The card's line for a step the window did not show - empty when there was none. */
+export function situationLine(step, score) {
+    const text = stashText(step, score);
+    return text ? `<p><em>${text}</em></p>` : "";
 }
 
 /** The token was refused: an empty room, or nobody there to answer. Which one decides what the player keeps. */
@@ -1389,7 +1485,7 @@ async function searchUnclaimed(actor, def, roll, { room, category, goalKey, paid
 // happens - and the tier it reaches is exactly the information the GM needs
 // to decide what was really there - so the result goes to them with the
 // player's own description attached.
-async function searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid, extra = "" }) {
+async function searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid, extra = "", stash = null }) {
     await callGm(actor, {
         title: def.label,
         request,
@@ -1400,7 +1496,7 @@ async function searchSpecific(actor, def, roll, { room, category, request, tier,
         // says so, because a button that does not close its card looks
         // broken to anyone who does not know that (audit E11).
         //
-        // The tier is read off the total less a hidden stash's -1 (`searchTier`), and the dice
+        // The tier is read off the total after a hidden stash's step (`searchTier`), and the dice
         // beside it show their own total, so the GM's card carries the player's line saying so
         // (E06 fix r2-G4, 28.09.2026; review round 2's m5): without it the two disagreed.
         gmBody: `<p>${hit || roll.isCritical
@@ -1443,13 +1539,14 @@ async function searchSpecific(actor, def, roll, { room, category, request, tier,
         success: Boolean(hit) || roll.isCritical,
         text: game.i18n.localize("DRPG.Action.specificSent"),
         extra,
+        stash,
         room, tokensLeft: SearchTokens.left(room)
     });
     return { calledGm: true, roll, tier, request };
 }
 
 /** A miss: recorded for Reroll, sounded, and reported as the action's own failure line. */
-async function searchNothing(actor, def, roll, { room, category, goalKey, extra = "" }) {
+async function searchNothing(actor, def, roll, { room, category, goalKey, extra = "", stash = null }) {
     await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
 
     /*
@@ -1466,7 +1563,7 @@ async function searchNothing(actor, def, roll, { room, category, goalKey, extra 
      */
     playSfx("searchNothing");
 
-    await report(actor, def, roll, { text: def.failure, extra, room, tokensLeft: SearchTokens.left(room) });
+    await report(actor, def, roll, { text: def.failure, extra, stash, room, tokensLeft: SearchTokens.left(room) });
     return { success: false };
 }
 
@@ -1477,7 +1574,7 @@ async function searchNothing(actor, def, roll, { room, category, goalKey, extra 
 // room's own contents once the stash is empty. Nothing is drawn for a stash
 // - the loot is whatever its owner actually put in it, which is what makes
 // rifling through one worth the action.
-async function searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra = "" }) {
+async function searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra = "", stash = null }) {
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
 
     // The declaration still counts. Somebody rummaging for a weapon who
@@ -1490,7 +1587,7 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
     const taken = pool[Math.floor(Math.random() * pool.length)];
 
     // `viaSearch`: this is the route that PAYS for a concealed stash - an
-    // action, a search token, and the -1 on the total (`searchOdds`). Without it the GM
+    // action, a search token, and the step of disadvantage (`searchOdds`). Without it the GM
     // side refuses every concealed stash outright, which made beating the
     // concealment worth nothing at all. See `stealFromVault`.
     const res = await requestVaultSteal({
@@ -1518,7 +1615,7 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
             ? game.i18n.localize("DRPG.Vault.foundStashNothing")
             : game.i18n.localize("DRPG.Vault.foundStashPending");
     await report(actor, def, roll, {
-        success: true, text, extra, room, tokensLeft: SearchTokens.left(room)
+        success: true, text, extra, stash, room, tokensLeft: SearchTokens.left(room)
     });
     return { success: true, roll, tier, fromVault: true };
 }
@@ -1694,7 +1791,7 @@ async function performSearch(actor, def, options) {
         return null;
     }
 
-    const { situational, penalty, stashOwner, stashLoot } = searchOdds(actor, room, category, await import("./vault.mjs"));
+    const { situational, stashDie, stashOwner, stashLoot } = searchOdds(actor, room, category, await import("./vault.mjs"));
 
     const paid = cost > 0 ? await spendAction(actor, cost) : null;
     if (cost > 0 && !paid) return null;
@@ -1716,7 +1813,7 @@ async function performSearch(actor, def, options) {
             dc: (def.thresholds ?? []).map(t => t.min).join(" / "),
             // Recorded before anything can bail out below, so a Reroll always
             // knows what was being looked for and where.
-            context: { room, category, goal: goalKey, request, penalty }
+            context: { room, category, goal: goalKey, request, stashDie }
         });
     } finally {
         // Cleared whatever happened. A situational modifier that outlived its
@@ -1743,16 +1840,20 @@ async function performSearch(actor, def, options) {
 
     if (!claimed) return searchUnclaimed(actor, def, roll, { room, category, goalKey, paid });
 
-    // The hidden stash's -1 lands here, on the total the tiers read, and the card
-    // says so (`situationLine`); the roll message keeps the dice's own total.
-    const { hit, tier, score } = searchTier(roll, penalty, def);
-    const extra = situationLine(penalty, score);
+    // The hidden stash's step lands here, on the total the tiers read, and the card says
+    // so (`situationLine`); the roll message keeps the dice's own total. The die it sets
+    // aside or rolls is on the card and in its meta beside the total that counts (`stash`,
+    // for E28), and nowhere else: no message of its own, no Dice So Nice (`stashDraw`).
+    const step = stashDie ? await stashStepFor(roll, actor) : null;
+    const { hit, tier, score } = searchTier(roll, step?.change ?? 0, def);
+    const extra = situationLine(step, score);
+    const stash = step ? { ...step, score } : null;
 
-    if (goalKey === "specific") return searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid, extra });
+    if (goalKey === "specific") return searchSpecific(actor, def, roll, { room, category, request, tier, hit, paid, extra, stash });
 
-    if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, category, goalKey, extra });
+    if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, category, goalKey, extra, stash });
 
-    if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra });
+    if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra, stash });
 
     const drawn = await searchDraw(room, category, tier, goalKey, actor);
     const granted = await grantDrawn(actor, drawn, { category, tier, goalKey });
@@ -1769,6 +1870,7 @@ async function performSearch(actor, def, options) {
         substitute: Boolean(drawn?.substitute),
         leftTrace,
         extra,
+        stash,
         room, tokensLeft: SearchTokens.left(room)
     };
 
@@ -5110,7 +5212,10 @@ async function report(actor, def, roll, outcome) {
                 popupTitle: def.label,
                 // See `rollTone`, which the five cards that go through
                 // `rollHead` share with this one.
-                popupTone: rollTone(roll)
+                popupTone: rollTone(roll),
+                // A hidden stash's step (`stashStep`): the dice it read, the one it set aside
+                // or rolled, and the total that counts - with the words, to the card's readers.
+                ...(outcome.stash ? { stashStep: outcome.stash } : {})
             }
         },
         summary: {

@@ -172,7 +172,7 @@ O co możesz prosić:
 | *coś do pracy* | narzędzie |
 | *coś konkretnego* | opisz to, a GM orzeknie, co naprawdę tu było |
 
-Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Jeśli ktoś inny trzyma w tym pokoju skrytkę, w której coś jest, udane Search bierze zamiast tego z tej skrytki - najpierw z otwartej, a z ukrytej z karą: 1 mniej do wyniku. Okno rzutu tej kary nie pokazuje, bo powiedziałoby ci, że jest tu ukryta skrytka, zanim cokolwiek wydasz: odejmuje się ją, gdy kości już upadną, i mówi o tym twoja karta.
+Niektóre pokoje to dobre miejsca, by szukać danej kategorii, a niektóre złe; okno rzutu mówi, gdy pokój sprzyja temu, o co prosisz, albo w tym przeszkadza. Jeśli ktoś inny trzyma w tym pokoju skrytkę, w której coś jest, udane Search bierze zamiast tego z tej skrytki - najpierw z otwartej, a z ukrytej z jednym stopniem utrudnienia więcej (jedna z twoich kości premii odłożona albo jeszcze jedna kość kary). Okno rzutu tego stopnia nie pokazuje, bo powiedziałoby ci, że jest tu ukryta skrytka, zanim cokolwiek wydasz: dokłada się go, gdy kości już upadną, a twoja karta mówi, co zrobił.
 
 > [!WARNING]
 > Wzięcie narzędzia zbrodni albo narzędzia do sprzątania **zostawia Prep Remnant** w pokoju - ślad, że ktoś tu zbierał narzędzia. Narzędzie nie zostawia nic, chyba że to, co się znajdzie, jest też bronią.
@@ -428,7 +428,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 - Jeden uczeń, jedna sypialnia. **Drzwi są zamknięte** dla wszystkich poza właścicielem; każdy inny potrzebuje **klucza**. Masz własny klucz i możesz dać komuś kopię - właściciel zachowuje swój. Klucz otwiera swoje drzwi temu, kto go trzyma: zdjęty komuś przez Palm, wyjęty ze skrytki albo zabrany z ciała działa jak podarowany.
 - Twoja sypialnia ma **skrytkę**. Skrytka mieści **3** rzeczy, a żeby coś włożyć albo wyjąć, musisz stać w pokoju. Truth Bulletów nie da się schować.
 - **Otwarta** skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo i wziąć jedną rzecz. Skrytka w twojej sypialni jest otwarta, dopóki nie zbudowano do niej schowka (projekt, który zatwierdza GM).
-- **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju, z 1 mniej do wyniku (karta powie ci o tym po rzucie), albo Analyze *Znajdź ukrytą skrytkę* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
+- **Ukrytą** skrytkę trzeba najpierw znaleźć: Search w pokoju, z jednym stopniem utrudnienia więcej (karta powie ci o tym po rzucie), albo Analyze *Znajdź ukrytą skrytkę* na 16+, co otwiera ją przed tobą na dobre. Jeśli GM usunie skrytkę, ci, którzy ją znaleźli, zapominają o niej.
 - To, że ktoś częstuje się z twojej skrytki, nie jest ogłaszane. Tylko złodziej, którego Search wypadło z Despair, zostawia ją na tyle naruszoną, że da się to zauważyć: dowiadujesz się, że ktoś w niej był - nigdy kto.
 - GM może dać ci skrytkę w innym pokoju. Nie daje ona klucza do tego pokoju.
 - Miałeś pełne ręce, gdy coś do ciebie trafiło - znalezione, ukradzione, zabrane z ciała albo podrzucone ci do kieszeni? Trafia do twojej skrytki - tej z sypialni, jeśli ją masz - gdziekolwiek stoisz i jakkolwiek pełna już jest, a ty dostajesz o tym wiadomość. Gdy nie masz żadnej skrytki, rzecz w ogóle do ciebie nie dociera. Coś, co ktoś ci podaje ponad limit, zostaje po prostu odrzucone.

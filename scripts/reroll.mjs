@@ -30,7 +30,7 @@
 
 import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH } from "./config.mjs";
 import { resolveThreshold, easedBy, log, error, plural } from "./utils.mjs";
-import { rollBookmark, keepRollBookmark, searchTier } from "./action-rolls.mjs";
+import { rollBookmark, keepRollBookmark, searchTier, stashStepFor, stashText } from "./action-rolls.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
 import { keptRollSubject, isClaimedRoll, neutralRollOf } from "./private-rolls.mjs";
 
@@ -322,7 +322,7 @@ export async function rerollLastAction(actor) {
     // which is what used to happen - put the OLD progress figure back on the
     // flag straight after the replay had corrected it, so a second Reroll
     // subtracted a number the project no longer held.
-    const patch = await replayAction(actor, bookmark, after, done);
+    const patch = await replayAction(actor, bookmark, after, done, rerolled);
     if (patch === null) {
         await putFirstRollBack(message, firstRolls);
         return null;
@@ -552,7 +552,7 @@ async function settleCritHope(actor, before, after, done) {
  * (`settleCrisis`), and the Reroll is then taken back whole (`putFirstRollBack`).
  * ========================================================================== */
 
-async function replayAction(actor, bookmark, after, done) {
+async function replayAction(actor, bookmark, after, done, rerolled = null) {
     const key = bookmark?.actionKey ?? null;
 
     try {
@@ -561,7 +561,7 @@ async function replayAction(actor, bookmark, after, done) {
 
         switch (key) {
             case "project": return await settleProgress(actor, bookmark, after, done);
-            case "search": return await settleSearch(actor, bookmark, after, done);
+            case "search": return await settleSearch(actor, bookmark, after, done, rerolled);
             case "sabotage": return await settleSabotage(actor, bookmark, after, done);
             case "dynamic": return await settleDynamic(actor, bookmark, after, done);
             case "listen": return await settleListen(actor, bookmark, after, done);
@@ -651,9 +651,11 @@ async function settleProgress(actor, bookmark, after, done) {
  * Take back a Search and run it again.
  *
  * The search token is deliberately NOT returned: the room was searched, and the
- * guide's three tokens count attempts, not successes.
+ * guide's three tokens count attempts, not successes. `rerolled` is the new roll
+ * itself (`after` is its duality alone), whose dice a hidden stash's step reads.
+ * Exported for the suite.
  */
-async function settleSearch(actor, bookmark, after, done) {
+export async function settleSearch(actor, bookmark, after, done, rerolled = null) {
     // A Search whose token was refused never searched the room, and a Search
     // that opened a stash found what the drawer held: neither is a draw from
     // the room's table, so neither is drawn again on new dice (ROLL-02).
@@ -666,14 +668,19 @@ async function settleSearch(actor, bookmark, after, done) {
         return {};
     }
 
-    // A hidden stash's -1 on the new total too: it was taken off the first roll's total,
-    // not thrown with its dice (E06 C11, `searchOdds`), so rerolling the dice keeps it.
-    // A bookmark written before 1.2.65 has none, and is scored on the dice alone.
+    // A hidden stash's step on the new dice, with a new draw (E32+E07 C11e, action-rolls.mjs
+    // `stashStep`). Until 1.2.65 the stash's disadvantage die was one of the roll's dice and
+    // `rerollKeepingDice` threw it again; the step is not thrown with the dice, so it is taken
+    // again here on what they rolled - a die set aside drawn afresh, a die added rolled afresh.
+    // A 1.2.65 bookmark (E06 C11) carries a flat -1 and is scored with it; one from before
+    // 1.2.65 has neither, and is scored on the dice alone.
     const def = ACTIONS.search;
-    const penalty = bookmark.penalty ?? 0;
-    const { hit, tier } = searchTier(after, penalty, def);
+    const step = bookmark.stashDie ? await stashStepFor(rerolled ?? after, actor) : null;
+    const change = step ? step.change : Number(bookmark.penalty) || 0;
+    const { hit, tier, score } = searchTier(after, change, def);
     const found = Boolean(hit) || after.isCritical;
-    if (penalty) done.push(game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(penalty), total: after.total + penalty }));
+    if (step) done.push(stashText(step, score));
+    else if (change) done.push(game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(change), total: score }));
 
     // 1. The thing the first roll put in the inventory goes back on the shelf.
     let itemId = null;

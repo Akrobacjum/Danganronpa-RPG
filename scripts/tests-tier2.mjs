@@ -16346,8 +16346,10 @@ const SCENARIOS = [
          * the action back - so opening a Search said whether somebody had hidden something
          * in the room, for nothing. Built here: the searcher's room a poor place for
          * usable things, and somebody else's hidden stash in it with one thing inside. The
-         * window's part is the room's -1 alone; the stash's -1 comes after the roll. At
-         * 1.2.64 the armed count was -2 and there was no second part.
+         * window's part is the room's -1 alone; the stash's step comes after the roll. At
+         * 1.2.64 the armed count was -2 and there was no second part. Since E32+E07 C11e the
+         * second part is `stashDie` (a step of disadvantage on the dice) where E06 C11 had
+         * `penalty: -1`.
          */
         const rolls = await import("./action-rolls.mjs");
         const V = await import("./vault.mjs");
@@ -16371,10 +16373,10 @@ const SCENARIOS = [
             await settle();
             must(V.stashItemsIn(owner, room).length === 1, "the thing is not in the hidden stash");
             const odds = typeof rolls.searchOdds === "function" ? rolls.searchOdds(who, room, "usable", V) : null;
-            equal(stableJson(odds && [odds.situational, odds.penalty, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
-                stableJson([-1, -1, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its -1");
+            equal(stableJson(odds && [odds.situational, odds.stashDie, odds.stashOwner?.id, odds.stashLoot.map(i => i.id)]),
+                stableJson([-1, true, owner.id, [item.id]]), "the window's count holds the stash, or the stash lost its step");
             const search = fnSource(stripComments((await moduleSources()).get("action-rolls.mjs") ?? ""), "performSearch");
-            ok(/\{ situational, penalty\b[^}]*\} = searchOdds\(/.test(search)
+            ok(/\{ situational, stashDie\b[^}]*\} = searchOdds\(/.test(search)
                 && [...search.matchAll(/armSituational\(([^)]*)\)/g)].map(m => m[1]).join() === "situational",
                 "performSearch arms something other than searchOdds' situational part");
         } finally {
@@ -16384,40 +16386,148 @@ const SCENARIOS = [
         }
     }],
 
-    ["a hidden stash's -1 lands on the total after the roll, and the card says so", async () => {
+    ["a hidden stash's die lands on the total after the roll, and the card says so", async () => {
         /*
-         * E06 C11, 28.09.2026; audit S02-40. The stash's -1 is taken off the total the tiers
-         * read (`searchTier`), so at each band's lowest total it drops the Search a band;
-         * the card carries a line saying so (`situationLine`), which every Search outcome
-         * hands to `report`; and a Reroll scores the new dice with the same -1, which the
-         * bookmark carries. The dice's own total, and the roll message, are left alone.
+         * E32+E07 C11e, 02.10.2026; the owner's decision of 28.09.2026 (replaces E06 C11's "a
+         * hidden stash's -1 lands on the total after the roll, and the card says so"). A student
+         * stood alone in a room (`standAlone`) where another student keeps a hidden stash with
+         * one thing in it, the room favouring and hindering nothing, searches from this GM's
+         * browser, free, the goal window pressed as a player's default. The character's
+         * `rollTrait` hands back what the system's would - two bonus dice, a 5 and a 2, inside a
+         * total one above the lowest band's - and throws nothing; Foundry's randomiser
+         * (`CONFIG.Dice.randomUniform`, which the step draws from) is fixed so that the 5 is the
+         * die set aside, and the 2 is left: 3 off, a miss. Read: the card's line and its meta
+         * (`stashStep`), the bookmark's `stashDie`, the messages and the Dice So Nice throws the
+         * Search made (the card alone, none), and `stashDiceOf` on a roll as `rollTrait` hands it
+         * back with a die some reroll replaced, a `Roll` with a d8 penalty die, and one with
+         * neither; and in the source, that every other card a Search ends in is handed the line
+         * and the step. Until C11e the card said "-1" and the total that counts was one below.
          */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const [actor, owner] = cast(2);
         const rolls = await import("./action-rolls.mjs");
         const { ACTIONS } = await import("./config.mjs");
-        const bands = [...ACTIONS.search.thresholds].sort((a, b) => a.min - b.min);
-        must(bands.length >= 2, "Search has fewer than two bands");
-        const tier = (total, penalty) => {
-            const out = typeof rolls.searchTier === "function" ? rolls.searchTier({ total, isCritical: false }, penalty) : null;
-            return out?.hit ? out.tier : null;
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { wordsOf, cardFlag } = await import("./secret.mjs");
+        const low = Math.min(...ACTIONS.search.thresholds.map(t => t.min));
+        const stood = await standAlone(actor);
+        const region = V.regionsByName().get(stood.room);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        const D = CONFIG.Dice;
+        const hadU = Object.hasOwn(D, "randomUniform"), realU = D.randomUniform;
+        const dsn = game.dice3d ?? null, ownThrow = dsn ? Object.getOwnPropertyDescriptor(dsn, "showForRoll") : null;
+        const windows = answerWindows(press);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let item = null, thrown3d = 0;
+        try {
+            must(region, `${stood.room} has no region`);
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: true }],
+                [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+            item = await INV.grantItem(owner, { name: "SUITE C11e hidden", category: "usable", tier: 1, override: true, quiet: true });
+            must(item, "the stash's thing was not made");
+            await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
+            await settle();
+            must(V.stashItemsIn(owner, stood.room).length === 1, "the thing is not in the hidden stash");
+            const total = low + 1;
+            actor.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
+                options: { roll: { trait: "instinct" } },
+                dAdvantage: { faces: 6, number: 2, results: [{ result: 5, active: true }, { result: 2, active: false, discarded: true }] } } });
+            // draw(2) = ceil((1 - 0.9) * 2) = 1: the first die, the 5.
+            D.randomUniform = () => 0.9;
+            if (dsn) dsn.showForRoll = async () => { thrown3d++; };
+            await rolls.performAction(actor, "search", { free: true });
+            await until(() => game.messages.contents.some(m => !had.has(m.id)));
+            await settle();
+            const made = game.messages.contents.filter(m => !had.has(m.id));
+            const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
+            const line = `<p><em>${game.i18n.format("DRPG.Action.stashSetAside", { set: "5", total: total - 3 })}</em></p>`;
+            equal(stableJson([made.length, thrown3d, words.includes(line), made[0] ? cardFlag(made[0], "stashStep") : null,
+                rolls.rollBookmark(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room).length]),
+            stableJson([1, 0, true, { kind: "setAside", read: [5, 2], setAside: 5, rolled: null, change: -3, score: total - 3 }, true, 1]),
+            "the Search made more than its card or threw dice, its card does not say the step and the total that counts, its meta does not hold the dice, or the bookmark lost the stash (messages, throws, line, meta, bookmark, stash)");
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            if (hadU) D.randomUniform = realU;
+            else delete D.randomUniform;
+            if (dsn) {
+                if (ownThrow) Object.defineProperty(dsn, "showForRoll", ownThrow);
+                else delete dsn.showForRoll;
+            }
+            if (item) await owner.items.get(item.id)?.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await stood.back();
+        }
+        const read = typeof rolls.stashDiceOf === "function" ? [
+            rolls.stashDiceOf({ raw: { roll: { dAdvantage: { faces: 6, results: [{ result: 4 }, { result: 1, rerolled: true }, { result: 6 }] } } } }),
+            rolls.stashDiceOf({ dDisadvantage: { faces: 8, results: [{ result: 3 }] } }),
+            rolls.stashDiceOf({ total: 12 })
+        ] : null;
+        equal(stableJson(read), stableJson([{ sign: 1, results: [4, 6], faces: 6 }, { sign: -1, results: [3], faces: 8 }, { sign: 0, results: [], faces: 6 }]),
+            "the step reads the wrong dice off a roll: a replaced result, the penalty die's faces, or a die nobody threw");
+        // The other two cards a Search can end in, read in the source as E06 C11's test read them,
+        // and the GM's card for "something specific", which shows the tier beside the dice (E06 fix r2-G4).
+        const actions = stripComments((await moduleSources()).get("action-rolls.mjs") ?? "");
+        equal(stableJson(["searchNothing", "searchStash", "searchSpecific"].map(name =>
+            /report\(actor, def, roll, \{[^}]*\bextra\b[^}]*\bstash\b/.test(fnSource(actions, name)))
+            .concat(/gmBody: `[\s\S]*?<\/p>\$\{extra\}`/.test(fnSource(actions, "searchSpecific")),
+                /\bextra,\s*stash,/.test(fnSource(actions, "performSearch")))),
+        stableJson([true, true, true, true, true]),
+        "a Search's card that is not a miss does not carry the step's line and its dice (nothing, stash, specific, the GM's specific, a find)");
+    }],
+
+    ["a Reroll of a Search at a hidden stash throws the stash's die again", async () => {
+        /*
+         * E32+E07 C11e, 02.10.2026. Until 1.2.65 the stash's disadvantage die was one of the
+         * roll's dice, and a Reroll threw it again with the others (reroll.mjs
+         * `rerollKeepingDice`). The step is taken after the dice now, so `settleSearch` takes it
+         * again on the new roll with a new draw. A missed Search is replayed from its bookmark on
+         * a new roll one below the lowest band's total, with no bonus or penalty dice: with `stashDie`
+         * and Foundry's randomiser fixed first to a 6 and then to a 1; with `stashDie` on a new
+         * roll that kept one bonus die, a 4 (in a total of 3 above the band, so the step decides
+         * the miss); with a 1.2.65 bookmark's `penalty: -1`; and with neither, a bookmark from
+         * before 1.2.65, whose receipt is the rest of every other's. Nothing is found, so nothing
+         * is drawn. Read: each receipt's first line, the rest against the plain one, the tier.
+         */
+        const [actor] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const low = Math.min(...ACTIONS.search.thresholds.map(t => t.min));
+        const D = CONFIG.Dice;
+        const hadU = Object.hasOwn(D, "randomUniform"), realU = D.randomUniform;
+        const replay = async (extra, u, rerolled = { total: low - 1 }) => {
+            if (u !== null) D.randomUniform = () => u;
+            const done = [];
+            const bookmark = { actionKey: "search", claimed: true, room: null, category: "usable", goal: "healing", itemId: null, ...extra };
+            const patch = await R.settleSearch(actor, bookmark, { total: rerolled.total, isCritical: false, withHope: true, withFear: false }, done, rerolled);
+            return { done, tier: patch?.tier ?? null };
         };
-        equal(stableJson(bands.map(b => [tier(b.min, 0), tier(b.min, -1)])),
-            stableJson(bands.map((b, i) => [b.tier, i ? bands[i - 1].tier : null])),
-            "the -1 did not move a Search down a band at the band's edge");
-        const line = typeof rolls.situationLine === "function" ? [rolls.situationLine(-1, 11), rolls.situationLine(0, 12)] : null;
-        equal(stableJson(line), stableJson([`<p><em>${game.i18n.format("DRPG.Action.situationAfterRoll", { n: "-1", total: 11 })}</em></p>`, ""]),
-            "the card's line does not say the -1 and the total that counts, or says something with no penalty");
-        const src = await moduleSources();
-        const actions = stripComments(src.get("action-rolls.mjs") ?? "");
-        const search = fnSource(actions, "performSearch");
-        // And the GM's card for "something specific", which shows the tier beside the dice (E06 fix r2-G4; m5).
-        const reports = ["searchNothing", "searchStash", "searchSpecific"].map(name =>
-            /report\(actor, def, roll, \{[^}]*\bextra\b/.test(fnSource(actions, name)))
-            .concat(/gmBody: `[\s\S]*?<\/p>\$\{extra\}`/.test(fnSource(actions, "searchSpecific")));
-        const reroll = fnSource(stripComments(src.get("reroll.mjs") ?? ""), "settleSearch");
-        equal(stableJson([/context: \{[^}]*\bpenalty\b/.test(search), /situationLine\(penalty, score\)/.test(search),
-            /\bextra,/.test(search), reports, /searchTier\(after, penalty\b/.test(reroll)]),
-            stableJson([true, true, true, [true, true, true, true], true]),
-            "the bookmark, a Search card or the Reroll does not carry the -1");
+        let runs = null;
+        try {
+            if (typeof R.settleSearch === "function") {
+                runs = [await replay({}, null), await replay({ stashDie: true }, 0), await replay({ stashDie: true }, 0.99),
+                    await replay({ stashDie: true }, 0, { total: low + 3, dAdvantage: { faces: 6, results: [{ result: 4 }] } }),
+                    await replay({ penalty: -1 }, null)];
+            }
+        } finally {
+            if (hadU) D.randomUniform = realU;
+            else delete D.randomUniform;
+            await settle();
+        }
+        must(runs === null || runs[0].tier === null, "the plain replay one below the lowest band found something");
+        const plain = runs?.[0].done ?? [];
+        const say = (key, data) => game.i18n.format(key, data);
+        equal(stableJson(runs && runs.slice(1).map(r => [r.done[0], stableJson(r.done.slice(1)) === stableJson(plain), r.tier])),
+            stableJson([
+                [say("DRPG.Action.stashRolled", { rolled: "6", total: low - 7 }), true, null],
+                [say("DRPG.Action.stashRolled", { rolled: "1", total: low - 2 }), true, null],
+                [say("DRPG.Action.stashSetAsideOnly", { set: "4", total: low - 1 }), true, null],
+                [say("DRPG.Action.situationAfterRoll", { n: "-1", total: low - 2 }), true, null]
+            ]), "a Reroll does not take the stash's step again on the new dice and a new draw, or lost a 1.2.65 bookmark's -1 (first line, rest as the plain replay's, tier)");
     }],
 
     ["a GM report's document holds no words", async () => {
