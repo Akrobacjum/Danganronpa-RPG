@@ -462,6 +462,10 @@ function castStamps() {
  *     failure with Hope. Nothing of theirs at Stage 6 reads it (the Event card draws at
  *     `incident` alone, events.mjs). Nor who walked into the fight and out of it
  *     (`departed`, E32+E07 C10): a cast field beside the fight, held null with it.
+ * The opening's statistic (`openingTrait`, E32+E07 C11c), null in every copy: a GM's pick
+ * for a roll a direct murder's victim is not shown (D6) and a trap's builder is not shown
+ * either, and the one player who rolls it is sent it with the invitation
+ * (gm-bridge.mjs `askOpeningRoll`). Every reader of it runs on a GM's browser.
  * A holder seated for the offer alone is sent the offer alone, the fight not included.
  *
  * THE VALUES ARE NULLED, and what their stamps say is `castPacket`'s. A third who moves to
@@ -483,7 +487,8 @@ function castCopyFor(userId, cast, state = null) {
     const owns = id => Boolean(id) && ownerOf(game.actors.get(id))?.id === userId;
     const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
     if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };
-    const withheld = incidentAudienceIds(seen, { stage: "incident" }).includes(userId) ? ["keyRemnants"] : [...INCIDENT_FIGHT, "departed"];
+    const withheld = [...(incidentAudienceIds(seen, { stage: "incident" }).includes(userId) ? ["keyRemnants"] : [...INCIDENT_FIGHT, "departed"]),
+        "openingTrait"];
     const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
     if (!seen.indirect || killerIds(theirs).some(owns)) return { copy, withheld };
@@ -1035,7 +1040,8 @@ function atNight() {
  * C11c, C13 and C17 add theirs here and to the grid's `FRESH`). Pure but for `openedAt`,
  * the clock's reading unless the caller names one.
  */
-export function freshIncidentState({ killerId, victimId, indirect = false, selfInflicted = false, openedAt = Date.now() } = {}) {
+export function freshIncidentState({ killerId, victimId, indirect = false, selfInflicted = false, openingTrait = null,
+    openedAt = Date.now() } = {}) {
     // `const fresh`, read by R191's census of the fields an incident's writes name.
     const fresh = {
         active: true,
@@ -1045,6 +1051,9 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         killerId, victimId, thirdId: null, thirdSide: null, lastCrisis: null, swung: null,
         // Who walked in and walked out again (`thirdLeaves`): nobody yet.
         departed: [],
+        // The statistic a GM picked for the opening (E32+E07 C11c): the opener's, or none
+        // yet, and `rollOpening` asks.
+        openingTrait,
         turn: 0,
         turnSide: "victim",
         // Whose turn it is on the killers' side. One name until somebody joins
@@ -1080,8 +1089,13 @@ function refuseSecondIncident(running) {
 /**
  * Open a murder. GM-driven: the declaration and the consent happened away from
  * the table, and this is the moment they become mechanical.
+ *
+ * `openingTrait` (E32+E07 C11c) is the opening roll's statistic when the GM opening it
+ * has picked one already - one of the two the side that rolls lists ("Body or Hand",
+ * "Eye or Head"). Without it, or with one that side does not list, the GM is asked as
+ * the roll goes out (`rollOpening`).
  */
-export async function openMurder({ killerId, victimId, indirect = false } = {}) {
+export async function openMurder({ killerId, victimId, indirect = false, openingTrait = null } = {}) {
     if (!game.user.isGM) return null;
 
     // The Eclipse is a placement window, not a moment in the story - nobody has
@@ -1164,6 +1178,14 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
         indirect = false;
     }
 
+    // Read against the side that rolls once that is settled: a trap's victim lists other traits than a killer.
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    const listed = listedTraits({ kind: "opening", key: indirect ? "victim" : "killer" });
+    if (openingTrait !== null && !listed.includes(openingTrait)) {
+        warn(`The opening roll does not list "${openingTrait}" (${listed.join(", ")}); the GM is asked instead.`);
+        openingTrait = null;
+    }
+
     /* EVERY FIELD OF A NEW INCIDENT, AND ALL OF THEM STAMPED (E04, audit S04-24; E32 C5a,
        audit S04-03). The values are `freshIncidentState`'s, the one list of them. Written
        as a whole state (`restoreState`): the world half replaced, the cast reset as a record
@@ -1175,7 +1197,7 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
        TP01 and TP07 read the betrayal's incident holding the last one's `thirdActed`, I3).
        Against no incident running (`expect`), in the incident's queue: an incident opened
        since the check above is not written over. */
-    const opened = await restoreState(freshIncidentState({ killerId, victimId, indirect, selfInflicted }),
+    const opened = await restoreState(freshIncidentState({ killerId, victimId, indirect, selfInflicted, openingTrait }),
         { keep: ["betrayal"], expect: { active: null } });
     if (!opened) {
         refuseSecondIncident(murderState());
@@ -5527,14 +5549,20 @@ function openingLabel(side, state = murderState()) {
     return ((state?.selfInflicted && def?.selfInflicted) || def)?.label ?? "";
 }
 
-async function rollOpening(side, state) {
+/**
+ * Exported for the suite, which re-asks through it as the tracker's "Ask for the opening
+ * roll again" does (`reaskOpening`, which adds only its cooldown).
+ */
+export async function rollOpening(side, state) {
     const actor = game.actors.get(side === "killer" ? state.killerId : state.victimId);
     if (!actor) return null;
 
     const owner = ownerOf(actor);
+    const trait = await openingTraitFor(side, actor, state, { tell: Boolean(owner?.active) });
+    if (!trait) return null;
     if (owner?.active) {
         const { askOpeningRoll } = await import("./gm-bridge.mjs");
-        if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side })) {
+        if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait })) {
             // `label` is prose from config.mjs, not an i18n key - see MURDER_OPENING.
             await whisperToOwner(actor, `<p><strong>${
                 foundry.utils.escapeHTML(openingLabel(side, state))
@@ -5543,7 +5571,66 @@ async function rollOpening(side, state) {
         }
     }
 
-    return throwOpeningRoll(side, actor.id);
+    return throwOpeningRoll(side, actor.id, trait);
+}
+
+/** Whether this browser has the GM's window open for an opening's statistic: a re-ask meanwhile sends nothing, the window answers for it. */
+let openingPickOpen = false;
+
+/**
+ * THE OPENING'S STATISTIC IS THE GM'S PICK (E32+E07 C11c, 02.10.2026; audit S04-23, the
+ * owner's Q4 as corrected on 28.09). Both openings list two traits - "Body or Hand" for
+ * the killer, "Eye or Head" for a trap's victim (`MURDER_OPENING`) - and the roll threw
+ * the first, with nobody asked. A GM picks now, here, before the roll goes out: in the
+ * window `traitFor` opens on this browser, or earlier, in what opened the murder
+ * (`openMurder`'s `openingTrait`). The pick is kept in the cast, so a re-ask, and a GM's
+ * throw for a player who has gone, on any GM's browser, roll it again rather than ask
+ * again; an incident opened since the pick is not written to (`expect`).
+ *
+ * While the GM picks, the roller is told, veiled, at the opening's audience - the side
+ * that rolls, and nobody else (D6): the killer that the GM is choosing and to say in their
+ * thread how they go about it; a trap's victim only that a roll is being set up, since the
+ * roll is itself the warning (player-handbook "The opening roll") and they cannot describe
+ * what they do not know is happening. Nobody is told for a player who is not connected,
+ * whose roll the GM throws.
+ *
+ * Resolve is no exception here: the opening is a supporting roll (`remember: false`), which
+ * every Call is shielded from (call-effects.mjs `shieldCalls`), so an armed Resolve buys no
+ * picker on it - read off the code, 02.10.2026 - and the GM picks whatever is armed.
+ * Null when there is to be no roll: a GM closed the window - the tracker's "Ask for the
+ * opening roll again" opens it once more - or the opening is no longer wanted by the time
+ * they picked.
+ */
+async function openingTraitFor(side, actor, state, { tell }) {
+    const { traitFor, listedTraits } = await import("./trait-ruling.mjs");
+    const spec = { kind: "opening", key: side };
+    if (listedTraits(spec).includes(state?.openingTrait)) return state.openingTrait;
+    if (openingPickOpen) return null;
+    openingPickOpen = true;
+    let ruled = null;
+    try {
+        if (tell) await tellOpeningRoller(side, state);
+        ruled = await traitFor(actor, spec, { resolveArmed: () => false });
+    } finally {
+        openingPickOpen = false;
+    }
+    if (!ruled || !openingStillWanted(side, actor.id)) return null;
+    const kept = await writeState({ openingTrait: ruled.trait },
+        { expect: { stage: "openingRoll", openedAt: state?.openedAt ?? null, openingTrait: null } });
+    return kept ? ruled.trait : null;
+}
+
+/** The roller's line while a GM picks the opening's statistic: see `openingTraitFor`. */
+async function tellOpeningRoller(side, state) {
+    try {
+        const whisper = incidentAudienceIds(state, { stage: "openingRoll" });
+        if (!whisper.length) return;
+        const key = side === "killer" ? "DRPG.TraitRuling.openingKiller" : "DRPG.TraitRuling.openingVictim";
+        await announce({ content: `<p>${game.i18n.localize(key)}</p>`, whisper });
+    } catch (err) {
+        // The GM still picks; a line that did not go out must not hold the roll.
+        error("Could not tell the opening roll's side that the GM is choosing its statistic", err);
+    }
 }
 
 /**
@@ -5551,7 +5638,11 @@ async function rollOpening(side, state) {
  * Exported because `gm-bridge` calls it when the invitation arrives.
  *
  * `side` is whichever side this murder actually rolls - killer for a direct one,
- * victim for a trap - not a choice made here.
+ * victim for a trap - not a choice made here. Nor is `trait`: it is a GM's pick (E32+E07
+ * C11c; `openingTraitFor`), which the invitation carries and the window shows locked as
+ * the GM's choice. Until 1.2.66 this threw `def.traits[0]` - Body for a killer, Eye for a
+ * trap's victim - and nobody was asked. One the side does not list is no roll; the GM's
+ * tracker asks again.
  */
 /**
  * How many Stage 4 invitations this client is currently sitting inside.
@@ -5616,16 +5707,23 @@ export function closeOpeningRoll() {
  */
 async function revokeOpeningInvitation(state) {
     closeOpeningRoll();
+    // And this GM's window picking its statistic (E32+E07 C11c), which would send the invitation.
+    closeOpen((await import("./trait-ruling.mjs")).pickWindowClass("opening"));
     if (!state?.killerId && !state?.victimId) return;
 
     const { cancelOpeningRoll } = await import("./gm-bridge.mjs");
     for (const userId of incidentAudienceIds(state, { stage: "openingRoll" })) cancelOpeningRoll({ userId });
 }
 
-export async function throwOpeningRoll(side, actorId) {
+export async function throwOpeningRoll(side, actorId, trait = null) {
     const def = MURDER_OPENING[side];
     const actor = game.actors.get(actorId);
     if (!def || !actor) return null;
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    if (!listedTraits({ kind: "opening", key: side }).includes(trait)) {
+        warn(`An opening roll was asked without a statistic its side lists (${trait ?? "none"}); nothing was rolled.`);
+        return null;
+    }
 
     const calls = await import("./call-effects.mjs");
     const night = atNight();
@@ -5657,8 +5755,9 @@ export async function throwOpeningRoll(side, actorId) {
         const { rollTrait } = await import("./action-rolls.mjs");
         for (let attempt = 1; attempt <= MAX_ATTEMPTS && !roll; attempt++) {
             if (!openingStillWanted(side, actorId)) break;
-            roll = await rollTrait(actor, def.traits[0], {
+            roll = await rollTrait(actor, trait, {
                 remember: false,
+                byGm: true,
                 actionKey: "murderOpening",
                 // Thrown on the participant's own client - see `openingLabel`.
                 title: game.i18n.localize(murderState()?.selfInflicted

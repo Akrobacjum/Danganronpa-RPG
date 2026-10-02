@@ -268,9 +268,14 @@ export const INCIDENT_FIGHT = Object.freeze([
  * so the cast's and never the world half's; it was never in the world half, so it is not
  * the fight's either (`INCIDENT_FIGHT` is also what the update lifts out of it), and a
  * holder seated only after the fight is sent it null (murder.mjs `castFor`).
+ *
+ * `openingTrait` (E32+E07 C11c, 02.10.2026; audit S04-23, the owner's Q4 as corrected): the
+ * statistic a GM picked for the opening roll, kept so that a re-ask and a GM's throw for an
+ * absent player - on any GM's browser - roll it again rather than ask again. The GMs' alone:
+ * the roller is sent it with the invitation, and every player's copy holds it null.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT
 ]);
 

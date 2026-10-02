@@ -354,7 +354,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const chieWas = await gm.eval(`const r = game.actors.get("${IDS.chie}").system.resources;
         return { hp: r.hitPoints.value, stress: r.stress.value };`);
     const fightOpen = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
-        await game.drpg.openMurder({ killerId: "${IDS.botan}", victimId: "${IDS.chie}" });
+        await game.drpg.openMurder({ killerId: "${IDS.botan}", victimId: "${IDS.chie}", openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         if (M.murderState()?.stage === "incident" && !M.isTheirTurn(game.actors.get("${IDS.botan}"))) await M.passTurn();
         globalThis.__traitRulings.length = 0;

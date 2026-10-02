@@ -109,18 +109,27 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        as the murder opens (murder.mjs `rollOpening`), and a result ends the opening - so p3's
        `rollTrait` answers a promise that is let go, with no roll, once the GM has ruled; the
        engine then drops the roll it no longer wants (`throwOpeningRoll`). The GM rules instead:
-       a failure for the first murder, a success for the second, which part 1 plays. */
+       a failure for the first murder, a success for the second, which part 1 plays.
+       The first murder opens with no statistic picked, so the GM picks it as the roll goes out
+       (E32+E07 C11c; the owner's Q4 as corrected): the GM's window is answered Hand - not the
+       first listed - and the held roll notes the statistic it was thrown on and whether the
+       window shows it as the GM's. The second opens with Body picked already. */
     phase("opening", { flow: "murder-incident" });
     const CAST_NET = `if (!globalThis.__castNet) {
             globalThis.__castNet = { n: 0 };
             game.socket.on("module.${MOD}", p => { if (p?.action === "incident.myCast") globalThis.__castNet.n++; });
         }
         return globalThis.__castNet.n;`;
-    const HOLD = `const a = game.actors.get("${ids.chie}"); globalThis.__heldOpenings = [];
-        a.rollTrait = function () { return new Promise(r => globalThis.__heldOpenings.push(r)); }; return true;`;
+    const HOLD = `const a = game.actors.get("${ids.chie}"); globalThis.__heldOpenings = []; globalThis.__heldTraits = [];
+        const { TRAIT_BY_GM } = await import("${repoUrl}/scripts/action-rolls.mjs");
+        a.rollTrait = function (dh, config) {
+            globalThis.__heldTraits.push([dh, config?.[TRAIT_BY_GM] === true]);
+            return new Promise(r => globalThis.__heldOpenings.push(r));
+        };
+        return true;`;
     const RELEASE = `const a = game.actors.get("${ids.chie}"); delete a.rollTrait;
         const held = globalThis.__heldOpenings ?? []; delete globalThis.__heldOpenings; for (const r of held) r(null); return held.length;`;
-    const OPEN = `return (await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}" }))?.stage ?? null;`;
+    const OPEN = trait => `return (await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}"${trait ? `, openingTrait: "${trait}"` : ""} }))?.stage ?? null;`;
 
     /* Each player asks the primary for its cast as it boots, and the primary answers once its
        store holds the other GMs' copies: measured 27.09, the answers - an empty cast to p1 and p2
@@ -149,10 +158,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dice3dOff = game.dice3d; delete game.dice3d; return true;`);
     await p3.eval(HOLD);
-    const firstOpened = await gm.eval(OPEN, { timeout: 60000 });
+    const pickedAt = await gm.eval(`const T = game.i18n.localize("DRPG.TraitRuling.title");
+        globalThis.__dialogAnswers.push(cfg => (cfg?.window?.title === T ? "hand" : ((cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0])?.action ?? null));
+        return globalThis.__dialogLog.length;`);
+    const firstOpened = await gm.eval(OPEN(null), { timeout: 60000 });
     await settle(900);
     const atOpening = await readAll();
     const openingCard = { gm: await gm.eval(OPENING), victim: await p1.eval(OPENING), killer: await p3.eval(OPENING) };
+    const LINE_READ = `const line = game.i18n.localize("DRPG.TraitRuling.openingKiller");
+        return { line: (globalThis.__openWords ?? []).filter(h => h.includes(line)).length, held: globalThis.__heldTraits ?? null };`;
+    const picking = {
+        gm: await gm.eval(`const T = game.i18n.localize("DRPG.TraitRuling.title");
+            return globalThis.__dialogLog.slice(${pickedAt}).filter(d => d.title === T).map(d => d.buttons);`),
+        killer: await p3.eval(LINE_READ), victim: await p1.eval(LINE_READ), bystander: await p2.eval(LINE_READ)
+    };
+    check("opening: with no statistic picked the GM picks it as the roll goes out; the killer is told to say how in their thread, the invitation's window throws the pick (Hand, not the first listed) as the GM's, and the victim and the bystander are told nothing of it",
+        firstOpened === "openingRoll" && JSON.stringify(picking.gm) === JSON.stringify([["body", "hand", "cancel"]])
+        && picking.killer.line === 1 && JSON.stringify(picking.killer.held) === JSON.stringify([["finesse", true]])
+        && picking.victim.line === 0 && picking.bystander.line === 0,
+        JSON.stringify(picking), { flow: "trait-ruling" });
     const castsAtOpening = await p1.eval(CAST_NET);
     check("opening: the killer is in it - the cast, the edges, the music and the opening card",
         firstOpened === "openingRoll" && atOpening.killer?.witness === true && atOpening.killer?.knowsCast === true
@@ -191,7 +215,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     /* The second murder, whose opening part 1 lets succeed. */
     for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
     await p3.eval(HOLD);
-    const secondOpened = await gm.eval(OPEN, { timeout: 60000 });
+    const secondOpened = await gm.eval(OPEN("body"), { timeout: 60000 });
     await settle(300);
     const castsAtSecond = await p1.eval(CAST_NET);
 
@@ -724,7 +748,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     await p3.eval(WORDS_NET);
     await p1.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
     await gm.eval(`
-        await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", indirect: true });
+        await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.aiko}", indirect: true, openingTrait: "eye" });
         return true;
     `, { timeout: 60000 });
     await settle(900);
@@ -974,7 +998,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         for (const a of [chie, aiko, botan]) if (C.isDeadForGm(a)) await C.reviveCharacter(a, { quiet: true });
         globalThis.__betrayalCloses = 0;
         globalThis.__betrayalHook = Hooks.on("drpgIncidentClosed", () => { globalThis.__betrayalCloses++; });
-        await M.openMurder({ killerId: chie.id, victimId: aiko.id });
+        await M.openMurder({ killerId: chie.id, victimId: aiko.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await M.thirdPartyEnters(botan);
         await M.resolveCrisisAction({ actorId: botan.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });

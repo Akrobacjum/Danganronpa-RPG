@@ -161,7 +161,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     phase("crisis actions", { flow: "murder-incident" });
     await p2.eval(`globalThis.__dialogAuto = false; return true;`);
     await gm.eval(`
-        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.daichi}" });
+        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.daichi}", openingTrait: "body" });
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         return true;`, { timeout: 60000 });
     await settle(500);
@@ -255,7 +255,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         return { stage: s?.stage ?? null, killerId: s?.killerId ?? null, victimId: s?.victimId ?? null, turnSide: s?.turnSide ?? null,
             denied: s?.deniedToVictim ?? null };`;
     const denyOpen = await gm.eval(`
-        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.chie}" });
+        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.chie}", openingTrait: "body" });
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
         (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
         ${readSeats}`, { timeout: 60000 });

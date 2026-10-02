@@ -174,6 +174,10 @@ export function registerGmBridge() {
  *
  * `senderId` is checked rather than the payload: an invitation to roll is an
  * instruction to spend this character's resources, and only a GM may issue it.
+ *
+ * It carries the statistic a GM picked for it (E32+E07 C11c; murder.mjs
+ * `openingTraitFor`), the one this client throws; `throwOpeningRoll` holds it to the
+ * two the side lists.
  */
 async function onOpeningAsk(payload, senderId) {
     if (payload?.action !== ACTION_OPENING_ASK) return;
@@ -181,17 +185,17 @@ async function onOpeningAsk(payload, senderId) {
     if (!game.users.get(senderId)?.isGM) return;
 
     const { throwOpeningRoll } = await import("./murder.mjs");
-    await throwOpeningRoll(payload.side, payload.actorId);
+    await throwOpeningRoll(payload.side, payload.actorId, payload.trait ?? null);
 }
 
 /**
  * Ask a participant's own client to throw their Stage 4 roll.
  * @returns {boolean} false when nobody is there to ask, so the GM throws it.
  */
-export function askOpeningRoll({ userId, actorId, side }) {
+export function askOpeningRoll({ userId, actorId, side, trait }) {
     if (!userId || !game.users.get(userId)?.active) return false;
     game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_OPENING_ASK, userId, actorId, side
+        action: ACTION_OPENING_ASK, userId, actorId, side, trait
     }, { recipients: [userId] });
     return true;
 }

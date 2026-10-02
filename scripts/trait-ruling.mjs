@@ -24,10 +24,11 @@
  * card and the GM's check of the pick (messenger-app.mjs `rulePickTrait`) read
  * this browser's `listedTraits`, and the packet says only which definition.
  *
- * In this commit the crisis actions ask. The openings and the clean-up are listed
- * here so the GM's judgement of a request names them (bridge-guards.mjs
- * `guardTraitRuling`); their callers ask from C11c on. A project, and an action
- * of the generic table, are not a kind yet (C11d).
+ * The crisis actions ask (C11b), and so do the openings and Stage 6's rolls
+ * (C11c): an opening on a GM's browser alone, since a GM sends it (murder.mjs
+ * `rollOpening`; `guardTraitRuling` refuses one from a player), and a clean-up
+ * from whoever throws it. A project, and an action of the generic table, are not
+ * a kind yet (C11d).
  */
 import { TRAITS, CRISIS_ACTIONS, MURDER_OPENING, CLEANUP } from "./config.mjs";
 import { pendingCalls } from "./call-effects.mjs";
@@ -77,7 +78,10 @@ function resolveArmed(actor) {
  * roller picks" and "refused: nothing happens" would otherwise both be null.
  *
  * `seams` is the suite's (R212): who this browser is, whether Resolve is armed,
- * and the two ways of asking, each defaulting to the real one.
+ * and the two ways of asking, each defaulting to the real one. One caller outside
+ * the suite hands one in: the opening (murder.mjs `rollOpening`), whose roll is a
+ * supporting one that every Call is shielded from, so an armed Resolve buys no
+ * picker there and the GM picks.
  */
 export async function traitFor(actor, spec, seams = {}) {
     const listed = listedTraits(spec);
@@ -123,11 +127,18 @@ export function traitWithValue(actor, trait) {
     return `${TRAITS[trait]?.label ?? trait} (${value > 0 ? "+" : ""}${value})`;
 }
 
+/**
+ * The class of the GM's window that picks for a kind of roll: the opening's is closed
+ * when the incident it was for closes (murder.mjs `revokeOpeningInvitation`), because
+ * nothing awaits that window but the invitation it would send.
+ */
+export const pickWindowClass = kind => `drpg-trait-pick-${kind}`;
+
 /** A GM's client: a button per listed trait, and Cancel. The first is the default. */
 async function pickHere(actor, spec, listed) {
     const DialogV2 = foundry.applications.api.DialogV2;
     const picked = await DialogV2.wait({
-        classes: ["drpg-panel", "drpg-narrow"],
+        classes: ["drpg-panel", "drpg-narrow", pickWindowClass(spec.kind)],
         window: { title: game.i18n.localize("DRPG.TraitRuling.title") },
         content: dialogContent(`<p><strong>${esc(actor?.name ?? "?")}</strong> · ${esc(rulingLabel(spec))}</p>
             <p class="notes">${game.i18n.localize("DRPG.TraitRuling.gmBody")}</p>`),

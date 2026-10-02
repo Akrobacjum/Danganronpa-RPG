@@ -48,6 +48,8 @@
  *      has not merged a newer write lets a third in, and the primary tells the
  *      participants what the GMs agree on (B1); and the second GM closes the
  *      incident: both GMs' records and the copy are cleared by one stamp.
+ *   F9 the opening's statistic (E32+E07 C11c): the primary picks it as the roll goes out,
+ *      and a second GM's re-ask reads the pick from the cast and sends it, asking nobody.
  *   G  a trap's planted object (S08-19): a second GM plants it, the primary - who
  *      hands a player's Search its find - finds it and gives it to the searcher,
  *      and its use sets the trap off on the primary's chat.
@@ -714,7 +716,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        critical, which always opens the incident. Left random, it failed once in six runs
        ("Murder closed (openingFailed)", the C7 run, 26.09) and F read a closed incident. */
     await p3.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
-    const openedAt = await gm.eval(`${CAST} await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" });
+    const openedAt = await gm.eval(`${CAST} await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}", openingTrait: "body" });
         return S.castStore.stampOf("record");`);
     /* The opening resolves on p3's roll, and since E32 C2 (28.09.2026) what it writes - the round, the
        side to act, the Key Remnants' count - is the cast's, so the record's stamp moves with it: until
@@ -746,10 +748,15 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const p3AfterGm = await castOn(p3), onGmF = await recordOn(gm), onGm2F = await recordOn(gm2);
     const answeredF = { p3: await castsSince(p3, askedF.p3), p1: await castsSince(p1, askedF.p1) }, stampsF = await castStampsOn(gm);
     const seatsF = { killerId: stampsF.killerId, victimId: stampsF.victimId, thirdId: stampsF.thirdId, betrayal: stampsF.betrayal };
+    /* The opening's statistic is the GMs' (E32+E07 C11c): the killer's copy holds it null, and its stamp reads as the
+       newest of the parts the copy shows (murder.mjs `castPacket`), as the Key Remnants' count's does - which the
+       opening's result wrote last, so its stamp is that newest already. */
+    const heldStampsF = { ...stampsF, openingTrait: Math.max(0, ...Object.entries(stampsF)
+        .filter(([f]) => f !== "keyRemnants" && f !== "openingTrait").map(([, t]) => t ?? 0)) };
     check("F3: the primary answers the killer's player with the cast and every part's stamp, a bystander with nothing and the seats' stamps alone, and both GMs hold the killer",
         castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === castAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
-        && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(stampsF)
+        && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(heldStampsF)
         && J(answeredF.p1.map(a => [a.from, a.cast])) === J([[IDS.gm, {}]]) && J(Object.keys(answeredF.p1[0].stamps ?? {}).sort()) === J(Object.keys(seatsF).sort())
         && Object.keys(seatsF).every(k => answeredF.p1[0].stamps[k] <= seatsF[k]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
     /* The bystander's "not in it" is the one this GM last sent them, repeated (murder.mjs `castSent`, E32+E07 fix
@@ -839,6 +846,51 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         closedGm.killer === null && closedGm2.killer === null && closedP3.killer === null && closedGm.stamp > openedAt
         && closedGm.stamp === closedGm2.stamp && closedP3.stamp === closedGm.stamp, J({ closedGm, closedGm2, closedP3 }));
     await p3.eval(`delete globalThis.__forceRoll; return true;`);
+    await disconnect("gm2");
+    await settle(300);
+
+    /* F9 (E32+E07 C11c, 02.10.2026; audit S04-23, the owner's Q4 as corrected). The murder opens
+       with no statistic picked: the primary's window picks it (answered Hand - not the first
+       listed) and keeps it in the cast, and the invitation carries it to p3, whose roll is held
+       and notes the statistic and whether it is shown as the GM's. gm2, joined with an empty
+       browser, re-asks as its tracker does (murder.mjs `rollOpening`, which the tracker's button
+       calls behind a cooldown): it reads the pick from its record and opens no window, and p3 is
+       sent the same statistic again. */
+    phase("F9: the opening's statistic, picked on the primary, is the one a second GM's re-ask sends", { flow: "trait-ruling" });
+    await connect("gm2");
+    await settle(1500);
+    await p3.eval(`globalThis.__heldOpenings = []; globalThis.__heldTraits = []; const a = game.actors.get("${IDS.chie}");
+        const { TRAIT_BY_GM } = await import("${repoUrl}/scripts/action-rolls.mjs");
+        a.rollTrait = function (dh, config) {
+            globalThis.__heldTraits.push([dh, config?.[TRAIT_BY_GM] === true]);
+            return new Promise(r => globalThis.__heldOpenings.push(r));
+        };
+        return true;`);
+    const PICKS = `const T = game.i18n.localize("DRPG.TraitRuling.title"); return globalThis.__dialogLog.filter(d => d.title === T).length;`;
+    const picksBefore = { gm: await gm.eval(PICKS), gm2: await gm2.eval(PICKS) };
+    const f9open = await gm.eval(`${CAST} const T = game.i18n.localize("DRPG.TraitRuling.title");
+        globalThis.__dialogAnswers.push(cfg => (cfg?.window?.title === T ? "hand" : ((cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0])?.action ?? null));
+        const opened = await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" });
+        const end = Date.now() + 6000;
+        while (!M.murderState()?.openingTrait && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { stage: opened?.stage ?? null, trait: M.murderState()?.openingTrait ?? null };`, { timeout: 60000 });
+    const f9reask = await gm2.eval(`${CAST} const end = Date.now() + 6000;
+        while (M.murderState()?.openingTrait !== "hand" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const held = M.murderState()?.openingTrait ?? null;
+        const asked = await M.rollOpening("killer", M.murderState());
+        return { held, asked: asked?.asked ?? null };`, { timeout: 60000 });
+    await settle(800);
+    const f9p3 = await p3.eval(`return { held: globalThis.__heldTraits, copy: (await import("${repoUrl}/scripts/settings.mjs")).incidentCast().openingTrait ?? null };`);
+    const picksAfter = { gm: await gm.eval(PICKS), gm2: await gm2.eval(PICKS) };
+    check("F9: the primary's pick is kept in the cast and a second GM's re-ask sends it without asking again; the killer's player throws Hand both times, as the GM's, and their copy holds no pick",
+        f9open.stage === "openingRoll" && f9open.trait === "hand" && f9reask.held === "hand" && f9reask.asked === true
+        && picksAfter.gm - picksBefore.gm === 1 && picksAfter.gm2 === picksBefore.gm2
+        && J(f9p3.held) === J([["finesse", true], ["finesse", true]]) && f9p3.copy === null,
+        J({ f9open, f9reask, f9p3, picksBefore, picksAfter }), { flow: "trait-ruling" });
+    await gm.eval(`${CAST} await M.endMurder({ reason: "E32+E07 61F9", followUp: false }); return true;`);
+    await settle(800);
+    await p3.eval(`const a = game.actors.get("${IDS.chie}"); delete a.rollTrait;
+        for (const r of globalThis.__heldOpenings ?? []) r(null); delete globalThis.__heldOpenings; delete globalThis.__heldTraits; return true;`);
     await disconnect("gm2");
     await settle(300);
 
@@ -1829,5 +1881,5 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         s4.published && s4.aiko.length === 1 && s4.aiko[0].includes(ITEMS[0]) && s4.chie.length === 1 && s4.chie[0].includes(ITEMS[1]),
         J(s4), { flow: "give-take-stash" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S"], gm: IDS.gm };
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S"], gm: IDS.gm };
 }

@@ -71,7 +71,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
 
     // A1: an incident open - Chie on Daichi, past the opening roll, as 10-murder opens one.
     await gm.eval(`
-        await game.drpg.openMurder({ killerId: "ACTORCHIE0000000", victimId: "ACTORDAICHI00000" });
+        await game.drpg.openMurder({ killerId: "ACTORCHIE0000000", victimId: "ACTORDAICHI00000", openingTrait: "body" });
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         return true;
     `, { timeout: 60000 });

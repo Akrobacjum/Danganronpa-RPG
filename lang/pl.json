@@ -2454,7 +2454,9 @@
       "title": "Która statystyka?",
       "gmBody": "Ten rzut wymienia kilka statystyk. Wybierz jedną na podstawie tego, co według gracza robi jego postać.",
       "waiting": "GM wybiera statystykę. Napisz mu w swoim wątku, co robisz.",
-      "refused": "GM nie dopuścił tej akcji. Nic nie zostało wydane."
+      "refused": "GM nie dopuścił tej akcji. Nic nie zostało wydane.",
+      "openingKiller": "GM wybiera statystykę do twojego rzutu otwarcia. Napisz mu w swoim wątku, jak się do tego zabierasz.",
+      "openingVictim": "GM przygotowuje dla ciebie rzut."
     },
     "RollDialog": {
       "locked": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",

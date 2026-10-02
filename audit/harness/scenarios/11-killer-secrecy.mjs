@@ -35,7 +35,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return true;`);
     const opened = await gm.eval(`
         const M = await import("${repoUrl}/scripts/murder.mjs");
-        const s = await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", thirdId: "${ids.botan}" });
+        const s = await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", thirdId: "${ids.botan}", openingTrait: "body" });
         return { stage: s?.stage ?? null, told: M.incidentAudienceIds(s) };
     `, { timeout: 60000 });
     await settle(300);

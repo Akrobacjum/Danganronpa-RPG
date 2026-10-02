@@ -23,7 +23,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     // -- 1. opening the murder ------------------------------------------------
     phase("opening", { flow: "murder-incident" });
     const open = await gm.eval(`
-        const r = await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}" });
+        const r = await game.drpg.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", openingTrait: "body" });
         return { r: !!r, state: game.drpg.murderState() };
     `, { timeout: 60000 });
     check("gm: murder opens", open.state && open.state.stage, JSON.stringify(open.state).slice(0, 300));

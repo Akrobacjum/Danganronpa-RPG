@@ -330,7 +330,7 @@ async function aloneTogether(killer, victim, { asked = false } = {}) {
  * offer is a body's (the owner's Q2, section 2.2's I6). The caller revives the victim.
  */
 async function accompliceAtStageSix(M, killer, victim, third) {
-    await M.openMurder({ killerId: killer.id, victimId: victim.id });
+    await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
     // The killer's player is asked the roll too; whichever lands first, a success starts the incident.
     if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
     await settle();
@@ -428,6 +428,31 @@ async function wordsSent(run) {
 }
 
 /**
+ * The opening roll's invitations this client sent while `run` ran (E32+E07 C11c): each
+ * `murder.openingAsk` packet (gm-bridge.mjs `askOpeningRoll`) as { to, side, actorId, trait },
+ * and every packet let through. `run` is handed the list as it fills: the invitation goes
+ * out after `openMurder` has answered, so a test waits on it there. Shaped as `wordsSent`.
+ */
+async function openingAsks(run) {
+    const socket = game.socket;
+    const own = Object.getOwnPropertyDescriptor(socket, "emit");
+    const send = socket.emit;
+    const sent = [];
+    socket.emit = function (event, packet, options, ...rest) {
+        if (packet?.action === "murder.openingAsk") {
+            sent.push({ to: options?.recipients ?? [], side: packet.side ?? null, actorId: packet.actorId ?? null, trait: packet.trait ?? null });
+        }
+        return send.call(this, event, packet, options, ...rest);
+    };
+    try {
+        await run(sent);
+    } finally {
+        if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+    }
+    return sent;
+}
+
+/**
  * The incident's dice this client relayed while `run` ran (E06 C6): each `dice.show`
  * packet (private-rolls.mjs `relayIncidentDice`) as { id, to } - the message's id and
  * the users it was addressed to. Shaped as `wordsSent`, above.
@@ -499,7 +524,7 @@ async function swingFixture(identity = null) {
     const [killer, victim] = livingStudents().filter(player);
     const { gameSettings } = CONFIG.DH.SETTINGS;
     const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
-    await M.openMurder({ killerId: killer.id, victimId: victim.id });
+    await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
     if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
     await settle();
     if (M.murderState()?.stage === "incident" && !M.isTheirTurn(killer)) await M.passTurn();
@@ -626,7 +651,7 @@ const SCENARIOS = [
         const drpg = game.drpg;
         const before = game.messages.size;
 
-        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         equal(drpg.murderState()?.stage, "openingRoll", "stage after opening");
 
@@ -685,7 +710,7 @@ const SCENARIOS = [
         const assignedBefore = game.user.character ?? null;
         try {
             await game.user.update({ character: victim.id });
-            const atOpening = read(await M.openMurder({ killerId: killer.id, victimId: victim.id }));
+            const atOpening = read(await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
             await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             const atIncident = read(M.murderState());
             equal(stableJson([atOpening, atIncident]), stableJson([
@@ -726,7 +751,7 @@ const SCENARIOS = [
         };
         let opened = null, failed = null, after = null;
         try {
-            opened = await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            opened = await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             failed = await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
             await settle();
             after = M.murderState();
@@ -778,7 +803,7 @@ const SCENARIOS = [
             const c = M.castFor(player(a).id, incidentCast());
             return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null, receipt: c.lastCrisis ?? null, offer: c.betrayal?.killerId ?? null };
         });
-        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
         // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
         if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await settle();
@@ -820,7 +845,7 @@ const SCENARIOS = [
             const c = M.castFor(player(a).id, incidentCast());
             return { killer: c.killerId ?? null, offer: c.betrayal?.killerId ?? null };
         });
-        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await settle();
         await M.thirdPartyEnters(third);
@@ -862,7 +887,7 @@ const SCENARIOS = [
         const [killer, victim, third] = livingStudents().filter(player);
         const read = () => [M.murderState()?.stage ?? null, isDeadForGm(victim), incidentCast().betrayal?.thirdId ?? null, M.betrayalTarget(third)?.id ?? null];
         const direct = async (escape) => {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
             await M.thirdPartyEnters(third);
@@ -881,7 +906,7 @@ const SCENARIOS = [
         try {
             const silent = await direct(false);
             const escaped = await direct(true);
-            await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
             if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
             await settle();
             await M.thirdPartyEnters(third);
@@ -925,7 +950,7 @@ const SCENARIOS = [
             return "close";
         };
         const fight = async () => {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
             await M.thirdPartyEnters(third);
@@ -982,13 +1007,13 @@ const SCENARIOS = [
                 ids.every(id => isVeiled(game.messages.get(id)))];
         };
         const open = async () => {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
         };
         const close = async () => told(await wordsSent(() => M.endMurder({ reason: "test", followUp: false })));
         try {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             must(M.murderState()?.stage === "openingRoll", "the opening had been answered before the GM closed it");
             const atOpening = await close();
             await open();
@@ -1060,7 +1085,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [builder, victim] = livingStudents().filter(player);
-        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
         // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
         if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await settle();
@@ -1096,7 +1121,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim, bystander] = livingStudents().filter(player);
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
         // A pass writes the cast alone, and the GM's tracker and the chime hear it by this hook (settings.mjs; the review's C-m3).
@@ -1149,7 +1174,7 @@ const SCENARIOS = [
             return warn.call(this, message, ...rest);
         };
         try {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
             must(M.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(M.murderState())}`);
@@ -1198,7 +1223,7 @@ const SCENARIOS = [
         const them = game.i18n.format("DRPG.Murder.theyLose", { name: esc(victim.name), what: plural("DRPG.Reserve.health", { n: 2 }) });
         const { CRISIS_ACTIONS } = await import("./config.mjs");
         const card = `${esc(CRISIS_ACTIONS.strike.label)} - ${esc(killer.name)}`;
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
         must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
@@ -1241,7 +1266,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const [killer, victim] = livingStudents().filter(player);
         const note = game.i18n.format("DRPG.Murder.theyLose", { name: foundry.utils.escapeHTML(killer.name), what: plural("DRPG.Reserve.sanity", { n: 1 }) });
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
         must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
@@ -1697,7 +1722,7 @@ const SCENARIOS = [
             return consoleWarn.apply(this, args);
         };
         try {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
             must(M.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(M.murderState())}`);
@@ -1777,7 +1802,7 @@ const SCENARIOS = [
         let closes = 0, other = null;
         const closed = Hooks.on("drpgIncidentClosed", () => {
             closes++;
-            if (!other) other = M.openMurder({ killerId: killer.id, victimId: third.id });
+            if (!other) other = M.openMurder({ killerId: killer.id, victimId: third.id, openingTrait: "body" });
         });
         try {
             await accompliceAtStageSix(M, killer, victim, third);
@@ -1819,14 +1844,14 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim, second] = livingStudents().filter(player);
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
         await M.beginResolution("test");
         await settle();
         const first = M.murderState();
         must(first?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(first)}`);
-        const opened = await M.openMurder({ killerId: second.id, victimId: killer.id });
+        const opened = await M.openMurder({ killerId: second.id, victimId: killer.id, openingTrait: "body" });
         await settle();
         const now = M.murderState();
         equal(stableJson([opened, now?.openedAt ?? null, now?.killerId ?? null, now?.victimId ?? null, now?.stage ?? null]),
@@ -1958,7 +1983,7 @@ const SCENARIOS = [
         let closes = 0, other = null, lights = false;
         const closed = Hooks.on("drpgIncidentClosed", () => {
             closes++;
-            if (lights && !other) other = M.openMurder({ killerId: killer.id, victimId: third.id });
+            if (lights && !other) other = M.openMurder({ killerId: killer.id, victimId: third.id, openingTrait: "body" });
         });
         try {
             await accompliceAtStageSix(M, killer, victim, third);
@@ -2244,7 +2269,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [builder, victim] = livingStudents().filter(player);
-        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
         // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
         if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await settle();
@@ -2275,7 +2300,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [builder, victim] = livingStudents().filter(player);
-        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await settle();
         const stage = M.murderState()?.stage ?? null;
@@ -2305,7 +2330,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim, third] = livingStudents().filter(player);
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await M.thirdPartyEnters(third);
         await settle();
@@ -2341,7 +2366,7 @@ const SCENARIOS = [
         const [builder, victim] = livingStudents().filter(player);
         const clock = getClock();
         const next = TIMES_OF_DAY[(TIMES_OF_DAY.indexOf(clock.timeOfDay) + 1) % TIMES_OF_DAY.length];
-        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await settle();
         const from = game.messages.size;
@@ -2385,14 +2410,14 @@ const SCENARIOS = [
         const name = foundry.utils.escapeHTML(killer.name);
         const toVictim = words => words.filter(w => w.to.includes(player(victim).id)).map(w => w.html);
         const direct = toVictim(await wordsSent(async () => {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
         }));
         await M.endMurder({ reason: "test", followUp: false });
         await settle();
         const trap = toVictim(await wordsSent(async () => {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
             if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
             await settle();
         }));
@@ -2717,7 +2742,7 @@ const SCENARIOS = [
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim] = livingStudents().filter(player);
         const label = CRISIS_ACTIONS.leaveClue.label;
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -2845,7 +2870,7 @@ const SCENARIOS = [
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim] = livingStudents().filter(player);
         must(isPrimaryGm(), "the relay is the primary GM's, and this GM is not it");
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -2913,7 +2938,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim] = livingStudents().filter(player);
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -3000,7 +3025,7 @@ const SCENARIOS = [
         const [killer, victim, bystander] = livingStudents().filter(player);
         const nobody = livingStudents().find(a => !game.users.some(u => !u.isGM && a.testUserPermission(u, "OWNER")));
         needs(world.atLeast("studentsWithoutPlayer", 1), "a student no player owns, whose cards go to the GMs alone");
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         if (M.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -3147,7 +3172,7 @@ const SCENARIOS = [
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
 
-        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -3221,7 +3246,7 @@ const SCENARIOS = [
         const clue = () => M.availableCrisisActions(victim).find(a => a.key === "leaveClue") ?? {};
         const lap = async () => { await calm(); await M.passTurn(); await M.passTurn(); await settle(); };
         await calm();
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
         must(M.murderState()?.stage === "incident", "the fight did not start");
@@ -3253,7 +3278,7 @@ const SCENARIOS = [
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim] = livingStudents().filter(player);
         const toVictim = async () => { for (let i = 0; i < 3 && !M.isTheirTurn(victim); i++) await M.passTurn(); };
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
         must(M.murderState()?.stage === "incident", "the fight did not start");
@@ -3287,7 +3312,7 @@ const SCENARIOS = [
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [builder, victim] = livingStudents().filter(player);
         await victim.update({ "system.resources.stress.value": 0, "system.resources.hitPoints.value": 0 });
-        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
         // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
         if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await settle();
@@ -3338,7 +3363,7 @@ const SCENARIOS = [
         };
         const read = () => { const s = M.murderState(); return [s?.stage ?? null, s?.thirdId ?? null, s?.departed ?? null]; };
         try {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
             must(M.murderState()?.stage === "incident", "the fight did not start");
@@ -3385,7 +3410,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim, third] = livingStudents().filter(player);
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
         must(await M.thirdPartyEnters(third), "the third could not walk into the incident");
@@ -3409,7 +3434,7 @@ const SCENARIOS = [
         const { incidentCast } = await import("./settings.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [builder, victim, third] = livingStudents().filter(player);
-        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true });
+        await M.openMurder({ killerId: builder.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
         // The victim's player is asked the roll too; whichever lands first, a miss starts the incident.
         if (M.murderState()?.stage === "openingRoll") await M.resolveVictimOpening({ total: 1, isCritical: false, withHope: false });
         await settle();
@@ -3440,7 +3465,7 @@ const SCENARIOS = [
         const { wordsOf } = await import("./secret.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim] = livingStudents().filter(player);
-        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         must(M.murderState()?.stage === "openingRoll", "the opening had been answered before the test answered it");
         await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
         await settle();
@@ -3480,7 +3505,7 @@ const SCENARIOS = [
         const hurt = a => a.update({ "system.resources.hitPoints.value": 1, "system.resources.stress.value": 2 });
         const marks = a => [a.system.resources.hitPoints.value, a.system.resources.stress.value];
         const open = async () => {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             // The killer's player is asked the roll too; whichever lands first, a success starts the incident.
             if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
@@ -3724,6 +3749,184 @@ const SCENARIOS = [
         }
     }],
 
+    ["the opening's invitation carries the GM's pick and the window rolls it", async () => {
+        /*
+         * E32+E07 C11c, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09). Both
+         * openings list two traits - "Body or Hand" for the killer - and the roll threw the
+         * first, with nobody asked. A direct murder opens here with no statistic picked, and
+         * the GM's window (`answerTraitWindows`) is answered Hand, the second listed. Read: the
+         * windows the GM was shown, the invitation sent to the killer's player
+         * (`openingAsks`), and what this browser throws on the invitation's statistic and on
+         * one the killer's opening does not list (Leg) - the character's `rollTrait` replaced
+         * by one that notes the statistic and the GM's mark, and fails the opening as the GM
+         * would rule it. Until C11c: no window, an invitation with no statistic, and Body
+         * (`strength`) thrown, unmarked, whatever the invitation said.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const traits = answerTraitWindows();
+        traits.pick = () => "hand";
+        const thrown = [];
+        try {
+            const asks = await openingAsks(async sent => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id });
+                await until(() => sent.length > 0);
+            });
+            killer.rollTrait = async (dh, config) => {
+                thrown.push([dh, config?.[TRAIT_BY_GM] === true]);
+                if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+                return null;
+            };
+            const offList = await M.throwOpeningRoll("killer", killer.id, "leg");
+            const ask = asks[0] ?? {};
+            const rolled = await M.throwOpeningRoll(ask.side, ask.actorId, ask.trait);
+            equal(stableJson([traits.asked, asks.map(a => [a.to, a.side, a.actorId, a.trait]), offList, rolled, thrown]),
+                stableJson([[["body", "hand"]], [[[player(killer).id], "killer", killer.id, "hand"]], null, null, [["finesse", true]]]),
+                "the GM was not asked, the invitation did not carry the pick, or the window threw another statistic, unmarked, or one the opening does not list (windows, invitations, off the list, rolled, throws)");
+        } finally {
+            traits.restore();
+            delete killer.rollTrait;
+        }
+    }],
+
+    ["a re-ask of the opening rolls the pick the cast keeps, and asks nobody again", async () => {
+        /*
+         * E32+E07 C11c, 02.10.2026. The GM's pick for the opening is kept in the cast
+         * (`openingTrait`), so the tracker's "Ask for the opening roll again" - `rollOpening`
+         * behind a cooldown - and a GM's throw for a player who has gone roll it again rather
+         * than ask again. A direct murder opens with no statistic, the GM picks Hand, and the
+         * opening is asked again. Read: the windows the GM was shown, the statistic of each
+         * invitation (`openingAsks`), whether the re-ask went out, and the pick the GMs hold.
+         * The mutant that does not keep the pick asks twice.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const traits = answerTraitWindows();
+        traits.pick = () => "hand";
+        let again = null;
+        try {
+            const asks = await openingAsks(async sent => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id });
+                await until(() => sent.length > 0);
+                again = await M.rollOpening("killer", M.murderState());
+                await until(() => sent.length > 1);
+            });
+            equal(stableJson([traits.asked, asks.map(a => a.trait), again?.asked ?? null, M.murderState()?.openingTrait ?? null]),
+                stableJson([[["body", "hand"]], ["hand", "hand"], true, "hand"]),
+                "the re-ask asked the GM again, did not go out, or carried another statistic, or the GMs do not hold the pick (windows, invitations, re-asked, held)");
+        } finally {
+            traits.restore();
+        }
+    }],
+
+    ["while the GM picks the opening's statistic the killer is told to say how, a direct victim nothing (D6), and a trap's victim that a roll is being set up", async () => {
+        /*
+         * E32+E07 C11c, 02.10.2026; the owner's D6. While a GM picks, the side that rolls is
+         * told, veiled, and nobody else: a direct murder's killer that the GM is choosing and to
+         * say in their thread how they go about it; a trap's victim only that a roll is being
+         * set up, since the roll is itself the warning. A direct murder, then a trap, open with
+         * no statistic picked (the GM's window answered Hand, then Head), then a direct murder
+         * with Body picked as it opens. Read: for each line, the players its words were sent to
+         * (`wordsSent`) and whether the card is veiled; and the windows the GM was shown.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player to tell");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const players = game.users.filter(u => !u.isGM).map(u => u.id);
+        const lines = { killer: game.i18n.localize("DRPG.TraitRuling.openingKiller"), victim: game.i18n.localize("DRPG.TraitRuling.openingVictim") };
+        const read = words => Object.fromEntries(Object.entries(lines).map(([side, text]) => [side, words.filter(w => w.html.includes(text))
+            .map(w => [w.to.filter(u => players.includes(u)), game.messages.get(w.id)?.toObject()?.flags?.[MODULE_ID]?.veiled === true])]));
+        const traits = answerTraitWindows();
+        try {
+            traits.pick = () => "hand";
+            const direct = read(await wordsSent(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id });
+                await until(() => M.murderState()?.openingTrait === "hand");
+            }));
+            await M.endMurder({ reason: "test", followUp: false });
+            traits.pick = () => "head";
+            const trap = read(await wordsSent(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true });
+                await until(() => M.murderState()?.openingTrait === "head");
+            }));
+            await M.endMurder({ reason: "test", followUp: false });
+            const given = read(await wordsSent(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                await settle();
+            }));
+            equal(stableJson([direct, trap, given, traits.asked]), stableJson([
+                { killer: [[[player(killer).id], true]], victim: [] },
+                { killer: [], victim: [[[player(victim).id], true]] },
+                { killer: [], victim: [] },
+                [["body", "hand"], ["eye", "head"]]
+            ]), "the roller was not told while the GM picked, somebody else was, the card was not veiled, or a pick made as the murder opened still told or asked (direct, trap, picked at the open, windows)");
+        } finally {
+            traits.restore();
+        }
+    }],
+
+    ["a clean-up roll waits for the GM's pick, and nothing is paid before it", async () => {
+        /*
+         * E32+E07 C11c, 02.10.2026; audit S04-23. Stage 6's rolls list Shadow / Hand / Head
+         * and threw Shadow, with nobody asked. The killer, alone with the victim in a room
+         * (`aloneTogether`, so no witness asks a concealment roll), finishes them and is at
+         * Stage 6 on this GM's browser: a misleading trail is attempted with the GM's window
+         * closed (Cancel), then answered Head; an erase answered Hand. The character's
+         * `rollTrait` notes the statistic and the GM's mark and throws nothing, as a closed roll
+         * window does, so the price is handed back (`releaseTamper`). Read: the windows, the
+         * throws, what the cancelled attempt answered, and the killer's Sanity before and after.
+         * Until C11c: no window, and Shadow (`presence`) thrown three times, the Cancel too.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const Cl = await import("./cleanup.mjs");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const { livingStudents, reviveCharacter, isDeadForGm } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const stood = await aloneTogether(killer, victim);
+        const traits = answerTraitWindows();
+        const thrown = [];
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            for (let i = 0; i < 4 && M.crisisRefusal(killer, "finishingBlow")?.why === "not their turn"; i++) await M.passTurn();
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && Cl.isCleaner(killer), `the killer is not cleaning up a Stage 6: ${stableJson(M.murderState())}`);
+            const sanity = () => killer.system.resources.stress.value;
+            const before = sanity();
+            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            traits.pick = () => "cancel";
+            const cancelled = await Cl.attemptStageSix(killer, "misleadingTrail", victim.id);
+            const afterCancel = [thrown.length, sanity()];
+            traits.pick = () => "head";
+            await Cl.attemptStageSix(killer, "misleadingTrail", victim.id);
+            traits.pick = () => "hand";
+            await Cl.attemptCleanup(killer, "SUITEC11CNOTRACE");
+            equal(stableJson([traits.asked, cancelled, afterCancel, thrown, sanity()]),
+                stableJson([[["shadow", "hand", "head"], ["shadow", "hand", "head"], ["shadow", "hand", "head"]], null, [0, before],
+                    [["knowledge", true], ["finesse", true]], before]),
+                "a clean-up roll did not ask the GM, threw before the pick or after a Cancel, threw another statistic or unmarked, or kept a price (windows, cancelled, after the Cancel, throws, Sanity)");
+        } finally {
+            traits.restore();
+            delete killer.rollTrait;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await stood.back();
+        }
+    }],
+
     ["a Finishing Blow leaves the victim unflagged, dead to the GMs, until the discovery publishes it", async () => {
         /* E05 C10, 26.09.2026; audit S06-11. The blow used to write the flag, the "dead" status
            and the Truth Bullets' deletion at once, which every console reads; the victim is a
@@ -3737,7 +3940,7 @@ const SCENARIOS = [
 
         await createTruthBullet(victim, { name: "SUITE C10 a hunch", playerText: "SUITE C10" });
         const bullets = bulletsOf(victim).length;
-        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -3844,7 +4047,7 @@ const SCENARIOS = [
             return seen;
         };
         const kill = async (killer, victim) => {
-            await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+            await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             await settle();
             await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             await settle();
@@ -4226,7 +4429,7 @@ const SCENARIOS = [
         await settle();
         ok(eclipse.isEclipse(), "the Eclipse did not start");
 
-        const blocked = await murder.openMurder({ killerId: killer.id, victimId: victim.id });
+        const blocked = await murder.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         equal(blocked, null, "openMurder opened an incident while the Eclipse was still running");
         equal(murder.murderState(), null, "an incident exists despite the Eclipse lock");
 
@@ -4234,7 +4437,7 @@ const SCENARIOS = [
         await settle();
         ok(!eclipse.isEclipse(), "ending the Eclipse did not clear the flag");
 
-        const opened = await murder.openMurder({ killerId: killer.id, victimId: victim.id });
+        const opened = await murder.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         ok(opened, "openMurder still refuses once the Eclipse has actually ended");
         equal(murder.murderState()?.killerId, killer.id, "the incident that opened has the wrong killer");
     }],
@@ -4670,7 +4873,7 @@ const SCENARIOS = [
         const murder = await import("./murder.mjs");
         const cleanup = await import("./cleanup.mjs");
 
-        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -4704,7 +4907,7 @@ const SCENARIOS = [
         const bridge = await import("./gm-bridge.mjs");
         const remnants = await import("./remnants.mjs");
 
-        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -5110,7 +5313,7 @@ const SCENARIOS = [
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
 
-        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -6818,7 +7021,7 @@ const SCENARIOS = [
         equal(murder.murderState(), null, "an incident was already running when this test started");
         const placed = [], made = [];
         try {
-            await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+            await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             await settle();
             ok(murder.murderState(), "no incident opened");
             const lost = await remnants.placeRemnant({ type: "incident", visibility: "evident", ...at, note: "SUITE C14 an incident's trace nobody finds" });
@@ -6894,7 +7097,7 @@ const SCENARIOS = [
             equal(stableJson([now(filed), now(unfiled), done?.retired ?? null]), stableJson([[true, null], [true, null], 2]),
                 "with no incident running, an older incident's trace nobody copied is still in view or still marked");
 
-            await game.drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+            await game.drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             await settle();
             ok(murder.murderState(), "no incident opened");
             const own = await R.placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
@@ -7539,7 +7742,7 @@ const SCENARIOS = [
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
 
-        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -7574,7 +7777,7 @@ const SCENARIOS = [
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
 
-        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
         await settle();
         await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         await settle();
@@ -13781,7 +13984,7 @@ const SCENARIOS = [
         const assignedBefore = game.user.character ?? null;
         try {
             await game.user.update({ character: victim.id });
-            const opened = await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true });
+            const opened = await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
             const world = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {});
             const record = S.castStore.record();
             const merged = M.murderState();
@@ -15001,7 +15204,7 @@ const SCENARIOS = [
             equal(S.castStore.record().killerId ?? null, null, "the old copy, arriving again after the close, brought its killer back");
 
             const closedAt = S.castStore.stampOf("record", "killerId");
-            await M.openMurder({ killerId: victim.id, victimId: killer.id });
+            await M.openMurder({ killerId: victim.id, victimId: killer.id, openingTrait: "body" });
             await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             const late = E.emptySection();
             E.writeFields(late, "record", { thirdId: third.id, thirdSide: "killer", lastCrisis: { key: "SUITELATE" }, swung: { [third.id]: "SUITEE04ITEM0001" } },
@@ -15034,7 +15237,7 @@ const SCENARIOS = [
         const M = await import("./murder.mjs");
         const [killer, victim] = cast(2);
         await E.withGmStoreWorld(`suite-byhand-${foundry.utils.randomID(8)}`, async () => {
-            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
             await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
             equal(M.murderState()?.killerId, killer.id, "the fixture incident did not open");
             const world = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};

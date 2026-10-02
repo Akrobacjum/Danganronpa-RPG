@@ -415,6 +415,25 @@ function findRemnantToken(tokenId) {
  * ========================================================================== */
 
 /**
+ * THE STATISTIC A CLEAN-UP ROLLS IS THE GM'S PICK (E32+E07 C11c, 02.10.2026; audit S04-23,
+ * the owner's Q4 as corrected on 28.09). Stage 6's rolls list three - Shadow / Hand / Head
+ * (`CLEANUP.traits`), which an erase and a misleading trail roll - and threw the first,
+ * Shadow, with nobody asked; moving the body lists its own Body alone. A GM picks now
+ * (trait-ruling.mjs `traitFor`: a card in the player's thread, or a window on a GM's
+ * browser; with Resolve armed the roll window's picker), and the caller asks before the
+ * concealment and the price, so a refusal costs nothing. The same rolls
+ * through Tamper's door (`viaAction`, any afternoon) are Tamper's, which lists Shadow
+ * alone (`ACTIONS.tamper`): nobody is asked - and the GM's judgement of a ruling
+ * (bridge-guards.mjs `guardTraitRuling`) takes one for Stage 6's cleaner alone.
+ * `{ trait, byGm }`, or null when there is to be no roll.
+ */
+async function cleanupTrait(actor, key, viaAction) {
+    if (viaAction) return { trait: ACTIONS.tamper.traits[0], byGm: false };
+    const { traitFor } = await import("./trait-ruling.mjs");
+    return traitFor(actor, { kind: "cleanup", key });
+}
+
+/**
  * Attempt to erase one trace.
  *
  * Costs Tamper's price chain (T-1): an action, or a Sanity mark when there is no
@@ -484,6 +503,10 @@ export async function attemptCleanup(actor, tokenId, {
         return null;
     }
 
+    // The statistic, before anything is rolled or paid (`cleanupTrait`).
+    const ruled = await cleanupTrait(actor, "cleanup", viaAction);
+    if (!ruled) return null;
+
     // Somebody is watching. Cover it before you do it - and learn the answer
     // while there is still a choice about how to behave afterwards. Nothing has
     // been charged yet, so a closed concealment window costs nothing (ACT-04).
@@ -520,8 +543,9 @@ export async function attemptCleanup(actor, tokenId, {
 
     let roll;
     try {
-        roll = await rollTrait(actor, CLEANUP.traits[0], {
+        roll = await rollTrait(actor, ruled.trait, {
             dc: dcShown,
+            byGm: ruled.byGm,
             // `cleanupKey` and `cleanupVia` ride along so a Reroll can tell the
             // three Stage 6 actions apart. Without them the bookmark said only
             // "cleanup" and a rerolled misleading trail was replayed as an
@@ -1887,6 +1911,10 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         return null;
     }
 
+    // The statistic, before anything is rolled or paid (`cleanupTrait`).
+    const ruled = await cleanupTrait(actor, key, viaAction);
+    if (!ruled) return null;
+
     // The guide's concealment roll covers "akcje rozwiązania" as a whole -
     // planting a false trail or dragging a body past a witness is if anything
     // harder to explain away than wiping a smear.
@@ -1917,8 +1945,9 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
 
     let roll;
     try {
-        roll = await rollTrait(actor, (def.traits ?? CLEANUP.traits)[0], {
+        roll = await rollTrait(actor, ruled.trait, {
             dc: def.threshold ?? null,
+            byGm: ruled.byGm,
             // `cleanupKey` names WHICH of the three this was. `cleanup` keeps
             // holding the same value it always did so nothing that reads the
             // old bookmark shape breaks - see `settleCleanup` in reroll.mjs.

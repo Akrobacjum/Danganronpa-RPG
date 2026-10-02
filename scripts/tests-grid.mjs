@@ -102,6 +102,8 @@ const FRESH = Object.freeze({
     unlocked: emptyList,
     spent: emptyList,
     drainStopped: v => !v,
+    // The opening's statistic (E32+E07 C11c): the one the open picked, or none - the GM is asked after.
+    openingTrait: (v, m) => (v ?? null) === m.openingTrait,
     // Per side, the action a Hope miss earned a second try at (E32+E07 C9): none yet.
     advantageNext: v => none(v) || (none(v.victim) && none(v.killer)),
     freeResolution: none,
@@ -298,7 +300,7 @@ const GRID_RED = {
 function incident(kind, killer, victim) {
     return {
         kind, killerId: killer.id, victimId: victim.id, thirdId: null, thirdSide: null, thirdChose: false,
-        escaped: false, departed: [], stage: "openingRoll", body: false, stageSix: false
+        escaped: false, departed: [], stage: "openingRoll", body: false, stageSix: false, openingTrait: null
     };
 }
 
@@ -376,11 +378,16 @@ const PLACE = { teleport: true, movementAction: "displace", animate: false };
 const tokenOf = actor => canvas?.scene?.tokens?.find(t => t.actorId === actor.id) ?? null;
 
 const STEPS = {
+    /* With the opening's statistic picked as the murder opens (E32+E07 C11c), as the GM's
+       murder window can: without it the GM is asked in a window, which on a GM's browser in
+       the suite nobody answers. The model keeps it for FRESH. */
     async open(run, kind = run.spec.kind ?? "direct", killer = "K", victim = "V") {
         const K = run.who[killer], V = kind === "self" ? K : run.who[victim];
-        const opened = await run.M.openMurder({ killerId: K.id, victimId: V.id, indirect: kind === "trap" });
+        const openingTrait = kind === "trap" ? "head" : "hand";
+        const opened = await run.M.openMurder({ killerId: K.id, victimId: V.id, indirect: kind === "trap", openingTrait });
         must(opened, `the ${kind} incident did not open`);
         opens(run, kind, K, V);
+        run.model.openingTrait = openingTrait;
     },
 
     /* The opening's result, as the GM's half takes it. A player's own roll could land
@@ -841,6 +848,8 @@ async function assertIncidentInvariants(run) {
         if ((copy.killerId ?? null) !== killer) run.violate("I2", `${user.name}'s copy names the killer ${nameOf(copy.killerId)}, the model's ${nameOf(killer)}`);
         if ((copy.victimId ?? null) !== m.victimId) run.violate("I2", `${user.name}'s copy names the victim ${nameOf(copy.victimId)}, the model's ${nameOf(m.victimId)}`);
         if (!none(copy.lastCrisis) || "swung" in copy) run.violate("I2", `${user.name}'s copy holds the Reroll receipt or the swing memo`);
+        // The opening's statistic is the GMs' pick and in no player's copy (E32+E07 C11c): its roller is sent it with the invitation.
+        if (!none(copy.openingTrait)) run.violate("I2", `${user.name}'s copy holds the opening's statistic, ${copy.openingTrait}`);
         /* The fight as the GMs hold it: a seat reads its turn off its own copy (E32 C2) - but the Key
            Remnants' count, the GMs' alone, and for a trap's killers, seated from Stage 6 on, all of it:
            their rolls' results, which E06 keeps from the builder (fix r1-G1; the review's m1, M2). What
@@ -848,7 +857,7 @@ async function assertIncidentInvariants(run) {
            the copy shows, so it moves when they do and never alone. Who walked in and out again
            (`departed`, E32+E07 C10) is a cast field beside the fight, and is held as the fight is. */
         const copied = [...FIGHT_FIELDS, "departed"];
-        const withheld = m.kind === "trap" && killerSide ? copied : ["keyRemnants"];
+        const withheld = [...(m.kind === "trap" && killerSide ? copied : ["keyRemnants"]), "openingTrait"];
         const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
         const unlike = copied.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);

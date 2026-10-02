@@ -2368,7 +2368,9 @@
       "title": "Which statistic?",
       "gmBody": "The roll lists several statistics. Pick one from what the player says their character does.",
       "waiting": "The GM is choosing the statistic. Tell them in your thread what you do.",
-      "refused": "The GM turned the action down. Nothing was spent."
+      "refused": "The GM turned the action down. Nothing was spent.",
+      "openingKiller": "The GM is choosing the statistic for your opening. Tell them in your thread how you go about it.",
+      "openingVictim": "The GM is setting up a roll for you."
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls - ask the GM.",
