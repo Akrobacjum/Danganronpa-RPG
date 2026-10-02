@@ -241,6 +241,42 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ aikoWhole, aikoMine }));
     await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false }); return true;`, { timeout: 60000 });
 
+    /* A ROLE REVERSAL THE OPENING TOOK AWAY (E32+E07 C11a, 02.10.2026; audit S04-06). Botan
+       opens on Chie with a Despair success, which takes Role reversal from the victim; the
+       panel stopped drawing it, and the GM, asked, carried it out - its judgement read the
+       locks of an action in the side's list and let one missing from it through. Chie's own
+       player sends it on Chie's turn, through the honest request function: the GM refuses it
+       for what was taken away, tells p3 why, and the seats do not move. Chie's Health and
+       Sanity are put back after (the opening fills her Sanity). */
+    phase("a Role reversal the opening took away", { flow: "murder-incident" });
+    const chieWas = await gm.eval(`const r = game.actors.get("${ids.chie}").system.resources;
+        return { hp: r.hitPoints.value, stress: r.stress.value };`);
+    const readSeats = `const s = game.drpg.murderState();
+        return { stage: s?.stage ?? null, killerId: s?.killerId ?? null, victimId: s?.victimId ?? null, turnSide: s?.turnSide ?? null,
+            denied: s?.deniedToVictim ?? null };`;
+    const denyOpen = await gm.eval(`
+        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.chie}" });
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
+        (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        ${readSeats}`, { timeout: 60000 });
+    const denyAnswer = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCrisisResult({ actorId: "${ids.chie}", key: "roleReversal", total: 99, isCritical: false, withHope: true });`,
+        { timeout: 30000 });
+    await settle(900);
+    const denyAfter = await gm.eval(readSeats);
+    const denyReasons = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message);`);
+    await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false });
+        await game.actors.get("${ids.chie}").update({ "system.resources.hitPoints.value": ${Number(chieWas?.hp) || 0},
+            "system.resources.stress.value": ${Number(chieWas?.stress) || 0} });
+        return true;`, { timeout: 60000 });
+    check("SECURITY: a Role reversal the Despair opening took away, sent by the victim's own player, is refused on the GM and told",
+        denyOpen.stage === "incident" && denyOpen.turnSide === "victim" && (denyOpen.denied ?? []).includes("roleReversal")
+            && denyAnswer?.ok === false && denyAnswer?.reason === "actionDenied"
+            && denyAfter.killerId === ids.botan && denyAfter.victimId === ids.chie
+            && denyReasons.some(r => /that action is not open to that character now/.test(r)),
+        JSON.stringify({ denyOpen, denyAnswer, denyAfter, denyReasons }), { flow: "murder-incident" });
+
     /*
      * 4d. A CALL ON A BODY NOBODY HAS FOUND (E05 fix r2-G3, 27.09.2026; review S2-m1). Daichi is
      * the blow's kept death now. The GM refused a Call on him as "cannot now" before it asked

@@ -5439,6 +5439,33 @@ const INVARIANTS = [
             "the offer alone kept a stamp of the fight");
         const seatedAgain = { value: { killerId: "K2", victimId: "T", betrayal: offer, turn: 1 }, stamps: { ...seats(600), turn: 600, keyRemnants: 600 } };
         equal(castCombine(closed, seatedAgain), seatedAgain, "the offer's third, seated in the next incident, did not take its cast");
+    }],
+
+    ["R211 - the GM refuses a crisis action the side is not offered", async () => {
+        /*
+         * E32+E07 C11a, 02.10.2026; audit S04-06. `crisisRefusal` is what the GM asks of a
+         * player's crisis packet (bridge-guards.mjs `guardCrisisAction`), and it read the
+         * locks and spends of an action in the side's list and let one MISSING from it through:
+         * Role reversal after a Despair opening was not drawn, and a packet naming it was
+         * carried out. Asked of fixture states, as the judgement is asked of a Reroll's receipt:
+         * the victim's denied Role reversal and a trap's third's Double role reversal are
+         * refused with their own reason, and offered, unlocked, are not. Pure; nothing is written.
+         */
+        const M = await import("./murder.mjs");
+        const V = { id: "R211VICTIM000001" }, K = { id: "R211KILLER000001" }, T = { id: "R211THIRD0000001" };
+        const fight = { stage: "incident", killerId: K.id, victimId: V.id, thirdId: T.id, thirdSide: null, thirdActed: false,
+            turn: 2, turnSide: "victim", unlocked: ["survive", "roleReversal"], spent: ["selfDefence"] };
+        const trap = { ...fight, indirect: true, deniedToVictim: ["roleReversal", "doubleRoleReversal"] };
+        const said = (actor, key, state) => {
+            const r = M.crisisRefusal(actor, key, state);
+            return r ? `${r.why} | ${r.key}` : null;
+        };
+        const DENIED = "that action is not open to that character now | DRPG.Murder.actionDenied";
+        const offers = (actor, state) => M.availableCrisisActions(actor, state).map(o => o.key);
+        equal(JSON.stringify([said(V, "roleReversal", trap), said(T, "doubleRoleReversal", trap), said(T, "doubleRoleReversal", fight),
+            offers(V, fight).includes("roleReversal"), offers(V, trap).includes("roleReversal")]),
+            JSON.stringify([DENIED, DENIED, null, true, false]),
+            "a denied reversal was let through or refused for another reason, or the third's offered one was refused, or the list was not asked of the state given");
     }]
 ];
 

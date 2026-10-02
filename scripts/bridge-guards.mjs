@@ -155,7 +155,7 @@ export const REASONS = Object.freeze([
     "unknownSender", "notYours", "gmOnly", "cannotSee", "missing", "badRequest", "outOfRange", "busy",
     "notOffered", "notSecret", "notAPlayer", "notHolding", "alreadyHeld", "notASupport", "hopeBarred",
     "notEnoughHope", "noReroll", "rerollSpent", "traceOutOfReach", "notInIncident", "notYourTurn",
-    "actionLocked", "actionSpent", "actionBlocked", "nothingLeft", "movedOn", "notThatRepair",
+    "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
@@ -227,6 +227,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionLocked", /^that action is locked$/],
     ["actionSpent", /^that action is spent$/],
     ["actionBlocked", /^that action is blocked$/],
+    // E32+E07 C11a: an action the incident took away, or never gave that side (murder.mjs `crisisRefusal`).
+    ["actionDenied", /^that action is not open to that character now$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],
     // E05: the GM's count of the Eclipse's crossings (eclipse.mjs applyRecordedMove).
     ["nothingLeft", /^no crossings left this Eclipse$/],

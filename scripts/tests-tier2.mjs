@@ -3387,6 +3387,93 @@ const SCENARIOS = [
             "the victim's copy does not name the third who left, or the builder's copy at Stage 6 does, or its stamp tells it apart");
     }],
 
+    ["Self-defence with Despair after a Despair opening stays available and promises nothing", async () => {
+        /* E32+E07 C11a, 02.10.2026; audit S04-15. A Despair Self-defence opens Role reversal
+           alone, and a Despair opening has already taken Role reversal away. Until this commit
+           the Self-defence was spent all the same, and its card said "Role reversal is open to
+           you now" and "Unlocked: Role reversal." with nothing open: the victim's one attempt
+           bought nothing. Now it unlocks nothing and is not spent - the victim may try again -
+           and its card says neither. The killer is a connected player's, as the grid picks
+           them, and the opening is answered by the GM's half before that player's can. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id });
+        must(M.murderState()?.stage === "openingRoll", "the opening had been answered before the test answered it");
+        await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
+        await settle();
+        must((M.murderState()?.deniedToVictim ?? []).includes("roleReversal"),
+            `the Despair opening took nothing away: ${stableJson(M.murderState()?.deniedToVictim ?? null)}`);
+        for (let i = 0; i < 4 && M.crisisRefusal(victim, "selfDefence")?.why === "not their turn"; i++) await M.passTurn();
+        must(!M.crisisRefusal(victim, "selfDefence"), `the victim's Self-defence is refused: ${M.crisisRefusal(victim, "selfDefence")?.why}`);
+        const before = new Set(game.messages.map(m => m.id));
+        await M.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 99, isCritical: false, withHope: false });
+        await settle();
+        const def = CRISIS_ACTIONS.selfDefence;
+        const said = await Promise.all(game.messages.filter(m => !before.has(m.id)).map(m => wordsOf(m, 2000)));
+        const card = said.map(String).find(w => w.includes(`<h3>${def.label} - `)) ?? "";
+        must(card, "the Self-defence's card was not posted");
+        const state = M.murderState();
+        const again = M.availableCrisisActions(victim).find(o => o.key === "selfDefence");
+        const unlocked = game.i18n.format("DRPG.Murder.unlockedActions", { names: CRISIS_ACTIONS.roleReversal.label });
+        equal(stableJson([state?.spent ?? [], state?.unlocked ?? [], again ? again.blocked : "not offered", card.includes(def.despair), card.includes(unlocked)]),
+            stableJson([[], [], false, false, false]),
+            "the Self-defence that opened nothing was spent, unlocked a denied action, or its card promised Role reversal");
+    }],
+
+    ["Double role reversal heals nobody, and a Role reversal with Hope still heals the reverser", async () => {
+        /* E32+E07 C11a, 02.10.2026; audit S04-22, D41's Role reversal half (the owner's answer,
+           which stands). `swapRoles` healed the new killer on any band but Despair, and Double
+           role reversal - no dice, scored as Hope - gave the victim it turned all Health and
+           Sanity back, which only Role reversal's Hope and critical sentences promise. Who is
+           healed is the action's now (`restores`, config.mjs). Both are hurt before Double role
+           reversal and keep their marks through it; in a second incident the victim, hurt,
+           defends with Hope and reverses with Hope, and has no Health marked after it (Sanity is
+           not read: the reversal's own Sanity cost lands after the swap). */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer whose player is asked the opening roll, a victim and a third");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const hurt = a => a.update({ "system.resources.hitPoints.value": 1, "system.resources.stress.value": 2 });
+        const marks = a => [a.system.resources.hitPoints.value, a.system.resources.stress.value];
+        const open = async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id });
+            // The killer's player is asked the roll too; whichever lands first, a success starts the incident.
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "incident" && !(M.murderState()?.deniedToVictim ?? []).length,
+                `the incident did not open on Hope: ${stableJson([M.murderState()?.stage ?? null, M.murderState()?.deniedToVictim ?? null])}`);
+        };
+        const toTurn = async (actor, key) => {
+            for (let i = 0; i < 4 && M.crisisRefusal(actor, key)?.why === "not their turn"; i++) await M.passTurn();
+            must(!M.crisisRefusal(actor, key), `${actor.name}'s ${key} is refused: ${M.crisisRefusal(actor, key)?.why}`);
+        };
+        await open();
+        must(await M.thirdPartyEnters(third), "the third could not walk into the incident");
+        await hurt(victim);
+        await hurt(killer);
+        await M.resolveCrisisAction({ actorId: third.id, key: "doubleRoleReversal", total: 0, isCritical: false, withHope: true });
+        await settle();
+        const double = [M.murderState()?.killerId === victim.id, marks(victim), marks(killer)];
+        await M.endMurder({ reason: "test", followUp: false });
+        await open();
+        await hurt(victim);
+        await toTurn(victim, "selfDefence");
+        await M.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 99, isCritical: false, withHope: true });
+        await toTurn(victim, "roleReversal");
+        const hurtBefore = marks(victim)[0];
+        await M.resolveCrisisAction({ actorId: victim.id, key: "roleReversal", total: 99, isCritical: false, withHope: true });
+        await settle();
+        equal(stableJson([double, hurtBefore > 0, M.murderState()?.killerId === victim.id, marks(victim)[0]]),
+            stableJson([[true, [1, 2], [1, 2]], true, true, 0]),
+            "Double role reversal healed somebody or did not swap, or a Role reversal with Hope no longer gave the reverser their Health back");
+    }],
+
     ["a Finishing Blow leaves the victim unflagged, dead to the GMs, until the discovery publishes it", async () => {
         /* E05 C10, 26.09.2026; audit S06-11. The blow used to write the flag, the "dead" status
            and the Truth Bullets' deletion at once, which every console reads; the victim is a

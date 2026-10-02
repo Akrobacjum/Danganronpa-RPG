@@ -3182,7 +3182,14 @@ export const CRISIS_ACTIONS = {
         // the outcome was announced and the map stayed empty.
         remnant: { critical: "evident" },
         criticalReinforced: true,
-        swapsRoles: true
+        swapsRoles: true,
+        /*
+         * The bands whose sentence above gives the reverser back all Health and Sanity:
+         * Hope and the critical. Read by `swapRoles` (murder.mjs) from the action, not
+         * the band (E32+E07 C11a; audit S04-22, D41): until 1.2.66 any band but Despair
+         * healed, so Double role reversal - no dice, scored as Hope - healed too.
+         */
+        restores: { hope: true, critical: true }
     },
 
     /* ---- the killer ---------------------------------------------------- */

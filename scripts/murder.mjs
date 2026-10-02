@@ -857,10 +857,9 @@ export function participantIds(state = murderState()) {
  * accomplice runs victim, killer, victim, accomplice, and the side still gets
  * one action per turn however many people are standing on it.
  */
-export function isTheirTurn(actor) {
-    const state = murderState();
+export function isTheirTurn(actor, state = murderState()) {
     if (!state || state.stage !== "incident") return false;
-    const side = sideOf(actor);
+    const side = sideOf(actor, state);
     if (side === "third") return !state.thirdActed;
     if (state.turnSide !== side) return false;
     if (side !== "killer") return true;
@@ -940,9 +939,8 @@ function isFreeTake(def, side, state) {
     return Boolean(def?.kind === "resolution" && !def.noRoll && freeResolutionFor(side, state));
 }
 
-export function availableCrisisActions(actor) {
-    const state = murderState();
-    const side = sideOf(actor);
+export function availableCrisisActions(actor, state = murderState()) {
+    const side = sideOf(actor, state);
     if (!state || state.stage !== "incident" || !side) return [];
 
     // Their one free choice, once made, is made.
@@ -965,8 +963,11 @@ export function availableCrisisActions(actor) {
         // know WHOSE turn this is asks `sideOf(actor)` instead - see
         // `resolveCrisisAction`.
         .filter(([, def]) => forSide(def, side))
-        // The guide takes Role Reversal away from a victim whose killer opened
-        // on a Despair success.
+        // What the incident has taken away (`deniedToVictim`): Role reversal from a victim
+        // whose killer opened on a Despair success, or who has somebody beside their killer,
+        // and both reversals in a trap (D13; E32+E07 C11a). Side-blind, so a trap's third
+        // loses Double role reversal with it. Missing from this list is refused by the GM
+        // too (`crisisRefusal`); until C11a it was only not drawn.
         .filter(([key]) => !(state.deniedToVictim ?? []).includes(key))
         .map(([key, def]) => {
             const locked = Boolean(def.lockedUntil && !unlocked.has(key));
@@ -1415,7 +1416,12 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
         // incident starts. Without it the state sat on "openingRoll" for ever
         // and an indirect murder could never be played. Against the stage as it
         // was read (E32 C4), and told to the GMs once it is written.
-        if (!await writeState({ stage: "incident", turn: 1, turnSide: "victim" },
+        //
+        // No Role reversal in a trap, and no Double role reversal for a third who walks in
+        // on one (D13, the owner's; E32+E07 C11a, audit S04-06). Both in the stage's own
+        // write, so no copy of the cast holds the fight with either open; the list they are
+        // taken off is side-blind (`availableCrisisActions`), which is what takes the third's.
+        if (!await writeState({ stage: "incident", turn: 1, turnSide: "victim", deniedToVictim: ["roleReversal", "doubleRoleReversal"] },
             { expect: { stage: "openingRoll", openedAt: state.openedAt } })) return null;
         await tellGms(def.failure);
         await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.indirectBegins")}</p>`);
@@ -1570,14 +1576,23 @@ export function crisisRefusal(actor, key, state = murderState()) {
         return { why: "no incident is at its incident stage for that character", key: null };
     }
     if (!forSide(def, side)) return { why: "not an action for that side", key: null };
-    if (!isTheirTurn(actor)) return { why: "not their turn", key: "DRPG.Murder.notYourTurn" };
+    if (!isTheirTurn(actor, state)) return { why: "not their turn", key: "DRPG.Murder.notYourTurn" };
+    /*
+     * NOT OFFERED IS REFUSED (E32+E07 C11a, 02.10.2026; audit S04-06). Until this commit an
+     * action missing from the side's list - Role reversal after a Despair opening - passed
+     * here, because only the flags of an action IN the list were read; the panel did not
+     * draw it, and a packet that named it was carried out. Asked of `state`, the state
+     * this judgement is about, so a Reroll's undo is judged against its receipt
+     * (`crisisUndoRefusal`), not the live incident.
+     */
+    const offered = availableCrisisActions(actor, state).find(o => o.key === key);
+    if (!offered) return { why: "that action is not open to that character now", key: "DRPG.Murder.actionDenied" };
     // The sheet greys these out, but the panel is only rebuilt on render - a
     // window left open across somebody else's turn still has live buttons.
-    const offered = availableCrisisActions(actor).find(o => o.key === key);
-    if (offered?.locked) {
+    if (offered.locked) {
         return { why: "that action is locked", key: "DRPG.Murder.actionLocked", data: { name: offered.lockedBy ?? "?" } };
     }
-    if (offered?.spent) return { why: "that action is spent", key: "DRPG.Murder.actionSpent" };
+    if (offered.spent) return { why: "that action is spent", key: "DRPG.Murder.actionSpent" };
     if ((state.blocked?.[side]?.[key] ?? 0) > 0) return { why: "that action is blocked", key: "DRPG.Murder.actionBlocked" };
     /*
      * A resolution action costs Sanity rather than an action - and Health when
@@ -2195,6 +2210,8 @@ async function applyCrisisAction({
     const success = def.noRoll || free || isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
     const done = [];
+    // Whether the card may print the band's sentence (`applyUnlocks`, E32+E07 C11a).
+    let promised = true;
 
     // What it would take to put all of this back. Captured before anything is
     // applied, because half of it is "the value this resource had a moment ago".
@@ -2256,8 +2273,8 @@ async function applyCrisisAction({
                 ? "DRPG.Murder.useItemWorked" : "DRPG.Murder.useItemFumbled"));
         }
         await applyHindrance(state, def, band, done);
-        await applyUnlocks(state, def, key, band, done);
-        if (def.swapsRoles) await swapRoles(state, band, done);
+        promised = await applyUnlocks(state, def, key, band, done);
+        if (def.swapsRoles) await swapRoles(state, done, { restores: Boolean(def.restores?.[band]) });
         await applyThirdPartyChoice(actor, def, done);
         if (def.endsIncident) await finishIncident(state, key, band, done, receipt.killed);
     } else {
@@ -2315,7 +2332,7 @@ async function applyCrisisAction({
     const ranOut = await checkVictimSpent(done, receipt.killed);
 
     const announcement = await announceCrisis(actor, def, {
-        success, band, total, threshold, done, stage
+        success, band, total, threshold, done, stage, promised
     });
     receipt.messageId = announcement?.id ?? null;
 
@@ -2852,14 +2869,27 @@ function landedNote(actor, changes) {
  * Written as config rather than as a special case here, so a second gated
  * action later is a table entry and not another branch - see `unlocks` and
  * `lockedUntil` in CRISIS_ACTIONS.
+ *
+ * NOTHING IS OPENED THAT THE INCIDENT TOOK AWAY (E32+E07 C11a, 02.10.2026; audit S04-15).
+ * A Despair Self-defence opens Role reversal alone, and after a Despair opening, in a
+ * trap or against an accomplice Role reversal is denied (`deniedToVictim`). Until this
+ * commit that Self-defence was spent for good, its card said "Role reversal is open to
+ * you now" and "Unlocked: Role reversal.", and nothing was open: the victim's one
+ * attempt bought nothing. Now what is denied is neither unlocked nor named; a success
+ * that opens nothing at all does not spend the attempt, so the victim may try again for
+ * a better band. Answers whether the band's own sentence still holds - false once
+ * anything it names is denied, and the card leaves that sentence out
+ * (`announceCrisis`), its unlocked line naming what did open.
  */
 async function applyUnlocks(state, def, key, band, done) {
-    const opened = def.unlocks?.[band];
-    if (!opened?.length && !def.blocksSelf) return;
+    const named = def.unlocks?.[band] ?? [];
+    if (!named.length && !def.blocksSelf) return true;
 
+    const denied = new Set(state.deniedToVictim ?? []);
+    const opened = named.filter(id => !denied.has(id));
     const patch = {};
 
-    if (opened?.length) {
+    if (opened.length) {
         const unlocked = new Set(state.unlocked ?? []);
         for (const id of opened) unlocked.add(id);
         patch.unlocked = Array.from(unlocked);
@@ -2873,7 +2903,7 @@ async function applyUnlocks(state, def, key, band, done) {
     // A separate list rather than a huge number in `blocked`. That store is
     // decremented every round by `passTurn`, and world state is stored as JSON -
     // `Infinity` serialises to `null`, which reads back as "not blocked at all".
-    if (def.blocksSelf) {
+    if (def.blocksSelf && (opened.length || !named.length)) {
         const spent = new Set(state.spent ?? []);
         spent.add(key);
         patch.spent = Array.from(spent);
@@ -2893,12 +2923,13 @@ async function applyUnlocks(state, def, key, band, done) {
      * outcome, and a second write would let a client redraw between them and
      * show a free take on an action that is still locked.
      */
-    if (def.criticalFreeResolution && band === "critical") {
+    if (def.criticalFreeResolution && band === "critical" && opened.length) {
         patch.freeResolution = { side: def.side, turn: state.turn };
         done.push(game.i18n.localize("DRPG.Murder.freeResolution"));
     }
 
-    await writeState(patch);
+    if (Object.keys(patch).length) await writeState(patch);
+    return opened.length === named.length;
 }
 
 async function applyHindrance(state, def, band, done) {
@@ -2944,10 +2975,17 @@ async function applyThirdPartyChoice(actor, def, done) {
         // The side keeps the turn it is holding. Joining does not hand the
         // newcomer the current one - `killerTurnId` stays with whoever already
         // had it, and `passTurn` gives the next one to the accomplice.
+        //
+        // And the victim has somebody beside their killer now: no Role reversal against
+        // two (D13; E32+E07 C11a, audit S04-06), in the same write as the side, so no copy
+        // of the cast holds the accomplice with the reversal still open. Added to what was
+        // denied - after Double role reversal `swapRoles` has just cleared it, in a trap it
+        // already holds both.
         const state = murderState();
         await writeState({
             thirdSide: "killer",
-            killerTurnId: state?.killerTurnId ?? state?.killerId ?? null
+            killerTurnId: state?.killerTurnId ?? state?.killerId ?? null,
+            deniedToVictim: [...new Set([...(state?.deniedToVictim ?? []), "roleReversal"])]
         });
         done.push(game.i18n.format("DRPG.Murder.thirdJoined", {
             name: foundry.utils.escapeHTML(actor.name)
@@ -2990,9 +3028,16 @@ async function thirdLeaves(actor) {
     }, { expect: { thirdId: actor.id } });
 }
 
-async function swapRoles(state, band, done) {
+/*
+ * WHO IS HEALED IS THE ACTION'S, NOT THE BAND'S (E32+E07 C11a, 02.10.2026; audit S04-22, D41).
+ * Role reversal gives the reverser back all Health and Sanity on Hope and on a critical
+ * (`restores` in config.mjs); a Double role reversal promises nobody anything of the kind.
+ * Until this commit any band but Despair healed, and a Double role reversal - no dice,
+ * scored as Hope - healed the victim it turned.
+ */
+async function swapRoles(state, done, { restores = false } = {}) {
     const victim = game.actors.get(state.victimId);
-    if (band !== "despair" && victim) {
+    if (restores && victim) {
         await automatedUpdate(victim, {
             "system.resources.stress.value": 0,
             "system.resources.hitPoints.value": 0
@@ -5143,7 +5188,7 @@ async function tellGms(text, extra = {}) {
  * reported while the stage was `incident`, left them out. The owner's rule is the roll's
  * stage; the tier-2 test "a trap's last crisis card does not reach its builder" reads it.
  */
-async function announceCrisis(actor, def, { success, band, total, threshold, done, stage }) {
+async function announceCrisis(actor, def, { success, band, total, threshold, done, stage, promised = true }) {
     // On a success, the sentence for the band that came up. On a failure,
     // NOTHING from the table - what happened is in `done`.
     //
@@ -5159,7 +5204,8 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     // and neither has `failureExtraDrain` set, and Escape together promises the
     // newcomer becomes a second victim, which nothing implements. Printing the
     // receipt instead of the promise cannot drift.
-    const outcome = success ? (def[band] ?? "") : "";
+    // Nor the band's sentence when it promises a door the incident took away (`applyUnlocks`).
+    const outcome = success && promised ? (def[band] ?? "") : "";
     const state = murderState();
 
     // A `noRoll` action has no dice and no threshold, so the score line is
