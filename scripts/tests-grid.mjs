@@ -48,7 +48,7 @@ import { MODULE_ID, KEY_REMNANTS } from "./config.mjs";
 import { SETTINGS, incidentCast } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { ownerOf } from "./utils.mjs";
-import { ok, must, needs, world, wait, until, expectedRed } from "./tests-kit.mjs";
+import { ok, must, needs, world, wait, until } from "./tests-kit.mjs";
 
 /* ==========================================================================
  * THE TABLES (the plan's 2.1), written from the handbooks, not imported
@@ -289,7 +289,8 @@ const CASES = {
  * DM13's and TP05's (S04-17, S04-20, S05-23: the tools the incident used, and only those);
  * C13 the last two, DM12's and TR09's (S10-77: a victim's death from the Students list in
  * the fight offers Stage 6). Empty from C13 on, and kept: a case a later change turns red
- * is marked here, literally, or fails.
+ * is marked here, literally, or fails. The 1.2.66 release dropped `expectedRed` from the
+ * import above, with nothing left to mark; a new marker imports it again from tests-kit.mjs.
  * ========================================================================== */
 
 const GRID_RED = {
