@@ -712,7 +712,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     /* The Strike is the last of the fight's turns on the GM's tracker (E32+E07 C17): its band, and what it
        took off Aiko before the pass drained her - the 2 Health the card says, not the Health the pass added.
        Neither participant's copy holds the turns, read once their copy holds the action's receipt stamp
-       (`lastCrisis`, written with them). */
+       (`lastCrisis`, written with them) as the GM sends it to them - since fix r2-G2 (03.10.2026) the newest
+       of what their copy shows, not the record's (murder.mjs `castPacket`). */
     const trackerAfterHit = await gm.eval(`const { plural } = await import("${repoUrl}/scripts/utils.mjs");
         const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
         const M = await import("${repoUrl}/scripts/murder.mjs");
@@ -722,18 +723,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             action: esc(CRISIS_ACTIONS.strike.label), result: game.i18n.localize("DRPG.Murder.trackerResult.critical") })
             + " " + game.i18n.format("DRPG.Murder.theyLose", { name: esc(game.actors.get("${ids.aiko}").name), what: plural("DRPG.Reserve.health", { n: 2 }) });
         const read = await (async () => { ${TRACKER_READ} })();
-        return { last: last && [last.side, last.key, last.band, last.success, last.changes], said, read, stamp: S.castStore.stampOf("record", "lastCrisis") };`, { timeout: 60000 });
+        const sent = id => M.castPacket(game.users.find(u => !u.isGM && game.actors.get(id).testUserPermission(u, "OWNER"))?.id, M.murderState()).stamps.lastCrisis;
+        return { last: last && [last.side, last.key, last.band, last.success, last.changes], said, read,
+            stamp: { victim: sent("${ids.aiko}"), killer: sent("${ids.chie}") } };`, { timeout: 60000 });
     await settle(300);
-    const RECENT_HELD = `const E = await import("${repoUrl}/scripts/gm-store.mjs");
+    const RECENT_HELD = stamp => `const E = await import("${repoUrl}/scripts/gm-store.mjs");
         const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
         const end = Date.now() + 6000;
-        while ((E.mineStamps("cast")?.lastCrisis ?? 0) < ${trackerAfterHit.stamp ?? 0} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        while ((E.mineStamps("cast")?.lastCrisis ?? 0) < ${stamp ?? 0} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         return { stamp: E.mineStamps("cast")?.lastCrisis ?? null, recent: incidentCast().recent ?? null };`;
-    const recentHeld = { victim: await p1.eval(RECENT_HELD), killer: await p3.eval(RECENT_HELD) };
+    const recentHeld = { victim: await p1.eval(RECENT_HELD(trackerAfterHit.stamp?.victim)), killer: await p3.eval(RECENT_HELD(trackerAfterHit.stamp?.killer)) };
     check("hit: the GM's tracker lists the Strike last, with the 2 Health it took, and neither participant's copy holds the fight's turns",
         JSON.stringify(trackerAfterHit.last) === JSON.stringify(["killer", "strike", "critical", true, [{ actorId: ids.aiko, key: "hitPoints", landed: 2 }]])
         && trackerAfterHit.read.turns.at(-1) === trackerAfterHit.said && trackerAfterHit.read.turns.length <= 3
-        && Object.values(recentHeld).every(r => r.stamp === trackerAfterHit.stamp && r.recent === null),
+        && Object.entries(recentHeld).every(([who, r]) => r.stamp === trackerAfterHit.stamp?.[who] && r.recent === null),
         JSON.stringify({ trackerAfterHit, recentHeld }), { flow: "murder-incident" });
 
     /* ---- 1e. a swing's wear, taken by the GM after the blow ------------------

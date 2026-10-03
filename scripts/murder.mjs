@@ -53,7 +53,7 @@ import {
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
 import { castStore, blackenedStore, castCopy, deathStore, deathCopy, CAST_FIELDS, CAST_SEATS, INCIDENT_METHOD, INCIDENT_FIGHT } from "./gm-stores.mjs";
-import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp } from "./gm-store.mjs";
+import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStoresAudible, onGmStoresAudible, gmStoreStamp, stableJson } from "./gm-store.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf, reserveOf, reserveChange, reserveNote } from "./character.mjs";
 import { youOrThem } from "./secret.mjs";
@@ -176,7 +176,9 @@ const CAST_MINE_REQUEST = "incident.myCastRequest";
  * The GMs' record, or a participant's copy (settings.mjs, `incidentCast`, E04).
  */
 function readCast() {
-    return incidentCast();
+    // What each player was last sent (`sent`, `sendCast`) is the GMs' delivery memo, not the incident's.
+    const { sent, ...cast } = incidentCast();
+    return cast;
 }
 
 /** The murder in progress, or `null`. Mechanics from the world, names from here. */
@@ -298,8 +300,15 @@ function stillHolds(expect) {
  * with what `state` gives it or null - so a GM that never saw this write cannot
  * bring an older field of it back. In the incident's queue, with `expect` as
  * `writeState` takes it (E32 C4).
+ *
+ * `keepSame` (the Reroll's rewind, fix r2-G2, 03.10.2026): a field whose value the rewind
+ * does not change keeps its stamp as well. A GM that never saw the rewind holds that value
+ * already, so nothing older comes back; and a rewind that stamped every field moved the
+ * seats' stamps, `openedAt`'s among them, to the Reroll's time - what `standingStamps`
+ * reads the opening off (measured: 19-standing-cast F1 read the Reroll's stamp as the
+ * opening's until this option).
  */
-async function restoreState(state = {}, { keep = [], expect = null } = {}) {
+async function restoreState(state = {}, { keep = [], keepSame = false, expect = null } = {}) {
     if (!game.user.isGM) return null;
 
     return incidentWrite(async () => {
@@ -313,7 +322,8 @@ async function restoreState(state = {}, { keep = [], expect = null } = {}) {
         const unknown = neither.filter(key => key !== "updated");
         if (unknown.length) error(`An incident's state named field(s) neither its world half nor its cast holds, kept out of both: ${unknown.join(", ")}`);
 
-        await ownCastWrite(() => castStore.resetRecord(cast, { keep }));
+        const same = keepSame ? CAST_FIELDS.filter(f => stableJson(cast[f] ?? null) === stableJson(previous[f] ?? null)) : [];
+        await ownCastWrite(() => castStore.resetRecord(cast, { keep: [...keep, ...same] }));
         // Who holds it before and after, by the state before and the one written next.
         pushCastToParticipants(readCast(), previous, rest, publicBefore);
         await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
@@ -404,7 +414,7 @@ function pushCastToParticipants(cast, previous, stateNow = null, statePrev = nul
     // While the stores are quiet nothing goes out, and what the participants were told stays (`tellCastChange`).
     if (!gmStoresQuiet()) castTold = { stamps, cast };
     for (const userId of before) {
-        if (!now.has(userId)) sendCast(userId, {}, stamps);
+        if (!now.has(userId)) sendCast(userId, {}, stamps, stateNow, { leaving: true });
     }
     for (const userId of now) sendCast(userId, cast, stamps, stateNow);
 }
@@ -425,7 +435,9 @@ function castStamps() {
  * the GM's side), and more of it was not every holder's to keep:
  *   - `lastCrisis`, the Reroll receipt, with a snapshot of the incident in it. Only a GM
  *     judges an undo (`crisisUndoRefusal`, asked by bridge-guards.mjs on the GM's
- *     browser), so every copy holds it null.
+ *     browser), so every copy holds it null - and since fix r2-G2 (the round-2 review's
+ *     S2-m3) its stamp is a withheld field's (`castPacket`): it was the time of the
+ *     fight's last action, sent to a trap's builder let in at Stage 6.
  *   - In a trap, the builder. A holder who is not on the killers' side (`killerIds`) -
  *     the victim, a third who did not throw in with them - holds `killerId` and
  *     `killerTurnId` null: the trap's victim reads their incident from their copy
@@ -460,8 +472,14 @@ function castStamps() {
  *     Stage 6 on. E06 keeps every roll of a trap's fight from its builder, and the fight is
  *     those rolls' results: `drainStopped` is a critical Self-defence, `advantageNext` a
  *     failure with Hope. Nothing of theirs at Stage 6 reads it (the Event card draws at
- *     `incident` alone, events.mjs). Nor who walked into the fight and out of it
- *     (`departed`, E32+E07 C10): a cast field beside the fight, held null with it.
+ *     `incident` alone, events.mjs). Nor, when their copy seats no third, the third's
+ *     seat and side, whose stamps timed a third's arrival and leaving (fix r2-G2,
+ *     03.10.2026; the round-2 review's S2-m3): held null, as the third is, and stamped
+ *     as the rest of what is withheld.
+ * Who walked into the fight and out of it (`departed`, E32+E07 C10), null in every copy:
+ * its readers are the primary GM's (`maybeThirdParty`, `thirdPartyEnters`), and until fix
+ * r2-G2 (the round-2 review's S2-m1) a third seated after another left was sent who had
+ * walked in and out before they came - the one holder for whom it was news.
  * The opening's statistic (`openingTrait`, E32+E07 C11c), null in every copy: a GM's pick
  * for a roll a direct murder's victim is not shown (D6) and a trap's builder is not shown
  * either, and the one player who rolls it is sent it with the invitation
@@ -486,16 +504,17 @@ export function castFor(userId, cast, state = null) {
 
 /** `castFor`'s copy, and the fields it holds null for this holder's sake (`castPacket` stamps them). */
 function castCopyFor(userId, cast, state = null) {
-    const { swung, ...theirs } = cast ?? {};
+    const { swung, sent, ...theirs } = cast ?? {};
     if (!Object.keys(theirs).length) return { copy: theirs, withheld: [] };
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
     const seen = { ...live, ...theirs, indirect: incidentIndirect(theirs, live) };
     const owns = id => Boolean(id) && ownerOf(game.actors.get(id))?.id === userId;
     const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
     if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };
-    const withheld = [...(incidentAudienceIds(seen, { stage: "incident" }).includes(userId) ? ["keyRemnants"] : [...INCIDENT_FIGHT, "departed"]),
-        "openingTrait", "freeCleanup", "recent"];
     const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
+    const afterFight = !incidentAudienceIds(seen, { stage: "incident" }).includes(userId);
+    const withheld = [...(afterFight ? [...INCIDENT_FIGHT, ...(copy.thirdId ? [] : ["thirdId", "thirdSide"])] : ["keyRemnants"]),
+        "lastCrisis", "departed", "openingTrait", "freeCleanup", "recent"];
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
     if (!seen.indirect || killerIds(theirs).some(owns)) return { copy, withheld };
     return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };
@@ -535,43 +554,93 @@ export function castPacket(userId, cast, { state = null, stamps = castStamps() }
 const aboutSeats = copy => Object.keys(copy ?? {}).every(f => f === "betrayal");
 
 /**
- * The packet this GM last sent each player (`sendCast`), by user id, for as long as this
- * browser is open.
- *
  * A STANDING PACKET IS SENT ONCE, AND AN ANSWER REPEATS IT (fix r1-G1, 29.09.2026; the
  * review's M1, and the seat half its "outside this stage" routed here). A packet that
  * holds nothing or the offer alone carries the seats' stamps, and those move with the
  * incident running now: a Role reversal that held stamps `killerId` and `victimId`, a
  * third walking in or away `thirdId`. Pushed on every write, and answered whenever a
  * console asks, they timed that incident for a browser that stands outside it. So a push
- * does not send a player a standing packet that is what this GM last sent them - the same
+ * does not send a player a standing packet that is what they were last sent - the same
  * value, the offer's own stamp unmoved - and an answer sends them that packet again as it
- * was. Stamps a GM sent once are no newer than the record's now, so a copy that takes
- * the repeat would have taken a fresh one as well: the merge's soundness does not move.
- * What moves is how late: a copy a repeat does not reach (it holds something newer from
- * another GM) keeps it until the next change - which is why a GM forgets what it sent
- * whenever another GM's write is merged here while it is not the primary
- * (`tellCastChange`), and after a restore (`retellCast`). What is left: the first answer
- * after a GM's browser opens is the record's seats as they stand.
+ * was. Stamps sent once are no newer than the record's now, so a copy that takes the
+ * repeat would have taken a fresh one as well: the merge's soundness does not move.
+ *
+ * WHAT EACH PLAYER WAS LAST SENT IS THE GMS' RECORD'S, NOT ONE BROWSER'S (fix r2-G2,
+ * 03.10.2026; the round-2 reviews' S2-m2 and C2-m6). Until this fix it was a Map on the
+ * browser that sent it, and every player's first answer after a GM's browser opened was
+ * the record's seats as they stood - and every player asks when a primary GM's world has
+ * loaded (`drpgPrimaryReady`). The review measured it (92, 03.10): a GM that sorts first
+ * connecting mid-fight sent the offer's third, unasked, `killerId` and `victimId` stamped
+ * at a Role reversal that held, and a player connecting after it read the same. So:
+ *   - The memo is `sent` of the cast record (gm-stores.mjs), a stamp per user: on every
+ *     GM, across a reload and a change of primary, backed up and reset with the cast.
+ *     It holds the standing packet a player was last sent, or `FULL_COPY` once they are
+ *     sent a seat's copy - after which a standing packet is a change they see happen (they
+ *     leave the fight, it closes), sent at the record's stamps as before.
+ *   - A standing packet sent to a player whose memo is standing or empty is stamped so
+ *     that its seats tell no more than the running incident's opening (`standingStamps`),
+ *     and a player the memo has never seen is answered so too.
+ *   - A push writes the memo, an answer does not: an answer is the same reading of the
+ *     record each time until something is pushed, and the first run of this fix, which
+ *     wrote one for every player's ask at load, set two GMs' stores apart that 61 A5
+ *     reads as equal.
+ * A player's ask before and after a Role reversal reads the same packet, and a GM that
+ * connects mid-fight repeats it (19-standing-cast R1, W1, F1 and F2, each red at 7ae1951).
+ * What is left, read and not measured: the memo is a store write like any other, flushed
+ * a moment later, and a GM's browser that closes before its store flushes takes the last
+ * one with it - the next standing packet to that player is then stamped as one to a
+ * player never sent anything.
  */
-const castSent = new Map();
+const FULL_COPY = Object.freeze({ full: true });
 
-function sendCast(userId, cast, stamps, state = null, { answer = false } = {}) {
+function sendCast(userId, cast, stamps, state = null, { answer = false, leaving = false } = {}) {
     // While tier 2 holds the stores the cast is a fixture's: no participant is sent it (R2-M1).
     if (gmStoresQuiet()) return;
     let packet = castPacket(userId, cast, { state, stamps });
-    const last = castSent.get(userId);
-    if (last && aboutSeats(packet.cast) && JSON.stringify(last.cast) === JSON.stringify(packet.cast)
-        && (last.stamps?.betrayal ?? 0) === (packet.stamps?.betrayal ?? 0)) {
-        if (!answer) return;
-        packet = last;
+    const last = castStore.record()?.sent?.[userId] ?? null;
+    if (aboutSeats(packet.cast)) {
+        if (last?.cast && stableJson(last.cast) === stableJson(packet.cast)
+            && (last.stamps?.betrayal ?? 0) === (packet.stamps?.betrayal ?? 0)) {
+            if (!answer) return;
+            packet = last;
+        } else if (!last?.full && !(leaving && !last)) {
+            packet = { cast: packet.cast, stamps: standingStamps(packet.stamps, last, state) };
+        }
     }
-    castSent.set(userId, packet);
+    const memo = aboutSeats(packet.cast) ? { cast: packet.cast, stamps: packet.stamps } : FULL_COPY;
+    if (!answer && stableJson(memo) !== stableJson(last)) rememberSent(userId, memo);
     try {
         game.socket.emit(SOCKET_EVENT, { action: CAST_MINE, cast: packet.cast, stamps: packet.stamps }, { recipients: [userId] });
     } catch (err) {
         error("Could not deliver an incident cast to a participant", err);
     }
+}
+
+/**
+ * The memo's one write (`sendCast`). Outside the incident's queue on purpose (R205 reads it
+ * so): `sent` is not the incident's, a push runs inside the queue and an answer outside
+ * it, and a write queued from inside the queue would wait on itself.
+ */
+function rememberSent(userId, memo) {
+    castStore.patch(RECORD, { sent: { [userId]: memo } })
+        .catch(err => error("Could not keep what a participant was sent of the incident's cast", err));
+}
+
+/**
+ * The seats' stamps of a standing packet for a player who has not been sent a seat's copy
+ * since their last standing one (`last`, or none): no older than that one's, so a copy
+ * that holds it takes this, and while an incident runs no newer than its opening, which
+ * stamped every seat at once - the opening is the world's to see, a Role reversal or a
+ * third walking in after it is not. A player the memo has never seen holds at most an
+ * earlier incident's copy, at or under that opening. The offer keeps its own stamp. A
+ * player leaving the fight now (`leaving`) whom the memo has never seen is sent the
+ * record's: they may hold a seat's copy newer than the opening.
+ */
+function standingStamps(stamps, last, state = null) {
+    const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const opened = live.active ? castStore.stampOf(RECORD, "openedAt") : 0;
+    return Object.fromEntries(Object.entries(stamps ?? {}).map(([f, s]) => [f, f === "betrayal" ? s
+        : Math.max(last?.stamps?.[f] ?? 0, opened ? Math.min(s ?? 0, opened) : s ?? 0)]));
 }
 
 /**
@@ -596,11 +665,7 @@ function tellCastChange() {
     if (!was) { castTold = now; return; }
     if (JSON.stringify(now.stamps) === JSON.stringify(was.stamps)) return;
     if (isPrimaryGm()) pushCastToParticipants(now.cast, was.cast);
-    else {
-        castTold = now;
-        // What this GM sent is not what the players hold any more (`castSent`).
-        castSent.clear();
-    }
+    else castTold = now;
 }
 
 /**
@@ -615,7 +680,6 @@ export function retellCast() {
     if (!game.user?.isGM || gmStoresQuiet()) return 0;
     if (!Object.values(castStamps()).some(s => s > 0)) return 0;
     const cast = readCast();
-    castSent.clear();
     pushCastToParticipants(cast, castTold?.cast ?? cast);
     return castOwners(cast).size;
 }
@@ -2660,9 +2724,15 @@ async function undoLastCrisis({ actorId, key }) {
     // The state wholesale, receipt included: the replay writes a fresh one.
     // Split on the way back in, because the receipt holds the MERGED shape -
     // it was taken from `murderState()` - and putting it back unsplit would
-    // return every name to world data (LIVE-001).
+    // return every name to world data (LIVE-001). The betrayal offer stays as it stands, as
+    // the opening and the close keep it, and what the rewind does not change keeps its stamp
+    // (`keepSame`; fix r2-G2, 03.10.2026; the round-2 review's S2-m4): put back, the offer was
+    // stamped anew and its third, outside this incident, was sent it with the rewind's
+    // time - and an offer swept since the action came back. No
+    // action a Reroll takes back arms one, read and not measured: the offer opens on a body
+    // (`armBetrayalWindow`), and an action that killed is not taken back (`crisisKilled`).
     try {
-        if (!await restoreState(receipt.state ?? {}, { expect: held })) {
+        if (!await restoreState(receipt.state ?? {}, { keep: ["betrayal"], keepSame: true, expect: held })) {
             warn(`Reroll: the incident that ${receipt.key} by ${receipt.actorId} was taken in closed or moved on while it was taken back; its state is not rewound.`);
             return false;
         }
@@ -3514,7 +3584,7 @@ function registerIncidentCastSync() {
      * held no cast answered with nothing and emptied the participant's (the cast
      * half of S06-19); a stamp of 0 from a GM holding nothing now replaces nothing.
      * The answer is `castPacket`'s, and a standing one - nothing, or the offer alone -
-     * repeats what this GM last sent the asker (`castSent`, fix r1-G1).
+     * repeats what the asker was last sent (`sendCast`, fix r1-G1 and r2-G2).
      */
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (payload?.action !== CAST_MINE_REQUEST || !isPrimaryGm()) return;

@@ -4008,11 +4008,12 @@ const SCENARIOS = [
             seen.push([...read(), M.murderState()?.thirdActed ?? null]);
             for (const [i, inside] of [[1, false], [1, true], [0, false], [0, true]]) await walk(i, inside);
             seen.push(read());
+            // Who left is the GMs' alone since fix r2-G2 (the round-2 review's S2-m1): the victim's copy holds it null.
             seen.push(await M.thirdPartyEnters(third) === null, M.castFor(player(victim).id, incidentCast()).departed ?? null);
             const left = [third.id, fourth.id];
             equal(stableJson(seen), stableJson([["incident", third.id, []], ["incident", null, [third.id]], ["incident", fourth.id, [third.id]],
-                ["incident", fourth.id, [third.id]], ["incident", null, left, false], ["incident", null, left], true, left]),
-            "a third who left was seated again by their token or the GM's call, a failed escape's third still counted, or the victim's copy does not hold who left");
+                ["incident", fourth.id, [third.id]], ["incident", null, left, false], ["incident", null, left], true, null]),
+            "a third who left was seated again by their token or the GM's call, a failed escape's third still counted, or the victim's copy holds who left");
         } finally {
             for (const [i, t] of tokens.entries()) if (canvas.scene.tokens.has(t.id)) await t.update(was[i], PLACE);
             await stood.back();
@@ -4043,15 +4044,18 @@ const SCENARIOS = [
             "the third is offered or let take an action that is not a third's, or a side of the fight lost Use an item");
     }],
 
-    ["a trap's builder is not told who walked in on the fight and left", async () => {
-        /* E32+E07 C10, 02.10.2026. Who left (`departed`) is a cast field, sent to the seats in their
-           copy as the fight is - and held null, as the fight is, for a trap's builder, who is seated
-           from Stage 6 on and is kept every part of the fight (murder.mjs `castFor`, fix r1-G1). A
-           trap springs, a third walks in on the victim's side and averts their eyes, and the GM
-           moves the incident to Stage 6 - a write after the leave: the victim's copy names the third
-           who left, the builder's holds it null, and its stamp is not the leave's. */
+    ["a trap's builder is not told who walked in on the fight and left, nor when the fight last moved", async () => {
+        /* E32+E07 C10, 02.10.2026. Who left (`departed`) is a cast field, held null for a trap's
+           builder, who is seated from Stage 6 on and is kept every part of the fight (murder.mjs
+           `castFor`, fix r1-G1). A trap springs, a third walks in on the victim's side and averts
+           their eyes, and the GM moves the incident to Stage 6 - a write after the leave. Since fix
+           r2-G2 (03.10.2026; the round-2 review's S2-m1 and S2-m3) no player's copy holds who left -
+           the victim's included - and the builder's packet stamps who left, the Reroll receipt and
+           the third's seat and side, all of them null in it, as the newest of what it shows: the
+           receipt's own stamp was the time of the fight's last action, the third's the leave's. */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a builder, a victim whose player is asked the opening roll, and a third");
         const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
         const { livingStudents } = await import("./chapter.mjs");
         const { incidentCast } = await import("./settings.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
@@ -4066,10 +4070,56 @@ const SCENARIOS = [
         const copy = a => M.castFor(player(a).id, incidentCast());
         // A field held null for the holder's sake is stamped as the newest of the rest, so it is the packet's newest.
         const { cast: held, stamps } = M.castPacket(player(builder).id, incidentCast());
-        equal(stableJson([copy(victim).departed ?? null, copy(builder).victimId === victim.id, held.departed ?? null,
-            stamps.departed === Math.max(...Object.values(stamps))]),
-            stableJson([[third.id], true, null, true]),
-            "the victim's copy does not name the third who left, or the builder's copy at Stage 6 does, or its stamp tells it apart");
+        const newest = Math.max(...Object.values(stamps));
+        const record = f => S.castStore.stampOf("record", f);
+        equal(stableJson([copy(victim).departed ?? null, copy(builder).victimId === victim.id, held.departed ?? null, held.thirdId ?? null,
+            ["departed", "lastCrisis", "thirdId", "thirdSide"].filter(f => stamps[f] !== newest),
+            record("lastCrisis") < newest && record("thirdId") < newest]),
+            stableJson([null, true, null, null, [], true]),
+            "a copy at Stage 6 names the third who left, or the builder's packet stamps who left, the receipt or the third apart from what it shows");
+    }],
+
+    ["a Reroll's rewind keeps the betrayal offer as it stands, and the stamps of what it does not change", async () => {
+        /* E32+E07 fix r2-G2, 03.10.2026; the round-2 review's S2-m4. The rewind put the incident
+           back as a record, every field stamped anew: the offer of an earlier incident too - so its
+           third, outside this one, was sent it with the Reroll's time (measured by the review, 94
+           W1) and an offer swept after the action came back - and the seats and `openedAt`, which
+           a standing packet reads the opening off (murder.mjs `standingStamps`). The offer of a
+           first incident stands; in a second, the victim's Leave a clue fails, the offer is swept,
+           and the GM replays the action as a Reroll: the offer stays swept, and the stamps of the
+           opening and the seats, which the rewind does not change, do not move. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { incidentCast } = await import("./settings.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const stamp = f => S.castStore.stampOf("record", f);
+        const kept = ["openedAt", "killerId", "victimId", "thirdId"];
+        try {
+            await accompliceAtStageSix(M, killer, victim, third);
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            await turnFor(M, victim, "leaveClue");
+            await M.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 1, isCritical: false, withHope: true });
+            const offered = incidentCast().betrayal?.thirdId ?? null;
+            await M.clearBetrayalOffer();
+            const before = kept.map(stamp);
+            const replay = await M.resolveCrisisAction({ actorId: victim.id, key: "leaveClue", total: 20, isCritical: false, withHope: true, undo: true });
+            await settle();
+            equal(stableJson([offered, Boolean(replay), M.murderState()?.stage ?? null, incidentCast().betrayal ?? null, kept.filter((f, i) => stamp(f) !== before[i])]),
+                stableJson([third.id, true, "incident", null, []]),
+                "the Reroll did not replay the action, brought back the offer swept after it, or stamped a field it did not change (offer, replayed, stage, offer after, moved)");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await M.clearBetrayalOffer();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
     }],
 
     ["Self-defence with Despair after a Despair opening stays available and promises nothing", async () => {

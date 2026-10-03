@@ -862,9 +862,13 @@ async function assertIncidentInvariants(run) {
            their rolls' results, which E06 keeps from the builder (fix r1-G1; the review's m1, M2). What
            a copy holds null its stamp does not tell either: it reads as the newest of the stamps of what
            the copy shows, so it moves when they do and never alone. Who walked in and out again
-           (`departed`, E32+E07 C10) is a cast field beside the fight, and is held as the fight is. */
+           (`departed`, E32+E07 C10) and the Reroll receipt are in no player's copy and stamp as the
+           rest withheld, and a trap's killers whose copy seats no third are not timed the third's
+           seat and side either (fix r2-G2, the round-2 review's S2-m1 and S2-m3). */
         const copied = [...FIGHT_FIELDS, "departed"];
-        const withheld = [...(m.kind === "trap" && killerSide ? copied : ["keyRemnants"]), "openingTrait", "freeCleanup", "recent"];
+        const afterFight = m.kind === "trap" && killerSide;
+        const withheld = [...(afterFight ? [...FIGHT_FIELDS, ...(none(copy.thirdId) ? ["thirdId", "thirdSide"] : [])] : ["keyRemnants"]),
+            "departed", "lastCrisis", "openingTrait", "freeCleanup", "recent"];
         const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
         const unlike = copied.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);

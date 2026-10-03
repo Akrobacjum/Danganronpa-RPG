@@ -755,18 +755,19 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        opening's result wrote last, so its stamp is that newest already. Who struck a critical Finishing blow
        (`freeCleanup`, E32+E07 C13) is withheld the same way, so its stamp reads as that newest too - the C13 chain
        (03.10.2026) failed F3 until this line named it. The fight's last turns (`recent`, E32+E07 C17) are the
-       GMs' as well, and withheld the same way. */
-    const withheldF = ["keyRemnants", "openingTrait", "freeCleanup", "recent"];
+       GMs' as well, and withheld the same way; so, since fix r2-G2 (03.10.2026), are the Reroll receipt and who
+       walked into the fight and out of it (`lastCrisis`, `departed`). */
+    const withheldF = ["keyRemnants", "openingTrait", "freeCleanup", "recent", "lastCrisis", "departed"];
     const shownF = Math.max(0, ...Object.entries(stampsF).filter(([f]) => !withheldF.includes(f)).map(([, t]) => t ?? 0));
-    const heldStampsF = { ...stampsF, openingTrait: shownF, freeCleanup: shownF, recent: shownF };
+    const heldStampsF = { ...stampsF, openingTrait: shownF, freeCleanup: shownF, recent: shownF, lastCrisis: shownF, departed: shownF };
     check("F3: the primary answers the killer's player with the cast and every part's stamp, a bystander with nothing and the seats' stamps alone, and both GMs hold the killer",
         castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === castAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
         && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(heldStampsF)
         && J(answeredF.p1.map(a => [a.from, a.cast])) === J([[IDS.gm, {}]]) && J(Object.keys(answeredF.p1[0].stamps ?? {}).sort()) === J(Object.keys(seatsF).sort())
         && Object.keys(seatsF).every(k => answeredF.p1[0].stamps[k] <= seatsF[k]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
-    /* The bystander's "not in it" is the one this GM last sent them, repeated (murder.mjs `castSent`, E32+E07 fix
-       r1-G1, 29.09.2026): the seats' stamps it carries are no newer than the record's and need not be the record's -
+    /* The bystander's "not in it" is the one they were last sent, repeated (murder.mjs `sendCast`, E32+E07 fix
+       r1-G1, 29.09.2026, and r2-G2): the seats' stamps it carries are no newer than the record's and need not be the record's -
        an answer that moved with them timed a Role reversal or a third's arrival for a browser outside the incident. */
 
     /* F7 (E05 C8; audit S04-08): the incident's method is the cast's now, and syncs with it -
@@ -831,11 +832,12 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        primary scores Aiko's Averted eyes - the third's, which passes no turn and marks nothing - and the
        second GM's record holds the turn, and its tracker lists it. The killer's player holds none of it in
        the packet that carried the write: their copy is read once its receipt's stamp (`lastCrisis`, written
-       with the turns and held null in it as well) is the record's. Aiko's player leaves with her. Until C17
-       the tracker kept no history at all. */
+       with the turns and held null in it as well) is the one the primary sends them - since fix r2-G2 the
+       newest of what their copy shows, not the record's (murder.mjs `castPacket`). Aiko's player leaves with
+       her. Until C17 the tracker kept no history at all. */
     await gm.eval(`${CAST} await M.resolveCrisisAction({ actorId: "${IDS.aiko}", key: "avertedEyes", total: 0, isCritical: false, withHope: true });
         return true;`, { timeout: 60000 });
-    const writtenF10 = (await castStampsOn(gm)).lastCrisis;
+    const writtenF10 = await gm.eval(`${CAST} return M.castPacket("${IDS.p3}", M.murderState()).stamps.lastCrisis;`);
     const historyF10 = await gm2.eval(`${CAST} const CL = await import("${repoUrl}/scripts/cleanup.mjs");
         const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
         const end = Date.now() + 6000;

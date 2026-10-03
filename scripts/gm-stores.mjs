@@ -266,8 +266,10 @@ export const INCIDENT_FIGHT = Object.freeze([
  * `departed` (E32+E07 C10, 02.10.2026; audit S04-21): the actor ids of the thirds who left
  * - Averted eyes, a failed Escape together - and may not walk back in. A list of names,
  * so the cast's and never the world half's; it was never in the world half, so it is not
- * the fight's either (`INCIDENT_FIGHT` is also what the update lifts out of it), and a
- * holder seated only after the fight is sent it null (murder.mjs `castFor`).
+ * the fight's either (`INCIDENT_FIGHT` is also what the update lifts out of it). Every
+ * player's copy holds it null since fix r2-G2 (03.10.2026; the round-2 review's S2-m1): its
+ * readers are the primary GM's, and a third seated after another left read in theirs who
+ * had walked in and out before they came (murder.mjs `castFor`).
  *
  * `openingTrait` (E32+E07 C11c, 02.10.2026; audit S04-23, the owner's Q4 as corrected): the
  * statistic a GM picked for the opening roll, kept so that a re-ask and a GM's throw for an
@@ -283,6 +285,13 @@ export const INCIDENT_FIGHT = Object.freeze([
  * tracker, `{ turn, side, key, band, success, changes }` each, written with the action's
  * receipt (murder.mjs `closeReceipt`). It names who acted and what it cost them, so not the
  * fight's either: the GMs' alone, every player's copy holds it null.
+ *
+ * Not a field of the incident, and so not in this list: `sent` (E32+E07 fix r2-G2,
+ * 03.10.2026), what each player was last sent of a standing packet - nothing, or the
+ * betrayal offer alone - split a stamp per user, kept by the GMs so that every GM repeats
+ * it (murder.mjs `sendCast`). `resetRecord` leaves it, no stamp of it is sent, and
+ * murder.mjs reads the incident without it (`readCast`); a reset of the incident group
+ * empties it with the record.
  */
 export const CAST_FIELDS = Object.freeze([
     "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
@@ -313,7 +322,7 @@ export const CAST_FIELDS = Object.freeze([
  */
 export const castStore = defineGmStore({
     name: "cast", key: SETTINGS.incidentCast, legacyKey: SETTINGS.legacyIncidentCast,
-    kind: "record", fields: CAST_FIELDS, split: ["swung"], resetGroup: "incident", backup: true, sync: true,
+    kind: "record", fields: CAST_FIELDS, split: ["swung", "sent"], resetGroup: "incident", backup: true, sync: true,
     afterRestore: () => import("./murder.mjs").then(m => m.retellCast()),
     legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
     claim: legacy => {

@@ -6224,8 +6224,13 @@ const REGRESSIONS = [
          * queue's. The reader is shown a planted source of each kind first.
          * E32+E07 fix r1-G3 (02.10.2026; review C-M2): the Reroll's rewind (`undoLastCrisis`)
          * is a transition too - without `expect` it brought a closed incident back.
+         * E32+E07 fix r2-G2 (03.10.2026): what each player was last sent of the cast (`sent`) is
+         * the GMs' delivery memo, not the incident, and its one writer (`rememberSent`) runs
+         * outside the queue - a push runs inside it, an answer outside - so its body is not read
+         * as a stray, and it writes `sent` alone.
          */
         const LEAVES = ["writeCast", "armBetrayalWindow"];
+        const MEMO = "rememberSent";
         const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow)\(/g;
         const QUEUES = /(?<!function )\b(?:writeState|restoreState|incidentWrite)\(/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
@@ -6246,7 +6251,7 @@ const REGRESSIONS = [
             const queued = at => spans.some(([a, b]) => at > a && at < b);
             const stray = [], again = [];
             for (const m of src.matchAll(WRITE)) {
-                if (!queued(m.index) && !LEAVES.includes(fnAt(m.index))) stray.push(`${file} ${fnAt(m.index)}`);
+                if (!queued(m.index) && !LEAVES.includes(fnAt(m.index)) && fnAt(m.index) !== MEMO) stray.push(`${file} ${fnAt(m.index)}`);
             }
             for (const m of src.matchAll(QUEUES)) {
                 if (queued(m.index) || LEAVES.includes(fnAt(m.index))) again.push(`${file} ${fnAt(m.index)}`);
@@ -6272,6 +6277,9 @@ const REGRESSIONS = [
         ok(!found.again.length, `a write in the incident's queue queues another, and the chain would wait on itself: ${found.again.join(", ")}`);
 
         const bare = stripComments(src);
+        const memo = fnSource(bare, MEMO);
+        ok(/\bcastStore\.patch\(RECORD, \{ sent: \{ \[userId\]: memo \} \}\)/.test(memo) && [...stripStrings(memo).matchAll(WRITE)].length === 1,
+            `the memo's writer (${MEMO}) is gone, or writes more than what a player was sent`);
         const TRANSITIONS = ["checkVictimSpent", "finishIncident", "beginResolution", "passTurn", "thirdPartyEnters",
             "resolveKillerOpening", "resolveVictimOpening", "closeIncident", "undoLastCrisis"];
         const blind = TRANSITIONS.filter(fn => !/if \(!await (?:writeState|restoreState)\([^;]*\bexpect: /.test(fnSource(bare, fn)));
