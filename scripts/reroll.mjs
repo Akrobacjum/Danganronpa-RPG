@@ -1191,28 +1191,37 @@ async function settleObserve(actor, bookmark, after, done) {
  *
  * `bookmark.crisis` is the GMs' fact of the action (murder.mjs `noteCrisisFact`),
  * written by the GM that resolved it.
+ *
+ * WITH THE FIRST THROW'S FACTS, ON THIS GM (E08+E28 C6b, 03.10.2026; audit S04-18). The
+ * Reroll is made on a GM since C4a, and this still sent the bridge's crisis packet - to its
+ * own client - with the new number and nothing else: no pick, no item, no `before`. So a
+ * critical Strike's replay read "the killer chooses" and marked nothing, and Use an item's
+ * read "fumbled" over the heal its undo had kept. It runs `resolveCrisisAction` here, with
+ * the row's pick, item, the reserve the item healed and what it started from (`again`);
+ * nothing of it is a packet's. Exported for the suite.
  */
-async function settleCrisis(actor, bookmark, after, done) {
+export async function settleCrisis(actor, bookmark, after, done) {
     if (!bookmark.crisis) {
         done.push(game.i18n.localize("DRPG.Reroll.noReplay"));
         return {};
     }
 
-    const { requestCrisisResult } = await import("./gm-bridge.mjs");
-    const res = await requestCrisisResult({
+    const { resolveCrisisAction } = await import("./murder.mjs");
+    const value = await resolveCrisisAction({
         actorId: actor.id,
         key: bookmark.crisis,
         total: after.total,
         isCritical: after.isCritical,
         withHope: after.withHope,
-        undo: true
+        undo: true,
+        again: { choice: bookmark.choice ?? null, usedItemId: bookmark.usedItemId ?? null,
+            usedFor: bookmark.usedFor ?? null, before: bookmark.before ?? null }
     });
 
-    // Refused, or done on this GM's own client with nothing carried out (`resolveCrisisAction`
-    // answers null): nothing was replayed, and the caller puts the first roll back. An answer
-    // that did not come is not a refusal - the GM may have replayed it.
-    if (res.refused || (game.user.isGM && res.ok && !res.value)) return null;
-    if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.crisisReplayed"));
+    // Nothing carried out (`resolveCrisisAction` answers null): nothing was replayed, and the
+    // caller puts the first roll back.
+    if (!value) return null;
+    done.push(game.i18n.localize("DRPG.Reroll.crisisReplayed"));
     return { crisis: bookmark.crisis };
 }
 

@@ -579,7 +579,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
         const kit = (a, name) => INV.grantItem(a, { name, category: "usable", tier: 1, goal: "healing", quiet: true });
         await automatedUpdate(botan, { "system.resources.hope.value": Math.max(1, botan.system?.resources?.hope?.value ?? 0) });
-        return { kit: (await kit(aiko, "Suite kit used in the fight"))?.id ?? null, drink: (await kit(botan, "Suite kit a bystander drinks"))?.id ?? null,
+        // A pack of two and a Health mark for it to heal, for the Reroll after the cards (E08+E28 C6b).
+        const aikoKit = (await kit(aiko, "Suite kit used in the fight"))?.id ?? null, hpWas = aiko.system.resources.hitPoints.value;
+        await aiko.items.get(aikoKit ?? "")?.update({ "system.quantity": 2 });
+        await automatedUpdate(aiko, { "system.resources.hitPoints.value": Math.max(1, hpWas) });
+        return { kit: aikoKit, hpWas, hpSet: aiko.system.resources.hitPoints.value, drink: (await kit(botan, "Suite kit a bystander drinks"))?.id ?? null,
             tool: (await INV.grantItem(botan, { name: "Suite tool a bystander breaks", category: "tool", tier: 1, quiet: true }))?.id ?? null,
             turn: M.isTheirTurn(aiko) };`, { timeout: 60000 });
     await settle(600);
@@ -634,6 +638,47 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return { docs, held, others };`;
     const useSeen = { p1: await p1.eval(USE_READ), p2: await p2.eval(USE_READ), p3: await p3.eval(USE_READ) };
     const clean = keys => [useSeen.p1, useSeen.p2, useSeen.p3].every(r => keys.every(k => r.docs[k] && r.docs[k].veiled && !r.docs[k].named && !r.docs[k].names));
+    /* ---- 1c+. the Reroll of that Use an item, made on the GM ---------------
+       E08+E28 C6b, 03.10.2026; audit S04-18. Aiko's Use an item above healed her a Health mark and
+       took one of the pack's two on p1's browser, before the GM scored it, and a Reroll's undo gave
+       back neither - it only unbroke the item. Rerolled from p1's into a miss (on the GM the roll
+       reads as one of the scenario's, as 1c' below), the undo puts back the GMs' row's `before`:
+       the mark and the charge. Read on the GM and on the roller's browser: Aiko's Health marks, the
+       pack's quantity and whether it is broken; on the GM, the replay's receipt naming no item.
+       Aiko's Hope and Health are put back. */
+    const reuse = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get(aiko.id) ?? null;
+        const m = game.messages.get(row?.messageId ?? "");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 11, fear: 5 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 4, fear: 2 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        const hope = aiko.system.resources.hope.value;
+        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, hope) });
+        return { messageId: m?.id ?? null, usedItemId: row?.facts?.usedItemId ?? null, before: row?.facts?.before ?? null, hope, hp: aiko.system.resources.hitPoints.value,
+            qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0) };`, { timeout: 60000 });
+    const reusedAsked = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+        return Boolean(await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll"));`, { timeout: 60000 });
+    await settle(1200);
+    const KIT_READ = `const aiko = game.actors.get("${ids.aiko}"), kit = aiko.items.get("${handed.kit}");
+        return { hp: aiko.system.resources.hitPoints.value, qty: Number(kit?.system?.quantity ?? 0), broken: kit?.getFlag("${MOD}", "broken") === true };`;
+    const reused = { p1: await p1.eval(KIT_READ), gm: await gm.eval(KIT_READ),
+        receipt: await gm.eval(`return (await import("${repoUrl}/scripts/murder.mjs")).murderState()?.lastCrisis?.usedItemId ?? null;`) };
+    await gm.eval(`const m = game.messages.get(${JSON.stringify(reuse.messageId)}); if (m) delete m.rolls;
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(reuse.hope) || 0}, "system.resources.hitPoints.value": ${Number(handed.hpWas) || 0} });
+        return true;`, { timeout: 60000 });
+    check("reroll: a Reroll of the victim's Use an item, made on the GM, gives back the Health mark it healed and the pack's charge - on the GM and on the roller's browser",
+        reusedAsked === true && Boolean(reuse.messageId) && reuse.usedItemId === handed.kit && reuse.qty === 1
+        && [reused.gm, reused.p1].every(r => r.hp === reuse.hp + 1 && r.qty === 2 && r.broken === false) && reused.receipt === null,
+        JSON.stringify({ handed, reuse, reusedAsked, reused }), { flow: "reroll" });
     await gm.eval(`for (const [a, i] of [["${ids.aiko}", "${handed.kit}"], ["${ids.botan}", "${handed.drink}"], ["${ids.botan}", "${handed.tool}"]]) await game.actors.get(a).items.get(i)?.delete();
         await game.actors.get("${ids.chie}").unsetFlag("${MOD}", "pendingCall"); return true;`, { timeout: 60000 });
     check("fight: the victim's Use an item and a Support bought for the killer are carded veiled - their words to their player alone, and no browser holds a document of theirs, or of the rest the action brought, naming a student or a player",

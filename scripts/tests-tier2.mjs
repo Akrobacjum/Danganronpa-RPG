@@ -772,6 +772,47 @@ async function swingFixture(identity = null) {
 }
 
 /**
+ * A USE AN ITEM AND ITS REROLL, ON THE GM (E08+E28 C6b, 03.10.2026; audit S04-18). At the
+ * killer's turn (`swingFixture`) the killer, with two Health marks, holds a Tier 1 healing pack
+ * of two; their player's roll is bookmarked (`playerRollBookmark`), the pack used as their
+ * browser uses it - one Health off, one off the pack - and the action judged as the listener
+ * judges it, a hit with Hope naming the pack and what it started from. Then the Reroll is made
+ * on this GM (`rerollAgain`) onto the faces `next`, its replay on the GMs' row (reroll.mjs
+ * `settleCrisis`). Answers, after it: whether it stood, the killer's Health marks, the pack's
+ * quantity and whether it is broken, whether the replay's receipt names the pack, and the reserve
+ * the row says the use healed.
+ */
+async function useItemRerolled(next) {
+    const { ITEM_FLAGS, isBroken } = await import("./inventory.mjs");
+    const { automatedUpdate } = await import("./resource-guard.mjs");
+    const { M, killer, putBack } = await swingFixture();
+    const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+    let F = null;
+    try {
+        const [pack] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C6b pack", type: "loot", system: { quantity: 2 },
+            flags: { [MODULE_ID]: { [ITEM_FLAGS.category]: "usable", [ITEM_FLAGS.tier]: 1, [ITEM_FLAGS.kind]: "healing" } } }]);
+        await killer.update({ "system.resources.hitPoints.value": 2 });
+        F = await playerRollBookmark(player, killer, "crisis");
+        const before = { hp: 2, stress: killer.system.resources.stress.value, qty: 2 };
+        await killer.update({ "system.resources.hitPoints.value": 1 });
+        await pack.update({ "system.quantity": 1 });
+        const used = await F.ask({ action: "murder.crisis", requestId: "suite-e08c6b-use", actorId: killer.id, key: "useItem",
+            total: 20, isCritical: false, withHope: true, usedItemId: pack.id, before });
+        await settle();
+        must(used && F.row()?.facts?.usedItemId === pack.id && M.murderState()?.lastCrisis?.usedItemId === pack.id,
+            `the first Use an item was not scored with the pack on the row and the receipt - this would measure nothing: ${stableJson([used, F.row()?.facts ?? null])}`);
+        await automatedUpdate(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) });
+        const { out } = await rerollAgain(killer, F.message, { hope: 9, fear: 4 }, next);
+        const now = killer.items.get(pack.id);
+        return { replayed: Array.isArray(out?.lines), hp: killer.system.resources.hitPoints.value, qty: Number(now?.system?.quantity ?? 0),
+            broken: isBroken(now), usedAgain: M.murderState()?.lastCrisis?.usedItemId === pack.id, usedFor: F.row()?.facts?.usedFor ?? null };
+    } finally {
+        await F?.putBack();
+        await putBack();
+    }
+}
+
+/**
  * THE GM'S WINDOW THAT PICKS A STATISTIC, ANSWERED (E32+E07 C11b, 02.10.2026). A crisis
  * action that lists several traits, thrown on a GM's browser, asks the GM in a window
  * (trait-ruling.mjs `pickHere`); 01-runtests draws real windows on the GM and the suite has
@@ -4236,6 +4277,72 @@ const SCENARIOS = [
             await F?.putBack();
             await putBack();
         }
+    }],
+
+    ["a Reroll of a critical Strike keeps the striker's pick", async () => {
+        /*
+         * E08+E28 C6b, 03.10.2026; audit S04-18. The Reroll's replay on a GM sent the crisis
+         * packet with the new number alone, so a critical Strike rerolled into a critical had no
+         * pick: its card read "the killer chooses" and the victim's sheet took nothing. The
+         * replay keeps the first throw's pick from the GMs' row now (murder.mjs
+         * `afterCrisisRoll`). At the killer's turn (`swingFixture`) the killer's player's roll is
+         * bookmarked and a critical Strike on Sanity judged as the listener judges it; then the
+         * Reroll is made on this GM (`rerollAgain`), a critical again, its replay on the row
+         * (reroll.mjs `settleCrisis`). Read: whether it stood, and the victim's Health and Sanity
+         * marks - those the first Strike left.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { M, killer, victim, putBack } = await swingFixture();
+        const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+        const marks = () => [victim.system.resources.hitPoints.value, victim.system.resources.stress.value];
+        let F = null;
+        try {
+            F = await playerRollBookmark(player, killer, "crisis");
+            const before = marks();
+            const struck = await F.ask({ action: "murder.crisis", requestId: "suite-e08c6b-strike", actorId: killer.id, key: "strike",
+                total: 24, isCritical: true, withHope: true, choice: "stress" });
+            await settle();
+            const first = marks();
+            must(struck && F.row()?.facts?.choice === "stress" && first[0] === before[0] && first[1] > before[1],
+                `the first critical Strike did not land on Sanity with its pick on the row - this would measure nothing: ${stableJson([struck, F.row()?.facts ?? null, before, first])}`);
+            await automatedUpdate(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) });
+            const { out } = await rerollAgain(killer, F.message, { hope: 9, fear: 4 }, { hope: 7, fear: 7 });
+            equal(stableJson([Array.isArray(out?.lines), marks()]), stableJson([true, first]),
+                "the Reroll of a critical Strike on Sanity did not land its replay where the striker picked (replayed, victim's Health and Sanity marks)");
+        } finally {
+            await F?.putBack();
+            await putBack();
+        }
+    }],
+
+    ["a Reroll of Use an item that heals heals once", async () => {
+        /*
+         * E08+E28 C6b, 03.10.2026; audit S04-18. The item is used on the player's browser before
+         * the GM scores the action, so the receipt's values held the heal: the undo kept it, and
+         * the replay - sent no item - read "fumbled". Now the undo puts the row's `before` back
+         * and the replay uses the item again on the GM, with no window (`useItemRerolled`, a hit
+         * with Hope again, 11 and 5). Read: replayed, the killer's Health marks - one healed, once - the
+         * pack's quantity and break, the replay's receipt naming the pack, and the reserve the
+         * row says the first use healed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const read = await useItemRerolled({ hope: 11, fear: 5 });
+        equal(stableJson(read), stableJson({ replayed: true, hp: 1, qty: 1, broken: false, usedAgain: true, usedFor: "hitPoints" }),
+            "the Reroll of a Use an item that heals did not heal once with the pack used again (replayed, Health marks, quantity, broken, receipt's item, the reserve healed)");
+    }],
+
+    ["the undo of Use an item takes the heal back and the quantity", async () => {
+        /*
+         * E08+E28 C6b, 03.10.2026; audit S04-18. The undo only unbroke the item: the Health it
+         * healed and the charge a pack of several gave stayed. The same use as above, its Reroll
+         * a miss with Hope, 4 and 2 (`useItemRerolled`): the pack of two is one after the use and two again after the
+         * undo, and the killer's Health marks are the two they had. Read: as above.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const read = await useItemRerolled({ hope: 4, fear: 2 });
+        equal(stableJson(read), stableJson({ replayed: true, hp: 2, qty: 2, broken: false, usedAgain: false, usedFor: "hitPoints" }),
+            "the undo of a Use an item did not take the heal and the pack's charge back (replayed, Health marks, quantity, broken, receipt's item, the reserve healed)");
     }],
 
     ["a bookmark note for another player's character is refused", async () => {

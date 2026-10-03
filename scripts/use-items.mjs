@@ -390,7 +390,17 @@ function usedStamp(actor, item) {
     };
 }
 
-export async function useItem(actor, item) {
+/*
+ * `again` (E08+E28 C6b, 03.10.2026; audit S04-18): `{ resource }`, a use a Reroll's replay makes
+ * again on a GM after its rewind gave the item and the heal back (murder.mjs `afterCrisisRoll`).
+ * Its questions were asked at the first use, so it asks none: the reserve is the one the first
+ * use restored (`resource`, where this item can restore it, else the first it offers). No Hope
+ * bonus - the rewind does not take the first use's back, the row keeps no Hope - no card and no
+ * stamp: the first use's card stands, and a trap that watches for the item heard it then
+ * (traps.mjs `onChatMessage`). A creative use is the GM's ruling, not asked again of the die:
+ * it counts as used and restores nothing.
+ */
+export async function useItem(actor, item, { again = null } = {}) {
     if (!actor || !isUsable(item)) return null;
 
     // An opened kit is an empty box. It is still in the bag, and it still takes
@@ -412,7 +422,7 @@ export async function useItem(actor, item) {
 
     // Tier 0 is "a random, seemingly useless object, open to creative use" -
     // there is no table row to apply, so a human decides what it is worth.
-    if (!effect || effect.creative) return useCreatively(actor, item);
+    if (!effect || effect.creative) return again ? {} : useCreatively(actor, item);
 
     // What lands where. Tier 3 asks Health-or-Sanity and adds its Hope on top;
     // tiers 1 and 2 read the item's kind and ask nothing - the only time the
@@ -422,18 +432,19 @@ export async function useItem(actor, item) {
     let asked = false;
     let amounts;
 
+    const sameAgain = choose => choose.includes(again.resource) ? again.resource : choose[0];
     if (effect.choose) {
-        const choice = await askWhichResource(item, effect);
+        const choice = again ? sameAgain(effect.choose) : await askWhichResource(item, effect);
         if (!choice) return null;
         asked = true;
-        amounts = { [choice]: effect.amount, ...(effect.bonus ?? {}) };
+        amounts = { [choice]: effect.amount, ...(again ? {} : effect.bonus ?? {}) };
     } else {
         const kind = usableKindOf(item);
         const resource = USABLE_KINDS[kind]?.resource;
         if (resource) {
             amounts = { [resource]: effect.amount };
         } else {
-            const choice = await askWhichResource(item, {
+            const choice = again ? sameAgain(["hitPoints", "stress"]) : await askWhichResource(item, {
                 ...effect, choose: ["hitPoints", "stress"]
             });
             if (!choice) return null;
@@ -455,7 +466,7 @@ export async function useItem(actor, item) {
     const preview = wouldRestore(actor, amounts);
     const pointless = !Object.keys(preview).length;
 
-    if (pointless || !asked) {
+    if (!again && (pointless || !asked)) {
         const go = await confirmUse(item, preview, pointless);
         if (!go) return null;
     }
@@ -465,6 +476,7 @@ export async function useItem(actor, item) {
 
     const restored = await restore(actor, amounts);
     await consume(item);
+    if (again) return restored;
 
     const summary = describe(restored);
     await whisperToOwner(actor, `

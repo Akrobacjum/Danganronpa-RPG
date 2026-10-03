@@ -1922,44 +1922,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         }
     }
 
-    // Asked here, while the person who threw the dice is still looking at them.
-    const choice = roll.isCritical ? await askCriticalTarget(def) : null;
-
-    /*
-     * THE ITEM IS SPENT HERE, ON THE PLAYER'S OWN CLIENT.
-     *
-     * `useItem` is a conversation - which resource a tier 3 restores, a confirm
-     * before something is used up - and those questions belong to the person
-     * whose character it is. Handing them to the GM's browser would ask a GM to
-     * decide, for somebody else, which half of their sheet to heal.
-     *
-     * So the player applies it and tells the GM WHICH id went, and the GM's
-     * side does what only it can: the trace, the turn, the drain, and the
-     * receipt that lets a Reroll put the thing back.
-     *
-     * SUCCESS IS NOT ENOUGH. The guide's row: a critical or a success with Hope
-     * and the item goes in; a success with DESPAIR leaves the trace and nothing
-     * else - you were seen fumbling with it and it stayed in your pocket.
-     */
-    let usedItemId = null, before = null;
-    if (def.usesItem) {
-        const hit = roll.isCritical || roll.total >= def.threshold;
-        if (hit && (roll.isCritical || roll.withHope)) {
-            const item = actor.items.get(itemId);
-            const { useItem } = await import("./use-items.mjs");
-            // What the use starts from, for the GMs' bookmark (E08+E28 C2; audit S04-18):
-            // a Reroll on a GM puts these back, where the receipt only unbreaks the item.
-            before = {
-                hp: actor.system?.resources?.hitPoints?.value ?? null,
-                stress: actor.system?.resources?.stress?.value ?? null,
-                qty: item ? Number(item.system?.quantity ?? 1) : null
-            };
-            // `useItem` can still be backed out of at its own confirm. The roll
-            // and the turn are spent either way - a player who changes their
-            // mind at the last dialog has still done the thing on the clock.
-            if (item && await useItem(actor, item)) usedItemId = item.id;
-        }
-    }
+    const { choice, usedItemId, before } = await afterCrisisRoll(actor, def, roll, itemId);
 
     const { requestCrisisResult } = await import("./gm-bridge.mjs");
     await requestCrisisResult({
@@ -1982,6 +1945,67 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * anything is paid (reroll.mjs `rerollRefusal`), and nothing here reads the answer.
      */
     return { roll, choice };
+}
+
+/**
+ * WHAT A THROWN CRISIS ACTION ASKS ONCE ITS DICE ARE KNOWN: a critical's pick, and Use an
+ * item's use. `{ choice, usedItemId, before }`.
+ *
+ * SHARED WITH THE REROLL'S REPLAY (E08+E28 C6b, 03.10.2026; audit S04-18). Moved out of
+ * `takeCrisisAction`, which asks it on the player's browser, so that the replay a Reroll makes
+ * on a GM (`applyCrisisAction`, given `again`) asks the same with the first throw's answers,
+ * from the GMs' row: the striker's pick, and the item used again on the resource its first use
+ * restored, with no window (use-items.mjs `useItem`'s `again`). The replay's packet carried
+ * neither until this commit, so a critical Strike rerolled into a critical read "the killer
+ * chooses" and marked nothing, and a Use an item rerolled into a hit read "fumbled". A replay
+ * critical after a first throw that had no pick has no answer to keep: the window opens on the
+ * GM making it - the striker's browser is not part of the replay - read, not measured at a table.
+ *
+ * @param {object|null} again  `{ choice, resource }` of the first throw, on a replay.
+ */
+async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
+    // Asked here, while the person who threw the dice is still looking at them.
+    const choice = roll.isCritical ? again?.choice ?? await askCriticalTarget(def) : null;
+
+    /*
+     * THE ITEM IS SPENT HERE, ON THE PLAYER'S OWN CLIENT.
+     *
+     * `useItem` is a conversation - which resource a tier 3 restores, a confirm
+     * before something is used up - and those questions belong to the person
+     * whose character it is. Handing them to the GM's browser would ask a GM to
+     * decide, for somebody else, which half of their sheet to heal.
+     *
+     * So the player applies it and tells the GM WHICH id went, and the GM's
+     * side does what only it can: the trace, the turn, the drain, and the
+     * receipt that lets a Reroll put the thing back. The Reroll's replay uses it
+     * again on the GM's, with no window: the questions were asked once, and the
+     * first use's answer is the row's (`usedFor`, see `noteCrisisFact`).
+     *
+     * SUCCESS IS NOT ENOUGH. The guide's row: a critical or a success with Hope
+     * and the item goes in; a success with DESPAIR leaves the trace and nothing
+     * else - you were seen fumbling with it and it stayed in your pocket.
+     */
+    let usedItemId = null, before = null;
+    if (def.usesItem) {
+        const hit = roll.isCritical || roll.total >= def.threshold;
+        if (hit && (roll.isCritical || roll.withHope)) {
+            const item = actor.items.get(itemId);
+            const { useItem } = await import("./use-items.mjs");
+            // What the use starts from, for the GMs' bookmark (E08+E28 C2; audit S04-18):
+            // a Reroll on a GM puts these back, where the receipt only unbreaks the item.
+            before = {
+                hp: actor.system?.resources?.hitPoints?.value ?? null,
+                stress: actor.system?.resources?.stress?.value ?? null,
+                qty: item ? Number(item.system?.quantity ?? 1) : null
+            };
+            // `useItem` can still be backed out of at its own confirm. The roll
+            // and the turn are spent either way - a player who changes their
+            // mind at the last dialog has still done the thing on the clock.
+            // A replay's use asks nothing (`again`), on the first use's resource.
+            if (item && await useItem(actor, item, again ? { again: { resource: again.resource ?? null } } : {})) usedItemId = item.id;
+        }
+    }
+    return { choice, usedItemId, before };
 }
 
 /**
@@ -2238,9 +2262,18 @@ let victimOwed = false;
  * Health, Stress and quantity back rather than only unbreaking the item. A first throw's only: a
  * replay (`undo`) keeps the row it replays. `before` is the player's word about their own
  * character, so numbers or nothing (`resourcesBefore`).
+ *
+ * AND WHICH RESERVE THE USE HEALED (`usedFor`, E08+E28 C6b): the replay uses the item again
+ * with no window (`afterCrisisRoll`), and a tier 3 or an item of no known kind restores what
+ * its user picked. Read here, on the GM, as `before` against the receipt's values, which are
+ * taken after the use: Health or Sanity, whichever went down, or null.
  */
-async function noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId, before }) {
-    await rolls.noteRollFact(actorId, roll, { crisis: key, choice: choice ?? null, usedItemId: usedItemId ?? null, swungId, before: resourcesBefore(before) });
+async function noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId, before, receipt }) {
+    const was = resourcesBefore(before);
+    const healed = (b, now) => typeof b === "number" && typeof now === "number" && b > now;
+    const usedFor = !usedItemId ? null
+        : healed(was?.hp, receipt.actorHp) ? "hitPoints" : healed(was?.stress, receipt.actorStress) ? "stress" : null;
+    await rolls.noteRollFact(actorId, roll, { crisis: key, choice: choice ?? null, usedItemId: usedItemId ?? null, swungId, before: was, usedFor });
 }
 
 /** `{ hp, stress, qty }` as whole numbers or null each, or null for anything that is not an object. */
@@ -2261,14 +2294,18 @@ async function applyCrisisAction({
     free = false,
     // The acting character's Health and Stress and the item's quantity before Use an
     // item used it, as its player read them (E08+E28 C2): `resourcesBefore`.
-    before = null
+    before = null,
+    // The first throw's facts, from the GMs' row, when a Reroll's replay on a GM runs this
+    // (reroll.mjs `settleCrisis`, E08+E28 C6b): `{ choice, usedItemId, usedFor, before }`. The
+    // bridge's handler names none, so a packet's undo replays as it did.
+    again = null
 } = {}) {
     if (!game.user.isGM) return null;
     // The roll this action is for, as it arrives (E08+E28 C2): see `noteCrisisFact`.
     const rolls = await import("./action-rolls.mjs");
     const roll = undo ? null : rolls.rollOfNow(actorId);
 
-    // A Reroll's packet names no weapon (reroll.mjs `settleCrisis`): the replay swings
+    // A Reroll's replay names no weapon (reroll.mjs `settleCrisis`): it swings
     // what the action it takes back swung, as its receipt recorded it (E32+E07 C8) - and
     // nothing when it recorded nothing, whatever a packet names (fix r1-G3, review S-m3).
     const replayed = undo ? murderState()?.lastCrisis?.swungId ?? null : null;
@@ -2286,7 +2323,7 @@ async function applyCrisisAction({
     // puts the first dice back and returns the Hope (reroll.mjs `settleCrisis`,
     // fix r1-G3); until then the new dice stayed on the card, paid for.
     const deathStands = undo && crisisKilled(murderState()?.lastCrisis);
-    if (undo && !await undoLastCrisis({ actorId, key })) {
+    if (undo && !await undoLastCrisis({ actorId, key, before: again?.before ?? null })) {
         if (!deathStands) await whisperToGms(`<p class="drpg-warning">${
             game.i18n.localize("DRPG.Murder.rerollLost")}</p>`);
         return null;
@@ -2298,6 +2335,13 @@ async function applyCrisisAction({
     if (!state || !actor || !def) return null;
     // The stage the action was taken at, for its card's audience (`announceCrisis`).
     const stage = state.stage;
+
+    // A replay asks what its first throw asked, with that throw's answers (`afterCrisisRoll`):
+    // after the rewind, which gave the item back, and before the receipt, as the first.
+    if (undo && again) {
+        ({ choice, usedItemId } = await afterCrisisRoll(actor, def, { total, isCritical, withHope }, again.usedItemId,
+            { choice: again.choice ?? null, resource: again.usedFor ?? null }));
+    }
 
     // What this roll swung (`swungWeapon`): the damage is read off it, the Despair
     // wears it, and Stage 6 ruins it. A replay swings the receipt's weapon or none: until
@@ -2336,7 +2380,7 @@ async function applyCrisisAction({
     // applied, because half of it is "the value this resource had a moment ago".
     const receipt = openReceipt(actorId, key, state);
     receipt.swungId = weapon?.id ?? null;
-    if (roll) await noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId: weapon?.id ?? null, before });
+    if (roll) await noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId: weapon?.id ?? null, before, receipt });
 
     /*
      * SPENT BEFORE IT IS APPLIED, not after.
@@ -2646,7 +2690,7 @@ export function crisisKilled(receipt) {
  * `killed` is written by the action's own `finishIncident` and `checkVictimSpent`, so
  * a death from the Students list or the GM's close is not the action's.
  */
-async function undoLastCrisis({ actorId, key }) {
+async function undoLastCrisis({ actorId, key, before = null }) {
     const live = murderState();
     const receipt = live?.lastCrisis ?? null;
     if (!receipt) return false;
@@ -2706,11 +2750,20 @@ async function undoLastCrisis({ actorId, key }) {
      * as well, and with one hand (E9) the character may be holding something
      * else by now; a Reroll that quietly swapped what is in somebody's hand
      * would be a worse surprise than an item that needs picking up again.
+     *
+     * AND THE CHARGE IT TOOK (E08+E28 C6b, 03.10.2026; audit S04-18). A use of one of
+     * several takes one off the quantity and breaks nothing (use-items.mjs `consume`), and
+     * only the break was given back: a pack of two was one after its Reroll. The quantity
+     * the row's `before` names comes back - the player's word, so one charge at most,
+     * the one a use takes.
      */
+    const used = receipt.usedItemId ? resourcesBefore(before) : null;
     if (receipt.usedItemId) {
         try {
-            await game.actors.get(actorId)?.items?.get(receipt.usedItemId)
-                ?.setFlag(MODULE_ID, ITEM_FLAGS.broken, false);
+            const item = game.actors.get(actorId)?.items?.get(receipt.usedItemId);
+            await item?.setFlag(MODULE_ID, ITEM_FLAGS.broken, false);
+            const qty = Number(item?.system?.quantity ?? 1);
+            if (item && typeof used?.qty === "number" && used.qty > qty) await item.update({ "system.quantity": qty + 1 });
         } catch (err) {
             error("Could not give back the item a rerolled crisis action used", err);
         }
@@ -2755,10 +2808,20 @@ async function undoLastCrisis({ actorId, key }) {
         }
     }
 
+    /*
+     * THE HEAL GOES TOO (E08+E28 C6b, 03.10.2026; audit S04-18). The receipt is opened when
+     * the GM scores the action, after the player's browser has used the item, so its values
+     * held the heal and the undo kept it - and a replay that used the item again healed
+     * twice. Where an item was used, the row's `before` - the values before the use - is put
+     * back instead: the player's word about their own character, so it only takes back
+     * (`marksBack`), never fewer marks than the receipt's. A victim's own action is put back
+     * once, as the actor's: the receipt's victim values are the same reading, taken after the
+     * heal, and written second they wrote the heal back (13-murder-signals, A1, 03.10.2026).
+     */
     const actor = game.actors.get(actorId);
-    await restoreResource(actor, "stress", receipt.actorStress);
-    await restoreResource(actor, "hitPoints", receipt.actorHp);
-    const victim = receipt.victimId ? game.actors.get(receipt.victimId) : null;
+    await restoreResource(actor, "stress", marksBack(actor, "stress", receipt.actorStress, used?.stress));
+    await restoreResource(actor, "hitPoints", marksBack(actor, "hitPoints", receipt.actorHp, used?.hp));
+    const victim = receipt.victimId && receipt.victimId !== actorId ? game.actors.get(receipt.victimId) : null;
     await restoreResource(victim, "hitPoints", receipt.victimHp);
     await restoreResource(victim, "stress", receipt.victimStress);
 
@@ -2784,6 +2847,13 @@ async function undoLastCrisis({ actorId, key }) {
 
     log(`Reroll: took back ${receipt.key} by ${game.actors.get(actorId)?.name ?? actorId}.`);
     return true;
+}
+
+/** The marks an undo puts back: the receipt's `was`, or the `claimed` more, up to the track's end. */
+function marksBack(actor, field, was, claimed) {
+    if (typeof was !== "number" || typeof claimed !== "number" || claimed <= was) return was;
+    const max = actor ? resourceMax(actor, field) : 0;
+    return max > 0 ? Math.min(claimed, max) : claimed;
 }
 
 async function restoreResource(actor, field, value) {

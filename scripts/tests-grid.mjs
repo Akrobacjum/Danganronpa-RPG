@@ -195,6 +195,13 @@ const CASES = {
     // E32+E07 fix r1-G5: DM11 by the death a GM's Kill keeps until found - no flag, so only `drpgDeathsChanged` tells the fight.
     DM16: { title: "the killer dies in the fight by a death the GMs keep",
         steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["keptDeath", "K"], ["act", "V", "leaveClue"], ["close"]] },
+    // E08+E28 C6b (S04-18): the Reroll's replay on the GMs' row - the striker's pick kept, the item used again or given back.
+    DM17: { title: "a critical Strike on the killer's pick, its Reroll a critical that keeps it",
+        steps: [["open"], ["opening", "hope"], ["act", "K", "strike", "crit", { choice: "stress" }], ["reroll", "K", "strike", "crit", { again: true }], ["close"]] },
+    DM18: { title: "Use an item that heals, its Reroll a hit that uses it again",
+        steps: [["gear", "K", "pack"], ["open"], ["opening", "hope"], ["act", "K", "useItem", "hit", { use: "pack" }], ["reroll", "K", "useItem", "hit", { again: true }], ["close"]] },
+    DM19: { title: "Use an item that heals, its Reroll a miss that gives the heal and the pack back",
+        steps: [["gear", "K", "pack"], ["open"], ["opening", "hope"], ["act", "K", "useItem", "hit", { use: "pack" }], ["reroll", "K", "useItem", "miss", { again: true }], ["close"]] },
 
     // Direct, with a third.
     TP01: { title: "Partners, the blow, a betrayal from the tile in Stage 6, and the second incident's blow", third: true,
@@ -419,8 +426,10 @@ const STEPS = {
      * with the roll's total. On "not their turn" the GM passes the turn first, as a GM at
      * the table does for a side with nobody to act - bounded, so a turn that never comes
      * back is a refusal, not a loop. A refusal the case did not expect stops it (I10).
+     * `choice` is a critical Strike's pick; `use` names a pack the player's browser used
+     * first (`usedAsPlayer`). What the GMs' row would hold of it is kept for `reroll`.
      */
-    async act(run, who, key, result = "hit", { free = false, swing = null, refused = false } = {}) {
+    async act(run, who, key, result = "hit", { free = false, swing = null, refused = false, choice = null, use = null } = {}) {
         const actor = run.who[who];
         for (let i = 0; i < 4 && run.M.crisisRefusal(actor, key)?.why === "not their turn" && run.M.sideOf(actor) !== "third"; i++) {
             await run.M.passTurn();
@@ -435,7 +444,10 @@ const STEPS = {
         const roll = RESULTS[result];
         run.beforeAct = structuredClone({ model: m, offer: run.offer, bodies: [...run.bodies], blackened: [...run.blackened], swung: [...run.swung] });
         if (item) run.swung.set(actor.id, item.id);
-        await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, free, swungId: item?.id ?? null });
+        const pack = use ? run.items.get(`${who}:${use}`) : null;
+        const before = pack ? await usedAsPlayer(actor, pack) : null;
+        run.facts = { crisis: key, choice, usedItemId: pack?.id ?? null, usedFor: pack ? "hitPoints" : null, before };
+        await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, free, swungId: item?.id ?? null, choice, usedItemId: pack?.id ?? null, before });
         applyAct(run, actor, key, roll.total > 0 || roll.isCritical || free);
     },
 
@@ -445,14 +457,18 @@ const STEPS = {
      * not taken back (E32+E07 C8b, the owner's answer (A) of 28.09): the death stands, the
      * call is refused and the model does not move - a Reroll let through is I8's, the death
      * of a blow that no longer landed. Any other is taken back; refused, the case stops (I10).
+     * `again` (E08+E28 C6b): the replay as a GM makes it, on the row the last action left
+     * (reroll.mjs `settleCrisis`), not the bridge's packet.
      */
-    async reroll(run, who, key, result) {
+    async reroll(run, who, key, result, { again = false } = {}) {
         const actor = run.who[who];
         const roll = RESULTS[result];
         const back = run.beforeAct;
         must(back, "there is no crisis action to take back");
         const killed = [...run.bodies.keys()].some(id => !back.bodies.some(([was]) => was === id));
-        const out = await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, undo: true });
+        const out = again
+            ? await (await import("./reroll.mjs")).settleCrisis(actor, run.facts, roll, [])
+            : await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, undo: true });
         if (killed) {
             if (out) run.violate("I8", `the Reroll of ${actor.name}'s ${key}, which killed, was let through`);
             return;
@@ -652,13 +668,17 @@ const STEPS = {
         run.brink = true;
     },
 
-    /* A fixture item in hand: a Tier 1 knife (a weapon) or gloves (a cleaning tool). Deleted by the case. */
+    /* A fixture item in hand: a Tier 1 knife (a weapon) or gloves (a cleaning tool); or a Tier 1
+       healing pack of two, carried, with two Health marks for it to heal (E08+E28 C6b). Deleted by the case. */
     async gear(run, who, what) {
         const actor = run.who[who];
-        const category = what === "knife" ? "crimeTool" : "cleaningTool";
+        const pack = what === "pack";
+        const flags = pack ? { category: "usable", tier: 1, usableKind: "healing" }
+            : { category: what === "knife" ? "crimeTool" : "cleaningTool", equipped: true, tier: 1 };
         const [item] = await actor.createEmbeddedDocuments("Item", [{ name: `SUITE grid ${what}`, type: "loot",
-            flags: { [MODULE_ID]: { category, equipped: true, tier: 1 } } }]);
+            ...(pack ? { system: { quantity: 2 } } : {}), flags: { [MODULE_ID]: flags } }]);
         must(item, `${actor.name} could not be handed the ${what}`);
+        if (pack) await actor.update({ "system.resources.hitPoints.value": 2 });
         run.items.set(`${who}:${what}`, item);
     },
 
@@ -770,6 +790,19 @@ function applyAct(run, actor, key, hit) {
     if (key === "roleReversal") Object.assign(m, { killerId: m.victimId, victimId: m.killerId });
     if (key === "finishingBlow") stageSix(run, { body: true });
     if (key === "survive") stageSix(run, { body: false });
+}
+
+/**
+ * A pack used as the player's browser uses one before it tells the GM (murder.mjs
+ * `afterCrisisRoll`): a Tier 1 heal - one Health mark off - and one off the pack. Answers what
+ * it started from, as the browser sends it.
+ */
+async function usedAsPlayer(actor, pack) {
+    const r = actor.system?.resources ?? {};
+    const before = { hp: r.hitPoints?.value ?? 0, stress: r.stress?.value ?? 0, qty: Number(pack.system?.quantity ?? 1) };
+    await actor.update({ "system.resources.hitPoints.value": Math.max(0, before.hp - 1) });
+    await pack.update({ "system.quantity": before.qty - 1 });
+    return before;
 }
 
 /** The update that leaves `short` Health marks before running out, and Sanity full. */
@@ -1160,6 +1193,9 @@ const GRID = [
     ["grid DM14 - the victim runs out while the hook's check races the action's", () => runCase("DM14"), GRID_RED.DM14],
     ["grid DM15 - a strike that leaves the victim standing, undone by a Reroll and taken again", () => runCase("DM15"), GRID_RED.DM15],
     ["grid DM16 - the killer dies in the fight by a death the GMs keep", () => runCase("DM16"), GRID_RED.DM16],
+    ["grid DM17 - a critical Strike on the killer's pick, its Reroll a critical that keeps it", () => runCase("DM17"), GRID_RED.DM17],
+    ["grid DM18 - Use an item that heals, its Reroll a hit that uses it again", () => runCase("DM18"), GRID_RED.DM18],
+    ["grid DM19 - Use an item that heals, its Reroll a miss that gives the heal and the pack back", () => runCase("DM19"), GRID_RED.DM19],
     ["grid TP01 - Partners, the blow, a betrayal from the tile in Stage 6, and the second incident's blow", () => runCase("TP01"), GRID_RED.TP01],
     ["grid TP02 - Partners, the blow, the close, and a betrayal from the checklist whose opening fails", () => runCase("TP02"), GRID_RED.TP02],
     ["grid TP03 - Partners, and two killers run the victim out", () => runCase("TP03"), GRID_RED.TP03],
