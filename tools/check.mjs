@@ -378,7 +378,7 @@ function contract() {
             problems.push(`${name} flags lines ${lines.join(",") || "none"} of its fixture, not ${fx.flags.join(",")} - the detector is broken`);
         }
     }
-    const tiers = fs.readdirSync(path.join(REPO, "scripts")).filter(f => /^tests-tier\d+\.mjs$/.test(f)).sort();
+    const tiers = fs.readdirSync(path.join(REPO, "scripts")).filter(f => lint.TEST_FILE.test(f)).sort();
     const count = { tests: 0, cuts: 0, asserts: 0, needs: 0, checks: 0 };
     for (const file of tiers) {
         const text = fs.readFileSync(path.join(REPO, "scripts", file), "utf8");
@@ -424,7 +424,7 @@ function contract() {
     for (const row of Object.keys(lint.GM_STORE_SCENARIO_ALLOW)) {
         if (!allowed.has(row)) problems.push(`GM_STORE_SCENARIO_ALLOW (scripts/tests-lint.mjs) ${row}: no such raw read is left - take the row out`);
     }
-    console.log(`contract: ${tiers.length} tier files, ${count.tests} tests, ${count.cuts} slice/split calls, `
+    console.log(`contract: ${tiers.length} files of tests (the tiers and the grid), ${count.tests} tests, ${count.cuts} slice/split calls, `
         + `${count.asserts} ok/equal/needs calls, ${count.needs} needs() calls; ${scenarios.length} scenarios, `
         + `${count.checks} check() calls; R171: ${watched.keys.length} GM store keys, ${storeReads} settings reads in the scenarios, `
         + `${rawReads} raw on a store key (${allowed.size} allowed rows); ${problems.length} problem(s)`);

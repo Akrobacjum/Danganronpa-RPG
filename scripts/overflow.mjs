@@ -269,11 +269,11 @@ export async function resetOverflow({ reason = "the verdict" } = {}) {
  * M9) - and read back: a count still there throws, so the world is not stamped and the next load
  * tries again (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent.
  *
- * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0: anything
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, dropped: number, kept: number}>}  `kept` 0: anything
  *   else throws.
  */
 export async function liftOverflowCount() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await overflowStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the overflow's count did not arrive; the next load tries again");
     }

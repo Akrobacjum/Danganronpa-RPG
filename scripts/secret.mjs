@@ -201,9 +201,10 @@ const PLACEMENT_FLAGS = Object.freeze(["thread", "kind", "gmAsk"]);
  * (`safeword`): the real card is public and carries it on its document, and in a
  * private card's meta it rang the siren on the GMs' screens without pausing anything
  * (E06 fix r1-G5, 28.09.2026; the round-1 review's m3 - sfx.mjs reads it off the
- * document now as well).
+ * document now as well). Nor what a GM ruled on a card (`ruling`, gm-bridge.mjs
+ * `settleCall`, E32+E07 C11b): the record of a statistic the GM picked is the GM's to write.
  */
-const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword"]);
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling"]);
 
 /** A card's meta as a plain object without the document's own flags, or null. Pure. */
 function plainMeta(raw) {
@@ -298,20 +299,67 @@ function playerWords(html) {
     return wrap.innerHTML;
 }
 
+/*
+ * EACH READER'S OWN LINE (E32+E07 C7, 28.09.2026; audit S04-05). A hit's note is said to
+ * the one it happened to in the second person - "You lose 1 Health." - and to everyone
+ * else by name, and the two are one card. The card carries both, each marked with the
+ * users it is for (`youOrThem`), and every copy of its words is cut for its reader before
+ * it leaves: sent over the socket, kept by the poster, rewritten by `updateSecret`. No
+ * browser holds the line that was not written for it, and a line that is kept keeps no
+ * marker - the words a reader holds name no user.
+ */
+const YOU = "data-drpg-you", NOT_YOU = "data-drpg-not-you";
+
 /**
- * A card's packet to the other readers: a GM gets the words as written, a player
- * `playerWords` of them - one packet to all of them when the two are the same.
+ * One line for the users in `userIds` and another for everyone else, as a card's words
+ * carry them for `wordsFor` to cut. With nobody to say "you" to it is the other line
+ * alone. Both lines are HTML the caller has escaped.
+ */
+export function youOrThem(userIds, { you, them }) {
+    const ids = [...new Set((userIds ?? []).filter(id => /^[A-Za-z0-9]+$/.test(String(id ?? ""))))];
+    if (!ids.length) return them;
+    return `<span ${YOU}="${ids.join(" ")}">${you}</span><span ${NOT_YOU}="${ids.join(" ")}">${them}</span>`;
+}
+
+/**
+ * A card's words as `userId` may hold them: a GM's as written, a player's without the
+ * GMs' prose (`playerWords`), and either with only the lines of `youOrThem` meant for
+ * them. Byte for byte when the words carry none of it.
+ */
+export function wordsFor(userId, html) {
+    const text = String(html ?? "");
+    const lines = text.includes(YOU) || text.includes(NOT_YOU);
+    const gm = Boolean(game.users.get(userId ?? "")?.isGM);
+    const words = gm ? text : playerWords(text);
+    if (!lines) return words;
+    const wrap = document.createElement("template");
+    wrap.innerHTML = words;
+    const named = (el, attr) => String(el.getAttribute(attr) ?? "").split(/\s+/).includes(userId);
+    for (const el of wrap.content.querySelectorAll(`[${YOU}]`)) {
+        if (named(el, YOU)) el.removeAttribute(YOU);
+        else el.remove();
+    }
+    for (const el of wrap.content.querySelectorAll(`[${NOT_YOU}]`)) {
+        if (named(el, NOT_YOU)) el.remove();
+        else el.removeAttribute(NOT_YOU);
+    }
+    return wrap.innerHTML;
+}
+
+/**
+ * A card's packet to the other readers, each sent the words `wordsFor` cuts for them -
+ * one packet to every reader whose words are the same.
  */
 function sendWords(readers, packet) {
-    const theirs = playerWords(packet.html);
-    if (theirs === String(packet.html ?? "")) {
-        game.socket.emit(SOCKET_EVENT, packet, { recipients: readers });
-        return;
+    const html = String(packet.html ?? "");
+    const byWords = new Map();
+    for (const id of readers) {
+        const words = wordsFor(id, html);
+        byWords.set(words, [...(byWords.get(words) ?? []), id]);
     }
-    const gms = readers.filter(id => game.users.get(id)?.isGM);
-    const players = readers.filter(id => !gms.includes(id));
-    if (gms.length) game.socket.emit(SOCKET_EVENT, packet, { recipients: gms });
-    if (players.length) game.socket.emit(SOCKET_EVENT, { ...packet, html: theirs }, { recipients: players });
+    for (const [words, recipients] of byWords) {
+        game.socket.emit(SOCKET_EVENT, words === html ? packet : { ...packet, html: words }, { recipients });
+    }
 }
 
 /**
@@ -647,7 +695,7 @@ export async function postSecret(data = {}) {
     // recipient of should never be waiting on their own network round trip to
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
-        await remember(message.id, game.user.isGM ? html : playerWords(html), at, pin, game.user.isGM, summary, meta);
+        await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, summary, meta);
         refresh(message);
     }
 
@@ -687,7 +735,7 @@ export async function updateSecret(message, html, recipients = null, meta = unde
     // A veiled thread card's thread is in its meta, not its document (E06 C8): still pinned.
     const pin = Boolean(cardFlag(message, "thread"));
     if (readers.includes(game.user.id) || !readers.length) {
-        await remember(message.id, game.user.isGM ? html : playerWords(html), at, pin, game.user.isGM, undefined, more);
+        await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, undefined, more);
         refresh(message);
     }
     const others = readers.filter(id => id !== game.user.id);
@@ -991,10 +1039,11 @@ export function secretSummaries(since = 0) {
  * without it), twenty-five writes at a time, and read back; one still there throws,
  * so the world is not stamped and the next load tries again.
  *
- * @returns {Promise<null|{dropped: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{dropped: number}>}
  */
 export async function dropCardSummaries() {
-    if (!isPrimaryGm() || !game.messages) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
+    if (!game.messages) return null;
     const holding = () => game.messages.filter(m => Object.hasOwn(m.flags?.[MODULE_ID] ?? {}, "summary"));
     const found = holding();
     if (!found.length) return null;

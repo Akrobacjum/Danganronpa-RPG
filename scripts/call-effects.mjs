@@ -80,7 +80,8 @@ export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
  * IT IS A COUNT, NOT A SIGN (E7). This used to store `Math.sign(value)`, and
  * the arithmetic it flattened was already being done: `performSearch` adds a
  * favouring room, a hindering room and (until E06 C11 moved it after the roll,
- * `searchOdds`) somebody's concealed stash; a crisis
+ * `searchOdds`) somebody's concealed stash, whose disadvantage die is taken on the
+ * dice once they have landed since E32+E07 C11e (`stashStep`); a crisis
  * roll adds a weapon in hand, a second try after a miss and the guide's
  * "the victim gets advantage on every roll" for dying alone to a trap. All of
  * that was summed, carefully, and then thrown away at this line. A victim with
@@ -100,7 +101,26 @@ export function armSituational(value) {
 export function clearSituational() { situational = 0; }
 
 /**
- * A signed count. Zero while a supporting roll is shielded.
+ * THE ROLL'S OWN DIE, WHICH THE SHIELD LEAVES ALONE (E32+E07 fix r2-G1, 03.10.2026; the
+ * round-2 correctness review's M1). A murder's opening roll is thrown as a supporting
+ * roll (`remember: false`, murder.mjs `throwOpeningRoll`), so no Call is spent on it -
+ * and its Night die, the killer's advantage and a trap's victim's disadvantage, was
+ * armed as the action's (`armSituational`), where the same shield hid it: every
+ * opening at Night rolled flat, measured at d9ee6e9 and read so in the oldest commit
+ * here (1.2.50). A die handed to one roll by name (`rollTrait`'s `situational`) is
+ * that roll's and no other roll's to eat, so it is held here, armed as the roll
+ * starts and cleared as it ends. Read off the tier-2 test "at Night the opening roll
+ * carries its die ..." as the dice are thrown: 0 at Night for both sides at d9ee6e9,
+ * +1 for the killer and -1 for a trap's victim since.
+ */
+let own = 0;
+
+export function armOwnSituational(value) { own = Math.trunc(Number(value)) || 0; }
+export function clearOwnSituational() { own = 0; }
+
+/**
+ * A signed count: the action's die, zero while a supporting roll is shielded, and
+ * the roll's own (`armOwnSituational`), which is not.
  *
  * The shield is why trap 57 needs nothing done to it: a concealment roll sees
  * zero here and `null` from `pendingCall`, so BOTH bought sources vanish
@@ -108,7 +128,7 @@ export function clearSituational() { situational = 0; }
  * not shielded and never was - see `stateGrant` in roll-dialog.mjs.
  */
 export function situationalAdvantage() {
-    return shielded ? 0 : situational;
+    return (shielded ? 0 : situational) + own;
 }
 
 /**
@@ -274,10 +294,10 @@ function unsigned(entry) {
  * Foundry does on that path). Read back; one still signed throws with the count, so the
  * world is not stamped and the next load tries again.
  *
- * @returns {Promise<null|{unsigned: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{unsigned: number}>}
  */
 export async function unsignArmedCalls() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     const listOf = flags => flags?.[MODULE_ID]?.[FLAGS.pendingCall] ?? null;
     const signed = flags => {
         const stored = listOf(flags);
@@ -585,10 +605,10 @@ export function registerConfusionCopy() {
  * (monocub.mjs `resolveMeddle`), never on a token's own data. One still on a flag throws with
  * the count, so the world is not stamped and the next load tries again.
  *
- * @returns {Promise<null|{lifted: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number}>}
  */
 export async function liftArmedConfusions() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await confusionStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the Confusions did not arrive; the next load tries again");
     }

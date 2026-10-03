@@ -220,7 +220,13 @@ export async function dropRemnant(actor, {
      * authority, that it was unrelated to it.
      */
     tiedToCrime = null,
-    itemIdentity = null
+    itemIdentity = null,
+    /*
+     * The project a Work trace was left by. Kept nowhere: a player's packet carries it so the
+     * GM can judge the tie to the crime on its own record (gm-bridge.mjs `handleRemnant`,
+     * E32+E07 fix r2-G3), since the packet's own `tiedToCrime` is never taken.
+     */
+    projectId = null
 } = {}) {
     const token = tokenFor(actor);
     if (!token) {
@@ -251,7 +257,7 @@ export async function dropRemnant(actor, {
         // socket to the GM, and a live document does not survive that.
         sceneId: token.document.parent?.id,
         type, visibility, faint, reinforced, note, action, subject, pointsAt, tiedToCrime,
-        itemIdentity,
+        itemIdentity, projectId,
         sourceActor: actor.id,
         sourceName: actor.name,
         room: roomOfActor(actor),
@@ -1159,10 +1165,10 @@ function saysMore(token) {
  * was handed, so a tier-2 run at a table renamed and re-iconed every trace token there
  * that a GM had named by hand. The clause hands none, and every trace in the world is read.
  *
- * @returns {Promise<null|{neutralised: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{neutralised: number}>}
  */
 export async function neutralTraceNames({ tokens = null } = {}) {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     const word = game.i18n.localize("DRPG.Remnant.tokenName");
     const telling = () => (tokens ?? (game.scenes?.contents ?? []).flatMap(scene => remnantsOn(scene))).filter(saysMore);
     const found = telling();
@@ -1321,10 +1327,10 @@ export async function retireIncidentTraces({ before = null, tokens = null } = {}
  * stamped and the next load tries again. Idempotent: a world through this holds no old
  * mark. `tokens` is the suite's fixtures (`retireIncidentTraces`).
  *
- * @returns {Promise<null|{retired: number, hidden: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{retired: number, hidden: number}>}
  */
 export async function retireOldIncidentMarks({ tokens = null } = {}) {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     const waited = await Promise.all([remnantStore.whenHydrated(), bulletStore.whenHydrated()]);
     if (waited.includes("timedOut")) throw new Error("the other GMs' copies of the traces and the bullets did not arrive; the next load tries again");
     const { murderState } = await import("./murder.mjs");
@@ -2042,11 +2048,11 @@ export async function migrateRemnants() {
  * handed the same list; review S2-m12); the clause hands none, and every trace in the
  * world is read.
  *
- * @returns {Promise<null|{moved: number, filled: number, kept: number, already: number, noRow: number,
+ * @returns {Promise<null|{notPrimary: true}|{moved: number, filled: number, kept: number, already: number, noRow: number,
  *   carried: number, notCarried: number, stripped: number, deltaCleaned: number}>}
  */
 export async function migrateRemnantsOnce({ tokens = null } = {}) {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await remnantStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the traces' answer keys did not arrive; the next load tries again");
     }

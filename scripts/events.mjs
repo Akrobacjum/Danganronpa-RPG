@@ -224,7 +224,10 @@ function incidentCard() {
         ? game.i18n.format(room ? "DRPG.Events.incidentSubRoom" : "DRPG.Events.incidentSub", { killer: killer.name, victim: victim.name, room })
         : victim.name;
 
-    return { kind: "incident", mine: Boolean(myTurn), title: game.i18n.localize("DRPG.Events.incidentTitle"), sub, meta: `${turn} · ${left}` };
+    // A trap is "A killing in the dark"; a direct murder is fought face to face, and its
+    // card said the trap's title until E32+E07 C18 (03.10.2026; audit S04-40).
+    const title = game.i18n.localize(here.indirect ? "DRPG.Events.incidentTitle" : "DRPG.Events.incidentTitleDirect");
+    return { kind: "incident", mine: Boolean(myTurn), title, sub, meta: `${turn} · ${left}` };
 }
 
 /**

@@ -161,7 +161,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     phase("crisis actions", { flow: "murder-incident" });
     await p2.eval(`globalThis.__dialogAuto = false; return true;`);
     await gm.eval(`
-        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.daichi}" });
+        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.daichi}", openingTrait: "body" });
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         return true;`, { timeout: 60000 });
     await settle(500);
@@ -198,6 +198,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const blowOk = await gm.eval(readCrisis);
     check("control: the same finishing blow from Botan's own player does kill", blowOk.dead === true, JSON.stringify(blowOk));
 
+    /* A BLOW THAT KILLED IS NOT TAKEN BACK (E32+E07 C8b, 28.09.2026; AUDIT-1.2.42 section 9,
+       the owner's answer (A)). Botan's own player sends the undo of the blow that just killed -
+       a Reroll's packet, a total of 0 and no Reroll behind it. Until 1.2.66 the guards let it
+       as far as the Reroll receipt (refused there as "noReroll", and a player with one had the
+       blow taken back and Daichi left dead); the GM now refuses it first, for the death, and
+       nothing moves: Daichi dead, the stage and the action's receipt as they were. */
+    const readUndo = `const s = game.drpg.murderState();
+        return { stage: s?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")), receipt: JSON.stringify(s?.lastCrisis ?? null) };`;
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const undoBefore = await gm.eval(readUndo);
+    const undoAnswer = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: 0, isCritical: false, withHope: true, undo: true });`,
+        { timeout: 30000 });
+    await settle(900);
+    const undoAfter = await gm.eval(readUndo);
+    const undoReasons = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message);`);
+    check("SECURITY: the undo of the finishing blow that killed is refused on the GM, and the death stands",
+        undoBefore.dead === true && JSON.stringify(undoAfter) === JSON.stringify(undoBefore) && undoAnswer?.ok === false
+            && undoAnswer?.reason === "deathStands" && undoReasons.some(r => /the death stands/.test(r)),
+        JSON.stringify({ undoBefore, undoAfter, undoAnswer, undoReasons }));
+
     /* STAGE 6 IS DECIDED ON THE GM'S SIDE (E03; audit S05-04). The Tamper list with
        `mine: false` is the whole room, types and all, and it used to be the asking
        client that decided it was Stage 6. A hidden trace nobody has found lies in
@@ -218,6 +240,66 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         !(aikoWhole ?? []).some(t => t.id === planted6.id) && JSON.stringify(aikoWhole) === JSON.stringify(aikoMine),
         JSON.stringify({ aikoWhole, aikoMine }));
     await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false }); return true;`, { timeout: 60000 });
+
+    /* A ROLE REVERSAL THE OPENING TOOK AWAY (E32+E07 C11a, 02.10.2026; audit S04-06). Botan
+       opens on Chie with a Despair success, which takes Role reversal from the victim; the
+       panel stopped drawing it, and the GM, asked, carried it out - its judgement read the
+       locks of an action in the side's list and let one missing from it through. Chie's own
+       player sends it on Chie's turn, through the honest request function: the GM refuses it
+       for what was taken away, tells p3 why, and the seats do not move. Chie's Health and
+       Sanity are put back after (the opening fills her Sanity). */
+    phase("a Role reversal the opening took away", { flow: "murder-incident" });
+    const chieWas = await gm.eval(`const r = game.actors.get("${ids.chie}").system.resources;
+        return { hp: r.hitPoints.value, stress: r.stress.value };`);
+    const readSeats = `const s = game.drpg.murderState();
+        return { stage: s?.stage ?? null, killerId: s?.killerId ?? null, victimId: s?.victimId ?? null, turnSide: s?.turnSide ?? null,
+            denied: s?.deniedToVictim ?? null };`;
+    const denyOpen = await gm.eval(`
+        await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.chie}", openingTrait: "body" });
+        await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: false });
+        (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        ${readSeats}`, { timeout: 60000 });
+    const denyAnswer = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCrisisResult({ actorId: "${ids.chie}", key: "roleReversal", total: 99, isCritical: false, withHope: true });`,
+        { timeout: 30000 });
+    await settle(900);
+    const denyAfter = await gm.eval(readSeats);
+    const denyReasons = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message);`);
+    await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false });
+        await game.actors.get("${ids.chie}").update({ "system.resources.hitPoints.value": ${Number(chieWas?.hp) || 0},
+            "system.resources.stress.value": ${Number(chieWas?.stress) || 0} });
+        return true;`, { timeout: 60000 });
+    check("SECURITY: a Role reversal the Despair opening took away, sent by the victim's own player, is refused on the GM and told",
+        denyOpen.stage === "incident" && denyOpen.turnSide === "victim" && (denyOpen.denied ?? []).includes("roleReversal")
+            && denyAnswer?.ok === false && denyAnswer?.reason === "actionDenied"
+            && denyAfter.killerId === ids.botan && denyAfter.victimId === ids.chie
+            && denyReasons.some(r => /that action is not open to that character now/.test(r)),
+        JSON.stringify({ denyOpen, denyAnswer, denyAfter, denyReasons }), { flow: "murder-incident" });
+
+    /* A STATISTIC RULING NOBODY MAY ASK (E32+E07 C11b, 02.10.2026; audit S04-23). The card a
+       ruling raises names the action in its player's thread, so the GM asks the world before it
+       posts one (bridge-guards.mjs `guardTraitRuling`): p1 asks, through the honest request
+       function, for Botan's Strike - not Aiko's to ask for - for Aiko's own with no incident
+       running, and for an opening's statistic, which only a GM's own client picks. Each is
+       refused on the GM and told to p1 with its reason; no card goes up and the harness's GM
+       presses nothing (client-entry.mjs `__traitRulings`). */
+    phase("a statistic ruling nobody may ask", { flow: "trait-ruling" });
+    const rulingMark = await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        globalThis.__traitRulings.length = 0;
+        return game.messages.contents.length;`);
+    const rulingAsked = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        if (typeof B.requestTraitRuling !== "function") return "no requestTraitRuling";
+        const ask = async (actorId, kind, key) => { const r = await B.requestTraitRuling({ actorId, kind, key }); return [r?.ok ?? null, r?.reason ?? null]; };
+        return [await ask("${ids.botan}", "crisis", "strike"), await ask("${ids.aiko}", "crisis", "strike"), await ask("${ids.aiko}", "opening", "killer")];`,
+        { timeout: 60000 });
+    await settle(600);
+    const rulingAfter = await gm.eval(`return { cards: game.messages.contents.length - ${Number(rulingMark) || 0}, pressed: globalThis.__traitRulings.length,
+        logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "trait.ruling"')).length };`);
+    check("SECURITY: a statistic ruling for another player's character, for a crisis action with no incident, or for an opening is refused on the GM, told, and puts no card up",
+        JSON.stringify(rulingAsked) === JSON.stringify([[false, "notYours"], [false, "notInIncident"], [false, "gmOnly"]])
+            && rulingAfter.cards === 0 && rulingAfter.pressed === 0 && rulingAfter.logged === 3,
+        JSON.stringify({ rulingAsked, rulingAfter }), { flow: "trait-ruling" });
 
     /*
      * 4d. A CALL ON A BODY NOBODY HAS FOUND (E05 fix r2-G3, 27.09.2026; review S2-m1). Daichi is
@@ -680,6 +762,69 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ hiddenWork, hiddenRepair, repairOnP1, thawed, repairEnd }));
     await canary.chatScan({ who: ["p1"], titles: [SECRET_WORK], phase: "projects: a secret project's sabotage" });
 
+    /* 7b''. A PROJECT'S STATISTIC (E32+E07 C11d, 02.10.2026; the owner's rules of 28.09.2026). A
+       project's roll - Work on it, or a Sabotage of it - takes the project's statistic, and only a
+       project stored without one asks a GM, by its id, on a card that names it in the asker's
+       thread (bridge-guards.mjs `guardTraitRuling`). p1 asks, through the honest request function,
+       for "SEC secret" (not p1's to see), for a project that does not exist, and for a public
+       project that demands Leg - each refused and told, no card up - and, the control, for a public
+       one with no statistic: the harness's GM presses Hand and the project keeps it. Then Botan,
+       stood alone in Storage beside a project there that demands Leg, sabotages it from p2's
+       browser (its Project window answered with that project); his `rollTrait` notes the
+       statistic and throws nothing, and nobody is asked. */
+    phase("a project's statistic", { flow: "trait-ruling" });
+    const statProjects = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        globalThis.__traitRulings.length = 0;
+        const make = async (name, trait, room) => (await P.createProject({ name, target: 6, room, trait }))?.id ?? null;
+        return { given: await make("SEC statistic given", "leg", null), open: await make("SEC no statistic", null, null),
+            storage: await make("SEC leg work", "leg", "Storage"), mark: game.messages.contents.length,
+            room: (await import("${repoUrl}/scripts/movement.mjs")).roomOfActor(game.actors.get("${ids.aiko}")) };`, { timeout: 60000 });
+    const statAsked = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const ask = async key => { const r = await B.requestTraitRuling({ actorId: "${ids.aiko}", kind: "project", key }); return [r?.ok ?? null, r?.ok ? r.value : r?.reason ?? null]; };
+        return [await ask("${projects.sec}"), await ask("SECNOPROJECT0000"), await ask("${statProjects.given}"), await ask("${statProjects.open}")];`,
+    { timeout: 120000 });
+    await settle(600);
+    const statAfter = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        return { cards: game.messages.contents.length - ${Number(statProjects.mark) || 0}, pressed: globalThis.__traitRulings.length,
+            kept: P.allProjects().find(p => p.id === "${statProjects.open}")?.trait ?? null,
+            logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "trait.ruling"'))
+                .reduce((n, e) => n + (e.count ?? 1), 0) };`);
+    check("SECURITY: a statistic ruling for a project p1 cannot see, one that does not exist, or one with a statistic is refused on the GM, told, and puts no card up; one with none is asked and kept",
+        JSON.stringify(statAsked) === JSON.stringify([[false, "notThere"], [false, "notThere"], [false, "badRequest"], [true, "hand"]])
+            && statAfter.cards === 1 && statAfter.pressed === 1 && statAfter.logged === 3 && statAfter.kept === "hand",
+        JSON.stringify({ statProjects, statAsked, statAfter }), { flow: "trait-ruling" });
+    const PLACE = `{ teleport: true, movementAction: "displace", animate: false }`;
+    const stoodBotan = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const actor = game.actors.get("${ids.botan}"); const t = canvas.scene.tokens.find(x => x.actorId === actor.id);
+        const was = { x: t.x, y: t.y };
+        await t.update(M.positionIn("Storage", t), ${PLACE});
+        await game.drpg.setActions(actor, game.drpg.actionsMax(actor));
+        await new Promise(r => setTimeout(r, 400));
+        return { was, room: M.roomOfActor(actor), others: M.othersInRoom(actor).map(a => a.name) };`, { timeout: 30000 });
+    await settle(600);
+    const sabotaged2 = await p2.eval(`const actor = game.actors.get("${ids.botan}");
+        const rolled = [];
+        actor.rollTrait = async key => { rolled.push(key); return null; };
+        let err = null;
+        globalThis.__notifications.length = 0;
+        // p2 sits still since the crisis phase (__dialogAuto false): the Project window is answered as its callback answers.
+        globalThis.__dialogAnswers.unshift(() => ({ id: "${statProjects.storage}" }));
+        try { await game.drpg.performAction(actor, "sabotage", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        delete actor.rollTrait;
+        return { rolled, err, dialogs: globalThis.__dialogLog.map(d => d.title).slice(-3),
+            notifs: globalThis.__notifications.map(n => n.level + ": " + n.msg).slice(-4) };`, { timeout: 60000 });
+    const sabotageAfter = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const t = canvas.scene.tokens.find(x => x.actorId === "${ids.botan}");
+        await t.update(${JSON.stringify(stoodBotan.was)}, ${PLACE});
+        const pressed = globalThis.__traitRulings.length;
+        for (const id of ${JSON.stringify([statProjects.given, statProjects.open, statProjects.storage].filter(Boolean))}) await P.deleteProject(id);
+        return { pressed, frozen: P.isFrozen("${statProjects.storage}") };`, { timeout: 60000 });
+    check("a Sabotage rolls the statistic of the project it targets (Leg), and nobody is asked",
+        stoodBotan.room === "Storage" && !stoodBotan.others.length && !sabotaged2.err
+            && JSON.stringify(sabotaged2.rolled) === JSON.stringify(["agility"]) && sabotageAfter.pressed === 1,
+        JSON.stringify({ stoodBotan, sabotaged2, sabotageAfter }), { flow: "projects" });
+
     // 7c. observe.resolve with somebody else's key.
     phase("Observe keys", { flow: "search-observe" });
     const observed = await gm.eval(`
@@ -1021,6 +1166,40 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const parkWorld = await p1.eval(`return game.settings.get("${MOD}", "pendingMurders") ?? null;`);
     check("control: Chie's own player parks a declaration: the GMs' store holds it, and the world's old key on p1 holds nothing",
         parkOk.row?.note === "SEC Chie's own declaration" && JSON.stringify(parkWorld) === "{}", JSON.stringify({ parkOk, parkWorld }));
+
+    /*
+     * 7h2b. A betrayal declared in the dark with no offer (E32 C5b, 28.09.2026; the owner's Q3).
+     * In an Eclipse a betrayal is a declaration the GM's client parks with the direct murders,
+     * and the offer is the world's to say: p1 sends murder.betrayal for their own Aiko, who has
+     * no betrayal on offer, in the Eclipse still open above. Ownership passes; the GM refuses it
+     * as cannotNow and tells p1, and nothing is parked or offered.
+     */
+    const readBetrayal = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        return { row: S.pendingMurderStore.get("${ids.aiko}") ?? null, offer: incidentCast().betrayal ?? null };`;
+    const betray = await forge("murder.betrayal", { actorId: ids.aiko, note: "SEC a betrayal nobody offered" }, readBetrayal);
+    check("SECURITY: in an Eclipse, a murder.betrayal for Aiko, who has no betrayal on offer, is refused as cannotNow and told to p1 - nothing parked",
+        betray.unchanged && betray.after.row === null && betray.after.offer === null && !betray.forOwnership
+            && betray.reasons.some(r => r.includes("that cannot be done now")) && betray.told.some(t => t.what === "murder.betrayal"),
+        JSON.stringify(betray));
+
+    /*
+     * 7h2c. A betrayal declared twice in one Eclipse (E32+E07 fix r1-G2, 01.10.2026; the round-1
+     * security review's m4). The offer stays in the cast until the lights now, so the tile stays
+     * lit after a declaration: Aiko is offered the betrayal on Botan and has declared it (the
+     * GMs' row, written as `parkBetrayal` writes it), and p1 sends murder.betrayal for her again.
+     * The GM refuses it as alreadyDone and tells p1; the row and the offer are as they were.
+     */
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const { eclipseId } = await import("${repoUrl}/scripts/settings.mjs");
+        const c = game.drpg.getClock(), offer = { thirdId: "${ids.aiko}", killerId: "${ids.botan}", chapter: c.chapter, day: c.day };
+        await S.castStore.patch("record", { betrayal: offer });
+        await S.pendingMurderStore.patch("${ids.aiko}", { room: null, note: "SEC declared once", at: Date.now(), approved: null, eclipse: eclipseId(), betrayal: offer });
+        return true;`);
+    const again = await forge("murder.betrayal", { actorId: ids.aiko, note: "SEC declared twice" }, readBetrayal);
+    check("SECURITY: in an Eclipse, a second murder.betrayal for Aiko, who has declared hers, is refused as alreadyDone and told to p1 - the row and the offer as they were",
+        again.unchanged && again.after.row?.note === "SEC declared once" && again.after.offer?.killerId === ids.botan && !again.forOwnership
+            && again.reasons.some(r => r.includes("that betrayal is already declared")) && again.told.some(t => t.what === "murder.betrayal"),
+        JSON.stringify(again));
+    await gm.eval(`await (await import("${repoUrl}/scripts/murder.mjs")).clearBetrayalOffer(); return true;`);
     await gm.eval(`await (await import("${repoUrl}/scripts/eclipse.mjs")).clearParkedMurders();
         await game.drpg.setClock({ eclipse: false, ...${JSON.stringify(parkClock)} }); return true;`);
 

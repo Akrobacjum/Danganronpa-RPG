@@ -20,7 +20,7 @@
 
 import { MODULE_ID, PRICE_CHAINS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, whisperToGms, error, debug } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error, debug, warn } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -606,7 +606,7 @@ export function wireCallActions(body, message = null) {
                 const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
                 if (message && outcome?.settled) {
                     const { settleCall } = await import("./gm-bridge.mjs");
-                    await settleCall(message, outcome.settled);
+                    await settleCall(message, outcome.settled, outcome.ruling ?? null);
                     return; // The card redraws itself; this button is gone.
                 }
             } catch (err) {
@@ -694,6 +694,33 @@ async function ruleRefuseDynamic(action, data) {
     return settled("DRPG.Bridge.settledDeclined");
 }
 
+    // The statistic of a roll that lists several (E32+E07 C11b; trait-ruling.mjs). The
+    // list is read again from this GM's config for the definition the card names, and a
+    // trait not on it is refused here: the button's data is the card's, and the card is
+    // a document. The pick goes to the asker alone and is kept in the card's meta. A project
+    // stored without a statistic is given this one before the answer leaves (C11d), so the
+    // roll it is for is the last that asks.
+async function rulePickTrait(action, data) {
+    const { listedTraits, keepProjectPick } = await import("./trait-ruling.mjs");
+    const spec = { kind: data.kind ?? "", key: data.key ?? "", variant: data.variant || null };
+    if (!game.actors.get(data.by ?? "") || !listedTraits(spec).includes(data.trait)) {
+        warn(`A statistic card offered "${data.trait}", which ${spec.kind} "${spec.key}" does not list; nothing was answered.`);
+        return null;
+    }
+    await keepProjectPick(spec, data.trait);
+    const { answerTraitRuling } = await import("./gm-bridge.mjs");
+    if (!answerTraitRuling(data.rid, data.asker, data.trait)) return null;
+    return { ...settled("DRPG.Bridge.settledAnswered"),
+        ruling: { type: "trait", actorId: data.by, ...spec, trait: data.trait } };
+}
+
+    // Refuse: the action is not taken, and nothing was spent for it.
+async function ruleRefuseTrait(action, data) {
+    const { answerTraitRuling } = await import("./gm-bridge.mjs");
+    if (!answerTraitRuling(data.rid, data.asker, false)) return null;
+    return settled("DRPG.Bridge.settledDeclined");
+}
+
     // A Tier 0 item used creatively (ITEM-07). The ruling used to be a console
     // call - `game.drpg.grantItemEffect(...)` - and so was never made: the
     // "seemingly useless item" stayed in the bag holding a usable slot.
@@ -760,12 +787,13 @@ async function ruleRearmTrap(action, data) {
 }
 
 async function ruleFireTrap(action, data) {
-    // The trap names a condition, not a victim - so this opens the murder
-    // screen with the killer already filled in and "indirect" already
-    // ticked, and asks the one thing the condition cannot answer: who
-    // walked into it.
+    // The murder screen with the builder as the killer, "indirect" ticked and
+    // the student the trap read as the victim (E32+E07 C14, 03.10.2026; audit
+    // S11-20): the card has carried them since it was built, and this passed
+    // the builder alone, so the window proposed the first living student
+    // instead. Proposed, not applied - the GM confirms who walked into it.
     const { openMurderDialog } = await import("./murder.mjs");
-    const opened = await openMurderDialog({ killerId: data.killer, indirect: true });
+    const opened = await openMurderDialog({ killerId: data.killer, victimId: data.victim || null, indirect: true });
     return opened ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
@@ -1071,6 +1099,8 @@ const CARD_ACTIONS = {
     refuseCall: ruleApproveCallOrRefuseCall,
     setDifficulty: ruleSetDifficulty,
     refuseDynamic: ruleRefuseDynamic,
+    pickTrait: rulePickTrait,
+    refuseTrait: ruleRefuseTrait,
     itemWorks: ruleItemWorksOrItemNoEffectOrItemRefuse,
     itemNoEffect: ruleItemWorksOrItemNoEffectOrItemRefuse,
     itemRefuse: ruleItemWorksOrItemNoEffectOrItemRefuse,

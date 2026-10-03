@@ -267,6 +267,23 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
         ? `${actor.name} is dead (chapter ${record.chapter}), kept by the GMs until the body is found.`
         : `${actor.name} is dead (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed.`);
 
+    await incidentVictimDied(actor, record.chapter);
+
+    return record;
+}
+
+/**
+ * WHAT THE RUNNING INCIDENT'S VICTIM'S DEATH DOES TO IT (E32+E07 C13, 03.10.2026; audit S10-77,
+ * the owner's D13): the chapter's traces tied to the crime, and Stage 6 offered. Both were
+ * `killCharacter`'s tail and nobody else's, so a victim the GM marked dead from the Students
+ * list in the middle of the fight (gm-panel.mjs `applyAliveStates`) left the incident at stage
+ * "incident" around a body - no clean-up for the killer, and the chapter's traces left for the
+ * Faint sweep. D13: that death offers Stage 6 too. The list stays the quiet repair otherwise
+ * (F16): no card, no inventory, nothing for a death outside an incident. GM-side.
+ */
+export async function incidentVictimDied(actor, chapter) {
+    if (!game.user.isGM || !actor) return;
+
     // The VICTIM of the running incident died - and only then (Dawid, 26.08):
     // the chapter's traces are the case now, so they arrive in the
     // Investigation Dashboard with "Tied to crime" already checked. Gated on
@@ -277,7 +294,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
         const { sideOf } = await import("./murder.mjs");
         if (sideOf(actor) === "victim") {
             const { tieChapterTraces } = await import("./remnants.mjs");
-            await tieChapterTraces(record.chapter);
+            await tieChapterTraces(chapter);
         }
     } catch (err) {
         error("Could not mark the chapter's traces as tied to the murder", err);
@@ -289,8 +306,6 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
     } catch (err) {
         error("Could not offer the clean-up stage after the death", err);
     }
-
-    return record;
 }
 
 /** Whether this actor is the running incident's victim: a death kept secret by default (E05 C10). */
@@ -716,14 +731,15 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
        body kept by the GMs lying in this room are published before anything else - before the
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
-    await publishFoundBodies(room, victim, where);
+    const found = await publishFoundBodies(room, victim, where);
 
     const promoted = await promoteFaintPrep();
 
     // Stage 7 takes the gloves. The guide puts the cleaning tool's destruction
     // here rather than at the end of Stage 6 - see CLEANUP.destroysToolsOnDiscovery.
+    // The gloves of the bodies found, and no others (fix r2-G3: `destroyCleaningTools`).
     await import("./cleanup.mjs")
-        .then(m => m.destroyCleaningTools())
+        .then(m => m.destroyCleaningTools(found))
         .catch(err => error("Could not destroy the cleaning tools at body discovery", err));
 
     const { gatherEveryone } = await import("./call-effects.mjs");
@@ -765,14 +781,22 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
     return { promoted, moved };
 }
 
-/** The named victim, and every body kept by the GMs standing in `room` on `scene`, published (`publishDeath`). */
+/**
+ * The named victim, and every body kept by the GMs standing in `room` on `scene`, published
+ * (`publishDeath`). Answers every body the discovery found - the named victim and every body
+ * dead for the GMs in the room, a death the table already knew included - whose killers'
+ * cleaning tools it breaks (E32+E07 fix r2-G3; cleanup.mjs `destroyCleaningTools`).
+ */
 async function publishFoundBodies(room, victim, scene) {
     const ids = new Set(victim && deathStore.has(victim.id) ? [victim.id] : []);
+    const found = new Set(victim ? [victim.id] : []);
     try {
         const { roomOfToken } = await import("./movement.mjs");
         for (const t of scene?.tokens ?? []) {
             const id = t.actor?.id;
-            if (id && deathStore.has(id) && roomOfToken(t) === room) ids.add(id);
+            if (!id || roomOfToken(t) !== room) continue;
+            if (deathStore.has(id)) ids.add(id);
+            if (deathStore.has(id) || isDeadForGm(t.actor)) found.add(id);
         }
     } catch (err) {
         error("Could not read which bodies lie in the room of the discovery", err);
@@ -781,7 +805,7 @@ async function publishFoundBodies(room, victim, scene) {
         const body = game.actors.get(id);
         if (body) await publishDeath(body);
     }
-    return ids.size;
+    return [...found];
 }
 
 /**
@@ -1381,6 +1405,18 @@ export async function applyChapterEnd(choices = {}) {
     // no longer emptied here (E04): `blackenedIds` reads the rows of the clock's
     // chapter, so the next chapter starts with nobody's blood on anybody - and a
     // GM's copy that missed an emptying cannot bring last chapter's killers back.
+
+    // The Cleaning Tools the chapter's clean-ups used (E32+E07 C12; cleanup.mjs
+    // `noteCleaningTool`) are for its own discovery: a row the next chapter reads
+    // counts nothing, and the move to it takes them all.
+    if (result.nextChapter) {
+        try {
+            const { clearUsedTools } = await import("./cleanup.mjs");
+            await clearUsedTools();
+        } catch (err) {
+            error("Could not empty the used Cleaning Tools at the end of the chapter", err);
+        }
+    }
 
     // And the chapter actually ends.
     //

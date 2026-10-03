@@ -54,9 +54,13 @@ const RESULTS = path.join(HERE, "results");
 const PART_NAMES = ["lint", "check", "gate", "suite", "scenarios"];
 const SUITE = "01-runtests";
 /* Hang detectors, not benchmarks. The suite took 5m15s-5m23s here on 24.09.2026
-   (C20's runs, 4 cores); 12 minutes leaves room for a slower runner. The other
-   scenarios took 0.4-62 s. A scenario may say otherwise with `export const timeoutMs`. */
-const SUITE_TIMEOUT_MS = 12 * 60_000;
+   (C20's runs, 4 cores), and 12 minutes left room for a slower runner. By 02.10.2026
+   it took 12m42s-13m13s on the same machine (E32+E07 fix r1-G3's and r1-G4's runs,
+   tier 2 alone 582-613 s), past that bound - so 20. The other scenarios took 0.4-62 s
+   on 24.09.2026; on 02.10.2026 the slowest were 61 at 255-259 s and 30 at 85-86 s,
+   inside their 5 minutes, 61 not by much. A scenario may say otherwise with
+   `export const timeoutMs`. */
+const SUITE_TIMEOUT_MS = 20 * 60_000;
 const SCENARIO_TIMEOUT_MS = 5 * 60_000;
 const LAYERS_RE = /export const layers = (\[[^\]]*\])/;
 const TIMEOUT_RE = /export const timeoutMs = (\d+)/;

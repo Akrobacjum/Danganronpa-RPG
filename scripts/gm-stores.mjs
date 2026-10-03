@@ -235,15 +235,73 @@ export const doorCopy = defineGmCopy({
 export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy"]);
 
 /**
+ * THE FIGHT (E32 C2, 28.09.2026; E05's Q8, the owner's Q1 (a) of 28.09): the round and
+ * whose side acts, what the opening took from the victim and how many Key Remnants it
+ * left, the hindrances and blocks with their turns, what Self-defence opened, what is
+ * spent, the drain, the second try a Hope miss earned (the action it is for, since
+ * E32+E07 C9), a critical's free resolution and the third's one action. Until 1.2.66
+ * these twelve sat in the world half of `murderState`, on every browser, though every
+ * reader of them runs where the cast is held: the participants' panels and trackers, a
+ * witness's Event card (events.mjs), the GM's Key Remnant count (investigation.mjs
+ * `keyRemnants`) - read by grep on 28.09, each classified in C2's commit. A bystander's
+ * browser reads `active` and `stage` alone - the locks, and `incidentWitness`, which
+ * tells it the music and the red edges are not its own - and a list of which actions a
+ * victim had left, turn by turn, is the shape of a fight nobody outside it saw. They
+ * are the cast's now, sent to every holder in their copy (murder.mjs `castFor`).
+ */
+export const INCIDENT_FIGHT = Object.freeze([
+    "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",
+    "unlocked", "spent", "drainStopped", "advantageNext", "freeResolution", "thirdActed"
+]);
+
+/**
  * The fields of an incident's cast (murder.mjs): who is in it, whose turn it is
  * on the killers' side, the accomplice and which side they took, the Reroll
  * receipt (`lastCrisis`, which names every participant), the betrayal offer and
- * the swing memo - and since E05 C8 the method (`INCIDENT_METHOD`). The record's
- * closed set: `resetRecord` stamps each of them, `castStamps` sends a stamp for each
- * but the swing memo, and `castCombine` weighs them all.
+ * the swing memo - since E05 C8 the method (`INCIDENT_METHOD`), and since E32 C2 the
+ * fight (`INCIDENT_FIGHT`). The record's closed set: `resetRecord` stamps each of
+ * them, `castStamps` sends a stamp for each but the swing memo, and `castCombine`
+ * weighs them all.
+ *
+ * `departed` (E32+E07 C10, 02.10.2026; audit S04-21): the actor ids of the thirds who left
+ * - Averted eyes, a failed Escape together - and may not walk back in. A list of names,
+ * so the cast's and never the world half's; it was never in the world half, so it is not
+ * the fight's either (`INCIDENT_FIGHT` is also what the update lifts out of it). Every
+ * player's copy holds it null since fix r2-G2 (03.10.2026; the round-2 review's S2-m1): its
+ * readers are the primary GM's, and a third seated after another left read in theirs who
+ * had walked in and out before they came (murder.mjs `castFor`).
+ *
+ * `openingTrait` (E32+E07 C11c, 02.10.2026; audit S04-23, the owner's Q4 as corrected): the
+ * statistic a GM picked for the opening roll, kept so that a re-ask and a GM's throw for an
+ * absent player - on any GM's browser - roll it again rather than ask again. The GMs' alone:
+ * the roller is sent it with the invitation, and every player's copy holds it null.
+ *
+ * `freeCleanup` (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): the actor id of
+ * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
+ * spends it (cleanup.mjs `consumeFreeCleanup`). Written with the stage that ends the fight,
+ * so not the fight's. Every player's copy holds it null but a killer's, whose browser quotes
+ * the free attempt by it since fix r2-G3 (murder.mjs `castFor`, cleanup.mjs `tamperQuote`).
+ *
+ * `recent` (E32+E07 C17, 03.10.2026; audit S04-29): the fight's last three turns for the GM's
+ * tracker, `{ turn, side, key, band, success, changes }` each, written with the action's
+ * receipt (murder.mjs `closeReceipt`). It names who acted and what it cost them, so not the
+ * fight's either: the GMs' alone, every player's copy holds it null.
+ *
+ * Not a field of the incident, and so not in this list: `sent` (E32+E07 fix r2-G2,
+ * 03.10.2026), what each player was last sent of a standing packet - nothing, or the
+ * betrayal offer alone - split a stamp per user, kept by the GMs so that every GM repeats
+ * it (murder.mjs `sendCast`). `resetRecord` leaves it, no stamp of it is sent, and
+ * murder.mjs reads the incident without it (`readCast`); a reset of the incident group
+ * empties it with the record. Nor `openingNotices` (E32+E07 fix r2-G4, 03.10.2026; the
+ * correctness review's m3): the ids of the opening's request cards and of the line that a GM
+ * is picking its statistic, a stamp per card, so that whichever GM resolves the opening,
+ * takes it back or closes the murder deletes the cards another GM posted (murder.mjs
+ * `retireOpeningNotices`). The same way as `sent`: left by `resetRecord`, sent to nobody, and
+ * read out of the incident by `readCast` and `castCopyFor`.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    ...INCIDENT_FIGHT
 ]);
 
 /**
@@ -270,7 +328,7 @@ export const CAST_FIELDS = Object.freeze([
  */
 export const castStore = defineGmStore({
     name: "cast", key: SETTINGS.incidentCast, legacyKey: SETTINGS.legacyIncidentCast,
-    kind: "record", fields: CAST_FIELDS, split: ["swung"], resetGroup: "incident", backup: true, sync: true,
+    kind: "record", fields: CAST_FIELDS, split: ["swung", "sent", "openingNotices"], resetGroup: "incident", backup: true, sync: true,
     afterRestore: () => import("./murder.mjs").then(m => m.retellCast()),
     legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
     claim: legacy => {
@@ -373,13 +431,17 @@ export const CAST_SEATS = Object.freeze(["killerId", "victimId", "thirdId", "bet
  * another it wrote since. "Not in it" (`{}`) is a statement about the seats alone, so
  * it carries their stamps and is weighed on them: a bystander asking learns when the
  * seats last changed and nothing of the rest, and a former participant's copy is
- * emptied by a newer seat whatever the other parts say. Pure (R176).
+ * emptied by a newer seat whatever the other parts say. So is a copy that holds the
+ * betrayal offer and nothing else (E32+E07 fix r1-G1, 29.09.2026; the review's M1): its
+ * third stands outside the incident running now, and is sent the seats' stamps alone
+ * (murder.mjs `castPacket`) - weighed on all of them, a copy holding the fight they
+ * fought refused it at 0 in every other part. Pure (R176, R210).
  */
 export function castCombine(held, offered, { cut = 0 } = {}) {
     const seats = stamps => Object.fromEntries(CAST_SEATS.map(part => [part, stamps?.[part] ?? 0]));
-    if (!Object.keys(offered?.value ?? {}).length) {
+    if (Object.keys(offered?.value ?? {}).every(part => part === "betrayal")) {
         const stamps = seats(offered?.stamps);
-        return newerStamps(stamps, seats(held?.stamps), cut) ? { value: {}, stamps } : null;
+        return newerStamps(stamps, seats(held?.stamps), cut) ? { value: { ...(offered?.value ?? {}) }, stamps } : null;
     }
     return newerStamps(offered?.stamps, held?.stamps, cut) ? offered : null;
 }
@@ -493,7 +555,9 @@ export const projectSecretStore = defineGmStore({
  * THE DIRECT MURDERS DECLARED IN THE DARK (E05 C3; audit S10-01, S01-02, S11-02). A row per
  * killer: `room`, `note`, `at`, `approved` and `eclipse`, the Eclipse it was declared in
  * (settings.mjs `eclipseId`) - the world setting `pendingMurders` until 1.2.64, which every
- * browser held for the whole Eclipse. Read for the running Eclipse only (eclipse.mjs
+ * browser held for the whole Eclipse. A betrayal declared in an Eclipse is a row too, keyed by
+ * the betrayer, its `betrayal` a copy of the offer it was declared on, which the lights take
+ * (eclipse.mjs `parkBetrayal`, E32 C5b; fix r1-G2); a murder's row names `betrayal` null. Read for the running Eclipse only (eclipse.mjs
  * `pendingMurders`); the lights judge that Eclipse's rows and drop every other unjudged. In
  * the incident's reset group: a declaration nobody judged is an incident that has not
  * happened yet. No old key: the first rows come out of the world by `liftPendingMurders`.
@@ -620,6 +684,26 @@ export const despairOwedStore = defineGmStore({
 export const lootTraceStore = defineGmStore({
     name: "lootTraces", key: SETTINGS.gmLootTraces,
     kind: "ledger", resetGroup: "remnants", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 02.10.2026; audit S05-38, S04-20, S05-23;
+ * the owner's D13: the Cleaning Tool remembered like the weapon). A row per killer,
+ * `{ chapter, epoch, cleaning, victims }`: the clock's chapter and season (`seasonEpoch`, as the
+ * Blackened rows keep it), the id of every Cleaning Tool they had readied at a clean-up
+ * attempt the GM scored (cleanup.mjs `noteCleaningTool`), and since fix r2-G3 the bodies those
+ * attempts cleaned up after, so a discovery breaks only the tools of the bodies it found. Until 1.2.66 the discovery broke
+ * what the killers held in hand at that moment, read off `killerIds()` - so gloves put away
+ * after the clean-up survived it, and a discovery after the close, when the incident and its
+ * killers are gone, broke nothing at all. Read and emptied by `destroyCleaningTools`; a row of
+ * another chapter or season counts nothing, and the chapter's end and the reset's "incident"
+ * group take what is left. Backed up and synced between GMs. No player copy - nothing on a
+ * player's client reads it, so R182 has nothing to ask of it.
+ */
+export const usedToolStore = defineGmStore({
+    name: "usedTools", key: SETTINGS.gmUsedTools,
+    kind: "ledger", resetGroup: "incident", backup: true, sync: true,
     exists: actorId => Boolean(game.actors?.has(actorId))
 });
 

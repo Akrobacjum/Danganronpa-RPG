@@ -38,12 +38,18 @@
  *      newer pick moves the lair and the former Mastermind learns nothing (B1); and
  *      the upgrade day's clear is put to the primary whichever browser held it and
  *      whenever the pick arrives, with no player told the part meanwhile (M1).
+ *   L  a running incident's fight at the update (E32 C3): the primary's clause lifts it out of the
+ *      world half into its record and the killer's player's copy, and a GM that joins after with an
+ *      empty browser holds it; the clause run on that GM, not the primary, lifts and stamps nothing.
  *   F  the incident's cast (S04-24, the cast half of S06-19): a participant's copy
  *      is stamped part by part, and what the primary answers is read off the
- *      packets; a second GM with an empty browser does not answer for it; a GM that
+ *      packets; a second GM with an empty browser does not answer for it; the fight
+ *      (E32 C2) syncs with it, and a bystander holds the stage alone; a GM that
  *      has not merged a newer write lets a third in, and the primary tells the
  *      participants what the GMs agree on (B1); and the second GM closes the
  *      incident: both GMs' records and the copy are cleared by one stamp.
+ *   F9 the opening's statistic (E32+E07 C11c): the primary picks it as the roll goes out,
+ *      and a second GM's re-ask reads the pick from the cast and sends it, asking nobody.
  *   G  a trap's planted object (S08-19): a second GM plants it, the primary - who
  *      hands a player's Search its find - finds it and gives it to the searcher,
  *      and its use sets the trap off on the primary's chat.
@@ -105,6 +111,8 @@
  *      kept death, leaves, the GM revives it, and p4 back reads its character alive.
  *   S  two GMs' loots of one body nobody has found (E05 fix r2-G3): each serves one without
  *      having heard of the other, both are owed, and the publication gives both takers theirs.
+ *   T  the Cleaning Tools a clean-up used (E32+E07 C12): a row the primary writes reaches the
+ *      second GM, whose discovery breaks the gloves and takes the row off both.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -598,6 +606,98 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await disconnect("gmc");
     await settle(300);
 
+    /* ------------- L. a running incident's fight, lifted at the update ------------- */
+
+    /* E32 C3 (28.09.2026; the owner's Q1 (a)): an incident a 1.2.65 table left running - its names
+       and method in the cast as 1.2.65 wrote them, its fight in the world half - is lifted by the
+       clause on the primary (the runner, `only` the clause and forced, as this world is stamped
+       already). No incident has run in this scenario before, so no GM's record and no copy holds a
+       stamp for the fight, as none did at 1.2.65 (read first, L1). Then every browser's world half
+       holds the stage alone, the killer's player's copy holds the fight, and gm2, which joins after
+       the clause with an empty browser, holds it in its record by the stores' exchange. The
+       incident is closed on the primary before F opens its own. */
+    phase("L: a running incident's fight is lifted out of the world half at the update, and a GM that joins after holds it", { flow: "murder-incident" });
+    const FIGHT_L = { turn: 2, turnSide: "killer", keyRemnants: 3, deniedToVictim: ["survive"], hindered: { victim: {}, killer: {} },
+        blocked: { victim: {}, killer: {} }, unlocked: [], drainStopped: false, advantageNext: { victim: false, killer: false },
+        spent: [], freeResolution: null, thirdActed: null };
+    const LIFT_L = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const M = await import("${repoUrl}/scripts/murder.mjs");`;
+    const fightL = client => client.eval(`${LIFT_L} const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const held = r => S.INCIDENT_FIGHT.map(f => [f, r[f] ?? null]);
+        return { record: game.user.isGM ? held(S.castStore.record()) : null, copy: game.user.isGM ? null : held(incidentCast()),
+            turn: M.murderState()?.turn ?? null, world: Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort() };`);
+    const l1 = await gm.eval(`${LIFT_L} const G = await import("${repoUrl}/scripts/migrate.mjs");
+        const stamped = S.INCIDENT_FIGHT.filter(f => S.castStore.stampOf("record", f) > 0);
+        await S.castStore.patch("record", { killerId: "${IDS.chie}", victimId: "${IDS.daichi}", killerTurnId: "${IDS.chie}", thirdId: null,
+            thirdSide: null, indirect: false, selfInflicted: false, openedAt: Date.now() });
+        await game.settings.set("${MOD}", "murderState", { active: true, stage: "incident", ...${J(FIGHT_L)} });
+        const before = Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).length;
+        const pass = await G.migrate1_2_0({ force: true, quiet: true, only: ["liftIncidentFight"] });
+        return { stamped, before, failed: pass?.failed ?? null, done: pass?.clauses?.liftIncidentFight ?? null };`);
+    await settle(800);
+    // Field by field, in one order on both sides: the record answers in INCIDENT_FIGHT's.
+    const sortL = pairs => J([...(pairs ?? [])].sort(([a], [b]) => a.localeCompare(b)));
+    const heldL = sortL(Object.entries(FIGHT_L));
+    // The Key Remnants' count stays the GMs': no player's copy holds it (murder.mjs `castFor`, E32+E07 fix r1-G1).
+    const copyL = sortL(Object.entries({ ...FIGHT_L, keyRemnants: null }));
+    const liftedL = { gm: await fightL(gm), p3: await fightL(p3), p1: await fightL(p1) };
+    check("L1: the clause lifts a running incident's fight out of the world half on the primary: its record and the killer's player's copy hold it, and every browser's world half holds the stage alone",
+        J(l1.stamped) === "[]" && l1.before === 14 && J(l1.failed) === "[]" && J(l1.done) === J({ lifted: 10, dropped: 2, kept: 0 })
+        && sortL(liftedL.gm.record) === heldL && sortL(liftedL.p3.copy) === copyL && liftedL.p3.turn === 2 && liftedL.p1.turn === null
+        && Object.values(liftedL).every(r => J(r.world) === J(["active", "stage"])), J({ l1, liftedL }));
+
+    await connect("gm2");
+    await settle(1500);
+    const joinedL = await fightL(gm2);
+    check("L2: a GM that joins after the clause with an empty browser holds the lifted fight in its record, and its world half the stage alone",
+        sortL(joinedL.record) === heldL && joinedL.turn === 2 && J(joinedL.world) === J(["active", "stage"]), J(joinedL));
+    /* E32+E07 fix r1-G4 (02.10.2026; the security review's m2): the clause run by hand on gm2, which
+       is not the primary, lifts nothing and writes no stamp, and the GM is told. Until then its lift
+       answered the null "nothing to do", the runner stamped the world over it, and no later load
+       lifted what a 1.2.65 table left. A fight field goes back into the world half and the stamp back
+       to an older version first; the primary's pass after gm2's lifts the field and stamps. Since fix r2-G4
+       (03.10.2026; the security review's S2-m5) every one of the 1.2.64-1.2.66 clauses that asks for the
+       primacy says on gm2 that it skipped, as the fight's does: until then E04's and E05's answered the plain
+       null, and only the runner's question after the clauses held the stamp back - a primacy lost and back
+       within one pass stamped over them. */
+    const stampL = await gm.eval(`const was = game.settings.get("${MOD}", "migratedVersion");
+        await game.settings.set("${MOD}", "murderState", { ...game.settings.get("${MOD}", "murderState"), turn: 9 });
+        await game.settings.set("${MOD}", "migratedVersion", "1.2.64");
+        return was;`);
+    await settle(600);
+    // The clauses that ask for the primacy (migrate.mjs CLAUSES), in the runner's order.
+    const PRIMARY_ONLY = ["liftIncidentSecrets", "liftDiscoveryLedger", "liftProjectSecrets", "liftPendingMurders", "liftEclipseMoves",
+        "liftKeyPlan", "liftNotes", "dropRollBookmarks", "dropCardSummaries", "liftIncidentMethod", "liftOverflowCount", "liftBulletRefs",
+        "neutralTraceNames", "liftLootTraces", "migrateRemnantsOnce", "retireOldIncidentMarks", "neutraliseOldCards", "unsignArmedCalls",
+        "liftArmedConfusions", "sealOldRepairs", "liftIncidentFight"];
+    const passL = (client, quiet, keys = ["liftIncidentFight"]) => client.eval(`${LIFT_L} const G = await import("${repoUrl}/scripts/migrate.mjs");
+        const told = [], warn = ui.notifications.warn;
+        ui.notifications.warn = text => { told.push(String(text)); return null; };
+        try {
+            const pass = await G.migrate1_2_0({ force: true, quiet: ${quiet}, only: ${J(keys)} });
+            return { failed: pass?.failed ?? null, notPrimary: pass?.notPrimary ?? null, done: pass?.clauses?.["${keys[0]}"] ?? null, told,
+                changed: pass?.changed ?? null,
+                stamp: game.settings.get("${MOD}", "migratedVersion"), turn: M.murderState()?.turn ?? null,
+                world: Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort() };
+        } finally {
+            ui.notifications.warn = warn;
+        }`);
+    const l3 = await passL(gm2, false);
+    await settle(400);
+    const l3s = await passL(gm2, true, PRIMARY_ONLY);
+    await settle(400);
+    const l3p = await passL(gm, true);
+    await settle(400);
+    check("L3: the clause on a GM that is not the primary lifts nothing, writes no stamp and tells the GM, and every clause of 1.2.64-1.2.66 that asks for the primacy says there that it skipped; the primary's pass after them lifts the field and stamps",
+        l3.stamp === "1.2.64" && J(l3.failed) === "[]" && J(l3.notPrimary) === J(["liftIncidentFight"]) && l3.done === null
+        && l3.told.length === 1 && !l3.told[0].startsWith("DRPG.") && J(l3.world) === J(["active", "stage", "turn"])
+        && l3s.stamp === "1.2.64" && J(l3s.failed) === "[]" && J(l3s.notPrimary) === J(PRIMARY_ONLY) && l3s.changed === 0 && l3s.told.length === 0
+        && l3p.stamp === stampL && J(l3p.failed) === "[]" && J(l3p.notPrimary) === "[]" && J(l3p.done) === J({ lifted: 1, dropped: 0, kept: 0 })
+        && l3p.turn === 2 && J(l3p.world) === J(["active", "stage"]), J({ stampL, l3, l3s, l3p }));
+    await gm.eval(`${LIFT_L} await M.endMurder({ reason: "E32 61L", followUp: false }); return true;`);
+    await settle(800);
+    await disconnect("gm2");
+    await settle(300);
+
     /* ------------------- F. the incident's cast, stamped ------------------- */
 
     phase("F: the incident's cast through the primary GM, and closed by another", { flow: "murder-incident" });
@@ -627,12 +727,20 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        critical, which always opens the incident. Left random, it failed once in six runs
        ("Murder closed (openingFailed)", the C7 run, 26.09) and F read a closed incident. */
     await p3.eval(`globalThis.__forceRoll = { hope: 10, fear: 10 }; return true;`);
-    const openedAt = await gm.eval(`${CAST} await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" });
+    const openedAt = await gm.eval(`${CAST} await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}", openingTrait: "body" });
+        return S.castStore.stampOf("record");`);
+    /* The opening resolves on p3's roll, and since E32 C2 (28.09.2026) what it writes - the round, the
+       side to act, the Key Remnants' count - is the cast's, so the record's stamp moves with it: until
+       then the copy was read at the open's stamp (red on the C2 tree, 28.09: the copy stood 313 ms
+       later). The copy is read against the record as it stands once the incident runs. */
+    const castAt = await gm.eval(`${CAST} const end = Date.now() + 6000;
+        while (M.murderState()?.stage !== "incident" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         return S.castStore.stampOf("record");`);
     await settle(800);
     const p3First = await castOn(p3);
     check("F1: the incident opened on the GM reaches the killer's player's copy, at the record's stamp",
-        p3First.killer === IDS.chie && p3First.victim === IDS.daichi && p3First.stamp === openedAt && openedAt > 0, J({ openedAt, p3First }));
+        p3First.killer === IDS.chie && p3First.victim === IDS.daichi && p3First.stamp === castAt && castAt >= openedAt && openedAt > 0,
+        J({ openedAt, castAt, p3First }));
 
     await connect("gm2");
     await settle(1500);
@@ -642,7 +750,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(500);
     const p3AfterGm2 = await castOn(p3);
     check("F2: a second GM with an empty browser, asked for the cast, does not answer, and the participant keeps it",
-        castsFrom("gm2") === castBefore.gm2 && p3AfterGm2.killer === IDS.chie && p3AfterGm2.stamp === openedAt, J({ castBefore, gm2Sent: castsFrom("gm2"), p3AfterGm2 }));
+        castsFrom("gm2") === castBefore.gm2 && p3AfterGm2.killer === IDS.chie && p3AfterGm2.stamp === castAt, J({ castBefore, gm2Sent: castsFrom("gm2"), p3AfterGm2 }));
 
     const askedF = { p3: await castsNow(p3), p1: await castsNow(p1) };
     await p3.eval(`game.socket.emit("module.${MOD}", { action: "incident.myCastRequest" }, { recipients: ["${IDS.gm}"] }); return true;`);
@@ -651,11 +759,25 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const p3AfterGm = await castOn(p3), onGmF = await recordOn(gm), onGm2F = await recordOn(gm2);
     const answeredF = { p3: await castsSince(p3, askedF.p3), p1: await castsSince(p1, askedF.p1) }, stampsF = await castStampsOn(gm);
     const seatsF = { killerId: stampsF.killerId, victimId: stampsF.victimId, thirdId: stampsF.thirdId, betrayal: stampsF.betrayal };
+    /* The opening's statistic is the GMs' (E32+E07 C11c): the killer's copy holds it null, and its stamp reads as the
+       newest of the parts the copy shows (murder.mjs `castPacket`), as the Key Remnants' count's does - which the
+       opening's result wrote last, so its stamp is that newest already. Who struck a critical Finishing blow
+       (`freeCleanup`, E32+E07 C13) was withheld the same way until fix r2-G3 (03.10.2026; the round-2 review's
+       C2-m1), and is the killers' to read now - p3's copy holds it with the record's stamp. The fight's last turns (`recent`, E32+E07 C17) are the
+       GMs' as well, and withheld the same way; so, since fix r2-G2 (03.10.2026), are the Reroll receipt and who
+       walked into the fight and out of it (`lastCrisis`, `departed`). */
+    const withheldF = ["keyRemnants", "openingTrait", "recent", "lastCrisis", "departed"];
+    const shownF = Math.max(0, ...Object.entries(stampsF).filter(([f]) => !withheldF.includes(f)).map(([, t]) => t ?? 0));
+    const heldStampsF = { ...stampsF, openingTrait: shownF, recent: shownF, lastCrisis: shownF, departed: shownF };
     check("F3: the primary answers the killer's player with the cast and every part's stamp, a bystander with nothing and the seats' stamps alone, and both GMs hold the killer",
-        castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === openedAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
+        castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === castAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
-        && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(stampsF)
-        && J(answeredF.p1) === J([{ from: IDS.gm, cast: {}, stamps: seatsF }]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
+        && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(heldStampsF)
+        && J(answeredF.p1.map(a => [a.from, a.cast])) === J([[IDS.gm, {}]]) && J(Object.keys(answeredF.p1[0].stamps ?? {}).sort()) === J(Object.keys(seatsF).sort())
+        && Object.keys(seatsF).every(k => answeredF.p1[0].stamps[k] <= seatsF[k]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
+    /* The bystander's "not in it" is the one they were last sent, repeated (murder.mjs `sendCast`, E32+E07 fix
+       r1-G1, 29.09.2026, and r2-G2): the seats' stamps it carries are no newer than the record's and need not be the record's -
+       an answer that moved with them timed a Role reversal or a third's arrival for a browser outside the incident. */
 
     /* F7 (E05 C8; audit S04-08): the incident's method is the cast's now, and syncs with it -
        gm2, which connected after the open, holds what the primary wrote; the killer's player's
@@ -682,6 +804,23 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        player and the third kept gm2's older turn (measured 26.09: this check failed on it). */
     await gm.eval(`const w = game.settings.get("${MOD}", "murderState"); await game.settings.set("${MOD}", "murderState", { ...w, stage: "incident" }); return true;`);
     await settle(400);
+
+    /* F8 (E32 C2, 28.09.2026): the fight is the cast's since 1.2.66 and syncs with it - a turn the
+       primary passes reaches the second GM's record and the killer's player's copy at its stamp,
+       and the bystander's browser holds the stage alone and reads no turn. */
+    const passedF8 = await gm.eval(`${CAST} await M.passTurn(); const s = M.murderState();
+        return { turn: s?.turn ?? null, side: s?.turnSide ?? null, stamp: S.castStore.stampOf("record", "turnSide") };`, { timeout: 60000 });
+    await settle(800);
+    const fightOn = client => client.eval(`const M = await import("${repoUrl}/scripts/murder.mjs"); const s = M.murderState();
+        return { turn: s?.turn ?? null, side: s?.turnSide ?? null, world: Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort() };`);
+    const fightF8 = { gm2: await fightOn(gm2), p3: await fightOn(p3), p1: await fightOn(p1) }, p3StampsF8 = (await castOn(p3)).stamps;
+    const turnOf = r => J([r.turn, r.side]);
+    check("F8: the fight syncs with the cast - a turn the primary passes reaches the second GM and the killer's player's copy at its stamp, and the bystander's browser holds the stage alone",
+        typeof passedF8.side === "string" && Number.isFinite(passedF8.turn) && passedF8.stamp > openedAt
+        && turnOf(fightF8.gm2) === turnOf(passedF8) && turnOf(fightF8.p3) === turnOf(passedF8) && p3StampsF8?.turnSide === passedF8.stamp
+        && fightF8.p1.turn === null && fightF8.p1.side === null && Object.values(fightF8).every(r => J(r.world) === J(["active", "stage"])),
+        J({ passedF8, fightF8, p3StampsF8 }));
+
     await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); E.gmStoreHold(true); return true;`);
     await gm.eval(`${CAST} await M.enterCast({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" }); return true;`);
     await settle(400);
@@ -697,6 +836,33 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         enteredAt > openedAt && fromGm2.length === 1 && fromGm2[0].cast?.thirdId === IDS.aiko && fromGm2[0].stamps?.killerTurnId < enteredAt
         && p3Merged.third === IDS.aiko && p3Merged.stamps?.killerTurnId === enteredAt && p1Merged.third === IDS.aiko
         && p1Merged.stamps?.killerTurnId === enteredAt && onGm2F5.killerTurnId === enteredAt, J({ enteredAt, fromGm2, p3Merged, p1Merged, onGm2F5 }));
+
+    /* F10 (E32+E07 C17, 03.10.2026; audit S04-29): the fight's last turns are the cast's and the GMs'. The
+       primary scores Aiko's Averted eyes - the third's, which passes no turn and marks nothing - and the
+       second GM's record holds the turn, and its tracker lists it. The killer's player holds none of it in
+       the packet that carried the write: their copy is read once its receipt's stamp (`lastCrisis`, written
+       with the turns and held null in it as well) is the one the primary sends them - since fix r2-G2 the
+       newest of what their copy shows, not the record's (murder.mjs `castPacket`). Aiko's player leaves with
+       her. Until C17 the tracker kept no history at all. */
+    await gm.eval(`${CAST} await M.resolveCrisisAction({ actorId: "${IDS.aiko}", key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+        return true;`, { timeout: 60000 });
+    const writtenF10 = await gm.eval(`${CAST} return M.castPacket("${IDS.p3}", M.murderState()).stamps.lastCrisis;`);
+    const historyF10 = await gm2.eval(`${CAST} const CL = await import("${repoUrl}/scripts/cleanup.mjs");
+        const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
+        const end = Date.now() + 6000;
+        while (!(M.murderState()?.recent ?? []).length && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const recent = M.murderState()?.recent ?? [];
+        const line = game.i18n.format("DRPG.Murder.trackerTurnLine", { turn: recent[0]?.turn, side: game.i18n.localize("DRPG.Murder.side.third"),
+            action: foundry.utils.escapeHTML(CRISIS_ACTIONS.avertedEyes.label), result: game.i18n.localize("DRPG.Murder.trackerResult.free") });
+        return { recent: recent.map(e => [e.side, e.key, e.band, e.changes?.length ?? null]), listed: M.incidentTrackerHtml(M.murderState(), CL).includes("<li>" + line + "</li>") };`);
+    const copyF10 = await p3.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const end = Date.now() + 6000;
+        while ((E.mineStamps("cast")?.lastCrisis ?? 0) < ${writtenF10} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { stamp: E.mineStamps("cast")?.lastCrisis ?? null, recent: incidentCast().recent ?? null };`);
+    check("F10: the fight's last turns reach the second GM's record and its tracker, and not the killer's player's copy",
+        J(historyF10.recent) === J([["third", "avertedEyes", null, 0]]) && historyF10.listed === true
+        && copyF10.stamp === writtenF10 && copyF10.recent === null, J({ writtenF10, historyF10, copyF10 }));
 
     /* F6, the round-2 review's M1 (26.09): a GM whose browser lost the cast - here forgotten, as a
        lost browser has it - presses Pass the turn while the GM that kept it is away. Every field of
@@ -723,6 +889,74 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         closedGm.killer === null && closedGm2.killer === null && closedP3.killer === null && closedGm.stamp > openedAt
         && closedGm.stamp === closedGm2.stamp && closedP3.stamp === closedGm.stamp, J({ closedGm, closedGm2, closedP3 }));
     await p3.eval(`delete globalThis.__forceRoll; return true;`);
+    await disconnect("gm2");
+    await settle(300);
+
+    /* F9 (E32+E07 C11c, 02.10.2026; audit S04-23, the owner's Q4 as corrected). The murder opens
+       with no statistic picked: the primary's window picks it (answered Hand - not the first
+       listed) and keeps it in the cast, and the invitation carries it to p3, whose roll is held
+       and notes the statistic and whether it is shown as the GM's. gm2, joined with an empty
+       browser, re-asks as its tracker does (murder.mjs `rollOpening`, which the tracker's button
+       calls behind a cooldown): it reads the pick from its record and opens no window, and p3 is
+       sent the same statistic again. */
+    phase("F9: the opening's statistic, picked on the primary, is the one a second GM's re-ask sends", { flow: "trait-ruling" });
+    await connect("gm2");
+    await settle(1500);
+    await p3.eval(`globalThis.__heldOpenings = []; globalThis.__heldTraits = []; const a = game.actors.get("${IDS.chie}");
+        const { TRAIT_BY_GM } = await import("${repoUrl}/scripts/action-rolls.mjs");
+        a.rollTrait = function (dh, config) {
+            globalThis.__heldTraits.push([dh, config?.[TRAIT_BY_GM] === true]);
+            return new Promise(r => globalThis.__heldOpenings.push(r));
+        };
+        return true;`);
+    const PICKS = `const T = game.i18n.localize("DRPG.TraitRuling.title"); return globalThis.__dialogLog.filter(d => d.title === T).length;`;
+    const picksBefore = { gm: await gm.eval(PICKS), gm2: await gm2.eval(PICKS) };
+    const f9from = await gm.eval(`return game.messages.contents.length;`);
+    const f9open = await gm.eval(`${CAST} const T = game.i18n.localize("DRPG.TraitRuling.title");
+        globalThis.__dialogAnswers.push(cfg => (cfg?.window?.title === T ? "hand" : ((cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0])?.action ?? null));
+        const opened = await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" });
+        const end = Date.now() + 6000;
+        while (!M.murderState()?.openingTrait && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { stage: opened?.stage ?? null, trait: M.murderState()?.openingTrait ?? null };`, { timeout: 60000 });
+    const f9reask = await gm2.eval(`${CAST} const end = Date.now() + 6000;
+        while (M.murderState()?.openingTrait !== "hand" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const held = M.murderState()?.openingTrait ?? null;
+        const asked = await M.rollOpening("killer", M.murderState());
+        return { held, asked: asked?.asked ?? null };`, { timeout: 60000 });
+    await settle(800);
+    const f9p3 = await p3.eval(`return { held: globalThis.__heldTraits, copy: (await import("${repoUrl}/scripts/settings.mjs")).incidentCast().openingTrait ?? null };`);
+    const picksAfter = { gm: await gm.eval(PICKS), gm2: await gm2.eval(PICKS) };
+    check("F9: the primary's pick is kept in the cast and a second GM's re-ask sends it without asking again; the killer's player throws Hand both times, as the GM's, and their copy holds no pick",
+        f9open.stage === "openingRoll" && f9open.trait === "hand" && f9reask.held === "hand" && f9reask.asked === true
+        && picksAfter.gm - picksBefore.gm === 1 && picksAfter.gm2 === picksBefore.gm2
+        && J(f9p3.held) === J([["finesse", true], ["finesse", true]]) && f9p3.copy === null,
+        J({ f9open, f9reask, f9p3, picksBefore, picksAfter }), { flow: "trait-ruling" });
+    /* E32+E07 fix r2-G4 (03.10.2026; the correctness review's m3): the request cards go when the
+       murder closes, whichever GM posted them. Each GM kept the ids of the cards it posted, and the
+       primary closing here deleted its own alone: gm2's re-ask stayed on the killer's player's
+       browser. Found by their words, which a GM holds (secret.mjs `wordsOf`), among the cards posted
+       since F9 began, on gm before the close, and looked up by id on every GM and p3 after it. */
+    const REQUESTS = `const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const yours = game.i18n.localize("DRPG.Murder.openingYours"), ids = [];
+        for (const m of game.messages.contents.slice(${f9from})) if ((await wordsOf(m, 500) ?? "").includes(yours)) ids.push(m.id);
+        return ids;`;
+    const f9cards = await gm.eval(REQUESTS);
+    const MEMO = `${CAST} return Object.keys(S.castStore.record()?.openingNotices ?? {}).length;`;
+    // What the killer's player is sent (`castFor` on the primary) and what their browser holds; the incident as the GM reads it.
+    const f9held = { gm: await gm.eval(MEMO), gm2: await gm2.eval(MEMO),
+        state: await gm.eval(`${CAST} return Object.hasOwn(M.murderState() ?? {}, "openingNotices");`),
+        sent: await gm.eval(`${CAST} const a = game.actors.get("${IDS.chie}"), u = game.users.find(x => !x.isGM && a.testUserPermission(x, "OWNER"));
+            return Object.hasOwn(M.castFor(u.id, S.castStore.record()), "openingNotices");`),
+        p3: await p3.eval(`return Object.hasOwn((await import("${repoUrl}/scripts/settings.mjs")).incidentCast(), "openingNotices");`) };
+    await gm.eval(`${CAST} await M.endMurder({ reason: "E32+E07 61F9", followUp: false }); return true;`);
+    await settle(800);
+    const HELD = `return ${J(f9cards)}.filter(id => game.messages.has(id)).length;`;
+    const f9left = { gm: await gm.eval(HELD), gm2: await gm2.eval(HELD), p3: await p3.eval(HELD), memo: [await gm.eval(MEMO), await gm2.eval(MEMO)] };
+    check("F9b: the close on the primary deletes the opening's request cards both GMs posted, on every browser; both GMs hold their ids until then and forget them after, and the killer's player is sent none and holds none, nor does the incident the GM reads",
+        f9cards.length === 2 && f9held.gm >= 2 && f9held.gm2 === f9held.gm && f9held.sent === false && f9held.p3 === false && f9held.state === false
+        && f9left.gm === 0 && f9left.gm2 === 0 && f9left.p3 === 0 && J(f9left.memo) === "[0,0]", J({ f9cards, f9held, f9left }), { flow: "trait-ruling" });
+    await p3.eval(`const a = game.actors.get("${IDS.chie}"); delete a.rollTrait;
+        for (const r of globalThis.__heldOpenings ?? []) r(null); delete globalThis.__heldOpenings; delete globalThis.__heldTraits; return true;`);
     await disconnect("gm2");
     await settle(300);
 
@@ -1713,5 +1947,33 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         s4.published && s4.aiko.length === 1 && s4.aiko[0].includes(ITEMS[0]) && s4.chie.length === 1 && s4.chie[0].includes(ITEMS[1]),
         J(s4), { flow: "give-take-stash" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S"], gm: IDS.gm };
+    /* T (E32+E07 C12, 02.10.2026; audit S05-38, the owner's D13): the Cleaning Tools a clean-up used
+       are a GM store, `usedTools`, a row per killer synced between GMs, since whichever GM runs the
+       discovery breaks them. gma, the primary, writes a row for gloves Chie carries put away, as a
+       scored clean-up writes it (cleanup.mjs `noteCleaningTool`); gmb must hold it, and a discovery
+       there (`destroyCleaningTools`) break the gloves and take the row off both GMs. The gloves are
+       taken away after. */
+    phase("T: the gloves a clean-up used reach the second GM, and a discovery there breaks them and takes their row off both", { flow: "gm-store" });
+    const TOOLS = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const CL = await import("${repoUrl}/scripts/cleanup.mjs");
+        const { isBroken } = await import("${repoUrl}/scripts/inventory.mjs"); const chie = game.actors.get("${IDS.chie}");`;
+    const t1 = await gma.eval(`${TOOLS} const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const { seasonEpoch } = await import("${repoUrl}/scripts/settings.mjs");
+        const [item] = await chie.createEmbeddedDocuments("Item", [{ name: "E32 C12 61 T gloves", type: "loot",
+            flags: { "${MOD}": { category: "cleaningTool", equipped: false, tier: 1 } } }]);
+        await S.usedToolStore?.patch(chie.id, { chapter: getClock().chapter ?? null, epoch: seasonEpoch(), cleaning: [item.id] });
+        return { id: item.id, primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`, { timeout: 30000 });
+    const t2 = await gmb.eval(`${TOOLS} ${untilP} await until(() => (S.usedToolStore?.get(chie.id)?.cleaning ?? []).includes("${t1.id}"));
+        const held = (S.usedToolStore?.get(chie.id)?.cleaning ?? []).includes("${t1.id}");
+        const broke = await CL.destroyCleaningTools();
+        return { held, broke, row: Boolean(S.usedToolStore?.has(chie.id)) };`, { timeout: 30000 });
+    const t3 = await gma.eval(`${TOOLS} ${untilP} await until(() => !S.usedToolStore?.has(chie.id));
+        const item = chie.items.get("${t1.id}");
+        const out = { row: Boolean(S.usedToolStore?.has(chie.id)), broken: Boolean(item) && isBroken(item) };
+        await item?.delete();
+        return out;`, { timeout: 30000 });
+    check("T1: gloves the primary wrote down as used reach the second GM, its discovery breaks them, and the row leaves both GMs",
+        t1.primary === true && t2.held === true && t2.broke.includes("E32 C12 61 T gloves") && t2.row === false && t3.row === false && t3.broken === true,
+        J({ t1, t2, t3 }), { flow: "gm-store" });
+
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T"], gm: IDS.gm };
 }

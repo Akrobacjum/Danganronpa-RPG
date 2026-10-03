@@ -71,7 +71,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
 
     // A1: an incident open - Chie on Daichi, past the opening roll, as 10-murder opens one.
     await gm.eval(`
-        await game.drpg.openMurder({ killerId: "ACTORCHIE0000000", victimId: "ACTORDAICHI00000" });
+        await game.drpg.openMurder({ killerId: "ACTORCHIE0000000", victimId: "ACTORDAICHI00000", openingTrait: "body" });
         await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
         return true;
     `, { timeout: 60000 });
@@ -139,17 +139,20 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
     check("gm: B - confirmed: true is not this world's id, and asks",
         b?.seen?.length === 2 && b.asTrue.refused === "cancelled" && b.asTrue.results === 0, JSON.stringify({ seen: b?.seen?.length, asTrue: b?.asTrue }));
 
-    /* C: the full run, tier 2 confirmed with this world's id. 600 s, not 240 (E30): a
-       hang detector, not a benchmark. The whole-world dump after every restore brought
-       the run near the old bound (E30 C15b), and a CI runner's speed is its own. The
-       time is recorded as a note. */
+    /* C: the full run, tier 2 confirmed with this world's id. 900 s, not 240 (E30) or 600
+       (until E32+E07 fix r1-G4): a hang detector, not a benchmark. The whole-world dump
+       after every restore brought the run near the first bound (E30 C15b), and a CI
+       runner's speed is its own. The second went the same way: this note read 460 s at
+       1.2.65 and 542-596 s over E32+E07's commits on this machine (4 cores); on
+       02.10.2026 fix r1-G4's tree failed the 600 s bound with nothing hung, and read 613 s
+       under 900. The time is recorded as a note. */
     const started = Date.now();
     const trafficBefore = socketTraffic.length;
     const res = await gm.eval(`
         const r = await game.drpg.runTests({ tier: 2, confirmed: game.world.id });
         return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, red: r?.red, results: r?.results ?? null,
             text: (r?.text ?? "").slice(0, 30000) };
-    `, { timeout: 600000 });
+    `, { timeout: 900000 });
     note("gm: the full suite's run", `${Math.round((Date.now() - started) / 1000)} s`);
 
     check("gm: suite ran", res && typeof res.passed === "number", JSON.stringify(res).slice(0, 300));

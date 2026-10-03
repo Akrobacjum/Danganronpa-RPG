@@ -20,6 +20,8 @@
  *   entry.sockets  the files that listen on the module's socket for it
  *   entry.api      the game.drpg calls that start it (R160 asks that they exist)
  *   entry.calls    "file.mjs#function" for a start that is not on game.drpg
+ *   suite          the suite's files that drive it besides the tiers (E32 C1: the incident's
+ *                  invariant grid, tests-grid.mjs); tools/registry.mjs asks that each exists
  *   status         covered (a scenario drives it end to end), partial, planned
  *   stage          covered: the release it arrived in; otherwise the stage that completes it
  *
@@ -102,9 +104,15 @@ export const FLOWS = Object.freeze([
     // not the Monocub's own ask.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
         entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow"], status: "partial", stage: "E45" },
+    // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
+    // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
+    // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening
+    // on the GM's browser (grep of the scenarios that day). Still partial, moved to E33, which tests the incident
+    // again after E28.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "30-security", "61-gmstore-case"], status: "partial", stage: "E32" },
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "61-gmstore-case"], suite: ["tests-grid.mjs"],
+        status: "partial", stage: "E33" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
@@ -113,7 +121,7 @@ export const FLOWS = Object.freeze([
         scenarios: ["12-social", "13-murder-signals", "20-crit-hope", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
-        scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
     { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected or when no card lands in time (fix r2-G3)",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
@@ -127,6 +135,12 @@ export const FLOWS = Object.freeze([
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
         entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
+    // E32+E07 C11b (02.10.2026): the crisis actions ask it; C11c the clean-up, and the openings, which a GM picks on its own browser;
+    // C11d a project stored without a statistic, once (40-flow drives a player's first and second Work on one).
+    // Covered at the 1.2.66 release: 40-flow's player asks, the GM picks on the card, the roll takes the pick and the
+    // project keeps it on both browsers.
+    { id: "trait-ruling", what: "A roll that lists several statistics: the player asks, a GM picks on the card in their thread, the roll takes the pick",
+        entry: { bridge: ["trait.ruling"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "40-flow", "61-gmstore-case"], status: "covered", stage: "1.2.66" },
     { id: "trap-fire", what: "A trap: a crossing reported to the GM, the trap sprung once",
         entry: { bridge: ["trap.event"], sockets: ["traps.mjs"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     { id: "truth-bullets", what: "Truth Bullets: an edit on one end reaches the other, a player's edit is put back, and each player's copy of which traces their own came from",

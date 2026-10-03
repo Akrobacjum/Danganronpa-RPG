@@ -88,14 +88,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const actor = game.actors.get("${ids.aiko}");
         globalThis.__forceRoll = { hope: 9, fear: 5 };
         const left0 = game.drpg.actionsLeft(actor);
+        const rolled = [];
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        actor.rollTrait = async function (key, options) { rolled.push(key); return own.call(actor, key, options); };
         let r, err = null;
         try { r = await game.drpg.performAction(actor, "search", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        delete actor.rollTrait;
         await new Promise(res => setTimeout(res, 800));
-        return { left0, left: game.drpg.actionsLeft(actor), r: typeof r, err, notifs: globalThis.__notifications.map(n => n.level + ": " + n.msg), dialogs: globalThis.__dialogLog.map(d => d.title) };`, { timeout: 90000 });
+        return { left0, left: game.drpg.actionsLeft(actor), r: typeof r, err, rolled, notifs: globalThis.__notifications.map(n => n.level + ": " + n.msg), dialogs: globalThis.__dialogLog.map(d => d.title) };`, { timeout: 90000 });
     await settle(600);
     const tokensAfter = await gm.eval(`return game.drpg.tokensLeft("${tokensBefore.room}");`);
     check("p1: Search ran without throwing", !search.err, search.err ?? "", { flow: "action-roll" });
     check("p1: Search charged one action", search.left === search.left0 - 1, `${search.left0} -> ${search.left} (dialogs: ${search.dialogs.join(" | ")})`);
+    // E32+E07 C11d (02.10.2026; the owner's rule of 28.09): a Search rolls Eye alone - Daggerheart's Instinct.
+    check("p1: Search rolled Eye, and only once", JSON.stringify(search.rolled) === JSON.stringify(["instinct"]), JSON.stringify(search.rolled));
     check("gm: Search spent one of the room's tokens", tokensAfter === tokensBefore.tokens - 1, `${tokensBefore.room}: ${tokensBefore.tokens} -> ${tokensAfter}`);
     /*
      * WHAT THE SEARCH TOLD WHOM, read off the documents rather than off what arrived.
@@ -447,6 +453,119 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     check("p1: a roll's spend takes the Confusion out of the GMs' store and p1's copy",
         p1Spent.includes(armedNonce) && gmAfter === false && p1After.armed.length === 0 && !(p1After.copy ?? []).includes(ids.aiko),
         JSON.stringify({ armedNonce, p1Spent, gmStillHolds: gmAfter, p1: p1After }), { flow: "monocub-meddle" });
+
+    // ---- 6c. a project's work: a project with no statistic asks the GM once ------------------
+    /*
+     * A PROJECT'S STATISTIC (E32+E07 C11d, 02.10.2026; the owner's rules of 28.09.2026). A
+     * project's roll takes the project's own statistic, and a project stored without one - both
+     * forms allowed it until 1.2.66 - asks a GM once, through the statistic card in the
+     * player's thread (scripts/trait-ruling.mjs, kind `project`); the pick is written to the
+     * project. The GM makes a public project with no room and no statistic and refills Aiko's
+     * actions; p1 works on it twice from the Projects window, its dialogs answered with their
+     * defaults (Work on, the first project - this one), the dice forced. The harness's GM
+     * presses the card's first trait, Hand (client-entry.mjs `__traitRulingAuto`). Read: the
+     * cards the GM pressed, the statistic Aiko's `rollTrait` was handed each time (noted on
+     * the way through to the harness's own), and the project's statistic on p1 and the GM.
+     */
+    phase("a project's work", { flow: "projects" });
+    await clearLogs();
+    const workProject = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        await game.drpg.setActions(actor, game.drpg.actionsMax(actor));
+        globalThis.__traitRulings.length = 0;
+        return (await P.createProject({ name: "QA project with no statistic", target: 6, room: null }))?.id ?? null;`, { timeout: 30000 });
+    await settle(600);
+    const work = await p1.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 5 };
+        const rolled = [];
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        actor.rollTrait = async function (key, options) { rolled.push(key); return own.call(actor, key, options); };
+        const traitNow = () => P.allProjects().find(p => p.id === "${workProject}")?.trait ?? null;
+        const out = { listed: P.projectsAvailableIn((await import("${REPO}/scripts/movement.mjs")).roomOfActor(actor)).map(p => p.id), err: null };
+        try {
+            await game.drpg.performAction(actor, "project", {});
+            out.first = [...rolled];
+            for (let i = 0; i < 40 && traitNow() === null; i++) await new Promise(r => setTimeout(r, 100));
+            out.kept = traitNow();
+            await game.drpg.performAction(actor, "project", {});
+        } catch (e) { out.err = String(e?.stack ?? e).slice(0, 300); }
+        delete actor.rollTrait;
+        await new Promise(r => setTimeout(r, 600));
+        return { ...out, rolled, dialogs: globalThis.__dialogLog.map(d => d.title) };`, { timeout: 120000 });
+    await settle(600);
+    const workGm = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const trait = P.allProjects().find(p => p.id === "${workProject}")?.trait ?? null;
+        const pressed = globalThis.__traitRulings.map(r => ({ offered: r.offered, picked: r.picked }));
+        if ("${workProject}") await P.deleteProject("${workProject}");
+        return { trait, pressed };`, { timeout: 30000 });
+    check("p1: a first Work on a project with no statistic waits for the GM's card and rolls the pick (Hand), and the project keeps it on p1 and the GM",
+        Boolean(workProject) && !work.err && work.listed[0] === workProject
+            && JSON.stringify(work.first) === JSON.stringify(["finesse"]) && work.kept === "hand" && workGm.trait === "hand"
+            && workGm.pressed.length >= 1 && JSON.stringify(workGm.pressed[0]) === JSON.stringify({ offered: ["hand", "body", "leg", "head"], picked: "hand" }),
+        JSON.stringify({ workProject, work, workGm }), { flow: "trait-ruling" });
+    check("p1: the second Work on it asks nobody and rolls the project's statistic",
+        !work.err && JSON.stringify(work.rolled) === JSON.stringify(["finesse", "finesse"]) && workGm.pressed.length === 1,
+        JSON.stringify({ rolled: work.rolled, pressed: workGm.pressed }), { flow: "projects" });
+
+    // ---- 6d. an indirect murder's work: the cover window closed ---------------------------------
+    /*
+     * A CLOSED WINDOW COVERS NOTHING (E32+E07 C13, 03.10.2026; audit S02-03). Every Work on an
+     * indirect murder rolls to cover its traces once the progress is in, and a closed window left
+     * no trace at all: the drop sat under `if (trace)`. It leaves the worst band's trace now
+     * ("obvious") and a line on the card (action-rolls.mjs `hideProjectTraces`). The GM makes Aiko
+     * an indirect murder of her own with a statistic and refills her actions; p1 works on it from
+     * the Projects window, its dialogs answered with their defaults, the dice forced, and Aiko's
+     * `rollTrait` answers null for the cover roll alone, as a closed window does. Read: the last
+     * two throws on p1 (a witness in her room asks a concealment roll before them), the card's
+     * line on p1, and on the GM the traces the project left.
+     */
+    phase("an indirect murder's work with the cover window closed", { flow: "projects" });
+    await clearLogs();
+    const trapName = "QA trap nobody covered";
+    const trapProject = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        await game.drpg.setActions(actor, game.drpg.actionsMax(actor));
+        return (await P.createProject({ name: "${trapName}", target: 6, room: null, trait: "hand", indirectMurder: true,
+            killerId: actor.id, by: actor.id }))?.id ?? null;`, { timeout: 30000 });
+    await settle(600);
+    const uncovered = await p1.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const S = await import("${REPO}/scripts/secret.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 5 };
+        const cover = game.i18n.localize("DRPG.Roll.hideTraces"), line = game.i18n.localize("DRPG.Project.tracesUncovered");
+        const seen = new Set(game.messages.map(m => m.id));
+        const thrown = [];
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        actor.rollTrait = async function (key, options) {
+            const closed = String(options?.title ?? "").startsWith(cover);
+            thrown.push(closed ? "closed" : key);
+            return closed ? null : own.call(actor, key, options);
+        };
+        const out = { listed: P.projectsAvailableIn((await import("${REPO}/scripts/movement.mjs")).roomOfActor(actor)).map(p => p.id), err: null };
+        try {
+            await game.drpg.performAction(actor, "project", {});
+        } catch (e) { out.err = String(e?.stack ?? e).slice(0, 300); }
+        delete actor.rollTrait;
+        await new Promise(r => setTimeout(r, 800));
+        return { ...out, thrown, carded: game.messages.some(m => !seen.has(m.id) && S.contentOf(m).includes(line)) };`, { timeout: 120000 });
+    await settle(600);
+    const uncoveredGm = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const R = await import("${REPO}/scripts/remnants.mjs");
+        const left = R.remnantsOn(canvas.scene).filter(t => R.remnantData(t)?.subject === "${trapName}");
+        const traces = left.map(t => R.remnantData(t)).map(d => [d.type, d.visibility]);
+        // Tied to the crime: the GM reads it off the project the packet names (gm-bridge.mjs \`worksOwnMurder\`, fix r2-G3).
+        const tied = left.map(t => R.remnantData(t)?.tiedToCrime ?? null);
+        for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
+        if ("${trapProject}") await P.deleteProject("${trapProject}");
+        return { traces, tied };`, { timeout: 30000 });
+    /* The trace is the crime's (E32+E07 fix r2-G3, 03.10.2026; the round-2 review's C2-m9 (a)): C13 dropped this
+       half of the check when it found a player's packet never tied a trace; the GM judges the tie on its own record. */
+    check("p1: a Work on an indirect murder whose cover window was closed leaves one Obvious trace tied to the crime, and says so on the card",
+        Boolean(trapProject) && !uncovered.err && uncovered.listed.includes(trapProject)
+            && JSON.stringify(uncovered.thrown.slice(-2)) === JSON.stringify(["finesse", "closed"]) && uncovered.carded === true
+            && JSON.stringify(uncoveredGm.traces) === JSON.stringify([["prep", "obvious"]]) && JSON.stringify(uncoveredGm.tied) === "[true]",
+        JSON.stringify({ trapProject, uncovered, uncoveredGm }), { flow: "projects" });
 
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");

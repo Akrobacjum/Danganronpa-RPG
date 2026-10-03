@@ -592,6 +592,44 @@ hooks.on("createChatMessage", message => {
 });
 
 /*
+ * THE HARNESS'S GM PICKS A STATISTIC (E32+E07 C11b, 02.10.2026). A crisis action thrown
+ * from a player's browser waits for a GM to pick its statistic on a card in that player's
+ * thread (scripts/trait-ruling.mjs); nobody sits at the harness's GM, so the primary GM
+ * presses one of the card's trait buttons - through the card's own wiring
+ * (messenger-app.mjs `wireCallActions`), so the answer, the settled card and its record
+ * are the module's. Beside `__dialogAuto`, and like it on unless a scenario says
+ * otherwise: `__traitRulingAuto` true presses the first listed trait, a trait's key that
+ * one, false nothing. Each press is noted in `__traitRulings`. A crisis action thrown on
+ * the GM's own browser asks its local window instead, which `__dialogAuto` answers. Not
+ * while the suite runs on this GM (`suiteRolling`): its tests press their own cards, as a
+ * GM at a real table would, and measured on the first run (02.10.2026) this press settled
+ * the card two of them were about to read.
+ */
+globalThis.__traitRulingAuto = true;
+globalThis.__traitRulings = [];
+const moduleFile = file => url.pathToFileURL(path.join(REPO, "scripts", file)).href;
+hooks.on("drpgMessengerMessage", (thread, message) => {
+    const choice = globalThis.__traitRulingAuto;
+    if (choice === false || !game.user?.isGM || game.drpg?.suiteRolling) return;
+    setTimeout(async () => {
+        try {
+            if (!(await import(moduleFile("utils.mjs"))).isPrimaryGm()) return;
+            const html = String(await (await import(moduleFile("secret.mjs"))).wordsOf(message) ?? "");
+            if (!html.includes('data-drpg-call="pickTrait"')) return;
+            const body = document.createElement("div");
+            body.innerHTML = html;
+            (await import(moduleFile("messenger-app.mjs"))).wireCallActions(body, message);
+            const buttons = [...body.querySelectorAll('[data-drpg-call="pickTrait"]')];
+            const button = (typeof choice === "string" && buttons.find(b => b.dataset.trait === choice)) || buttons[0];
+            globalThis.__traitRulings.push({ message: message.id, offered: buttons.map(b => b.dataset.trait), picked: button?.dataset.trait ?? null });
+            button?.click();
+        } catch (err) {
+            recordError("the harness GM's statistic ruling", err);
+        }
+    }, 0);
+});
+
+/*
  * THE HARNESS'S OWN READING OF THIS CLIENT'S WORLD (E30, 24.09.2026). The suite's
  * worldDump judges whether a run changed the world; this is the oracle it is
  * checked against in 01-runtests, read straight from the stores the shim keeps -

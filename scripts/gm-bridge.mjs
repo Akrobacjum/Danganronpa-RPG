@@ -24,7 +24,7 @@ import {
     guardUnsabotageReceipt, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool,
-    guardDespairReceipt, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
+    guardDespairReceipt, guardTraitRuling, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
@@ -47,6 +47,8 @@ const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
 const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
+/** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
+const ACTION_TRAIT_RULING = "trait.ruling";
 /** player -> GM: "may I spend this Call, and here is what for". */
 const ACTION_HOPE_CALL = "call.approve";
 const ACTION_OBSERVE_TARGET = "observe.target";
@@ -172,6 +174,10 @@ export function registerGmBridge() {
  *
  * `senderId` is checked rather than the payload: an invitation to roll is an
  * instruction to spend this character's resources, and only a GM may issue it.
+ *
+ * It carries the statistic a GM picked for it (E32+E07 C11c; murder.mjs
+ * `openingTraitFor`), the one this client throws; `throwOpeningRoll` holds it to the
+ * two the side lists.
  */
 async function onOpeningAsk(payload, senderId) {
     if (payload?.action !== ACTION_OPENING_ASK) return;
@@ -179,17 +185,17 @@ async function onOpeningAsk(payload, senderId) {
     if (!game.users.get(senderId)?.isGM) return;
 
     const { throwOpeningRoll } = await import("./murder.mjs");
-    await throwOpeningRoll(payload.side, payload.actorId);
+    await throwOpeningRoll(payload.side, payload.actorId, payload.trait ?? null);
 }
 
 /**
  * Ask a participant's own client to throw their Stage 4 roll.
  * @returns {boolean} false when nobody is there to ask, so the GM throws it.
  */
-export function askOpeningRoll({ userId, actorId, side }) {
+export function askOpeningRoll({ userId, actorId, side, trait }) {
     if (!userId || !game.users.get(userId)?.active) return false;
     game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_OPENING_ASK, userId, actorId, side
+        action: ACTION_OPENING_ASK, userId, actorId, side, trait
     }, { recipients: [userId] });
     return true;
 }
@@ -559,7 +565,9 @@ async function handleCrisis(payload, sender, ctx, prepared) {
         // ever becomes a receipt line, but a receipt naming somebody else's
         // item would give a Reroll the run of another sheet.
         usedItemId: actor?.items?.has(payload.usedItemId) ? payload.usedItemId : null,
-        // Same test: the swing memo names an item, and only one the sender holds.
+        // Same test: the swing names an item, and only one the sender holds. The
+        // damage is read off it since E32+E07 C8, and murder.mjs `swungWeapon`
+        // narrows it further, to a readied Crime Tool on an action that swings.
         swungId: actor?.items?.has(payload.swungId) ? payload.swungId : null,
         /*
          * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY
@@ -580,6 +588,10 @@ async function handleCrisis(payload, sender, ctx, prepared) {
     // Null: a Reroll's rewind that could not happen (the GMs have been told), or
     // no incident, character or action to score - nothing was applied (E31 review).
     if (!result) return { refused: "nothing was carried out: resolveCrisisAction resolved nothing" };
+    // Said back only when the action's own resolution killed (E32+E07 C8b): the asker's
+    // browser keeps it on the roll's bookmark, and its Reroll Call refuses before paying.
+    // The asker is in that death card's audience already; any other answer is null, as before.
+    if (result.lethal) return { reply: { lethal: true } };
 }
 
     // A direct murder declared in the dark. The declaration is written in the GMs'
@@ -608,9 +620,25 @@ async function handleParkMurder(payload, sender, ctx) {
     // world write and a second death, so the request travels and the decision
     // is re-derived from the incident on this side - `betrayAsPlayer` refuses
     // anyone the state does not put in that position.
+    //
+    // In an Eclipse it is a declaration (E32 C5b, 28.09.2026; the owner's Q3): the
+    // asking client has paid an action for it, so it is answered - parked, or refused
+    // and told, and the client gives the action back. Refused here unless the betrayal
+    // is on offer to that character now, and - the offer stays in the cast until the
+    // lights (fix r1-G2), so the tile stays lit - unless it is declared already;
+    // `betrayAsPlayer` parks it.
 async function handleBetrayal(payload, sender, ctx) {
     const murder = await import("./murder.mjs");
-    await murder.betrayAsPlayer(payload.actorId);
+    const { isEclipse, betrayalDeclared } = await import("./eclipse.mjs");
+    if (!isEclipse()) {
+        await murder.betrayAsPlayer(payload.actorId);
+        return;
+    }
+    if (!murder.betrayalTarget(game.actors.get(payload.actorId))) return { refused: "that cannot be done now" };
+    if (betrayalDeclared(payload.actorId)) return { refused: "that betrayal is already declared" };
+    const parked = await murder.betrayAsPlayer(payload.actorId, { note: payload.note });
+    if (!parked) return { refused: "nothing was carried out: betrayAsPlayer parked nothing" };
+    return { reply: true };
 }
 
     // Stage 6. Deleting a Remnant token, placing the new one a botched wipe
@@ -711,6 +739,10 @@ async function handleDifficulty(payload, sender, ctx) {
     return askDynamicByCard(payload, ctx);
 }
 
+async function handleTraitRuling(payload, sender, ctx) {
+    return askTraitByCard(payload, ctx);
+}
+
 async function handleProgress(payload, sender, ctx) {
     const { asker } = ctx;
     // Sight of the project and the size of the step are the declaration's
@@ -785,12 +817,30 @@ async function handleRemnant(payload, sender, ctx) {
         const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor, { sceneId: data.sceneId ?? null }), getClock());
         if (narrowed.refused) return { refused: narrowed.refused };
         data = narrowed.data;
+        if (await worksOwnMurder(payload.data?.projectId, actor, data.action)) data.tiedToCrime = true;
     }
     // A trace this client could not place (no scene, no Remnant actor, a token
     // that could not be created) is a failure, not "placed" (E31 review): the
     // player's item stays on the sheet.
     if (!await placeRemnant(data)) return { refused: "the trace could not be placed" };
     debug("Placed a Remnant on behalf of a player.");
+}
+
+/**
+ * A PLAYER'S WORK ON THEIR OWN INDIRECT MURDER IS THE CRIME'S TRACE (E32+E07 fix r2-G3, 03.10.2026;
+ * the round-2 review's C2-m9 (a)). The module's own drop says so (action-rolls.mjs
+ * `hideProjectTraces`: an indirect murder is the murder, built in instalments), and the rebuild
+ * above drops every packet's `tiedToCrime` - so since E03 a trap built from a player's browser left
+ * untied traces, which the chapter's end sweeps. Judged here on the GMs' record, not on the packet:
+ * the project it names is an indirect murder, and the sender's character is its killer or the one
+ * who proposed it. A Sabotage's trace is not judged: nothing the GMs keep records a failed one.
+ */
+async function worksOwnMurder(projectId, actor, action) {
+    if (action !== "project" || typeof projectId !== "string" || !projectId || !actor) return false;
+    const { isIndirectMurder, secretsOf } = await import("./projects.mjs");
+    if (!isIndirectMurder(projectId)) return false;
+    const { killerId, by } = secretsOf(projectId);
+    return killerId === actor.id || by === actor.id;
 }
 
 async function handleTieTrace(payload, sender, ctx) {
@@ -1199,9 +1249,11 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_BETRAYAL]: {
         label: "DRPG.Bridge.what.murder.betrayal",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id }),
+        sanitize: pick({ actorId: as.id, note: as.text }),
         run: handleBetrayal,
-        answer: "ack"
+        // Answered once carried out (E32 C5b): in an Eclipse the asker has paid an action
+        // and needs to know whether the declaration was parked.
+        answer: "reply"
     },
     [ACTION_CLEANUP]: {
         label: "DRPG.Bridge.what.murder.cleanup",
@@ -1243,6 +1295,19 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, description: as.text, actorName: as.text, room: as.maybeText }),
         run: handleDifficulty,
         answer: "reply", patient: true, resend: true
+    },
+    /*
+     * THE GM PICKS THE STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). Judged on
+     * the world, not the packet: `guardTraitRuling` holds the definition named to
+     * one that lists several traits, and the character to one who may take it now.
+     * No trait travels: the card's come from this GM's config (trait-ruling.mjs).
+     */
+    [ACTION_TRAIT_RULING]: {
+        label: "DRPG.Bridge.what.trait.ruling",
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardTraitRuling],
+        sanitize: pick({ actorId: as.id, kind: as.text, key: as.text, variant: as.maybeText }),
+        run: handleTraitRuling,
+        answer: "reply", patient: true, resend: true, timeoutMs: TIMING.rulingMs
     },
     [ACTION_PROGRESS]: {
         label: "DRPG.Bridge.what.project.progress",
@@ -1750,6 +1815,52 @@ async function askDynamicByCard(payload, ctx) {
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
 }
 
+/*
+ * THE STATISTIC'S CARD, VEILED (E32+E07 C11b, 02.10.2026). Shaped as the Dynamic
+ * action's: a `callGm` card in the owner's thread with one button per listed trait
+ * and a Refuse, any GM may press either (messenger-app.mjs `rulePickTrait`). Veiled
+ * (E06 C8) because the action it names is the incident's: the document names nobody
+ * and its words go to the thread's player and the GMs. The traits are read from this
+ * GM's config for the definition the guard checked, never from the packet.
+ */
+async function askTraitByCard(payload, ctx) {
+    if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    const { listedTraits, rulingLabel, traitWithValue } = await import("./trait-ruling.mjs");
+    const spec = { kind: payload.kind, key: payload.key, variant: payload.variant ?? null };
+    const listed = listedTraits(spec);
+    if (listed.length < 2) return { refused: "nothing was carried out: the roll lists one statistic or none" };
+    askedByCard.add(ctx.requestId);
+    const actor = game.actors.get(payload.actorId ?? "");
+    const data = trait => ({
+        rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "", kind: spec.kind, key: spec.key,
+        variant: spec.variant ?? "", ...(trait ? { trait } : {})
+    });
+    const posted = await callGm(actor, {
+        title: game.i18n.localize("DRPG.TraitRuling.title"),
+        body: `<strong>${esc(rulingLabel(spec))}</strong> · ${esc(game.i18n.format("DRPG.Action.usesTrait", {
+            traits: listed.map(t => TRAITS[t]?.label ?? t).join(" / ") }))}`,
+        gmBody: game.i18n.localize("DRPG.TraitRuling.gmBody"),
+        actions: [
+            ...listed.map(trait => ({ action: "pickTrait", label: traitWithValue(actor, trait), data: data(trait) })),
+            { action: "refuseTrait", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data: data(null) }
+        ],
+        veiled: true
+    });
+    return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
+}
+
+/**
+ * A GM's answer to a statistic card, sent to the player who asked alone: the
+ * request's `bridge.done`, the trait, or `false` for Refuse.
+ */
+export function answerTraitRuling(requestId, asker, trait) {
+    if (!game.user.isGM || !requestId || !asker) return false;
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_DONE, requestId, userId: asker, value: typeof trait === "string" ? trait : false
+    }, { recipients: [asker] });
+    return true;
+}
+
 /**
  * A GM's answer to a Hope Call card, sent to the player who asked: the request's
  * `bridge.done`, `true` to allow and `false` to refuse. Returns true once sent,
@@ -1804,6 +1915,19 @@ export function requestHopeCallApproval(
  */
 export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = TIMING.rulingMs) {
     return ask(ACTION_DIFFICULTY, { description, actorName, room, actorId }, { timeoutMs, nothingSpent: true });
+}
+
+/**
+ * Ask the GMs which of a roll's listed statistics the character rolls
+ * (trait-ruling.mjs `traitFor`). A human reading a thread, so the clock is the
+ * ruling's, there is none for the "got it", and it is asked again when a GM's
+ * world has loaded; nothing has been paid on this side, so a failure says
+ * "Nothing was spent."
+ *
+ * @returns {Promise<object>} the bridge's result; `value` the trait, or false when the GM refused.
+ */
+export function requestTraitRuling({ actorId, kind, key, variant = null }) {
+    return ask(ACTION_TRAIT_RULING, { actorId, kind, key, variant }, { nothingSpent: true });
 }
 
 /**
@@ -2003,14 +2127,15 @@ export function requestParkMurder({ killerId, room = null, note = "" }) {
 }
 
 /**
- * Ask a GM to open the betrayal: the newcomer kills the killer they helped.
+ * Ask a GM to open the betrayal: the newcomer kills the killer they helped - or, in an
+ * Eclipse, to park it with `note` until the lights (E32 C5b).
  *
- * No dice and no numbers travel - this is a declaration, and the GM's own
- * confirmation is what turns it into a second incident.
+ * No dice and no numbers travel - this is a declaration, and whether it opens is
+ * re-derived from the incident on the GM's side (`betrayAsPlayer`).
  */
-export function requestBetrayal({ actorId }) {
-    return ask(ACTION_BETRAYAL, { actorId }, {
-        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId))
+export function requestBetrayal({ actorId, note = "" }) {
+    return ask(ACTION_BETRAYAL, { actorId, note }, {
+        local: () => import("./murder.mjs").then(m => m.betrayAsPlayer(actorId, { note }))
     });
 }
 
@@ -2287,8 +2412,14 @@ export async function callGm(actor, {
  *
  * @param {ChatMessage} message  The card.
  * @param {string} text          What settled it, in plain words.
+ * @param {object} [ruling]      What was ruled, kept in a private card's meta beside
+ *   `settled` (E32+E07 C11b): the statistic a GM picked, `{ type: "trait", actorId,
+ *   kind, key, variant, trait }` - the record a check of the roll against the pick
+ *   reads (E28/E29). Its readers are the card's: on a veiled thread card the
+ *   thread's player and the GMs. A player's own meta may not carry it (secret.mjs
+ *   `GM_META`). Never written on a document.
  */
-export async function settleCall(message, text) {
+export async function settleCall(message, text, ruling = null) {
     if (!message || !game.user.isGM) return null;
 
     // A `<template>`, not a `<div>` (E02 review): markup parsed into a
@@ -2320,7 +2451,7 @@ export async function settleCall(message, text) {
             // does `settled` since E06 C7a, into the meta its readers keep: on
             // the document it told every browser that a ruling was made, and when.
             const { updateSecret } = await import("./secret.mjs");
-            return await updateSecret(message, wrap.innerHTML, null, flags[MODULE_ID]);
+            return await updateSecret(message, wrap.innerHTML, null, { ...flags[MODULE_ID], ...(ruling ? { ruling } : {}) });
         }
         return await message.update({ content: wrap.innerHTML, flags });
     } catch (err) {

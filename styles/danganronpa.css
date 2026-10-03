@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.65";
+    --drpg-css-version: "1.2.66";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -5105,6 +5105,24 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .drpg-choice-text small {
     opacity: 0.7;
     font-size: 0.82em;
+}
+
+/* What a row unfolds into once picked (E32+E07 C15, 03.10.2026; audit S02-32): the
+   crisis menu's price, statistics and miss, which a confirmation window used to say
+   after the menu. The block follows its row's <label> (`chooseVariant`), so the row
+   that is checked opens the one right after it and the others stay shut. Not
+   measured in a browser (the harness has no layout): LIVE-E07-05 is the look at a table. */
+.drpg-choice-details {
+    display: none;
+    padding: 0 0.5rem 0.25rem 2.1rem;
+}
+
+.drpg-choice:has(input:checked) + .drpg-choice-details {
+    display: block;
+}
+
+.drpg-choice-details .drpg-briefing-facts {
+    margin-top: 0.15rem;
 }
 
 /* A labelled field under a choice list.
@@ -11054,6 +11072,63 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) .dialog-form .notes:not(td):not(th):not(table *) strong {
     color: var(--drpg-bone);
+}
+
+/* THE MURDER WINDOW AND EDIT CAMPAIGN, LAID OUT AS A FORM (E32+E07 C14, 03.10.2026; audit
+   S04-30). Both are a column of `<label>Name <select></label>` rows, and `.drpg-panel label`
+   is a flex row, so every field started where its own label ended - in Polish, Zabójca /
+   Ofiara and the campaign's six fields made a ragged edge down the window (the audit's
+   screenshots). A grid of two columns - the labels as wide as the widest of them, the fields
+   the rest - with each field's row a subgrid of it, so a row is still one `<label>` and
+   clicking the word still reaches its field. Everything else in the form (the fine print,
+   the warnings, the trap's box, the rule) spans both. The field may be wrapped by chrome.mjs
+   (`.drpg-select`, `.drpg-stepper` and its message, which goes under the field), so a row is
+   found by a field anywhere inside it. The rows' parent is named by what it holds, not by its
+   tag: the harness's DialogV2 (shim.mjs, "as Foundry's") parses either window's content into
+   a `.dialog-content` inside the dialog's own form and drops the content's `<form>`, and
+   Foundry's own was not read for this, so either parent is matched. None of it is measured
+   here - the harness has no layout; LIVE-E07-08 is the murder window on a Polish client. */
+.application.dialog:is(.drpg-window-murder, .drpg-window-clock) .dialog-form
+    :is(form, div):has(> label :is(select, input:not([type="checkbox"]))) {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 0.75rem;
+    align-items: center;
+}
+
+.application.dialog:is(.drpg-window-murder, .drpg-window-clock) .dialog-form
+    :is(form, div):has(> label :is(select, input:not([type="checkbox"]))) > * {
+    grid-column: 1 / -1;
+}
+
+.application.dialog:is(.drpg-window-murder, .drpg-window-clock) .dialog-form
+    :is(form, div) > label:not(.drpg-checkbox):has(:is(select, input:not([type="checkbox"]))) {
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+}
+
+.application.dialog:is(.drpg-window-murder, .drpg-window-clock) .dialog-form
+    :is(form, div) > label:not(.drpg-checkbox):has(:is(select, input:not([type="checkbox"]))) > * {
+    grid-column: 2;
+}
+
+/* Their fine print in the glass's own dim bone (the same audit row). The rule above for every
+   module window sets `.notes` in `--drpg-dim`, the palette's word for "spent, unavailable",
+   and outranks the glass's `.drpg-panel .notes` on specificity, so under Stained Glass the
+   intro and the trap's budget read as switched off - the audit measured 3.0-4.1:1 there
+   against the 6.81 the glass's token is stated at (stained-glass.css). Under the glass only:
+   `--drpg-sg-bone-dim` is defined on its body class, and Monokuma Legacy keeps its own
+   `--drpg-dim` (4.84:1 as stated, `#cfc9d6` with high contrast on), which nothing here
+   re-measured. Under the glass a warning is not fine print, and is set in full bone. */
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-window-clock)
+    .dialog-form .notes:not(.drpg-warning) {
+    color: var(--drpg-sg-bone-dim);
+}
+
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-window-clock)
+    .dialog-form .notes.drpg-warning {
+    color: var(--drpg-sg-bone);
 }
 
 /* The popup's body speaks the module's own Bone rather than the warm

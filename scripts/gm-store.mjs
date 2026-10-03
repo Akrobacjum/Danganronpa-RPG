@@ -741,6 +741,18 @@ export function createGmStoreEngine(env) {
 
     async function flush(st) {
         st.flushTimer = null;
+        /* ONE FLUSH AT A TIME (E32+E07 fix r2-G5, 03.10.2026). A write made while the storage
+           write below is awaited schedules the next flush, and that flush ran at once: it wrote
+           the newer section, then the earlier flush's write landed with the copy it took before -
+           and, `writing` cleared by the later one, came in as a write this engine did not make, so
+           the memory was dropped and re-read from it too. The newer write was gone on this browser.
+           Measured on 0aeba50 with a counter of flushes begun while one was writing: the tier-2
+           lift-race test run alone 20 times failed 4, each a run where one had begun (the 16
+           passes had none). A flush scheduled meanwhile now waits, its waiters with it, and the
+           flush in hand schedules it when done (below). It takes a storage write that yields
+           before it writes: the harness's client settings write first (client-entry.mjs `set`),
+           the suite's interception of a store's save did not. */
+        if (st.flushing) return;
         const worlds = [...st.worlds.values()].filter(w => w.needsWrite);
         const waiters = st.waiters.splice(0);
         if (!worlds.length) { waiters.forEach(r => r()); return; }
@@ -801,6 +813,7 @@ export function createGmStoreEngine(env) {
             }
         }
         waiters.forEach(r => r());
+        if (st.waiters.length && st.flushTimer === null) st.flushTimer = env.timers.set(() => { void flush(st); }, 0);
     }
 
     /** Mark keys written here (they go out as a delta) or merged in (they only go to storage). */

@@ -2402,7 +2402,9 @@ const REGRESSIONS = [
         ok(label.includes("priceLabel("),
             "the tile's price label no longer says which step will pay");
 
-        const button = bodyOf(sheet, "function actionButton(", { length: 6000 });
+        // The whole function, not its first 6000 characters: E32+E07 C16 (03.10.2026) grew it
+        // and pushed `priced?.blocked` to 6365, and this read a refusal that was still there as gone.
+        const button = bodyOf(sheet, "function actionButton(", { until: "function callsGmFor(" });
         ok(/const affordable = priced \? !priced\.blocked/.test(button),
             "a priced tile is dimmed by its action step rather than by the whole chain");
         ok(button.includes("stripeKindFor("),
@@ -2410,8 +2412,9 @@ const REGRESSIONS = [
         ok(button.includes("priced?.blocked"),
             "the tile's refusal is back to counting pips instead of printing the chain's reason");
 
-        // The killer's own night, said once: the skip list, shared with the charge.
-        ok(sheet.includes("tamperPriceSkip("),
+        // The killer's own night, said once: the skip list, shared with the charge - read through
+        // `tamperQuote` since E32+E07 fix r2-G3, which also knows the critical's free attempt.
+        ok(sheet.includes("tamperQuote("),
             "the sheet decides the killer's discount for itself again");
 
         // A full Sanity track only stops a WATCHED attempt (Dawid, 17.09).
@@ -3234,6 +3237,11 @@ const REGRESSIONS = [
          * the extraction is only reviewable if the sequence is stated: the bullets
          * perish while the items still exist to be read, then the record, then who
          * is told, then the chapter's traces, then Stage 6.
+         *
+         * E32+E07 C13, 03.10.2026 (audit S10-77, the owner's D13): the last two are
+         * `incidentVictimDied`'s, which the repair calls as well - a victim marked
+         * dead from the list in the fight offers Stage 6. The order is read across
+         * the two, and the repair is read calling the helper and not the procedure.
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
@@ -3248,20 +3256,27 @@ const REGRESSIONS = [
             ok(!mark.includes(loud), `markDeceased ${loud}s - it is meant to be the quiet half`);
         }
 
-        const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function reviveCharacter" });
+        const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
         ok(/await markDeceased\(actor\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
         /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
            by the GMs (`publishDeath`) runs too - still before the flag, the card and the traces. */
-        const order = ["destroyBullets(", "markDeceased(", "whisperToGms(", "tieChapterTraces("];
+        const order = ["destroyBullets(", "markDeceased(", "whisperToGms(", "incidentVictimDied("];
         for (let i = 1; i < order.length; i++) {
             const before = kill.indexOf(order[i - 1]);
             const after = kill.indexOf(order[i]);
             ok(before > 0 && after > before,
                 `killCharacter's order broke: ${order[i - 1]} no longer comes before ${order[i]}`);
         }
+        const died = bodyOf(chapter, "export async function incidentVictimDied", { until: "async function isIncidentVictim" });
+        ok(died.indexOf("tieChapterTraces(") > 0 && died.indexOf("offerStageSix(") > died.indexOf("tieChapterTraces("),
+            "incidentVictimDied no longer ties the chapter's traces before it offers Stage 6");
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        const repair = bodyOf(panel, "export async function applyAliveStates", { until: "async function toggleEclipse" });
+        ok(/incidentVictimDied\(/.test(repair) && !/killCharacter\(/.test(repair),
+            "the repair does not offer Stage 6 for the running incident's victim, or runs the whole death procedure (F16, D13)");
 
         const set = bodyOf(cub, "export async function setMonocub", { until: "export async function setSilenced" });
         ok(/const was = isMonocub\(actor\)/.test(set),
@@ -5136,7 +5151,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(bareCuts(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
             "the cut detector does not flag exactly the cuts in its own fixture");
         const scan = await scanSuite(bareCuts);
-        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.files.join(" "), "tests-grid.mjs tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files and the grid");
         equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
         ok(scan.read > 40, `the scan read ${scan.read} slice and split calls in the tier files, and there were 62`);
         ok(!scan.found.length, `cut with bodyOf, fnSource or lineAround instead: ${scan.found.join("; ")}`);
@@ -5158,7 +5173,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(vacuousAsserts(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
             "the vacuous-assertion detector does not flag exactly its fixture's seven");
         const scan = await scanSuite(vacuousAsserts);
-        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.files.join(" "), "tests-grid.mjs tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files and the grid");
         equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
         ok(scan.read > 1000, `the scan read ${scan.read} assertions, and the suite has well over a thousand`);
         ok(!scan.found.length, `an assertion that holds whatever the code does: ${scan.found.join("; ")}`);
@@ -5177,7 +5192,7 @@ const REGRESSIONS = [
         equal(JSON.stringify(needsArgs(fx.text).found.map(f => f.line).sort((a, b) => a - b)), JSON.stringify(fx.flags),
             "the needs() detector does not flag exactly its fixture's three");
         const scan = await scanSuite(needsArgs);
-        equal(scan.files.join(" "), "tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files");
+        equal(scan.files.join(" "), "tests-grid.mjs tests-tier0.mjs tests-tier1.mjs tests-tier2.mjs", "the scan does not read the three tier files and the grid");
         equal(scan.tests, suiteEntries().length, "the scan finds a different number of tests in the tier files than the runner was handed");
         ok(scan.read > 50, `the scan read ${scan.read} needs() calls, and the suite has over fifty`);
         ok(!scan.found.length, `a skip asked of something that is not a probe: ${scan.found.join("; ")}`);
@@ -5687,8 +5702,9 @@ const REGRESSIONS = [
             ["investigation.mjs", "liftKeyPlan", ["weak", "fillOnly"], true],
             // The pre-session notes out of their users' flags (E05 C6).
             ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true],
-            // The incident's method out of the world half of murderState (E05 C8).
-            ["murder.mjs", "liftIncidentMethod", ["weak", "fillOnly"], true],
+            // The incident's method (E05 C8) and its fight (E32 C3) out of the world half of murderState:
+            // both lifts run one body, `liftIntoCast`.
+            ["murder.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
             // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
             ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
         ];
@@ -5774,7 +5790,8 @@ const REGRESSIONS = [
          * now only inside `migrateRemnantsOnce`'s body, shown a planted hook beside it first.
          * E06 C12 adds the rewrite of the chat log written before 1.2.65, since 1.2.65, and E06's
          * fix r2-G1 two clauses for what C10 changed on data 1.2.64 wrote: the buyers of armed
-         * Calls, and a secret project's public repair.
+         * Calls, and a secret project's public repair. E32 C3 adds the lift of a running
+         * incident's fight, since 1.2.66.
          */
         const LIFTS = [["truthBulletShape", "migrateTruthBullets", "1.2.63"],
             // E04's three, given 1.2.64 by E05's fix rounds (r1-G1; the Faint's pass r2-F0b): a world 1.2.63
@@ -5794,7 +5811,9 @@ const REGRESSIONS = [
             // E06 C12: the chat log written before 1.2.65 rewritten as it is written today; lifts nothing.
             ["neutraliseOldCards", "neutraliseOldCards", "1.2.65"],
             // E06 fix r2-G1: an armed Call's buyer off its actor, and a secret project's repair sealed and renamed.
-            ["unsignArmedCalls", "unsignArmedCalls", "1.2.65"], ["sealOldRepairs", "sealOldRepairs", "1.2.65"]];
+            ["unsignArmedCalls", "unsignArmedCalls", "1.2.65"], ["sealOldRepairs", "sealOldRepairs", "1.2.65"],
+            // E32 C3: a running incident's fight out of the world half of murderState.
+            ["liftIncidentFight", "liftIncidentFight", "1.2.66"]];
         const ALLOWED = {
             "migrate.mjs": LIFTS.map(([, fn]) => fn),
             // A restore runs the Faint pass again (gm-stores.mjs `restoreCase`), because a GM asked.
@@ -5858,12 +5877,15 @@ const REGRESSIONS = [
          * cast or nowhere, and the world-secrets rule is the same list written out. Read here:
          * the list has its reasons, shares no field with the cast and equals the rule; the
          * split puts a field nobody listed anywhere but the world; only `writeState`,
-         * `restoreState` (both through the split) and the two lifts (which only take fields
-         * out; their tier-2 pairs measure that) write the key; and every field a write in
+         * `restoreState` (both through the split) and the lifts (which only take fields
+         * out; their tier-2 pairs measure that - the method's and, since E32 C3, the fight's
+         * run one body, `liftIntoCast`) write the key; and every field a write in
          * murder.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
          * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
          * The season reset writes `{}` through its table (season-setup.mjs). The reader is
-         * shown a planted write of each kind first. E32 builds on it to shrink the list.
+         * shown a planted write of each kind first. E32 C2 (28.09.2026) shrank the list to
+         * `active` and `stage`: the fight's twelve fields are the cast's (`INCIDENT_FIGHT`),
+         * so a write naming one still lands on a side - the cast's - and this reads the same.
          */
         const M = await import("./murder.mjs");
         const S = await import("./gm-stores.mjs");
@@ -5886,7 +5908,7 @@ const REGRESSIONS = [
 
         const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
-        const ALLOWED = ["murder.mjs writeState", "murder.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIncidentMethod"];
+        const ALLOWED = ["murder.mjs writeState", "murder.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIntoCast"];
         const writers = files => {
             const out = [];
             for (const [file, text] of files) {
@@ -5919,7 +5941,8 @@ const REGRESSIONS = [
             const src = stripStrings(stripComments(text));
             const keys = [];
             for (const m of src.matchAll(/\bwriteState\(\s*\{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
-            for (const m of src.matchAll(/\bconst patch = \{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
+            // `const fresh` is a new incident's whole state (murder.mjs `freshIncidentState`, E32 C5a), which `openMurder` writes.
+            for (const m of src.matchAll(/\bconst (?:patch|fresh) = \{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
             for (const m of src.matchAll(/\bpatch\.(\w+)\s*=(?!=)/g)) keys.push(m[1]);
             return keys;
         };
@@ -6181,6 +6204,229 @@ const REGRESSIONS = [
         const gone = Object.keys(BROADCAST).filter(file => !broadcast.has(file));
         ok(!gone.length, `listed as an emit to every browser and no longer found - take it off the list: ${gone.join(", ")}`);
         ok(!found.length, `an emit reaches every browser that the list does not describe: ${found.join("; ")}`);
+    }],
+
+    ["R205 - every write of an incident in murder.mjs runs in its queue, and nothing in the queue queues again", async () => {
+        /*
+         * E32 C4, 28.09.2026; audit S04-26. Two writers of one incident read it, awaited and
+         * wrote what they had read: the victim ran out twice (the grid's DM14), two closes of
+         * one incident closed it twice. murder.mjs runs every write of the incident through
+         * one promise chain now (`incidentWrite`), and a transition says what it read
+         * (`expect`) and stops when the state no longer shows it. Read here, on the source
+         * with comments and string contents blanked: every write of either half - a
+         * `castStore` write, a `set` of `murderState`, a call of the two leaves `writeCast` and
+         * `armBetrayalWindow` - lies inside the argument of an `incidentWrite(` call or in a
+         * leaf's own body; no `writeState(`, `restoreState(` or `incidentWrite(` call lies in
+         * either, or the chain would wait on itself; and each transition the design names
+         * passes `expect` and stops on the null. A function a queued write calls that is
+         * neither a leaf nor a writer (`pushCastToParticipants`, the hooks a setting's change
+         * fires) is not followed: only the calls written inside the queue are read. Other
+         * files' writes of `murderState` (the season reset's table) are R191's, not this
+         * queue's. The reader is shown a planted source of each kind first.
+         * E32+E07 fix r1-G3 (02.10.2026; review C-M2): the Reroll's rewind (`undoLastCrisis`)
+         * is a transition too - without `expect` it brought a closed incident back.
+         * E32+E07 fix r2-G2 (03.10.2026): what each player was last sent of the cast (`sent`) is
+         * the GMs' delivery memo, not the incident, and its one writer (`rememberSent`) runs
+         * outside the queue - a push runs inside it, an answer outside - so its body is not read
+         * as a stray, and it writes `sent` alone. Fix r2-G4 (03.10.2026) adds the second memo of the
+         * GMs', the opening's request cards (`openingNotices`), whose one writer
+         * (`rememberOpeningNotices`) runs outside the queue for the same reason and writes that alone.
+         */
+        const LEAVES = ["writeCast", "armBetrayalWindow"];
+        const MEMO = "rememberSent", NOTICES = "rememberOpeningNotices";
+        const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow)\(/g;
+        const QUEUES = /(?<!function )\b(?:writeState|restoreState|incidentWrite)\(/g;
+        const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
+        const read = (file, text) => {
+            const src = stripStrings(stripComments(text));
+            const decls = [...src.matchAll(DECL)];
+            const fnAt = at => decls.filter(d => d.index < at).pop()?.[1] ?? "(top level)";
+            const spans = [];
+            for (const m of src.matchAll(/(?<!function )\bincidentWrite\(/g)) {
+                const open = m.index + m[0].length - 1;
+                let depth = 0, close = open;
+                for (let i = open; i < src.length; i++) {
+                    if ("([{".includes(src[i])) depth++;
+                    else if (")]}".includes(src[i]) && --depth === 0) { close = i; break; }
+                }
+                spans.push([open, close]);
+            }
+            const queued = at => spans.some(([a, b]) => at > a && at < b);
+            const stray = [], again = [];
+            for (const m of src.matchAll(WRITE)) {
+                if (!queued(m.index) && !LEAVES.includes(fnAt(m.index)) && ![MEMO, NOTICES].includes(fnAt(m.index))) stray.push(`${file} ${fnAt(m.index)}`);
+            }
+            for (const m of src.matchAll(QUEUES)) {
+                if (queued(m.index) || LEAVES.includes(fnAt(m.index))) again.push(`${file} ${fnAt(m.index)}`);
+            }
+            return { spans: spans.length, writes: [...src.matchAll(WRITE)].length, stray, again };
+        };
+        const planted = "async function queued() {\n    await incidentWrite(async () => { await castStore.patch(RECORD, { a: \")\" }); });\n}\n"
+            + "async function writeCast(next) {\n    await castStore.patch(RECORD, next);\n}\n"
+            + "async function stray() {\n    await game.settings.set(MODULE_ID, SETTINGS.murderState, {});\n}\n"
+            + "async function loose() {\n    await writeCast({ turn: 1 });\n    await incidentWrite(() => writeCast({}));\n}\n"
+            + "async function nested() {\n    await incidentWrite(async () => { await writeState({ stage: \"incident\" }); });\n}\n";
+        const seen = read("planted.mjs", planted);
+        equal(JSON.stringify([seen.spans, seen.writes, seen.stray, seen.again]),
+            JSON.stringify([3, 5, ["planted.mjs stray", "planted.mjs loose"], ["planted.mjs nested"]]),
+            "the reader does not find exactly the two writes and the one queue inside the queue planted for it");
+
+        const src = new Map(await otherSources()).get("murder.mjs") ?? "";
+        const found = read("murder.mjs", src);
+        // Not a reading of nothing: measured on 28.09, 17 writes and 8 queued spans.
+        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in murder.mjs - too few to trust`);
+        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in murder.mjs`);
+        ok(!found.stray.length, `an incident's write runs outside its queue: ${found.stray.join(", ")}`);
+        ok(!found.again.length, `a write in the incident's queue queues another, and the chain would wait on itself: ${found.again.join(", ")}`);
+
+        const bare = stripComments(src);
+        const memo = fnSource(bare, MEMO);
+        ok(/\bcastStore\.patch\(RECORD, \{ sent: \{ \[userId\]: memo \} \}\)/.test(memo) && [...stripStrings(memo).matchAll(WRITE)].length === 1,
+            `the memo's writer (${MEMO}) is gone, or writes more than what a player was sent`);
+        const notices = fnSource(bare, NOTICES);
+        ok(/\bcastStore\.patch\(RECORD, \{ openingNotices: notices \}\)/.test(notices) && [...stripStrings(notices).matchAll(WRITE)].length === 1,
+            `the request cards' writer (${NOTICES}) is gone, or writes more than the cards' ids`);
+        const TRANSITIONS = ["checkVictimSpent", "finishIncident", "beginResolution", "passTurn", "thirdPartyEnters",
+            "resolveKillerOpening", "resolveVictimOpening", "closeIncident", "undoLastCrisis"];
+        const blind = TRANSITIONS.filter(fn => !/if \(!await (?:writeState|restoreState)\([^;]*\bexpect: /.test(fnSource(bare, fn)));
+        ok(!blind.length, `a transition writes without saying what it read, or goes on when the write is refused: ${blind.join(", ")}`);
+    }],
+
+    ["R213 - no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one, and every definition that lists several is a ruling's", async () => {
+        /*
+         * E32+E07 C11d, 02.10.2026; audit S04-23 and the owner's rules of 28.09.2026. Wherever a
+         * definition lists several traits a GM picks (trait-ruling.mjs `traitFor`), Resolve
+         * excepted. The way round that is code taking a list's first trait - every crisis action
+         * rolled `(variant?.traits ?? def.traits)[0]` until C11b, the openings `def.traits[0]`
+         * until C11c - or a definition that lists several and is no ruling's to ask. Three
+         * readings, the first two tried first on planted text and a planted catalogue:
+         *   1. every `traits ... [0]` in the served sources (comments and strings blanked) stands
+         *      in a function of FIRSTS, which names the definition it reads, and that definition
+         *      lists one trait - so Search back on Eye or Hand fails here;
+         *   2. every object of config.mjs with a `traits` list of two or more is one of
+         *      `ruledDefinitions()`, by identity;
+         *   3. `OWN_PERFORMERS`, the actions trait-ruling.mjs keeps out of the generic kind, are
+         *      the cases of `performAction`'s switch - a new case left out of it would be asked
+         *      about as a generic action, one in it and not the switch never would.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const C = await import("./config.mjs");
+        const FIRST = /\btraits\b\s*\)?\s*(?:\?\.)?\s*\[\s*0\s*\]/g;
+        const firstsIn = text => {
+            const code = blankComments(text), blank = blankLiterals(code);
+            const fns = [...code.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)];
+            return [...blank.matchAll(FIRST)].map(m => fns.filter(f => f.index < m.index).pop()?.[1] ?? "(top level)");
+        };
+        const PLANTED = [
+            "function struck() {\n    return rollTrait(actor, CRISIS_ACTIONS.strike.traits[0]);\n}",
+            "async function variant() {\n    const t = (variant?.traits ?? def.traits)[0];\n    // def.traits[0], in a comment\n    return \"def.traits[0]\";\n}",
+            "function optional() {\n    return def.traits?.[0] ?? \"eye\";\n}"
+        ].join("\n");
+        equal(JSON.stringify(firstsIn(PLANTED)), JSON.stringify(["struck", "variant", "optional"]),
+            "the reader does not find the three planted firsts, or finds the comment's or the string's");
+
+        // The functions that take a list's first, and the definition each reads; measured 02.10.2026.
+        const FIRSTS = {
+            "action-rolls.mjs chooseSearchCategory": ACTIONS.search,
+            "action-rolls.mjs performPalm": ACTIONS.palm,
+            "cleanup.mjs cleanupTrait": ACTIONS.tamper
+        };
+        const sites = [];
+        for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);
+        equal(JSON.stringify([...new Set(sites)].sort()), JSON.stringify(Object.keys(FIRSTS).sort()),
+            "a function takes a list's first trait that this test does not know, or one it knows no longer does");
+        const several = Object.entries(FIRSTS).filter(([, def]) => (def?.traits ?? []).length !== 1).map(([site]) => site);
+        ok(!several.length, `a first trait is taken from a list of several, which a GM should pick from: ${several.join(", ")}`);
+
+        const unruledIn = (roots, ruled) => {
+            const seen = new Set(), found = [];
+            const walk = (value, at) => {
+                if (!value || typeof value !== "object" || seen.has(value)) return;
+                seen.add(value);
+                if (Array.isArray(value.traits) && value.traits.length > 1) found.push([at, ruled.has(value)]);
+                for (const [key, inner] of Object.entries(value)) walk(inner, `${at}.${key}`);
+            };
+            for (const [key, value] of Object.entries(roots)) walk(value, key);
+            return found;
+        };
+        const fake = { A: { x: { traits: ["eye", "hand"] } }, B: [{ traits: ["eye"] }], C: { traits: ["hand", "leg"] } };
+        equal(JSON.stringify(unruledIn(fake, new Set([fake.C]))), JSON.stringify([["A.x", false], ["C", true]]),
+            "the catalogue reader does not find the planted lists of several, or misreads which is a ruling's");
+        const found = unruledIn(C, T.ruledDefinitions());
+        // Not a reading of nothing: 14 definitions list several at 1.2.66 (15 with Search on Eye or Hand).
+        ok(found.length >= 12, `the reader found ${found.length} definitions that list several traits - too few to trust`);
+        log(`R213: ${found.length} definitions list several traits, ${new Set(sites).size} functions take a list's first`);
+        const loose = found.filter(([, ruled]) => !ruled).map(([at]) => at);
+        ok(!loose.length, `a definition lists several traits and no ruling asks a GM about it: ${loose.join(", ")}`);
+
+        const dispatch = fnSource(stripComments(new Map(await otherSources()).get("action-rolls.mjs") ?? ""), "performAction");
+        const cases = [...dispatch.matchAll(/\bcase "(\w+)":/g)].map(m => m[1]);
+        equal(JSON.stringify([...cases].sort()), JSON.stringify([...T.OWN_PERFORMERS].sort()),
+            "trait-ruling.mjs OWN_PERFORMERS is not the list of performAction's own performers");
+    }],
+
+    ["R214 - the hidden stash's step is the old count's die, exactly: every window from -3 to 3, every die and every draw", async () => {
+        /*
+         * E32+E07 C11e, 02.10.2026; the owner's decision of 28.09.2026 (the hidden stash's
+         * disadvantage die, back, and still out of the roll window). Until 1.2.64 a hidden stash
+         * was -1 in the count the window turns into dice, and Daggerheart's `applyAdvantage`
+         * (dualityRoll.mjs:146-160, 2.6.5) throws |n| dice of one kind, keeps the highest above
+         * one (`kh`), and adds it for advantage or takes it off for disadvantage; roll-dialog.mjs
+         * caps |n| at ADVANTAGE_CAP. Since E06 C11 the window arms the room's count alone and the
+         * stash is a step on the dice it threw (action-rolls.mjs `stashStep`). For every window
+         * count n from -3 to 3, every face of its d6s and every value each `draw(m)` may give
+         * (1 to m, each branch weighted 1/m), the distribution of what the dice put on the total
+         * after the step is compared, exactly - counts over a common denominator, not samples -
+         * with that of the old count's n - 1. Red until C11e (no `stashStep`). This body, run
+         * outside the suite on 02.10.2026 against stand-ins: E06 C11's flat -1 differs at every
+         * n; a d6 simply taken off after the roll (the first proposal of 28.09) at every n but 0;
+         * setting aside the lowest bonus die instead of a drawn one, at n = 2 and 3.
+         */
+        const R = await import("./action-rolls.mjs");
+        ok(typeof R.stashStep === "function", "action-rolls.mjs has no stashStep");
+        if (typeof R.stashStep !== "function") return;
+        const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
+        must(Number.isInteger(ADVANTAGE_CAP), "roll-dialog.mjs exports no ADVANTAGE_CAP");
+        const FACES = 6, SCALE = FACES ** 4, STOP = Symbol("draw");
+        const throws = k => Array.from({ length: FACES ** k }, (_, i) =>
+            Array.from({ length: k }, (__, j) => 1 + Math.floor(i / FACES ** j) % FACES));
+        const kept = (sign, faces) => faces.length ? sign * Math.max(...faces) : 0;
+        const add = (map, value, weight) => map.set(value, (map.get(value) ?? 0) + weight);
+        const stepped = n => {
+            const k = Math.min(ADVANTAGE_CAP, Math.abs(n)), sign = Math.sign(n), out = new Map();
+            for (const results of throws(k)) {
+                const walk = (script, weight) => {
+                    let used = 0, asked = 0;
+                    const draw = m => {
+                        if (used < script.length) return script[used++];
+                        asked = m;
+                        throw STOP;
+                    };
+                    try {
+                        const step = R.stashStep({ sign, results, faces: FACES, cap: ADVANTAGE_CAP }, draw);
+                        add(out, kept(sign, results) + step.change, weight);
+                    } catch (err) {
+                        if (err !== STOP) throw err;
+                        for (let face = 1; face <= asked; face++) walk([...script, face], weight / asked);
+                    }
+                };
+                walk([], SCALE);
+            }
+            return { out, den: FACES ** k * SCALE };
+        };
+        const counted = n => {
+            const m = Math.min(ADVANTAGE_CAP, Math.abs(n)), out = new Map();
+            for (const results of throws(m)) add(out, kept(Math.sign(n), results), 1);
+            return { out, den: FACES ** m };
+        };
+        const differs = [];
+        for (let n = -3; n <= 3; n++) {
+            const now = stepped(n), then = counted(n - 1);
+            const values = [...new Set([...now.out.keys(), ...then.out.keys()])].sort((a, b) => a - b);
+            const off = values.filter(v => (now.out.get(v) ?? 0) * then.den !== (then.out.get(v) ?? 0) * now.den);
+            if (off.length || ![...now.out.values()].every(Number.isInteger)) differs.push(`${n}: ${off.join(" ")}`);
+        }
+        equal(differs.join("; "), "", "the step does not land where the old count's dice did (window count: the values whose odds differ)");
     }]
 ];
 

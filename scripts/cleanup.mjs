@@ -65,8 +65,9 @@ import { quotePrice, payPrice, refundPrice, paidLine } from "./price.mjs";
 import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { bodyDiscovery } from "./settings.mjs";
-import { murderState, killerIds, refOf, swungWeaponOf } from "./murder.mjs";
+import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
+import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
+import { usedToolStore, blackenedStore } from "./gm-stores.mjs";
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic
 } from "./remnants.mjs";
@@ -81,7 +82,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
-    dialogContent, log, error, cardHead } from "./utils.mjs";
+    dialogContent, log, error, cardHead, isPrimaryGm } from "./utils.mjs";
 
 // Veiled, every one of them: a Stage 6 card's speaker is the killer and its
 // audience is the incident, and the document must not say so. See murder.mjs.
@@ -400,6 +401,57 @@ export function cleaningTool(actor) {
     return equippedFor(actor, "cleaningTool");
 }
 
+/**
+ * THE GLOVES ARE WRITTEN DOWN WHEN THEY ARE USED (E32+E07 C12, 02.10.2026; audit S05-38; the
+ * owner's D13, "the Cleaning Tool remembered like the weapon"). The discovery breaks the
+ * Cleaning Tools a clean-up used, and until 1.2.66 it read them off the killers' hands at the
+ * moment the body was found: one click putting the gloves away after the clean-up kept them
+ * whole through the discovery. So the tool readied at an attempt the GM scores goes into the
+ * GMs' `usedTools` row of the character, with the clock's chapter and season - every attempt
+ * and every tool, since several rags are as much evidence as one.
+ *
+ * A KILLER'S ATTEMPT ONLY: the running incident's killers (`killerIds`, the Stage 6 clean-up)
+ * and this chapter's Blackened (a Tamper after the close). The guide breaks the killer's tool,
+ * as the swing memo remembers only a fight's weapon; an investigator who scrubs a trace with
+ * their own gloves on an ordinary afternoon is not made to lose them when a body turns up.
+ *
+ * A row of another chapter or season is started again. Read after the store has heard the
+ * other GMs (as `applyRecordedMove` reads its row), so another GM's tool is kept, and written
+ * with no await between the read and the patch. GM-side; a failed write is logged and the
+ * attempt is scored anyway - the discovery then falls back on the hand, as it always did.
+ *
+ * WITH THE BODIES IT CLEANED UP AFTER (E32+E07 fix r2-G3, 03.10.2026; the round-2 review's
+ * C2-m2): `victims`, the running incident's victim for its killers, a Blackened's register row's
+ * victims after the close - so the discovery breaks the gloves of the bodies it found, and not
+ * a betrayer's whose victim nobody has found yet (`destroyCleaningTools`).
+ */
+async function noteCleaningTool(actor) {
+    const tool = cleaningTool(actor);
+    if (!game.user.isGM || !tool) return;
+    const state = murderState();
+    const running = killerIds(state).includes(actor.id);
+    if (!running && !blackenedIds().includes(actor.id)) return;
+    try {
+        await usedToolStore.whenHydrated();
+        const chapter = getClock()?.chapter ?? null, epoch = seasonEpoch();
+        const row = usedToolStore.get(actor.id);
+        const held = isThisChapters(row) ? row.cleaning : [];
+        const had = isThisChapters(row) && Array.isArray(row.victims) ? row.victims : [];
+        const after = running ? [state.victimId] : blackenedStore.get(actor.id)?.victims ?? [];
+        const victims = [...new Set([...had, ...after.filter(id => typeof id === "string" && id)])];
+        if (held.includes(tool.id) && victims.length === had.length) return;
+        await usedToolStore.patch(actor.id, { chapter, epoch, cleaning: [...new Set([...held, tool.id])], victims });
+    } catch (err) {
+        error(`Could not write down the Cleaning Tool ${actor.name} used`, err);
+    }
+}
+
+/** Is this `usedTools` row of the clock's chapter and season? */
+function isThisChapters(row) {
+    return row?.chapter === (getClock()?.chapter ?? null) && (row.epoch ?? 0) === seasonEpoch()
+        && Array.isArray(row.cleaning);
+}
+
 /** One Remnant token by id, from whichever scene it is on. */
 function findRemnantToken(tokenId) {
     if (!tokenId) return null;
@@ -413,6 +465,25 @@ function findRemnantToken(tokenId) {
 /* ==========================================================================
  * THE ROLL - player side
  * ========================================================================== */
+
+/**
+ * THE STATISTIC A CLEAN-UP ROLLS IS THE GM'S PICK (E32+E07 C11c, 02.10.2026; audit S04-23,
+ * the owner's Q4 as corrected on 28.09). Stage 6's rolls list three - Shadow / Hand / Head
+ * (`CLEANUP.traits`), which an erase and a misleading trail roll - and threw the first,
+ * Shadow, with nobody asked; moving the body lists its own Body alone. A GM picks now
+ * (trait-ruling.mjs `traitFor`: a card in the player's thread, or a window on a GM's
+ * browser; with Resolve armed the roll window's picker), and the caller asks before the
+ * concealment and the price, so a refusal costs nothing. The same rolls
+ * through Tamper's door (`viaAction`, any afternoon) are Tamper's, which lists Shadow
+ * alone (`ACTIONS.tamper`): nobody is asked - and the GM's judgement of a ruling
+ * (bridge-guards.mjs `guardTraitRuling`) takes one for Stage 6's cleaner alone.
+ * `{ trait, byGm }`, or null when there is to be no roll.
+ */
+async function cleanupTrait(actor, key, viaAction) {
+    if (viaAction) return { trait: ACTIONS.tamper.traits[0], byGm: false };
+    const { traitFor } = await import("./trait-ruling.mjs");
+    return traitFor(actor, { kind: "cleanup", key });
+}
 
 /**
  * Attempt to erase one trace.
@@ -478,11 +549,15 @@ export async function attemptCleanup(actor, tokenId, {
         return null;
     }
 
-    const quote = quotePrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
+    const quote = tamperQuote(actor);
     if (quote.blocked) {
         ui.notifications.warn(quote.blocked);
         return null;
     }
+
+    // The statistic, before anything is rolled or paid (`cleanupTrait`).
+    const ruled = await cleanupTrait(actor, "cleanup", viaAction);
+    if (!ruled) return null;
 
     // Somebody is watching. Cover it before you do it - and learn the answer
     // while there is still a choice about how to behave afterwards. Nothing has
@@ -520,8 +595,9 @@ export async function attemptCleanup(actor, tokenId, {
 
     let roll;
     try {
-        roll = await rollTrait(actor, CLEANUP.traits[0], {
+        roll = await rollTrait(actor, ruled.trait, {
             dc: dcShown,
+            byGm: ruled.byGm,
             // `cleanupKey` and `cleanupVia` ride along so a Reroll can tell the
             // three Stage 6 actions apart. Without them the bookmark said only
             // "cleanup" and a rerolled misleading trail was replayed as an
@@ -1462,6 +1538,8 @@ export async function resolveCleanup({
     // A rewind that could not happen aborts the replay rather than scoring on
     // top of the first attempt. `undoLastCleanup` has already told the GMs what
     // to put right by hand.
+    // Whether the attempt being replaced was the free one, read before the rewind takes its receipt.
+    const replayFree = Boolean(undo && lastAttempt.get(actorId)?.free);
     if (undo && !await undoLastCleanup(actor, tokenId)) return null;
 
     // Searched across every scene rather than only the one the killer is
@@ -1475,14 +1553,18 @@ export async function resolveCleanup({
         // The trace is gone - another attempt got it, or the GM removed it by
         // hand between the player picking and the dice landing. The price is
         // still spent: they scrubbed at something. Charged here only when no
-        // step arrived to say it was paid on the client (T-1).
-        if (!validPrice(price)) await spendStress(actor);
+        // step arrived to say it was paid on the client (T-1). The free attempt
+        // is spent on it too: an attempt, hit or miss (`consumeFreeCleanup`).
+        const free = replayFree || await consumeFreeCleanup(actor);
+        if (!validPrice(price) && !free) await spendStress(actor);
+        if (free) await waivePrice(actor, validPrice(price));
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
         return { removed: false, gone: true };
     }
 
     const refused = await cleanupRefusal(actor, token, data, viaAction);
     if (refused) return refused;
+    await noteCleaningTool(actor);
 
     const verdict = cleanupVerdict(actor, data, { total, isCritical, withHope, mode });
     const { transforming, dc, success, band, outcome } = verdict;
@@ -1509,12 +1591,17 @@ export async function resolveCleanup({
     // that paid the chain and says which step is not charged again; a packet with
     // no claim pays the Sanity here, as every packet used to.
     const paidStep = validPrice(price);
-    if (!paidStep) await spendStress(actor);
+    const free = replayFree || await consumeFreeCleanup(actor);
+    receipt.free = free;
+    if (!paidStep && !free) await spendStress(actor);
+    if (free) await waivePrice(actor, paidStep);
     // What the report says was paid: the step the client claimed, with the
-    // amount read off the table rather than off the packet.
-    const charged = paidStep ? { pay: paidStep.pay, amount: paidStep.amount, grant } : null;
+    // amount read off the table rather than off the packet - and nothing for
+    // the free attempt, which says so instead.
+    const charged = paidStep && !free ? { pay: paidStep.pay, amount: paidStep.amount, grant } : null;
 
     const done = [];
+    if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
     if (transforming && success) {
         return resolveTransformRoad(actor, token, data, verdict,
@@ -1625,6 +1712,31 @@ export function witnessesTo(actor, present) {
  */
 export function tamperPriceSkip(actor) {
     return isCleaner(actor) ? ["action"] : [];
+}
+
+/**
+ * WHAT A TAMPER COSTS THIS CHARACTER NOW, THE FREE ATTEMPT INCLUDED (E32+E07 fix r2-G3,
+ * 03.10.2026; the round-2 review's C2-m1). A critical Finishing blow makes the striker's next
+ * clean-up attempt cost no Sanity (`consumeFreeCleanup`), and until this fix only the GMs knew
+ * it: the striker's own browser quoted the Sanity step, so a striker whose bar the blow had
+ * filled was refused before any GM was asked - measured by the review on d9ee6e9 at 6/6
+ * ("No action left, and no Sanity to give instead."), the grant left unspent. The killers' copy
+ * of the cast carries the grant now (murder.mjs `castCopyFor`), so the quote reads it here and
+ * says the attempt is free. A character the chain cannot charge at all (`noPrice`: dead, a
+ * Monocub) stays refused - a grant is no reason to clean.
+ *
+ * The readers are the ones `tamperPriceSkip` names: this file's charge (`chargeTamper`), the
+ * Tamper tile's refusal and briefing (action-rolls.mjs), and the sheet's price label.
+ */
+export function tamperQuote(actor) {
+    const quote = quotePrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
+    if (quote.blockedKind === "noPrice" || !holdsFreeCleanup(actor)) return quote;
+    return { ...quote, pay: null, amount: 0, grant: false, lastSanity: false, blocked: null, blockedKind: null };
+}
+
+/** Is this character's next clean-up attempt the free one, as this browser's copy of the cast says? */
+function holdsFreeCleanup(actor) {
+    return Boolean(actor?.id) && murderState()?.freeCleanup === actor.id;
 }
 
 /**
@@ -1768,7 +1880,11 @@ async function concealFromWitnesses(actor) {
  *   `releaseTamper` reads `pay` rather than asking `isCleaner` again after a
  *   roll window a GM could have changed the incident under (review of ACT-04).
  */
-async function chargeTamper(actor) {
+export async function chargeTamper(actor) {
+    /* The free attempt pays nothing here (`tamperQuote`), and claims no step: the GM's side
+       spends the grant, and charges the Sanity itself if the grant was gone by then - a packet
+       with no claim pays there (`resolveCleanup`). Exported for the suite. */
+    if (holdsFreeCleanup(actor)) return { key: "tamper", pay: null, amount: 0, grant: false };
     return payPrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
 }
 
@@ -1788,6 +1904,9 @@ async function chargeTamper(actor) {
  * @returns {Promise<null>}
  */
 async function releaseTamper(actor, charge, { rolled = false } = {}) {
+    // The free attempt took nothing, so nothing is kept or handed back (`chargeTamper`), and the
+    // grant stands: no GM was asked to spend it.
+    if (!charge?.pay) return null;
     if (rolled) {
         // An action kept is said the way every other action says it (ROLL-05's
         // `spentAfterRoll`); a Sanity mark kept has its own sentence.
@@ -1881,11 +2000,15 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         return null;
     }
 
-    const quote = quotePrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
+    const quote = tamperQuote(actor);
     if (quote.blocked) {
         ui.notifications.warn(quote.blocked);
         return null;
     }
+
+    // The statistic, before anything is rolled or paid (`cleanupTrait`).
+    const ruled = await cleanupTrait(actor, key, viaAction);
+    if (!ruled) return null;
 
     // The guide's concealment roll covers "akcje rozwiązania" as a whole -
     // planting a false trail or dragging a body past a witness is if anything
@@ -1917,8 +2040,9 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
 
     let roll;
     try {
-        roll = await rollTrait(actor, (def.traits ?? CLEANUP.traits)[0], {
+        roll = await rollTrait(actor, ruled.trait, {
             dc: def.threshold ?? null,
+            byGm: ruled.byGm,
             // `cleanupKey` names WHICH of the three this was. `cleanup` keeps
             // holding the same value it always did so nothing that reads the
             // old bookmark shape breaks - see `settleCleanup` in reroll.mjs.
@@ -1998,6 +2122,7 @@ export async function resolveStageSix({
         return { refused: "that student cannot be framed" };
     }
     if (key === "moveBody" && !bodyIsHere(actor)) return { refused: "the body is not in the killer's room" };
+    await noteCleaningTool(actor);
 
     const relief = def.toolBonusPerTier ? cleaningTier(actor) * def.toolBonusPerTier : 0;
     const threshold = Math.max(0, (def.threshold ?? 0) - relief);
@@ -2016,8 +2141,11 @@ export async function resolveStageSix({
      * which when the claim is missing.
      */
     const paidStep = validPrice(price);
-    if (!paidStep) await spendStress(actor);
+    const free = await consumeFreeCleanup(actor);
+    if (!paidStep && !free) await spendStress(actor);
+    if (free) await waivePrice(actor, paidStep);
     const done = [];
+    if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
     if (key === "misleadingTrail") await applyMisleadingTrail(actor, def, targetId, success, band, done);
     else if (key === "moveBody") await applyMoveBody(actor, def, success, band, done, targetId);
@@ -2424,6 +2552,39 @@ async function spendStress(actor) {
 }
 
 /**
+ * THE FREE CLEAN-UP ATTEMPT (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): whether
+ * this attempt is the one a critical Finishing blow paid for, and if it is, spent - the first
+ * attempt that reaches its price, hit or miss, and no other. Asked where each attempt pays
+ * (`resolveCleanup`, both roads, and `resolveStageSix`), after every refusal, so a refused
+ * attempt keeps it. GM-side: the grant is in the GMs' cast (murder.mjs `freeCleanup`, held
+ * null in every player's copy).
+ */
+export async function consumeFreeCleanup(actor) {
+    if (!game.user.isGM || !actor) return false;
+    try {
+        return await spendFreeCleanup(actor.id);
+    } catch (err) {
+        error("Could not spend the free clean-up attempt", err);
+        return false;
+    }
+}
+
+/**
+ * The price the free attempt does not owe (E32+E07 C13). The GM's side charges it nothing -
+ * a packet that claims no step skips `spendStress` - but a legitimate client has already paid
+ * its mark before the dice (`chargeTamper`: the killer's own chain starts at the Sanity), and
+ * it cannot know the mark is not owed, since the grant is the GMs'. So that mark is lifted
+ * again. Only a Sanity step: an action is never the killer's price in their own Stage 6
+ * (`tamperPriceSkip`), and handing an action back on a claim nobody can check is what
+ * `handBack` already weighs for the critical. Lifted after `stressBefore` is read, so a
+ * Reroll's rewind puts the mark back and the replay, told by its receipt that it was the
+ * free one, lifts it again.
+ */
+async function waivePrice(actor, paidStep) {
+    if (paidStep?.pay === "stress") await restoreStress(actor, paidStep.amount);
+}
+
+/**
  * Hand Sanity back. Sanity is a reverse resource, so "restoring" it is
  * subtracting marks - the same direction `use-items.mjs` moves it.
  */
@@ -2670,10 +2831,14 @@ export async function openMoveBodyDialog(actor) {
  * `CLEANUP.destroysTools` has declared for some time that a crime tool used in
  * an incident is destroyed, and nothing was destroying anything. The cleaning tool
  * goes the same way and for the same reason - one crime scene, one set of
- * gloves. Both are read as EQUIPPED items: an unopened spare in the stash is not
- * a thing that was used.
+ * gloves, broken at the discovery (`destroyCleaningTools`). Both are read from
+ * what the incident wrote down (`rememberedTools`): an unopened spare in the
+ * stash is not a thing that was used.
  *
- * Called by `endMurder`, so it also covers a GM closing an incident by hand.
+ * Called by `endMurder` for every killer of an incident that reached Stage 6, so
+ * it also covers a GM closing an incident by hand - and only then (E32+E07 C12;
+ * audit S04-17): the rules use the crime tool up in Stage 6, so a fight closed
+ * before it breaks nothing, a weapon swung in it included.
  */
 export async function endResolution(actor) {
     return destroyTools(actor, CLEANUP.destroysTools);
@@ -2682,22 +2847,84 @@ export async function endResolution(actor) {
 /**
  * Stage 7's half: the gloves come off when the body turns up.
  *
- * Called by `discoverBody`, which is the moment the guide names. The killer is
+ * Called by `discoverBody`, which is the moment the guide names, with the bodies it
+ * found (`found`: the named victim and every dead body in the room). The killer is
  * read off the incident state rather than passed in, because by then whoever
  * closed the murder is not necessarily the person holding the tool.
+ *
+ * Every killer, not the first one. An accomplice cleaning alongside them is
+ * holding a tool of their own, and leaving it in their bag after the body turns
+ * up is a Truth Bullet the guide says should no longer exist.
+ *
+ * AND A CLOSED INCIDENT'S KILLERS TOO (E32+E07 C12, 02.10.2026; audit S04-20,
+ * S05-23). The table's usual order is the GM closing the night and somebody
+ * finding the body in the morning, and by then `endMurder` has wiped the incident:
+ * `killerIds()` answered nobody, and nothing broke. So the killers are the running
+ * incident's, this chapter's Blackened (the register outlives the close), and
+ * everybody the GMs' `usedTools` ledger wrote a tool down for - each once.
+ *
+ * ONLY THE KILLERS OF THE BODIES FOUND (E32+E07 fix r2-G3, 03.10.2026; the round-2 review's
+ * C2-m2). This broke for every killer of the chapter whatever body was found, so with two
+ * incidents in a chapter - a betrayal, an ordinary evening - the first discovery broke the
+ * betrayer's gloves while their victim was a death nobody had found (the owner's Q3: it counts
+ * nowhere until found), and took the rows, so a second discovery broke by the hand whatever a
+ * Blackened had readied since. A killer counts now when a body found is theirs: the running
+ * incident's killers for its victim, a Blackened whose register row names one, a ledger row
+ * whose `victims` names one (`noteCleaningTool`). A row or a register row that names no
+ * victims - written before this fix - counts at every discovery, as all of them did. The
+ * bodies found come off a row's `victims`, and the row goes when none is left: the tools it
+ * named are broken now, or were stashed, lost or broken before, and a later discovery of the
+ * killer's other victim reads the row (its broken tools left alone) rather than the hand. A
+ * row is a killer's, not a body's: one who killed twice and cleaned up after both loses every
+ * tool it names at the first of the two bodies found.
  */
-export async function destroyCleaningTools() {
+export async function destroyCleaningTools(found = []) {
     if (!game.user.isGM) return [];
-    // Every killer, not the first one. An accomplice cleaning alongside them is
-    // holding a tool of their own, and leaving it in their bag after the body
-    // turns up is a Truth Bullet the guide says should no longer exist.
+    await usedToolStore.whenHydrated();
+    const bodies = new Set(found);
+    const named = victims => (Array.isArray(victims) ? victims.filter(id => typeof id === "string" && id) : []);
+    const meets = victims => !named(victims).length || named(victims).some(id => bodies.has(id));
+    const rows = usedToolRows();
+    const state = murderState();
+    const killers = new Set([
+        ...(state?.victimId && bodies.has(state.victimId) ? killerIds(state) : []),
+        ...blackenedIds().filter(id => meets(blackenedStore.get(id)?.victims)),
+        ...Object.keys(rows).filter(id => meets(rows[id].victims))
+    ]);
     const destroyed = [];
-    for (const id of killerIds()) {
+    for (const id of killers) {
         const killer = game.actors.get(id);
         if (!killer) continue;
         destroyed.push(...await destroyTools(killer, CLEANUP.destroysToolsOnDiscovery ?? []));
     }
+    const read = [...killers].filter(id => rows[id]);
+    const left = Object.fromEntries(read
+        .map(id => [id, named(rows[id].victims).filter(v => !bodies.has(v))])
+        .filter(([, victims]) => victims.length));
+    const gone = read.filter(id => !left[id]);
+    try {
+        if (gone.length) await usedToolStore.dropMany(gone);
+        for (const [id, victims] of Object.entries(left)) await usedToolStore.patch(id, { victims });
+    } catch (err) {
+        error("Could not take the used Cleaning Tools off the ledger after the discovery", err);
+    }
     return destroyed;
+}
+
+/** The `usedTools` rows of the clock's chapter and season, by character. GM-side. */
+function usedToolRows() {
+    return Object.fromEntries(Object.entries(usedToolStore.entries()).filter(([, row]) => isThisChapters(row)));
+}
+
+/**
+ * Every row this GM's browser holds, of any chapter, taken away: the chapter's end
+ * (chapter.mjs `applyChapterEnd`) and the season reset. Another GM's browser drops
+ * its copy by the tombstones, as `clearBlackened` does it.
+ */
+export async function clearUsedTools() {
+    if (!game.user.isGM) return;
+    if (isPrimaryGm()) await usedToolStore.clear();
+    else await usedToolStore.dropMany(Object.keys(usedToolStore.entries()));
 }
 
 /**
@@ -2715,18 +2942,32 @@ export async function destroyCleaningTools() {
  * See BROKEN_ITEMS in config.mjs and `discardBroken` in use-items.mjs.
  */
 /**
- * The thing this character used in the incident, if anything wrote it down.
+ * The things this character used in the incident, as far as anything wrote them
+ * down - or null when nothing could have, and the hand is the answer.
  *
- * Only the weapon is remembered - the swing is a single identifiable moment,
- * while cleaning is several actions with possibly several rags, and "the one in
- * your hands when the body turned up" is the honest answer for those.
+ * THE WEAPON ONLY BY MEMORY (E32+E07 C12, 02.10.2026; audit S04-17). The swing is
+ * a single identifiable moment and the cast wrote it down (CASE-04); a weapon
+ * nobody swung was not used, so a failed opening, a trap or a fourth walking in
+ * breaks nothing, however the killer is armed. There is no hand to fall back on.
+ *
+ * THE CLEANING TOOLS BY MEMORY TOO (the owner's D13; S05-38). They were left to
+ * the hand - "several actions with possibly several rags" - and the hand let one
+ * click put the gloves away before the body was found. Every tool a killer's scored
+ * attempt had readied is in the `usedTools` row now; the hand answers only for a
+ * character with no row this chapter - a killer the ledger never heard clean: an
+ * older world's, a write that failed, or one who never cleaned, whose readied
+ * gloves the discovery took before 1.2.66 too (the grid's DM02).
+ *
+ * Either way, a remembered thing gone from them, already ruined, or put in their
+ * stash since is left alone - the weapon's old rule, without its fall back to the
+ * hand.
  */
-function rememberedTool(actor, category) {
-    if (category !== "crimeTool") return null;
-    // From the GM's cast, where the crisis packet wrote it (CASE-04).
-    const item = swungWeaponOf(actor);
-    // Gone, already ruined, or stashed since: fall back to the hand.
-    return item && !isBroken(item) && !isStashed(item) ? item : null;
+function rememberedTools(actor, category) {
+    const kept = item => item && !isBroken(item) && !isStashed(item);
+    if (category === "crimeTool") return [swungWeaponOf(actor)].filter(kept);
+    if (category !== "cleaningTool") return null;
+    const row = usedToolRows()[actor.id];
+    return row ? row.cleaning.map(id => actor.items.get(id)).filter(kept) : null;
 }
 
 async function destroyTools(actor, categories) {
@@ -2742,18 +2983,23 @@ async function destroyTools(actor, categories) {
          * used a cleaning tool, and the guide's "the gloves come off when the
          * body turns up" is about what was used, not which row it sits in.
          *
-         * BY MEMORY for the weapon: with one hand (E9) a killer holds the knife
-         * for the murder and the gloves for the clean-up, so reading the hand at
-         * closing time would spare the murder weapon every single time. The
-         * swing wrote down what it swung; that is the thing this destroys.
+         * BY MEMORY: with one hand (E9) a killer holds the knife for the murder
+         * and the gloves for the clean-up, so reading the hand at closing time
+         * would spare the murder weapon every single time. The swing wrote down
+         * what it swung, and the clean-up what it cleaned with (`rememberedTools`);
+         * those are the things this destroys.
+         *
+         * NAMED ONCE BROKEN (E32+E07 C12; audit S05-23): the name went on the
+         * list before the write, so a write that failed was still reported to
+         * the owner as ruined. `breakItem` answers whether it held.
          */
-        const item = rememberedTool(actor, category) ?? equippedFor(actor, category);
-        if (!item) continue;
-        try {
-            destroyed.push(item.name);
-            await breakItem(item);
-        } catch (err) {
-            error(`Could not ruin the ${category} used in the incident`, err);
+        const items = rememberedTools(actor, category) ?? [equippedFor(actor, category)].filter(Boolean);
+        for (const item of items) {
+            try {
+                if (await breakItem(item)) destroyed.push(item.name);
+            } catch (err) {
+                error(`Could not ruin the ${category} used in the incident`, err);
+            }
         }
     }
 

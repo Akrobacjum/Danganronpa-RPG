@@ -1249,11 +1249,11 @@ export async function clearAllProjects() {
  * that throws, with the count, so the world is not stamped and the next load tries again (E05 fix
  * r1-G1; migrate.mjs, above the lifts). Idempotent: a world already through this has none of them.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  Fields moved, fields left
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, kept: number, emptied: boolean}>}  Fields moved, fields left
  *   in the world (0 - more throws), and whether projectMeta now holds none (true).
  */
 export async function liftProjectSecrets() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await projectSecretStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the project secrets did not arrive; the next load tries again");
     }
@@ -1300,10 +1300,10 @@ export async function liftProjectSecrets() {
  * the world is not stamped and the next load tries again. What a browser drew or kept of the
  * old name before the rewrite is not reachable from here.
  *
- * @returns {Promise<null|{sealed: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{sealed: number}>}
  */
 export async function sealOldRepairs() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await projectSecretStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the project secrets did not arrive; the next load tries again");
     }

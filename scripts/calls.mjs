@@ -146,6 +146,16 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
 
         if (await hopeCallBarred(actor)) return null;
 
+        // A Reroll of a crisis action that killed: the death stands (E32+E07 C8b). Asked
+        // before the price, as a barred Call is - see `lethalReroll` in reroll.mjs.
+        if (call.reroll) {
+            const { lethalReroll } = await import("./reroll.mjs");
+            if (lethalReroll(actor)) {
+                ui.notifications.warn(game.i18n.localize("DRPG.Reroll.deathStands"));
+                return null;
+            }
+        }
+
         let held = hopeHeld(actor);
         if (held < call.cost) {
             ui.notifications.warn(game.i18n.format("DRPG.Calls.notEnoughHope", {

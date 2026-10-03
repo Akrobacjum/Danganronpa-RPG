@@ -155,8 +155,8 @@ export const REASONS = Object.freeze([
     "unknownSender", "notYours", "gmOnly", "cannotSee", "missing", "badRequest", "outOfRange", "busy",
     "notOffered", "notSecret", "notAPlayer", "notHolding", "alreadyHeld", "notASupport", "hopeBarred",
     "notEnoughHope", "noReroll", "rerollSpent", "traceOutOfReach", "notInIncident", "notYourTurn",
-    "actionLocked", "actionSpent", "actionBlocked", "nothingLeft", "movedOn", "notThatRepair",
-    "notWhereItStood", "alreadyDone", "nothingToUndo", "cannotNow", "cannotFrame", "notThere",
+    "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
+    "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
@@ -196,6 +196,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that pool is not the rerolling character's Monokuma$/],
     ["badRequest", /^target holds no Despair pool$/],
     ["badRequest", /^a GM asks for nothing here$/],
+    // E32+E07 C11b: a statistic ruling for a roll that has nothing to pick, or another side's table (guardTraitRuling).
+    ["badRequest", /^that roll does not list several statistics$/],
+    ["badRequest", /^that is not the table the character rolls$/],
     ["badRequest", /^that plant was handed to somebody else$/],
     // E05: a pre-session note past the player text cap (gm-bridge.mjs handleNoteSave).
     ["badRequest", /^the note is longer than a player's words may be$/],
@@ -227,6 +230,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionLocked", /^that action is locked$/],
     ["actionSpent", /^that action is spent$/],
     ["actionBlocked", /^that action is blocked$/],
+    // E32+E07 C11a: an action the incident took away, or never gave that side (murder.mjs `crisisRefusal`).
+    ["actionDenied", /^that action is not open to that character now$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],
     // E05: the GM's count of the Eclipse's crossings (eclipse.mjs applyRecordedMove).
     ["nothingLeft", /^no crossings left this Eclipse$/],
@@ -242,17 +247,24 @@ export const REASON_PATTERNS = Object.freeze([
     ["notWhereItStood", /^the elevation is not a number$/],
     ["notWhereItStood", /^the token did not stand there a moment ago$/],
     ["alreadyDone", /^that Observe has already been resolved$/],
+    ["alreadyDone", /^that betrayal is already declared$/],
     ["nothingToUndo", /^that Observe has no result to take back$/],
     ["nothingToUndo", /^no Analyze of that bullet this chapter to take back$/],
+    // E32+E07 C8b: a Reroll of a crisis action whose own resolution killed (murder.mjs crisisUndoRefusal).
+    ["deathStands", /^that crisis action killed somebody; the death stands$/],
     ["cannotNow", /^that bullet cannot be analysed now$/],
     // E05 C10: rule D - a refusal caused by a death, a body nobody has found among them (guardArmLiving).
     ["cannotNow", /^that cannot be done now$/],
     // E05 fix r1-G3: a Direct Murder parked with no Eclipse running (gm-bridge.mjs handleParkMurder).
     ["cannotNow", /^no Eclipse is running$/],
+    // E32+E07 C11b: a statistic ruling for a clean-up the character may not make now (guardTraitRuling).
+    ["cannotNow", /^the character may not clean up now$/],
     ["cannotFrame", /^that student cannot be framed$/],
     ["notThere", /^the body is not in the killer's room$/],
     ["notThere", /^the character has no token on a scene$/],
     ["notThere", /^the character is not in that room$/],
+    // E32+E07 C11d: a statistic ruling for a project the sender cannot see, or the character cannot reach (guardTraitRuling).
+    ["notThere", /^that project is not one the character can work on or break here$/],
     ["notThere", /^the character is not in ".*": .+$/],
     // E04: the GM's browser does not hold that bullet's answer key (analyze.mjs).
     ["answerKeyMissing", /^the answer key for that bullet is not on this GM's browser$/],
@@ -412,6 +424,59 @@ export async function guardCrisisReceipt(sender, payload, ctx) {
     if (sender.isGM || !payload.undo) return null;
     const { spendRerollReceipt } = await import("./reroll-receipts.mjs");
     return spendRerollReceipt(payload.actorId, sender.id, "crisis");
+}
+
+/*
+ * WHICH STATISTIC, ASKED OF THE WORLD (E32+E07 C11b, 02.10.2026; audit S04-23). A
+ * player asks the GMs to pick a trait for a roll before anything is paid
+ * (trait-ruling.mjs `traitFor`), and the card it raises puts the action's name in
+ * the thread. So the request is held to what the character could roll now: the
+ * definition named lists several traits in this GM's config; the character is not
+ * dead to the GMs; a crisis action is one `crisisRefusal` lets the character take,
+ * from the table their side rolls (a trap's victim's, `crisisVariant`); a clean-up
+ * is the cleaner's (`cleanupBlocker`). An opening's statistic is picked on the
+ * GM's own client, where the opening is rolled from, so a player never asks it.
+ *
+ * A project stored without a statistic (C11d) is asked about by id, and its name goes
+ * on the card: it has to be one the sender can see and the character could work on or
+ * break where they stand - an unknown id and a hidden one are refused alike - and no
+ * Eclipse or Class Trial may be running, as `performAction` refuses a Project in both.
+ * The generic table's actions are held to the same clock.
+ */
+export async function guardTraitRuling(sender, payload, ctx) {
+    if (sender.isGM) return null;
+    const actor = game.actors.get(payload.actorId);
+    if (!actor) return "no such character";
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    const variant = payload.variant ?? null;
+    if (payload.kind === "project" && !(await projectWithinReach(actor, payload.key, sender))) {
+        return "that project is not one the character can work on or break here";
+    }
+    if (listedTraits({ kind: payload.kind, key: payload.key, variant }).length < 2) return "that roll does not list several statistics";
+    const { isDeadForGm } = await import("./settings.mjs");
+    if (isDeadForGm(actor)) return "that cannot be done now";
+    if (payload.kind === "opening") return "only a GM picks an opening roll's statistic";
+    if (payload.kind === "crisis") {
+        const { crisisRefusal, crisisVariant } = await import("./murder.mjs");
+        if (crisisVariant(actor, payload.key) !== variant) return "that is not the table the character rolls";
+        return crisisRefusal(actor, payload.key)?.why ?? null;
+    }
+    if (payload.kind === "project" || payload.kind === "generic") {
+        const { isEclipse, getClock } = await import("./settings.mjs");
+        return isEclipse() || getClock()?.phase === "classTrial" ? "that cannot be done now" : null;
+    }
+    const { cleanupBlocker } = await import("./cleanup.mjs");
+    return cleanupBlocker(actor) ? "the character may not clean up now" : null;
+}
+
+/** Whether `projectId` is one the sender sees and the character may work on or sabotage in the room they stand in. */
+async function projectWithinReach(actor, projectId, sender) {
+    const { projectsAvailableIn, sabotageTargetsIn } = await import("./projects.mjs");
+    const { roomOfActor } = await import("./movement.mjs");
+    const { isMonokuma } = await import("./monokuma.mjs");
+    const room = roomOfActor(actor);
+    return [...(room ? projectsAvailableIn(room, sender) : []),
+        ...sabotageTargetsIn(room, { anyRoom: isMonokuma(actor), user: sender })].some(p => p.id === projectId);
 }
 
 /** A clean-up taken back is a Reroll's, and is paid for by the receipt of one (E03). Spends it. */

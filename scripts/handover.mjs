@@ -595,11 +595,11 @@ async function markBodyDisturbed(body, itemName) {
  * (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent: a world already through
  * this holds no such flag.
  *
- * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
  *   anything else throws.
  */
 export async function liftLootTraces() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await lootTraceStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the bodies' loot traces did not arrive; the next load tries again");
     }

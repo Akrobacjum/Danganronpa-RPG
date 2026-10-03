@@ -559,7 +559,6 @@
         "bonus": "Przewaga, utrudnienie i doświadczenie"
       },
       "chooseTrait": "{action} - która statystyka?",
-      "traitOnlyIfOpen": "Używana tylko wtedy, gdy projekt powyżej nie wymaga własnej.",
       "costActions": "{n} akcja",
       "costFree": "za darmo",
       "cannotAfford": {
@@ -640,6 +639,11 @@
       "costAnyRoom": "dowolny pokój",
       "tierShort": "Tier {tier}",
       "situationAfterRoll": "{n} przez sytuację: liczy się wynik {total}.",
+      "stashSetAside": "Sytuacja odkłada jedną z twoich kości premii ({set}) i liczy się najlepsza z pozostałych: liczy się wynik {total}.",
+      "stashSetAsideOnly": "Sytuacja odkłada twoją kość premii ({set}): liczy się wynik {total}.",
+      "stashRolled": "Sytuacja dokłada kość kary ({rolled}): liczy się wynik {total}.",
+      "stashRolledMore": "Sytuacja dokłada jeszcze jedną kość kary ({rolled}) i liczy się najgorsza z nich: liczy się wynik {total}.",
+      "stashCapped": "Sytuacja dołożyłaby kość kary, ale rzut ma ich już tyle, ile może: liczy się wynik {total}.",
       "waitsForGm": "GM",
       "murderSpendsAnyway": "Potwierdzenie wydaje akcję niezależnie od tego, czy się uda - a czy się udało, dowiesz się dopiero, gdy Eclipse się skończy.",
       "murderPromptParked": "Co robisz i jak? GM przeczyta to, gdy zapali się światło.",
@@ -949,6 +953,7 @@
         "motive": "Motive"
       },
       "incidentTitle": "Zabójstwo w ciemności",
+      "incidentTitleDirect": "Twarzą w twarz",
       "openingTitle": "Trwa morderstwo",
       "openingMeta": "Rzut otwarcia decyduje, jak się zaczyna",
       "incidentSub": "{killer} przeciw {victim}",
@@ -1205,6 +1210,7 @@
       "gmReinforced": "Reinforced",
       "gmTool": "W ręku: {item} (Tier {tier}) - przewaga i {tier} mniej na każdym progu poniżej.",
       "gmNoTool": "Brak narzędzia do sprzątania w ręku - gołe ręce, bez przewagi.",
+      "gmTitleFor": "Sprzątanie - {name}",
       "gmNothingHere": "Brak śladów w pokoju, w którym stoi zabójca.",
       "gmAttemptsLeft": {
         "one": "Sanity starcza na {n} próbę. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała.",
@@ -1213,6 +1219,7 @@
         "other": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała."
       },
       "stressBack": "Odzyskujesz {n} Sanity.",
+      "freeAttempt": "Ta próba nie kosztuje Sanity: zapłacił za nią krytyczny Finishing blow.",
       "trailPlanted": "Podłożono Prep Remnant ({visibility}) wskazujący na: {name}.",
       "trailNote": "Podłożony przez {by}, by obciążyć: {name}. {visibility}.",
       "trailFailed": "Nie zostało nic użytecznego.",
@@ -1272,11 +1279,25 @@
       "reshapeTakenBack": "Reroll cofnął tę próbę, więc ta karta już o niczym nie rozstrzyga.",
       "reshapeDeclinedErased": "{name} nie przyjmuje twojej wersji. Krytyczny sukces i tak zabiera ślad - zniknął."
     },
+    "Reserve": {
+      "health": {
+        "one": "{n} Health",
+        "few": "{n} Health",
+        "many": "{n} Health",
+        "other": "{n} Health"
+      },
+      "sanity": {
+        "one": "{n} Sanity",
+        "few": "{n} Sanity",
+        "many": "{n} Sanity",
+        "other": "{n} Sanity"
+      }
+    },
     "Murder": {
       "openingReask": "Poproś o rzut otwarcia ponownie",
       "openingReaskSent": "Zaproszenie do rzutu otwarcia wysłano ponownie.",
       "openingReaskWait": "Zaproszenie poszło przed chwilą - daj kilka sekund.",
-      "victimNoticedNext": "Ofiara zauważyła. Nic nie dzieje się samo: ma swój Free Move, a incydent pozostaje otwarty, dopóki nie zakończysz go z trackera.",
+      "victimNoticedNext": "Ofiara zauważyła. Nic nie dzieje się samo: może użyć swojego Free Move, jeśli jeszcze go ma, a incydent pozostaje otwarty, dopóki nie zakończysz go z trackera.",
       "openTitle": "Morderstwo",
       "openIntro": "Jeden rzut otwarcia, potem incydent na tury. Direct Murder otwiera się rzutem zabójcy; pułapka - rzutem ofiary.",
       "killer": "Zabójca",
@@ -1286,6 +1307,9 @@
       "openConfirm": "Otwórz",
       "needOne": "Musi być co najmniej jeden żywy uczeń.",
       "openSelfNote": "Jedno nazwisko w obu polach: to otwiera się jako śmierć z własnej ręki. Nie ma Stage 5 - rzut otwarcia decyduje, czy się na to zdecydują, a incydent idzie prosto do Stage 6.",
+      "killerNotAlive": "Wskazanego zabójcy ({name}) nie ma wśród żywych, więc lista Zabójca pokazuje kogoś innego. Wybierz, czyje to morderstwo.",
+      "roomsDiffer": "{killer} stoi w: {killerRoom}, a {victim} w: {victimRoom}. Direct Murder dzieje się twarzą w twarz - najpierw ich zbierz albo otwórz mimo to, jeśli historia już to zrobiła.",
+      "openingStatistic": "Statystyka rzutu otwarcia",
       "selfInflicted": "Z własnej ręki",
       "openedTitle": "Morderstwo otwarte",
       "opened": "{killer} rusza na: {victim}. Rzut otwarcia trafił do: {roller}.",
@@ -1302,8 +1326,17 @@
       "trackerOver": "Ten incydent jest zakończony.",
       "ranOutTitle": "Skończyły się siły",
       "ranOut": "{name} nie ma już Health ani Sanity. Incydent kończy się śmiercią - Finishing Blow nie był potrzebny i nikt go nie zdobył.",
-      "rerollLost": "Przyszedł Reroll akcji kryzysowej bez zapisu tutaj. Nic nie odtworzono, więc pierwszy wynik zostaje. Oceń nową liczbę ręcznie.",
+      "rerollLost": "Rerolla akcji kryzysowej nie odtworzono: nie było tu jej zapisu albo incydent wcześniej się zamknął lub poszedł dalej. Pierwszy rzut wraca na kartę, a Hope wraca do gracza. Jeśli incydent zamknął się w trakcie cofania, sprawdź ręcznie Remnant tej akcji i karty postaci.",
       "trackerState": "{stage} · tura {turn} · działa: {side}",
+      "trackerWaiting": "{stage} · czeka na rzut otwarcia: {name}",
+      "trackerInvited": "Zaproszenie poszło do: {user}.",
+      "trackerTurnLine": "Tura {turn} - {side}: {action}, {result}.",
+      "trackerResult": {
+        "hit": "udało się {band}",
+        "miss": "nie udało się {band}",
+        "critical": "krytyk",
+        "free": "bez rzutu"
+      },
       "thirdIs": "{name} wchodzi",
       "passTurn": "Oddaj turę",
       "addThird": "Ktoś wchodzi",
@@ -1332,6 +1365,10 @@
       "escapeWitness": "{victim} i {third} widzieli, kto to był. Co z tym zrobią, to już sprawa stołu.",
       "escapeKiller": "{killer} nie jest Blackened. Poza tym, że wiedzą o tym dwie osoby, nic się nie zmieniło.",
       "escapeRemnants": "Otwórz tabelę Remnantów",
+      "afterSurvived": "{victim} przeżywa atak, którego sprawcą jest {killer}. Nikt nie zginął, więc nie ma ciała do ogłoszenia, sekcji do wydania ani Class Trial do przeprowadzenia, i nikt nie zostaje za to Blackened. To, co zostawiła walka, leży tam, gdzie upadło.",
+      "afterInterrupted": "Incydent przerwano, zanim cokolwiek się rozstrzygnęło - nikt nie zginął. Nie ma ciała, sekcji ani nikogo Blackened; to, co zostawiła walka, leży tam, gdzie upadło.",
+      "closedYou": "Incydent się skończył.",
+      "closedVictimYou": "Incydent się skończył. Możesz znowu działać.",
       "none": "Żadne morderstwo nie trwa.",
       "useItemGone": "Tego już przy tobie nie ma - nie ma czego użyć.",
       "useItemWorked": "Przedmiot idzie w ruch.",
@@ -1341,13 +1378,13 @@
       "actionHindered": "To jest teraz trudniejsze - rzucasz z utrudnieniem.",
       "noStressLeft": "Akcje Stage 6 kosztują Sanity, a nie masz żadnego.",
       "nothingLeftToSpend": "Nie ma już czego wydawać. Sanity i Health wyczerpane.",
-      "spentHealth": "Brak Sanity - kosztuje {n} Health zamiast tego.",
       "yourTurn": "Incydent - twoja tura",
       "theirTurn": "Incydent - czekamy na drugą stronę",
-      "advantageNext": "Przewaga przy następnej próbie.",
+      "advantageNext": "Przewaga przy następnej próbie tej akcji.",
+      "noKillerLeft": "Nie żyje już żaden zabójca w tym incydencie. Od teraz ofiara działa sama, tura po turze, dopóki incydent nie zostanie zamknięty.",
       "leftRemnant": "Zostawia ślad.",
-      "damaged": "{name} przyjmuje {what}.",
-      "drained": "{name} traci {n} przez incydent.",
+      "youLose": "Tracisz {what}.",
+      "theyLose": "{name} traci {what}.",
       "killerChooses": "Krytyk - zabójca wybiera: oba znaczniki z Health albo oba z Sanity.",
       "hinderedActions": {
         "one": "{n} akcja przeciwnika z utrudnieniem przez {turns} tur.",
@@ -1365,7 +1402,6 @@
       "incidentEnded": "Incydent zakończony.",
       "victimDead": "Ofiara nie żyje. Zabójca jest Blackened.",
       "resolutionNote": "Stage 6. Zabójca widzi teraz Remnants na mapie i może używać akcji Stage 6. Reinforced ślady zostają. Użyte narzędzie zbrodni zostaje zniszczone.",
-      "spentStress": "Kosztuje {n} Sanity.",
       "thirdTitle": "Wchodzisz na to",
       "thirdIntro": "Jeden darmowy wybór: wyprowadź ofiarę ze sobą, stań po którejś stronie albo odwróć wzrok.",
       "band": {
@@ -1385,6 +1421,7 @@
       },
       "actionLocked": "Zablokowane, dopóki nie uda się: {name}.",
       "actionSpent": "Ta jest w tym incydencie już zużyta.",
+      "actionDenied": "Ta akcja nie jest teraz dla ciebie dostępna.",
       "failedNothing": "Nic z tego nie wychodzi.",
       "thresholdShort": "Pobij {n}",
       "noRollNeeded": "Bez rzutu",
@@ -1402,12 +1439,13 @@
       "oneAtATime": "Incydent już trwa. Musi się skończyć, zanim zacznie się kolejny.",
       "crisisPrompt": "Co z tym robisz?",
       "nothingToDo": "Nie zostało ci nic do zrobienia w tej rundzie.",
-      "actionsLocked": "Jesteś w incydencie. Wszystko, co możesz zrobić, kryje się za Direct Murder; Hope Calls wciąż działają.",
+      "actionsLocked": "Jesteś w incydencie. Wszystko, co możesz zrobić, kryje się pod kafelkiem {tile}; Hope Calls wciąż działają.",
       "thirdJoined": "{name} staje po stronie zabójcy i zostaje w incydencie.",
       "thirdLeft": "{name} odwraca się i wychodzi. Nie bierze w tym udziału.",
+      "thirdEscapedAlone": "{name} ucieka w pojedynkę. Ofiara zostaje tam, gdzie jest, a {name} nie bierze już w tym udziału.",
       "openingYours": "Ten rzut jest twój i jest jedyny. Nie da się go pominąć.",
       "openingRequired": "Tego rzutu nie da się pominąć. Rzuć.",
-      "openingDeclined": "Brak rzutu otwarcia od: {name}. Stage 4 nie da się pominąć: zakończ ten incydent albo otwórz go ponownie z panelu.",
+      "openingDeclined": "Brak rzutu otwarcia od: {name}. Stage 4 nie da się pominąć: poproś o niego ponownie z trackera incydentu albo zakończ incydent.",
       "openingRemnantNote": "{name} - próba wyczuta ({band}). Coś z szamotaniny zostało do zauważenia.",
       "leftRemnants": {
         "one": "Zostawia ślad, a zabójca nie może go wytrzeć.",
@@ -1418,21 +1456,38 @@
       "keyRemnantsStale": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnants zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowych przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
       "nightNoteDirect": "Jest noc: rzut otwarcia zabójcy ma przewagę.",
       "nightNoteIndirect": "Jest noc: rzut otwarcia ofiary ma utrudnienie.",
-      "betrayalNote": "{third} wchodzi na to i wciąż stoi. Może teraz zwrócić się przeciw: {killer} - jedyne zabójstwo w grze, które nie wymaga wcześniejszego zgłoszenia.",
+      "betrayalNote": "{third} wchodzi na to i wciąż stoi. Do końca dnia może zwrócić się przeciw: {killer}. Poza Eclipse to jedyne zabójstwo w grze, które nie wymaga wcześniejszego zgłoszenia; w Eclipse zgłasza się je, a otwiera, gdy Eclipse się skończy.",
       "betrayalButton": "{third} zwraca się przeciw zabójcy",
       "betrayalTitle": "Zdrada",
       "betrayalIntro": "{third} zabija: {killer}. To zamyka się jako drugie morderstwo, z {third} jako zabójcą i {killer} jako ofiarą - świeży incydent od rzutu otwarcia, nie ciąg dalszy tego, który właśnie się skończył.",
-      "betrayalRule": "Dwa ciała tego wieczoru, więc Class Trial ma do rozplątania dwa zabójstwa. Kto jest Blackened za pierwsze, nie jest automatycznie Blackened za drugie. Masz czas do końca dnia, by zdecydować.",
+      "betrayalRule": "Dwa ciała jednego dnia, więc Class Trial ma do rozplątania dwa zabójstwa. Kto jest Blackened za pierwsze, nie jest automatycznie Blackened za drugie. Masz czas do końca dnia, by zdecydować.",
       "betrayalConfirm": "Otwórz drugie morderstwo",
+      "betrayalConfirmEclipse": "Trwa Eclipse, więc zdrada zostaje zadeklarowana teraz i rozpocznie się, gdy Eclipse się skończy - jak każda akcja zadeklarowana w jej trakcie. Kosztuje akcję, a akcja przepada, nawet jeśli zdrada nie będzie mogła się wtedy rozpocząć.",
+      "betrayalParked": "Twoja zdrada jest zadeklarowana. Rozpocznie się, gdy Eclipse się skończy.",
       "betrayalAnnounce": "Otwiera się drugi incydent, przeciw: {killer} - zdrada.",
-      "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Twoje akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
-      "victimTrapSprung": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął i pierwsza tura jest twoja - akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
-      "betrayTileLabel": "Zwróć się przeciw partnerowi",
-      "betrayTileHint": "Zabij osobę, której właśnie pomagasz. To otwiera drugi incydent - ty jako zabójca, oni jako ofiara - i zostawia dwa ciała z jednej nocy. GM potwierdza, zanim cokolwiek się stanie.",
+      "betrayalRefused": "Zdrada nie mogła się rozpocząć: {why}. Pozostaje dostępna do końca dnia.",
+      "betrayalRefusedGone": "Zdrada nie mogła się rozpocząć: {why}.",
+      "betrayalWhy": {
+        "eclipse": "trwa Eclipse",
+        "fight": "trwa inny incydent",
+        "spent": "nie jest już dostępna",
+        "failed": "przeglądarka GM-a nie mogła jej otworzyć",
+        "trial": "trwa Class Trial",
+        "dead": "jedna z dwóch osób już nie żyje"
+      },
+      "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
+      "victimTrapSprung": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął i pierwsza tura jest twoja - na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
+      "tileCrisis": "Akcje kryzysowe",
+      "tileFightBack": "Broń się",
+      "offTurn": "Teraz ich tura. Twoje akcje kryzysowe otworzą się, gdy tura wróci do ciebie.",
       "briefCostStress": "Kosztuje {n} Sanity.",
-      "briefThreshold": "Pobij {n}.",
       "briefRoll": "Rzuć",
       "briefTake": "Zrób to",
+      "onAMiss": "Przy porażce: {text}",
+      "noRollItWorks": "Bez rzutu - to się udaje",
+      "breakdownDisadvantage": "Jesteś w Breakdown, więc ten rzut idzie z utrudnieniem, dopóki nie wróci trochę Sanity.",
+      "gmPicksTrait": "Rzut: {traits} - wybiera GM. Napisz mu w swoim wątku, co robisz.",
+      "youPickTrait": "Rzut: {traits} - masz uzbrojone Resolve, więc wybierasz sam w oknie rzutu.",
       "criticalChoiceTitle": "Czyste trafienie",
       "criticalChoiceIntro": "Cios trafia dokładnie tam, gdzie miał trafić. Zdejmij oba znaczniki z tego samego miejsca - z ciała albo z nerwów.",
       "criticalChoiceHp": "Oba z Health",
@@ -1964,6 +2019,7 @@
       "sabotageWorked": "Udało się: projekt jest zamrożony, dopóki {repair} nie zostanie ukończony.",
       "sabotageFailed": "Nie udało się - projekt nietknięty, ale próba zostawiła ślad.",
       "projectNote": "{actor} - praca nad {project} w: {room}, {progress} postępu, rzut {total} na zatarcie śladów.",
+      "projectNoteUncovered": "{actor} - praca nad {project} w: {room}, {progress} postępu, bez zacierania śladów.",
       "action": {
         "search": "Search",
         "sabotage": "Sabotage",
@@ -2279,8 +2335,8 @@
       "startNote": "Nic jeszcze nie powstało. To idzie do GM-a jako propozycja - GM ją zatwierdza, poprawia albo odrzuca.",
       "indirectMine": "Morderstwo pośrednie - tajne, więc widzisz je tylko ty i GM-owie",
       "trait": "Wymagana praca",
-      "anyTrait": "- wybiera gracz -",
       "traitFixed": "Ten projekt wymaga: {trait}.",
+      "traitRequired": "Projekt potrzebuje statystyki: wybierz tę, której wymaga jego praca.",
       "repairName": "Naprawa: {name}",
       "repairNameSecret": "Naprawa",
       "repaired": "naprawiony. Nad {name} znów można pracować.",
@@ -2295,6 +2351,7 @@
       "none": "Nie ma jeszcze projektów. Najpierw jakiś zacznij.",
       "now": "{project} jest teraz na {current}/{target}.",
       "aloneBonus": "Nikogo innego nie ma w pokoju, więc projekt zyskuje +1 postępu.",
+      "tracesUncovered": "bez rzutu: ślady zostają tak, jak je zostawiono.",
       "toolRelief": "{item} to Tier {tier}, więc każdy próg tego rzutu spada o {tier}.",
       "room": "Pokój",
       "anyRoom": "- dowolny pokój -",
@@ -2420,11 +2477,19 @@
       "everyone": "Jawny: widzą go wszyscy. Zaznaczeni to ci, którzy wiedzieli przed ujawnieniem - oni i budujący będą wiedzieć, jeśli projekt znów zostanie utajniony.",
       "builderStays": "{name} buduje „{project}”: budującego nie można odsunąć od jego własnego projektu."
     },
+    "TraitRuling": {
+      "title": "Która statystyka?",
+      "gmBody": "Ten rzut wymienia kilka statystyk. Wybierz jedną na podstawie tego, co według gracza robi jego postać.",
+      "waiting": "GM wybiera statystykę. Napisz mu w swoim wątku, co robisz.",
+      "refused": "GM nie dopuścił tej akcji. Nic nie zostało wydane.",
+      "openingKiller": "GM wybiera statystykę do twojego rzutu otwarcia. Napisz mu w swoim wątku, jak się do tego zabierasz.",
+      "openingVictim": "GM przygotowuje dla ciebie rzut."
+    },
     "RollDialog": {
       "locked": "Nie ty o tym decydujesz. Przewaga i doświadczenia to Hope Calls - zapytaj GM-a.",
       "diceFixed": "Ustalone na d12 przez zasady.",
       "traitFixed": "Wybrane, zanim to okno się otworzyło.",
-      "pickYourApproach": "Uważne spojrzenie albo szybkie grzebanie - twój wybór.",
+      "traitByGm": "Wybrane przez GM-a.",
       "advantageLocked": "Przewaga i utrudnienie biorą się z Calli, nie stąd.",
       "pickOneExperience": "Wybierz jedno doświadczenie, którego dotyczy ten rzut. Kliknięcie innego przenosi wybór.",
       "experienceLocked": "Użycie doświadczenia to Hope Call „Experience” - poproś GM-a, by je wydać.",
@@ -2487,6 +2552,7 @@
         "cleanup.traces": "Ślady w zasięgu",
         "call.approve": "Zgoda na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",
+        "trait.ruling": "Wybór statystyki przez GM-a",
         "trap.event": "Zgłoszenie dla pułapek",
         "roll.subject": "Zgłoszenie, czyj to był rzut",
         "searchTokens.spend": "Wydanie Search Tokena",
@@ -2520,12 +2586,14 @@
         "actionLocked": "Ta akcja jest na razie zablokowana.",
         "actionSpent": "Ta jest w tym incydencie już zużyta.",
         "actionBlocked": "Na razie masz to zablokowane.",
+        "actionDenied": "Ta akcja nie jest teraz dostępna dla tej postaci.",
         "nothingLeft": "Nie ma już czego wydawać.",
         "movedOn": "Od tej akcji incydent poszedł dalej.",
         "notThatRepair": "To nie jest naprawa, którą utworzył twój sabotaż.",
         "notWhereItStood": "Token nie stał tam przed chwilą.",
         "alreadyDone": "To zostało już rozstrzygnięte.",
         "nothingToUndo": "Nie ma tu czego cofnąć.",
+        "deathStands": "Ta akcja kryzysowa kogoś zabiła: śmierć zostaje i nie da się jej cofnąć.",
         "cannotNow": "Teraz nie da się tego zrobić.",
         "cannotFrame": "Tego ucznia nie da się wrobić.",
         "notThere": "Postać nie jest tam, gdzie trzeba.",
@@ -2936,6 +3004,7 @@
       "observeReplayed": "Ten sam ślad wraca do GM-a z nowym rzutem. GM powie, co znajdujesz tym razem.",
       "analyzeReplayed": "Ten sam Truth Bullet analizowany jest ponownie z nowym rzutem. Blokada po pierwszej próbie zdejmowana jest najpierw.",
       "crisisReplayed": "Akcja kryzysowa zostaje cofnięta i wykonana ponownie z nowym rzutem - obrażenia, ślad i utrudnienia idą razem z nią. Tura nie jest wydawana dwa razy.",
+      "deathStands": "Akcji kryzysowej, która zabiła, nie da się cofnąć: śmierć zostaje.",
       "trailStands": "Kości przepisano, ale podłożony ślad już leży w pokoju - przerzut go nie podniesie. Zapytaj GM-a, czy ma zniknąć.",
       "stealStands": "Kości przepisano, ale chwila nie. Twoja ręka już była w cudzej kieszeni, a odkładanie czegoś z powrotem właściciel by zobaczył.",
       "cleanupReplayed": "Sprzątanie zostaje cofnięte i podjęte ponownie. Ślad wraca, wszystko, co zostawiło spartaczone wycieranie, znika, a Sanity wraca najpierw.",
@@ -3107,7 +3176,7 @@
     "Roll": {
       "opening": {
         "killer": "Otwarcie morderstwa - twój rzut",
-        "victim": "Pułapka się zamyka - ich rzut",
+        "victim": "Coś tu nie gra - twój rzut",
         "selfInflicted": "Decyzja - twój rzut"
       },
       "crisis": "Akcja kryzysowa",
@@ -3414,7 +3483,8 @@
         "many": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}.",
         "other": "Danganronpa RPG: {n} rzeczy w tym świecie zaktualizowano do {version}."
       },
-      "failed": "Danganronpa RPG: migracja danych zatrzymała się w pół drogi - {clauses}. Nic nie oznaczono jako zmigrowane, a przy następnym wczytaniu świata spróbuje ponownie; szczegóły w konsoli."
+      "failed": "Danganronpa RPG: migracja danych zatrzymała się w pół drogi - {clauses}. Nic nie oznaczono jako zmigrowane, a przy następnym wczytaniu świata spróbuje ponownie; szczegóły w konsoli.",
+      "notPrimary": "Danganronpa RPG: nie jesteś głównym GM-em, więc migracja danych niczego nie oznaczyła jako zmigrowane. Przeglądarka głównego GM-a uruchomi ją przy wczytaniu tego świata."
     },
     "Popup": {
       "moreTip": {
@@ -4152,7 +4222,7 @@
         },
         "victim": {
           "label": "Rzut otwarcia - ofiara",
-          "hope": "Coś jest nie tak z tym pokojem. Free Move i żadnego pojęcia dlaczego - wydaj go, a przeżyjesz.",
+          "hope": "Coś jest nie tak z tym pokojem i nie masz pojęcia dlaczego. Wydaj swój Free Move, jeśli jeszcze go masz, a przeżyjesz.",
           "despair": "Rozgryzasz, co tu zastawiono, i możesz powiedzieć innym. Projekt za tym pozostaje aktywny.",
           "critical": "Dostrzegasz pułapkę i wiesz, czyje ręce ją zbudowały.",
           "failure": "Niczego nie zauważasz. Pułapka się zamyka."
@@ -4205,11 +4275,11 @@
         },
         "pin": {
           "label": "Pin them down",
-          "hint": "Dwie tury utrudnienia na Zostaw trop i Survive."
+          "hint": "Utrudnienie na Zostaw trop i Survive przez dwie najbliższe tury ofiary."
         },
         "keepDistance": {
           "label": "Keep your distance",
-          "hint": "Dwie tury utrudnienia na Zabezpiecz ślad i Role reversal."
+          "hint": "Utrudnienie na Zabezpiecz ślad i Role reversal przez dwie najbliższe tury ofiary."
         },
         "weaponAttack": {
           "label": "Atak bronią",
@@ -4220,10 +4290,10 @@
         },
         "finishingBlow": {
           "label": "Finishing blow",
-          "hint": "Zakończ incydent teraz. Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Krytyk daje tu też darmową akcję Etapu 6.",
+          "hint": "Zakończ incydent teraz. Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Krytyk sprawia tu też, że twoja pierwsza próba sprzątania nie kosztuje Sanity.",
           "hope": "Incydent się kończy.",
           "despair": "Incydent się kończy i zostawia jeden Incident Remnant.",
-          "critical": "Incydent się kończy, a ty zyskujesz jedną darmową akcję w Stage 6."
+          "critical": "Incydent się kończy, a twoja pierwsza próba sprzątania nie kosztuje Sanity."
         },
         "sharedEscape": {
           "label": "Escape together",
@@ -4623,7 +4693,8 @@
         "overflow": "Licznik Despair overflow",
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
         "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
-        "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone"
+        "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
+        "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała"
       },
       "row": {
         "traces": {

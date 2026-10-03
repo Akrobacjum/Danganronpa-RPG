@@ -17,7 +17,7 @@ import { narrowScreen } from "./settings.mjs";
 import { allVaults } from "./vault.mjs";
 import {
     stripComments, lineAt, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
-    storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES
+    storeKeyAccess, GM_STORE_PENDING, FIXTURES as LINT_FIXTURES, TEST_FILE
 } from "./tests-lint.mjs";
 import { FLOWS, FLOW_EXEMPT } from "./tests-flows.mjs";
 
@@ -161,8 +161,12 @@ function describe(value) {
  * assertion, FAILs as "unexpectedly passed" when it passes, and FAILs once
  * tools/stages.json says its stage has shipped - so a stage cannot ship with the
  * red it was meant to turn green still counted as fine. `failing`, when given, is
- * a piece of the failure message the red has to carry, so a case that starts
- * failing for another reason does not hide under the marker. It never throws at
+ * a piece of the failure message the red has to carry: a test that starts failing
+ * somewhere the piece does not appear FAILs as "red, but not where expectedRed
+ * says". A piece guards only what it spells out - a message that carries it and
+ * more stays red - so the invariant grid heads its message with the whole
+ * bracketed list a case breaks and names that list (tests-grid.mjs, WHAT A RED
+ * CASE SAYS; E32+E07 fix r1-G5, review C-m4). It never throws at
  * load: a throw here would take the whole tier file down, so a malformed marker
  * FAILs its own test instead (`markerProblem`).
  */
@@ -672,13 +676,13 @@ async function otherSources() {
 }
 
 /**
- * The tier files - the suite's own files that hold its tests, what the contract's
- * static checks read (R155-R158). Not the kit, the runner or tests-lint.mjs: those
+ * The tier files - the suite's own files that hold its tests, the grid's among them
+ * (`TEST_FILE`), what the contract's static checks read (R155-R158). Not the kit, the runner or tests-lint.mjs: those
  * are where the cutters, the detectors and their deliberate violations live.
  */
 async function suiteSources() {
     const all = await moduleSources();
-    return [...all].filter(([file]) => isSuiteFile(file) && /^tests-tier\d+\.mjs$/.test(file));
+    return [...all].filter(([file]) => isSuiteFile(file) && TEST_FILE.test(file));
 }
 
 /**

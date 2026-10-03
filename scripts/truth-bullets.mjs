@@ -1566,11 +1566,11 @@ function itemsWithFlag(flag) {
  * lost whole comes out of this with a row of its trace's key alone, which is what lets
  * gm-stores.mjs `fillBulletsFromTraces` give it its type back.
  *
- * @returns {Promise<null|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, dropped: number, kept: number}>}  `kept` 0:
  *   anything else throws.
  */
 export async function liftBulletRefs() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await bulletStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the Truth Bullets' answer keys did not arrive; the next load tries again");
     }

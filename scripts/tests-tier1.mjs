@@ -485,7 +485,7 @@ const INVARIANTS = [
         const between = (from, to) => bodyOf(rolls, from, { until: to });
 
         // Project work: the bands come down, not the roll up.
-        const project = between("async function workOnProject", "async function chooseProjectAndTrait");
+        const project = between("async function workOnProject", "async function chooseProject(");
         ok(/easedBy\(def\.thresholds,\s*relief\)/.test(project),
             "project work stopped easing its thresholds with the readied Tool");
 
@@ -837,7 +837,8 @@ const INVARIANTS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/murder.mjs`).then(r => r.text()));
 
-        const body = bodyOf(src, "export function betrayalTarget", { length: 2600 });
+        // The whole function (E32 C5a): the Class Trial's refusal pushed the fight's past 2600 characters.
+        const body = bodyOf(src, "export function betrayalTarget", { until: "\n}" });
         // The offer lives in the cast (CASE-04), never on the actor: a flag is
         // world data every client receives.
         ok(/readCast\(\)\.betrayal/.test(body),
@@ -883,9 +884,14 @@ const INVARIANTS = [
         ok(/before\.stage !== "resolution"/.test(writer),
             "the window is armed off the state rather than the transition, so it re-arms");
 
-        // Single use, spent before the attempt rather than after it.
-        ok(/clearBetrayalOffer\(\)/.test(bodyOf(src, "export async function betrayAsPlayer", { length: 1400 })),
-            "the offer is not spent when it is taken, so it can be taken twice");
+        // Single use, spent before the attempt rather than after it - since E32 C5a in the one
+        // path the tile and the GM's checklist share, before the incident it opens.
+        const opener = bodyOf(src, "async function openBetrayal", { until: "\n}" });
+        ok(/openBetrayal\(/.test(bodyOf(src, "export async function betrayAsPlayer", { until: "\n}" })),
+            "the tile's betrayal does not go through openBetrayal, the path that spends the offer");
+        const takenAt = opener.search(/takeBetrayalOffer\(/);
+        ok(takenAt > 0 && takenAt < opener.search(/\bopenMurder\(/),
+            "the offer is not spent before the betrayal's incident opens, so it can be taken twice");
     }],
 
     ["nobody walks out of an incident they are standing in", async () => {
@@ -4563,7 +4569,7 @@ const INVARIANTS = [
             settings: {
                 projectMeta: { R190PROJECT00001: { room: "Gym", indirectMurder: true, secret: true, trait: null, countsUp: true } },
                 clock: { chapter: 2, day: 3 },
-                murderState: { active: true, stage: "incident", turn: 2, turnSide: "killer", blocked: { victim: { survive: 1 }, killer: {} } },
+                murderState: { active: true, stage: "incident" },
                 overflow: { active: { session: 1, day: 2, timeOfDay: "noon", effect: "fog" } }
             },
             actors: [{ id: KILLER, flags: { [MOD]: { advances: 1 }, "r190-other-module": { memo: KILLER } } },
@@ -4677,10 +4683,11 @@ const INVARIANTS = [
             ["overflow.count",
                 s => { s.settings.overflow.count = 0; },
                 h => h.kind === "field" && h.doc === "setting" && h.id === "overflow" && h.path === "count"],
-            // E05 C8: the world half of an incident holds the public list alone - a trap's `false` is found as well.
-            ["murderState: only active, stage, turn, turnSide, keyRemnants, deniedToVictim, hindered, blocked, unlocked, spent, drainStopped, advantageNext, freeResolution, thirdActed",
-                s => { s.settings.murderState = { active: true, stage: "incident", turn: 1, turnSide: "victim", indirect: false }; },
-                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "indirect"]
+            // E05 C8: the world half of an incident holds the public list alone - a falsy value is found as well
+            // (a trap's `false` until E32 C2, which left the stage alone there: now the fight's round at 0).
+            ["murderState: only active, stage",
+                s => { s.settings.murderState = { active: true, stage: "incident", turn: 0 }; },
+                h => h.kind === "only" && h.doc === "setting" && h.id === "murderState" && h.path === "turn"]
         ];
         /* The exemptions: [what, plant, whether the hits are right]. projectMeta's own map token, as
            projects-map.mjs writes it (E05 C5): it reads clean there, and a tokenId planted in the clock
@@ -5268,6 +5275,236 @@ const INVARIANTS = [
             hits.map(h => h.path), RR.rerolledSource(rerolled, message("R204MESSAGE00002", false)) === rerolled]),
             JSON.stringify([17, {}, [{ label: "", value: 2 }, { label: "", value: 2 }], null, null, null, [], [], true]),
             "a Reroll writes a rerolled roll the module threw back with its character in it, or rewrites one the module did not throw");
+    }],
+
+    ["R206 - a new incident's values name every field of the world half and the cast but the betrayal offer", async () => {
+        /*
+         * E32 C5a, 28.09.2026; audit S04-03. `openMurder` wrote a patch that named a new
+         * incident's fields one by one, and a field it left out crossed from the last incident
+         * into the next - `thirdActed` into a betrayal's until E32 C2. It writes
+         * `freshIncidentState` whole now (murder.mjs), so that list is the one to hold: every
+         * field of `PUBLIC_INCIDENT` and of `CAST_FIELDS` but `betrayal`, which a close keeps
+         * (D18), and nothing else. Then what it opens with - the stage, the killers' turn, the
+         * kind, the clock's reading it was handed - and that it is pure: two calls with the same
+         * answers are equal and share nothing, so a caller that changes one does not change the next.
+         */
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const args = { killerId: "R206KILLER000001", victimId: "R206VICTIM000001", indirect: true, openedAt: 206 };
+        const fresh = M.freshIncidentState(args);
+        const sorted = list => [...list].sort();
+        const due = sorted([...Object.keys(M.PUBLIC_INCIDENT), ...S.CAST_FIELDS.filter(f => f !== "betrayal")]);
+        equal(JSON.stringify(sorted(Object.keys(fresh))), JSON.stringify(due),
+            "a new incident's values do not name exactly the world half's and the cast's fields but the betrayal offer");
+        equal(JSON.stringify([fresh.active, fresh.stage, fresh.killerId, fresh.victimId, fresh.killerTurnId, fresh.indirect, fresh.selfInflicted, fresh.openedAt]),
+            JSON.stringify([true, "openingRoll", args.killerId, args.victimId, args.killerId, true, false, 206]),
+            "a new incident does not open at the opening roll with its killer's turn, its kind and the time it was handed");
+        const again = M.freshIncidentState(args);
+        const same = JSON.stringify(again) === JSON.stringify(fresh);
+        fresh.spent.push("strike");
+        fresh.hindered.victim.strike = 1;
+        equal(JSON.stringify([same, again.spent, again.hindered]), JSON.stringify([true, [], { victim: {}, killer: {} }]),
+            "two new incidents with the same answers differ, or share a list or a table, so one changed the other");
+    }],
+
+    ["R207 - a closed incident left a body by the ending that kills or by its victim dead, and Escape together's trace is an incident's", async () => {
+        /*
+         * E32 C6, 28.09.2026; audit S04-11, S02-43. murder.mjs `leftABody` is the one question
+         * the Blackened, the betrayal's offer, the GM's checklist and the participants' notice
+         * ask at a close. Every ending the module writes (and none), each with the victim alive
+         * and dead, on made-up states and a made-up reader of a death: a Finishing blow, running
+         * out and a self-inflicted death are a body before their death is recorded; a Survive,
+         * an escape, the GM's Stage 6 and a fight closed half way only with the victim dead; a
+         * state that names no victim never. The reader it is not handed - `isDeadForGm` - finds
+         * no body for an actor that does not exist. Then the trace an escape leaves, which was a
+         * Prep Remnant: an Incident Remnant, as the other crisis actions'.
+         */
+        const M = await import("./murder.mjs");
+        const ENDINGS = ["finishingBlow", "ranOut", "selfInflicted", "survive", "sharedEscape", "victimKilled", "test", null];
+        const read = {};
+        for (const endedBy of ENDINGS) {
+            for (const dead of [false, true]) {
+                read[`${endedBy} ${dead ? "dead" : "alive"}`] = M.leftABody({ victimId: "R207VICTIM000001", endedBy }, id => dead && id === "R207VICTIM000001");
+            }
+        }
+        const EXPECTED = {
+            "finishingBlow alive": true, "finishingBlow dead": true, "ranOut alive": true, "ranOut dead": true,
+            "selfInflicted alive": true, "selfInflicted dead": true, "survive alive": false, "survive dead": true,
+            "sharedEscape alive": false, "sharedEscape dead": true, "victimKilled alive": false, "victimKilled dead": true,
+            "test alive": false, "test dead": true, "null alive": false, "null dead": true
+        };
+        equal(JSON.stringify(read), JSON.stringify(EXPECTED), "an ending's body is not the rule's");
+        equal(JSON.stringify([M.leftABody({ endedBy: "finishingBlow" }, () => true), M.leftABody(null, () => true),
+            M.leftABody({ victimId: "R207NOBODY000001", endedBy: "survive" })]), JSON.stringify([false, false, false]),
+            "a state that names no victim left a body, or an actor that does not exist is dead");
+        equal(CRISIS_ACTIONS.sharedEscape?.remnantType, "incident", "Escape together's trace is not an Incident Remnant");
+    }],
+
+    ["R208 - a reserve is what is left, a change to it says what landed and what did not, and its note names no resource key", async () => {
+        /*
+         * E32+E07 C7, 28.09.2026; audit S04-05, the owner's D5 (design N5's unit cases).
+         * character.mjs's RESERVE section on made-up sheets - nothing is written: a reserve
+         * read from marks (and past either end of the track, and with no maximum); a loss
+         * on a full reserve, a loss on an empty one (nothing lands, all of it overflows - the
+         * incident puts that on Health), a recovery held to the maximum; and the note, which
+         * says the amounts that landed with the language file's labels, leaves out what
+         * landed nothing, and never prints `stress` or `hitPoints`.
+         */
+        const C = await import("./character.mjs");
+        const { plural } = await import("./utils.mjs");
+        const sheet = (key, value, max) => ({ system: { resources: { [key]: { value, max } } } });
+        equal(JSON.stringify([C.reserveFrom(0, 6), C.reserveFrom(8, 6), C.reserveFrom(-2, 4), C.reserveFrom(2, null)]),
+            JSON.stringify([{ max: 6, marks: 0, left: 6, pct: 100, empty: false }, { max: 6, marks: 8, left: 0, pct: 0, empty: true },
+                { max: 4, marks: -2, left: 4, pct: 100, empty: false }, { max: 0, marks: 2, left: 0, pct: 0, empty: true }]),
+            "a reserve is not the maximum less the marks, held to the track");
+        equal(JSON.stringify([C.reserveOf(sheet("stress", 2, 6), "stress").left, Object.keys(C.RESERVES).sort()]), JSON.stringify([4, ["hitPoints", "stress"]]),
+            "an actor's reserve is not read off its sheet, or the reserves are not Health and Sanity");
+        const changes = [
+            C.reserveChange(sheet("stress", 0, 6), "stress", -1),
+            C.reserveChange(sheet("stress", 6, 6), "stress", -1),
+            C.reserveChange(sheet("hitPoints", 3, 4), "hitPoints", 3),
+            C.reserveChange(sheet("hitPoints", 3, 4), "hitPoints", 5),
+            C.reserveChange(sheet("hitPoints", 1, 4), "hitPoints", -2)
+        ];
+        equal(JSON.stringify(changes), JSON.stringify([
+            { key: "stress", update: { "system.resources.stress.value": 1 }, landed: 1, overflow: 0 },
+            { key: "stress", update: {}, landed: 0, overflow: 1 },
+            { key: "hitPoints", update: { "system.resources.hitPoints.value": 0 }, landed: 3, overflow: 0 },
+            { key: "hitPoints", update: { "system.resources.hitPoints.value": 0 }, landed: 3, overflow: 2 },
+            { key: "hitPoints", update: { "system.resources.hitPoints.value": 3 }, landed: 2, overflow: 0 }
+        ]), "a change does not say what landed and what overflowed, or its update is not the reserve it leaves");
+        const health = n => plural("DRPG.Reserve.health", { n }), sanity = n => plural("DRPG.Reserve.sanity", { n });
+        const one = C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 0 }]);
+        const them = C.reserveNote({ name: "R208 Somebody" }, [{ key: "hitPoints", landed: 2 }]);
+        const both = C.reserveNote({ you: true }, [{ key: "hitPoints", landed: 1 }, { key: "stress", landed: 3 }]);
+        equal(JSON.stringify([one, them, C.reserveNote({ you: true }, [{ key: "stress", landed: 0 }, { key: "hope", landed: 2 }])]),
+            JSON.stringify([game.i18n.format("DRPG.Murder.youLose", { what: health(1) }),
+                game.i18n.format("DRPG.Murder.theyLose", { name: "R208 Somebody", what: health(2) }), ""]),
+            "the note does not say what landed in the second person or by name, or says something when nothing landed");
+        ok(both.includes(health(1)) && both.includes(sanity(3)) && both.indexOf(health(1)) < both.indexOf(sanity(3))
+            && ![one, them, both].some(note => /hitPoints|stress|STRESS|DRPG\./.test(note)),
+            `a two-reserve note lost an amount, or a note prints a resource key: ${JSON.stringify([one, them, both])}`);
+    }],
+
+    ["R209 - a card's words are cut for each reader: the line for them, never the other one, and no marker naming a user", async () => {
+        /*
+         * E32+E07 C7, 28.09.2026; audit S04-05. A hit's note is one card carrying two lines -
+         * "You lose ..." for the victim's players, the name for everyone else (secret.mjs
+         * `youOrThem`) - and `wordsFor` cuts every copy of the words before it leaves the
+         * poster: the victim's player holds their line, another player and a GM the other, a
+         * GM the GMs' prose besides, and no copy keeps a `data-drpg-` marker, which would
+         * name the victim's user to everyone else. A card with neither kind of part reaches
+         * a reader byte for byte. On a fixture card; nothing is posted.
+         */
+        const S = await import("./secret.mjs");
+        const gm = game.users.find(u => u.isGM);
+        must(gm, "no GM user to read the card as");
+        const VICTIM = "R209VICTIM000001", OTHER = "R209PLAYER000001";
+        const line = S.youOrThem([VICTIM], { you: "R209 you lose", them: "R209 they lose" });
+        const card = `<h3>R209</h3><ul><li>${line}</li></ul><div class="drpg-gm-only"><p>R209 GM prose</p></div>`;
+        const read = id => {
+            const words = S.wordsFor(id, card);
+            return ["R209 you lose", "R209 they lose", "R209 GM prose", "data-drpg-", "<h3>R209</h3>"].map(part => words.includes(part));
+        };
+        equal(JSON.stringify([read(VICTIM), read(OTHER), read(gm.id)]),
+            JSON.stringify([[true, false, false, false, true], [false, true, false, false, true], [false, true, true, false, true]]),
+            "a reader holds a line not written for them, lost their own or the card, keeps a marker, or the GMs' prose went to a player");
+        const plain = `<p>R209 plain words</p>`;
+        equal(JSON.stringify([S.wordsFor(gm.id, plain) === plain, S.wordsFor(OTHER, plain) === plain,
+            S.youOrThem([], { you: "a", them: "b" }), S.youOrThem(['R209" onclick="x'], { you: "a", them: "b" })]),
+            JSON.stringify([true, true, "b", "b"]),
+            "a card with no lines is not sent as written, or a line with nobody (or no id) to say \"you\" to is not the other line alone");
+    }],
+
+    ["R210 - a copy that holds the betrayal offer alone is weighed on the seats, as \"not in it\" is", async () => {
+        /*
+         * E32+E07 fix r1-G1, 29.09.2026; the security review's M1. The offer outlives its
+         * incident (D18), and while another runs its third is sent the offer alone with the
+         * seats' stamps (murder.mjs `castPacket`): the rest of the record's stamps time that
+         * other fight. Weighed on every part, the copy they held of the fight they fought
+         * refused it - 0 against its turn's stamp. Pure (`castCombine`), on fixture stamps.
+         */
+        const { castCombine } = await import("./gm-stores.mjs");
+        const offer = { thirdId: "T", killerId: "K" };
+        const seats = at => ({ killerId: at, victimId: at, thirdId: at, betrayal: 150 });
+        const fought = { value: { killerId: "K", victimId: "V", thirdId: "T", betrayal: offer, turn: 3 },
+            stamps: { ...seats(100), killerTurnId: 100, turn: 300, keyRemnants: 300, lastCrisis: 300 } };
+        const closed = { value: { betrayal: offer }, stamps: seats(400) };
+        equal(JSON.stringify(castCombine(fought, closed)), JSON.stringify(closed),
+            "the offer alone, sent at the close's seats, did not replace the fight's copy, or kept parts beside the seats");
+        equal(castCombine(closed, { value: { betrayal: offer }, stamps: seats(400) }), null, "the offer alone at the seats' own stamps was taken again");
+        equal(castCombine(closed, { value: { betrayal: offer }, stamps: { ...seats(500), thirdId: 300 } }), null,
+            "the offer alone, older in one seat, was taken");
+        equal(castCombine(fought, { value: { betrayal: offer }, stamps: { ...seats(400), turn: 900 } })?.stamps?.turn, undefined,
+            "the offer alone kept a stamp of the fight");
+        const seatedAgain = { value: { killerId: "K2", victimId: "T", betrayal: offer, turn: 1 }, stamps: { ...seats(600), turn: 600, keyRemnants: 600 } };
+        equal(castCombine(closed, seatedAgain), seatedAgain, "the offer's third, seated in the next incident, did not take its cast");
+    }],
+
+    ["R211 - the GM refuses a crisis action the side is not offered", async () => {
+        /*
+         * E32+E07 C11a, 02.10.2026; audit S04-06. `crisisRefusal` is what the GM asks of a
+         * player's crisis packet (bridge-guards.mjs `guardCrisisAction`), and it read the
+         * locks and spends of an action in the side's list and let one MISSING from it through:
+         * Role reversal after a Despair opening was not drawn, and a packet naming it was
+         * carried out. Asked of fixture states, as the judgement is asked of a Reroll's receipt:
+         * the victim's denied Role reversal and a trap's third's Double role reversal are
+         * refused with their own reason, and offered, unlocked, are not. Pure; nothing is written.
+         */
+        const M = await import("./murder.mjs");
+        const V = { id: "R211VICTIM000001" }, K = { id: "R211KILLER000001" }, T = { id: "R211THIRD0000001" };
+        const fight = { stage: "incident", killerId: K.id, victimId: V.id, thirdId: T.id, thirdSide: null, thirdActed: false,
+            turn: 2, turnSide: "victim", unlocked: ["survive", "roleReversal"], spent: ["selfDefence"] };
+        const trap = { ...fight, indirect: true, deniedToVictim: ["roleReversal", "doubleRoleReversal"] };
+        const said = (actor, key, state) => {
+            const r = M.crisisRefusal(actor, key, state);
+            return r ? `${r.why} | ${r.key}` : null;
+        };
+        const DENIED = "that action is not open to that character now | DRPG.Murder.actionDenied";
+        const offers = (actor, state) => M.availableCrisisActions(actor, state).map(o => o.key);
+        equal(JSON.stringify([said(V, "roleReversal", trap), said(T, "doubleRoleReversal", trap), said(T, "doubleRoleReversal", fight),
+            offers(V, fight).includes("roleReversal"), offers(V, trap).includes("roleReversal")]),
+            JSON.stringify([DENIED, DENIED, null, true, false]),
+            "a denied reversal was let through or refused for another reason, or the third's offered one was refused, or the list was not asked of the state given");
+    }],
+
+    ["R212 - a roll that lists several statistics asks a GM, and only then", async () => {
+        /*
+         * E32+E07 C11b, 02.10.2026; audit S04-23 (the owner's Q4 as corrected on 28.09).
+         * `traitFor` (trait-ruling.mjs) decides who picks a roll's statistic: one listed
+         * trait is rolled as it is; several are a GM's pick - in a window on a GM's browser,
+         * through the bridge on a player's; an armed Resolve leaves the pick to the roll
+         * window; and an answer the definition does not list, or none, means no roll. Asked
+         * on stubs (`seams`: who this browser is, whether Resolve is armed, the two ways of
+         * asking, each noting that it was asked), with the lists read from config: Pin (Body),
+         * Attack with a weapon (Body / Hand / Leg), a trap victim's Leave a clue (Hand / Leg /
+         * Body), and a kind that is none. Pure; nothing is written.
+         */
+        const T = await import("./trait-ruling.mjs");
+        const A = { id: "R212ACTOR0000001", name: "R212" };
+        const asked = [];
+        const seams = over => ({
+            isGm: false, resolveArmed: () => false,
+            pickHere: async (actor, spec, listed) => { asked.push(["here", spec.key]); return listed[1]; },
+            askGms: async (actor, spec) => { asked.push(["gms", spec.key]); return "leg"; },
+            ...over
+        });
+        const attack = { kind: "crisis", key: "weaponAttack" };
+        const read = [
+            await T.traitFor(A, { kind: "crisis", key: "pin" }, seams()),
+            await T.traitFor(A, attack, seams()),
+            await T.traitFor(A, attack, seams({ resolveArmed: () => true })),
+            await T.traitFor(A, attack, seams({ isGm: true })),
+            await T.traitFor(A, attack, seams({ askGms: async () => "eye" })),
+            await T.traitFor(A, attack, seams({ askGms: async () => null })),
+            await T.traitFor(A, { kind: "crisis", key: "leaveClue", variant: "indirectVictim" }, seams({ askGms: async () => "body" })),
+            await T.traitFor(A, { kind: "nonsense", key: "weaponAttack" }, seams())
+        ];
+        const pick = (trait, byGm) => ({ trait, byGm });
+        equal(JSON.stringify([read, asked]), JSON.stringify([
+            [pick("body", false), pick("leg", true), pick("body", false), pick("hand", true), null, null, pick("body", true), null],
+            [["gms", "weaponAttack"], ["here", "weaponAttack"]]
+        ]), "a roll did not take its one trait, or several did not go to a GM, or Resolve was asked, or an answer off the list was rolled (answers, who was asked)");
     }]
 ];
 
@@ -5280,11 +5517,16 @@ const INVARIANTS = [
  * literal "DRPG.x" in the source, from the files Foundry serves, so the list
  * only repeated it: on 1.2.60, R1's pattern read 69 of its 78 keys. Of the
  * other nine, two (Murder.betrayTileLabel and betrayTileHint) were used by no
- * file and are gone; seven were built at run time. Four are left here:
+ * file and left this list; they stayed in en.json and pl.json, stating a
+ * betrayal rule the module no longer has, until E32+E07 fix r2-G4 deleted them
+ * (03.10.2026). Seven were built at run time. Four were left here, and
+ * E32+E07 C16 added two:
  *
  *   murder.mjs         victimTrapSprung / victimUnderAttackBy, by `state.indirect`
  *                      (victimUnderAttack until E06 C4, which names the killer)
  *   season-setup.mjs   `DRPG.Season.step.${key}` and `.hint.`, for the resources step
+ *   murder.mjs         `DRPG.Roll.opening.${side}`, the opening's window and request card
+ *                      (E32+E07 C16 found them built and unlisted since 1.2.50)
  *
  * The other three were `DRPG.Bridge.what.${action}` keys, and left in E31
  * (25.09.2026): R1b checks that whole family now, in both files - the label of
@@ -5294,7 +5536,8 @@ const INVARIANTS = [
  */
 const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
-    "DRPG.Season.step.resources", "DRPG.Season.hint.resources"
+    "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
+    "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim"
 ];
 
 export { INVARIANTS };

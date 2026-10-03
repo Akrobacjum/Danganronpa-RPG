@@ -271,6 +271,22 @@ export async function endEclipse({ advance = true } = {}) {
     // Its name, read while it still has one: the lights below judge what was declared in it.
     const ending = eclipseId();
 
+    /*
+     * THE BETRAYALS' OFFERS ARE TAKEN BEFORE THE CLOCK MOVES (E32+E07 fix r1-G2, 01.10.2026;
+     * the round-1 reviews' C-M1 and S-m4). A betrayal declared in this Eclipse left its offer
+     * in the cast (murder.mjs `betrayAsPlayer`), and the offer lasts the day it was given on:
+     * after Night the advance below rolls the day over, and the primary GM's sweep of the
+     * day's offers (`drpgTimeOfDayChanged`) would take it first - the declaration, made on its
+     * day and paid for, would find nothing at the lights. Taken here, at the Eclipse's end,
+     * as the tile's betrayal takes it; judged below by the day it was declared on.
+     */
+    let taken = new Map();
+    try {
+        taken = await takeDeclaredBetrayals(ending);
+    } catch (err) {
+        error("Could not take the offers of the betrayals declared during the Eclipse", err);
+    }
+
     log("Eclipse ended.");
 
     // The broadcast comes AFTER the clock, for the same reason the flag does.
@@ -329,7 +345,7 @@ export async function endEclipse({ advance = true } = {}) {
     // to be: the declaration paid for itself when it was made, out of the
     // budget this Eclipse opened with (Z2). Judging spends nothing.
     try {
-        await judgePendingMurders(ending);
+        await judgePendingMurders(ending, taken);
     } catch (err) {
         error("Could not judge the direct murders declared during the Eclipse", err);
     }
@@ -386,13 +402,55 @@ export async function writeParkedMurder({ killerId, room = null, note = "" } = {
     // `approved: null` is undecided, and it is written explicitly: every field is
     // named, so a second declaration by the same killer replaces the first whole.
     // `eclipse` is the name of the Eclipse it was made in; the lights of another
-    // Eclipse drop it unjudged.
-    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId() };
+    // Eclipse drop it unjudged. `betrayal` is named null for the same reason as the
+    // rest: a murder declared after a betrayal by the same student replaces it whole.
+    const entry = { room, note, at: Date.now(), approved: null, eclipse: eclipseId(), betrayal: null };
     await pendingMurderStore.patch(killerId, entry);
     log(`Direct murder declared in the dark by ${game.actors.get(killerId)?.name ?? killerId}.`);
 
     await askGmToAllow(killerId, entry);
     return entry;
+}
+
+/**
+ * A BETRAYAL DECLARED IN THE DARK (E32 C5b, 28.09.2026; audit S02-24, the owner's Q3). The
+ * one killing that needs no declaration outside an Eclipse is, in one, declared like any
+ * other action there, and starts after it: a row among the direct murders, keyed by the
+ * betrayer - one row per student, and while an offer stands their tile offers the betrayal
+ * instead of a murder - holding `betrayal`, a copy of the offer it was declared on, which stays
+ * in the cast until the lights take it (`takeDeclaredBetrayals`; fix r1-G2). No GM is asked to
+ * allow it and no card goes to the GMs now: the guide gives the betrayal to the newcomer, and
+ * the GMs are told when it opens. GM-side.
+ */
+export async function parkBetrayal({ thirdId, killerId, note = "", offer = null } = {}) {
+    if (!game.user.isGM || !thirdId || !killerId || !eclipseId()) return null;
+    const entry = { room: null, note, at: Date.now(), approved: null, eclipse: eclipseId(),
+        betrayal: { thirdId, killerId, chapter: offer?.chapter ?? null, day: offer?.day ?? null } };
+    await pendingMurderStore.patch(thirdId, entry);
+    log(`Betrayal declared in the dark by ${game.actors.get(thirdId)?.name ?? thirdId}.`);
+    return entry;
+}
+
+/** Has this student declared a betrayal in the running Eclipse? GM-side; false elsewhere. */
+export function betrayalDeclared(thirdId) {
+    return Boolean(pendingMurders()[thirdId ?? ""]?.betrayal);
+}
+
+/**
+ * The lights' first half for the betrayals declared in Eclipse `id` (fix r1-G2): each one's
+ * offer taken from the cast, in declaration order, before `endEclipse` moves the clock - a
+ * map of betrayer to the offer taken, or null when none stood for the two of them. GM-side.
+ */
+async function takeDeclaredBetrayals(id) {
+    const taken = new Map();
+    if (!game.user.isGM || !id) return taken;
+    await pendingMurderStore.whenHydrated();
+    const rows = Object.entries(pendingMurders(id)).filter(([, row]) => row?.betrayal)
+        .sort(([, a], [, b]) => (a.at ?? 0) - (b.at ?? 0));
+    if (!rows.length) return taken;
+    const { takeDeclaredBetrayal } = await import("./murder.mjs");
+    for (const [thirdId, row] of rows) taken.set(thirdId, await takeDeclaredBetrayal(thirdId, row.betrayal.killerId));
+    return taken;
 }
 
 /**
@@ -516,11 +574,11 @@ export async function clearParkedMurders() {
  * (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent: a world already through
  * this holds nothing.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
  *   `emptied` true: anything else throws.
  */
 export async function liftPendingMurders() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await pendingMurderStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the declarations did not arrive; the next load tries again");
     }
@@ -586,7 +644,7 @@ export async function liftPendingMurders() {
  * Asked once the store holds the other GMs' copies, so a declaration parked through
  * the primary is judged by whichever GM ends the Eclipse.
  */
-async function judgePendingMurders(id) {
+async function judgePendingMurders(id, taken = new Map()) {
     if (!game.user.isGM) return;
 
     await pendingMurderStore.whenHydrated();
@@ -621,6 +679,25 @@ async function judgePendingMurders(id) {
                 `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
                     cls ? `<span class="${cls}">${line}</span>` : line}</p>`, { veiled: true });
         };
+
+        /*
+         * A BETRAYAL (E32 C5b, 28.09.2026; audit S02-24, the owner's Q3), in the rows' order
+         * like the rest. No room test - a betrayal outside an Eclipse has none either, its
+         * victim is the partner the offer names - and no GM's leave (`parkBetrayal`), and no
+         * day: its offer was taken before the clock moved (`takeDeclaredBetrayals`), so one
+         * declared in the Eclipse after Night opens on the next morning (fix r1-G2).
+         * `openParkedBetrayal` closes a Stage 6 still open, as the tile's betrayal does; refused
+         * - another declaration opened first, the partner or the betrayer dead, the offer gone -
+         * the offer goes back while its chapter and day hold, the GM ending the Eclipse is
+         * told why, and the betrayer is told what a refused murder is told.
+         */
+        if (parked.betrayal) {
+            const { openParkedBetrayal } = await import("./murder.mjs");
+            if (!await openParkedBetrayal(killerId, parked.betrayal.killerId, taken.get(killerId) ?? null, parked.note ?? "")) {
+                await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
+            }
+            continue;
+        }
 
         if (murderState()) {
             await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
@@ -1017,11 +1094,11 @@ function registerMovesCopy() {
  * not stamped and the next load tries again (E05 fix r1-G1; migrate.mjs, above the
  * lifts). Idempotent: a world already through this holds nothing.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
  *   `emptied` true: anything else throws.
  */
 export async function liftEclipseMoves() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await eclipseMoveStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the crossings did not arrive; the next load tries again");
     }

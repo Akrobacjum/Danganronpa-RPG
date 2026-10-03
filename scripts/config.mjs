@@ -1287,7 +1287,7 @@ export const ACTIONS = {
         kind: "universal",
         label: "Search",
         icon: "fa-magnifying-glass",
-        traits: ["eye", "hand"],
+        traits: ["eye"],
         cost: 1,
         // The count of searches a room allows is a WORLD SETTING (0-10), not the
         // three this sentence used to promise. The briefing reads the real
@@ -1575,7 +1575,8 @@ export const ACTIONS = {
         icon: "fa-skull",
         traits: [],
         cost: 1,
-        callsGm: true,
+        // A FUNCTION, not a flag (E32+E07 C16) - see `murderParksForGm` below.
+        callsGm: actor => murderParksForGm(actor),
         hint: "Open a direct murder. Agreed with the GM beforehand.",
         description: "A face-to-face killing, agreed with the GM beforehand and consented to by "
             + "the victim's player. You have to be alone with them."
@@ -1655,6 +1656,23 @@ function workableProjectCount(actor) {
     const room = api.roomOfActor(actor);
     if (!room) return 0;                                  // nothing here to push
     return api.projectsAvailableIn(room)?.length ?? 0;
+}
+
+/**
+ * Whether this character's Direct Murder would wait on the GM (E32+E07 C16, 03.10.2026;
+ * audit S02-33). The tile is three actions, and only the declaration parks anything: a
+ * killing declared in an Eclipse, and a betrayal declared in one (action-rolls.mjs
+ * `performBetrayal`). In a fight it opens the crisis actions, and at Stage 6 outside an
+ * Eclipse the betrayal is the player's own decision - the GM's client writes it and asks
+ * nobody. The chip said "GM" on all three, for both sides of a fight and for an accomplice
+ * at Stage 6. Unknown counts as the declaration, the case the tile was drawn for.
+ */
+function murderParksForGm(actor) {
+    const api = globalThis.game?.drpg;
+    if (!actor || !api?.murderState || !api?.sideOf) return true;
+    const state = api.murderState();
+    if (state?.stage === "incident" && api.sideOf(actor, state)) return false;
+    return !(api.betrayalTarget?.(actor) && !api.isEclipse?.());
 }
 
 /**
@@ -2929,8 +2947,8 @@ export const MURDER_OPENING = {
         traits: ["eye", "head"],
         /** Night works against the victim. */
         nightDisadvantage: true,
-        hope: "Something is wrong with this room. A free Move, and no idea why - "
-            + "spend it and you live.",
+        hope: "Something is wrong with this room, and you have no idea why. Spend your "
+            + "Free Move, if you still have it, and you live.",
         despair: "You work out what has been set up here, and you can tell the others. "
             + "The project behind it stays active.",
         critical: "You spot the trap and know whose hands built it.",
@@ -3182,7 +3200,14 @@ export const CRISIS_ACTIONS = {
         // the outcome was announced and the map stayed empty.
         remnant: { critical: "evident" },
         criticalReinforced: true,
-        swapsRoles: true
+        swapsRoles: true,
+        /*
+         * The bands whose sentence above gives the reverser back all Health and Sanity:
+         * Hope and the critical. Read by `swapRoles` (murder.mjs) from the action, not
+         * the band (E32+E07 C11a; audit S04-22, D41): until 1.2.66 any band but Despair
+         * healed, so Double role reversal - no dice, scored as Hope - healed too.
+         */
+        restores: { hope: true, critical: true }
     },
 
     /* ---- the killer ---------------------------------------------------- */
@@ -3208,7 +3233,7 @@ export const CRISIS_ACTIONS = {
     pin: {
         side: "killer", label: "Pin them down", icon: "fa-down-long",
         threshold: 12, traits: ["body"],
-        hint: "Two turns of disadvantage on Leave a clue and Survive.",
+        hint: "Disadvantage on Leave a clue and Survive for the victim's next two turns.",
         hinders: { actions: ["leaveClue", "survive"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3216,7 +3241,7 @@ export const CRISIS_ACTIONS = {
     keepDistance: {
         side: "killer", label: "Keep your distance", icon: "fa-arrows-left-right",
         threshold: 12, traits: ["leg"],
-        hint: "Two turns of disadvantage on Secure a trace and Role reversal.",
+        hint: "Disadvantage on Secure a trace and Role reversal for the victim's next two turns.",
         hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3259,14 +3284,20 @@ export const CRISIS_ACTIONS = {
         // The old hint ended "without this the victim keeps taking turns at 0 Health
         // and 0 Sanity", which stopped being true when running out started
         // ending the incident on its own. What the roll buys is ending it EARLY,
-        // and the critical's free Stage 6 action - neither of which a victim who
+        // and the critical's free clean-up attempt - neither of which a victim who
         // simply bled out hands over.
+        //
+        // "A free Stage 6 action" until 1.2.66, which the engine never gave: nothing read
+        // the band, and Stage 6 costs a killer no action anyway, only a Sanity mark an
+        // attempt. The owner's D13 (E32+E07 C13, 03.10.2026; audit S04-07): the first
+        // clean-up attempt of whoever struck it costs no Sanity, hit or miss (murder.mjs
+        // `finishIncident` writes `freeCleanup`, cleanup.mjs `consumeFreeCleanup` spends it).
         hint: "End the incident now. Threshold is five times their remaining Health - free at 0. "
-            + "A critical here also buys a free Stage 6 action.",
+            + "A critical here also makes your first clean-up attempt cost no Sanity.",
         endsIncident: true,
         hope: "The incident ends.",
         despair: "The incident ends and leaves one Incident Remnant.",
-        critical: "The incident ends and you gain one free action in Stage 6.",
+        critical: "The incident ends, and your first clean-up attempt costs no Sanity.",
         remnant: { despair: "evident" },
         failureRemnant: { despair: "evident", critical: "obvious" },
         failureRemnantReinforced: { critical: true }
@@ -3313,7 +3344,10 @@ export const CRISIS_ACTIONS = {
         // `remnant.failure`, which nothing ever read: the failure branch looks up
         // `failureRemnant[band]`, and `band` is only ever hope/despair/critical.
         failureRemnant: { hope: "subtle", despair: "subtle", critical: "subtle" },
-        remnantType: "prep",
+        // An Incident Remnant, as every other crisis action's (murder.mjs `applyRemnant`'s
+        // default). It said "prep" - a trace of the planning, left by the fight (E32 C6,
+        // 28.09.2026; audit S02-43).
+        remnantType: "incident",
         endsIncident: true
     },
 
