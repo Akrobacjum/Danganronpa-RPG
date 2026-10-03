@@ -290,7 +290,7 @@ export function buildDocumentClasses(ctx) {
             for (const d of arr) {
                 // pre-hooks fire on the initiator with a mutable document; a
                 // hook's updateSource() must reach the server (real semantics).
-                const doc = new this(sanitize(d));
+                const doc = new this(createData(d, context));
                 const pre = hooks.call(`preCreate${this.documentName}`, doc, doc.toObject(), opts(context), ctx.userId());
                 if (pre !== false) kept.push(doc.toObject());
             }
@@ -381,7 +381,7 @@ export function buildDocumentClasses(ctx) {
             const cls = ctx.classes[embeddedName] ?? BaseDocument;
             const kept = [];
             for (const d of data) {
-                const doc = new cls(sanitize(d), { parent: this });
+                const doc = new cls(createData(d, context), { parent: this });
                 const pre = hooks.call(`preCreate${embeddedName}`, doc, doc.toObject(), opts(context), ctx.userId());
                 if (pre !== false) kept.push(doc.toObject());
             }
@@ -434,6 +434,24 @@ export function buildDocumentClasses(ctx) {
     function sanitize(d) {
         // strip class instances → plain data
         return JSON.parse(JSON.stringify(d ?? {}));
+    }
+    /*
+     * A GIVEN ID ONLY WITH `keepId` (E08+E28 C1, 03.10.2026). Foundry's `keepId` option:
+     * without it a created document gets an id of its own, which is why the live seed
+     * (audit/live/seed-world.mjs) passes it to build this harness's world at a real table.
+     * The harness kept any `_id` it was handed that was free, so a module path that meant
+     * to bring a document back under its old id passed here without `keepId` and would
+     * mint a new one at a table. With this function's rule taken out, the tier-2 probe "a
+     * document keeps a given id only with keepId" read every given id back (03.10, both
+     * create paths, with and without the option). The new id is made by the constructor,
+     * so a preCreate hook reads the id the server then keeps (cluster.mjs `applyOp`), as it
+     * did before this rule. What Foundry does with a `keepId` whose id is taken was not read:
+     * the server here still mints a fresh one.
+     */
+    function createData(d, context) {
+        const data = sanitize(d);
+        if (!context?.keepId) delete data._id;
+        return data;
     }
     function opts(context) {
         const { parent, ...rest } = context ?? {};

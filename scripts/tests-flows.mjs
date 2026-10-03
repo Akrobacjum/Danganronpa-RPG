@@ -90,7 +90,7 @@ export const FLOWS = Object.freeze([
     { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
         entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "covered", stage: "1.2.63" },
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
-        entry: {}, scenarios: [], status: "planned", stage: "E33" },
+        entry: {}, scenarios: [], status: "planned", stage: "E28" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
         entry: { bridge: ["call.approve"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",

@@ -824,6 +824,40 @@ async function safewordRun(S, player, act, read) {
 }
 
 const SCENARIOS = [
+    ["a document keeps a given id only with keepId", async () => {
+        /*
+         * E08+E28 C1, 03.10.2026. Foundry creates a document under an id of its own unless the
+         * call passes `keepId: true`. The harness kept any free `_id` it was handed, so a module
+         * path meant to bring a document back under its old id passed there without the option
+         * and would mint a new id at a table. Both of the harness's create paths are read: a
+         * token on the scene (embedded) and a journal entry (a world document), each once
+         * without the option and once with it. Everything made is deleted.
+         */
+        const scene = canvas.scene ?? game.scenes.contents[0];
+        const given = Array.from({ length: 4 }, () => foundry.utils.randomID());
+        const token = (_id, context) => scene.createEmbeddedDocuments("Token", [{ _id, name: "SUITE id probe",
+            x: 100, y: 100, width: 1, height: 1, hidden: true }], context).then(([t]) => t ?? null);
+        const entry = (_id, context) => JournalEntry.create({ _id, name: "SUITE id probe" }, context).then(e => e ?? null);
+        const made = { tokens: [], entries: [] };
+        try {
+            const loose = await token(given[0], {});
+            const held = await token(given[1], { keepId: true });
+            made.tokens.push(...[loose, held].filter(Boolean).map(t => t.id));
+            const looseEntry = await entry(given[2], {});
+            const heldEntry = await entry(given[3], { keepId: true });
+            made.entries.push(...[looseEntry, heldEntry].filter(Boolean).map(e => e.id));
+            equal(JSON.stringify([made.tokens.length, made.entries.length,
+                loose?.id === given[0], scene.tokens.has(given[0]), held?.id === given[1],
+                looseEntry?.id === given[2], game.journal.has(given[2]), heldEntry?.id === given[3]]),
+                JSON.stringify([2, 2, false, false, true, false, false, true]),
+                "[tokens made, entries made, the token without keepId under the given id, ... on the scene, the token with keepId under it, the entry without keepId under it, ... in the world, the entry with keepId under it]");
+        } finally {
+            const tokens = made.tokens.filter(id => scene.tokens.has(id));
+            if (tokens.length) await scene.deleteEmbeddedDocuments("Token", tokens);
+            for (const id of made.entries) await game.journal.get(id)?.delete();
+        }
+    }],
+
     ["a direct murder opens on the killer and tells the victim", async () => {
         const [killer, victim] = cast(2);
         // Asked of the world before the incident writes to it (E30: it was asked after).

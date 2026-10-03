@@ -171,6 +171,9 @@ function applyOp(userId, op, onLegacyKey = null) {
     const list = world.collections[collName] ?? (world.collections[collName] = []);
     switch (op.action) {
         case "create": {
+            /* The `_id` here (and in "embedded-create") is the one the client's constructor
+               made, unless the call passed `keepId` (shim.mjs `createData`, E08+E28 C1): the
+               server keeps it, so the id a preCreate hook read is the one the document gets. */
             const docs = op.data.map(d => ({ ...U.deepClone(d), _id: d._id && !list.some(x => x._id === d._id) ? d._id : U.randomID() }));
             for (const d of docs) ensureEmbeddedIds(collName, d);
             list.push(...docs);
