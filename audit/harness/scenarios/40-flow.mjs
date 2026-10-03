@@ -508,6 +508,63 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         !work.err && JSON.stringify(work.rolled) === JSON.stringify(["finesse", "finesse"]) && workGm.pressed.length === 1,
         JSON.stringify({ rolled: work.rolled, pressed: workGm.pressed }), { flow: "projects" });
 
+    // ---- 6d. an indirect murder's work: the cover window closed ---------------------------------
+    /*
+     * A CLOSED WINDOW COVERS NOTHING (E32+E07 C13, 03.10.2026; audit S02-03). Every Work on an
+     * indirect murder rolls to cover its traces once the progress is in, and a closed window left
+     * no trace at all: the drop sat under `if (trace)`. It leaves the worst band's trace now
+     * ("obvious") and a line on the card (action-rolls.mjs `hideProjectTraces`). The GM makes Aiko
+     * an indirect murder of her own with a statistic and refills her actions; p1 works on it from
+     * the Projects window, its dialogs answered with their defaults, the dice forced, and Aiko's
+     * `rollTrait` answers null for the cover roll alone, as a closed window does. Read: the last
+     * two throws on p1 (a witness in her room asks a concealment roll before them), the card's
+     * line on p1, and on the GM the traces the project left.
+     */
+    phase("an indirect murder's work with the cover window closed", { flow: "projects" });
+    await clearLogs();
+    const trapName = "QA trap nobody covered";
+    const trapProject = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        await game.drpg.setActions(actor, game.drpg.actionsMax(actor));
+        return (await P.createProject({ name: "${trapName}", target: 6, room: null, trait: "hand", indirectMurder: true,
+            killerId: actor.id, by: actor.id }))?.id ?? null;`, { timeout: 30000 });
+    await settle(600);
+    const uncovered = await p1.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const S = await import("${REPO}/scripts/secret.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 5 };
+        const cover = game.i18n.localize("DRPG.Roll.hideTraces"), line = game.i18n.localize("DRPG.Project.tracesUncovered");
+        const seen = new Set(game.messages.map(m => m.id));
+        const thrown = [];
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        actor.rollTrait = async function (key, options) {
+            const closed = String(options?.title ?? "").startsWith(cover);
+            thrown.push(closed ? "closed" : key);
+            return closed ? null : own.call(actor, key, options);
+        };
+        const out = { listed: P.projectsAvailableIn((await import("${REPO}/scripts/movement.mjs")).roomOfActor(actor)).map(p => p.id), err: null };
+        try {
+            await game.drpg.performAction(actor, "project", {});
+        } catch (e) { out.err = String(e?.stack ?? e).slice(0, 300); }
+        delete actor.rollTrait;
+        await new Promise(r => setTimeout(r, 800));
+        return { ...out, thrown, carded: game.messages.some(m => !seen.has(m.id) && S.contentOf(m).includes(line)) };`, { timeout: 120000 });
+    await settle(600);
+    const uncoveredGm = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const R = await import("${REPO}/scripts/remnants.mjs");
+        const left = R.remnantsOn(canvas.scene).filter(t => R.remnantData(t)?.subject === "${trapName}");
+        const traces = left.map(t => R.remnantData(t)).map(d => [d.type, d.visibility]);
+        // Not asked of the check: a player's packet never decides that a trace is tied (gm-bridge.mjs, handleRemnant).
+        const tied = left.map(t => R.remnantData(t)?.tiedToCrime ?? null);
+        for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
+        if ("${trapProject}") await P.deleteProject("${trapProject}");
+        return { traces, tied };`, { timeout: 30000 });
+    check("p1: a Work on an indirect murder whose cover window was closed leaves one Obvious trace, and says so on the card",
+        Boolean(trapProject) && !uncovered.err && uncovered.listed.includes(trapProject)
+            && JSON.stringify(uncovered.thrown.slice(-2)) === JSON.stringify(["finesse", "closed"]) && uncovered.carded === true
+            && JSON.stringify(uncoveredGm.traces) === JSON.stringify([["prep", "obvious"]]),
+        JSON.stringify({ trapProject, uncovered, uncoveredGm }), { flow: "projects" });
+
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");
     for (const c of [gm, ...players]) {

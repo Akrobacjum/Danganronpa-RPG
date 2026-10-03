@@ -2065,6 +2065,206 @@ const SCENARIOS = [
         }
     }],
 
+    ["a critical Finishing blow's first clean-up is free, the second costs 1", async () => {
+        /*
+         * E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13. The card promised a critical
+         * Finishing blow "one free action in Stage 6", and nothing read the band: Stage 6 costs a
+         * killer no action, and every clean-up attempt cost its Sanity mark. The striker is named
+         * in the cast now (`freeCleanup`, the GMs' alone) and their first attempt costs no Sanity,
+         * hit or miss (cleanup.mjs `consumeFreeCleanup`). Two students with players: a plain blow
+         * (closed, the victim revived), then a critical one, then two scrubs made as the killer's
+         * browser and the bridge make them - the chain paid first (a Sanity mark, the killer's own
+         * Stage 6 skipping the action), the step claimed in the packet - and between them the
+         * first one's Reroll (`undo`, the same claim, as reroll.mjs replays it). Read: the plain
+         * blow's grant, the critical's, the killer's player's copy of it, what the first attempt
+         * moved the Sanity by, the grant after it, what its Reroll moved, and the second's.
+         * Red at 827f07b: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed traces are placed on the scene on screen");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { payPrice } = await import("./price.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { resourceValue } = await import("./character.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const traces = [];
+        // What one attempt moved the killer's Sanity by, the price their browser paid included.
+        const attempt = async trace => {
+            const before = resourceValue(killer, "stress");
+            const charge = await payPrice(killer, "tamper", { skip: CL.tamperPriceSkip(killer), quiet: true });
+            must(charge?.pay === "stress", `the killer's Stage 6 price is not a Sanity mark: ${stableJson(charge)}`);
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true, price: charge.pay });
+            await settle();
+            return resourceValue(killer, "stress") - before;
+        };
+        const blow = async isCritical => {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            return M.murderState()?.freeCleanup ?? null;
+        };
+        try {
+            await killer.update({ "system.resources.stress.value": 0 });
+            const plain = await blow(false);
+            await M.endMurder({ reason: "test", followUp: false });
+            await reviveCharacter(victim, { quiet: true });
+            await settle();
+            const granted = await blow(true);
+            const copy = M.castFor(player(killer).id, S.castStore.record())?.freeCleanup ?? null;
+            for (const n of [1, 2]) {
+                const trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                    note: `SUITE C13 a trace the killer scrubs, ${n}` });
+                must(trace, "the fixture's trace was not placed");
+                traces.push(trace);
+            }
+            const first = await attempt(traces[0]);
+            const left = M.murderState()?.freeCleanup ?? null;
+            const before = resourceValue(killer, "stress");
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: traces[0].id, total: 30, isCritical: false, withHope: true, undo: true, price: "stress" });
+            await settle();
+            const replay = resourceValue(killer, "stress") - before;
+            const second = await attempt(traces[1]);
+            equal(stableJson([plain, granted === killer.id, copy, first, left, replay, second]), stableJson([null, true, null, 0, null, 0, 1]),
+                "a plain blow named a striker, or a critical named none, or the killer's player's copy holds it, or the first scrub cost "
+                + "Sanity or left the grant, or its Reroll cost Sanity, or the second was free too (the plain blow's grant, the critical's, "
+                + "the copy, the first's Sanity, the grant after it, the Reroll's Sanity, the second's Sanity)");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            const { remnantsOn, remnantData } = await import("./remnants.mjs");
+            // The traces placed here, and the one the Reroll put back under a new id.
+            const back = remnantsOn(scene).filter(t => /^SUITE C13 a trace the killer scrubs/.test(remnantData(t)?.note ?? ""));
+            for (const doc of [...traces, ...back]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+        }
+    }],
+
+    ["a death from the Students list in a fight offers Stage 6 and ties the traces", async () => {
+        /*
+         * E32+E07 C13, 03.10.2026; audit S10-77, the owner's D13. The Students list's "dead" is the
+         * quiet repair (F16), and it was quiet about the running incident too: a victim marked dead
+         * there in the middle of the fight left the incident at "incident" around a body, the
+         * killer with no clean-up, and the chapter's traces untied for the Faint sweep. It calls
+         * `incidentVictimDied` now (chapter.mjs), as the Kill button does. Two students with
+         * players; a trace of this chapter laid before the fight; the victim marked dead from the
+         * list, the GM's "Stage 6?" answered yes. Read: the windows asked, the stage and how it
+         * ended, the death on the table, the trace tied, and no "a student is dead" card (F16
+         * stands). Red at 827f07b: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the chapter's trace is placed on the scene on screen");
+        const M = await import("./murder.mjs");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { placeRemnant, remnantData } = await import("./remnants.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { livingStudents, isDeadForGm, isDeceased, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const title = game.i18n.localize("DRPG.Chapter.stageSixTitle");
+        const deathTitle = game.i18n.localize("DRPG.Chapter.deathTitle");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const asked = [];
+        let trace = null;
+        try {
+            trace = await placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                chapter: getClock().chapter, note: "SUITE C13 a trace of the chapter" });
+            must(trace && !remnantData(trace)?.tiedToCrime, "the fixture's trace was not placed, or was tied before the fight");
+            await fightOpen(M, killer, victim);
+            const seen = new Set(game.messages.map(m => m.id));
+            D.confirm = async cfg => {
+                asked.push(cfg?.window?.title ?? "");
+                return cfg?.window?.title === title;
+            };
+            must(await applyAliveStates({ [victim.id]: { state: "dead" } }), `${victim.name}'s death from the list was not recorded`);
+            await settle();
+            const state = M.murderState();
+            const cards = game.messages.filter(m => !seen.has(m.id) && contentOf(m).includes(deathTitle)).length;
+            equal(stableJson([asked, state?.stage ?? null, state?.endedBy ?? null, isDeceased(victim), Boolean(remnantData(scene.tokens.get(trace.id))?.tiedToCrime), cards]),
+                stableJson([[title], "resolution", "victimKilled", true, true, 0]),
+                "the list's death in the fight did not offer Stage 6 once, or the incident did not take it, or the trace stayed untied, "
+                + "or the repair told the table a student died (windows, stage, ending, on the table, tied, death cards)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            try { await trace?.delete(); } catch { /* already gone */ }
+        }
+    }],
+
+    ["a closed Cover your traces window leaves an Obvious trace", async () => {
+        /*
+         * E32+E07 C13, 03.10.2026; audit S02-03. Every Work on an indirect murder rolls to cover
+         * its traces after the progress is added, and the whole of the trace's drop sat under
+         * `if (trace)`: a closed window left none, so a trap could be built to the end without
+         * one. A closed window is the roll not made now - the worst band's trace ("obvious") and
+         * a line on the card (action-rolls.mjs `hideProjectTraces`). A student stood alone in a
+         * room (no concealment roll) works, free, on an indirect murder of their own made there
+         * with a statistic; the cover roll's window is closed (`rollTrait` answers null for it, as
+         * a closed window does). Read: the throws, the traces the project left, and the card's
+         * line. Red at 827f07b: <measured by A2>.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the worker alone");
+        const [actor] = cast(1);
+        const { performAction } = await import("./action-rolls.mjs");
+        const P = await import("./projects.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const stood = await standAlone(actor);
+        const name = "SUITE C13 a trap nobody covered";
+        const cover = game.i18n.localize("DRPG.Roll.hideTraces");
+        const line = game.i18n.localize("DRPG.Project.tracesUncovered");
+        let made = null;
+        const windows = answerWindows((cfg, root) => {
+            const select = root.querySelector('select[name="project"]');
+            if (select) select.value = made;
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        const thrown = [];
+        const left = () => remnantsOn(canvas.scene).filter(t => remnantData(t)?.subject === name);
+        const seen = new Set(game.messages.map(m => m.id));
+        try {
+            made = (await P.createProject({ name, target: 6, room: stood.room, trait: "hand", indirectMurder: true, killerId: actor.id, by: actor.id }))?.id ?? null;
+            must(made, "the indirect murder could not be made");
+            globalThis.__forceRoll = { hope: 9, fear: 5 };
+            actor.rollTrait = async function (key, config) {
+                const closed = String(config?.title ?? "").startsWith(cover);
+                thrown.push(closed ? "closed" : key);
+                return closed ? null : own.call(actor, key, config);
+            };
+            await performAction(actor, "project", { free: true });
+            await settle();
+            const traces = left().map(t => remnantData(t)).map(d => [d.type, d.visibility, d.tiedToCrime === true]);
+            const carded = game.messages.some(m => !seen.has(m.id) && contentOf(m).includes(line));
+            equal(stableJson([thrown, traces, carded]), stableJson([["finesse", "closed"], [["prep", "obvious", true]], true]),
+                "a Work whose cover window was closed left no trace, or not one Obvious trace tied to the murder, or no line on its card "
+                + "(throws, the project's traces, the card's line)");
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            for (const t of left()) {
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            if (made) await P.deleteProject(made);
+            await stood.back();
+        }
+    }],
+
     ["a betrayal from the tile in Stage 6 records both killers and the new victim has Self-defence", async () => {
         /*
          * E32 C5a, 28.09.2026; audit S04-03. The accomplice's betrayal comes during Stage 6,

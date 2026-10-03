@@ -951,7 +951,7 @@ async function openWhoIsAliveDialog() {
 export async function applyAliveStates(chosen = {}) {
     if (!game.user.isGM) return 0;
 
-    const { isDeceased, isDeadForGm, reviveCharacter, markDeceased, publishDeath, pendingDeath } = await import("./chapter.mjs");
+    const { isDeceased, isDeadForGm, reviveCharacter, markDeceased, publishDeath, pendingDeath, incidentVictimDied } = await import("./chapter.mjs");
     const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
     const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : isDeadForGm(a) ? "unfound" : "alive";
@@ -973,19 +973,29 @@ export async function applyAliveStates(chosen = {}) {
         // empty a bag or to announce a death to the table, and the row's own Kill
         // button is the one that runs the real procedure, warning and all.
         if (want.state !== stateOf(actor)) {
+            // A death this pass makes, not one the GMs kept: that one went through `killCharacter`.
+            const living = !isDeadForGm(actor);
+            let died = null;
             if (want.state === "alive") {
                 await setMonocub(actor, false);
                 await reviveCharacter(actor);
             } else if (want.state === "dead") {
                 await setMonocub(actor, false);
-                if (!isDeceased(actor)) await makeKnown(actor);
+                if (!isDeceased(actor)) died = await makeKnown(actor);
             } else if (want.state === "unfound") {
                 // Only a killing keeps a death secret; a row that was published meanwhile stays so.
                 continue;
             } else {
-                if (!isDeceased(actor)) await makeKnown(actor);
+                if (!isDeceased(actor)) died = await makeKnown(actor);
                 await setMonocub(actor, true);
             }
+            /* THE ONE THING THE REPAIR DOES THAT IS NOT A FLAG (E32+E07 C13, 03.10.2026; audit
+               S10-77, the owner's D13): the running incident's victim dead from this list ties the
+               chapter's traces and offers Stage 6, as a death by the Kill button does - the fight
+               stood at "incident" around a body until then. Nothing else of `killCharacter`'s: no
+               card, the bag kept (F16). Anybody else's death here, and a death outside an incident,
+               does nothing more (`incidentVictimDied` asks). */
+            if (living && died?.chapter) await incidentVictimDied(actor, died.chapter);
             changed++;
         }
 

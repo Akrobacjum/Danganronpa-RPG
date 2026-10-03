@@ -107,6 +107,8 @@ const FRESH = Object.freeze({
     // Per side, the action a Hope miss earned a second try at (E32+E07 C9): none yet.
     advantageNext: v => none(v) || (none(v.victim) && none(v.killer)),
     freeResolution: none,
+    // Who struck a critical Finishing blow, whose first clean-up costs no Sanity (E32+E07 C13): nobody yet.
+    freeCleanup: none,
     lastCrisis: none,
     swung: v => none(v) || !Object.keys(v).length,
     endedBy: none,
@@ -282,12 +284,13 @@ const CASES = {
  * takes the marker off. The reason names the commit due to fix the last. E32+E07 C10
  * took off TP08's, TP10's and TP13's (S04-21, S04-33); C11a TP04's, TR03's, TR05's, TR06's
  * and TR07's (S04-06: no Role reversal in a trap or against an accomplice); C12 DM02's,
- * DM13's and TP05's (S04-17, S04-20, S05-23: the tools the incident used, and only those).
+ * DM13's and TP05's (S04-17, S04-20, S05-23: the tools the incident used, and only those);
+ * C13 the last two, DM12's and TR09's (S10-77: a victim's death from the Students list in
+ * the fight offers Stage 6). Empty from C13 on, and kept: a case a later change turns red
+ * is marked here, literally, or fails.
  * ========================================================================== */
 
 const GRID_RED = {
-    DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "[I10]" }),
-    TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "[I10]" }),
 };
 
 /* ==========================================================================
@@ -848,6 +851,8 @@ async function assertIncidentInvariants(run) {
         if (!none(copy.lastCrisis) || "swung" in copy) run.violate("I2", `${user.name}'s copy holds the Reroll receipt or the swing memo`);
         // The opening's statistic is the GMs' pick and in no player's copy (E32+E07 C11c): its roller is sent it with the invitation.
         if (!none(copy.openingTrait)) run.violate("I2", `${user.name}'s copy holds the opening's statistic, ${copy.openingTrait}`);
+        // Nor who struck a critical Finishing blow (E32+E07 C13): the GMs' charge for a clean-up reads it, nothing of a player's.
+        if (!none(copy.freeCleanup)) run.violate("I2", `${user.name}'s copy holds the free clean-up's striker, ${nameOf(copy.freeCleanup)}`);
         /* The fight as the GMs hold it: a seat reads its turn off its own copy (E32 C2) - but the Key
            Remnants' count, the GMs' alone, and for a trap's killers, seated from Stage 6 on, all of it:
            their rolls' results, which E06 keeps from the builder (fix r1-G1; the review's m1, M2). What
@@ -855,7 +860,7 @@ async function assertIncidentInvariants(run) {
            the copy shows, so it moves when they do and never alone. Who walked in and out again
            (`departed`, E32+E07 C10) is a cast field beside the fight, and is held as the fight is. */
         const copied = [...FIGHT_FIELDS, "departed"];
-        const withheld = [...(m.kind === "trap" && killerSide ? copied : ["keyRemnants"]), "openingTrait"];
+        const withheld = [...(m.kind === "trap" && killerSide ? copied : ["keyRemnants"]), "openingTrait", "freeCleanup"];
         const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
         const unlike = copied.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);

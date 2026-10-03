@@ -2570,42 +2570,51 @@ async function hideProjectTraces(actor, project, progress, lines) {
         remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces"),
         dc: (INDIRECT_MURDER.hideTraces.thresholds ?? []).map(t => t.min).filter(Boolean).join(" / ")
     });
-    if (trace) {
-        const band = trace.isCritical
+    /*
+     * A CLOSED WINDOW COVERS NOTHING (E32+E07 C13, 03.10.2026; audit S02-03). The whole drop
+     * sat under `if (trace)`, so closing this window - the progress already added above - left
+     * no trace at all, and an indirect murder could be built to the end without one. A window
+     * closed is the roll not made: the worst band's trace, the first of the table's thresholds
+     * ("obvious"), and a line on the card that says the traces were left as they were.
+     */
+    const band = !trace
+        ? INDIRECT_MURDER.hideTraces.thresholds?.[0]
+        : trace.isCritical
             ? INDIRECT_MURDER.hideTraces.critical
             : resolveThreshold(trace.total, INDIRECT_MURDER.hideTraces.thresholds);
-        const traceRemnant = band?.remnant ?? "obvious";
+    const traceRemnant = band?.remnant ?? "obvious";
+    const noteArgs = { actor: actor.name, project: project.name, room: roomOfActor(actor) ?? "?", progress };
 
-        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
-        const placed = await dropRemnant(actor, {
-            type: "prep",
-            visibility: traceRemnant,
-            faint: true,
-            // THE EFFECT OF A PROJECT TIED TO THE MURDER is part of it
-            // (Dawid, 28.08). An indirect murder IS the murder, built in
-            // instalments, so the traces of building it are the traces of
-            // committing it. `null` for every other project, which leaves
-            // the incident rule free to answer.
-            tiedToCrime: project.indirectMurder ? true : null,
-            action: "project",
-            subject: project.name,
-            note: game.i18n.format("DRPG.Remnant.projectNote", {
-                actor: actor.name,
-                project: project.name,
-                room: roomOfActor(actor) ?? "?",
-                progress,
-                total: trace.total
-            })
-        });
-        traceLeftTrace = traceFeedback(trace, placed);
-
-        // Just the score - never the band this rolled into (see
-        // `traceFeedback`). Whether anything is said about the trace
-        // itself is `report()`'s generic `outcome.leftTrace` line below,
-        // the same one every other action uses, so this does not print
-        // its own second copy of that sentence.
-        lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`);
+    const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
+    const placed = await dropRemnant(actor, {
+        type: "prep",
+        visibility: traceRemnant,
+        faint: true,
+        // THE EFFECT OF A PROJECT TIED TO THE MURDER is part of it
+        // (Dawid, 28.08). An indirect murder IS the murder, built in
+        // instalments, so the traces of building it are the traces of
+        // committing it. `null` for every other project, which leaves
+        // the incident rule free to answer.
+        tiedToCrime: project.indirectMurder ? true : null,
+        action: "project",
+        subject: project.name,
+        note: trace
+            ? game.i18n.format("DRPG.Remnant.projectNote", { ...noteArgs, total: trace.total })
+            : game.i18n.format("DRPG.Remnant.projectNoteUncovered", noteArgs)
+    });
+    if (!trace) {
+        lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${
+            game.i18n.localize("DRPG.Project.tracesUncovered")}</p>`);
+        return false;
     }
+    traceLeftTrace = traceFeedback(trace, placed);
+
+    // Just the score - never the band this rolled into (see
+    // `traceFeedback`). Whether anything is said about the trace
+    // itself is `report()`'s generic `outcome.leftTrace` line below,
+    // the same one every other action uses, so this does not print
+    // its own second copy of that sentence.
+    lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`);
     return traceLeftTrace;
 }
 

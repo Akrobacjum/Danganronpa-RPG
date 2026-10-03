@@ -3266,14 +3266,20 @@ export const CRISIS_ACTIONS = {
         // The old hint ended "without this the victim keeps taking turns at 0 Health
         // and 0 Sanity", which stopped being true when running out started
         // ending the incident on its own. What the roll buys is ending it EARLY,
-        // and the critical's free Stage 6 action - neither of which a victim who
+        // and the critical's free clean-up attempt - neither of which a victim who
         // simply bled out hands over.
+        //
+        // "A free Stage 6 action" until 1.2.66, which the engine never gave: nothing read
+        // the band, and Stage 6 costs a killer no action anyway, only a Sanity mark an
+        // attempt. The owner's D13 (E32+E07 C13, 03.10.2026; audit S04-07): the first
+        // clean-up attempt of whoever struck it costs no Sanity, hit or miss (murder.mjs
+        // `finishIncident` writes `freeCleanup`, cleanup.mjs `consumeFreeCleanup` spends it).
         hint: "End the incident now. Threshold is five times their remaining Health - free at 0. "
-            + "A critical here also buys a free Stage 6 action.",
+            + "A critical here also makes your first clean-up attempt cost no Sanity.",
         endsIncident: true,
         hope: "The incident ends.",
         despair: "The incident ends and leaves one Incident Remnant.",
-        critical: "The incident ends and you gain one free action in Stage 6.",
+        critical: "The incident ends, and your first clean-up attempt costs no Sanity.",
         remnant: { despair: "evident" },
         failureRemnant: { despair: "evident", critical: "obvious" },
         failureRemnantReinforced: { critical: true }

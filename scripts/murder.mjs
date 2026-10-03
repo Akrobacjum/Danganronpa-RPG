@@ -466,6 +466,9 @@ function castStamps() {
  * for a roll a direct murder's victim is not shown (D6) and a trap's builder is not shown
  * either, and the one player who rolls it is sent it with the invitation
  * (gm-bridge.mjs `askOpeningRoll`). Every reader of it runs on a GM's browser.
+ * Who struck a critical Finishing blow (`freeCleanup`, E32+E07 C13), null in every copy as
+ * well: its one reader is the GM's charge for a clean-up attempt (cleanup.mjs
+ * `consumeFreeCleanup`), and nothing a player's browser draws reads it.
  * A holder seated for the offer alone is sent the offer alone, the fight not included.
  *
  * THE VALUES ARE NULLED, and what their stamps say is `castPacket`'s. A third who moves to
@@ -488,7 +491,7 @@ function castCopyFor(userId, cast, state = null) {
     const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
     if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };
     const withheld = [...(incidentAudienceIds(seen, { stage: "incident" }).includes(userId) ? ["keyRemnants"] : [...INCIDENT_FIGHT, "departed"]),
-        "openingTrait"];
+        "openingTrait", "freeCleanup"];
     const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
     if (!seen.indirect || killerIds(theirs).some(owns)) return { copy, withheld };
@@ -1071,6 +1074,8 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         advantageNext: { victim: null, killer: null },
         spent: [],
         freeResolution: null,
+        // Who struck a critical Finishing blow, whose first clean-up costs no Sanity (C13): nobody yet.
+        freeCleanup: null,
         thirdActed: null,
         openedAt,
         keyRemnantsStale: null,
@@ -2322,7 +2327,7 @@ async function applyCrisisAction({
         promised = await applyUnlocks(state, def, key, band, done);
         if (def.swapsRoles) await swapRoles(state, done, { restores: Boolean(def.restores?.[band]) });
         await applyThirdPartyChoice(actor, def, done);
-        if (def.endsIncident) await finishIncident(state, key, band, done, receipt.killed);
+        if (def.endsIncident) await finishIncident(state, key, band, done, receipt.killed, actorId);
     } else {
         /*
          * G-22: ONLY A HOPE FAILURE EARNS THE NEXT TRY.
@@ -2685,8 +2690,9 @@ async function restoreResource(actor, field, value) {
  * GM editing the sheet by hand.
  *
  * Deliberately NOT scored as a Finishing Blow. Nobody rolled it, so nobody earns
- * what a Finishing Blow grants - the critical's free Stage 6 action least of
- * all. The incident simply stops and Stage 6 opens.
+ * what a Finishing Blow grants - the critical's free clean-up attempt
+ * (`freeCleanup`, E32+E07 C13) least of all. The incident simply stops and
+ * Stage 6 opens.
  * ========================================================================== */
 
 /** Both tracks full: Health and Sanity are reverse resources, marks count up. */
@@ -3157,13 +3163,22 @@ async function swapRoles(state, done, { restores = false } = {}) {
         game.i18n.format("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>`);
 }
 
-async function finishIncident(state, key, band, done, killed = null) {
+async function finishIncident(state, key, band, done, killed = null, actorId = null) {
     // WHICH action ended it, not only that something did. An incident that
     // ended in a Finishing Blow and one that ended with two people walking out
     // of the door both landed on stage "resolution" and were indistinguishable
     // afterwards - which is how the post-incident checklist came to promise a
     // body in a room after Escape together. See `afterIncident`.
-    if (!await writeState({ stage: "resolution", endedBy: key },
+    //
+    // A CRITICAL FINISHING BLOW'S FREE CLEAN-UP (E32+E07 C13, 03.10.2026; audit S04-07, the
+    // owner's D13). The card promised "one free action in Stage 6" and this write held the stage
+    // and the ending alone: nothing read the band, and every clean-up attempt cost its Sanity
+    // mark. Stage 6 costs a killer no action (`tamperPriceSkip`), so "free" is the price it does
+    // take: whoever struck is named in the same write, and their first clean-up attempt, hit or
+    // miss, costs no Sanity (cleanup.mjs `consumeFreeCleanup`). In the same write so a stage
+    // that moved on is not handed a grant either.
+    const freeCleanup = key === "finishingBlow" && band === "critical" ? actorId : null;
+    if (!await writeState({ stage: "resolution", endedBy: key, freeCleanup },
         { expect: { stage: "incident", openedAt: state.openedAt } })) return false;
     done.push(game.i18n.localize(
         key === "finishingBlow" ? "DRPG.Murder.victimDead" : "DRPG.Murder.incidentEnded"));
@@ -3218,6 +3233,20 @@ export async function beginResolution(reason = "victimKilled") {
     await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.resolutionNote")}</p>`);
     log(`Incident moved to Stage 6 (${reason}).`);
     return murderState();
+}
+
+/**
+ * Take the free clean-up attempt a critical Finishing blow left this actor (`finishIncident`,
+ * E32+E07 C13), and say whether this call took it. In the incident's queue and on what was
+ * read: two attempts landing together on two GMs' browsers find one grant between them, and
+ * a grant of an incident that has closed is gone with its cast. GM-side; cleanup.mjs
+ * `consumeFreeCleanup` is the one caller.
+ */
+export async function spendFreeCleanup(actorId) {
+    const state = murderState();
+    if (!game.user.isGM || !actorId || state?.freeCleanup !== actorId) return false;
+    return Boolean(await writeState({ freeCleanup: null },
+        { expect: { freeCleanup: actorId, openedAt: state.openedAt } }));
 }
 
 /** One turn's cost to the victim: Sanity first, then Health. */

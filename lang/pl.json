@@ -1218,6 +1218,7 @@
         "other": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała."
       },
       "stressBack": "Odzyskujesz {n} Sanity.",
+      "freeAttempt": "Ta próba nie kosztuje Sanity: zapłacił za nią krytyczny Finishing blow.",
       "trailPlanted": "Podłożono Prep Remnant ({visibility}) wskazujący na: {name}.",
       "trailNote": "Podłożony przez {by}, by obciążyć: {name}. {visibility}.",
       "trailFailed": "Nie zostało nic użytecznego.",
@@ -1999,6 +2000,7 @@
       "sabotageWorked": "Udało się: projekt jest zamrożony, dopóki {repair} nie zostanie ukończony.",
       "sabotageFailed": "Nie udało się - projekt nietknięty, ale próba zostawiła ślad.",
       "projectNote": "{actor} - praca nad {project} w: {room}, {progress} postępu, rzut {total} na zatarcie śladów.",
+      "projectNoteUncovered": "{actor} - praca nad {project} w: {room}, {progress} postępu, bez zacierania śladów.",
       "action": {
         "search": "Search",
         "sabotage": "Sabotage",
@@ -2330,6 +2332,7 @@
       "none": "Nie ma jeszcze projektów. Najpierw jakiś zacznij.",
       "now": "{project} jest teraz na {current}/{target}.",
       "aloneBonus": "Nikogo innego nie ma w pokoju, więc projekt zyskuje +1 postępu.",
+      "tracesUncovered": "bez rzutu: ślady zostają tak, jak je zostawiono.",
       "toolRelief": "{item} to Tier {tier}, więc każdy próg tego rzutu spada o {tier}.",
       "room": "Pokój",
       "anyRoom": "- dowolny pokój -",
@@ -4268,10 +4271,10 @@
         },
         "finishingBlow": {
           "label": "Finishing blow",
-          "hint": "Zakończ incydent teraz. Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Krytyk daje tu też darmową akcję Etapu 6.",
+          "hint": "Zakończ incydent teraz. Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Krytyk sprawia tu też, że twoja pierwsza próba sprzątania nie kosztuje Sanity.",
           "hope": "Incydent się kończy.",
           "despair": "Incydent się kończy i zostawia jeden Incident Remnant.",
-          "critical": "Incydent się kończy, a ty zyskujesz jedną darmową akcję w Stage 6."
+          "critical": "Incydent się kończy, a twoja pierwsza próba sprzątania nie kosztuje Sanity."
         },
         "sharedEscape": {
           "label": "Escape together",

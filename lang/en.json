@@ -1217,6 +1217,7 @@
         "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you close the murder - closing destroys the crime tool that was used; the cleaning tool goes when the body is found."
       },
       "stressBack": "You get {n} Sanity back.",
+      "freeAttempt": "This attempt costs no Sanity: the critical Finishing blow paid for it.",
       "trailPlanted": "Planted a Prep Remnant ({visibility}) pointing at {name}.",
       "trailNote": "Planted by {by} to implicate {name}. {visibility}.",
       "trailFailed": "Nothing usable was left behind.",
@@ -1933,6 +1934,7 @@
       "sabotageWorked": "It worked: the project is frozen until {repair} is finished.",
       "sabotageFailed": "It failed - the project is untouched, but the attempt left a trace.",
       "projectNote": "{actor} worked on {project} in {room}, gaining {progress} progress, and rolled {total} to cover their tracks.",
+      "projectNoteUncovered": "{actor} worked on {project} in {room}, gaining {progress} progress, and did not cover their tracks.",
       "action": {
         "search": "Search",
         "sabotage": "Sabotage",
@@ -2249,6 +2251,7 @@
       "noneToMove": "No project here has progress that can move. Finished ones are done, and a sabotaged one waits for its repair.",
       "now": "{project} is now at {current}/{target}.",
       "aloneBonus": "Nobody else is in the room, so the project gains +1 progress.",
+      "tracesUncovered": "not rolled: the traces stay as they were left.",
       "toolRelief": "{item} is Tier {tier}, so every threshold on this roll comes down by {tier}.",
       "room": "Room",
       "anyRoom": "- any room -",

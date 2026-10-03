@@ -66,7 +66,7 @@ import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
-import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf } from "./murder.mjs";
+import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
 import { usedToolStore } from "./gm-stores.mjs";
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic
@@ -1528,6 +1528,8 @@ export async function resolveCleanup({
     // A rewind that could not happen aborts the replay rather than scoring on
     // top of the first attempt. `undoLastCleanup` has already told the GMs what
     // to put right by hand.
+    // Whether the attempt being replaced was the free one, read before the rewind takes its receipt.
+    const replayFree = Boolean(undo && lastAttempt.get(actorId)?.free);
     if (undo && !await undoLastCleanup(actor, tokenId)) return null;
 
     // Searched across every scene rather than only the one the killer is
@@ -1541,8 +1543,11 @@ export async function resolveCleanup({
         // The trace is gone - another attempt got it, or the GM removed it by
         // hand between the player picking and the dice landing. The price is
         // still spent: they scrubbed at something. Charged here only when no
-        // step arrived to say it was paid on the client (T-1).
-        if (!validPrice(price)) await spendStress(actor);
+        // step arrived to say it was paid on the client (T-1). The free attempt
+        // is spent on it too: an attempt, hit or miss (`consumeFreeCleanup`).
+        const free = replayFree || await consumeFreeCleanup(actor);
+        if (!validPrice(price) && !free) await spendStress(actor);
+        if (free) await waivePrice(actor, validPrice(price));
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
         return { removed: false, gone: true };
     }
@@ -1576,12 +1581,17 @@ export async function resolveCleanup({
     // that paid the chain and says which step is not charged again; a packet with
     // no claim pays the Sanity here, as every packet used to.
     const paidStep = validPrice(price);
-    if (!paidStep) await spendStress(actor);
+    const free = replayFree || await consumeFreeCleanup(actor);
+    receipt.free = free;
+    if (!paidStep && !free) await spendStress(actor);
+    if (free) await waivePrice(actor, paidStep);
     // What the report says was paid: the step the client claimed, with the
-    // amount read off the table rather than off the packet.
-    const charged = paidStep ? { pay: paidStep.pay, amount: paidStep.amount, grant } : null;
+    // amount read off the table rather than off the packet - and nothing for
+    // the free attempt, which says so instead.
+    const charged = paidStep && !free ? { pay: paidStep.pay, amount: paidStep.amount, grant } : null;
 
     const done = [];
+    if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
     if (transforming && success) {
         return resolveTransformRoad(actor, token, data, verdict,
@@ -2089,8 +2099,11 @@ export async function resolveStageSix({
      * which when the claim is missing.
      */
     const paidStep = validPrice(price);
-    if (!paidStep) await spendStress(actor);
+    const free = await consumeFreeCleanup(actor);
+    if (!paidStep && !free) await spendStress(actor);
+    if (free) await waivePrice(actor, paidStep);
     const done = [];
+    if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
     if (key === "misleadingTrail") await applyMisleadingTrail(actor, def, targetId, success, band, done);
     else if (key === "moveBody") await applyMoveBody(actor, def, success, band, done, targetId);
@@ -2494,6 +2507,39 @@ async function spendStress(actor) {
     } catch (err) {
         error("Could not charge the Sanity for a clean-up", err);
     }
+}
+
+/**
+ * THE FREE CLEAN-UP ATTEMPT (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): whether
+ * this attempt is the one a critical Finishing blow paid for, and if it is, spent - the first
+ * attempt that reaches its price, hit or miss, and no other. Asked where each attempt pays
+ * (`resolveCleanup`, both roads, and `resolveStageSix`), after every refusal, so a refused
+ * attempt keeps it. GM-side: the grant is in the GMs' cast (murder.mjs `freeCleanup`, held
+ * null in every player's copy).
+ */
+export async function consumeFreeCleanup(actor) {
+    if (!game.user.isGM || !actor) return false;
+    try {
+        return await spendFreeCleanup(actor.id);
+    } catch (err) {
+        error("Could not spend the free clean-up attempt", err);
+        return false;
+    }
+}
+
+/**
+ * The price the free attempt does not owe (E32+E07 C13). The GM's side charges it nothing -
+ * a packet that claims no step skips `spendStress` - but a legitimate client has already paid
+ * its mark before the dice (`chargeTamper`: the killer's own chain starts at the Sanity), and
+ * it cannot know the mark is not owed, since the grant is the GMs'. So that mark is lifted
+ * again. Only a Sanity step: an action is never the killer's price in their own Stage 6
+ * (`tamperPriceSkip`), and handing an action back on a claim nobody can check is what
+ * `handBack` already weighs for the critical. Lifted after `stressBefore` is read, so a
+ * Reroll's rewind puts the mark back and the replay, told by its receipt that it was the
+ * free one, lifts it again.
+ */
+async function waivePrice(actor, paidStep) {
+    if (paidStep?.pay === "stress") await restoreStress(actor, paidStep.amount);
 }
 
 /**

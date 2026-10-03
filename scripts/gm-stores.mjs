@@ -273,9 +273,14 @@ export const INCIDENT_FIGHT = Object.freeze([
  * statistic a GM picked for the opening roll, kept so that a re-ask and a GM's throw for an
  * absent player - on any GM's browser - roll it again rather than ask again. The GMs' alone:
  * the roller is sent it with the invitation, and every player's copy holds it null.
+ *
+ * `freeCleanup` (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): the actor id of
+ * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
+ * spends it (cleanup.mjs `consumeFreeCleanup`). Written with the stage that ends the fight,
+ * so not the fight's; the GMs' alone, every player's copy holds it null (murder.mjs `castFor`).
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT
 ]);
 

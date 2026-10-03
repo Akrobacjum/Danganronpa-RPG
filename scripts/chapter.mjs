@@ -267,6 +267,23 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
         ? `${actor.name} is dead (chapter ${record.chapter}), kept by the GMs until the body is found.`
         : `${actor.name} is dead (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed.`);
 
+    await incidentVictimDied(actor, record.chapter);
+
+    return record;
+}
+
+/**
+ * WHAT THE RUNNING INCIDENT'S VICTIM'S DEATH DOES TO IT (E32+E07 C13, 03.10.2026; audit S10-77,
+ * the owner's D13): the chapter's traces tied to the crime, and Stage 6 offered. Both were
+ * `killCharacter`'s tail and nobody else's, so a victim the GM marked dead from the Students
+ * list in the middle of the fight (gm-panel.mjs `applyAliveStates`) left the incident at stage
+ * "incident" around a body - no clean-up for the killer, and the chapter's traces left for the
+ * Faint sweep. D13: that death offers Stage 6 too. The list stays the quiet repair otherwise
+ * (F16): no card, no inventory, nothing for a death outside an incident. GM-side.
+ */
+export async function incidentVictimDied(actor, chapter) {
+    if (!game.user.isGM || !actor) return;
+
     // The VICTIM of the running incident died - and only then (Dawid, 26.08):
     // the chapter's traces are the case now, so they arrive in the
     // Investigation Dashboard with "Tied to crime" already checked. Gated on
@@ -277,7 +294,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
         const { sideOf } = await import("./murder.mjs");
         if (sideOf(actor) === "victim") {
             const { tieChapterTraces } = await import("./remnants.mjs");
-            await tieChapterTraces(record.chapter);
+            await tieChapterTraces(chapter);
         }
     } catch (err) {
         error("Could not mark the chapter's traces as tied to the murder", err);
@@ -289,8 +306,6 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
     } catch (err) {
         error("Could not offer the clean-up stage after the death", err);
     }
-
-    return record;
 }
 
 /** Whether this actor is the running incident's victim: a death kept secret by default (E05 C10). */

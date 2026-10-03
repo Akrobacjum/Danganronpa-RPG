@@ -3234,6 +3234,11 @@ const REGRESSIONS = [
          * the extraction is only reviewable if the sequence is stated: the bullets
          * perish while the items still exist to be read, then the record, then who
          * is told, then the chapter's traces, then Stage 6.
+         *
+         * E32+E07 C13, 03.10.2026 (audit S10-77, the owner's D13): the last two are
+         * `incidentVictimDied`'s, which the repair calls as well - a victim marked
+         * dead from the list in the fight offers Stage 6. The order is read across
+         * the two, and the repair is read calling the helper and not the procedure.
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
@@ -3248,20 +3253,27 @@ const REGRESSIONS = [
             ok(!mark.includes(loud), `markDeceased ${loud}s - it is meant to be the quiet half`);
         }
 
-        const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function reviveCharacter" });
+        const kill = bodyOf(chapter, "export async function killCharacter", { until: "export async function incidentVictimDied" });
         ok(kill.length > 400, "killCharacter has moved or gone");
         ok(/await markDeceased\(actor\)/.test(kill),
             "killCharacter writes the deceased flag itself again, so there are two answers "
             + "to what deceased means");
         /* E05 C10: the bullets' deletion is `destroyBullets`, which the publication of a death kept
            by the GMs (`publishDeath`) runs too - still before the flag, the card and the traces. */
-        const order = ["destroyBullets(", "markDeceased(", "whisperToGms(", "tieChapterTraces("];
+        const order = ["destroyBullets(", "markDeceased(", "whisperToGms(", "incidentVictimDied("];
         for (let i = 1; i < order.length; i++) {
             const before = kill.indexOf(order[i - 1]);
             const after = kill.indexOf(order[i]);
             ok(before > 0 && after > before,
                 `killCharacter's order broke: ${order[i - 1]} no longer comes before ${order[i]}`);
         }
+        const died = bodyOf(chapter, "export async function incidentVictimDied", { until: "async function isIncidentVictim" });
+        ok(died.indexOf("tieChapterTraces(") > 0 && died.indexOf("offerStageSix(") > died.indexOf("tieChapterTraces("),
+            "incidentVictimDied no longer ties the chapter's traces before it offers Stage 6");
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        const repair = bodyOf(panel, "export async function applyAliveStates", { until: "async function toggleEclipse" });
+        ok(/incidentVictimDied\(/.test(repair) && !/killCharacter\(/.test(repair),
+            "the repair does not offer Stage 6 for the running incident's victim, or runs the whole death procedure (F16, D13)");
 
         const set = bodyOf(cub, "export async function setMonocub", { until: "export async function setSilenced" });
         ok(/const was = isMonocub\(actor\)/.test(set),

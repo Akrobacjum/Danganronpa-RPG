@@ -54,9 +54,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     await settle(300);
 
     // -- 3. the finishing blow ------------------------------------------------
+    /* A critical (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): its first clean-up
+       attempt costs Chie no Sanity, read with the gloves' scrub below. */
     phase("finishing blow", { flow: "murder-incident" });
     const kill = await gm.eval(`
-        await game.drpg.resolveCrisisAction({ actorId: "${ids.chie}", key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+        await game.drpg.resolveCrisisAction({ actorId: "${ids.chie}", key: "finishingBlow", total: 99, isCritical: true, withHope: true });
         await new Promise(r => setTimeout(r, 1700));
         const daichi = game.actors.get("${ids.daichi}");
         return { stage: game.drpg.murderState()?.stage, dead: game.drpg.isDeadForGm(daichi), flag: game.drpg.isDeceased(daichi) };
@@ -102,19 +104,38 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        away after the clean-up were kept. Chie readies gloves, scrubs a trace laid at her feet (the
        GM's `resolveCleanup`, as the bridge calls it) and puts them away; the discovery below must
        break them from the GMs' `usedTools` row, and take the row. The trace goes with the scrub, or
-       is taken away here if it stood. */
+       is taken away here if it stood.
+       THE CRITICAL'S FREE ATTEMPT (E32+E07 C13): that scrub is Chie's first attempt after a critical
+       Finishing blow, and costs her no Sanity; a second scrub, of a second trace, costs one. Her
+       Sanity is set clear for the two and put back after; the grant is read before and after the
+       first (`freeCleanup`, the GMs' cast). */
     const gloves = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
         const CL = await import("${repoUrl}/scripts/cleanup.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const chie = game.actors.get("${ids.chie}"), floor = canvas.scene, at = floor.tokens.find(t => t.actorId === chie.id);
         const [item] = await chie.createEmbeddedDocuments("Item", [{ name: "E32 C12 10 gloves", type: "loot",
             flags: { "${MOD}": { category: "cleaningTool", equipped: true, tier: 1 } } }]);
-        const trace = await R.placeRemnant({ type: "incident", visibility: "evident", x: at.x, y: at.y, scene: floor, note: "E32 C12 10 a trace Chie scrubs" });
-        await CL.resolveCleanup({ actorId: chie.id, tokenId: trace?.id, total: 30, isCritical: false, withHope: true });
-        const stood = trace ? floor.tokens.get(trace.id) : null;
-        if (stood) { try { await R.dropRemnantSecret(stood); } catch {} await stood.delete(); }
+        const sanity = () => chie.system.resources.stress.value, was = sanity();
+        await chie.update({ "system.resources.stress.value": 0 });
+        const grant = game.drpg.murderState()?.freeCleanup ?? null;
+        const scrub = async note => {
+            const trace = await R.placeRemnant({ type: "incident", visibility: "evident", x: at.x, y: at.y, scene: floor, note });
+            const before = sanity();
+            await CL.resolveCleanup({ actorId: chie.id, tokenId: trace?.id, total: 30, isCritical: false, withHope: true });
+            const stood = trace ? floor.tokens.get(trace.id) : null;
+            if (stood) { try { await R.dropRemnantSecret(stood); } catch {} await stood.delete(); }
+            return { placed: Boolean(trace), stood: Boolean(stood), cost: sanity() - before };
+        };
+        const first = await scrub("E32 C12 10 a trace Chie scrubs");
+        const left = game.drpg.murderState()?.freeCleanup ?? null;
+        const second = await scrub("E32 C13 10 a second trace Chie scrubs");
+        await chie.update({ "system.resources.stress.value": was });
         const row = S.usedToolStore?.get(chie.id)?.cleaning ?? [];
         await item.update({ "flags.${MOD}.equipped": false });
-        return { id: item.id, placed: Boolean(trace), stood: Boolean(stood), written: row.includes(item.id) };`, { timeout: 60000 });
+        return { id: item.id, placed: first.placed, stood: first.stood, written: row.includes(item.id),
+            free: { named: grant === chie.id, first: first.cost, left, second: second.cost, placed: second.placed } };`, { timeout: 60000 });
+    check("gm: a critical Finishing blow's first clean-up costs the killer no Sanity and spends the grant, and the second costs one",
+        gloves.placed && gloves.free.placed && gloves.free.named === true && gloves.free.first === 0 && gloves.free.left === null
+            && gloves.free.second === 1, JSON.stringify(gloves.free), { flow: "murder-incident" });
     const found = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const C = await import("${repoUrl}/scripts/chapter.mjs");
         const daichi = game.actors.get("${ids.daichi}"), botan = game.actors.get("${ids.botan}");
