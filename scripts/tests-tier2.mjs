@@ -478,6 +478,22 @@ async function openingAsks(run) {
 }
 
 /**
+ * THE GM'S MURDER WINDOW, DRAWN (E32+E07 C14, 03.10.2026). `open()` reaches
+ * `openMurderDialog`, which waits on the window (and on the tracker after it), so its answer
+ * is kept, not awaited; the window is found by its class once drawn - polled, since it
+ * gathers the living and the traps first (the F10 test above says why). `app` and `form`
+ * are null when nothing drew. The caller closes it: `closeOpen("drpg-window-murder")`.
+ */
+async function drawnMurderWindow(open) {
+    const answer = Promise.resolve().then(open).catch(() => null);
+    const drawn = () => [...foundry.applications.instances.values()]
+        .find(a => a.rendered && a.options?.classes?.includes("drpg-window-murder"));
+    await until(() => drawn()?.element, 6000);
+    const app = drawn() ?? null;
+    return { app, form: app?.element?.querySelector("form") ?? null, answer };
+}
+
+/**
  * The incident's dice this client relayed while `run` ran (E06 C6): each `dice.show`
  * packet (private-rolls.mjs `relayIncidentDice`) as { id, to } - the message's id and
  * the users it was addressed to. Shaped as `wordsSent`, above.
@@ -12703,6 +12719,200 @@ const SCENARIOS = [
         } finally {
             closeOpen("drpg-window-murder");
             if (made) { try { await P.deleteProject(made); } catch { /* already gone */ } }
+            await settle();
+        }
+    }],
+
+    ["the trap card's button opens the murder window on the student the trap read, with the trap's budget and the victim's statistics", async () => {
+        /*
+         * E32+E07 C14, 03.10.2026; audit S11-20. A trap's card carries the student it read
+         * (traps.mjs `alert`, `data.victim`), and its "fire the trap" button passed the builder
+         * alone, so the window proposed the first living student who was not the builder - with
+         * OK the default. A trap is built, filled and set off through the game's own event (as
+         * "a trap watches, fires once..." does) by a student who is NOT that first one, and the
+         * card's own button is pressed on a copy of the card (`wireCallActions`, as the C11b
+         * card test does). Read off the drawn window: the two seats, the box, whether the trap's
+         * budget shows (with the box only, S04-30), and the statistics offered - a trap's victim
+         * rolls the opening, so Eye or Head. Until C14: the first living student in the
+         * victim's seat, the budget unmarked and no statistic.
+         */
+        needs(env.dialogs(), "the murder window is read off its drawn form");
+        needs(world.atLeast("namedRooms"), "the trap is built in a room");
+        const [builder, ...rest] = cast(3);
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const { allRooms, othersInNamedRoom } = await import("./movement.mjs");
+        const { livingStudentsForGm } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const first = livingStudentsForGm().find(a => a.id !== builder.id);
+        const victim = rest.find(a => a.id !== first?.id);
+        must(victim, "no living student but the builder and the one the window proposes first");
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let made = null;
+        try {
+            made = await P.createProject({
+                name: "SUITE C14 trap", target: 1, room, indirectMurder: true, killerId: builder.id, condition: "suite",
+                trigger: { kind: "alone", afterDark: false, notBuilder: true }
+            });
+            must(made?.id, "could not create the fixture trap");
+            await P.addProgress(made.id, 1, { by: builder.id });
+            await settle();
+            Hooks.callAll("drpgRoomCrossed", { actor: victim, from: null, to: room });
+            const card = () => game.messages.contents
+                .find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="fireTrap"'));
+            await until(() => card());
+            must(card(), "the trap posted no card with its button");
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card());
+            wireCallActions(body, card());
+            const { form } = await drawnMurderWindow(() => body.querySelector('[data-drpg-call="fireTrap"]')?.click());
+            ok(form, "the card's button drew no murder window");
+            const budget = form?.querySelector("[data-drpg-trap-note]");
+            const statistic = form?.querySelector('select[name="openingTrait"]');
+            equal(stableJson([form?.killer.value ?? null, form?.victim.value ?? null, form?.indirect.checked ?? null,
+                budget ? !budget.hidden : null, statistic ? [...statistic.options].map(o => o.value) : null]),
+                stableJson([builder.id, victim.id, true, true, ["eye", "head"]]),
+                `the window did not propose the builder and ${victim.name}, the box was not ticked, the trap's budget did not show, or the statistics are not the trap's victim's (killer, victim, box, budget, statistics)`);
+        } finally {
+            closeOpen("drpg-window-murder");
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await settle();
+        }
+    }],
+
+    ["a builder named on the murder window who has died is said, and the window proposes nobody in both seats", async () => {
+        /*
+         * E32+E07 C14, 03.10.2026; audit S11-20's second half. The killer's list is built from
+         * the living, and a select with nothing marked shows its first option: a trap's builder
+         * who had died since was replaced in the killer's seat without a word - and the victim
+         * was chosen against the dead builder's id, so the first living student could stand in
+         * both seats. The builder's death is kept by the GMs (`killCharacter`, secret) and taken
+         * back in `finally`. Read: whether the warning shows and names the builder, whether the
+         * builder is still the killer, whether one student holds both seats, and the victim.
+         */
+        needs(env.dialogs(), "the murder window is read off its drawn form");
+        const [builder, victim] = cast(2);
+        const M = await import("./murder.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        try {
+            must(await killCharacter(builder, { secret: true, keepBullets: true }), "the builder's death was not kept by the GMs");
+            const { form } = await drawnMurderWindow(() => M.openMurderDialog({ killerId: builder.id, victimId: victim.id, indirect: true }));
+            ok(form, "the murder window did not draw");
+            const warning = form?.querySelector("[data-drpg-killer-gone]");
+            equal(stableJson([warning ? !warning.hidden && warning.textContent.includes(builder.name) : null,
+                form?.killer.value === builder.id, form?.killer.value === form?.victim.value, form?.victim.value ?? null]),
+                stableJson([true, false, false, victim.id]),
+                "the dead builder was not said, was proposed as the killer, one student holds both seats, or the victim the card named is not proposed (warning, builder in the seat, both seats, victim)");
+        } finally {
+            closeOpen("drpg-window-murder");
+            await reviveCharacter(builder, { quiet: true });
+            await settle();
+        }
+    }],
+
+    ["a direct murder between two rooms is said in the murder window, neither one room nor a trap is, and the trap's budget shows with the box alone", async () => {
+        /*
+         * E32+E07 C14, 03.10.2026; audit S04-43. A direct murder is face to face, and nothing read
+         * where the two stood. The killer and the victim are stood (teleported, as `aloneTogether`
+         * does) in two named rooms and the window opened on them; then its box is ticked - a
+         * trap is not face to face; then cleared, the victim stood in the killer's room, and the
+         * window made to read again (its victim's `change`). Read each time: the warning hidden,
+         * or whether it names both rooms; and whether the trap's budget shows (S04-30: with the
+         * box ticked only). Until C14: no warning at all, and the budget always shown.
+         */
+        needs(env.dialogs(), "the murder window is read off its drawn form");
+        needs(world.atLeast("studentTokensOnScreen", 2), "the two are stood in rooms by their tokens");
+        needs(world.atLeast("namedRooms", 2), "two rooms to stand them in");
+        const [killer, victim] = cast(2);
+        const M = await import("./murder.mjs");
+        const { allRooms, positionIn, locateActor } = await import("./movement.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const scene = canvas?.scene;
+        const tokens = [killer, victim].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+        must(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
+        const [here, there] = allRooms();
+        const was = tokens.map(t => ({ x: t.x, y: t.y }));
+        const PLACE = { teleport: true, movementAction: "displace", animate: false };
+        const stand = async (token, room) => { await token.update(positionIn(room, token), PLACE); };
+        const read = form => {
+            const warning = form?.querySelector("[data-drpg-rooms]");
+            const rooms = !warning ? null : warning.hidden ? "hidden" : [warning.textContent.includes(here), warning.textContent.includes(there)];
+            return { rooms, budget: !form?.querySelector("[data-drpg-trap-note]")?.hidden };
+        };
+        const touch = (field, value) => {
+            if (value !== undefined) field.checked = value;
+            field.dispatchEvent(new Event("change", { bubbles: true }));
+        };
+        try {
+            await stand(tokens[0], here);
+            await stand(tokens[1], there);
+            await settle();
+            must(locateActor(killer)?.room === here && locateActor(victim)?.room === there,
+                `the fixture could not stand the two in ${here} and ${there}`);
+            const { form } = await drawnMurderWindow(() => M.openMurderDialog({ killerId: killer.id, victimId: victim.id }));
+            must(form, "the murder window did not draw");
+            const apart = read(form);
+            touch(form.indirect, true);
+            const trap = read(form);
+            touch(form.indirect, false);
+            await stand(tokens[1], here);
+            await settle();
+            touch(form.victim);
+            const together = read(form);
+            equal(stableJson([apart, trap, together]), stableJson([
+                { rooms: [true, true], budget: false }, { rooms: "hidden", budget: true }, { rooms: "hidden", budget: false }]),
+                "two rooms were not said or not named, a trap or one room was said, or the trap's budget showed without the box or not with it (apart, trap, one room)");
+        } finally {
+            closeOpen("drpg-window-murder");
+            for (const [i, token] of tokens.entries()) if (token && scene.tokens.has(token.id)) await token.update(was[i], PLACE);
+            await settle();
+        }
+    }],
+
+    ["a murder opened from the murder window asks no second question about the opening's statistic", async () => {
+        /*
+         * E32+E07 C14, 03.10.2026; the owner's Q4 as corrected on 28.09. The opening's statistic
+         * is the GM's pick (C11c), and a murder opened from this window asked it in a second
+         * window once the first had closed. Now the window lists the statistics of the side that
+         * rolls and hands the pick to `openMurder`. A direct murder: the killer, with a player
+         * connected (a GM's own throw raced the opening once, E05-handoff), opened from the drawn
+         * window with Hand picked - the second of the two - and OK pressed. Read: the statistics
+         * offered, the GM's statistic windows (`answerTraitWindows`), the invitations' statistic
+         * (`openingAsks`) and the one the GMs hold. Until C14: no select, and the GM asked.
+         */
+        needs(env.dialogs(), "the murder window is read off its drawn form");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { closeOpen } = await import("./live.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const traits = answerTraitWindows();
+        let offered = null;
+        try {
+            const asks = await openingAsks(async sent => {
+                const { app, form } = await drawnMurderWindow(() => M.openMurderDialog({ killerId: killer.id, victimId: victim.id }));
+                must(form, "the murder window did not draw");
+                const pick = form.querySelector('select[name="openingTrait"]');
+                offered = pick ? [...pick.options].map(o => o.value) : null;
+                if (pick) pick.value = "hand";
+                app.element.querySelector('button[data-action="ok"]')?.click();
+                await until(() => sent.length > 0);
+            });
+            equal(stableJson([offered, traits.asked, asks.map(a => a.trait), M.murderState()?.openingTrait ?? null]),
+                stableJson([["body", "hand"], [], ["hand"], "hand"]),
+                "the window did not offer the killer's statistics, the GM was asked again, or the invitation or the GMs do not carry the pick (offered, windows, invitations, held)");
+        } finally {
+            traits.restore();
+            closeOpen("drpg-window-murder");
+            closeOpen("drpg-window-incident");
             await settle();
         }
     }],

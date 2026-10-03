@@ -5349,8 +5349,12 @@ async function announceOpening(state, label, { rollerId, success, band, total, t
  * THE GM'S TRACKER
  * ========================================================================== */
 
-/** Open a murder from the GM panel. */
-export async function openMurderDialog({ killerId = null, indirect = false } = {}) {
+/**
+ * Open a murder from the GM panel, or from a trap's ruling card (messenger-app.mjs
+ * `ruleFireTrap`), which names the builder (`killerId`) and the student the trap read
+ * (`victimId`) and ticks `indirect`.
+ */
+export async function openMurderDialog({ killerId = null, victimId = null, indirect = false } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -5419,8 +5423,26 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
      * choice, and it fired on exactly the gesture a GM reaching for this ending
      * is most likely to make.
      */
-    const defaultKiller = killerId ?? alive[0]?.id ?? null;
-    const defaultVictim = (alive.find(a => a.id !== defaultKiller) ?? alive[0])?.id ?? null;
+    /*
+     * WHO THE CALLER NAMED, WHEN THEY ARE AMONG THE LIVING (E32+E07 C14, 03.10.2026; audit
+     * S11-20). A trap's card has carried the student it read since it was built
+     * (traps.mjs `alert`, `data.victim`), and `ruleFireTrap` passed the builder alone - so
+     * the victim's dropdown showed the first living student who was not the builder, OK is
+     * the default, and Enter opened the incident on somebody who never walked into the trap,
+     * their opening roll and all. And a builder who has died since was not in the killer's
+     * list: a select with no option marked shows its first, so the window proposed another
+     * student as the killer without a word - and, since the victim was then chosen against
+     * the dead builder's id, could propose the first living student in both seats (read off
+     * the code; the suite's dead-builder test reads the seats). Now the
+     * victim is the one the card names, and a named killer who is not among the living is
+     * said in the window (`killerNotAlive`) while the list shows somebody else.
+     */
+    const living = id => Boolean(id) && alive.some(a => a.id === id);
+    const gone = killerId && !living(killerId) ? game.actors.get(killerId)?.name ?? "?" : null;
+    const namedVictim = living(victimId) ? victimId : null;
+    const defaultKiller = (living(killerId) ? killerId : null)
+        ?? (alive.find(a => a.id !== namedVictim) ?? alive[0])?.id ?? null;
+    const defaultVictim = namedVictim ?? (alive.find(a => a.id !== defaultKiller) ?? alive[0])?.id ?? null;
 
     const options = optionsFor(defaultVictim);
 
@@ -5436,6 +5458,48 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
         .map(p => p.killerId ?? null)
         .filter(Boolean));
 
+    /*
+     * THE OPENING'S STATISTIC, PICKED HERE (E32+E07 C14, 03.10.2026; the owner's Q4 as
+     * corrected on 28.09). Both openings list two traits and the GM picks one; a murder
+     * opened from this window asked it as a second window once the first had closed
+     * (`openingTraitFor`). The select lists the traits of the side that rolls - the killer's
+     * for a direct murder, the victim's for a trap - with that character's value, as the
+     * GM's own window prints them, and follows the dropdowns and the box; what it holds goes
+     * to `openMurder` as `openingTrait`, which checks it against the side once more.
+     */
+    const { listedTraits, traitWithValue } = await import("./trait-ruling.mjs");
+    const { locateActor } = await import("./movement.mjs");
+    const statisticOptions = (side, rollerId, selected = null) => {
+        const traits = listedTraits({ kind: "opening", key: side });
+        const roller = game.actors.get(rollerId ?? "");
+        // With nothing kept, the first is marked, as the GM's own window marks its first
+        // button (trait-ruling.mjs) - a default shown to the GM, not a trait taken (R213).
+        const kept = traits.includes(selected);
+        return traits.map((t, i) => `<option value="${t}"${(kept ? t === selected : i === 0) ? " selected" : ""}>${
+            esc(traitWithValue(roller, t))}</option>`).join("");
+    };
+    // What the box shows at first, as `sync` below settles it: one name in both seats is direct.
+    const trapFirst = (indirect || armed.has(defaultKiller)) && defaultKiller !== defaultVictim;
+
+    /*
+     * TWO ROOMS, SAID BEFORE CONFIRM (E32+E07 C14, 03.10.2026; audit S04-43). A direct
+     * murder is face to face, and nothing read where the two stood: in the audit's
+     * screenshots of one the victim's clock said DINNER HALL and the killer's MAIN HALL (the
+     * audit allowed that its own script may have stood them there; the window said nothing
+     * either way). Said, not refused - a GM may have moved the fiction ahead of the tokens.
+     * Read off the scene documents (`locateActor`, as `sameRoom` does) rather than
+     * `roomOfActor`, which reads the canvas and answers "no room" for both when the GM is
+     * looking at another scene.
+     * Nothing is said when either stands in no named room: that is not a measurement.
+     */
+    const roomsApart = (killer, victim) => {
+        const [k, v] = [killer, victim].map(id => locateActor(game.actors.get(id)));
+        if (!k?.room || !v?.room) return null;
+        if (k.scene?.id === v.scene?.id && k.room === v.room) return null;
+        const named = at => k.room === v.room ? `${at.room} (${at.scene?.name ?? "?"})` : at.room;
+        return { killerRoom: named(k), victimRoom: named(v) };
+    };
+
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Murder.openTitle") },
         // Named so it can be addressed - the diagnostics count it and the suite
@@ -5444,6 +5508,8 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
         classes: ["drpg-panel", "drpg-window-murder"],
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
+            ${gone ? `<p class="notes drpg-warning" data-drpg-killer-gone>${
+                game.i18n.format("DRPG.Murder.killerNotAlive", { name: esc(gone) })}</p>` : ""}
             <label>${game.i18n.localize("DRPG.Murder.killer")}
                 <select name="killer">${optionsFor(defaultKiller)}</select></label>
             <label>${game.i18n.localize("DRPG.Murder.victim")}
@@ -5459,12 +5525,18 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
                      * GM touched a dropdown they had no reason to touch. The
                      * `change` listener below has always asked
                      * `armed.has(form.killer.value)`; this is the same question at
-                     * first render. On the trap road `defaultKiller` IS `killerId`,
-                     * so nothing there changes.
+                     * first render. On the trap road `defaultKiller` IS `killerId`
+                     * while the builder lives, and the box is ticked by `indirect`
+                     * either way.
                      */
                     indirect || armed.has(defaultKiller) ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Murder.indirect")}</label>
-            <p class="notes">${game.i18n.localize("DRPG.Murder.indirectCost")}</p>
+            <p class="notes" data-drpg-trap-note${trapFirst ? "" : " hidden"}>${
+                game.i18n.localize("DRPG.Murder.indirectCost")}</p>
+            <label>${game.i18n.localize("DRPG.Murder.openingStatistic")}
+                <select name="openingTrait">${trapFirst
+                    ? statisticOptions("victim", defaultVictim) : statisticOptions("killer", defaultKiller)}</select></label>
+            <p class="notes drpg-warning" data-drpg-rooms hidden></p>
             <p class="notes drpg-warning" data-drpg-self hidden>${
                 game.i18n.localize("DRPG.Murder.openSelfNote")}</p>
         </form>`),
@@ -5472,6 +5544,10 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
             const form = dialog.element.querySelector("form");
             if (!form) return;
             const note = dialog.element.querySelector("[data-drpg-self]");
+            // The trap's budget is about building one (S04-30): read beside a direct murder it
+            // was taken for a rule of the murder being opened, so it shows with the box ticked.
+            const trapNote = dialog.element.querySelector("[data-drpg-trap-note]");
+            const rooms = dialog.element.querySelector("[data-drpg-rooms]");
 
             /*
              * Say it, rather than prevent it.
@@ -5492,6 +5568,21 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
                 if (note) note.hidden = !self;
                 form.indirect.disabled = self;
                 if (self) form.indirect.checked = false;
+                if (trapNote) trapNote.hidden = !form.indirect.checked;
+
+                // The side that rolls, as `openMurder` reads it once the box is settled.
+                const side = form.indirect.checked ? "victim" : "killer";
+                form.openingTrait.innerHTML = statisticOptions(side, form[side].value, form.openingTrait.value);
+
+                const apart = side === "killer" && !self ? roomsApart(form.killer.value, form.victim.value) : null;
+                if (rooms) {
+                    rooms.hidden = !apart;
+                    rooms.textContent = apart ? game.i18n.format("DRPG.Murder.roomsDiffer", {
+                        killer: game.actors.get(form.killer.value)?.name ?? "?",
+                        victim: game.actors.get(form.victim.value)?.name ?? "?",
+                        ...apart
+                    }) : "";
+                }
             };
 
             form.killer.addEventListener("change", () => {
@@ -5501,6 +5592,7 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
                 sync();
             });
             form.victim.addEventListener("change", sync);
+            form.indirect.addEventListener("change", sync);
             sync();
         },
         buttons: [
@@ -5511,7 +5603,8 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
                     return {
                         killerId: f.killer.value,
                         victimId: f.victim.value,
-                        indirect: f.indirect.checked
+                        indirect: f.indirect.checked,
+                        openingTrait: f.openingTrait.value || null
                     };
                 }
             },

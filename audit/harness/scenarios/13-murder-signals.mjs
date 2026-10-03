@@ -25,7 +25,8 @@
  * hands the turn back to the victim, with no Pass (E32+E07 C9, part 2). A third who averts
  * their eyes and walks back in is seated by nobody, and the next student in is (E32+E07 C10, 1b).
  * A crisis action that lists several statistics waits for the GM's pick on a veiled card in its
- * player's thread, and rolls the pick (E32+E07 C11b, 1c).
+ * player's thread, and rolls the pick (E32+E07 C11b, 1c). A trap's card opens the GM's murder
+ * window on the student the trap read, and opens nothing until the GM confirms (E32+E07 C14, part 2).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -733,6 +734,64 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return true;
     `, { timeout: 60000 });
     await settle(700);
+
+    /* THE TRAP'S CARD OPENS THE MURDER WINDOW ON THE STUDENT IT READ (E32+E07 C14, 03.10.2026;
+       audit S11-20). A trap of Chie's is built in an empty room, finished, and set off by Botan
+       through the game's own crossing event on the GM (as the suite's "a trap watches, fires
+       once..." does); the card's button is pressed on a copy of the card with the GM drawing
+       windows for the moment, and the murder window read: Chie the killer, Botan the victim -
+       not the first living student who is not Chie, which is what it proposed until C14 and
+       which the check asks is somebody else - the box ticked, and a trap's victim's statistics.
+       The window is closed, so nothing opens; the project is deleted before anything below runs,
+       and the incident below is opened from the console as before. The card is the GMs' alone
+       (traps.mjs `alert`, `gmOnly`). */
+    const fired = await gm.eval(`
+        const P = await import("${repoUrl}/scripts/projects.mjs");
+        const Mv = await import("${repoUrl}/scripts/movement.mjs");
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { livingStudentsForGm } = await import("${repoUrl}/scripts/chapter.mjs");
+        const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
+        const { closeOpen } = await import("${repoUrl}/scripts/live.mjs");
+        const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const room = Mv.allRooms().find(r => Mv.othersInNamedRoom(r).length === 0) ?? Mv.allRooms()[0];
+        const first = livingStudentsForGm().find(a => a.id !== "${ids.chie}")?.id ?? null;
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const windows = globalThis.__dialogWindows;
+        const made = await P.createProject({ name: "Suite C14 trap", target: 1, room, indirectMurder: true, killerId: "${ids.chie}",
+            condition: "suite", trigger: { kind: "alone", afterDark: false, notBuilder: true } });
+        let card = null, seen = null;
+        try {
+            await P.addProgress(made.id, 1, { by: "${ids.chie}" });
+            Hooks.callAll("drpgRoomCrossed", { actor: game.actors.get("${ids.botan}"), from: null, to: room });
+            const find = () => game.messages.contents.find(m => !had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="fireTrap"'));
+            await until(() => find());
+            card = find() ?? null;
+            if (card) {
+                const body = document.createElement("div");
+                body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                globalThis.__dialogWindows = true;
+                body.querySelector('[data-drpg-call="fireTrap"]')?.click();
+                const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-murder"));
+                await until(() => drawn()?.element);
+                const form = drawn()?.element?.querySelector("form");
+                seen = form ? { killer: form.killer.value, victim: form.victim.value, indirect: form.indirect.checked,
+                    statistic: [...(form.querySelector('select[name="openingTrait"]')?.options ?? [])].map(o => o.value) } : null;
+            }
+        } finally {
+            globalThis.__dialogWindows = windows;
+            closeOpen("drpg-window-murder");
+            await P.deleteProject(made.id).catch(() => {});
+        }
+        await new Promise(r => setTimeout(r, 300));
+        return { room, first, card: Boolean(card), seen, active: Boolean(M.murderState()?.active) };
+    `, { timeout: 60000 });
+    await settle(500);
+    check("trap: the trap's card opens the murder window on the student it read - the builder the killer, the box ticked, a trap's victim's statistics - and nothing opens until the GM confirms",
+        fired.card === true && fired.first !== ids.botan && fired.seen?.killer === ids.chie && fired.seen?.victim === ids.botan
+        && fired.seen?.indirect === true && JSON.stringify(fired.seen?.statistic) === JSON.stringify(["eye", "head"]) && fired.active === false,
+        JSON.stringify(fired), { flow: "trap-fire" });
 
     /* The victim's opening roll is thrown on p1 as the trap opens, and a miss starts the incident
        at once - which took the opening stage, and its Event card, away before the read below in

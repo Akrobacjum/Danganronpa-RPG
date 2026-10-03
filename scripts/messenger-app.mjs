@@ -787,12 +787,13 @@ async function ruleRearmTrap(action, data) {
 }
 
 async function ruleFireTrap(action, data) {
-    // The trap names a condition, not a victim - so this opens the murder
-    // screen with the killer already filled in and "indirect" already
-    // ticked, and asks the one thing the condition cannot answer: who
-    // walked into it.
+    // The murder screen with the builder as the killer, "indirect" ticked and
+    // the student the trap read as the victim (E32+E07 C14, 03.10.2026; audit
+    // S11-20): the card has carried them since it was built, and this passed
+    // the builder alone, so the window proposed the first living student
+    // instead. Proposed, not applied - the GM confirms who walked into it.
     const { openMurderDialog } = await import("./murder.mjs");
-    const opened = await openMurderDialog({ killerId: data.killer, indirect: true });
+    const opened = await openMurderDialog({ killerId: data.killer, victimId: data.victim || null, indirect: true });
     return opened ? settled("DRPG.Bridge.settledHandled") : null;
 }
 
