@@ -512,13 +512,13 @@ A **planted item** arrives as whatever the finder was searching for. It only spr
 
 What follows is what a player is allowed to know. Who is doing what to whom is the incident's business, not yours, until a body is found.
 
-Where a roll below lists more than one statistic, the module rolls the first; the Resolve Hope Call lets you choose another.
+Where a roll below lists more than one statistic, the GM picks one from what you say your character does: tell them in your messenger thread, and the roll window opens on their pick. With the Resolve Hope Call armed you pick it yourself in the roll window - in the fight and the clean-up; the opening roll is always the GM's pick.
 
 ### The opening roll
 
 There is exactly one, and the kind of murder decides whose it is.
 
-**Direct murder:** the killer rolls (Body or Hand, against **8**; advantage at Night).
+**Direct murder:** the killer rolls (Body or Hand, against **8**; advantage at Night). The GM picks which of the two; while they do, the killer is told so, and says in their thread how they go about it.
 
 | Killer's roll | What happens |
 |---|---|
@@ -529,11 +529,11 @@ There is exactly one, and the kind of murder decides whose it is.
 
 The victim sees nothing while the killer rolls - no card, no music, nothing on the Event panel. When the roll succeeds they are told at once that the incident has begun, and who is moving on them: a direct murder is face to face. A failure leaves them nothing at all.
 
-**Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night). Being asked to roll is itself the warning.
+**Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night; the GM picks which). Being asked to roll is itself the warning: you are told that a roll is being set up for you, and the window reads "Something feels wrong - your roll".
 
 | Victim's roll | What happens |
 |---|---|
-| Hope | something is wrong with this room - a Free Move and no idea why; spend it and you live |
+| Hope | something is wrong with this room, and no idea why - spend your Free Move, if you still have it, and you live |
 | Despair | you work out what has been set up here and can tell the others |
 | Critical | you spot the trap and know whose hands built it |
 | Failure | you notice nothing and the trap closes |
@@ -544,18 +544,18 @@ A death by one's own hand uses the killer's roll and skips straight to the clean
 
 ### If you are the victim
 
-The incident is turn-based. **You go first**. Alone with a trap, you roll every crisis action with advantage. Every other tile on your sheet goes dark; the Direct Murder tile opens your crisis actions. Hope Calls still work.
+The incident is turn-based. **You go first**. Alone with a trap, you roll every crisis action with advantage, and every turn is yours: nobody acts against you, and each turn you end comes back to you. Every other tile on your sheet goes dark; **Fight back** opens your crisis actions, and is dimmed while it is not your turn. Pick an action and it unfolds what it costs, what it rolls and who picks the statistic, and what a miss does; **Roll it** sends it on - to the GM's pick first, where it lists several statistics. Hope Calls still work.
 
 > [!WARNING]
 > From your second turn on, every turn costs you: **1 Sanity** in a direct murder, **2** when you are alone with a trap - Sanity until it runs out, then Health.
 
 | Crisis action | Roll | What it does |
 |---|---|---|
-| **Leave a clue** | Hand / Leg / Shadow, 12 | Leaves a trace meant to help the others (Evident on Hope, Subtle on Despair, Obvious and Reinforced on a critical - and you keep the turn). A failure with Hope gives advantage on the next attempt. Against a trap: Hand / Leg / Body, and Hope leaves a Reinforced trace, a critical two. |
+| **Leave a clue** | Hand / Leg / Shadow, 12 | Leaves a trace meant to help the others (Evident on Hope, Subtle on Despair, Obvious and Reinforced on a critical - and you keep the turn). A failure with Hope gives advantage on your next attempt at this action. Against a trap: Hand / Leg / Body, and Hope leaves a Reinforced trace, a critical two. |
 | **Secure a trace** | Hand / Leg / Shadow, 15 | Take something off the killer and turn it into a trace tied to their identity. Same shape as above. |
-| **Self-defence** | Hand / Leg / Body, 18 | You fight. One attempt. Hope opens Survive and Role reversal, Despair opens Role reversal only, a critical stops the drain outright and lets you take one of them this turn without rolling. An item usable as a weapon gives advantage. A failure with Despair costs 1 extra. |
+| **Self-defence** | Hand / Leg / Body, 18 | You fight. One attempt. Hope opens Survive and Role reversal, Despair opens Role reversal only, a critical stops the drain outright and lets you take one of them this turn without rolling. An item usable as a weapon gives advantage. A failure with Despair costs 1 extra. If all it would open is a Role reversal you cannot take, it is not spent and you may try again. |
 | **Survive** | Leg, 18 | Withdraw. The incident ends and the drain stops. Despair adds a hint about who they were; a critical also gives immunity for this chapter and the next. A failure costs 1 extra. Needs Self-defence first. |
-| **Role reversal** | Hand / Leg / Body, 15 | Tip the scales and become the killer. Hope also restores all your Health and Sanity; a critical kills them outright. A failure with Despair costs 1 extra. Needs Self-defence first. |
+| **Role reversal** | Hand / Leg / Body, 15 | Tip the scales and become the killer. Hope or a critical also restores all your Health and Sanity; a critical kills them outright. A failure with Despair costs 1 extra. Needs Self-defence first. Not available against a trap, or once somebody has joined the killer. |
 | **Use an item** | Hand, 15 | Press *use* on the item. It works on a critical or a success with Hope; a success with Despair leaves a trace and nothing else. A failure with Despair costs 1 extra. |
 
 Survive and Role reversal are resolution actions: they cost **1 Sanity** instead of an action, or **1 Health** once your Sanity is gone. Nothing the killer does can take Reinforced traces off the map.
@@ -565,15 +565,15 @@ Survive and Role reversal are resolution actions: they cost **1 Sanity** instead
 
 ### If you are the killer
 
-Your side of the same table:
+Your side of the same table, behind the **Crisis actions** tile:
 
 | Action | Roll | What it does |
 |---|---|---|
 | Strike | Hand / Leg / Body, 15 | 1 Health and 1 Sanity off them; a critical puts both marks on the one track you choose, Health or Sanity. A failure with Despair still takes 1 Sanity and leaves an Evident trace. |
-| Pin them down | Body, 12 | Two turns of disadvantage on Leave a clue and Survive. |
-| Keep your distance | Leg, 12 | Two turns of disadvantage on Secure a trace and Role reversal. |
+| Pin them down | Body, 12 | Disadvantage on Leave a clue and Survive for the victim's next two turns. |
+| Keep your distance | Leg, 12 | Disadvantage on Secure a trace and Role reversal for the victim's next two turns. |
 | Attack with a weapon | Body / Hand / Leg, 15 | Damage 1 + half the weapon's tier (rounded up); 1 + the full tier on a critical. Unarmed: disadvantage, and a success snatches an improvised weapon (Tier 2 on Hope, Tier 1 on Despair). A Tier 0 object is rated by the GM. |
-| Finishing blow | Body / Leg / Hand | Threshold is five times their remaining Health - free at 0. Ends the incident; a critical grants a free action in the clean-up. |
+| Finishing blow | Body / Leg / Hand | Threshold is five times their remaining Health - free at 0. Ends the incident; a critical makes your first clean-up attempt cost no Sanity, whether it works or not. |
 | Use an item | Hand, 15 | As the victim's. |
 
 Finishing blow is a resolution action too: 1 Sanity, or 1 Health once your Sanity is gone.
@@ -587,10 +587,10 @@ Then the **clean-up**. Your Tamper tile now lists every trace in the room you ar
 | **Misleading trail** | 15 |
 | **Move the body** | Body, 16 - you pick a room connected to the body's before the roll, never a bedroom; a success carries it there and always leaves an Evident trace, a critical also hands the Sanity back, and a failure leaves the body where it is |
 
-Tonight, at your own scene, the clean-up costs no action. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the body, which rolls no concealment.
+Tonight, at your own scene, the clean-up costs no action. Erasing, reshaping and the misleading trail list Shadow, Hand and Head: the GM picks one from what you say you do. A Cleaning Tool in hand gives advantage and takes its tier off the number. Witnesses in the room mean the same Shadow-16 concealment roll, and the same Sanity for being caught - except for Move the body, which rolls no concealment.
 
 > [!WARNING]
-> The Murder Weapon you swung is destroyed when the clean-up closes; the Cleaning Tool is destroyed when the body is found - both stay in your inventory as broken evidence.
+> Every Murder Weapon you swung in the fight is destroyed when an incident that reached the clean-up closes (a Finishing blow swings nothing); every Cleaning Tool you wore for a clean-up attempt is destroyed when the body is found, even if you have put it away since - not if you stashed it. Both stay in your inventory as broken evidence.
 
 ### If you walk in on it
 
@@ -598,14 +598,14 @@ Crossing into a room where a direct murder is running gives you **one free choic
 
 | Choice | Roll | What it does |
 |---|---|---|
-| Escape together | Leg, 15 | Both of you get out; Hope restores the victim's Health and Sanity, a critical adds immunity for this chapter and the next. On a failure only you get out. |
-| Double role reversal | no roll | You and the victim turn on the attacker together. They become the victim. |
+| Escape together | Leg, 15 | Both of you get out; Hope restores the victim's Health and Sanity, a critical adds immunity for this chapter and the next. On a failure only you get out, and you do not come back in. |
+| Double role reversal | no roll | You and the victim turn on the attacker together. They become the victim. Nobody is healed. |
 | Partners in crime | no roll | You side with the attacker. The victim is unlikely to walk out. |
-| Averted eyes | no roll | You leave and take no part. It leaves no trace of you. |
+| Averted eyes | no roll | You leave and take no part, and do not come back in. It leaves no trace of you. |
 
-Escape together costs the same as the victim's resolution actions: 1 Sanity, or 1 Health once your Sanity is gone. The three no-roll choices are free.
+Escape together costs the same as the victim's resolution actions: 1 Sanity, or 1 Health once your Sanity is gone. The three no-roll choices are free. Use an item is not one of your choices.
 
-Having thrown in and survived, you may afterwards **turn on your partner** - the one killing that needs no declaration in advance. A fourth person walking in cancels the incident: nobody dies, the wounds stand.
+If the incident leaves a body, you may afterwards **turn on the killer** - if you sided with them, or, in a direct murder, if you stayed and chose nothing; not if you walked away or tried Escape together, and never as a third on the victim's side of a trap. The offer is open until the day ends, the Investigation included, but not during a Class Trial. Outside an Eclipse it is the one killing that needs no declaration in advance; during one it is declared like any action there - it costs an action and opens when the Eclipse ends. If it cannot open when its time comes, you are told why and keep the offer while the day lasts. A fourth person walking in cancels the incident: nobody dies, the wounds stand.
 
 > [!NOTE]
 > The module applies the damage, the traces, the turns, and a Role reversal's swap with the Health and Sanity it restores. The rest of what these tables promise is the GM's to apply: a critical Role reversal's kill, the Health and Sanity that Escape together restores, every immunity, and Survive's hint about who they were.
@@ -747,7 +747,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 **The Despair rows** show every pool and how full it is, and under them the overflow: "?" where its count would be, beside the number it fires at. Click for what Despair is.
 
 **Your sheet:**
-- *Actions* - the ten tiles, Hope Calls below; during an incident the Direct Murder tile opens your crisis actions; Move and Confusion here as a Monocub.
+- *Actions* - the ten tiles, Hope Calls below; during an incident the Direct Murder tile becomes **Fight back** for the victim and **Crisis actions** for the others, and opens them; Move and Confusion here as a Monocub.
 - *Inventory* - Usables, Gear (with *hold ready*), Truth Bullets (Analyze, Present, Share; group them by Chapter or Location), Room Keys, and your stash when you stand in that room.
 - *Rules* - Monokuma's standing rules, everyone's, all the time.
 - The safeword, bottom-left. Level Up, when you earned one.

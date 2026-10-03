@@ -321,6 +321,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null };`);
     check("direct: the victim's copy names the killer, face to face",
         directCopy.killer === ids.chie && directCopy.turn === ids.chie, JSON.stringify(directCopy));
+    /* The Event card of the fight is titled for its kind (E32+E07 C18, 03.10.2026; audit S04-40):
+       until then a direct murder's read "A killing in the dark", the trap's title, to the two
+       standing face to face. The trap's own card is read by that title in part 2. */
+    const TITLE_READ = `const E = await import("${repoUrl}/scripts/events.mjs");
+        E.renderEvents();
+        const sig = JSON.parse(document.getElementById("drpg-events")?.dataset.signature ?? "[]");
+        return sig.filter(c => c[0] === "incident").map(c => c[1]);`;
+    const directTitles = { killer: await p3.eval(TITLE_READ), victim: await p1.eval(TITLE_READ), gm: await gm.eval(TITLE_READ),
+        want: await gm.eval(`return game.i18n.localize("DRPG.Events.incidentTitleDirect");`) };
+    check("direct: the fight's Event card reads Face to face, for both of them and the GM",
+        directTitles.want === "Face to face" && ["killer", "victim", "gm"].every(k => JSON.stringify(directTitles[k]) === JSON.stringify([directTitles.want])),
+        JSON.stringify(directTitles), { flow: "murder-incident" });
     check("direct: the bystander is not", direct.bystander?.witness === false && direct.bystander?.knowsCast === false,
         JSON.stringify(direct.bystander));
 

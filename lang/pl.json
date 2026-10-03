@@ -953,6 +953,7 @@
         "motive": "Motive"
       },
       "incidentTitle": "Zabójstwo w ciemności",
+      "incidentTitleDirect": "Twarzą w twarz",
       "openingTitle": "Trwa morderstwo",
       "openingMeta": "Rzut otwarcia decyduje, jak się zaczyna",
       "incidentSub": "{killer} przeciw {victim}",
@@ -1296,7 +1297,7 @@
       "openingReask": "Poproś o rzut otwarcia ponownie",
       "openingReaskSent": "Zaproszenie do rzutu otwarcia wysłano ponownie.",
       "openingReaskWait": "Zaproszenie poszło przed chwilą - daj kilka sekund.",
-      "victimNoticedNext": "Ofiara zauważyła. Nic nie dzieje się samo: ma swój Free Move, a incydent pozostaje otwarty, dopóki nie zakończysz go z trackera.",
+      "victimNoticedNext": "Ofiara zauważyła. Nic nie dzieje się samo: może użyć swojego Free Move, jeśli jeszcze go ma, a incydent pozostaje otwarty, dopóki nie zakończysz go z trackera.",
       "openTitle": "Morderstwo",
       "openIntro": "Jeden rzut otwarcia, potem incydent na tury. Direct Murder otwiera się rzutem zabójcy; pułapka - rzutem ofiary.",
       "killer": "Zabójca",
@@ -1443,7 +1444,7 @@
       "thirdLeft": "{name} odwraca się i wychodzi. Nie bierze w tym udziału.",
       "openingYours": "Ten rzut jest twój i jest jedyny. Nie da się go pominąć.",
       "openingRequired": "Tego rzutu nie da się pominąć. Rzuć.",
-      "openingDeclined": "Brak rzutu otwarcia od: {name}. Stage 4 nie da się pominąć: zakończ ten incydent albo otwórz go ponownie z panelu.",
+      "openingDeclined": "Brak rzutu otwarcia od: {name}. Stage 4 nie da się pominąć: poproś o niego ponownie z trackera incydentu albo zakończ incydent.",
       "openingRemnantNote": "{name} - próba wyczuta ({band}). Coś z szamotaniny zostało do zauważenia.",
       "leftRemnants": {
         "one": "Zostawia ślad, a zabójca nie może go wytrzeć.",
@@ -1454,11 +1455,11 @@
       "keyRemnantsStale": "Role się odwróciły, więc sprawa się zmieniła: {n} Key Remnants zaplanowano wokół zabójcy, który jest teraz ofiarą. Napisz {n} nowych przed Investigation - liczba wyszła z rzutu otwarcia i się nie zmieniła.",
       "nightNoteDirect": "Jest noc: rzut otwarcia zabójcy ma przewagę.",
       "nightNoteIndirect": "Jest noc: rzut otwarcia ofiary ma utrudnienie.",
-      "betrayalNote": "{third} wchodzi na to i wciąż stoi. Może teraz zwrócić się przeciw: {killer} - jedyne zabójstwo w grze, które nie wymaga wcześniejszego zgłoszenia.",
+      "betrayalNote": "{third} wchodzi na to i wciąż stoi. Do końca dnia może zwrócić się przeciw: {killer}. Poza Eclipse to jedyne zabójstwo w grze, które nie wymaga wcześniejszego zgłoszenia; w Eclipse zgłasza się je, a otwiera, gdy Eclipse się skończy.",
       "betrayalButton": "{third} zwraca się przeciw zabójcy",
       "betrayalTitle": "Zdrada",
       "betrayalIntro": "{third} zabija: {killer}. To zamyka się jako drugie morderstwo, z {third} jako zabójcą i {killer} jako ofiarą - świeży incydent od rzutu otwarcia, nie ciąg dalszy tego, który właśnie się skończył.",
-      "betrayalRule": "Dwa ciała tego wieczoru, więc Class Trial ma do rozplątania dwa zabójstwa. Kto jest Blackened za pierwsze, nie jest automatycznie Blackened za drugie. Masz czas do końca dnia, by zdecydować.",
+      "betrayalRule": "Dwa ciała jednego dnia, więc Class Trial ma do rozplątania dwa zabójstwa. Kto jest Blackened za pierwsze, nie jest automatycznie Blackened za drugie. Masz czas do końca dnia, by zdecydować.",
       "betrayalConfirm": "Otwórz drugie morderstwo",
       "betrayalConfirmEclipse": "Trwa Eclipse, więc zdrada zostaje zadeklarowana teraz i rozpocznie się, gdy Eclipse się skończy - jak każda akcja zadeklarowana w jej trakcie. Kosztuje akcję, a akcja przepada, nawet jeśli zdrada nie będzie mogła się wtedy rozpocząć.",
       "betrayalParked": "Twoja zdrada jest zadeklarowana. Rozpocznie się, gdy Eclipse się skończy.",
@@ -3176,7 +3177,7 @@
     "Roll": {
       "opening": {
         "killer": "Otwarcie morderstwa - twój rzut",
-        "victim": "Pułapka się zamyka - twój rzut",
+        "victim": "Coś tu nie gra - twój rzut",
         "selfInflicted": "Decyzja - twój rzut"
       },
       "crisis": "Akcja kryzysowa",
@@ -4222,7 +4223,7 @@
         },
         "victim": {
           "label": "Rzut otwarcia - ofiara",
-          "hope": "Coś jest nie tak z tym pokojem. Free Move i żadnego pojęcia dlaczego - wydaj go, a przeżyjesz.",
+          "hope": "Coś jest nie tak z tym pokojem i nie masz pojęcia dlaczego. Wydaj swój Free Move, jeśli jeszcze go masz, a przeżyjesz.",
           "despair": "Rozgryzasz, co tu zastawiono, i możesz powiedzieć innym. Projekt za tym pozostaje aktywny.",
           "critical": "Dostrzegasz pułapkę i wiesz, czyje ręce ją zbudowały.",
           "failure": "Niczego nie zauważasz. Pułapka się zamyka."
@@ -4275,11 +4276,11 @@
         },
         "pin": {
           "label": "Pin them down",
-          "hint": "Dwie tury utrudnienia na Zostaw trop i Survive."
+          "hint": "Utrudnienie na Zostaw trop i Survive przez dwie najbliższe tury ofiary."
         },
         "keepDistance": {
           "label": "Keep your distance",
-          "hint": "Dwie tury utrudnienia na Zabezpiecz ślad i Role reversal."
+          "hint": "Utrudnienie na Zabezpiecz ślad i Role reversal przez dwie najbliższe tury ofiary."
         },
         "weaponAttack": {
           "label": "Atak bronią",

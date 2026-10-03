@@ -2947,8 +2947,8 @@ export const MURDER_OPENING = {
         traits: ["eye", "head"],
         /** Night works against the victim. */
         nightDisadvantage: true,
-        hope: "Something is wrong with this room. A free Move, and no idea why - "
-            + "spend it and you live.",
+        hope: "Something is wrong with this room, and you have no idea why. Spend your "
+            + "Free Move, if you still have it, and you live.",
         despair: "You work out what has been set up here, and you can tell the others. "
             + "The project behind it stays active.",
         critical: "You spot the trap and know whose hands built it.",
@@ -3233,7 +3233,7 @@ export const CRISIS_ACTIONS = {
     pin: {
         side: "killer", label: "Pin them down", icon: "fa-down-long",
         threshold: 12, traits: ["body"],
-        hint: "Two turns of disadvantage on Leave a clue and Survive.",
+        hint: "Disadvantage on Leave a clue and Survive for the victim's next two turns.",
         hinders: { actions: ["leaveClue", "survive"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -3241,7 +3241,7 @@ export const CRISIS_ACTIONS = {
     keepDistance: {
         side: "killer", label: "Keep your distance", icon: "fa-arrows-left-right",
         threshold: 12, traits: ["leg"],
-        hint: "Two turns of disadvantage on Secure a trace and Role reversal.",
+        hint: "Disadvantage on Secure a trace and Role reversal for the victim's next two turns.",
         hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
         remnant: { despair: "subtle" },
         failureRemnant: { despair: "evident", critical: "obvious" }

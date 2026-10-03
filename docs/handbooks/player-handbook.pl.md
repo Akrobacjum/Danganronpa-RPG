@@ -512,13 +512,13 @@ Ukończona pułapka czeka na warunek - ktoś sam w pokoju, ktoś wchodzi, przesz
 
 Poniżej to, co graczowi wolno wiedzieć. Kto co komu robi, to sprawa incydentu, nie twoja, dopóki nie znajdzie się ciało.
 
-Gdy rzut poniżej wymienia więcej niż jedną statystykę, moduł rzuca pierwszą; Hope Call Resolve pozwala wybrać inną.
+Gdy rzut poniżej wymienia więcej niż jedną statystykę, GM wybiera jedną na podstawie tego, co według ciebie robi twoja postać: napisz mu w swoim wątku, a okno rzutu otworzy się na jego wyborze. Z uzbrojonym Hope Callem Resolve wybierasz sam w oknie rzutu - w walce i przy sprzątaniu; rzut otwarcia zawsze wybiera GM.
 
 ### Rzut otwarcia
 
 Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 
-**Direct Murder:** rzuca zabójca (Body albo Hand, przeciw **8**; przewaga nocą).
+**Direct Murder:** rzuca zabójca (Body albo Hand, przeciw **8**; przewaga nocą). Którą z dwóch, wybiera GM; póki wybiera, zabójca dostaje o tym wiadomość i pisze w swoim wątku, jak się do tego zabiera.
 
 | Rzut zabójcy | Co się dzieje |
 |---|---|
@@ -529,11 +529,11 @@ Jest dokładnie jeden, a rodzaj morderstwa decyduje, czyj.
 
 Ofiara nie widzi niczego, gdy zabójca rzuca - żadnej karty, muzyki ani niczego na panelu zdarzeń. Gdy rzut się uda, od razu dowiaduje się, że incydent się zaczął, i kto na nią rusza: Direct Murder to zabójstwo twarzą w twarz. Porażka nie zostawia jej niczego.
 
-**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą). Sama prośba o rzut jest ostrzeżeniem.
+**Morderstwo pośrednie (pułapka):** rzuca **ofiara** (Eye albo Head, przeciw **20**; utrudnienie nocą; którą, wybiera GM). Sama prośba o rzut jest ostrzeżeniem: słyszysz, że przygotowuje się dla ciebie rzut, a okno nosi tytuł "Coś tu nie gra - twój rzut".
 
 | Rzut ofiary | Co się dzieje |
 |---|---|
-| Hope | coś jest nie tak z tym pokojem - Free Move i żadnego pojęcia dlaczego; wydaj go, a przeżyjesz |
+| Hope | coś jest nie tak z tym pokojem i nie masz pojęcia dlaczego - wydaj swój Free Move, jeśli jeszcze go masz, a przeżyjesz |
 | Despair | rozgryzasz, co tu zastawiono, i możesz powiedzieć innym |
 | Krytyk | dostrzegasz pułapkę i wiesz, czyje ręce ją zbudowały |
 | Porażka | niczego nie zauważasz, pułapka się zamyka |
@@ -544,18 +544,18 @@ Przy każdym sukcesie pułapka się nie zamyka: twoje zmaganie, by coś dostrzec
 
 ### Jeśli jesteś ofiarą
 
-Incydent toczy się na tury. **Zaczynasz ty**. Sam z pułapką masz przewagę na każdą akcję kryzysową. Każdy inny kafelek na arkuszu gaśnie; kafelek Direct Murder otwiera twoje akcje kryzysowe. Hope Calle wciąż działają.
+Incydent toczy się na tury. **Zaczynasz ty**. Sam z pułapką masz przewagę na każdą akcję kryzysową, a każda tura jest twoja: nikt nie działa przeciw tobie, a każda zakończona tura wraca do ciebie. Każdy inny kafelek na arkuszu gaśnie; **Broń się** otwiera twoje akcje kryzysowe i jest przygaszony, gdy to nie twoja tura. Wybierz akcję, a rozwinie się, ile kosztuje, czym rzuca i kto wybiera statystykę, i co robi porażka; **Rzuć** prowadzi dalej - najpierw do wyboru GMa, gdy akcja wymienia kilka statystyk. Hope Calle wciąż działają.
 
 > [!WARNING]
 > Od drugiej tury każda tura cię kosztuje: **1 Sanity** w Direct Murder, **2**, gdy jesteś sam z pułapką - Sanity, dopóki się nie skończy, potem Health.
 
 | Akcja kryzysowa | Rzut | Co robi |
 |---|---|---|
-| **Zostaw trop** | Hand / Leg / Shadow, 12 | Zostawia ślad, który ma pomóc innym (Evident przy Hope, Subtle przy Despair, Obvious i Reinforced na krytyku - i zachowujesz turę). Porażka z Hope daje przewagę przy następnej próbie. Wobec pułapki: Hand / Leg / Body, Hope zostawia Reinforced ślad, krytyk dwa. |
+| **Zostaw trop** | Hand / Leg / Shadow, 12 | Zostawia ślad, który ma pomóc innym (Evident przy Hope, Subtle przy Despair, Obvious i Reinforced na krytyku - i zachowujesz turę). Porażka z Hope daje przewagę przy twojej następnej próbie tej akcji. Wobec pułapki: Hand / Leg / Body, Hope zostawia Reinforced ślad, krytyk dwa. |
 | **Zabezpiecz ślad** | Hand / Leg / Shadow, 15 | Zabierz coś zabójcy i zamień to w ślad powiązany z jego tożsamością. Ten sam kształt co wyżej. |
-| **Self-defence** | Hand / Leg / Body, 18 | Walczysz. Jedna próba. Hope otwiera Survive i Role reversal, Despair tylko Role reversal, krytyk zatrzymuje drenaż i pozwala wziąć jedno z nich w tej turze bez rzutu. Przedmiot nadający się na broń daje przewagę. Porażka z Despair kosztuje 1 dodatkowo. |
+| **Self-defence** | Hand / Leg / Body, 18 | Walczysz. Jedna próba. Hope otwiera Survive i Role reversal, Despair tylko Role reversal, krytyk zatrzymuje drenaż i pozwala wziąć jedno z nich w tej turze bez rzutu. Przedmiot nadający się na broń daje przewagę. Porażka z Despair kosztuje 1 dodatkowo. Jeśli otworzyłoby tylko Role reversal, którego nie możesz wziąć, nie zostaje zużyte i możesz spróbować znowu. |
 | **Survive** | Leg, 18 | Wycofujesz się. Incydent się kończy i drenaż ustaje. Despair dodaje podpowiedź, kto to był; krytyk daje też nietykalność na ten i następny rozdział. Porażka kosztuje 1 dodatkowo. Wymaga najpierw Self-defence. |
-| **Role reversal** | Hand / Leg / Body, 15 | Przechylasz szalę i zostajesz zabójcą. Hope przywraca też całe Health i Sanity; krytyk zabija ich od razu. Porażka z Despair kosztuje 1 dodatkowo. Wymaga najpierw Self-defence. |
+| **Role reversal** | Hand / Leg / Body, 15 | Przechylasz szalę i zostajesz zabójcą. Hope albo krytyk przywraca też całe Health i Sanity; krytyk zabija ich od razu. Porażka z Despair kosztuje 1 dodatkowo. Wymaga najpierw Self-defence. Niedostępne wobec pułapki ani wtedy, gdy ktoś już dołączył do zabójcy. |
 | **Użyj przedmiotu** | Hand, 15 | Wciśnij *użyj* przy przedmiocie. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia ślad i nic więcej. Porażka z Despair kosztuje 1 dodatkowo. |
 
 Survive i Role reversal to akcje rozstrzygnięcia: kosztują **1 Sanity** zamiast akcji, a gdy Sanity się skończy - **1 Health**. Nic, co zrobi zabójca, nie zdejmie z mapy Reinforced śladów.
@@ -565,15 +565,15 @@ Survive i Role reversal to akcje rozstrzygnięcia: kosztują **1 Sanity** zamias
 
 ### Jeśli jesteś zabójcą
 
-Twoja strona tego samego stołu:
+Twoja strona tego samego stołu, za kafelkiem **Akcje kryzysowe**:
 
 | Akcja | Rzut | Co robi |
 |---|---|---|
 | Strike | Hand / Leg / Body, 15 | 1 Health i 1 Sanity z nich; krytyk kładzie oba znaczniki na jednym torze, który wybierzesz, Health albo Sanity. Porażka z Despair wciąż zdejmuje 1 Sanity i zostawia Evident ślad. |
-| Pin them down | Body, 12 | Dwie tury utrudnienia na Zostaw trop i Survive. |
-| Keep your distance | Leg, 12 | Dwie tury utrudnienia na Zabezpiecz ślad i Role reversal. |
+| Pin them down | Body, 12 | Utrudnienie na Zostaw trop i Survive przez dwie najbliższe tury ofiary. |
+| Keep your distance | Leg, 12 | Utrudnienie na Zabezpiecz ślad i Role reversal przez dwie najbliższe tury ofiary. |
 | Atak bronią | Body / Hand / Leg, 15 | Obrażenia 1 + połowa Tier broni (w górę); 1 + cały Tier na krytyku. Bez broni: utrudnienie, a sukces wyrywa improwizowaną broń (Tier 2 przy Hope, Tier 1 przy Despair). Przedmiot Tier 0 ocenia GM. |
-| Finishing blow | Body / Leg / Hand | Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Kończy incydent; krytyk daje darmową akcję przy sprzątaniu. |
+| Finishing blow | Body / Leg / Hand | Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Kończy incydent; krytyk sprawia, że twoja pierwsza próba sprzątania nie kosztuje Sanity, udana czy nie. |
 | Użyj przedmiotu | Hand, 15 | Jak u ofiary. |
 
 Finishing blow to też akcja rozstrzygnięcia: 1 Sanity, a gdy Sanity się skończy - 1 Health.
@@ -587,10 +587,10 @@ Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju
 | **Mylny trop** | 15 |
 | **Przenieś ciało** | Body, 16 - przed rzutem wybierasz pokój połączony z pokojem ciała, nigdy sypialnię; sukces przenosi je tam i zawsze zostawia Evident ślad, krytyk dodatkowo oddaje Sanity, a porażka zostawia ciało tam, gdzie jest |
 
-Tej nocy, na własnej scenie, sprzątanie nie kosztuje akcji. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu. Świadkowie w pokoju oznaczają ten sam rzut maskowania Shadow-16 i to samo Sanity za przyłapanie - poza Przenieś ciało, które nie rzuca na maskowanie.
+Tej nocy, na własnej scenie, sprzątanie nie kosztuje akcji. Usuwanie, przerabianie i fałszywy trop wymieniają Shadow, Hand i Head: GM wybiera jedną na podstawie tego, co według ciebie robisz. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu. Świadkowie w pokoju oznaczają ten sam rzut maskowania Shadow-16 i to samo Sanity za przyłapanie - poza Przenieś ciało, które nie rzuca na maskowanie.
 
 > [!WARNING]
-> Narzędzie zbrodni, którym się zamachnąłeś, zostaje zniszczone, gdy sprzątanie się zamyka; narzędzie do sprzątania - gdy znajdzie się ciało. Oba zostają w ekwipunku jako zepsute dowody.
+> Każde narzędzie zbrodni, którym zamachnąłeś się w walce, zostaje zniszczone, gdy zamyka się incydent, który doszedł do sprzątania (Finishing blow nie jest zamachem); każde narzędzie do sprzątania, które miałeś na sobie przy próbie sprzątania, zostaje zniszczone, gdy znajdzie się ciało, nawet jeśli od tamtej pory je odłożyłeś - ale nie, jeśli schowałeś je do skrytki. Oba zostają w ekwipunku jako zepsute dowody.
 
 ### Jeśli na to wchodzisz
 
@@ -598,14 +598,14 @@ Wejście do pokoju, w którym trwa Direct Murder, daje ci **jeden darmowy wybór
 
 | Wybór | Rzut | Co robi |
 |---|---|---|
-| Escape together | Leg, 15 | Oboje wychodzicie; Hope przywraca ofierze Health i Sanity, krytyk dodaje nietykalność na ten i następny rozdział. Przy porażce wychodzisz tylko ty. |
-| Double role reversal | bez rzutu | Ty i ofiara razem zwracacie się przeciw napastnikowi. To on staje się ofiarą. |
+| Escape together | Leg, 15 | Oboje wychodzicie; Hope przywraca ofierze Health i Sanity, krytyk dodaje nietykalność na ten i następny rozdział. Przy porażce wychodzisz tylko ty i już nie wracasz. |
+| Double role reversal | bez rzutu | Ty i ofiara razem zwracacie się przeciw napastnikowi. To on staje się ofiarą. Nikt nie zostaje uleczony. |
 | Partners in crime | bez rzutu | Stajesz po stronie napastnika. Ofiara raczej stąd nie wyjdzie. |
-| Averted eyes | bez rzutu | Wychodzisz i nie bierzesz udziału. Nie zostawia po tobie śladu. |
+| Averted eyes | bez rzutu | Wychodzisz, nie bierzesz udziału i już nie wracasz. Nie zostawia po tobie śladu. |
 
-Escape together kosztuje tyle co akcje rozstrzygnięcia ofiary: 1 Sanity, a gdy Sanity się skończy - 1 Health. Trzy wybory bez rzutu są darmowe.
+Escape together kosztuje tyle co akcje rozstrzygnięcia ofiary: 1 Sanity, a gdy Sanity się skończy - 1 Health. Trzy wybory bez rzutu są darmowe. Użyj przedmiotu nie należy do twoich wyborów.
 
-Gdy się przyłączyłeś i przeżyłeś, możesz potem **zwrócić się przeciw partnerowi** - jedyne zabójstwo, które nie wymaga wcześniejszego zgłoszenia. Czwarta osoba wchodząca do pokoju odwołuje incydent: nikt nie ginie, rany zostają.
+Jeśli incydent zostawi ciało, możesz potem **zwrócić się przeciw zabójcy** - jeśli stanąłeś po jego stronie albo, w Direct Murder, jeśli zostałeś i niczego nie wybrałeś; nie, jeśli odszedłeś albo próbowałeś Escape together, i nigdy jako trzecia osoba po stronie ofiary pułapki. Oferta trwa do końca dnia, z Investigation włącznie, ale nie podczas Class Trial. Poza Eclipse to jedyne zabójstwo, które nie wymaga wcześniejszego zgłoszenia; w Eclipse zgłaszasz je jak każdą akcję w nim - kosztuje akcję i otwiera się, gdy Eclipse się skończy. Jeśli nie może się otworzyć, gdy przyjdzie jej czas, dowiesz się dlaczego i zachowasz ofertę, póki trwa dzień. Czwarta osoba wchodząca do pokoju odwołuje incydent: nikt nie ginie, rany zostają.
 
 > [!NOTE]
 > Moduł sam nakłada obrażenia i ślady, prowadzi tury i wykonuje zamianę ról przy Role reversal, razem z Health i Sanity, które ona przywraca. Resztę tego, co obiecują te tabele, załatwia GM: zabójstwo z krytycznego Role reversal, Health i Sanity przywracane przez Escape together, każdą nietykalność i podpowiedź z Survive, kto to był.
@@ -747,7 +747,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 **Wiersze Despair** pokazują każdą pulę i to, jak jest pełna, a pod nimi overflow: "?" w miejscu jego licznika, obok liczby, przy której odpala. Kliknij, by dowiedzieć się, czym jest Despair.
 
 **Twój arkusz:**
-- *Akcje* - dziesięć kafelków, Hope Calle poniżej; podczas incydentu kafelek Direct Murder otwiera twoje akcje kryzysowe; tutaj Move i Confusion jako Monocub.
+- *Akcje* - dziesięć kafelków, Hope Calle poniżej; podczas incydentu kafelek Direct Murder staje się **Broń się** dla ofiary i **Akcje kryzysowe** dla pozostałych i je otwiera; tutaj Move i Confusion jako Monocub.
 - *Ekwipunek* - użytkowe, ekwipunek (z *weź do ręki*), Truth Bullets (Analyze, Przedstaw, Podziel się kopią; grupujesz je wg Rozdziału albo Lokacji), klucze do pokoi i twoja skrytka, gdy stoisz w tym pokoju.
 - *Zasady* - stałe zasady Monokumy, dla wszystkich, cały czas.
 - Safeword, w lewym dolnym rogu. Level Up, gdy go zdobyłeś.

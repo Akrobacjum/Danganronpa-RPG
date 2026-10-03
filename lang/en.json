@@ -962,6 +962,7 @@
         "motive": "Motive"
       },
       "incidentTitle": "A killing in the dark",
+      "incidentTitleDirect": "Face to face",
       "openingTitle": "A murder is under way",
       "openingMeta": "The opening roll decides how it begins",
       "incidentSub": "{killer} against {victim}",
@@ -1283,7 +1284,7 @@
       "openingReask": "Ask for the opening roll again",
       "openingReaskSent": "The invitation to throw the opening roll was sent again.",
       "openingReaskWait": "The invitation was sent a moment ago - give them a few seconds.",
-      "victimNoticedNext": "The victim noticed. Nothing happens by itself now: they have their Free Move, and the incident stays open until you end it from the tracker.",
+      "victimNoticedNext": "The victim noticed. Nothing happens by itself now: they may use their Free Move, if they still have it, and the incident stays open until you end it from the tracker.",
       "openTitle": "Murder",
       "openIntro": "One opening roll, then a turn-based incident. A direct murder opens on the killer's roll; a trap opens on the victim's.",
       "killer": "Killer",
@@ -1426,7 +1427,7 @@
       "thirdLeft": "{name} turns away and leaves. They take no part in this.",
       "openingYours": "This roll is yours, and it is the only one. It cannot be skipped.",
       "openingRequired": "This roll cannot be skipped. Throw it.",
-      "openingDeclined": "{name} did not throw the opening roll. Stage 4 cannot be skipped: end this incident, or open it again from the panel.",
+      "openingDeclined": "{name} did not throw the opening roll. Stage 4 cannot be skipped: ask again from the Incident tracker, or end the incident.",
       "openingRemnantNote": "{name} sensed the attempt ({band}). Something of the struggle was left to notice.",
       "leftRemnants": {
         "one": "Leaves a trace behind, and the killer cannot wipe it.",
@@ -1435,11 +1436,11 @@
       "keyRemnantsStale": "The roles reversed, so the case changed: the {n} Key Remnants were planned around a killer who is now the victim. Write {n} new ones before the Investigation - the count came off the opening roll and has not changed.",
       "nightNoteDirect": "It is night: the killer's opening roll has advantage.",
       "nightNoteIndirect": "It is night: the victim's opening roll has disadvantage.",
-      "betrayalNote": "{third} walked in on this and is still standing. They may turn on {killer} now - the one killing in the game that needs no declaration in advance.",
+      "betrayalNote": "{third} walked in on this and is still standing. They may turn on {killer} until the day ends. Outside an Eclipse it is the one killing in the game that needs no declaration in advance; in one it is declared, and opens when the Eclipse ends.",
       "betrayalButton": "{third} turns on the killer",
       "betrayalTitle": "Betrayal",
       "betrayalIntro": "{third} kills {killer}. This closes as a second murder, with {third} as the killer and {killer} as the victim - a fresh incident from the opening roll, not a continuation of the one that just ended.",
-      "betrayalRule": "Two bodies this evening, so the Class Trial has two killings to untangle. Whoever is Blackened for the first is not automatically Blackened for the second. You have until the end of the day to decide.",
+      "betrayalRule": "Two bodies in one day, so the Class Trial has two killings to untangle. Whoever is Blackened for the first is not automatically Blackened for the second. You have until the end of the day to decide.",
       "betrayalConfirm": "Open the second murder",
       "betrayalConfirmEclipse": "An Eclipse is running, so the betrayal is declared now and opens when the Eclipse ends, like any action declared in one. It costs an action, and the action stays spent even if the betrayal cannot open then.",
       "betrayalParked": "Your betrayal is declared. It opens when the Eclipse ends.",
@@ -3054,7 +3055,7 @@
     "Roll": {
       "opening": {
         "killer": "Opening the murder - your roll",
-        "victim": "The trap goes off - your roll",
+        "victim": "Something feels wrong - your roll",
         "selfInflicted": "Going through with it - your roll"
       },
       "crisis": "Crisis action",
