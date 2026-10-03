@@ -101,7 +101,26 @@ export function armSituational(value) {
 export function clearSituational() { situational = 0; }
 
 /**
- * A signed count. Zero while a supporting roll is shielded.
+ * THE ROLL'S OWN DIE, WHICH THE SHIELD LEAVES ALONE (E32+E07 fix r2-G1, 03.10.2026; the
+ * round-2 correctness review's M1). A murder's opening roll is thrown as a supporting
+ * roll (`remember: false`, murder.mjs `throwOpeningRoll`), so no Call is spent on it -
+ * and its Night die, the killer's advantage and a trap's victim's disadvantage, was
+ * armed as the action's (`armSituational`), where the same shield hid it: every
+ * opening at Night rolled flat, measured at d9ee6e9 and read so in the oldest commit
+ * here (1.2.50). A die handed to one roll by name (`rollTrait`'s `situational`) is
+ * that roll's and no other roll's to eat, so it is held here, armed as the roll
+ * starts and cleared as it ends. Read off the tier-2 test "at Night the opening roll
+ * carries its die ..." as the dice are thrown: 0 at Night for both sides at d9ee6e9,
+ * +1 for the killer and -1 for a trap's victim since.
+ */
+let own = 0;
+
+export function armOwnSituational(value) { own = Math.trunc(Number(value)) || 0; }
+export function clearOwnSituational() { own = 0; }
+
+/**
+ * A signed count: the action's die, zero while a supporting roll is shielded, and
+ * the roll's own (`armOwnSituational`), which is not.
  *
  * The shield is why trap 57 needs nothing done to it: a concealment roll sees
  * zero here and `null` from `pendingCall`, so BOTH bought sources vanish
@@ -109,7 +128,7 @@ export function clearSituational() { situational = 0; }
  * not shielded and never was - see `stateGrant` in roll-dialog.mjs.
  */
 export function situationalAdvantage() {
-    return shielded ? 0 : situational;
+    return (shielded ? 0 : situational) + own;
 }
 
 /**

@@ -4415,6 +4415,63 @@ const SCENARIOS = [
         }
     }],
 
+    ["at Night the opening roll carries its die: advantage for a direct killer, disadvantage for a trap's victim, none by day", async () => {
+        /*
+         * E32+E07 fix r2-G1, 03.10.2026; the round-2 correctness review's M1. The opening is a
+         * supporting roll (`remember: false`), so the shield that keeps every Call off it hid the
+         * Night's die `throwOpeningRoll` had armed for it as well: `situationalAdvantage()`, which
+         * the roll window adds to its count (roll-dialog.mjs `advantageSources`), answered 0 and
+         * every opening at Night rolled flat. A direct murder and then a trap open with their
+         * invitations held (`heldInvitations`), at Night and then at Noon, and this browser throws
+         * each opening with Support armed on its roller; the roller's `rollTrait` is replaced by
+         * one that reads, as the dice would be thrown, the situation's dice and the Calls the
+         * window would see, and takes the murder back. Read: those two for each throw, then the
+         * Calls left on both. The window is not drawn here (the harness has no D20RollDialog), so
+         * its chips showing the die is left to a table - the count every Search's room die takes.
+         * Red on d9ee6e9's runtime (e32run/r2g1red, 03.10.2026): 0 dice for all four throws.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose invitation is held");
+        const M = await import("./murder.mjs");
+        const C = await import("./call-effects.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const { chapter, day, session, timeOfDay, phase } = getClock() ?? {};
+        const seen = [];
+        try {
+            for (const [actor, from] of [[killer, victim], [victim, killer]]) {
+                must(await C.armCall(actor, { key: "support", kind: "hope", grants: "advantage", from: from.id }),
+                    `Support could not be armed on ${actor.name}`);
+            }
+            for (const [time, trap] of [["night", false], ["night", true], ["noon", false], ["noon", true]]) {
+                await setClock({ timeOfDay: time });
+                const roller = trap ? victim : killer;
+                await heldInvitations(async () => {
+                    await M.openMurder(trap
+                        ? { killerId: killer.id, victimId: victim.id, indirect: true, openingTrait: "eye" }
+                        : { killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                    roller.rollTrait = async () => {
+                        seen.push([time, trap ? "victim" : "killer", C.situationalAdvantage(), C.pendingCalls(roller).length]);
+                        await M.endMurder({ reason: "test", followUp: false });
+                        return null;
+                    };
+                    try {
+                        await M.throwOpeningRoll(trap ? "victim" : "killer", roller.id, trap ? "eye" : "body");
+                    } finally {
+                        delete roller.rollTrait;
+                        if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+                    }
+                });
+            }
+            equal(stableJson([seen, [killer, victim].map(a => C.pendingCalls(a).length)]),
+                stableJson([[["night", "killer", 1, 0], ["night", "victim", -1, 0], ["noon", "killer", 0, 0], ["noon", "victim", 0, 0]], [1, 1]]),
+                "an opening at Night lost its die or had the wrong one, one at Noon had a die, or a Call reached the opening or was spent on it (each throw: time, side, the situation's dice, the Calls seen; then the Calls left)");
+        } finally {
+            for (const actor of [killer, victim]) await C.consumeCalls(actor);
+            await setClock({ chapter, day, session, timeOfDay, phase });
+        }
+    }],
+
     ["a re-ask of the opening rolls the pick the cast keeps, and asks nobody again", async () => {
         /*
          * E32+E07 C11c, 02.10.2026. The GM's pick for the opening is kept in the cast

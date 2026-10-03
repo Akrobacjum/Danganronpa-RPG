@@ -632,6 +632,9 @@ function dynamicDef() {
  *
  * @param {boolean} [options.byGm]  The trait is a GM's pick (`TRAIT_BY_GM`), and the
  *   window says so on its locked select.
+ * @param {number} [options.situational]  This roll's own advantage (+) or disadvantage
+ *   (-) in dice, which a supporting roll's shield does not hide (call-effects.mjs
+ *   `armOwnSituational`): the Night's die on a murder's opening roll, its one caller.
  *
  * Exported because the murder engine rolls through it too: a crisis action and
  * an opening roll are ordinary trait rolls that must commit resources, honour
@@ -641,7 +644,7 @@ function dynamicDef() {
  * "rollTrait is not a function" before a single die was thrown.
  */
 export async function rollTrait(actor, drpgTrait,
-    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false } = {}) {
+    { remember = true, actionKey = null, context = null, title = null, dc = null, byGm = false, situational = 0 } = {}) {
     // "Beat 12" on the window that throws the dice (D1). `dc` may be a number
     // or a ladder written as text ("12 / 18"); a window with no title of its
     // own takes the action's label so the number has something to hang on.
@@ -654,12 +657,15 @@ export async function rollTrait(actor, drpgTrait,
 
     // `remember: false` marks a supporting roll - concealing an intent, hiding
     // traces. Those must not eat the Call the player bought for the action's own
-    // roll, so the Call is hidden from this roll and from its dialog entirely.
+    // roll, so the Call is hidden from this roll and from its dialog entirely. A die
+    // given to this roll by name is its own, and is not hidden (`situational`).
     const supporting = !remember;
     if (supporting) calls.shieldCalls();
+    if (situational) calls.armOwnSituational(situational);
     try {
         return await throwDice(actor, drpgTrait, { remember, actionKey, context, title, byGm });
     } finally {
+        if (situational) calls.clearOwnSituational();
         if (supporting) calls.unshieldCalls();
     }
 }

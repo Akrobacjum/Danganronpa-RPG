@@ -5928,10 +5928,11 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
         return null;
     }
 
-    const calls = await import("./call-effects.mjs");
-    const night = atNight();
-    const situational = night ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
-    if (situational) calls.armSituational(situational);
+    // The Night's die is this roll's own, handed to it by name (`rollTrait`'s `situational`).
+    // Armed here for the action, it was hidden by the shield a supporting roll raises against
+    // the Calls, and every opening at Night rolled flat (E32+E07 fix r2-G1, 03.10.2026;
+    // call-effects.mjs `armOwnSituational`).
+    const situational = atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
 
     // Stage 4 is not optional.
     //
@@ -5961,6 +5962,7 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
             roll = await rollTrait(actor, trait, {
                 remember: false,
                 byGm: true,
+                situational,
                 actionKey: "murderOpening",
                 // Thrown on the participant's own client - see `openingTitle`.
                 title: openingTitle(side),
@@ -5973,7 +5975,6 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
     } finally {
         openingRollsInFlight = Math.max(0, openingRollsInFlight - 1);
         if (!openingRollsInFlight) openingDialogs.clear();
-        calls.clearSituational();
     }
 
     if (!roll) {
