@@ -228,7 +228,8 @@ export async function performAction(actor, actionKey, options = {}) {
         // assumes the two people in an incident are doing nothing else. Direct
         // Murder has already been dealt with above.
         if (inFight) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Murder.actionsLocked"));
+            const { crisisTileLabel } = await import("./murder.mjs");
+            ui.notifications.warn(game.i18n.format("DRPG.Murder.actionsLocked", { tile: crisisTileLabel(actor) }));
             return null;
         }
 
@@ -3400,14 +3401,17 @@ async function openCrisisMenu(actor) {
      * every row is disabled, and off-turn every row is. Measured - the tile did
      * nothing at all and warned "no variants", which is true and useless.
      *
-     * So the answer comes as the sentence the heading used to carry. What is
-     * lost is being able to READ the list while waiting; what is gained is that
-     * the one live tile on the sheet always does something when pressed. The
-     * list is one press away the moment the turn comes round.
+     * So the answer comes as a sentence. What is lost is being able to READ the
+     * list while waiting; what is gained is that the one live tile on the sheet
+     * always does something when pressed. The list is one press away the moment
+     * the turn comes round. Until E32+E07 C16 the sentence was the panel's old
+     * heading, "Incident - waiting for them", which says what the screen is and
+     * not what the player can do (audit S02-33); the tile is dimmed off-turn now
+     * and says the same sentence on hover (sheet.mjs `actionButton`).
      */
     const yours = isTheirTurn(actor);
     if (!yours) {
-        ui.notifications.info(game.i18n.localize("DRPG.Murder.theirTurn"));
+        ui.notifications.info(game.i18n.localize("DRPG.Murder.offTurn"));
         return null;
     }
 

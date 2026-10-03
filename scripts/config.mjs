@@ -1575,7 +1575,8 @@ export const ACTIONS = {
         icon: "fa-skull",
         traits: [],
         cost: 1,
-        callsGm: true,
+        // A FUNCTION, not a flag (E32+E07 C16) - see `murderParksForGm` below.
+        callsGm: actor => murderParksForGm(actor),
         hint: "Open a direct murder. Agreed with the GM beforehand.",
         description: "A face-to-face killing, agreed with the GM beforehand and consented to by "
             + "the victim's player. You have to be alone with them."
@@ -1655,6 +1656,23 @@ function workableProjectCount(actor) {
     const room = api.roomOfActor(actor);
     if (!room) return 0;                                  // nothing here to push
     return api.projectsAvailableIn(room)?.length ?? 0;
+}
+
+/**
+ * Whether this character's Direct Murder would wait on the GM (E32+E07 C16, 03.10.2026;
+ * audit S02-33). The tile is three actions, and only the declaration parks anything: a
+ * killing declared in an Eclipse, and a betrayal declared in one (action-rolls.mjs
+ * `performBetrayal`). In a fight it opens the crisis actions, and at Stage 6 outside an
+ * Eclipse the betrayal is the player's own decision - the GM's client writes it and asks
+ * nobody. The chip said "GM" on all three, for both sides of a fight and for an accomplice
+ * at Stage 6. Unknown counts as the declaration, the case the tile was drawn for.
+ */
+function murderParksForGm(actor) {
+    const api = globalThis.game?.drpg;
+    if (!actor || !api?.murderState || !api?.sideOf) return true;
+    const state = api.murderState();
+    if (state?.stage === "incident" && api.sideOf(actor, state)) return false;
+    return !(api.betrayalTarget?.(actor) && !api.isEclipse?.());
 }
 
 /**

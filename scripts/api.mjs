@@ -124,7 +124,7 @@ import {
 import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress,
     trialProgressChapter } from "./vote.mjs";
 import {
-    murderState, sideOf, isTheirTurn, availableCrisisActions,
+    murderState, sideOf, isTheirTurn, availableCrisisActions, betrayalTarget,
     openMurder, resolveKillerOpening, resolveVictimOpening,
     takeCrisisAction, resolveCrisisAction, passTurn, thirdPartyEnters, beginResolution, endMurder,
     openMurderDialog, openIncidentTracker
@@ -816,6 +816,8 @@ export const DrpgApi = {
     sideOf,
     isTheirTurn,
     availableCrisisActions,
+    /** Whom this character's Direct Murder would turn on at Stage 6, or null (the tile's stripe reads it). */
+    betrayalTarget,
 
     openMurder,
     resolveKillerOpening,

@@ -33,7 +33,7 @@ import { inClassTrial } from "./trial.mjs";
 import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
 // menu with the crisis grid - see `openCrisisMenu` in action-rolls.mjs.
-import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
+import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
 // Two different silences, so both are renamed at the door rather than one of
 // them shadowing the other: a Monocub silenced for the chapter may not speak,
 // a player silenced by a Despair Call may not spend Hope.
@@ -4127,7 +4127,8 @@ function paintTamper(actor, blocked) {
     }
 }
 
-function actionButton(actor, key, def) {
+/** Exported for the suite, which reads the tile a fight draws (E32+E07 C16). */
+export function actionButton(actor, key, def) {
     const button = document.createElement("button");
     button.type = "button";
 
@@ -4235,8 +4236,23 @@ function actionButton(actor, key, def) {
     // is the same as a locked one (D12).
     const theMove = (key === "directMurder" && (inIncident || canBetray)) || cleaningNow;
 
-    button.className = `drpg-action-button${(affordable && !locked) ? "" : " unaffordable"}${
+    /*
+     * IN A FIGHT THE TILE IS THE FIGHT'S (E32+E07 C16, 03.10.2026; audit S02-33, measured at
+     * a table of three). It read "Direct Murder / 1 action / GM" for both sides: the victim
+     * was told their crisis actions were under Actions and found a tile offering to murder
+     * somebody, and the cost and the chip were both wrong - a crisis action spends no action
+     * (`costOf`) and asks no ruling of the tile (config.mjs `murderParksForGm`). It is named
+     * for the side now (`crisisTileLabel`), lit as it was, and off-turn it is dimmed with the
+     * sentence the press answers (`openCrisisMenu`) - `aria-disabled` and not `disabled`,
+     * because a disabled button takes no pointer, so its tooltip never shows (read, not
+     * measured here: the harness draws no tooltip), and the press is what says it in words.
+     */
+    const fightTile = key === "directMurder" && inIncident;
+    const offTurn = fightTile && !isTheirTurn(actor);
+
+    button.className = `drpg-action-button${(affordable && !locked && !offTurn) ? "" : " unaffordable"}${
         blocked ? " drpg-no-subject" : ""}${theMove ? " drpg-action-hot" : ""}`;
+    if (offTurn) button.setAttribute("aria-disabled", "true");
 
     // NOT `data-action`: ApplicationV2 claims that attribute for its own action
     // dispatch and swallows the click looking for a handler it does not have.
@@ -4277,7 +4293,9 @@ function actionButton(actor, key, def) {
                 ? "DRPG.Trial.actionsLocked"
                 : "DRPG.Eclipse.actionsLocked";
     const note = locked
-        ? `<br><em>${game.i18n.localize(lockReason)}</em>`
+        ? `<br><em>${inIncident ? game.i18n.format(lockReason, { tile: crisisTileLabel(actor) }) : game.i18n.localize(lockReason)}</em>`
+        : offTurn
+            ? `<br><em>${game.i18n.localize("DRPG.Murder.offTurn")}</em>`
         : affordable
             ? ""
             // The chain's own sentence when there is one: "no action, no Hope and
@@ -4310,7 +4328,10 @@ function actionButton(actor, key, def) {
      * middle line a second later when the GM's ledger answers - see the note
      * there. Without these it cut off whatever the last line was.
      */
-    button.dataset.drpgTipHead = `${foundry.utils.escapeHTML(def.hint ?? "")}${note}`;
+    // In a fight the definition's hint - "Open a direct murder" - is about another tile, and
+    // off-turn the sentence is the whole of it.
+    const hint = !fightTile ? def.hint ?? "" : offTurn ? "" : game.i18n.localize("DRPG.Murder.yourTurn");
+    button.dataset.drpgTipHead = hint ? `${foundry.utils.escapeHTML(hint)}${note}` : note.replace(/^<br>/, "");
     button.dataset.drpgTipTail = bonus;
     button.dataset.tooltip = `${button.dataset.drpgTipHead}${why}${bonus}`;
 
@@ -4333,10 +4354,12 @@ function actionButton(actor, key, def) {
         ? `<span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>`
         : "";
 
+    // No cost line in a fight: nothing is spent, and "Free" on the one live tile reads as a discount.
     button.innerHTML = `
         <i class="fa-solid ${def.icon ?? "fa-circle"} drpg-action-icon" inert></i>
-        <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${costLabel}</span>${gmMark}`;
+        <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(fightTile ? crisisTileLabel(actor) : def.label))}</span>${
+        fightTile ? "" : `
+        <span class="drpg-action-cost">${costLabel}</span>`}${gmMark}`;
 
     return button;
 }
@@ -4344,11 +4367,13 @@ function actionButton(actor, key, def) {
 /**
  * Does this action hand the turn to the GM - for THIS character, right now?
  *
- * `callsGm` used to be a constant, and for four of the five actions carrying it
- * that is still the truth: a Direct Murder always waits for a ruling. For the
- * other two it was a half-truth that showed on the tile as a promise the action
- * often did not keep - Analyze with three unidentified bullets in the bag is a
- * roll, and Work on Project in a room with a project in it is a roll.
+ * `callsGm` used to be a constant, and for some of the actions carrying it that
+ * is still the truth. For the others it was a half-truth that showed on the tile
+ * as a promise the action often did not keep - Analyze with three unidentified
+ * bullets in the bag is a roll, Work on Project in a room with a project in it is
+ * a roll, and Direct Murder waits for the GM only as a declaration: in a fight it
+ * opens the crisis actions, and at Stage 6 outside an Eclipse it is the betrayal,
+ * which the player decides (E32+E07 C16; config.mjs `murderParksForGm`).
  *
  * So the flag may also be a predicate, and both forms are read here, in the one
  * place both consumers can share: the cost stripe and the "waits for the GM"
@@ -4387,9 +4412,22 @@ function costOf(actor, key, def) {
         return quote.pay === "action" ? quote.amount : 0;
     }
 
+    if (key === "directMurder" && directMurderIsFree(actor)) return 0;
     if (key !== "move") return def.cost ?? 1;
     if (isEclipse()) return 0;
     return hasFreeMove(actor) ? 0 : 1;
+}
+
+/**
+ * Whether Direct Murder spends nothing for this character now (E32+E07 C16, 03.10.2026; audit
+ * S02-33): in a fight it opens the crisis actions, which `takeCrisisAction` charges nothing
+ * for, and at Stage 6 outside an Eclipse it is the betrayal, which `performBetrayal` charges
+ * only in an Eclipse. The tile said "1 action" for both, and dimmed itself as unaffordable for
+ * a killer with no action left at the one moment it was the only thing to press.
+ */
+function directMurderIsFree(actor) {
+    if (murderState()?.stage === "incident" && sideOf(actor)) return true;
+    return !isEclipse() && Boolean(betrayalTarget(actor));
 }
 
 /**

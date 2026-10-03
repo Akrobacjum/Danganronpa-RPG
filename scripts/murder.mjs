@@ -65,7 +65,7 @@ import { keepLive, closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, tableDialog, whisperToGms,
     whisperToOwner as whisperToOwnerPlain, ownerOf, ownerIdsOf, gmIds,
-    isPrimaryGm, primaryGmId, log, warn, error, plural, debug, esc} from "./utils.mjs";
+    isPrimaryGm, primaryGmId, log, warn, error, plural, debug, esc, cardHead} from "./utils.mjs";
 
 /*
  * VEILED, ALL OF THEM (LIVE-001, the closing half).
@@ -877,6 +877,18 @@ export function isTheirTurn(actor, state = murderState()) {
     return (state.killerTurnId ?? killers[0]) === actor.id;
 }
 
+/**
+ * What the tile a participant fights from is called (E32+E07 C16, 03.10.2026; audit
+ * S02-33): "Fight back" on the victim's side, "Crisis actions" on the killer's and for a
+ * third who has not picked one. It said "Direct Murder" for both, and at a table of three
+ * the victim was told their actions were "on your character sheet, under Actions", where
+ * the one live tile was the last thing they would press. The sheet's tile, the sentence
+ * on the other nine and the refusal in `performAction` read it here.
+ */
+export function crisisTileLabel(actor, state = murderState()) {
+    return game.i18n.localize(sideOf(actor, state) === "victim" ? "DRPG.Murder.tileFightBack" : "DRPG.Murder.tileCrisis");
+}
+
 /** Crisis actions this actor may take right now, with their hindered flags. */
 /**
  * Is this side sitting on a critical Self-defence's free action right now?
@@ -1321,6 +1333,7 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     const success = isCritical || total >= def.threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
     await announceOpening(state, prose.label, { rollerId: state.killerId, success, band, total, threshold: def.threshold });
+    await retireOpeningNotices();
 
     if (!success) {
         await tellGms(prose.failure);
@@ -1437,6 +1450,7 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
     const success = isCritical || total >= def.threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
     await announceOpening(state, def.label, { rollerId: state.victimId, success, band, total, threshold: def.threshold });
+    await retireOpeningNotices();
 
     if (!success) {
         // Nothing else opens an indirect murder, so this is the moment the
@@ -3978,6 +3992,8 @@ async function liftIntoCast(fields, what) {
 export function registerMurder() {
     registerIncidentCastSync();
     registerDeathCopy();
+    // The roll window an opening opens on this browser, kept so taking it back closes it alone (S04-35).
+    Hooks.on("renderD20RollDialog", markOpeningDialog);
 
     // The betrayal's day-long window (D18). Swept rather than counted down -
     // see `sweepBetrayalWindows`.
@@ -5612,17 +5628,51 @@ export async function openMurderDialog({ killerId = null, victimId = null, indir
  * incident cannot wait on somebody who has gone home.
  */
 /**
- * What this Stage 4 roll is called, on the window and in the whisper.
+ * What this Stage 4 roll is called on the roller's screen: its window, and the request card
+ * that says it is theirs.
  *
- * Prose from config.mjs rather than an i18n key - see MURDER_OPENING. The
- * self-inflicted variant matters here more than anywhere else it is read: the
- * roll goes to the player's own client, and a dialog titled "Opening roll -
- * killer" is a strange thing to put in front of somebody rolling for their own
- * death.
+ * The self-inflicted variant matters here more than anywhere else it is read: the roll goes
+ * to the player's own client, and a dialog titled "Opening roll - killer" is a strange thing
+ * to put in front of somebody rolling for their own death. The request card used MURDER_OPENING's
+ * label, the GMs' name for the roll, glued to its sentence - "Opening roll - killer - This
+ * roll is yours..." on the killer's notice (E32+E07 C16, 03.10.2026; audit S02-30) - so it
+ * takes the window's name now, as the notice's title.
  */
-function openingLabel(side, state = murderState()) {
-    const def = MURDER_OPENING[side];
-    return ((state?.selfInflicted && def?.selfInflicted) || def)?.label ?? "";
+function openingTitle(side, state = murderState()) {
+    return game.i18n.localize(state?.selfInflicted ? "DRPG.Roll.opening.selfInflicted" : `DRPG.Roll.opening.${side}`);
+}
+
+/**
+ * THE REQUEST AND THE WAITING LINE GO WHEN THE OPENING DOES (E32+E07 C16, 03.10.2026;
+ * audit S02-30). The killer's notice "This roll is yours" stayed in the corner of their
+ * screen through the whole of the victim's first turn, beside a panel that said only that
+ * the incident was waiting for them: a request for a roll already made, under no answer.
+ * The result reaches the roller by its own card (`announceOpening`); the request and C11c's
+ * line that the GM is picking its statistic are deleted as the opening resolves, or is
+ * taken back (`revokeOpeningInvitation`), and a notice drawn from a deleted card goes with
+ * it (popup.mjs).
+ *
+ * The ids are kept on the browser that posted the cards, which is the GM's that asked: the
+ * same one that resolves the roll on one GM's table, and that closes the murder from its
+ * tracker. A second GM's re-ask whose roll the primary resolves leaves that GM's request
+ * standing until the murder closes on it - read off the code, not measured with two GMs.
+ */
+const openingNotices = new Set();
+
+function keepOpeningNotice(message) {
+    if (message?.id) openingNotices.add(message.id);
+}
+
+async function retireOpeningNotices() {
+    const ids = [...openingNotices];
+    openingNotices.clear();
+    for (const id of ids) {
+        try {
+            await game.messages.get(id)?.delete();
+        } catch {
+            // A card somebody already cleared is not a problem.
+        }
+    }
 }
 
 /**
@@ -5639,10 +5689,10 @@ export async function rollOpening(side, state) {
     if (owner?.active) {
         const { askOpeningRoll } = await import("./gm-bridge.mjs");
         if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait })) {
-            // `label` is prose from config.mjs, not an i18n key - see MURDER_OPENING.
-            await whisperToOwner(actor, `<p><strong>${
-                foundry.utils.escapeHTML(openingLabel(side, state))
-            }</strong> - ${game.i18n.localize("DRPG.Murder.openingYours")}</p>`);
+            const title = openingTitle(side, state);
+            keepOpeningNotice(await whisperToOwner(actor,
+                `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
+                { flags: { [MODULE_ID]: { popupTitle: title } } }));
             return { asked: true, of: owner.name };
         }
     }
@@ -5702,7 +5752,7 @@ async function tellOpeningRoller(side, state) {
         const whisper = incidentAudienceIds(state, { stage: "openingRoll" });
         if (!whisper.length) return;
         const key = side === "killer" ? "DRPG.TraitRuling.openingKiller" : "DRPG.TraitRuling.openingVictim";
-        await announce({ content: `<p>${game.i18n.localize(key)}</p>`, whisper });
+        keepOpeningNotice(await announce({ content: `<p>${game.i18n.localize(key)}</p>`, whisper }));
     } catch (err) {
         // The GM still picks; a line that did not go out must not hold the roll.
         error("Could not tell the opening roll's side that the GM is choosing its statistic", err);
@@ -5728,6 +5778,26 @@ async function tellOpeningRoller(side, state) {
  * open at the same moment, and revoking a murder invitation must not shut that.
  */
 let openingRollsInFlight = 0;
+
+/**
+ * AND WHICH WINDOWS THEY OPENED (E32+E07 C16, 03.10.2026; audit S04-35). The count above was
+ * all `closeOpeningRoll` asked, and with it above zero it closed every D20RollDialog on
+ * screen - the Search roll the note above promises to spare, and a second opening a GM was
+ * throwing for somebody else. A window is ours when it is drawn while an opening is in
+ * flight here under the opening's own title (`openingTitle`; Daggerheart's D20RollDialog
+ * titles itself "<config.title>: <actor>", d20RollDialog.mjs at 2.6.5 and 2.10.5, read not
+ * run). Kept by instance, so a title the window rewrites afterwards does not matter.
+ */
+const openingDialogs = new Set();
+
+function markOpeningDialog(app) {
+    if (!openingRollsInFlight) return;
+    const title = String(app?.title ?? "");
+    const ours = ["killer", "victim", "selfInflicted"]
+        .map(key => game.i18n.localize(`DRPG.Roll.opening.${key}`))
+        .some(name => title.startsWith(name));
+    if (ours) openingDialogs.add(app);
+}
 
 /** The tracker's "ask again": once per ten seconds on this client. */
 let lastReask = 0;
@@ -5756,11 +5826,10 @@ function openingStillWanted(side, actorId) {
  * loop by the ordinary route rather than by anything exotic.
  */
 export function closeOpeningRoll() {
-    if (!openingRollsInFlight) return 0;
-
     let closed = 0;
-    for (const app of foundry.applications.instances?.values?.() ?? []) {
-        if (!app.rendered || app.constructor.name !== "D20RollDialog") continue;
+    for (const app of openingDialogs) {
+        openingDialogs.delete(app);
+        if (!app.rendered) continue;
         app.close();
         closed++;
     }
@@ -5783,6 +5852,7 @@ export function closeOpeningRoll() {
  */
 async function revokeOpeningInvitation(state) {
     closeOpeningRoll();
+    await retireOpeningNotices();
     // And this GM's window picking its statistic (E32+E07 C11c), which would send the invitation.
     closeOpen((await import("./trait-ruling.mjs")).pickWindowClass("opening"));
     if (!state?.killerId && !state?.victimId) return;
@@ -5835,10 +5905,8 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
                 remember: false,
                 byGm: true,
                 actionKey: "murderOpening",
-                // Thrown on the participant's own client - see `openingLabel`.
-                title: game.i18n.localize(murderState()?.selfInflicted
-                    ? "DRPG.Roll.opening.selfInflicted"
-                    : `DRPG.Roll.opening.${side}`),
+                // Thrown on the participant's own client - see `openingTitle`.
+                title: openingTitle(side),
                 context: { side }
             });
             if (!roll && attempt < MAX_ATTEMPTS && openingStillWanted(side, actorId)) {
@@ -5847,6 +5915,7 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
         }
     } finally {
         openingRollsInFlight = Math.max(0, openingRollsInFlight - 1);
+        if (!openingRollsInFlight) openingDialogs.clear();
         calls.clearSituational();
     }
 

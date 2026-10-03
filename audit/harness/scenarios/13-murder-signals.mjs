@@ -157,7 +157,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const w = globalThis.__openWords;
         return { card: w.some(h => h.includes(head) && h.includes("<p>${total} ")), cards: w.filter(h => h.includes(head)).length,
             all: w.length, dice3d: Boolean(game.dice3d) };`;
+    /* THE REQUEST GOES WITH THE OPENING (E32+E07 C16, 03.10.2026; audit S02-30). The killer's
+       notice "This roll is yours" stayed in the corner of their screen and in their chat log
+       through the victim's first turn, and the GM's line that they were picking the statistic
+       with it; the result reached them by its own card (E06 fix r1-G3). Netted on p3 as the
+       words arrive - each card's id with them - and read off p3's chat log and its notices:
+       before the first opening is scored, after its failure, and after the second's success. */
+    const NOTICE_NET = `globalThis.__openCards = [];
+        if (!globalThis.__openCardsOn) {
+            globalThis.__openCardsOn = true;
+            game.socket.on("module.${MOD}", p => { if (p?.action === "secret.card") globalThis.__openCards.push({ id: p.id, html: String(p.html ?? "") }); });
+        }
+        return true;`;
+    // `asked`: wait (4 s at most) for the request's notice to be drawn; otherwise for it to go.
+    const NOTICE_READ = (total, asked) => `const yours = game.i18n.localize("DRPG.Murder.openingYours"), line = game.i18n.localize("DRPG.TraitRuling.openingKiller");
+        const ids = words => (globalThis.__openCards ?? []).filter(c => c.html.includes(words)).map(c => c.id);
+        const kept = words => [ids(words).length, ids(words).filter(id => game.messages.has(id)).length];
+        const shown = () => [...document.querySelectorAll(".drpg-popup:not(.leaving)")].filter(c => c.textContent.includes(yours)).length;
+        const settled = () => ${asked ? "shown() > 0" : "shown() === 0 && kept(yours)[1] === 0"};
+        const end = Date.now() + 4000;
+        while (!settled() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { request: kept(yours), line: kept(line), result: kept("<p>${total} "), shown: shown() };`;
     for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
+    await p3.eval(NOTICE_NET);
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dice3dOff = game.dice3d; delete game.dice3d; return true;`);
     await p3.eval(HOLD);
     const pickedAt = await gm.eval(`const T = game.i18n.localize("DRPG.TraitRuling.title");
@@ -166,6 +188,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const firstOpened = await gm.eval(OPEN(null), { timeout: 60000 });
     await settle(900);
     const atOpening = await readAll();
+    const noticeAsked = await p3.eval(NOTICE_READ(1, true));
     const openingCard = { gm: await gm.eval(OPENING), victim: await p1.eval(OPENING), killer: await p3.eval(OPENING) };
     const LINE_READ = `const line = game.i18n.localize("DRPG.TraitRuling.openingKiller");
         return { line: (globalThis.__openWords ?? []).filter(h => h.includes(line)).length, held: globalThis.__heldTraits ?? null };`;
@@ -201,6 +224,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     await settle(900);
     const heldFirst = await p3.eval(RELEASE);
     const afterFail = await readAll();
+    const noticeFailed = await p3.eval(NOTICE_READ(1, false));
+    check("opening: a failed opening takes the killer's request and the GM's line out of their chat log and their corner, and its result's card stays",
+        JSON.stringify([noticeAsked.request, noticeAsked.line, noticeAsked.shown]) === JSON.stringify([[1, 1], [1, 1], 1])
+        && JSON.stringify([noticeFailed.request, noticeFailed.line, noticeFailed.result, noticeFailed.shown]) === JSON.stringify([[1, 0], [1, 0], [1, 1], 0]),
+        JSON.stringify({ noticeAsked, noticeFailed }), { flow: "murder-incident" });
     const castsAfterFail = await p1.eval(CAST_NET);
     check("opening: a failed opening leaves the victim holding nothing, and sends them no cast, not even an empty one",
         heldFirst === 1 && failed.success === false && failed.running === false
@@ -216,9 +244,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
 
     /* The second murder, whose opening part 1 lets succeed. */
     for (const c of [p1, p2, p3]) await c.eval(OPEN_NET);
+    await p3.eval(NOTICE_NET);
     await p3.eval(HOLD);
     const secondOpened = await gm.eval(OPEN("body"), { timeout: 60000 });
     await settle(300);
+    const noticeSecond = await p3.eval(NOTICE_READ(24, true));
     const castsAtSecond = await p1.eval(CAST_NET);
 
     /* ---- 1. a DIRECT murder: the killer is in the room ---------------------- */
@@ -236,6 +266,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         secondOpened === "openingRoll" && heldSecond === 1 && castsAtSecond === castsAtStart && castsAtIncident - castsAtSecond === 1,
         JSON.stringify({ secondOpened, heldSecond, casts: [castsAtStart, castsAtSecond, castsAtIncident] }));
     const openWords = { killer: await p3.eval(OPEN_READ(24)), victim: await p1.eval(OPEN_READ(24)), bystander: await p2.eval(OPEN_READ(24)) };
+    const noticeLanded = await p3.eval(NOTICE_READ(24, false));
+    check("direct: the opening's success takes the killer's request out of their chat log and their corner, and its result's card stays",
+        JSON.stringify([noticeSecond.request, noticeSecond.shown]) === JSON.stringify([[1, 1], 1])
+        && JSON.stringify([noticeLanded.request, noticeLanded.line, noticeLanded.result, noticeLanded.shown]) === JSON.stringify([[1, 0], [0, 0], [1, 1], 0]),
+        JSON.stringify({ noticeSecond, noticeLanded }), { flow: "murder-incident" });
     check("direct: with Dice So Nice the killer is sent what their opening came to, the victim and the bystander not (D6)",
         openWords.killer.card && openWords.killer.cards === 1 && openWords.killer.dice3d === true
         && openWords.victim.cards === 0 && openWords.bystander.all === 0,

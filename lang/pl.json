@@ -1429,7 +1429,7 @@
       "oneAtATime": "Incydent już trwa. Musi się skończyć, zanim zacznie się kolejny.",
       "crisisPrompt": "Co z tym robisz?",
       "nothingToDo": "Nie zostało ci nic do zrobienia w tej rundzie.",
-      "actionsLocked": "Jesteś w incydencie. Wszystko, co możesz zrobić, kryje się za Direct Murder; Hope Calls wciąż działają.",
+      "actionsLocked": "Jesteś w incydencie. Wszystko, co możesz zrobić, kryje się pod kafelkiem {tile}; Hope Calls wciąż działają.",
       "thirdJoined": "{name} staje po stronie zabójcy i zostaje w incydencie.",
       "thirdLeft": "{name} odwraca się i wychodzi. Nie bierze w tym udziału.",
       "openingYours": "Ten rzut jest twój i jest jedyny. Nie da się go pominąć.",
@@ -1464,8 +1464,11 @@
         "trial": "trwa Class Trial",
         "dead": "jedna z dwóch osób już nie żyje"
       },
-      "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Twoje akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
-      "victimTrapSprung": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął i pierwsza tura jest twoja - akcje kryzysowe są na karcie postaci, w zakładce Akcje.",
+      "victimUnderAttackBy": "<strong>{killer} rusza na ciebie.</strong> Incydent się zaczął i pierwsza tura jest twoja. Na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
+      "victimTrapSprung": "<strong>Pułapka się zamyka.</strong> Za późno, by ją zauważyć. Incydent się zaczął i pierwsza tura jest twoja - na karcie postaci, w zakładce Akcje, naciśnij Broń się.",
+      "tileCrisis": "Akcje kryzysowe",
+      "tileFightBack": "Broń się",
+      "offTurn": "Teraz ich tura. Twoje akcje kryzysowe otworzą się, gdy tura wróci do ciebie.",
       "betrayTileLabel": "Zwróć się przeciw partnerowi",
       "betrayTileHint": "Zabij osobę, której właśnie pomagasz. To otwiera drugi incydent - ty jako zabójca, oni jako ofiara - i zostawia dwa ciała z jednej nocy. GM potwierdza, zanim cokolwiek się stanie.",
       "briefCostStress": "Kosztuje {n} Sanity.",
@@ -3164,7 +3167,7 @@
     "Roll": {
       "opening": {
         "killer": "Otwarcie morderstwa - twój rzut",
-        "victim": "Pułapka się zamyka - ich rzut",
+        "victim": "Pułapka się zamyka - twój rzut",
         "selfInflicted": "Decyzja - twój rzut"
       },
       "crisis": "Akcja kryzysowa",

@@ -2402,7 +2402,9 @@ const REGRESSIONS = [
         ok(label.includes("priceLabel("),
             "the tile's price label no longer says which step will pay");
 
-        const button = bodyOf(sheet, "function actionButton(", { length: 6000 });
+        // The whole function, not its first 6000 characters: E32+E07 C16 (03.10.2026) grew it
+        // and pushed `priced?.blocked` to 6365, and this read a refusal that was still there as gone.
+        const button = bodyOf(sheet, "function actionButton(", { until: "function callsGmFor(" });
         ok(/const affordable = priced \? !priced\.blocked/.test(button),
             "a priced tile is dimmed by its action step rather than by the whole chain");
         ok(button.includes("stripeKindFor("),

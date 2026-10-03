@@ -5517,11 +5517,14 @@ const INVARIANTS = [
  * literal "DRPG.x" in the source, from the files Foundry serves, so the list
  * only repeated it: on 1.2.60, R1's pattern read 69 of its 78 keys. Of the
  * other nine, two (Murder.betrayTileLabel and betrayTileHint) were used by no
- * file and are gone; seven were built at run time. Four are left here:
+ * file and are gone; seven were built at run time. Four were left here, and
+ * E32+E07 C16 added two:
  *
  *   murder.mjs         victimTrapSprung / victimUnderAttackBy, by `state.indirect`
  *                      (victimUnderAttack until E06 C4, which names the killer)
  *   season-setup.mjs   `DRPG.Season.step.${key}` and `.hint.`, for the resources step
+ *   murder.mjs         `DRPG.Roll.opening.${side}`, the opening's window and request card
+ *                      (E32+E07 C16 found them built and unlisted since 1.2.50)
  *
  * The other three were `DRPG.Bridge.what.${action}` keys, and left in E31
  * (25.09.2026): R1b checks that whole family now, in both files - the label of
@@ -5531,7 +5534,8 @@ const INVARIANTS = [
  */
 const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
-    "DRPG.Season.step.resources", "DRPG.Season.hint.resources"
+    "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
+    "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim"
 ];
 
 export { INVARIANTS };

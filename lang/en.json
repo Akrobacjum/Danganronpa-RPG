@@ -1412,7 +1412,7 @@
       "oneAtATime": "There is already an incident running. It has to finish before another can start.",
       "crisisPrompt": "What are you doing about it?",
       "nothingToDo": "There is nothing left for you to do this round.",
-      "actionsLocked": "You are in an incident. Everything you can do is behind Direct Murder; Hope Calls still work.",
+      "actionsLocked": "You are in an incident. Everything you can do is behind {tile}; Hope Calls still work.",
       "thirdJoined": "{name} throws in with the killer and stays in the incident.",
       "thirdLeft": "{name} turns away and leaves. They take no part in this.",
       "openingYours": "This roll is yours, and it is the only one. It cannot be skipped.",
@@ -1445,8 +1445,11 @@
         "trial": "a Class Trial is in session",
         "dead": "one of the two is no longer alive"
       },
-      "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun and the first turn is yours. Your crisis actions are on your character sheet, under Actions.",
-      "victimTrapSprung": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun and the first turn is yours - your crisis actions are on your character sheet, under Actions.",
+      "victimUnderAttackBy": "<strong>{killer} is moving on you.</strong> The incident has begun and the first turn is yours. On your character sheet, under Actions, press Fight back.",
+      "victimTrapSprung": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun and the first turn is yours - on your character sheet, under Actions, press Fight back.",
+      "tileCrisis": "Crisis actions",
+      "tileFightBack": "Fight back",
+      "offTurn": "It is their turn. Your crisis actions open when it comes back to you.",
       "betrayTileLabel": "Turn on your partner",
       "betrayTileHint": "Kill the person you just helped. This opens a second incident with you as the killer and them as the victim, and leaves two bodies from one night. The GM confirms before anything happens.",
       "briefCostStress": "Costs {n} Sanity.",
@@ -3042,7 +3045,7 @@
     "Roll": {
       "opening": {
         "killer": "Opening the murder - your roll",
-        "victim": "The trap goes off - their roll",
+        "victim": "The trap goes off - your roll",
         "selfInflicted": "Going through with it - your roll"
       },
       "crisis": "Crisis action",

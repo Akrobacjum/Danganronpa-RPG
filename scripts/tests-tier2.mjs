@@ -431,7 +431,8 @@ async function withBetrayalWindows(note, run) {
  * `secret.card` packet (secret.mjs `postSecret`) as { id, to, html } - the card's id, the
  * users it was addressed to and its words - and every packet let through. A card's
  * document names nobody when it is veiled, so who was told is read here, off the packets.
- * The GM's own copy travels no socket and is not among them.
+ * The GM's own copy travels no socket and is not among them. `run` is handed the list as it
+ * fills (E32+E07 C16), for a card that goes out after the call it waits on has answered.
  */
 async function wordsSent(run) {
     const socket = game.socket;
@@ -445,7 +446,7 @@ async function wordsSent(run) {
         return send.call(this, event, packet, options, ...rest);
     };
     try {
-        await run();
+        await run(sent);
     } finally {
         if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
     }
@@ -475,6 +476,27 @@ async function openingAsks(run) {
         if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
     }
     return sent;
+}
+
+/**
+ * The opening's invitations swallowed while `run` runs (E32+E07 C16): every `murder.openingAsk`
+ * packet is dropped, so no player's browser throws the roll and resolves the opening while a
+ * test holds it at `openingRoll` - the harness has no roll window to wait in, and a player's
+ * browser throws as the packet lands. Everything else is let through.
+ */
+async function heldInvitations(run) {
+    const socket = game.socket;
+    const own = Object.getOwnPropertyDescriptor(socket, "emit");
+    const send = socket.emit;
+    socket.emit = function (event, packet, ...rest) {
+        if (packet?.action === "murder.openingAsk") return true;
+        return send.call(this, event, packet, ...rest);
+    };
+    try {
+        return await run();
+    } finally {
+        if (own) Object.defineProperty(socket, "emit", own); else delete socket.emit;
+    }
 }
 
 /**
@@ -13140,6 +13162,160 @@ const SCENARIOS = [
         } finally {
             await C.consumeCalls(killer);
             await putBack();
+        }
+    }],
+
+    ["in a fight the tile says Crisis actions, no cost, no GM chip; off-turn disabled with its sentence", async () => {
+        /*
+         * E32+E07 C16, 03.10.2026; audit S02-33. In a fight the one live tile read "Direct
+         * Murder / 1 action / GM" for both sides, and pressed off-turn it said "Incident -
+         * waiting for them" and looked no different. A direct murder opens here with its
+         * invitation held (`heldInvitations`) and the killer's opening scored a success, so
+         * the first turn is the victim's. Read off the tile each side's sheet draws
+         * (sheet.mjs `actionButton`): its name, whether it has a cost line and the GM's chip,
+         * its stripe, whether it is dimmed and marked disabled, and whether its tooltip says
+         * the off-turn sentence; then the killer's press, and the sentence on the victim's
+         * Search tile. Until C16: "Direct Murder", "1 action", the chip, the "gm" stripe, live
+         * off-turn, and the old heading said on the press.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { actionButton } = await import("./sheet.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const offTurn = game.i18n.localize("DRPG.Murder.offTurn");
+        const read = actor => {
+            const tile = actionButton(actor, "directMurder", ACTIONS.directMurder);
+            return [(tile.querySelector(".drpg-action-name")?.textContent ?? "").replace(/[­​]/g, "").trim(),
+                Boolean(tile.querySelector(".drpg-action-cost")), Boolean(tile.querySelector(".drpg-action-gm")),
+                tile.dataset.drpgCostKind ?? null, tile.getAttribute("aria-disabled") === "true",
+                tile.classList.contains("unaffordable"), (tile.dataset.tooltip ?? "").includes(offTurn)];
+        };
+        await heldInvitations(async () => {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        });
+        await settle();
+        must(M.murderState()?.stage === "incident" && M.isTheirTurn(victim) && !M.isTheirTurn(killer),
+            `the fight is not at the victim's first turn: ${stableJson(M.murderState())}`);
+        const said = [];
+        const own = Object.getOwnPropertyDescriptor(ui.notifications, "info");
+        ui.notifications.info = message => { said.push(String(message)); };
+        try {
+            await performAction(killer, "directMurder");
+        } finally {
+            if (own) Object.defineProperty(ui.notifications, "info", own); else delete ui.notifications.info;
+        }
+        const locked = game.i18n.format("DRPG.Murder.actionsLocked", { tile: game.i18n.localize("DRPG.Murder.tileFightBack") });
+        const search = actionButton(victim, "search", ACTIONS.search).dataset.tooltip ?? "";
+        equal(stableJson([read(killer), read(victim), said, search.includes(locked)]),
+            stableJson([[game.i18n.localize("DRPG.Murder.tileCrisis"), false, false, "free", true, true, true],
+                [game.i18n.localize("DRPG.Murder.tileFightBack"), false, false, "free", false, false, false], [offTurn], true]),
+            "the fight's tile kept its name, its cost or the GM's chip, was live off-turn or lit on the turn, or the press and the other tiles did not say the sentence (killer's tile, victim's tile, said, Search's tooltip)");
+    }],
+
+    ["the opening's request is gone once it resolves, or once the murder closes before it", async () => {
+        /*
+         * E32+E07 C16, 03.10.2026; audit S02-30. The killer's notice "This roll is yours"
+         * stayed through the victim's first turn, a request for a roll already made, and the
+         * GM's line that they were picking its statistic stayed with it. A direct murder opens
+         * with no statistic picked (the GM's window answered Body) and its invitation held
+         * (`heldInvitations`); the cards sent to the killer's player are read off the packets
+         * (`wordsSent`): the request, the line, and the result's card as the opening is scored
+         * a success. Then a second murder opens with Body picked and is closed before its
+         * roll. Read: how many of each were sent, and how many are still in the chat log.
+         * Until C16 both stayed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim");
+        const M = await import("./murder.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const yours = game.i18n.localize("DRPG.Murder.openingYours");
+        const line = game.i18n.localize("DRPG.TraitRuling.openingKiller");
+        const of = (sent, words) => sent.filter(c => c.to.includes(player(killer).id) && c.html.includes(words)).map(c => c.id);
+        const kept = ids => ids.filter(id => game.messages.has(id)).length;
+        const traits = answerTraitWindows();
+        traits.pick = () => "body";
+        try {
+            const read = await heldInvitations(async () => {
+                const asked = await wordsSent(async sent => {
+                    await M.openMurder({ killerId: killer.id, victimId: victim.id });
+                    await until(() => of(sent, yours).length > 0, 6000);
+                });
+                const scored = await wordsSent(() => M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true }));
+                await settle();
+                const first = [of(asked, yours), of(asked, line), of(scored, "<p>24 ")];
+                await M.endMurder({ reason: "test", followUp: false });
+                const again = await wordsSent(async sent => {
+                    await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                    await until(() => of(sent, yours).length > 0, 6000);
+                });
+                await M.endMurder({ reason: "test", followUp: false });
+                await settle();
+                return [...first, of(again, yours)].map(ids => [ids.length, kept(ids)]);
+            });
+            equal(stableJson(read), stableJson([[1, 0], [1, 0], [1, 1], [1, 0]]),
+                "the request or the GM's line outlived the opening's result, the result's card did not reach the killer, or the request outlived a murder closed before its roll (request, line, result, closed murder's request: [sent, still in the log])");
+        } finally {
+            traits.restore();
+        }
+    }],
+
+    ["closing the opening leaves a Search roll open", async () => {
+        /*
+         * E32+E07 C16, 03.10.2026; audit S04-35. Taking an opening back closed every
+         * D20RollDialog on the browser while an opening was in flight there - a player's own
+         * Search roll, a second opening a GM was throwing for somebody else - against the
+         * promise in its own comment. Two windows of that class are drawn here: one titled as
+         * a Search roll, drawn first, and the opening's own, drawn by the killer's `rollTrait`
+         * as Daggerheart's would be, which answers when it closes. The opening is thrown on
+         * this browser with its invitation held (`heldInvitations`), then the murder is
+         * closed. Read: which window is still open, and what the throw came to. Until C16
+         * both closed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        class D20RollDialog extends foundry.applications.api.ApplicationV2 {
+            async _renderHTML() { return ""; }
+            _replaceHTML(result, content) { content.innerHTML = result; }
+            async close(options) {
+                const out = await super.close(options);
+                this.closed?.();
+                return out;
+            }
+        }
+        const search = new D20RollDialog({ window: { title: `${ACTIONS.search.label}: ${killer.name}` } });
+        let opening = null;
+        killer.rollTrait = (dh, config) => new Promise(resolve => {
+            opening = new D20RollDialog({ window: { title: `${config?.title ?? ""}: ${killer.name}` } });
+            opening.closed = () => resolve(null);
+            opening.render({ force: true });
+        });
+        try {
+            await search.render({ force: true });
+            const thrown = await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                const throwing = M.throwOpeningRoll("killer", killer.id, "body");
+                await until(() => opening?.rendered, 6000);
+                must(opening?.rendered && search.rendered, "the two roll windows were not both drawn");
+                await M.endMurder({ reason: "test", followUp: false });
+                // Bounded: a window nothing closes would hold the throw for ever.
+                return Promise.race([throwing, wait(3000).then(() => "still throwing")]);
+            });
+            equal(stableJson([opening.rendered, search.rendered, thrown]), stableJson([false, true, null]),
+                "taking the opening back left its own window open, closed the Search roll's, or the throw came to something (opening open, Search open, thrown)");
+        } finally {
+            delete killer.rollTrait;
+            if (opening?.rendered) await opening.close();
+            if (search.rendered) await search.close();
         }
     }],
 

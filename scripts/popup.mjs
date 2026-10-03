@@ -344,7 +344,7 @@ const KINDS = ["info", "error", "evidence", "objection"];
 const TONES = ["hope", "fear", "critical"];
 
 export function showPopup(bodyHtml, {
-    title = null, kind = "info", onClick = null, sticky = false, tone = null
+    title = null, kind = "info", onClick = null, sticky = false, tone = null, messageId = null
 } = {}) {
     const card = document.createElement("div");
     card.className = `drpg-popup drpg-popup-${KINDS.includes(kind) ? kind : "info"}${
@@ -390,6 +390,8 @@ export function showPopup(bodyHtml, {
 
     const host = hostFor(kind, sticky);
     card.dataset.drpgSeq = String(++arrivals);
+    // The card it was drawn from, so the notice goes when that card is deleted (`registerPopups`).
+    if (messageId) card.dataset.drpgMessage = messageId;
     /* THE NEWEST ON TOP, AND THE OLD ONES PUSHED UNDER IT (22.09, Dawid: "nowy notice ma
        wypychac pod spod stare"). The corner tile used to append, so a new notice came in
        below the ones already there. It goes in first now; what it pushes past the tile's
@@ -510,6 +512,17 @@ export function showWaiting(text, title = null) {
 
 export function registerPopups() {
     Hooks.on("createChatMessage", onCreateChatMessage);
+    /* A NOTICE GOES WITH ITS CARD (E32+E07 C16, 03.10.2026; audit S02-30). A notice is drawn
+       once and has no timer, so a card the module took back - the opening's request once the
+       roll has resolved, a rerolled action's old outcome - stayed in the corner after the
+       chat log had dropped it, asking for a roll already made: measured in 13-murder-signals
+       with the opening's cards deleted and this hook absent, the killer's notice stayed, and
+       after a second murder there were two. Closed as its own close button closes it. */
+    Hooks.on("deleteChatMessage", message => {
+        for (const card of document.querySelectorAll(".drpg-popup[data-drpg-message]")) {
+            if (card.dataset.drpgMessage === message?.id) card.querySelector(".drpg-popup-close")?.click();
+        }
+    });
 }
 
 /**
@@ -613,6 +626,7 @@ async function onCreateChatMessage(message) {
         // Carried on the message rather than worked out here, for the same
         // reason the title is: the card appears on every screen the whisper
         // reached, and only the client that posted it knows what the roll did.
-        tone: cardFlag(message, "popupTone") ?? null
+        tone: cardFlag(message, "popupTone") ?? null,
+        messageId: message.id
     });
 }
