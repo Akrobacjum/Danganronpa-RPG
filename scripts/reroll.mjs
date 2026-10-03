@@ -45,9 +45,9 @@
 import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
 import { resolveThreshold, easedBy, log, error, plural, esc, isPrimaryGm, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
 import { searchTier, stashStepFor, stashText, rollTone } from "./action-rolls.mjs";
-import { leavesTraceFor } from "./inventory.mjs";
+import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
-import { rerollBookmarkStore, rerollJournalStore } from "./gm-stores.mjs";
+import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
 
@@ -292,16 +292,35 @@ export function replayBookmark(row) {
  * Why the action a row names cannot be taken back now, asked before the payment
  * (the plan's 2.5), or null. Each undo checks again as it writes. A crisis action is
  * asked what its undo's packet was asked by the bridge until this commit
- * (`crisisUndoRefusal`, murder.mjs); the other actions' own checks are C6a's and
- * C6b's, and answer null here.
+ * (`crisisUndoRefusal`, murder.mjs); the other actions' own checks are C6b's, and
+ * answer null here.
+ *
+ * AN OBSERVE IS TAKEN BACK ONCE ITS RESULT STANDS (E08+E28 C6a, 03.10.2026; audit S05-22).
+ * Its result is written on the GM's client after the GM has described the find, and the
+ * key and result reach the row only then (observe.mjs `keepResult`). A Reroll asked in
+ * between found a row with no key: the Hope was paid, the dice rewritten, the replay said
+ * there was nothing to take back, and the first result was then written under the new
+ * dice. So it is refused here, nothing paid: while the GM is still describing it
+ * (`observeBeingDescribed`), and while the row has no result to undo. An Observe the GM
+ * ruled by hand has no key and is asked again instead (`settleGmRuling`).
  */
 async function replayRefusal(actor, row) {
     if (row.actionKey === "crisis" && row.facts?.crisis) {
         const { crisisUndoRefusal } = await import("./murder.mjs");
         return crisisUndoRefusal(actor, row.facts.crisis);
     }
+    if (row.actionKey === "observe" && !row.claims?.gmRuled) {
+        const { observeBeingDescribed } = await import("./observe.mjs");
+        if (observeBeingDescribed(actor.id)) return "the GM is still describing what that Observe found";
+        if (!row.facts?.observeKey) return "that Observe has no result to take back";
+    }
     return null;
 }
+
+/** What a GM's own Reroll shows for a replay's refusal, where the bridge's code would say less. */
+const REPLAY_SAYS = Object.freeze({
+    "the GM is still describing what that Observe found": "DRPG.Reroll.observeBusy"
+});
 
 /**
  * The checks of the plan's 2.3 step 2, in its order, on the GM, before anything is
@@ -332,7 +351,7 @@ async function rerollRefusal(actor, sender, cost) {
     const held = hopeHeld(actor);
     if (held < cost) return { why: `the buyer holds ${held} Hope, the Call costs ${cost}`, said: game.i18n.format("DRPG.Calls.notEnoughHope", { call: HOPE_CALLS.reroll.label, cost, held }) };
     const refusal = await replayRefusal(actor, row);
-    if (refusal) return { why: refusal };
+    if (refusal) return { why: refusal, say: REPLAY_SAYS[refusal] ?? null };
     // Last, and still before the payment: a roll this client cannot throw again (a roll of another
     // system's, or the harness's plain record) would only be paid for and given back.
     if (typeof message.rolls[0].reroll !== "function") return { why: "that message holds no roll to throw again", say: "DRPG.Reroll.notARoll" };
@@ -841,6 +860,19 @@ async function settleProgress(actor, bookmark, after, done) {
  * guide's three tokens count attempts, not successes. `rerolled` is the new roll
  * itself (`after` is its duality alone), whose dice a hidden stash's step reads.
  * Exported for the suite.
+ *
+ * A PLANT COMES BACK AS ITSELF (E08+E28 C6a, 03.10.2026; audit S08-04). A Search handed
+ * a trap's planted object was taken back like any find and drawn afresh: the object left
+ * the sheet, a new one with a new identity came in its place or nothing did, and the plant
+ * was gone for good - the trap's ledger named an object that no longer existed anywhere.
+ * The GMs' bookmark names the plant now (C2, traps.mjs `takePlant`: name, identity, room,
+ * scene), and the replay follows it: found again, the same name and identity at the new
+ * tier; found nothing, the plant goes back into its room as `restorePlant` puts back one
+ * whose finder stopped waiting, its project read off the trap's ledger. What the searcher
+ * is told is what an ordinary find tells (trap 166, `searchDraw`): nothing here says a
+ * plant moved. The plant is the one on the sheet by its identity, the GMs' fact, and not
+ * the claimed `itemId`; one that has left the sheet since (given, stashed, used) stays where
+ * it went, and the Search is replayed as an ordinary one.
  */
 export async function settleSearch(actor, bookmark, after, done, rerolled = null) {
     // A Search whose token was refused never searched the room, and a Search
@@ -871,27 +903,52 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
 
     // 1. The thing the first roll put in the inventory goes back on the shelf.
     let itemId = null;
-    if (bookmark.itemId) {
-        const item = actor.items.get(bookmark.itemId);
-        if (item) {
-            const name = item.name;
-            try {
-                await item.delete();
-                done.push(game.i18n.format("DRPG.Reroll.itemTakenBack", { item: name }));
-            } catch (err) {
-                error("Could not take back the item a reroll undid", err);
-                done.push(game.i18n.format("DRPG.Reroll.itemStuck", { item: name }));
-                itemId = bookmark.itemId;
+    const plant = bookmark.plant?.identity ? bookmark.plant : null;
+    let held = plant ? actor.items.find(i => i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === plant.identity) ?? null : null;
+    const first = held ?? (bookmark.itemId ? actor.items.get(bookmark.itemId) ?? null : null);
+    if (first) {
+        const name = first.name;
+        try {
+            await first.delete();
+            done.push(game.i18n.format("DRPG.Reroll.itemTakenBack", { item: name }));
+        } catch (err) {
+            error("Could not take back the item a reroll undid", err);
+            done.push(game.i18n.format("DRPG.Reroll.itemStuck", { item: name }));
+            itemId = first.id;
+            // Still on the sheet: neither a second copy nor one back in the room.
+            if (held) {
+                done.push(game.i18n.localize("DRPG.Reroll.tokenKept"));
+                return { itemId, tier: found ? tier : null };
             }
         }
     }
 
     // 2. Draw again, from the same category and for the same goal - and from
     //    the same ROOM, so the room's own table answers as it did the first time.
+    //    The plant instead, when it was taken off the sheet above.
     let drawnName = null;
     let drawn = null;
     let granted = null;
-    if (found && bookmark.category) {
+    if (held) {
+        const { grantItem } = await import("./inventory.mjs");
+        const roles = held.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [];
+        drawn = found ? { name: plant.name ?? held.name, roles } : null;
+        granted = drawn ? await grantItem(actor, {
+            name: drawn.name, category: bookmark.category ?? null, tier, goal: bookmark.goal ?? null, roles,
+            extraFlags: { [ITEM_FLAGS.identity]: plant.identity }
+        }) : null;
+        if (granted) {
+            itemId = granted.id;
+            drawnName = drawn.name;
+            done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier }));
+        } else {
+            // Found nothing, or found it with no room on the sheet for it: back where it waited.
+            if (!(await putPlantBack(plant))) log(`A Reroll could not put the planted "${plant.name ?? "?"}" back in ${plant.room}.`);
+            held = null;
+            drawn = null;
+            if (!found) done.push(game.i18n.localize("DRPG.Reroll.searchNothing"));
+        }
+    } else if (found && bookmark.category) {
         const { drawItem } = await import("./tables.mjs");
         drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null, room: bookmark.room ?? null });
         if (drawn?.name) {
@@ -943,7 +1000,22 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     }, after);
 
     done.push(game.i18n.localize("DRPG.Reroll.tokenKept"));
-    return { itemId, tier: found ? tier : null, ...trace };
+    // A plant given again stays on the row for the next Reroll; one put back, or gone its own way, does not.
+    return { itemId, tier: found ? tier : null, ...(plant ? { plant: held ? plant : null } : {}), ...trace };
+}
+
+/**
+ * A plant a Reroll took back, put into the room it was taken from - the row `plantItem` wrote,
+ * rebuilt from the GMs' fact and the trap's ledger. A plant whose trap is gone stays gone, as
+ * `pruneTrapsFor` would have left it (ITEM-08); a room planted again since keeps the newer one
+ * (`restorePlant`). Answers whether it went back.
+ */
+async function putPlantBack(plant) {
+    await trapLedgerStore.whenHydrated();
+    const projectId = trapLedgerStore.get(plant.identity)?.projectId ?? null;
+    if (!projectId || !plant.room) return false;
+    const { restorePlant } = await import("./traps.mjs");
+    return restorePlant(plant.room, plant.sceneId ?? null, { projectId, drpgItemId: plant.identity, name: plant.name ?? null });
 }
 
 /**
@@ -1087,6 +1159,15 @@ async function settleObserve(actor, bookmark, after, done) {
         undo: true
     });
 
+    /* A REFUSAL IS NOT A REPLAY (E08+E28 C6a, 03.10.2026; audit S05-22). This answered the key
+       whatever came back, so a resolve the GM's client refused (observe.mjs
+       `observeResolveRefusal`) left the Hope paid and the new dice standing, for nothing.
+       The Reroll is made on a GM (C4a), whose resolve runs here and answers its refusal as
+       `{ refused }`: the Reroll is then taken back whole (`giveBack`). A resolve that found no
+       record answers null and has asked the GMs to score the new number by hand
+       (`DRPG.Observe.rerollLost`), so that one stands, as it did. */
+    const answer = res.ok ? res.value : null;
+    if (answer?.refused) return null;
     if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.observeReplayed"));
     return { observeKey: bookmark.observeKey };
 }

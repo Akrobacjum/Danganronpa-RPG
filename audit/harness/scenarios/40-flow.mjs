@@ -132,6 +132,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     phase("a Search", { flow: "search-observe" });
     await clearLogs();
     const tokensBefore = await gm.eval(`const M = await import("${REPO}/scripts/movement.mjs"); const room = M.roomOfActor(game.actors.get("${ids.aiko}")); return { room, tokens: game.drpg.tokensLeft(room), items: game.actors.get("${ids.aiko}").items.contents.map(i => i.id) };`);
+    /* A TRAP'S PLANT IN THE ROOM (E08+E28 C6a, 03.10.2026; audit S08-04). The Search below finds it
+       instead of a draw, on the same card as any find (traps.mjs, trap 166), and the Reroll after it
+       finds nothing, so the plant goes back into the room as itself - read after the Reroll. */
+    const plantScene = await p1.eval(`return canvas?.scene?.id ?? null;`);
+    const planted = await gm.eval(`const T = await import("${REPO}/scripts/traps.mjs");
+        return await T.plantItem("SCEN40PLANTPROJECT", ${JSON.stringify(tokensBefore.room)}, { sceneId: ${JSON.stringify(plantScene)}, name: "Scenario 40 planted kit" });`);
     const search0 = { gm: await count(gm), p2: await count(p2) };
     const search = await p1.eval(`
         const actor = game.actors.get("${ids.aiko}");
@@ -251,6 +257,27 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && replacedP1.struck === "line-through" && / 14 -> 4 /.test(replacedP1.line ?? "") && replacedP1.tone === "hope"
             && replacedP2?.mark?.to === 4 && replacedP2.struck === null && replacedP2.line === null,
         JSON.stringify({ named: searchArm.row?.reportMessageId ?? null, card: searchCard?.id ?? null, replacedP1, replacedP2 }), { flow: "reroll" });
+
+    /* THE PLANT CAME BACK AS ITSELF (E08+E28 C6a, 03.10.2026; audit S08-04). The Search above was
+       handed the trap's plant, and the Reroll's dice find nothing: the GMs' row named the plant, no
+       object with its identity is left on Aiko's sheet, the plant is in its room again with its
+       identity, its trap and its name, and the row no longer names it. Read on the GM; the plant and
+       its ledger row are taken out afterwards. */
+    const plantKey = `${plantScene}::${tokensBefore.room}`;
+    const plantBack = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const key = ${JSON.stringify(plantKey)}, id = ${JSON.stringify(planted)};
+        const row = S.trapPlantStore.get(key) ?? null;
+        const out = { row: row ? { drpgItemId: row.drpgItemId ?? null, projectId: row.projectId ?? null, name: row.name ?? null } : null,
+            onSheet: game.actors.get("${ids.aiko}").items.contents.filter(i => i.getFlag("${MOD}", "drpgItemId") === id).length,
+            fact: Object.hasOwn(S.rerollBookmarkStore.get("${ids.aiko}")?.facts ?? {}, "plant") ? S.rerollBookmarkStore.get("${ids.aiko}").facts.plant : "unsaid" };
+        if (S.trapPlantStore.has(key)) await S.trapPlantStore.drop(key);
+        if (id && S.trapLedgerStore.has(id)) await S.trapLedgerStore.drop(id);
+        return out;`);
+    check("gm: the Search's plant, taken back by a Reroll that finds nothing, is in its room again as itself",
+        Boolean(planted) && searchArm.row?.facts?.plant?.identity === planted && plantBack.onSheet === 0
+            && plantBack.row?.drpgItemId === planted && plantBack.row.projectId === "SCEN40PLANTPROJECT"
+            && plantBack.row.name === "Scenario 40 planted kit" && plantBack.fact === null,
+        JSON.stringify({ planted, arm: searchArm.row?.facts?.plant ?? null, plantBack }), { flow: "reroll" });
 
     // ---- 3. a Hope Call that waits for the GM (Ultimate) ------------------------------------
     phase("a Hope Call", { flow: "hope-call" });

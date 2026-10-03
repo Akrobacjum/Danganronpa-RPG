@@ -598,6 +598,34 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
 
     const actor = game.actors.get(entry.actorId);
     if (!actor) return null;
+    describing.set(key, actor.id);
+    try {
+        return await scoreObserve(actor, entry, key, { total, isCritical, undo });
+    } finally {
+        describing.delete(key);
+    }
+}
+
+/**
+ * THE OBSERVES BEING SCORED ON THIS CLIENT, key -> character (E08+E28 C6a, 03.10.2026; audit
+ * S05-22). From the checks to the written result a resolve waits on the GM's dialog for as
+ * long as the GM takes (`describeFind`), and a Reroll asked then has no result to take back yet: reroll.mjs
+ * `replayRefusal` asks this and refuses before anything is paid. The plan's 2.5 put the mark on
+ * the entry (`entry.busy`); it is kept beside the cache instead, because every entry of the
+ * cache is written through to a store that outlives a reload (`writePending`) - a mark written
+ * with it by another Observe's write, and a reload in the dialog, would have refused that
+ * Observe's Reroll for the hour the entry lives. Asked on the client the Reroll is made on,
+ * which is the one that resolves: both go to the primary GM, or both stay on a GM's own.
+ */
+const describing = new Map();
+
+/** Whether an Observe of `actorId`'s is being scored on this client now. */
+export function observeBeingDescribed(actorId) {
+    return [...describing.values()].includes(actorId);
+}
+
+/** `resolveObserve`'s scoring, once its checks have passed. */
+async function scoreObserve(actor, entry, key, { total, isCritical, undo }) {
     // The roll this result is for, as the resolve arrives (E08+E28 C2): describing a find can
     // wait on a GM's dialog, and a roll thrown meanwhile is not this one (`keepResult`).
     const rolls = await import("./action-rolls.mjs");

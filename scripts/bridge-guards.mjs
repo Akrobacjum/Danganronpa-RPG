@@ -208,6 +208,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["busy", /^a Level Up for that character is already being written$/],
     // E08+E28 C4a: the Reroll the GM makes (reroll.mjs `rerollOnGm`).
     ["busy", /^a Reroll of that character is already being made$/],
+    // E08+E28 C6a: an Observe whose result the GM is still describing (reroll.mjs replayRefusal).
+    ["busy", /^the GM is still describing what that Observe found$/],
     ["nothingToUndo", /^the GMs keep no roll of that character to reroll$/],
     ["notYours", /^the kept roll of that character is not the sender's$/],
     ["noReroll", /^the kept roll of that character is older than a Reroll can reach$/],

@@ -4067,6 +4067,147 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Reroll of a Search that drew a plant keeps the plant's identity", async () => {
+        /*
+         * E08+E28 C6a, 03.10.2026; audit S08-04. A Search handed a trap's planted object had its
+         * Reroll take the object back like any find and draw afresh: found again, a new object
+         * with an identity the trap's ledger never names; found nothing, the plant gone from the
+         * room for good. The replay follows the GMs' fact of the plant now (reroll.mjs
+         * `settleSearch`). A plant is left in the room the player's character stands in, taken out
+         * on that player's bookmarked roll as the bridge takes it (C2's test above), and put on the
+         * sheet with its identity as the Search puts it; then the replay runs on new dice - once a
+         * total that finds, once one that does not, each with a plant of its own. Read: the
+         * objects on the sheet carrying the plant's identity, by name and whether it is the first
+         * one; the room's plant, by identity, project and name; and whether the row keeps the plant.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the plant waits where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const T = await import("./traps.mjs");
+        const R = await import("./reroll.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const room = where.room, sceneId = where.scene.id;
+        const had = new Set(actor.items.map(i => i.id));
+        // The plants and the trap ledger are GM stores since E04: tier 2's restore puts them back.
+        const F = await playerRollBookmark(player, actor, "search", { category: "usable", goal: "healing", tier: 1, claimed: true });
+        const replay = async total => {
+            const identity = await T.plantItem("SUITE-E08C6a-project", room, { sceneId, name: "SUITE E08 C6a plant" });
+            must(identity, "nothing was planted");
+            const plant = await T.takePlant(room, sceneId, { actorId: actor.id });
+            must(plant?.drpgItemId === identity && F.row()?.facts?.plant?.identity === identity,
+                `the plant was not handed over onto the row - this would measure nothing: ${stableJson(F.row()?.facts ?? null)}`);
+            const item = await grantItem(actor, { name: plant.name, category: "usable", tier: 1, goal: "healing", quiet: true,
+                extraFlags: { [ITEM_FLAGS.identity]: identity } });
+            must(item, "the plant did not reach the sheet");
+            const patch = await R.settleSearch(actor, { ...R.replayBookmark(F.row()), itemId: item.id },
+                { total, isCritical: false, withHope: true, withFear: false }, []);
+            const back = S.trapPlantStore.get(`${sceneId}::${room}`) ?? null;
+            return {
+                sheet: actor.items.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity).map(i => [i.name, i.id === item.id]),
+                room: back ? [back.drpgItemId === identity, back.projectId ?? null, back.name ?? null] : null,
+                kept: patch && Object.hasOwn(patch, "plant") ? Boolean(patch.plant) : "unsaid"
+            };
+        };
+        try {
+            const found = await replay(30);
+            const missed = await replay(2);
+            equal(stableJson([found, missed]), stableJson([
+                { sheet: [["SUITE E08 C6a plant", false]], room: null, kept: true },
+                { sheet: [], room: [true, "SUITE-E08C6a-project", "SUITE E08 C6a plant"], kept: false }
+            ]), "a Reroll that finds again did not give the plant back as itself, or one that finds nothing did not put it back in its room (found, missed)");
+        } finally {
+            for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
+            await F.putBack();
+        }
+    }],
+
+    ["a Reroll while the GM describes the find is refused before the Hope is paid, and one after it replays", async () => {
+        /*
+         * E08+E28 C6a, 03.10.2026; audit S05-22. An Observe's result is written on the GM's
+         * client once the GM has described the find, and only then does the GMs' row of the roll
+         * hold its key. A Reroll asked in between was paid, rewrote the dice and replayed nothing
+         * ("nothing but the dice to take back"), and the first result was then written under the
+         * new dice. Now the Reroll is refused before the payment while the find is being described
+         * (reroll.mjs `replayRefusal`, observe.mjs `observeBeingDescribed`). A trace is placed
+         * where the player's character stands, the Observe declared and resolved on a critical -
+         * a critical always asks the GM to describe the find (`createFind`) - and the player's
+         * Reroll is asked three times: before the resolve began (the row holds no result yet),
+         * while the GM's description is held open, and once it is given. Read: each Reroll's
+         * answer, the Hope they took, and the rewrites of the roll's message.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const R = await import("./reroll.mjs");
+        const observe = await import("./observe.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const had = new Set(actor.items.map(i => i.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const asked = [];
+        let answer = null;
+        // The first window - the description - waits for the test; any later one is closed at once.
+        D.wait = cfg => {
+            asked.push(cfg?.window?.title ?? "");
+            return asked.length === 1 ? new Promise(resolve => { answer = resolve; }) : Promise.resolve(null);
+        };
+        let trace = null, F = null, stand = null, watch = null, resolving = null;
+        try {
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                x: where.tokenDoc.x, y: where.tokenDoc.y, note: "test fixture - the trace an Observe describes" });
+            must(trace, "the trace was not placed");
+            F = await playerRollBookmark(player, actor, "observe", {});
+            const target = await observe.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            must(target?.ok, `the Observe found nothing to aim at where its trace lies: ${stableJson(target)}`);
+            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
+            watch = watchRerollWrites(actor, F.message.id);
+            const hope0 = actor.system.resources.hope.value;
+            // Before the resolve has even begun: the row holds no result yet.
+            const early = await R.rerollOnGm(actor, player);
+            resolving = observe.resolveObserve({ key: target.key, total: 24, isCritical: true, actorId: actor.id, senderId: player.id, senderIsGm: false });
+            await until(() => asked.length > 0);
+            must(asked.length === 1 && answer, "the GM was not asked to describe the find - this would measure nothing");
+            const busy = await R.rerollOnGm(actor, player);
+            await settle();
+            const during = [hope0 - actor.system.resources.hope.value, watch.rolls.length];
+            answer(null);
+            await resolving;
+            resolving = null;
+            const keyed = Boolean(F.row()?.facts?.observeKey);
+            const hope1 = actor.system.resources.hope.value;
+            const made = await R.rerollOnGm(actor, player);
+            await settle();
+            const replayed = game.i18n.localize("DRPG.Reroll.observeReplayed");
+            equal(stableJson([early?.refused ?? null, busy?.refused ?? null, busy?.say ?? null, during, keyed,
+                Array.isArray(made?.lines) && made.lines.includes(replayed), hope1 - actor.system.resources.hope.value, watch.rolls.length]),
+            stableJson(["that Observe has no result to take back", "the GM is still describing what that Observe found", "DRPG.Reroll.observeBusy",
+                [0, 0], true, true, 3, 1]),
+            `a Reroll before the result or while the find was being described was paid or made, or the one after it did not replay (refusal before, refusal during, its line, paid and rewrites by then, row keyed, replayed, paid after, rewrites): ${stableJson({ early, busy, made })}`);
+        } finally {
+            if (answer) answer(null);
+            if (resolving) await resolving;
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            watch?.stop();
+            stand?.putBack();
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+            if (trace) {
+                await remnants.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            await F?.putBack();
+        }
+    }],
+
     ["the GM's bookmark of a Use an item names the item and the resources before it", async () => {
         /*
          * E08+E28 C2, 03.10.2026; audit S04-18. Use an item spends the item on the player's own
