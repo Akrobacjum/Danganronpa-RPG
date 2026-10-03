@@ -113,7 +113,7 @@ export class SearchTokens {
         }
         try {
             const { takePlant } = await import("./traps.mjs");
-            return await takePlant(roomName, sceneId);
+            return await takePlant(roomName, sceneId, { actorId });
         } catch (err) {
             // A search that cannot check for a plant is an ordinary search.
             error("Could not check a room for a planted item", err);
@@ -464,8 +464,10 @@ async function runTakePlant(payload, sender, ctx) {
     const key = searchKey(sender.id, sceneId, payload.roomName);
     const at = searchedBy.get(key);
     searchedBy.delete(key);
+    // The searcher, for the GMs' bookmark of their roll (E08+E28 C2): only a character the sender plays.
+    const actorId = ownsActor(sender, payload.actorId) ? payload.actorId : null;
     const plant = at && Date.now() - at < PLANT_WINDOW_MS
-        ? await SearchTokens.takePlant(payload.roomName, sceneId)
+        ? await SearchTokens.takePlant(payload.roomName, sceneId, { actorId })
         : null;
     if (plant) {
         for (const [id, entry] of handedOut) {
@@ -524,10 +526,10 @@ export const SEARCH_ACTIONS = table({
     [ACTION_TAKE_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.takePlant",
         guards: [knownSender, guardSearchRoom],
-        sanitize: pick({ roomName: as.text, sceneId: as.id }),
+        sanitize: pick({ roomName: as.text, sceneId: as.id, actorId: as.id }),
         run: runTakePlant,
         answer: "reply", timeoutMs: TIMING.plantRequestMs,
-        claims: { sceneId: guardSearchRoom }
+        claims: { sceneId: guardSearchRoom, actorId: guardSearchRoom }
     },
     [ACTION_RETURN_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.returnPlant",

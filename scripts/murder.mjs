@@ -1941,12 +1941,19 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * and the item goes in; a success with DESPAIR leaves the trace and nothing
      * else - you were seen fumbling with it and it stayed in your pocket.
      */
-    let usedItemId = null;
+    let usedItemId = null, before = null;
     if (def.usesItem) {
         const hit = roll.isCritical || roll.total >= def.threshold;
         if (hit && (roll.isCritical || roll.withHope)) {
             const item = actor.items.get(itemId);
             const { useItem } = await import("./use-items.mjs");
+            // What the use starts from, for the GMs' bookmark (E08+E28 C2; audit S04-18):
+            // a Reroll on a GM puts these back, where the receipt only unbreaks the item.
+            before = {
+                hp: actor.system?.resources?.hitPoints?.value ?? null,
+                stress: actor.system?.resources?.stress?.value ?? null,
+                qty: item ? Number(item.system?.quantity ?? 1) : null
+            };
             // `useItem` can still be backed out of at its own confirm. The roll
             // and the turn are spent either way - a player who changes their
             // mind at the last dialog has still done the thing on the clock.
@@ -1964,7 +1971,8 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         // What was actually spent, so a Reroll can give it back.
         usedItemId,
         // What was swung, so Stage 6 ruins the right thing (E9).
-        swungId: swung?.id ?? null
+        swungId: swung?.id ?? null,
+        before
     });
 
     /*
@@ -2230,6 +2238,25 @@ export async function resolveCrisisAction(options = {}) {
 let resolving = 0;
 let victimOwed = false;
 
+/**
+ * A CRISIS ACTION'S FACTS, ON THE GMS' BOOKMARK (E08+E28 C2, 03.10.2026; audit S04-18). A Reroll
+ * of it is to be made on a GM (C4a), with the first throw's pick (`choice`), its item and the
+ * weapon it swung, and - for Use an item - what the item's use started from, so the undo puts the
+ * Health, Stress and quantity back rather than only unbreaking the item. A first throw's only: a
+ * replay (`undo`) keeps the row it replays. `before` is the player's word about their own
+ * character, so numbers or nothing (`resourcesBefore`).
+ */
+async function noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId, before }) {
+    await rolls.noteRollFact(actorId, roll, { crisis: key, choice: choice ?? null, usedItemId: usedItemId ?? null, swungId, before: resourcesBefore(before) });
+}
+
+/** `{ hp, stress, qty }` as whole numbers or null each, or null for anything that is not an object. */
+function resourcesBefore(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const n = v => (typeof v === "number" || typeof v === "string") && v !== "" && Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null;
+    return { hp: n(raw.hp), stress: n(raw.stress), qty: n(raw.qty) };
+}
+
 async function applyCrisisAction({
     actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null,
     // The weapon the roll was thrown with: its damage and its wear (E32+E07 C8), and
@@ -2238,9 +2265,15 @@ async function applyCrisisAction({
     // G-18. Not derived here from the state, because by the time this runs the
     // grant may have been consumed by the undo half of a Reroll - the client
     // that pressed the tile is the one that knew.
-    free = false
+    free = false,
+    // The acting character's Health and Stress and the item's quantity before Use an
+    // item used it, as its player read them (E08+E28 C2): `resourcesBefore`.
+    before = null
 } = {}) {
     if (!game.user.isGM) return null;
+    // The roll this action is for, as it arrives (E08+E28 C2): see `noteCrisisFact`.
+    const rolls = await import("./action-rolls.mjs");
+    const roll = undo ? null : rolls.rollOfNow(actorId);
 
     // A Reroll's packet names no weapon (reroll.mjs `settleCrisis`): the replay swings
     // what the action it takes back swung, as its receipt recorded it (E32+E07 C8) - and
@@ -2310,6 +2343,7 @@ async function applyCrisisAction({
     // applied, because half of it is "the value this resource had a moment ago".
     const receipt = openReceipt(actorId, key, state);
     receipt.swungId = weapon?.id ?? null;
+    if (roll) await noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId: weapon?.id ?? null, before });
 
     /*
      * SPENT BEFORE IT IS APPLIED, not after.

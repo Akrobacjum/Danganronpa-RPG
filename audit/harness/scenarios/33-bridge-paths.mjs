@@ -12,7 +12,8 @@
  *      refusal for it, and its asker is told none. Since E06 C5a also a roll's subject, reported by
  *      its roller for a roll whose document names nobody, and two reports that are not the
  *      sender's to make (A10). Since E32+E07 C11b also a crisis action's statistic, put to the GMs
- *      by its own player and picked on the card (A11).
+ *      by its own player and picked on the card (A11). Since E08+E28 C2 also a roll's bookmark for the
+ *      Reroll, kept on the GMs from its roller's report (A12).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -375,6 +376,35 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A11: a crisis action's statistic, asked by the killer's own player at his turn, is put to the GMs once, picked on the card and answered - refused nowhere",
         fightOpen.stage === "incident" && fightOpen.turn === true && a11answer?.ok === true && a11answer.value === "body"
         && a11.ruled.length === 1 && a11.ruled[0].picked === "body" && !a11.logged.length && !a11.told.length, JSON.stringify(a11));
+
+    /* A12. A ROLL'S BOOKMARK (E08+E28 C2, 03.10.2026). The roller's browser tells the GMs what it
+       rolled for the Reroll's bookmark (`roll.bookmark`), after the roll and before its action
+       asks for anything else. p1 throws Aiko's roll as a Search's, with a room in its context,
+       which a Search does not claim: the GM keeps the row once, named for p1, with the Search's
+       claims and not the room, logs no refusal and tells p1 none. */
+    phase("a roll's bookmark", { flow: "reroll" });
+    await clearFailures(gm);
+    mark = await refusedCount(p1);
+    const a12roll = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        try {
+            const out = await A.rollTrait(game.actors.get("${IDS.aiko}"), "eye", { actionKey: "search",
+                context: { category: "tool", goal: "any", tier: 1, room: "E08 C2 room" } });
+            return out?.raw?.message?.id ?? null;
+        } finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    await settle(1200);
+    const a12 = { a12roll,
+        row: await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const r = S.rerollBookmarkStore?.get("${IDS.aiko}");
+            return r ? { messageId: r.messageId, by: r.by, actionKey: r.actionKey, claims: r.claims } : null;`),
+        logged: await refusalsLogged(gm, "roll.bookmark"), told: await refusedSince(p1, mark) };
+    check("A12: a player's roll is kept on the GMs' bookmark once, by its roller, with only what its action claims - refused nowhere",
+        Boolean(a12roll) && a12.row?.messageId === a12roll && a12.row.by === IDS.p1 && a12.row.actionKey === "search"
+        && JSON.stringify(a12.row.claims) === JSON.stringify({ category: "tool", goal: "any", tier: 1 })
+        && !a12.logged.length && !a12.told.length, JSON.stringify(a12));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await game.messages.get("${a12roll ?? ""}")?.delete();
+        if (S.rerollBookmarkStore?.has("${IDS.aiko}")) await S.rerollBookmarkStore.drop("${IDS.aiko}");
+        return true;`);
 
     /* ------------------------------------------------------ B. what E31 adds */
 

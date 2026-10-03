@@ -68,6 +68,9 @@ export async function resolveAnalyze({
 
     const { getClock } = await import("./clock.mjs");
     const chapter = getClock().chapter;
+    // The roll this is for, as it arrives (E08+E28 C2): the bullet goes on the GMs' bookmark below.
+    const rolls = await import("./action-rolls.mjs");
+    const roll = rolls.rollOfNow(actor.id);
 
     /*
      * THE RULE ON THIS SIDE TOO (E03, 24.09.2026; audit S05-40). One Analyze
@@ -171,6 +174,9 @@ export async function resolveAnalyze({
             error("Could not record what the bullet showed before its Analyze", err);
         }
     }
+
+    // Which bullet this roll read, for a Reroll's undo on a GM (C4a).
+    await rolls.noteRollFact(actor.id, roll, { bulletId: item.id });
 
     const visibility = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.visibility) ?? "evident";
     const realType = secret.realType ?? "neutral";

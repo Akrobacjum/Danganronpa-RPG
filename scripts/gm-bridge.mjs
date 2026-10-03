@@ -24,7 +24,7 @@ import {
     guardUnsabotageReceipt, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool,
-    guardDespairReceipt, guardTraitRuling, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
+    guardDespairReceipt, guardTraitRuling, guardRollAuthor, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
@@ -85,6 +85,7 @@ const ACTION_DONE = "bridge.done";
 const ACTION_GM_READY = "bridge.gmReady";
 const ACTION_LOOT = "body.loot";
 const ACTION_NOTE_SAVE = "note.save";
+const ACTION_ROLL_BOOKMARK = "roll.bookmark";
 
 /**
  * A primary GM has finished loading and can answer questions again.
@@ -569,6 +570,10 @@ async function handleCrisis(payload, sender, ctx, prepared) {
         // damage is read off it since E32+E07 C8, and murder.mjs `swungWeapon`
         // narrows it further, to a readied Crime Tool on an action that swings.
         swungId: actor?.items?.has(payload.swungId) ? payload.swungId : null,
+        // What the item's use started from, as the player read it: their own character's
+        // (the declaration's `owns`), numbers or nothing (`resourcesBefore`). Kept on the
+        // GMs' bookmark only (E08+E28 C2).
+        before: payload.before,
         /*
          * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY
          * SOMETHING FOR NOTHING.
@@ -749,6 +754,10 @@ async function handleProgress(payload, sender, ctx) {
     // guards now; progress taken back is a Reroll's - see `guardProgressOwner`.
     const amount = Math.trunc(payload.amount);
     const { addProgress } = await import("./projects.mjs");
+    const rolls = await import("./action-rolls.mjs");
+    // The roll this progress is for, as the request arrives (E08+E28 C2): see `noteProgressFact`.
+    const kept = rolls.rollOfSender(sender.id, "project");
+    const roll = amount > 0 && payload.messageId && kept?.messageId === payload.messageId ? kept : null;
     // Who asked, so a finished project can fall back to them when nobody
     // recorded who proposed it.
     const result = await addProgress(payload.countdownId, amount, { by: asker });
@@ -757,6 +766,7 @@ async function handleProgress(payload, sender, ctx) {
     // is told so once, by the refusal (E31 review). A project that did not move
     // (frozen, already full) is an answer, whispered below.
     if (!result) return { refused: "nothing was carried out: addProgress found no such project" };
+    await noteProgressFact(rolls, roll, payload.countdownId, result);
 
     // Report back to whoever asked.
     //
@@ -780,6 +790,19 @@ async function handleProgress(payload, sender, ctx) {
         }</p>`,
         whisper: to
     });
+}
+
+/**
+ * THE PROGRESS A PLAYER'S PROJECT ROLL ADDED, ON THE GMS' BOOKMARK (E08+E28 C2). The packet
+ * names no character; a Work on a Project names its roll's message, and it is written only
+ * when that is the sender's newest kept Work on a Project (`rollOfSender`). A Call's progress
+ * names no roll, and a Reroll's taking back (a negative amount) writes none. What moved, from
+ * the project's own answer: a frozen or full project adds 0.
+ */
+async function noteProgressFact(rolls, roll, projectId, result) {
+    if (!roll) return;
+    const progress = result.changed === false ? 0 : (Number(result.to) || 0) - (Number(result.from) || 0);
+    await rolls.noteRollFact(roll.actorId, roll.messageId, { projectId, progress });
 }
 
 async function handleShare(payload, sender, ctx, prepared) {
@@ -807,7 +830,10 @@ async function handleRemnant(payload, sender, ctx) {
      * `narrowPlayerRemnant`, which now builds every one of them here.
      */
     const { placeRemnant, narrowPlayerRemnant } = await import("./remnants.mjs");
+    const { rollOfNow, noteRollFact } = await import("./action-rolls.mjs");
     let data = { ...(payload.data ?? {}) };
+    // The roll this trace is for, as the request arrives (E08+E28 C2): `noteRollFact`.
+    const roll = rollOfNow(data.sourceActor);
     if (!sender.isGM) {
         const actor = game.actors.get(data.sourceActor);
         const { locateActor } = await import("./movement.mjs");
@@ -822,7 +848,13 @@ async function handleRemnant(payload, sender, ctx) {
     // A trace this client could not place (no scene, no Remnant actor, a token
     // that could not be created) is a failure, not "placed" (E31 review): the
     // player's item stays on the sheet.
-    if (!await placeRemnant(data)) return { refused: "the trace could not be placed" };
+    const placed = await placeRemnant(data);
+    if (!placed) return { refused: "the trace could not be placed" };
+    /* WHICH TRACE, ON THE GMS' BOOKMARK (E08+E28 C2; audit S05-08). The player's browser is
+       answered as before, with no id: a Reroll that retunes or removes this trace is the GM's
+       from C4a, and finds it by this fact - the browser's `remnantRef` named none. */
+    const doc = placed.document ?? placed;
+    if (doc?.id) await noteRollFact(data.sourceActor, roll, { remnantId: doc.id, remnantScene: doc.parent?.id ?? data.sceneId ?? null });
     debug("Placed a Remnant on behalf of a player.");
 }
 
@@ -886,9 +918,16 @@ async function handleRemnantEdit(payload, sender, ctx) {
 
 async function handleSabotage(payload, sender, ctx) {
     const { sabotageProject } = await import("./projects.mjs");
+    const rolls = await import("./action-rolls.mjs");
+    // The roll this freeze is for, as the request arrives (E08+E28 C2): the packet names no character.
+    const roll = rolls.rollOfSender(sender.id, "sabotage");
     // Who asked, so that only their own Reroll can take it back (E03).
     const result = await sabotageProject(payload.targetId, Math.trunc(payload.difficulty),
         { saboteur: sender.isGM ? null : sender.id });
+    // Which project it froze and the repair it made, for the Reroll's undo on a GM (C4a).
+    if (result && roll) {
+        await rolls.noteRollFact(roll.actorId, roll.messageId, { targetProjectId: payload.targetId, repairId: result.repair?.id ?? null });
+    }
 
     // Tell the asker what actually happened - not just that the request
     // arrived. Without this a player's own sabotage always reported success
@@ -1077,6 +1116,19 @@ async function handleNoteSave(payload, sender) {
     return { reply: { updatedAt: out.updatedAt, stamp: out.stamp } };
 }
 
+/** The run of `roll.bookmark` (E08+E28 C2): the guards tied the message to the sender and the character to them. */
+async function handleRollBookmark(payload, sender) {
+    const { keepGmBookmark } = await import("./action-rolls.mjs");
+    await keepGmBookmark({
+        actorId: payload.actorId,
+        messageId: payload.messageId,
+        actionKey: payload.actionKey,
+        trait: payload.trait,
+        experiences: payload.experiences,
+        context: payload.context
+    }, sender);
+}
+
 /**
  * WHAT THE PRIMARY GM ANSWERS, ONE DECLARATION PER REQUEST (E31, 25.09.2026;
  * audit S17-08).
@@ -1229,14 +1281,15 @@ export const BRIDGE_ACTIONS = table({
         // murder.mjs before the guards, as the handler imported it (the plan's W2).
         prepare: () => import("./murder.mjs"),
         sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, undo: as.bool,
-            choice: as.oneOf("stress", "hp"), usedItemId: as.id, swungId: as.id, free: as.bool }),
+            choice: as.oneOf("stress", "hp"), usedItemId: as.id, swungId: as.id, free: as.bool, before: as.raw }),
         run: handleCrisis,
         // Answered once applied, which can wait on the GM: two killers' victim
         // running out is asked of them (`checkVictimSpent`, murder.mjs).
         answer: "reply",
         claims: {
             usedItemId: "narrowed in the run to an item the acting character holds, else null",
-            swungId: "narrowed in the run to an item the acting character holds, else null"
+            swungId: "narrowed in the run to an item the acting character holds, else null",
+            before: "numbers or null by resourcesBefore (murder.mjs): a claim about the sender's own character, kept on the GMs' bookmark"
         }
     },
     [ACTION_PARK_MURDER]: {
@@ -1331,9 +1384,10 @@ export const BRIDGE_ACTIONS = table({
                 sent => `amount ${sent} is out of range`),
             guardProgressOwner, guardProgressReceipt
         ],
-        sanitize: pick({ countdownId: as.id, amount: as.num }),
+        sanitize: pick({ countdownId: as.id, amount: as.num, messageId: as.id }),
         run: handleProgress,
-        answer: "reply", queue: "project"
+        answer: "reply", queue: "project",
+        claims: { messageId: "compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact" }
     },
     [ACTION_SHARE]: {
         label: "DRPG.Bridge.what.project.share",
@@ -1521,6 +1575,22 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ text: as.text }),
         run: handleNoteSave,
         answer: "reply"
+    },
+    /* THE ROLL A REROLL WOULD TAKE BACK, AS ITS ROLLER SAW IT (E08+E28 C2, 03.10.2026; the
+       plan's 2.2). Sent by the roller's browser after the roll, and again when its action
+       adds a claim (action-rolls.mjs `tellGmsOfRoll`): a report nobody waits on, so a refusal
+       is the GM's log line. The roll's own numbers are read off the message on the GM. */
+    [ACTION_ROLL_BOOKMARK]: {
+        label: "DRPG.Bridge.what.roll.bookmark",
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardRollAuthor],
+        sanitize: pick({ actorId: as.id, messageId: as.id, actionKey: as.maybeText, trait: as.maybeText, experiences: as.raw, context: as.raw }),
+        run: handleRollBookmark,
+        answer: "none", quiet: true,
+        claims: {
+            messageId: guardRollAuthor,
+            experiences: "the roller's own sheet's: keepGmBookmark (action-rolls.mjs) keeps up to twelve short strings",
+            context: "picked per action by rollClaims (action-rolls.mjs ROLL_CLAIMS): what touches only the roller's own sheet"
+        }
     }
 });
 
@@ -2068,12 +2138,25 @@ export function requestCrisisResult({
     // again on the GM's - see `askCriticalTarget`.
     choice = null,
     // The weapon the roll was thrown with. Remembered GM-side for Stage 6.
-    swungId = null
+    swungId = null,
+    // The character's Health, Stress and the item's quantity before the item was used
+    // (E08+E28 C2; audit S04-18), for the GMs' bookmark: what a Reroll puts back.
+    before = null
 }) {
-    return ask(ACTION_CRISIS, { actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId }, {
+    return ask(ACTION_CRISIS, { actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId, before }, {
         local: () => import("./murder.mjs").then(m => m.resolveCrisisAction({
-            actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId
+            actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId, before
         }))
+    });
+}
+
+/**
+ * Tell the GMs what was just rolled for the Reroll's bookmark (E08+E28 C2); a GM keeps
+ * it here. See action-rolls.mjs `tellGmsOfRoll`.
+ */
+export function requestRollBookmark(payload) {
+    return ask(ACTION_ROLL_BOOKMARK, payload, {
+        local: () => import("./action-rolls.mjs").then(m => m.keepGmBookmark(payload, game.user))
     });
 }
 
@@ -2215,8 +2298,8 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
  * whispered back by the GM's client; the request knows that it was carried out
  * (E31 review), not what it changed.
  */
-export function requestProjectProgress(countdownId, amount, actorId = null) {
-    return ask(ACTION_PROGRESS, { countdownId, amount, actorId });
+export function requestProjectProgress(countdownId, amount, actorId = null, messageId = null) {
+    return ask(ACTION_PROGRESS, { countdownId, amount, actorId, messageId });
 }
 
 /**

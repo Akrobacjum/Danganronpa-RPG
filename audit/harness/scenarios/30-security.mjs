@@ -1280,6 +1280,45 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         return true;`);
 
     /*
+     * 7m. A roll's bookmark (E08+E28 C2, 03.10.2026). The roller's browser tells the GMs what it
+     * rolled for the Reroll's bookmark (`roll.bookmark`), and the GM keeps it only from the
+     * character's own player, for a module roll that player wrote (`owns`, `guardRollAuthor`).
+     * p1 throws Aiko's roll and p2 Botan's, each kept; then p1 names Botan for its own roll, and
+     * Aiko for p2's roll. Each forgery is refused and logged, told to nobody (a report nobody
+     * waits on is quiet), and no row moves.
+     */
+    phase("a roll's bookmark", { flow: "reroll" });
+    const throwKept = (client, actorId) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        try {
+            const out = await A.rollTrait(game.actors.get("${actorId}"), "eye", { remember: true });
+            return out?.raw?.message?.id ?? null;
+        } finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    const readRows = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = id => { const r = S.rerollBookmarkStore?.get(id); return r ? { messageId: r.messageId, by: r.by, claims: r.claims } : null; };
+        return { aiko: row("${ids.aiko}"), botan: row("${ids.botan}") };`;
+    const p1Roll = await throwKept(p1, ids.aiko);
+    const p2Roll = await throwKept(p2, ids.botan);
+    await settle(1200);
+    const keptRows = await gm.eval(readRows);
+    check("control: each player's own roll is kept on the GMs' bookmark, by its roller",
+        Boolean(p1Roll && p2Roll) && keptRows.aiko?.messageId === p1Roll && keptRows.aiko?.by === p1.userId
+        && keptRows.botan?.messageId === p2Roll && keptRows.botan?.by === p2.userId, JSON.stringify({ p1Roll, p2Roll, keptRows }));
+    const forgedOther = await forge("roll.bookmark", { actorId: ids.botan, messageId: p1Roll, actionKey: "search",
+        context: { itemId: "SECFORGEDITEM000" } }, readRows);
+    check("SECURITY: a roll.bookmark naming another player's character is refused for ownership, told to nobody, and changes no row",
+        forgedOther.unchanged && forgedOther.forOwnership && !forgedOther.told.length, JSON.stringify(forgedOther));
+    const forgedRoll = await forge("roll.bookmark", { actorId: ids.aiko, messageId: p2Roll, actionKey: "search",
+        context: { itemId: "SECFORGEDITEM000" } }, readRows);
+    check("SECURITY: a roll.bookmark naming another player's roll message is refused by its author, told to nobody, and changes no row",
+        forgedRoll.unchanged && forgedRoll.reasons.some(r => /sender did not write that roll message/.test(r)) && !forgedRoll.told.length,
+        JSON.stringify(forgedRoll));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        for (const id of ${JSON.stringify([p1Roll, p2Roll])}) await game.messages.get(id ?? "")?.delete();
+        if (S.rerollBookmarkStore) await S.rerollBookmarkStore.dropMany(["${ids.aiko}", "${ids.botan}"]);
+        return true;`);
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

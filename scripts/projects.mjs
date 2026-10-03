@@ -414,15 +414,17 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
  *   when the project does not exist. `changed: false` means the write was a
  *   no-op - the caller must not report success.
  */
-export async function addProgress(countdownId, amount, { by = null, actorId = null } = {}) {
+export async function addProgress(countdownId, amount, { by = null, actorId = null, messageId = null } = {}) {
     if (!amount) return null;
 
     if (!game.user.isGM) {
         // The character whose action this is travels with it: progress taken
         // BACK is a Reroll's undo, and the GM pays for that from the receipt
         // for this character (reroll-receipts.mjs), not on the packet's word.
+        // A Work on a Project names its roll as well (E08+E28 C2), so the GMs'
+        // bookmark of that roll keeps what it added (gm-bridge.mjs `noteProgressFact`).
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
-        const res = await requestProjectProgress(countdownId, amount, actorId);
+        const res = await requestProjectProgress(countdownId, amount, actorId, messageId);
         // Carried out when ok (the request answers once it is, E31 review), but
         // `changed` is unknown from here - the GM whispers back what actually
         // happened. Claiming a change would be a guess.

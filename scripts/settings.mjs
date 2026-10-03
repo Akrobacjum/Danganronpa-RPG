@@ -336,6 +336,13 @@ export const SETTINGS = {
      */
     gmUsedTools: "gmUsedTools",
     /**
+     * THE REROLL'S BOOKMARK, ON THE GMS (E08+E28 C2, 1.2.67; audit S05-08, S08-04, S04-18): a GM
+     * store (gm-stores.mjs `rerollBookmarkStore`), a row per character - its last roll, what the
+     * GMs did for it (`facts`) and what its roller's browser alone saw (`claims`). Synced, not
+     * backed up; no player copy. The roller's own `rollBookmarks` stays beside it until C4a.
+     */
+    gmRerollBookmarks: "gmRerollBookmarks",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -1325,6 +1332,14 @@ export function registerSettings() {
     // The Cleaning Tools a clean-up used (E32+E07 C12): no `onChange` either - read by the
     // body's discovery, on the GM that runs it, and shown nowhere.
     game.settings.register(MODULE_ID, SETTINGS.gmUsedTools, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The Reroll's bookmark on the GMs (E08+E28 C2): no `onChange` - shown nowhere, and
+    // read by the Reroll on a GM once C4a makes it there.
+    game.settings.register(MODULE_ID, SETTINGS.gmRerollBookmarks, {
         scope: "client",
         config: false,
         type: Object,

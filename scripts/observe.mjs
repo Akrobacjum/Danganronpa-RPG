@@ -598,6 +598,10 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
 
     const actor = game.actors.get(entry.actorId);
     if (!actor) return null;
+    // The roll this result is for, as the resolve arrives (E08+E28 C2): describing a find can
+    // wait on a GM's dialog, and a roll thrown meanwhile is not this one (`keepResult`).
+    const rolls = await import("./action-rolls.mjs");
+    const roll = rolls.rollOfNow(actor.id);
 
     // A Reroll replaces a result rather than adding to it. What the first throw
     // produced is recorded here rather than sent to the observer and quoted
@@ -627,11 +631,11 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
         if (!found) {
             const marked = await applyFailure(actor, total, entry);
             entry.result = { success: false, bulletId: null, projectId: null, stress: marked };
-            await writePending();
+            await keepResult(rolls, roll, key, entry);
             return { success: false, key };
         }
         entry.result = { success: true, bulletId: null, projectId: found, stress: 0 };
-        await writePending();
+        await keepResult(rolls, roll, key, entry);
         return { success: true, key };
     }
 
@@ -654,8 +658,19 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
         projectId: foundProject,
         stress: marked
     };
-    await writePending();
+    await keepResult(rolls, roll, key, entry);
     return { success, key };
+}
+
+/**
+ * Write the result through (ACT-08), and onto the GMs' bookmark of the roll it is for
+ * (E08+E28 C2): the key and the result a Reroll on a GM undoes (C4a). The target was
+ * chosen before that roll was thrown, so it is the entry's, read by its key, and not a
+ * fact of the row - the row the target step would have found was the roll before.
+ */
+async function keepResult(rolls, roll, key, entry) {
+    await writePending();
+    await rolls.noteRollFact(entry.actorId, roll, { observeKey: key, observeResult: structuredClone(entry.result) });
 }
 
 /** Put back whatever the previous throw of this same Observe did. */

@@ -807,6 +807,25 @@ export const confusionCopy = defineGmCopy({
 });
 
 /**
+ * THE REROLL'S BOOKMARK, ON THE GMS (E08+E28 C2, 03.10.2026; audit S05-08, S08-04, S04-18; the
+ * plan's 2.2). A row per character, the last roll the GMs were told of: `messageId`, `actionKey`,
+ * `trait`, `experiences`, `total`, `withFear`, `isCritical`, `first` (its rolls as first thrown),
+ * `at` and `by`, the user whose browser threw it; then `facts`, written by the GM that did a thing
+ * for that roll - the trace it placed, the plant it handed over, the crisis action's item and the
+ * resources before it, the clean-up attempt - and `claims`, what only the roller's browser saw
+ * (its Search's item on its own sheet, a Project's relief), picked per action (action-rolls.mjs
+ * `ROLL_CLAIMS`). Written by `keepGmBookmark` and `noteRollFact` (action-rolls.mjs); until C4a
+ * nothing reads it, and the Reroll reads the roller's own bookmark as before. Synced between the
+ * GMs and not backed up: a row is worth one Reroll, minutes long. Cut by the reset's "actions"
+ * group, beside the Confusions. No player copy - R182 has nothing to ask of it - and no old key.
+ */
+export const rerollBookmarkStore = defineGmStore({
+    name: "rerollBookmarks", key: SETTINGS.gmRerollBookmarks,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the

@@ -2555,6 +2555,7 @@
         "trait.ruling": "Wybór statystyki przez GM-a",
         "trap.event": "Zgłoszenie dla pułapek",
         "roll.subject": "Zgłoszenie, czyj to był rzut",
+        "roll.bookmark": "Co zrobił rzut, zapisane na Reroll",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu"
@@ -4694,6 +4695,7 @@
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
         "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
         "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
+        "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała"
       },
       "row": {

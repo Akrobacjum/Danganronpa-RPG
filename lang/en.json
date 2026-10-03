@@ -2467,6 +2467,7 @@
         "trait.ruling": "The GM's pick of a statistic",
         "trap.event": "A report for the traps",
         "roll.subject": "A report of whose roll it was",
+        "roll.bookmark": "What a roll did, kept for a Reroll",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back"
@@ -3457,6 +3458,7 @@
         "despairOwed": "The Despair each pool owes for its conversions to Hope",
         "lootTraces": "What has been taken off each body, and its trace",
         "confusions": "The Confusions armed on a character and not rolled yet",
+        "rerollBookmarks": "Each character's last roll a Reroll would take back, and what the GMs did for it",
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found"
       },
       "row": {

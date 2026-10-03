@@ -568,6 +568,45 @@ async function neutralRoll(who, { remember = false, faces = null, title = null, 
 }
 
 /**
+ * A PLAYER'S ROLL, ON THE GMS' BOOKMARK (E08+E28 C2, 03.10.2026). A roll of `actor` thrown here
+ * (`neutralRoll`) and written in `player`'s name - a GM may name a message's author - so it is
+ * a module roll that player wrote a moment ago, which `guardRollAuthor` asks; then its
+ * `roll.bookmark` judged as the primary's listener judges that player's packet. `ask` judges
+ * any other packet of theirs against a table (the bridge's unless named); `sent` keeps what the
+ * runner would have sent back, `row` reads the character's row, and `putBack` deletes the
+ * message and drops the row. The packet crossing the socket is 33-bridge-paths' and 30-security's.
+ */
+async function playerRollBookmark(player, actor, actionKey, context = {}) {
+    const G = await import("./bridge-guards.mjs");
+    const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+    const S = await import("./gm-stores.mjs");
+    const { message } = await neutralRoll(actor, { faces: { hope: 9, fear: 4 } });
+    must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+    await message.update({ author: player.id });
+    const sent = [];
+    const ask = (packet, { from = player.id, table = BRIDGE_ACTIONS } = {}) => G.judge(table, packet, from,
+        { send: (to, reply) => sent.push([reply?.action ?? null, reply?.reason ?? null]) });
+    const verdict = await ask({ action: "roll.bookmark", actorId: actor.id, messageId: message.id, actionKey, trait: "eye", experiences: [], context });
+    return { message, verdict, sent, ask,
+        row: () => S.rerollBookmarkStore?.get(actor.id) ?? null,
+        putBack: async () => {
+            await game.messages.get(message.id)?.delete();
+            if (S.rerollBookmarkStore?.has(actor.id)) await S.rerollBookmarkStore.drop(actor.id);
+        } };
+}
+
+/** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
+async function playerInRoom() {
+    const { locateActor } = await import("./movement.mjs");
+    const found = game.users.filter(u => !u.isGM && u.active).flatMap(player => game.actors
+        .filter(a => a.type === "character" && a.testUserPermission(player, "OWNER"))
+        .map(actor => ({ player, actor, where: locateActor(actor) })))
+        .find(s => s.where?.room && s.where.scene?.id && s.where.tokenDoc);
+    must(found, "the world has a connected player's character standing in a named room, and locateActor finds none");
+    return found;
+}
+
+/**
  * A swing to measure (E32+E07 C8): a direct murder between two students with players, its
  * opening ruled a success and the killer's turn come, the victim with no marks, and the killer
  * holding a Tier 1 knife readied - one point of durability, so the first Despair breaks it.
@@ -3338,6 +3377,200 @@ const SCENARIOS = [
                 "the subject was not found, a report that is not the sender's to make was taken or told, or a GM's own was not kept");
         } finally {
             for (const id of made) await game.messages.get(id ?? "")?.delete();
+        }
+    }],
+
+    ["the GM's bookmark of a player's Search names the trace it placed", async () => {
+        /*
+         * E08+E28 C2, 03.10.2026; audit S05-08. A player's trace is placed by the GM
+         * (`handleRemnant`), and the player's browser is answered with no id, so its Reroll
+         * could neither retune nor remove it (`remnantRef` -> null). The GMs' bookmark keeps
+         * it now: the player's roll is bookmarked, then their Search's trace is asked for as
+         * the listener judges it. Read: the bookmark's verdict, the placement's, the tokens
+         * the scene gained, and the row's trace, scene and roller.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "a player's trace is placed where their character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const F = await playerRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
+        const scene = where.scene, made = [];
+        try {
+            const had = new Set(scene.tokens.map(t => t.id));
+            const placed = await F.ask({ action: "remnant.place", requestId: "suite-e08c2-trace",
+                data: { sourceActor: actor.id, action: "search", type: "prep", visibility: "evident", sceneId: scene.id } });
+            made.push(...scene.tokens.filter(t => !had.has(t.id)).map(t => t.id));
+            const facts = F.row()?.facts ?? {};
+            equal(stableJson([F.verdict, placed, made.length, facts.remnantId === made[0], facts.remnantScene === scene.id, F.row()?.by ?? null]),
+                stableJson([true, true, 1, true, true, player.id]),
+                `the bookmark was refused, the trace not placed, or the GMs' row does not name it (verdict, placed, tokens made, trace, scene, roller): ${stableJson(F.row())}`);
+        } finally {
+            for (const id of made) await scene.tokens.get(id)?.delete();
+            await F.putBack();
+        }
+    }],
+
+    ["the GM's bookmark of a Search that drew a plant names the plant and its identity", async () => {
+        /*
+         * E08+E28 C2, 03.10.2026; audit S08-04. A Search that is handed a plant takes it out of
+         * the GMs' store with its identity, and its Reroll drew afresh - the plant gone for good.
+         * The GMs' bookmark of the searcher's roll keeps the plant now (`takePlant`), for the
+         * Reroll on a GM (C6a). A plant is left in the room the player's character stands in,
+         * the player's roll bookmarked, and the spend and the plant check run as the bridge runs
+         * them for that player (`SEARCH_ACTIONS`, the token spend stubbed so no room's count
+         * moves - their guards are R166's). Read: the reply's find, and the row's plant.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the plant waits where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const T = await import("./traps.mjs");
+        const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const room = where.room, sceneId = where.scene.id;
+        const F = await playerRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
+        // The plants are a GM store since E04: tier 2's restore puts them back.
+        const spend = SearchTokens.spend;
+        SearchTokens.spend = async () => true;
+        let reply = null, identity = null;
+        try {
+            identity = await T.plantItem("SUITE-E08C2-project", room, { sceneId, name: "SUITE E08 C2 plant", description: "SUITE E08 C2 a plant" });
+            must(identity, "nothing was planted");
+            const take = SEARCH_ACTIONS["searchTokens.takePlant"];
+            await SEARCH_ACTIONS["searchTokens.spend"].run({ roomName: room, sceneId }, player, {});
+            reply = (await take.run(take.sanitize({ roomName: room, sceneId, actorId: actor.id }), player, { requestId: "suite-e08c2-plant" }))?.reply ?? null;
+            equal(stableJson([F.verdict, reply?.ok ?? null, F.row()?.facts?.plant ?? null]),
+                stableJson([true, true, { name: "SUITE E08 C2 plant", identity, room, sceneId }]),
+                `the plant was not handed over, or the GMs' row does not name it and its identity (verdict, found, plant): ${stableJson(F.row())}`);
+        } finally {
+            SearchTokens.spend = spend;
+            await F.putBack();
+        }
+    }],
+
+    ["the GM's bookmark of a Use an item names the item and the resources before it", async () => {
+        /*
+         * E08+E28 C2, 03.10.2026; audit S04-18. Use an item spends the item on the player's own
+         * browser, before the packet, and its Reroll only unbroke it: the Health or Stress it
+         * gave back stayed, and so did the quantity it took. The GMs' bookmark keeps, beside the
+         * item, what the player read before using it (`before`, a claim about their own
+         * character: numbers or nothing) - what a Reroll on a GM puts back (C6b). At the
+         * killer's turn (`swingFixture`) the killer's player's roll is bookmarked and their Use
+         * an item judged as the listener judges it, `before` carrying a number as a string and a
+         * field nobody reads. Read: both verdicts, and the row's action, item and resources.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { killer, putBack } = await swingFixture();
+        const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+        let F = null;
+        try {
+            const [item] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C2 bandage", type: "loot", system: { quantity: 2 } }]);
+            F = await playerRollBookmark(player, killer, "crisis");
+            const used = await F.ask({ action: "murder.crisis", requestId: "suite-e08c2-use", actorId: killer.id, key: "useItem",
+                total: 20, isCritical: false, withHope: true, usedItemId: item.id, before: { hp: 5, stress: "2", qty: 2, extra: 9 } });
+            const facts = F.row()?.facts ?? {};
+            equal(stableJson([F.verdict, used, facts.crisis ?? null, facts.usedItemId === item.id, facts.before ?? null]),
+                stableJson([true, true, "useItem", true, { hp: 5, qty: 2, stress: 2 }]),
+                `the GMs' row does not name the item used and the resources before it (verdicts, action, item, before): ${stableJson(F.row())}`);
+        } finally {
+            await F?.putBack();
+            await putBack();
+        }
+    }],
+
+    ["a bookmark note for another player's character is refused", async () => {
+        /*
+         * E08+E28 C2, 03.10.2026. `roll.bookmark` writes a row of the GMs' Reroll bookmark, and
+         * the GM takes it only from the character's own player, for a module roll that player
+         * wrote a moment ago (`owns`, `guardRollAuthor`). Two packets of a connected player
+         * that their client never sends, judged as the listener judges them: their own roll
+         * named for a character they do not play, and their own character named for a roll a
+         * GM threw. Each is refused and logged on the GM and told to nobody (a report nobody
+         * waits on is quiet), and no row moves.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a refused note is sent by a player, and Foundry names only a connected one");
+        const U = await import("./utils.mjs");
+        const S = await import("./gm-stores.mjs");
+        const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => plays(u, a)));
+        const theirs = game.actors.find(a => plays(player, a));
+        const other = game.actors.find(a => a.type === "character" && !plays(player, a));
+        must(other, `${player.name} plays every character - a note of somebody else's cannot be made here`);
+        const refusals = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "roll.bookmark"')).length;
+        const F = await playerRollBookmark(player, theirs, "search");
+        let gmRoll = null;
+        try {
+            ({ message: gmRoll } = await neutralRoll(theirs, { faces: { hope: 9, fear: 4 } }));
+            must(gmRoll, "no roll was thrown for the GM - this would measure nothing");
+            const rows = () => stableJson([S.rerollBookmarkStore?.get(other.id) ?? null, S.rerollBookmarkStore?.get(theirs.id) ?? null]);
+            const before = [refusals(), rows(), F.sent.length];
+            const verdicts = [
+                await F.ask({ action: "roll.bookmark", actorId: other.id, messageId: F.message.id, actionKey: "search", context: {} }),
+                await F.ask({ action: "roll.bookmark", actorId: theirs.id, messageId: gmRoll.id, actionKey: "search", context: {} })
+            ];
+            equal(stableJson([F.verdict, verdicts, refusals() - before[0], rows() === before[1], F.sent.length - before[2]]),
+                stableJson([true, [null, null], 2, true, 0]),
+                "the player's own note was refused, a forged one was taken or told, or a row moved (own, forged, refusals logged, rows kept, packets sent)");
+        } finally {
+            await game.messages.get(gmRoll?.id ?? "")?.delete();
+            await F.putBack();
+        }
+    }],
+
+    ["a context field outside the action's list is dropped", async () => {
+        /*
+         * E08+E28 C2, 03.10.2026; the plan's 2.2. What the roller's browser says about its roll
+         * is a claim, and the GM keeps only what touches the roller's own sheet, per action
+         * (`ROLL_CLAIMS`): a Search's item, category, goal and tier - not a trace or a project,
+         * which are the GM's own facts. A connected player's Search bookmarked with the fields a
+         * Search claims and three it does not; then the same roll named as an Observe, which
+         * claims nothing. Read: the row's claims after each, and its facts.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the note is a connected player's, as Foundry names only those");
+        const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => plays(u, a)));
+        const actor = game.actors.find(a => plays(player, a));
+        const F = await playerRollBookmark(player, actor, "search",
+            { itemId: "SUITEE08C2ITEM00", category: "tool", tier: 2, remnantId: "SUITEE08C2TRACE0", projectId: "SUITEE08C2PROJ00", bogus: 1 });
+        try {
+            const first = F.row()?.claims ?? null;
+            const again = await F.ask({ action: "roll.bookmark", actorId: actor.id, messageId: F.message.id, actionKey: "observe",
+                context: { itemId: "SUITEE08C2ITEM00", relief: 2 } });
+            equal(stableJson([F.verdict, first, again, F.row()?.claims ?? null, F.row()?.facts ?? null]),
+                stableJson([true, { category: "tool", itemId: "SUITEE08C2ITEM00", tier: 2 }, true, {}, {}]),
+                "a claim the action does not make was kept, or one it makes was lost (verdict, a Search's claims, the second verdict, an Observe's claims, facts)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a GM's fact for a roll the character has rolled past is dropped", async () => {
+        /*
+         * E08+E28 C2, 03.10.2026; the plan's 2.2. A GM writes a fact on the roll it was asked for:
+         * each writer reads the row's message as it starts (`rollOfNow`) and names it as it writes
+         * (`noteRollFact`), so a fact whose work outlasted the character's next roll - a GM still
+         * describing an Observe's find - is not pinned on the newer one. A connected player's roll
+         * is bookmarked and its message read as a writer would; then a GM throws the same
+         * character's next roll here, which a GM keeps without a packet; then the fact for the first
+         * arrives. Read: the row's roll and roller after the second, the fact's answer, and the
+         * row's facts.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the first roll is a connected player's, as Foundry names only those");
+        const rolls = await import("./action-rolls.mjs");
+        const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
+        const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => plays(u, a)));
+        const actor = game.actors.find(a => plays(player, a));
+        const F = await playerRollBookmark(player, actor, "search");
+        let second = null;
+        try {
+            const asked = rolls.rollOfNow(actor.id);
+            ({ message: second } = await neutralRoll(actor, { remember: true, faces: { hope: 8, fear: 3 } }));
+            must(second, "the GM's roll was not thrown - this would measure nothing");
+            const row = F.row();
+            const wrote = await rolls.noteRollFact(actor.id, asked, { remnantId: "SUITEE08C2STALE0" });
+            equal(stableJson([F.verdict, asked === F.message.id, row?.messageId === second.id, row?.by ?? null, wrote, F.row()?.facts ?? null]),
+                stableJson([true, true, true, game.user.id, false, {}]),
+                "the GM's own roll was not kept, or a fact for the roll before it landed on it (verdict, first roll read, second kept, its roller, fact written, facts)");
+        } finally {
+            await game.messages.get(second?.id ?? "")?.delete();
+            await F.putBack();
         }
     }],
 

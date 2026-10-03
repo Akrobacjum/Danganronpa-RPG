@@ -1540,6 +1540,9 @@ export async function resolveCleanup({
     // to put right by hand.
     // Whether the attempt being replaced was the free one, read before the rewind takes its receipt.
     const replayFree = Boolean(undo && lastAttempt.get(actorId)?.free);
+    // The roll this attempt is for, as it arrives (E08+E28 C2): see `keepAttemptFact`.
+    const rolls = await import("./action-rolls.mjs");
+    const roll = rolls.rollOfNow(actorId);
     if (undo && !await undoLastCleanup(actor, tokenId)) return null;
 
     // Searched across every scene rather than only the one the killer is
@@ -1604,8 +1607,10 @@ export async function resolveCleanup({
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
     if (transforming && success) {
-        return resolveTransformRoad(actor, token, data, verdict,
+        const road = await resolveTransformRoad(actor, token, data, verdict,
             { change, isCritical, total, viaAction, receipt, done, paidStep, charged });
+        await keepAttemptFact(rolls, roll, actorId, receipt);
+        return road;
     }
 
     const { rewrite, rewriteName } = await resolveEraseRoad(actor, token, data, { outcome, transforming, isCritical, transform, receipt, done });
@@ -1628,6 +1633,7 @@ export async function resolveCleanup({
     // What this attempt left the Sanity track at - see the transform road above.
     receipt.stressAfter = resourceValue(actor, "stress");
     lastAttempt.set(actorId, receipt);
+    await keepAttemptFact(rolls, roll, actorId, receipt);
 
     log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} - ${band}${
         rewrite ? `, reshaped into "${rewriteName}" at ${rewrite.visibility}` : ""}.`);
@@ -2306,6 +2312,17 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
 
 /** actorId -> what their last clean-up attempt did. GM browsers only. */
 const lastAttempt = new Map();
+
+/**
+ * The attempt a clean-up roll made, on the GMs' bookmark of that roll (E08+E28 C2): the
+ * receipt's `attempt` id, which a reshape card carries too. Only once the attempt is the one
+ * this browser keeps - a road that refused kept none. A replay writes its own attempt over
+ * the first, as it replaces the first's receipt here.
+ */
+async function keepAttemptFact(rolls, roll, actorId, receipt) {
+    if (lastAttempt.get(actorId) !== receipt) return;
+    await rolls.noteRollFact(actorId, roll, { cleanupAttempt: receipt.attempt });
+}
 
 /**
  * Enough to build this Remnant again where it stood, with everything it knew.
