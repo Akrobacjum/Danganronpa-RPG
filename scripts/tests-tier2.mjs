@@ -16601,18 +16601,26 @@ const SCENARIOS = [
 
                 /* E32 C3: at the cast's save the other GM passes the turn - into the cast, at a stamp of its
                    own, as every write of the fight goes since 1.2.66 - and moves the stage, writing the world
-                   half as it read it, the fight a 1.2.65 table left there included. */
+                   half as it read it, the fight a 1.2.65 table left there included. The pass's own
+                   save is given a timer's turn before the lift's save goes on (E32+E07 fix r2-G5,
+                   03.10.2026): without it the store's next flush began inside that save in 4 runs of
+                   20 on 0aeba50 - those 4 the failures this test showed once in 5 to 8 runs since
+                   r2-G3 - and the save made last, holding the turn as it was, stood. Now it begins
+                   in every run, and the store holds it back until the lift's save is written
+                   (gm-store.mjs `flush`). Read from storage and from memory. */
                 await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident", turn: 2, turnSide: "killer", keyRemnants: 4 });
-                race(S.castStore.spec.key, SETTINGS.murderState, () => {
+                race(S.castStore.spec.key, SETTINGS.murderState, async () => {
                     void S.castStore.patch("record", { turn: 3, turnSide: "victim" });
+                    await new Promise(resolve => setTimeout(resolve, 20));
                     return realSet.call(settings, MODULE_ID, SETTINGS.murderState, { ...murderNow(), stage: "resolution" });
                 });
                 await M.liftIncidentFight();
                 putBack();
                 await S.castStore.idle();
                 const castFight = S.castStore.persisted("record") ?? {};
-                equal(stableJson([order, murderNow(), [castFight.turn, castFight.turnSide, castFight.keyRemnants]]),
-                    stableJson([["other GM", "lift"], { active: true, stage: "resolution" }, [3, "victim", 4]]),
+                const castHeld = S.castStore.get("record") ?? {};
+                equal(stableJson([order, murderNow(), [castFight.turn, castFight.turnSide, castFight.keyRemnants], [castHeld.turn, castHeld.turnSide]]),
+                    stableJson([["other GM", "lift"], { active: true, stage: "resolution" }, [3, "victim", 4], [3, "victim"]]),
                     "liftIncidentFight put back a stage another GM moved during the cast's save, lost the turn it passed, or kept the fight");
             });
         } finally {
