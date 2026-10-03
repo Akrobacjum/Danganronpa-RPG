@@ -1127,7 +1127,8 @@ async function handleRollBookmark(payload, sender) {
         actionKey: payload.actionKey,
         trait: payload.trait,
         experiences: payload.experiences,
-        context: payload.context
+        context: payload.context,
+        reportMessageId: payload.reportMessageId
     }, sender);
 }
 
@@ -1593,17 +1594,20 @@ export const BRIDGE_ACTIONS = table({
     /* THE ROLL A REROLL WOULD TAKE BACK, AS ITS ROLLER SAW IT (E08+E28 C2, 03.10.2026; the
        plan's 2.2). Sent by the roller's browser after the roll, and again when its action
        adds a claim (action-rolls.mjs `tellGmsOfRoll`): a report nobody waits on, so a refusal
-       is the GM's log line. The roll's own numbers are read off the message on the GM. */
+       is the GM's log line. The roll's own numbers are read off the message on the GM. Since
+       C5 it also names the card the roll was reported on, which a Reroll marks. */
     [ACTION_ROLL_BOOKMARK]: {
         label: "DRPG.Bridge.what.roll.bookmark",
         guards: [knownSender, owns("actorId", "sender does not own that character"), guardRollAuthor],
-        sanitize: pick({ actorId: as.id, messageId: as.id, actionKey: as.maybeText, trait: as.maybeText, experiences: as.raw, context: as.raw }),
+        sanitize: pick({ actorId: as.id, messageId: as.id, actionKey: as.maybeText, trait: as.maybeText, experiences: as.raw, context: as.raw,
+            reportMessageId: as.id }),
         run: handleRollBookmark,
         answer: "none", quiet: true,
         claims: {
             messageId: guardRollAuthor,
             experiences: "the roller's own sheet's: keepGmBookmark (action-rolls.mjs) keeps up to twelve short strings",
-            context: "picked per action by rollClaims (action-rolls.mjs ROLL_CLAIMS): what the roller alone saw; a Reroll's replay judges anything it writes beyond the roller's own sheet"
+            context: "picked per action by rollClaims (action-rolls.mjs ROLL_CLAIMS): what the roller alone saw; a Reroll's replay judges anything it writes beyond the roller's own sheet",
+            reportMessageId: "kept only when reportCardOf (action-rolls.mjs) finds a module card of the sender's, no older than the roll and under a minute old; a Reroll only marks it"
         }
     },
     /*

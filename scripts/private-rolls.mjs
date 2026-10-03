@@ -263,6 +263,7 @@ function paintChatCard(message, element) {
         // module posts, so the class means exactly "we wrote this".
         if (message?.getFlag?.(MODULE_ID, MESSAGE_FLAG)) {
             html.classList.add("drpg-chat-card");
+            markReplaced(message, html);
 
             /* AND WHICH WAY ITS ROLL WENT.
              *
@@ -302,6 +303,57 @@ function paintChatCard(message, element) {
         // A card without its border is still a readable card.
         error("Could not paint a chat card", err);
     }
+}
+
+/*
+ * THE CARD A REROLL REPLACED (E08+E28 C5, 03.10.2026; audit S02-21; the plan's 2.7). The GM
+ * making a Reroll stamps the action's card `flags.danganronpa-rpg.rerolled = { from, to, tone, at }`
+ * (reroll.mjs `markReplacedCard`), and every client that draws the card strikes its header's
+ * total and adds one line under the header - "Rerolled: 14 -> 4 (see the Reroll card)" - in
+ * the new roll's colour.
+ * Drawn here, never written into the words: a private card's words are its readers' alone
+ * (secret.mjs), and the GM could not write them again for anybody.
+ *
+ * AFTER THE WORDS, NOT BEFORE. This hook is registered at init and secret.mjs's, which puts a
+ * private card's words into the element, at ready (module.mjs) - so on a private card this runs
+ * on the stub, and the words replace whatever it drew. The mark waits for the end of the hook's
+ * run (a microtask; every listener of `renderChatMessageHTML` runs in one synchronous call) and
+ * is drawn only where a header with a total is there to strike: a client without the words, or
+ * a veiled card it was not sent, draws no line, so the totals reach nobody the card does not.
+ * The flag sits on a document the card's author may write, as they wrote its words: the line is
+ * the card's own word, as the rest of it is.
+ */
+const REPLACED_LINE = "drpg-reroll-replaced";
+
+function markReplaced(message, html) {
+    const mark = message?.flags?.[MODULE_ID]?.rerolled;
+    if (!mark || typeof mark !== "object") return;
+    queueMicrotask(() => {
+        try {
+            drawReplaced(html, mark);
+        } catch (err) {
+            error("Could not mark a card a Reroll replaced", err);
+        }
+    });
+}
+
+/** The struck total and the line, on a card element that holds the header; once. */
+function drawReplaced(html, mark) {
+    const head = html?.querySelector?.(".drpg-card-head");
+    const total = head?.querySelector(".drpg-card-total");
+    if (!total || html.querySelector(`.${REPLACED_LINE}`)) return false;
+    total.style.setProperty("text-decoration", "line-through");
+    const line = document.createElement("p");
+    line.className = REPLACED_LINE;
+    line.textContent = game.i18n.format("DRPG.Reroll.cardReplaced", { from: String(mark.from ?? "?"), to: String(mark.to ?? "?") });
+    const token = Object.hasOwn(OUTCOME_TOKEN, mark.tone ?? "") ? OUTCOME_TOKEN[mark.tone] : null;
+    if (token) {
+        line.dataset.tone = mark.tone;
+        const colour = outcomeColour(token);
+        if (colour) line.style.setProperty("color", colour);
+    }
+    head.after(line);
+    return true;
 }
 
 /**

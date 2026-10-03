@@ -70,7 +70,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const hopeWas = aiko.system.resources.hope.value;
         await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(4, hopeWas) });
         const w = globalThis.__rerollWrites = { hope: [], rolls: [], items: [], hooks: [], messageId: m?.id ?? null, hopeWas,
-            hopeAt: aiko.system.resources.hope.value, row: row ? { actionKey: row.actionKey, claims: row.claims, facts: row.facts, by: row.by } : null };
+            hopeAt: aiko.system.resources.hope.value,
+            row: row ? { actionKey: row.actionKey, claims: row.claims, facts: row.facts, by: row.by, reportMessageId: row.reportMessageId ?? null } : null };
         w.hooks.push(["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (d.id === aiko.id && foundry.utils.hasProperty(c, "system.resources.hope")) w.hope.push(u ?? null); })]);
         w.hooks.push(["updateChatMessage", Hooks.on("updateChatMessage", (d, c, o, u) => { if (d.id === w.messageId && c && "rolls" in c) w.rolls.push(u ?? null); })]);
         w.hooks.push(["deleteItem", Hooks.on("deleteItem", (d, o, u) => { if (d.parent?.id === aiko.id) w.items.push([d.id, u ?? null]); })]);
@@ -227,6 +228,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && Boolean(takenBack) && JSON.stringify(searchReroll.items) === JSON.stringify([[takenBack, searchReroll.gm]])
             && searchReroll.row?.total === 4 && searchReroll.row?.rerolled === true && searchReroll.row?.claims?.itemId === null && !searchReroll.journal,
         JSON.stringify({ searchReroll, made: searchAsk.made, card: Boolean(searchAsk.card), arm: searchArm.row }), { flow: "reroll" });
+    /* THE SEARCH'S CARD, AFTER IT (E08+E28 C5, 03.10.2026; audit S02-21). p1's browser named its
+       Search card in the roll's bookmark, and the GM making the Reroll stamped it. Each browser draws
+       it through the log's render hooks onto a bare card element, a stub in its body as the document
+       carries, and is read once the hooks' run has ended: p1, a reader, draws the header's total
+       struck and the line with both totals in the new roll's colour; p2 holds the stamped document
+       and not the words, and draws neither. */
+    const replacedOn = c => c.eval(`const m = game.messages.get(${JSON.stringify(searchCard?.id ?? null)});
+        if (!m) return null;
+        const li = document.createElement("li");
+        li.innerHTML = '<header class="message-header"></header><div class="message-content"><p class="notes" data-drpg-secret>-</p></div>';
+        Hooks.callAll("renderChatMessageHTML", m, li);
+        await new Promise(r => setTimeout(r, 0));
+        const line = li.querySelector(".drpg-reroll-replaced");
+        return { mark: m.flags?.["${MOD}"]?.rerolled ?? null,
+            struck: li.querySelector(".drpg-card-head .drpg-card-total")?.style.getPropertyValue("text-decoration") ?? null,
+            line: line?.textContent ?? null, tone: line?.dataset.tone ?? null };`);
+    const replacedP1 = await replacedOn(p1), replacedP2 = await replacedOn(p2);
+    check("p1: the Search's card a Reroll replaced is drawn with its total struck and a line of both totals in the new roll's colour - p2, without its words, draws neither",
+        Boolean(searchCard) && searchArm.row?.reportMessageId === searchCard.id
+            && replacedP1?.mark?.from === 14 && replacedP1.mark.to === 4 && replacedP1.mark.tone === "hope"
+            && replacedP1.struck === "line-through" && / 14 -> 4 /.test(replacedP1.line ?? "") && replacedP1.tone === "hope"
+            && replacedP2?.mark?.to === 4 && replacedP2.struck === null && replacedP2.line === null,
+        JSON.stringify({ named: searchArm.row?.reportMessageId ?? null, card: searchCard?.id ?? null, replacedP1, replacedP2 }), { flow: "reroll" });
 
     // ---- 3. a Hope Call that waits for the GM (Ultimate) ------------------------------------
     phase("a Hope Call", { flow: "hope-call" });

@@ -2426,6 +2426,116 @@ const SCENARIOS = [
         }
     }],
 
+    ["after a Reroll the old card reads as replaced", async () => {
+        /*
+         * E08+E28 C5, 03.10.2026; audit S02-21; the plan's 2.7. A Reroll rewrote the roll's message
+         * and left the action's card alone: its total and its words were the first roll's, and the
+         * table read two outcomes of one roll. The card is marked now: `report()` names it in the
+         * roll's bookmark, the GM making the Reroll stamps it (reroll.mjs `markReplacedCard`), and
+         * the card is drawn with its total struck and one line (private-rolls.mjs `markReplaced`).
+         * A student's roll (`neutralRoll`), reported on a Search's card through `report()`, and
+         * rerolled on this GM from a Hope 13 into a Fear 9 (`rerollAgain`). The card is drawn
+         * through the log's render hooks onto a bare card element, a stub in its body as a private
+         * card's document carries, and read once the hook's run has ended. Read: the card the GMs'
+         * row names, the Reroll made, the stamp, the header's total struck, the line and its
+         * colour, the words this GM holds against before, and how many lines a second drawing adds.
+         */
+        const [who] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { secretHtml, STUB } = await import("./secret.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const drawn = async card => {
+            const li = document.createElement("li");
+            li.className = "chat-message message";
+            li.innerHTML = `<header class="message-header"></header><div class="message-content">${STUB}</div>`;
+            Hooks.callAll("renderChatMessageHTML", card, li);
+            await wait(0);
+            return li;
+        };
+        let message = null, card = null;
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                await who.update({ "system.resources.hope.value": 5 });
+                const first = { hope: 9, fear: 4 };
+                const thrown = await neutralRoll(who, { remember: true, faces: first });
+                message = thrown.message;
+                must(message && rerollBookmarkStore.get(who.id)?.messageId === message.id, "the roll to take back is not the one the GMs keep - this would measure nothing");
+                card = await rolls.report(who, ACTIONS.search, thrown.outcome, { text: "SUITE C5 what the first roll did" });
+                must(card, "the roll's card was not posted - this would measure nothing");
+                await until(() => rerollBookmarkStore.get(who.id)?.reportMessageId === card.id);
+                const named = rerollBookmarkStore.get(who.id)?.reportMessageId === card.id;
+                const words = secretHtml(card);
+                const { out } = await rerollAgain(who, message, first, { hope: 2, fear: 7 });
+                await until(() => Boolean(card.flags?.[MODULE_ID]?.rerolled));
+                const mark = card.flags?.[MODULE_ID]?.rerolled ?? null;
+                const li = await drawn(card);
+                const line = li.querySelector(".drpg-reroll-replaced");
+                equal(stableJson([named, Array.isArray(out?.lines), mark ? [mark.from, mark.to, mark.tone] : null,
+                    li.querySelector(".drpg-card-head .drpg-card-total")?.style.getPropertyValue("text-decoration") ?? null,
+                    line?.textContent ?? null, line?.dataset.tone ?? null, secretHtml(card) === words && Boolean(words),
+                    (await drawn(card)).querySelectorAll(".drpg-reroll-replaced").length]),
+                stableJson([true, true, [13, 9, "fear"], "line-through",
+                    game.i18n.format("DRPG.Reroll.cardReplaced", { from: "13", to: "9" }), "fear", true, 1]),
+                "the card was not named, the Reroll not made, the card not stamped, or not drawn as replaced (named, made, [from, to, tone], the total's line, the line, its colour, the words kept, lines on a second drawing)");
+            });
+        } finally {
+            await message?.delete();
+            await card?.delete();
+        }
+    }],
+
+    ["a veiled card keeps its words after the mark", async () => {
+        /*
+         * E08+E28 C5, 03.10.2026; the plan's 2.7. An incident's card is veiled (secret.mjs): its
+         * document names nobody, its words travel to its readers alone. The Reroll's mark is a flag
+         * on that document, and the line is drawn by each reader from it; the words are not written
+         * again, and the card stays veiled. A student's roll, its card posted veiled to the owner and
+         * the GMs, named on the GMs' row as the roller's browser names it (`keepGmBookmark` with the
+         * card), and rerolled on this GM from a Hope 13 into a Hope 11. Read: the Reroll made, the
+         * words this GM holds against before, the card's module flags, and the line this GM draws.
+         */
+        const [who] = cast(1);
+        const rolls = await import("./action-rolls.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { secretHtml, STUB } = await import("./secret.mjs");
+        const { whisperToOwner, cardHead } = await import("./utils.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        let message = null, card = null;
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                await who.update({ "system.resources.hope.value": 5 });
+                const first = { hope: 9, fear: 4 };
+                message = (await neutralRoll(who, { remember: true, faces: first })).message;
+                const row = rerollBookmarkStore.get(who.id);
+                must(message && row?.messageId === message.id, "the roll to take back is not the one the GMs keep - this would measure nothing");
+                card = await whisperToOwner(who, `${cardHead({ action: "SUITE C5 veiled", total: 13 })}<p>SUITE C5 the incident's words</p>`, { veiled: true });
+                must(card && card.flags?.[MODULE_ID]?.veiled === true, "the card was not posted veiled - this would measure nothing");
+                await rolls.keepGmBookmark({ actorId: who.id, messageId: message.id, actionKey: row.actionKey, trait: row.trait,
+                    experiences: row.experiences, reportMessageId: card.id }, game.user);
+                const words = secretHtml(card);
+                const flags = () => Object.keys(card.flags?.[MODULE_ID] ?? {}).sort();
+                const { out } = await rerollAgain(who, message, first, { hope: 6, fear: 5 });
+                await until(() => Boolean(card.flags?.[MODULE_ID]?.rerolled));
+                const li = document.createElement("li");
+                li.innerHTML = `<div class="message-content">${STUB}</div>`;
+                Hooks.callAll("renderChatMessageHTML", card, li);
+                await wait(0);
+                equal(stableJson([Array.isArray(out?.lines), secretHtml(card) === words && Boolean(words), flags(),
+                    li.querySelector(".drpg-reroll-replaced")?.textContent ?? null]),
+                stableJson([true, true, ["drpgMessage", "rerolled", "secret", "veiled"],
+                    game.i18n.format("DRPG.Reroll.cardReplaced", { from: "13", to: "11" })]),
+                "the Reroll was not made, the veiled card's words changed, its document gained or lost a flag other than the mark, or no line was drawn (made, words kept, module flags, the line)");
+            });
+        } finally {
+            await message?.delete();
+            await card?.delete();
+        }
+    }],
+
     ["a victim run out while an action is scored is checked when it ends", async () => {
         /*
          * E32+E07 fix r1-G3, 02.10.2026; review C-m1. While an action is scored the

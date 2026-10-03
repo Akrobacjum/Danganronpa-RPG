@@ -39,9 +39,9 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
-import { supersedingRoll, reportRollSubject } from "./private-rolls.mjs";
+import { supersedingRoll, reportRollSubject, isClaimedRoll } from "./private-rolls.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
 // does not import this file.
@@ -903,8 +903,9 @@ async function noteRollContext(actor, data) {
         const next = { ...current, ...data };
         rollsInHand.set(actor.id, next);
         // Told again only when it changes what the GMs keep of the roller's word: most
-        // contexts add facts the GM did, which the GM wrote itself.
-        if (next.actionKey !== current.actionKey
+        // contexts add facts the GM did, which the GM wrote itself. The roll's card is
+        // named once it is posted (`report`).
+        if (next.actionKey !== current.actionKey || next.reportMessageId !== current.reportMessageId
             || JSON.stringify(rollClaims(next.actionKey, next)) !== JSON.stringify(rollClaims(current.actionKey, current))) {
             await tellGmsOfRoll(actor, next);
         }
@@ -1024,7 +1025,7 @@ async function tellGmsOfRoll(actor, bookmark) {
     await requestRollBookmark({
         actorId: actor.id, messageId: bookmark.messageId, actionKey: bookmark.actionKey ?? null,
         trait: bookmark.trait ?? null, experiences: bookmark.experiences ?? [],
-        context: rollClaims(bookmark.actionKey, bookmark)
+        context: rollClaims(bookmark.actionKey, bookmark), reportMessageId: bookmark.reportMessageId ?? null
     });
 }
 
@@ -1063,12 +1064,36 @@ export async function rollOfSenderNaming(userId, actionKey, messageId, ms = 1500
 }
 
 /**
+ * THE CARD A ROLL WAS REPORTED ON (E08+E28 C5, 03.10.2026; audit S02-21; the plan's 2.7).
+ * `report()` posts the action's card from the roller's browser after the roll, and its
+ * outcome paragraphs are built there from facts a replay changes, so the GM making a
+ * Reroll cannot rebuild them: it marks the card instead (reroll.mjs `markReplacedCard`).
+ * The roller names the card in its roll's bookmark; it is kept only when it is a card of
+ * the module's, not a roll, written by the roll's own sender, no older than the roll and
+ * under a minute old - as `guardRollAuthor` bounds the roll's own message. A card the GM
+ * has not seen yet is waited for (secret.mjs `messageArrives`). Null otherwise.
+ */
+const REPORT_CARD_MS = 60_000;
+
+async function reportCardOf(id, roll, by) {
+    if (typeof id !== "string" || !id || !by?.id) return null;
+    const { messageArrives } = await import("./secret.mjs");
+    const card = game.messages.get(id) ?? await messageArrives(id);
+    if (!card || card.id === roll.id || !card.getFlag?.(MODULE_ID, MESSAGE_FLAG) || isClaimedRoll(card)) return null;
+    if ((card.author?.id ?? card.user?.id) !== by.id) return null;
+    const at = card.timestamp ?? 0;
+    return at >= (roll.timestamp ?? 0) && Date.now() - at <= REPORT_CARD_MS ? card.id : null;
+}
+
+/**
  * The run of `roll.bookmark`, and a GM's own roll's (E08+E28 C2). The guards tied the
  * message to the sender and the character to them. The same roll again patches its
  * row - the action's claims, which grow as it goes - and keeps its facts; another
- * roll starts the row afresh, unless it is older than the one kept.
+ * roll starts the row afresh, unless it is older than the one kept. The roll's card,
+ * once named, is kept beside them (`reportCardOf`, C5).
  */
-export async function keepGmBookmark({ actorId, messageId, actionKey = null, trait = null, experiences = [], context = null } = {}, by = null) {
+export async function keepGmBookmark({ actorId, messageId, actionKey = null, trait = null, experiences = [], context = null,
+    reportMessageId = null } = {}, by = null) {
     if (!game.user?.isGM) return null;
     const actor = game.actors.get(actorId ?? "");
     const message = game.messages.get(messageId ?? "");
@@ -1081,6 +1106,8 @@ export async function keepGmBookmark({ actorId, messageId, actionKey = null, tra
         experiences: (Array.isArray(experiences) ? experiences : []).filter(e => typeof e === "string" && e.length <= 128).slice(0, 12),
         claims: rollClaims(key, context)
     };
+    const card = await reportCardOf(reportMessageId, message, by);
+    if (card) told.reportMessageId = card;
     const held = rerollBookmarkStore.get(actor.id);
     if (held?.messageId === message.id) return rerollBookmarkStore.patch(actor.id, told);
     const kept = held ? game.messages.get(held.messageId ?? "") : null;
@@ -1089,7 +1116,7 @@ export async function keepGmBookmark({ actorId, messageId, actionKey = null, tra
     const { total, withFear, isCritical } = dualityOfRoll(message.rolls?.[0]);
     // Every field, so a new roll leaves nothing of the last one behind.
     return rerollBookmarkStore.patch(actor.id, {
-        messageId: message.id, ...told, total, withFear, isCritical,
+        messageId: message.id, reportMessageId: null, ...told, total, withFear, isCritical,
         first: foundry.utils.deepClone(message.toObject().rolls ?? []),
         room: roomOfActor(actor) ?? null, at: Date.now(), by: by?.id ?? null, facts: {}
     });
@@ -5372,9 +5399,10 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
  * It reaches the popup's title bar and the chat card's whole ground from here.
  *
  * A Critical is checked first because a roll can be critical AND carry a side,
- * and the rarer fact is the one worth the colour.
+ * and the rarer fact is the one worth the colour. Exported for the Reroll, whose
+ * mark on the card it replaced is drawn in the new roll's colour (E08+E28 C5).
  */
-function rollTone(roll) {
+export function rollTone(roll) {
     return roll?.isCritical ? "critical"
         : roll?.withHope ? "hope"
             : roll?.withFear ? "fear" : null;
@@ -5401,8 +5429,13 @@ function rollHead(def, roll) {
     }) + dualityBar(roll);
 }
 
-async function report(actor, def, roll, outcome) {
-    if (!outcome) return;
+/**
+ * The action's card: posted from the roller's browser, to the owner and the GMs. Answers the
+ * card (null when there was nothing to report or nothing was posted), and names it to the GMs
+ * as the card of the roll it reports (`nameReportCard`, E08+E28 C5). Exported for the suite.
+ */
+export async function report(actor, def, roll, outcome) {
+    if (!outcome) return null;
 
     // The one moment at a roll the whole table waits for. Local: this runs on
     // the client that rolled, and the card it is about is on its way.
@@ -5526,7 +5559,7 @@ async function report(actor, def, roll, outcome) {
     // 26.09.2026; audit S10-05, S02-11): they were `flags.summary`, which every
     // browser holds, and 40-flow read p1's find off p2's copy of this card. They
     // travel with the words to the card's readers (secret.mjs `plainSummary`).
-    await whisperToOwner(actor, html, {
+    const card = await whisperToOwner(actor, html, {
         flags: {
             [MODULE_ID]: {
                 popupTitle: def.label,
@@ -5551,7 +5584,21 @@ async function report(actor, def, roll, outcome) {
         }
     });
 
+    await nameReportCard(actor, roll, card);
     log(`${actor.name}: ${def.label} = ${roll?.total}`);
+    return card ?? null;
+}
+
+/**
+ * The card a roll was reported on, told to the GMs with the roll's bookmark (E08+E28 C5; the
+ * plan's 2.7), so the Reroll that replaces the roll can mark it. Only for the roll this browser
+ * last told them of: a card that reports no roll message, or one this character has rolled
+ * again since, names nothing. The GM judges the card (`reportCardOf`).
+ */
+async function nameReportCard(actor, roll, card) {
+    const rollId = roll?.raw?.message?.id ?? roll?.raw?.message?._id ?? null;
+    if (!card?.id || !rollId || rollInHand(actor)?.messageId !== rollId) return;
+    await noteRollContext(actor, { reportMessageId: card.id });
 }
 
 /** Re-exported so other modules keep a single source for "where am I". */

@@ -11,6 +11,8 @@
  *
  *   the dice      the chat message is rewritten in place, so the table sees one
  *                 roll with new numbers rather than two contradictory rolls
+ *   the card      the action's card is not rewritten - its words were built in the
+ *                 roller's browser - but marked as replaced (`markReplacedCard`, C5)
  *   Hope / Sanity `settleDualityReroll`, a port of what `DualityRoll#reroll`
  *                 settles, moves these from the old duality to the new one
  *   Despair       ours, not the system's - a Despair result that becomes a Hope
@@ -42,7 +44,7 @@
 
 import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
 import { resolveThreshold, easedBy, log, error, plural, esc, isPrimaryGm, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
-import { searchTier, stashStepFor, stashText } from "./action-rolls.mjs";
+import { searchTier, stashStepFor, stashText, rollTone } from "./action-rolls.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore } from "./gm-stores.mjs";
@@ -425,6 +427,7 @@ async function makeReroll(actor, sender) {
         await settleCritHope(actor, before, after, done);
     }
 
+    await markReplacedCard(row, before, after);
     try {
         await keepRerolledRow(actor, row, patch, after);
     } catch (err) {
@@ -453,6 +456,34 @@ async function keepRerolledRow(actor, row, patch, after) {
     await rerollBookmarkStore.patch(actor.id, {
         claims, facts, total: after.total, withFear: after.withFear, isCritical: after.isCritical, rerolled: true
     });
+}
+
+/**
+ * THE CARD IT REPLACED SAYS SO (E08+E28 C5, 03.10.2026; audit S02-21; the plan's 2.7). The
+ * header's "rewritten in place" is the roll's message; the action's card beside it was posted
+ * from the roller's browser, from facts the replay has just changed, and kept its first total
+ * and its first words - the table read two outcomes of one roll. The GM cannot write those
+ * words again, so the card is marked, not rewritten: `flags.danganronpa-rpg.rerolled` on its document,
+ * `{ from, to, tone, at }` - the total the card prints, the new one, and the new roll's colour
+ * (action-rolls.mjs `rollTone`) - and every reader draws the struck total and one line from it
+ * (private-rolls.mjs `markReplaced`). A private card's words (secret.mjs) are not touched: the
+ * flag is the document's, the line is drawn where the words are. A second Reroll of the same
+ * roll keeps `from`, the number the card itself prints. The card is the one the roller named
+ * (action-rolls.mjs `reportCardOf`); a row naming none is a roll whose card was never named,
+ * and nothing is marked. Written once the Reroll stands, so a refused one leaves it as it was.
+ */
+async function markReplacedCard(row, before, after) {
+    const card = game.messages.get(row.reportMessageId ?? "") ?? null;
+    if (!card) return;
+    const held = card.flags?.[MODULE_ID]?.rerolled ?? null;
+    try {
+        await card.update({ [`flags.${MODULE_ID}.rerolled`]: {
+            from: held?.from ?? before.total ?? null, to: after.total ?? null, tone: rollTone(after), at: Date.now()
+        } });
+    } catch (err) {
+        // The Reroll stands without it: the Reroll's own card says what changed.
+        error("Could not mark the card a Reroll replaced", err);
+    }
 }
 
 /**

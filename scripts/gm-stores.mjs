@@ -811,7 +811,8 @@ export const confusionCopy = defineGmCopy({
  * plan's 2.2). A row per character, the last roll the GMs were told of: `messageId`, `actionKey`,
  * `trait`, `experiences`, `total`, `withFear`, `isCritical`, `first` (its rolls as first thrown),
  * `room` (where the character stood as the GM kept it, E08+E28 C4a), `at` and `by`, the user
- * whose browser threw it; then `facts`, written by the GM that did a thing
+ * whose browser threw it, and `reportMessageId`, the card the roll was reported on, which a
+ * Reroll marks (C5); then `facts`, written by the GM that did a thing
  * for that roll - the trace it placed, the plant it handed over, the crisis action's item and the
  * resources before it, the clean-up attempt - and `claims`, what only the roller's browser saw
  * (its Search's item on its own sheet, a Project's relief), picked per action (action-rolls.mjs
