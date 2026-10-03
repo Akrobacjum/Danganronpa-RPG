@@ -1556,9 +1556,11 @@ const INVARIANTS = [
         ok(!/setFlag\([^)]*FLAGS\.pendingCall/.test(bridge),
             "the bridge writes the armed slot directly again, so arming on somebody's behalf evicts");
         ok(/appendArmedCall\(/.test(bridge), "the bridge no longer appends to the armed list");
-        ok(/function callDice\(/.test(dialog) && /callDice\(actor\)/.test(dialog),
+        ok(/function callDice\(/.test(dialog) && /callDice\(windowCalls\(app, actor\)\)/.test(dialog),
             "the roll window counts one Call's die instead of adding them up");
-        ok(/consumeCalls\(actor\)/.test(rolls), "an action roll spends only one of the armed Calls");
+        // E08+E28 C7 (S02-20): by name, the ones the roll read - a Call armed after them waits.
+        ok(/consumeCallsByNonce\(actor, armedCalls\.map\(/.test(rolls),
+            "an action roll spends something other than every armed Call it read, by name");
     }],
 
     ["every trait a definition names actually exists", () => {

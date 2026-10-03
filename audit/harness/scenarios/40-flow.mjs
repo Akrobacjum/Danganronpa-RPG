@@ -605,6 +605,57 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         p1Spent.includes(armedNonce) && gmAfter === false && p1After.armed.length === 0 && !(p1After.copy ?? []).includes(ids.aiko),
         JSON.stringify({ armedNonce, p1Spent, gmStillHolds: gmAfter, p1: p1After }), { flow: "monocub-meddle" });
 
+    // ---- 6b+. a Call armed while the roll window is open waits for the next roll ------------
+    /*
+     * E08+E28 C7, 03.10.2026; audit S02-20. A Call armed on a character whose roll window stood
+     * open was spent by that window's close with everything else on the list, on a roll it never
+     * touched. Daggerheart's window is not in the harness, so p1 holds a stand-in for Aiko's,
+     * handed to roll-dialog.mjs's two hooks as tier 2's `rollWindow` does. The GM arms a Support
+     * on Aiko, p1 opens the window on it, the GM arms an Obstacle - a GM's flag write, which p1's
+     * `updateActor` sees - and p1 submits. Read: on p1 whether the window was redrawn and the line
+     * it carries; on the GM, Aiko's armed list once p1's close has landed. Aiko's list is emptied
+     * first and put back after. Until C7 nothing redrew p1's window and its close spent both.
+     */
+    phase("a Call armed while the roll window is open", { flow: "call-arm" });
+    const armOnAiko = (key, kind, grants) => gm.eval(`const E = await import("${REPO}/scripts/call-effects.mjs");
+        return Boolean(await E.armCall(game.actors.get("${ids.aiko}"), { key: "${key}", kind: "${kind}", grants: "${grants}" }));`, { timeout: 30000 });
+    const aikoCallsWere = await gm.eval(`const a = game.actors.get("${ids.aiko}"); const was = a.getFlag("${MOD}", "pendingCall") ?? null;
+        await a.unsetFlag("${MOD}", "pendingCall"); return was;`);
+    const supportArmed = await armOnAiko("support", "hope", "advantage");
+    const windowOpen = await p1.eval(`
+        const D = await import("${REPO}/scripts/roll-dialog.mjs"), E = await import("${REPO}/scripts/call-effects.mjs");
+        const { DRPG_ACTION_ROLL } = await import("${REPO}/scripts/action-rolls.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        for (let i = 0; i < 50 && !E.pendingCalls(aiko).some(e => e.key === "support"); i++) await new Promise(r => setTimeout(r, 100));
+        const element = document.createElement("div");
+        element.className = "application roll-selection";
+        const win = globalThis.__waitingWindow = { element, options: { classes: ["roll-selection"] }, renders: 1,
+            config: { roll: {}, [DRPG_ACTION_ROLL]: true, data: { parent: aiko } },
+            render() { this.renders += 1; queueMicrotask(() => D.onRenderApplication(this, this.element)); return this; } };
+        D.onRenderApplication(win, element);
+        await new Promise(r => setTimeout(r, 300));
+        return { armed: E.pendingCalls(aiko).map(e => e.key), renders: win.renders };`, { timeout: 30000 });
+    const obstacleArmed = await armOnAiko("obstacle", "despair", "disadvantage");
+    const windowClosed = await p1.eval(`
+        const D = await import("${REPO}/scripts/roll-dialog.mjs");
+        const win = globalThis.__waitingWindow, line = () => win.element.querySelector(".drpg-calls-waiting")?.textContent ?? null;
+        for (let i = 0; i < 50 && line() === null; i++) await new Promise(r => setTimeout(r, 100));
+        const out = { redrawn: win.renders > ${JSON.stringify(windowOpen.renders)}, line: line(),
+            expect: game.i18n.format("DRPG.Calls.waitsNextRoll", { what: game.i18n.localize("DRPG.Calls.grants.disadvantage") }) };
+        await D.onCloseApplication(win);
+        delete globalThis.__waitingWindow;
+        return out;`, { timeout: 30000 });
+    const aikoArmed = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        const keys = () => { const f = a.getFlag("${MOD}", "pendingCall"); return (Array.isArray(f) ? f : f ? [f] : []).map(e => e?.key); };
+        for (let i = 0; i < 50 && keys().includes("support"); i++) await new Promise(r => setTimeout(r, 100));
+        return keys();`, { timeout: 30000 });
+    check("p1: an Obstacle the GM arms while Aiko's roll window is open redraws it with a line that it waits, and the window's close spends the Support alone",
+        supportArmed && obstacleArmed && windowOpen.armed.join() === "support" && windowClosed.redrawn === true
+            && windowClosed.line === windowClosed.expect && aikoArmed.join() === "obstacle",
+        JSON.stringify({ supportArmed, obstacleArmed, windowOpen, windowClosed, aikoArmed }), { flow: "call-arm" });
+    await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(aikoCallsWere)};
+        if (was) await a.setFlag("${MOD}", "pendingCall", was); else await a.unsetFlag("${MOD}", "pendingCall"); return true;`);
+
     // ---- 6c. a project's work: a project with no statistic asks the GM once ------------------
     /*
      * A PROJECT'S STATISTIC (E32+E07 C11d, 02.10.2026; the owner's rules of 28.09.2026). A

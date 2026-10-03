@@ -30,6 +30,7 @@ import { LOADED_DIE } from "./forced-roll.mjs";
 export function registerRollDialog() {
     Hooks.on("renderApplicationV2", onRenderApplication);
     Hooks.on("closeApplicationV2", onCloseApplication);
+    Hooks.on("updateActor", redrawRollWindows);
 }
 
 /**
@@ -39,10 +40,16 @@ export function registerRollDialog() {
  *
  * `config` is set to `false` by the dialog when it closes unsubmitted, so
  * backing out costs nothing.
+ *
+ * What is spent is what this window applied - the Calls it opened with
+ * (`windowCalls`) - and nothing armed after it opened, which waits for the next
+ * roll (S02-20). Exported, with the render hook, for the suite: Daggerheart's
+ * window is not in the harness, so the tier-2 tests hand both a stand-in.
  */
-async function onCloseApplication(app) {
+export async function onCloseApplication(app) {
     try {
         if (!isRollDialog(app)) return;
+        openWindows.delete(app);
         if (!app.config) return;
 
         const actor = actorOf(app);
@@ -50,12 +57,83 @@ async function onCloseApplication(app) {
 
         // Everything this window could use is spent on it; a Loaded Die it could
         // not load waits for the action it was bought for - see `grantsFor`.
-        const keepDie = pendingGrants(actor).has("critical") && !grantsFor(app, actor).has("critical");
-        const { consumeCallsExcept } = await import("./call-effects.mjs");
-        await consumeCallsExcept(actor, keepDie ? "critical" : null);
+        const usable = grantsFor(app, actor);
+        const nonces = windowCalls(app, actor).filter(entry => usable.has(entry.grants)).map(entry => entry.nonce);
+        if (!nonces.length) return;
+        const { consumeCallsByNonce } = await import("./call-effects.mjs");
+        await consumeCallsByNonce(actor, nonces);
     } catch {
         // Never let bookkeeping break a roll.
     }
+}
+
+/*
+ * A CALL ARMED WHILE THE WINDOW IS OPEN WAITS FOR THE NEXT ROLL (E08+E28 C7, 03.10.2026;
+ * audit S02-20). The window imposed what was armed when it was drawn, and the close hook
+ * and `throwDice` then spent the whole list: a Monokuma's Obstacle bought while a player's
+ * Work on Project window stood open - the Despair paid, the player told "Monokuma has
+ * disadvantage on your next roll" - was spent by a roll it never touched. The same for a
+ * Support from another player.
+ *
+ * So a window holds the nonces of the Calls it opened with (every armed entry has one,
+ * `armCall`), reads only those on every later render, and its close spends only those.
+ * Taken at the first render rather than as each render comes: Daggerheart redraws the
+ * window as its controls change (the dialog submits on change - `stripExperienceCosts`), and
+ * a Call that slipped in on one of those redraws would be imposed on dice the player was
+ * already reading. What arrives later stays armed, and
+ * the window says so (`showWaitingCalls`) - the Call's own card already said "your next
+ * roll", and with a window open that is the one after it.
+ *
+ * `updateActor` redraws an open window of that character when a module flag moved, so the
+ * note appears while the window is up. A Confusion is the GMs' store and the owner's copy,
+ * not a flag (call-effects.mjs `armedConfusions`), and redraws nothing as it arrives: one
+ * armed while the window is open waits all the same, and its line shows on the window's
+ * next redraw. Not seen in a real roll window: the harness has none, and this was not
+ * tried at a table.
+ */
+const opened = new WeakMap();
+const openWindows = new Set();
+
+/** The Calls armed on this character that this window opened with, as they stand now. */
+function windowCalls(app, actor) {
+    const pending = armedOn(actor);
+    if (!opened.has(app)) opened.set(app, new Set(pending.map(entry => entry.nonce)));
+    const mine = opened.get(app);
+    return pending.filter(entry => mine.has(entry.nonce));
+}
+
+/** Calls armed on this character after this window opened: none of them is this roll's. */
+function waitingCalls(app, actor) {
+    const mine = new Set(windowCalls(app, actor).map(entry => entry.nonce));
+    return armedOn(actor).filter(entry => !mine.has(entry.nonce));
+}
+
+function redrawRollWindows(actor, changes) {
+    if (!changes?.flags?.[MODULE_ID]) return;
+    for (const app of openWindows) {
+        try {
+            if (actorOf(app)?.id === actor?.id) app.render();
+        } catch {
+            // A window that cannot redraw keeps what it shows; its close still spends only its own.
+        }
+    }
+}
+
+/** One line on the window for the Calls that wait for the next roll; taken off when none do. */
+function showWaitingCalls(root, app, actor) {
+    const waiting = waitingCalls(app, actor);
+    let note = root.querySelector(".drpg-calls-waiting");
+    if (!waiting.length) {
+        note?.remove();
+        return;
+    }
+    if (!note) {
+        note = document.createElement("p");
+        note.className = "drpg-calls-waiting hint";
+        (root.querySelector(".roll-dialog-container") ?? root).append(note);
+    }
+    const what = [...new Set(waiting.map(entry => game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`)))].join(", ");
+    note.textContent = game.i18n.format("DRPG.Calls.waitsNextRoll", { what });
 }
 
 /**
@@ -71,11 +149,12 @@ function isRollDialog(app) {
     return Array.isArray(classes) && classes.includes("roll-selection");
 }
 
-function onRenderApplication(app, element) {
+export function onRenderApplication(app, element) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root?.classList?.contains?.("roll-selection")) return;
 
     try {
+        openWindows.add(app);
         // The submit button's die. The system draws `fa-dice` - a d6 pair from
         // a game with no d6 in it. This one rolls two d12s and the module says
         // so; a class swap in the render hook because the glyph lives in the
@@ -95,6 +174,8 @@ function onRenderApplication(app, element) {
         if (grantsFor(app, actor).has("critical")) {
             root.classList.add("drpg-forced-critical");
         }
+
+        showWaitingCalls(root, app, actor);
 
         if (!isStudentRoll(actor)) return;
 
@@ -130,7 +211,7 @@ function onRenderApplication(app, element) {
          * with an extra step. This is the same shape `lockControls` uses, which is why
          * it reads like it.
          */
-        const { sign, count, capped, sources } = advantageSources(actor);
+        const { sign, count, capped, sources } = advantageSources(app, actor);
         if (sign !== 0) {
             forceAdvantage(app, sign, count);
 
@@ -354,7 +435,7 @@ function lockAdvantage(root, app, actor) {
     const adv = root.querySelectorAll(".advantage-chip");
     const dis = root.querySelectorAll(".disadvantage-chip");
 
-    const { sign, count, capped, sources } = advantageSources(actor);
+    const { sign, count, capped, sources } = advantageSources(app, actor);
 
     if (sign !== 0) {
         forceAdvantage(app, sign, count);
@@ -425,10 +506,10 @@ function lockExperiences(root, app, armed) {
 // flat modifier (Monocub's Meddle at its lower tier). Imposed the same way
 // advantage is: pre-filled and read-only, not offered for the player to
 // edit or clear.
-function lockBonus(root, actor, armed) {
+function lockBonus(root, app, actor, armed) {
     const extra = root.querySelector('input[name="extraFormula"]');
     if (extra) {
-        const amount = armed.has("bonus") ? pendingAmount(actor) : null;
+        const amount = armed.has("bonus") ? pendingAmount(windowCalls(app, actor)) : null;
         if (amount) {
             // Unlike advantage, a flat bonus only ever comes from a Call -
             // `situationalAdvantage()` deals in advantage/disadvantage, not
@@ -465,7 +546,7 @@ function lockControls(root, app) {
 
     if (armed.has("critical")) announceFreeCritical(root);
 
-    lockBonus(root, actor, armed);
+    lockBonus(root, app, actor, armed);
 
     // Roll mode: privacy is enforced by the module, not chosen per roll.
     const mode = root.querySelector('select[name="selectedMessageMode"]');
@@ -496,7 +577,7 @@ function lockControls(root, app) {
  */
 
 /**
- * What the armed Calls on this actor permit, as a set of grants.
+ * The Calls armed on this actor, for a window to read.
  *
  * Read through `pendingCalls` rather than off the flag directly, so a roll that
  * has deliberately shielded itself from the armed Call - a sabotage's
@@ -504,11 +585,12 @@ function lockControls(root, app) {
  * window as any other supporting roll. Reading the flag here while the roll
  * pipeline was ignoring it handed the advantage to the wrong dice.
  */
-function pendingGrants(actor) {
+function armedOn(actor) {
+    if (!actor) return [];
     try {
-        return new Set(pendingCalls(actor).map(entry => entry.grants));
+        return pendingCalls(actor);
     } catch {
-        return new Set();
+        return [];
     }
 }
 
@@ -524,7 +606,7 @@ function pendingGrants(actor) {
  * it is neither shown nor spent, and waits for the action it was bought for.
  */
 function grantsFor(app, actor) {
-    const grants = actor ? pendingGrants(actor) : new Set();
+    const grants = new Set(windowCalls(app, actor).map(entry => entry.grants));
     // The roll the 12 was put on, not merely an action roll: a supporting roll
     // of the same action carries no Loaded Die (review of CALL-03). Everything
     // else a stack of Calls bought applies to whatever roll is open (CALL-02).
@@ -533,15 +615,15 @@ function grantsFor(app, actor) {
 }
 
 /**
- * The flat modifier the armed Calls come to - see armCall's `amount`.
+ * The flat modifier a window's Calls come to - see armCall's `amount`.
  *
  * Summed, because they stack (CALL-02): two Confusions pulling the same way are
  * +2, and one each way cancel out. `null` when no Call carries a number, which is
  * what keeps the extra-formula field locked.
  */
-function pendingAmount(actor) {
+function pendingAmount(calls) {
     try {
-        const bonuses = pendingCalls(actor)
+        const bonuses = calls
             .filter(entry => entry.grants === "bonus" && Number.isFinite(Number(entry.amount)))
             .map(entry => Number(entry.amount));
         if (!bonuses.length) return null;
@@ -607,10 +689,10 @@ function stateGrant(actor) {
 /** The most dice any one roll can be given, in either direction. */
 export const ADVANTAGE_CAP = 3;
 
-/** Advantage minus disadvantage across every armed Call (CALL-02). */
-function callDice(actor) {
+/** Advantage minus disadvantage across a window's Calls (CALL-02). */
+function callDice(calls) {
     try {
-        return pendingCalls(actor).reduce((sum, entry) =>
+        return calls.reduce((sum, entry) =>
             sum + (entry.grants === "advantage" ? 1 : entry.grants === "disadvantage" ? -1 : 0), 0);
     } catch {
         return 0;
@@ -620,17 +702,18 @@ function callDice(actor) {
 /**
  * Everything pushing on this roll, added up.
  *
+ * @param {object} app    The roll window: its Calls are the ones it opened with (`windowCalls`).
  * @param {Actor}  actor
  * @returns {{net:number, sign:number, count:number, capped:boolean, sources:object[]}}
  */
-function advantageSources(actor) {
+function advantageSources(app, actor) {
     const sources = [];
 
     // The Calls somebody paid Hope or Despair for. One die each, and they sum:
     // a Call is a purchase, and two purchases are two Calls (CALL-02). An
     // Obstacle against a Support is therefore nothing, which is the arithmetic
     // both players paid for.
-    const fromCall = callDice(actor);
+    const fromCall = callDice(windowCalls(app, actor));
     if (fromCall) sources.push({ key: "call", value: fromCall });
 
     // The situation, already summed by whoever armed it - see armSituational.

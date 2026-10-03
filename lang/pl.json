@@ -2155,6 +2155,7 @@
       "pendingTooltip": "Czeka na twój następny rzut: {what}. Zużyte w chwili rzutu.",
       "noExperiences": "Ta postać nie ma zapisanych doświadczeń, więc ten Call nie ma czego dodać.",
       "armedTitle": "Ktoś użył Calla dla ciebie",
+      "waitsNextRoll": "Nałożone po otwarciu tego okna: {what}. Nie wchodzi do tego rzutu - czeka na twój następny.",
       "armedForYou": "Inny uczeń wydał na ciebie Hope: twój następny rzut ma {what}. Działa samo.",
       "armedByMonokuma": "Monokuma nałożył na twój następny rzut {what}. Działa samo.",
       "armedByNobody": "Twój następny rzut niesie {what}. Działa samo.",

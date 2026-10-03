@@ -878,6 +878,31 @@ function press(cfg, root) {
 }
 
 /**
+ * A ROLL WINDOW STOOD IN FOR (E08+E28 C7, 03.10.2026). Daggerheart's roll window is not in the
+ * harness, so roll-dialog.mjs's two hooks are called on a stand-in carrying what they read:
+ * the `roll-selection` class, the roll's config with the character as `data.parent`, and the
+ * markup a test reads (`html`). Called directly, not through `Hooks.callAll`: every other
+ * window hook of the module would be handed the stand-in too. `open()` is the first render;
+ * `render()` is a redraw, a beat later, as the module asks for one; `submit()` is the close of
+ * a pressed Roll and `cancel()` of a window closed unsubmitted (`config` false), both awaited.
+ */
+async function rollWindow(actor, config = {}, html = "") {
+    const D = await import("./roll-dialog.mjs");
+    const element = document.createElement("div");
+    element.className = "application roll-selection";
+    element.innerHTML = html;
+    return {
+        element, options: { classes: ["roll-selection"] }, renders: 0,
+        config: { roll: {}, ...config, data: { parent: actor } },
+        open() { this.renders += 1; D.onRenderApplication(this, this.element); return this; },
+        render() { this.renders += 1; queueMicrotask(() => D.onRenderApplication(this, this.element)); return this; },
+        submit() { return D.onCloseApplication(this); },
+        cancel() { this.config = false; return D.onCloseApplication(this); },
+        note() { return this.element.querySelector(".drpg-calls-waiting")?.textContent ?? null; }
+    };
+}
+
+/**
  * THE TILE IN A FIGHT, PRESSED (E32+E07 C15, 03.10.2026). Direct Murder at the incident stage
  * opens the crisis menu (action-rolls.mjs `openCrisisMenu`); here on this GM's browser, with
  * every window answered: the menu by `choose(rows)` - the value of the row to check before its
@@ -6142,6 +6167,150 @@ const SCENARIOS = [
         } finally {
             windows.restore();
             delete actor.rollTrait;
+            await stood.back();
+        }
+    }],
+
+    ["an Obstacle armed while the window is open is not spent by that roll", async () => {
+        /*
+         * E08+E28 C7, 03.10.2026; audit S02-20. A Monokuma's Obstacle bought while a player's roll
+         * window stood open was spent by that roll's close with everything else on the list - the
+         * Despair paid, the player told "your next roll", the roll untouched. A student's armed
+         * list emptied, a Support armed, a roll window (`rollWindow`) opened on it; then the
+         * Obstacle is armed and the window submitted. Read: whether the arming redrew the window
+         * (the `updateActor` redraw), the line it carries, and the Calls still armed. Until C7
+         * nothing redrew it and the close spent both.
+         */
+        const [actor] = cast(1);
+        const C = await import("./call-effects.mjs");
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        let win = null;
+        try {
+            await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
+            must(await C.armCall(actor, { key: "support", kind: "hope", grants: "advantage" }), "the Support could not be armed");
+            win = (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true })).open();
+            await settle();
+            const drawn = win.renders;
+            must(await C.armCall(actor, { key: "obstacle", kind: "despair", grants: "disadvantage" }), "the Obstacle could not be armed");
+            await until(() => win.note() !== null);
+            const shown = [win.renders > drawn, win.note()];
+            await win.submit();
+            win = null;
+            equal(stableJson([...shown, C.pendingCalls(actor).map(entry => entry.key)]),
+                stableJson([true, game.i18n.format("DRPG.Calls.waitsNextRoll", { what: game.i18n.localize("DRPG.Calls.grants.disadvantage") }),
+                    ["obstacle"]]),
+                "the Obstacle did not redraw the window, the window did not say it waits, or the roll spent it or kept the Support (redrawn, the line, still armed)");
+        } finally {
+            await win?.cancel();
+            await C.consumeCalls(actor);
+        }
+    }],
+
+    ["a Call the window applied is spent once", async () => {
+        /*
+         * E08+E28 C7, 03.10.2026; audit S02-20. `throwDice` read the armed Calls before its window
+         * opened and then spent the whole list once the dice were in, after the window's close had
+         * spent what the window applied - so a Call armed between the two was spent by a roll it
+         * never touched. A student's list emptied and a Support armed; the action roll's own
+         * `rollTrait` (action-rolls.mjs) runs with the character's `rollTrait` standing in for the
+         * window: the window opened on the roll's config and submitted, an Obstacle armed, then the
+         * dice thrown as the suite throws them. Read: the Calls left after the window's close, those
+         * left after the roll, and how often the armed list was written after the Obstacle.
+         *
+         * The faces are set and Fear put back as `neutralRoll` does: the harness's dice were left
+         * to chance at first, and a roll with Fear moved Daggerheart's Fear, which restore() does
+         * not put back - "could not restore the world" in 3 of the 6 C7 red and mutant runs of
+         * 03.10.2026, 0 of the 2 green ones.
+         */
+        const [actor] = cast(1);
+        const C = await import("./call-effects.mjs");
+        const { rollTrait } = await import("./action-rolls.mjs");
+        const thrown = actor.rollTrait;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const read = { afterClose: null, writes: 0, counting: false };
+        const hook = Hooks.on("updateActor", (doc, changes) => {
+            if (read.counting && doc.id === actor.id && JSON.stringify(changes?.flags?.[MODULE_ID] ?? {}).includes(FLAGS.pendingCall)) read.writes += 1;
+        });
+        try {
+            await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
+            must(await C.armCall(actor, { key: "support", kind: "hope", grants: "advantage" }), "the Support could not be armed");
+            actor.rollTrait = async (dh, config) => {
+                await (await rollWindow(actor, config)).open().submit();
+                read.afterClose = C.pendingCalls(actor).map(entry => entry.key);
+                must(await C.armCall(actor, { key: "obstacle", kind: "despair", grants: "disadvantage" }), "the Obstacle could not be armed");
+                read.counting = true;
+                globalThis.__forceRoll = { hope: 9, fear: 4 };
+                return thrown.call(actor, dh, config);
+            };
+            must(await rollTrait(actor, "eye", { remember: true }), "the roll was not thrown");
+            await settle();
+            equal(stableJson([read.afterClose, C.pendingCalls(actor).map(entry => entry.key), read.writes]),
+                stableJson([[], ["obstacle"], 0]),
+                "the window's close kept its Support, or the roll spent the Obstacle armed after it or wrote the list again (after the close, after the roll, writes)");
+        } finally {
+            Hooks.off("updateActor", hook);
+            delete actor.rollTrait;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await C.consumeCalls(actor);
+            await settle();
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+        }
+    }],
+
+    ["a Search's statistic stays Eye after a Resolve was spent", async () => {
+        /*
+         * E08+E28 C7, 03.10.2026; audit S02-46, a guard: fixed by E32+E07 C11d, which took the
+         * per-browser permission out (`allowTraitsForNextRoll`), and green before C7. A Resolve
+         * opens the Statistic select of the window it is spent on and no other. A student stood
+         * alone in a room with a search token left (`standAlone`), the roll window's lock on:
+         * Resolve armed, a roll window (`rollWindow`) opened on it and submitted; then a Search,
+         * free, its window answered as a player's default, the character's `rollTrait` opening a
+         * window on the Search's own config and throwing nothing. Read: the Resolve window's
+         * select, whether Resolve is still armed, the throw, and the Search window's select.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const [actor] = cast(1);
+        const C = await import("./call-effects.mjs");
+        const { DRPG_ACTION_ROLL, TRAIT_BY_GM, performAction } = await import("./action-rolls.mjs");
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        const SELECT = `<select name="trait">${["agility", "strength", "finesse", "instinct", "presence", "knowledge"]
+            .map(k => `<option value="${k}">${k}</option>`).join("")}</select>`;
+        const state = win => { const s = win.element.querySelector("select"); return [s.disabled, s.dataset.tooltip ?? null]; };
+        await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+        const stood = await standAlone(actor);
+        const ruling = game.i18n.localize("DRPG.TraitRuling.title");
+        const windows = answerWindows((cfg, root) => cfg?.window?.title === ruling ? "cancel" : press(cfg, root));
+        const thrown = [];
+        try {
+            must(SearchTokens.left(stood.room) > 0 && !SearchTokens.sealed(stood.room), `${stood.room} has no search token left`);
+            await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
+            must(await C.armCall(actor, { key: "determination", kind: "hope", grants: "trait" }), "Resolve could not be armed");
+            const resolved = (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true }, SELECT)).open();
+            const withResolve = state(resolved);
+            await resolved.submit();
+            const left = C.pendingCalls(actor).map(entry => entry.grants);
+            actor.rollTrait = async (dh, config) => {
+                const win = (await rollWindow(actor, config, SELECT)).open();
+                thrown.push([dh, config?.[TRAIT_BY_GM] === true, state(win)]);
+                await win.cancel();
+                return null;
+            };
+            await performAction(actor, "search", { free: true });
+            equal(stableJson([withResolve, left, thrown]),
+                stableJson([[false, game.i18n.localize("DRPG.RollDialog.unlockedByCall")], [],
+                    [["instinct", false, [true, game.i18n.localize("DRPG.RollDialog.traitFixed")]]]]),
+                "Resolve did not open its window's select, outlived its roll, or the Search threw another statistic or opened its select (Resolve's select, armed after, the Search's throw and select)");
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            await C.consumeCalls(actor);
             await stood.back();
         }
     }],

@@ -3978,7 +3978,7 @@ const REGRESSIONS = [
         const dialog = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
         const open = bodyOf(dialog, "function onRenderApplication", { until: "function forceReaction" });
         ok(open.length > 400, "the render hook has moved or gone");
-        ok(/advantageSources\(actor\)/.test(open),
+        ok(/advantageSources\(app, actor\)/.test(open),
             "the unlocked road reads Breakdown alone again, so a bought die is lost");
         ok(!/const fromState = stateGrant\(actor\);/.test(open),
             "the state-only reader is back");
@@ -3986,7 +3986,7 @@ const REGRESSIONS = [
             "only one pair of chips is locked, so the other one can cancel the purchase");
         ok(/stripExperienceCosts\(app\)/.test(open) && /hideCostSection\(root\)/.test(open),
             "an experience a Call paid for is charged again when the lock is off");
-        ok(open.indexOf("locking()") < open.indexOf("advantageSources(actor)"),
+        ok(open.indexOf("locking()") < open.indexOf("advantageSources(app, actor)"),
             "the unlocked branch now runs for everybody, including the locked road");
     }],
 

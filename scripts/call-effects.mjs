@@ -357,21 +357,24 @@ export async function consumeCalls(actor) {
 }
 
 /**
- * Spend every armed Call except the ones granting `keep`.
+ * Spend the armed Calls named by `nonces`, and leave every other one armed.
  *
- * One window, two fates (CALL-02 with CALL-03): a statistic rolled off the sheet
- * while a Loaded Die is held uses the Support armed beside it and cannot use the
- * 12, so the Support is spent and the Loaded Die waits for the action it was
- * bought for. Returns what was spent.
+ * A roll spends what it applied (E08+E28 C7, 03.10.2026; audit S02-20): the roll
+ * window the Calls it opened with (roll-dialog.mjs `windowCalls`), `throwDice` the
+ * ones it read before its window opened. A Call armed after that was spent with
+ * the rest by `consumeCalls`, on a roll it never touched; it waits for the next
+ * one now. One window, two fates still holds (CALL-02 with CALL-03): a Loaded Die
+ * a statistic rolled off the sheet cannot load is not among the window's names.
+ * Returns what was spent.
  */
-export async function consumeCallsExcept(actor, keep = null) {
+export async function consumeCallsByNonce(actor, nonces) {
     if (shielded) return [];
+    const names = new Set(nonces ?? []);
+    if (!names.size) return [];
     const pending = pendingCallsRaw(actor);
-    const confusions = armedConfusions(actor).filter(entry => !keep || entry.grants !== keep);
-    if (!pending.length && !confusions.length) return [];
-    const kept = keep ? pending.filter(entry => entry.grants === keep) : [];
-    const spent = pending.filter(entry => !kept.includes(entry));
-    if (!spent.length && !confusions.length) return [];
+    const spent = pending.filter(entry => names.has(entry.nonce));
+    const kept = pending.filter(entry => !names.has(entry.nonce));
+    const confusions = armedConfusions(actor).filter(entry => names.has(entry.nonce));
     if (spent.length && kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept.map(unsigned));
     else if (spent.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
     if (confusions.length) await spendConfusions(actor, confusions);

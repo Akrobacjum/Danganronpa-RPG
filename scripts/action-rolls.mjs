@@ -676,7 +676,7 @@ export async function rollTrait(actor, drpgTrait,
 async function throwDice(actor, drpgTrait, { remember, actionKey, context, title = null, byGm = false }) {
     const dhTrait = TRAITS[drpgTrait]?.dh ?? drpgTrait;
 
-    const { pendingCalls, consumeCalls } = await import("./call-effects.mjs");
+    const { pendingCalls, consumeCallsByNonce } = await import("./call-effects.mjs");
     // Every Call armed for this roll, because they stack (CALL-02). The Loaded
     // Die is the one this roll has to be marked with.
     const armedCalls = pendingCalls(actor);
@@ -760,8 +760,13 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     if (typeof total !== "number") return null;
 
     await commitResources(result);
-    // Whatever the Calls bought, they bought it for this roll and no other.
-    if (armedCalls.length) await consumeCalls(actor);
+    // Whatever the Calls bought, they bought it for this roll and no other - the ones
+    // read above, before the window opened. The window opened with each of them
+    // (roll-dialog.mjs `windowCalls`) and its close has spent them already where
+    // there was a window; this spends them where there was none. One armed after
+    // that stays armed for the next roll (S02-20, E08+E28 C7): `consumeCalls` spent
+    // the whole list, whatever this roll had applied.
+    if (armedCalls.length) await consumeCallsByNonce(actor, armedCalls.map(entry => entry.nonce));
 
     const outcome = {
         total,

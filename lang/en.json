@@ -2089,6 +2089,7 @@
       "pendingTooltip": "Waiting on your next roll: {what}. Spent the moment you roll.",
       "noExperiences": "This character has no experiences written down, so this Call has nothing to add.",
       "armedTitle": "A Call was made for you",
+      "waitsNextRoll": "Armed after this window opened: {what}. It is not part of this roll - it waits for your next one.",
       "armedForYou": "Another student spent Hope on you: your next roll has {what}. It applies by itself.",
       "armedByMonokuma": "Monokuma has {what} on your next roll. It applies by itself.",
       "armedByNobody": "Your next roll carries {what}. It applies by itself.",
