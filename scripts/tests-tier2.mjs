@@ -345,6 +345,31 @@ async function accompliceAtStageSix(M, killer, victim, third) {
 }
 
 /**
+ * A FIXTURE IN HAND (E32+E07 C12): a Tier 1 item readied as the grid's `gear` makes one - a
+ * weapon ("crimeTool") or gloves ("cleaningTool"). The test that makes it deletes it.
+ */
+async function inHand(actor, category, name) {
+    const [item] = await actor.createEmbeddedDocuments("Item", [{ name, type: "loot",
+        flags: { [MODULE_ID]: { category, equipped: true, tier: 1 } } }]);
+    must(item, `${actor.name} could not be handed ${name}`);
+    return item;
+}
+
+/** The side's turn for this action, passed round at most four times as the grid's `act` does. */
+async function turnFor(M, actor, key) {
+    for (let i = 0; i < 4 && M.crisisRefusal(actor, key)?.why === "not their turn"; i++) await M.passTurn();
+    must(!M.crisisRefusal(actor, key), `${actor.name}'s ${key} is refused: ${M.crisisRefusal(actor, key)?.why}`);
+}
+
+/** A direct murder between two students with players, its opening through, as the fixtures above open it. */
+async function fightOpen(M, killer, victim) {
+    await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+    if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+    await settle();
+    must(M.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(M.murderState())}`);
+}
+
+/**
  * A BODY THE GM MADE, WITH STAGE 6 TAKEN (E32 C6): the running incident's victim killed as
  * the GM's "A character dies" kills them (chapter.mjs `killCharacter`, kept by the GMs),
  * and its "the victim died - Stage 6?" (`offerStageSix`) answered yes, which is
@@ -1795,6 +1820,248 @@ const SCENARIOS = [
         } finally {
             Hooks.off("drpgIncidentClosed", closed);
             console.warn = consoleWarn;
+        }
+    }],
+
+    ["a close breaks every killer's swung weapon and nothing they did not swing", async () => {
+        /*
+         * E32+E07 C12, 02.10.2026; audit S04-17, S05-23. The close broke the first killer's crime
+         * tool alone, the one the swing memo named or else the one in their hand: an accomplice's
+         * knife, swung in the fight, stayed whole, and a knife the killer only held was ruined.
+         * `endMurder` breaks each killer's swung weapon now (`killerIds`), from memory only. Three
+         * students with players: the killer holds a knife and kills with a Finishing blow, which
+         * swings nothing (no weapon in its definition); the accomplice stabs with their own knife
+         * first. Read after the close: the accomplice's knife broken, the killer's whole. Red at
+         * 5c80c4d: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { isBroken } = await import("./inventory.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const made = [];
+        try {
+            const held = await inHand(killer, "crimeTool", "SUITE C12 the knife the killer only holds");
+            made.push(held);
+            const swung = await inHand(third, "crimeTool", "SUITE C12 the accomplice's knife");
+            made.push(swung);
+            await fightOpen(M, killer, victim);
+            await M.thirdPartyEnters(third);
+            await M.resolveCrisisAction({ actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true });
+            await turnFor(M, third, "weaponAttack");
+            await M.resolveCrisisAction({ actorId: third.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, swungId: swung.id });
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && M.swungWeaponOf(third)?.id === swung.id,
+                `the fixture's Stage 6, with the accomplice's knife written down as swung, did not come: ${stableJson(M.murderState())}`);
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            equal(stableJson([isBroken(swung), isBroken(held)]), stableJson([true, false]),
+                "the close did not break the accomplice's swung knife, or broke the knife the killer only held (swung, held)");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const item of made) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+        }
+    }],
+
+    ["a close before Stage 6 breaks nothing, a weapon swung in the fight included", async () => {
+        /*
+         * E32+E07 C12, 02.10.2026; audit S04-17. Every close broke the killer's crime tool, at any
+         * stage: a failed opening, a trap or a GM's early close ruined a weapon the rules never
+         * used up - the crime tool goes when Stage 6 closes (CLEANUP.destroysTools). `endMurder`
+         * breaks only after Stage 6 now. The killer stabs the victim with a knife, who stands,
+         * and the GM closes the fight. Read after the close: the knife whole (the grid's DM13 is
+         * the failed opening). Red at 5c80c4d: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { isBroken } = await import("./inventory.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        let knife = null;
+        try {
+            knife = await inHand(killer, "crimeTool", "SUITE C12 a knife swung in a fight closed early");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "weaponAttack");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, swungId: knife.id });
+            await settle();
+            must(M.murderState()?.stage === "incident" && !isDeadForGm(victim) && M.swungWeaponOf(killer)?.id === knife.id,
+                `the fixture's fight, the knife written down as swung and the victim standing, is not there: ${stableJson(M.murderState())}`);
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            equal(isBroken(knife), false, "a close before Stage 6 broke the weapon swung in the fight");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            try { await knife?.delete(); } catch { /* already gone */ }
+        }
+    }],
+
+    ["gloves put away before the discovery break at the discovery", async () => {
+        /*
+         * E32+E07 C12, 02.10.2026; audit S05-38, the owner's D13. The discovery broke the Cleaning
+         * Tool in the killer's hand at that moment, so one click putting the gloves away after the
+         * clean-up kept them. The tool a scored clean-up attempt had readied is written down in the
+         * GMs' `usedTools` store now (cleanup.mjs `noteCleaningTool`), and the discovery breaks it
+         * from there and takes the row. The killer kills, scrubs an incident trace wearing gloves
+         * (`resolveCleanup`, as the bridge calls it), puts them away - the flag the sheet's toggle
+         * clears - and the body is found (`destroyCleaningTools`, the discovery's half). Read: the
+         * row after the attempt, the gloves broken and named, the row gone; and the store's table
+         * (cut by the reset's "incident" group, backed up, synced). Red at 5c80c4d: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { isBroken } = await import("./inventory.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        let gloves = null, trace = null;
+        try {
+            gloves = await inHand(killer, "cleaningTool", "SUITE C12 gloves put away");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE C12 a trace the killer scrubs" });
+            must(trace, "the fixture's trace was not placed");
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true });
+            await settle();
+            const written = S.usedToolStore?.get(killer.id)?.cleaning ?? [];
+            await gloves.update({ [`flags.${MODULE_ID}.equipped`]: false });
+            const broke = await CL.destroyCleaningTools();
+            equal(stableJson([written.includes(gloves.id), isBroken(gloves), broke.includes(gloves.name), Boolean(S.usedToolStore?.has(killer.id))]),
+                stableJson([true, true, true, false]),
+                "the clean-up did not write the gloves down, or the discovery did not break them once put away, name them, and take the row "
+                + "(written, broken, named, the row left)");
+            const spec = S.usedToolStore?.spec ?? {};
+            equal(stableJson([spec.kind, spec.resetGroup, spec.backup, spec.sync]), stableJson(["ledger", "incident", true, true]),
+                "the used Cleaning Tools are not a ledger cut by the reset's incident group, backed up and synced");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            for (const doc of [gloves, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+        }
+    }],
+
+    ["a close then a discovery breaks the gloves, the accomplice's with the killer's", async () => {
+        /*
+         * E32+E07 C12, 02.10.2026; audit S04-20, S05-23. The table's usual order - the GM closes
+         * the night, the body is found in the morning - broke no gloves: the discovery read the
+         * killers off the incident (`killerIds()`), which the close had wiped. It reads this
+         * chapter's Blackened and the `usedTools` rows too now. Three students with players: the
+         * accomplice joins, the killer kills; in Stage 6 the killer scrubs a trace and the
+         * accomplice lays a misleading trail (`resolveStageSix`), each wearing gloves, and the
+         * accomplice puts theirs away; the GM closes, then the body is found. Read: the GM's tracker heading a clean-up table for each of the two
+         * in Stage 6 (`cleanupSection`, which showed the first killer's alone), no gloves broken by
+         * the close, both by the discovery, no row left. Red at 5c80c4d: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { isBroken } = await import("./inventory.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim, third] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const made = [];
+        let trace = null;
+        try {
+            const mine = await inHand(killer, "cleaningTool", "SUITE C12 the killer's gloves");
+            made.push(mine);
+            const theirs = await inHand(third, "cleaningTool", "SUITE C12 the accomplice's gloves");
+            made.push(theirs);
+            await accompliceAtStageSix(M, killer, victim, third);
+            trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE C12 a trace the killer scrubs before the close" });
+            must(trace, "the fixture's trace was not placed");
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true });
+            const candidates = await CL.framingCandidates(third);
+            const framed = candidates.find(a => a.id !== killer.id) ?? candidates[0];
+            must(framed, "nobody can be framed");
+            await CL.resolveStageSix({ actorId: third.id, key: "misleadingTrail", targetId: framed.id, total: 30, isCritical: false, withHope: true });
+            await theirs.update({ [`flags.${MODULE_ID}.equipped`]: false });
+            await settle();
+            const tracker = M.incidentTrackerHtml?.(M.murderState(), CL) ?? "";
+            const tables = [killer, third].map(a => tracker.includes(game.i18n.format("DRPG.Cleanup.gmTitleFor", { name: foundry.utils.escapeHTML(a.name) })));
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            const atClose = [isBroken(mine), isBroken(theirs)];
+            await CL.destroyCleaningTools();
+            equal(stableJson([tables, atClose, [isBroken(mine), isBroken(theirs)], [killer, third].filter(a => S.usedToolStore?.has(a.id)).length]),
+                stableJson([[true, true], [false, false], [true, true], 0]),
+                "the tracker did not head a clean-up table for each killer, the close broke gloves, or the discovery after it left the killer's or "
+                + "the accomplice's, or their rows (tables, at the close, at the discovery, rows left)");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const actor of [killer, third]) if (S.usedToolStore?.has(actor.id)) await S.usedToolStore.drop(actor.id);
+            for (const doc of [...made, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+        }
+    }],
+
+    ["a Tamper with gloves by a student who killed nobody writes nothing down", async () => {
+        /*
+         * E32+E07 C12, 02.10.2026; the owner's D13, "the Cleaning Tool remembered like the weapon".
+         * The `usedTools` store remembers a killer's gloves for the discovery to break; the guide
+         * breaks the killer's tool, and the swing memo remembers only a fight's weapon. A student
+         * who is in no incident and on no Blackened register scrubs a trace they found (a Truth
+         * Bullet copied off it, as the T-1 test finds one) with gloves in hand, the Tamper the bridge
+         * scores: the trace goes, and no row is written. Green at 5c80c4d, which had no store; with
+         * the killers' rule taken out of `noteCleaningTool` (the mutant c12-innocent-written):
+         * <measured by A2>.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { createTruthBullet } = await import("./truth-bullets.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        must(!M.murderState() && !M.blackenedIds().includes(who.id), `${who.name} is in an incident or on this chapter's Blackened register`);
+        let gloves = null, trace = null, bullet = null;
+        try {
+            gloves = await inHand(who, "cleaningTool", "SUITE C12 an investigator's gloves");
+            trace = await placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE C12 a trace an investigator scrubs" });
+            must(trace, "the fixture's trace was not placed");
+            bullet = await createTruthBullet(who, { name: "SUITE C12 the trace found", realType: "neutral", visibility: "obvious",
+                remnantId: trace.id, sceneId: scene.id });
+            must(bullet, "the fixture's trace was not copied onto a Truth Bullet");
+            await settle();
+            await CL.resolveCleanup({ actorId: who.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true, viaAction: true, price: "action" });
+            await settle();
+            equal(stableJson([Boolean(scene.tokens.get(trace.id)), Boolean(S.usedToolStore?.has(who.id))]), stableJson([false, false]),
+                "the investigator's Tamper was not scored, or wrote their gloves down (the trace standing, a row)");
+        } finally {
+            if (S.usedToolStore?.has(who.id)) await S.usedToolStore.drop(who.id);
+            for (const doc of [gloves, bullet, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
         }
     }],
 
@@ -15913,6 +16180,15 @@ const SCENARIOS = [
                 },
                 gone: (report, id) => !S.eclipseMoveStore.has(id),
                 back: id => S.eclipseMoveStore.get(id)?.used === 1 && S.eclipseMoveStore.get(id)?.eclipse === "SUITE backed-up Eclipse"
+            },
+            // A clean-up's Cleaning Tool, through its store (E32+E07 C12): chapter 99, which no discovery here reads.
+            usedTools: {
+                seed: async () => {
+                    await S.usedToolStore.patch(holder.id, { chapter: 99, epoch: 0, cleaning: ["SUITEC12BACKUPTL"] });
+                    return holder.id;
+                },
+                gone: (report, id) => !S.usedToolStore.has(id),
+                back: id => stableJson(S.usedToolStore.get(id)?.cleaning ?? null) === stableJson(["SUITEC12BACKUPTL"])
             },
             // A Confusion armed and not rolled, through its store (E06 fix r2-G4): no player is sent it while the stores are held.
             confusions: {

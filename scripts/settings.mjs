@@ -329,6 +329,13 @@ export const SETTINGS = {
      */
     gmLootTraces: "gmLootTraces",
     /**
+     * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 1.2.66; audit S05-38, D13): a GM store
+     * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning }` - the ids
+     * of every Cleaning Tool readied at a clean-up attempt they made, broken at the body's
+     * discovery. No player copy.
+     */
+    gmUsedTools: "gmUsedTools",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -1310,6 +1317,14 @@ export function registerSettings() {
     // What has been taken off each body (E05 C14): no `onChange`, as nothing on any screen
     // shows it - read by the next loot of the same body, on the GM that serves it.
     game.settings.register(MODULE_ID, SETTINGS.gmLootTraces, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The Cleaning Tools a clean-up used (E32+E07 C12): no `onChange` either - read by the
+    // body's discovery, on the GM that runs it, and shown nowhere.
+    game.settings.register(MODULE_ID, SETTINGS.gmUsedTools, {
         scope: "client",
         config: false,
         type: Object,

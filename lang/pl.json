@@ -1209,6 +1209,7 @@
       "gmReinforced": "Reinforced",
       "gmTool": "W ręku: {item} (Tier {tier}) - przewaga i {tier} mniej na każdym progu poniżej.",
       "gmNoTool": "Brak narzędzia do sprzątania w ręku - gołe ręce, bez przewagi.",
+      "gmTitleFor": "Sprzątanie - {name}",
       "gmNothingHere": "Brak śladów w pokoju, w którym stoi zabójca.",
       "gmAttemptsLeft": {
         "one": "Sanity starcza na {n} próbę. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała.",
@@ -4670,7 +4671,8 @@
         "overflow": "Licznik Despair overflow",
         "despairOwed": "Despair, który każda pula jest winna za zamiany na Hope",
         "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
-        "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone"
+        "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
+        "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała"
       },
       "row": {
         "traces": {

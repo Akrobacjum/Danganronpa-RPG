@@ -1210,6 +1210,7 @@
       "gmReinforced": "Reinforced",
       "gmTool": "Readied: {item} (Tier {tier}) - advantage, and {tier} off every threshold below.",
       "gmNoTool": "No Cleaning Tool readied - bare hands, no advantage.",
+      "gmTitleFor": "Cleaning up - {name}",
       "gmNothingHere": "No traces in the room the killer is standing in.",
       "gmAttemptsLeft": {
         "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you close the murder - closing destroys the crime tool that was used; the cleaning tool goes when the body is found.",
@@ -3433,7 +3434,8 @@
         "overflow": "The Despair overflow's count",
         "despairOwed": "The Despair each pool owes for its conversions to Hope",
         "lootTraces": "What has been taken off each body, and its trace",
-        "confusions": "The Confusions armed on a character and not rolled yet"
+        "confusions": "The Confusions armed on a character and not rolled yet",
+        "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found"
       },
       "row": {
         "traces": {

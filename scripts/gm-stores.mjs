@@ -663,6 +663,25 @@ export const lootTraceStore = defineGmStore({
 });
 
 /**
+ * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 02.10.2026; audit S05-38, S04-20, S05-23;
+ * the owner's D13: the Cleaning Tool remembered like the weapon). A row per killer,
+ * `{ chapter, epoch, cleaning }`: the clock's chapter and season (`seasonEpoch`, as the
+ * Blackened rows keep it), and the id of every Cleaning Tool they had readied at a clean-up
+ * attempt the GM scored (cleanup.mjs `noteCleaningTool`). Until 1.2.66 the discovery broke
+ * what the killers held in hand at that moment, read off `killerIds()` - so gloves put away
+ * after the clean-up survived it, and a discovery after the close, when the incident and its
+ * killers are gone, broke nothing at all. Read and emptied by `destroyCleaningTools`; a row of
+ * another chapter or season counts nothing, and the chapter's end and the reset's "incident"
+ * group take what is left. Backed up and synced between GMs. No player copy - nothing on a
+ * player's client reads it, so R182 has nothing to ask of it.
+ */
+export const usedToolStore = defineGmStore({
+    name: "usedTools", key: SETTINGS.gmUsedTools,
+    kind: "ledger", resetGroup: "incident", backup: true, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE OFFERS COPY'S RULE (the round-2 review's M2, 26.09.2026). An answer names every
  * character its owner owns now, each with the newest decision about it, and is the
  * owner's whole set: taken when it is at least as new in every character it names and

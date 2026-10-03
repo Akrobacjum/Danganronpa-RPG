@@ -1382,6 +1382,18 @@ export async function applyChapterEnd(choices = {}) {
     // chapter, so the next chapter starts with nobody's blood on anybody - and a
     // GM's copy that missed an emptying cannot bring last chapter's killers back.
 
+    // The Cleaning Tools the chapter's clean-ups used (E32+E07 C12; cleanup.mjs
+    // `noteCleaningTool`) are for its own discovery: a row the next chapter reads
+    // counts nothing, and the move to it takes them all.
+    if (result.nextChapter) {
+        try {
+            const { clearUsedTools } = await import("./cleanup.mjs");
+            await clearUsedTools();
+        } catch (err) {
+            error("Could not empty the used Cleaning Tools at the end of the chapter", err);
+        }
+    }
+
     // And the chapter actually ends.
     //
     // The window is called "End of chapter / new session" and did three

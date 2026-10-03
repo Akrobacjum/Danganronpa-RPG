@@ -111,6 +111,8 @@
  *      kept death, leaves, the GM revives it, and p4 back reads its character alive.
  *   S  two GMs' loots of one body nobody has found (E05 fix r2-G3): each serves one without
  *      having heard of the other, both are owed, and the publication gives both takers theirs.
+ *   T  the Cleaning Tools a clean-up used (E32+E07 C12): a row the primary writes reaches the
+ *      second GM, whose discovery breaks the gloves and takes the row off both.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -1881,5 +1883,33 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         s4.published && s4.aiko.length === 1 && s4.aiko[0].includes(ITEMS[0]) && s4.chie.length === 1 && s4.chie[0].includes(ITEMS[1]),
         J(s4), { flow: "give-take-stash" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S"], gm: IDS.gm };
+    /* T (E32+E07 C12, 02.10.2026; audit S05-38, the owner's D13): the Cleaning Tools a clean-up used
+       are a GM store, `usedTools`, a row per killer synced between GMs, since whichever GM runs the
+       discovery breaks them. gma, the primary, writes a row for gloves Chie carries put away, as a
+       scored clean-up writes it (cleanup.mjs `noteCleaningTool`); gmb must hold it, and a discovery
+       there (`destroyCleaningTools`) break the gloves and take the row off both GMs. The gloves are
+       taken away after. */
+    phase("T: the gloves a clean-up used reach the second GM, and a discovery there breaks them and takes their row off both", { flow: "gm-store" });
+    const TOOLS = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const CL = await import("${repoUrl}/scripts/cleanup.mjs");
+        const { isBroken } = await import("${repoUrl}/scripts/inventory.mjs"); const chie = game.actors.get("${IDS.chie}");`;
+    const t1 = await gma.eval(`${TOOLS} const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const { seasonEpoch } = await import("${repoUrl}/scripts/settings.mjs");
+        const [item] = await chie.createEmbeddedDocuments("Item", [{ name: "E32 C12 61 T gloves", type: "loot",
+            flags: { "${MOD}": { category: "cleaningTool", equipped: false, tier: 1 } } }]);
+        await S.usedToolStore?.patch(chie.id, { chapter: getClock().chapter ?? null, epoch: seasonEpoch(), cleaning: [item.id] });
+        return { id: item.id, primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`, { timeout: 30000 });
+    const t2 = await gmb.eval(`${TOOLS} ${untilP} await until(() => (S.usedToolStore?.get(chie.id)?.cleaning ?? []).includes("${t1.id}"));
+        const held = (S.usedToolStore?.get(chie.id)?.cleaning ?? []).includes("${t1.id}");
+        const broke = await CL.destroyCleaningTools();
+        return { held, broke, row: Boolean(S.usedToolStore?.has(chie.id)) };`, { timeout: 30000 });
+    const t3 = await gma.eval(`${TOOLS} ${untilP} await until(() => !S.usedToolStore?.has(chie.id));
+        const item = chie.items.get("${t1.id}");
+        const out = { row: Boolean(S.usedToolStore?.has(chie.id)), broken: Boolean(item) && isBroken(item) };
+        await item?.delete();
+        return out;`, { timeout: 30000 });
+    check("T1: gloves the primary wrote down as used reach the second GM, its discovery breaks them, and the row leaves both GMs",
+        t1.primary === true && t2.held === true && t2.broke.includes("E32 C12 61 T gloves") && t2.row === false && t3.row === false && t3.broken === true,
+        J({ t1, t2, t3 }), { flow: "gm-store" });
+
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T"], gm: IDS.gm };
 }

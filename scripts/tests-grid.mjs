@@ -281,14 +281,12 @@ const CASES = {
  * of several re-points it to the list still red, and the one that fixes the last
  * takes the marker off. The reason names the commit due to fix the last. E32+E07 C10
  * took off TP08's, TP10's and TP13's (S04-21, S04-33); C11a TP04's, TR03's, TR05's, TR06's
- * and TR07's (S04-06: no Role reversal in a trap or against an accomplice).
+ * and TR07's (S04-06: no Role reversal in a trap or against an accomplice); C12 DM02's,
+ * DM13's and TP05's (S04-17, S04-20, S05-23: the tools the incident used, and only those).
  * ========================================================================== */
 
 const GRID_RED = {
-    DM02: expectedRed("E07", "S04-20: the gloves in the killer's hand are not broken by a discovery after the close (C12)", { failing: "[I12]" }),
     DM12: expectedRed("E07", "S10-77: the victim's death from the Students list in the fight offers no Stage 6 (C13)", { failing: "[I10]" }),
-    DM13: expectedRed("E07", "S04-17: a failed opening breaks the weapon in the killer's hand (C12)", { failing: "[I12]" }),
-    TP05: expectedRed("E07", "S05-23: the close breaks the first killer's tools only, not the accomplice's swung weapon (C12)", { failing: "[I12]" }),
     TR09: expectedRed("E07", "S10-77: a trap's victim's death from the Students list offers no Stage 6 (C13)", { failing: "[I10]" }),
 };
 

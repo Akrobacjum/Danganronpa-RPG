@@ -97,6 +97,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        lies in Daichi's room, and Aiko and Chie walk in together: the watcher names the first body it
        finds (Botan), and Daichi has to be found in the room by the discovery itself. Botan is revived
        after, for the vote. Red on 8c6dfd6: Daichi stayed a death nobody had found. */
+    /* THE GLOVES THE CLEAN-UP USED (E32+E07 C12, 02.10.2026; audit S05-38, the owner's D13). The
+       discovery broke the Cleaning Tool in the killer's hand when the body was found, so gloves put
+       away after the clean-up were kept. Chie readies gloves, scrubs a trace laid at her feet (the
+       GM's `resolveCleanup`, as the bridge calls it) and puts them away; the discovery below must
+       break them from the GMs' `usedTools` row, and take the row. The trace goes with the scrub, or
+       is taken away here if it stood. */
+    const gloves = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const CL = await import("${repoUrl}/scripts/cleanup.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const chie = game.actors.get("${ids.chie}"), floor = canvas.scene, at = floor.tokens.find(t => t.actorId === chie.id);
+        const [item] = await chie.createEmbeddedDocuments("Item", [{ name: "E32 C12 10 gloves", type: "loot",
+            flags: { "${MOD}": { category: "cleaningTool", equipped: true, tier: 1 } } }]);
+        const trace = await R.placeRemnant({ type: "incident", visibility: "evident", x: at.x, y: at.y, scene: floor, note: "E32 C12 10 a trace Chie scrubs" });
+        await CL.resolveCleanup({ actorId: chie.id, tokenId: trace?.id, total: 30, isCritical: false, withHope: true });
+        const stood = trace ? floor.tokens.get(trace.id) : null;
+        if (stood) { try { await R.dropRemnantSecret(stood); } catch {} await stood.delete(); }
+        const row = S.usedToolStore?.get(chie.id)?.cleaning ?? [];
+        await item.update({ "flags.${MOD}.equipped": false });
+        return { id: item.id, placed: Boolean(trace), stood: Boolean(stood), written: row.includes(item.id) };`, { timeout: 60000 });
     const found = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const C = await import("${repoUrl}/scripts/chapter.mjs");
         const daichi = game.actors.get("${ids.daichi}"), botan = game.actors.get("${ids.botan}");
@@ -124,6 +142,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const deadOnP1After = await p1.eval(`return game.drpg.isDeceased(game.actors.get("${ids.daichi}"));`);
     check("p1: the body's discovery makes the death the table's, on p1's client too - both bodies in the room, on the body's scene while the GM looks at another",
         found.found === found.room && found.flag === true && found.botan === true && deadOnP1After === true, JSON.stringify({ found, deadOnP1After }));
+    const glovesAfter = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { isBroken } = await import("${repoUrl}/scripts/inventory.mjs");
+        const chie = game.actors.get("${ids.chie}"), item = chie.items.get("${gloves.id}");
+        const out = { broken: Boolean(item) && isBroken(item), row: Boolean(S.usedToolStore?.has(chie.id)) };
+        await item?.delete();
+        return out;`);
+    check("gm: the discovery breaks the gloves the killer scrubbed with and put away, and takes their row",
+        gloves.placed && gloves.written && glovesAfter.broken === true && glovesAfter.row === false, JSON.stringify({ gloves, glovesAfter }));
 
     // -- 5. traces: place a Remnant, observe it into a Truth Bullet ----------
     phase("traces", { flow: "trace-remnant" });

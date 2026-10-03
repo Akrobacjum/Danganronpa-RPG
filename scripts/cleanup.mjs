@@ -65,8 +65,9 @@ import { quotePrice, payPrice, refundPrice, paidLine } from "./price.mjs";
 import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { bodyDiscovery } from "./settings.mjs";
-import { murderState, killerIds, refOf, swungWeaponOf } from "./murder.mjs";
+import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
+import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf } from "./murder.mjs";
+import { usedToolStore } from "./gm-stores.mjs";
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic
 } from "./remnants.mjs";
@@ -81,7 +82,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
-    dialogContent, log, error, cardHead } from "./utils.mjs";
+    dialogContent, log, error, cardHead, isPrimaryGm } from "./utils.mjs";
 
 // Veiled, every one of them: a Stage 6 card's speaker is the killer and its
 // audience is the incident, and the document must not say so. See murder.mjs.
@@ -398,6 +399,47 @@ export function cleaningTier(actor) {
 
 export function cleaningTool(actor) {
     return equippedFor(actor, "cleaningTool");
+}
+
+/**
+ * THE GLOVES ARE WRITTEN DOWN WHEN THEY ARE USED (E32+E07 C12, 02.10.2026; audit S05-38; the
+ * owner's D13, "the Cleaning Tool remembered like the weapon"). The discovery breaks the
+ * Cleaning Tools a clean-up used, and until 1.2.66 it read them off the killers' hands at the
+ * moment the body was found: one click putting the gloves away after the clean-up kept them
+ * whole through the discovery. So the tool readied at an attempt the GM scores goes into the
+ * GMs' `usedTools` row of the character, with the clock's chapter and season - every attempt
+ * and every tool, since several rags are as much evidence as one.
+ *
+ * A KILLER'S ATTEMPT ONLY: the running incident's killers (`killerIds`, the Stage 6 clean-up)
+ * and this chapter's Blackened (a Tamper after the close). The guide breaks the killer's tool,
+ * as the swing memo remembers only a fight's weapon; an investigator who scrubs a trace with
+ * their own gloves on an ordinary afternoon is not made to lose them when a body turns up.
+ *
+ * A row of another chapter or season is started again. Read after the store has heard the
+ * other GMs (as `applyRecordedMove` reads its row), so another GM's tool is kept, and written
+ * with no await between the read and the patch. GM-side; a failed write is logged and the
+ * attempt is scored anyway - the discovery then falls back on the hand, as it always did.
+ */
+async function noteCleaningTool(actor) {
+    const tool = cleaningTool(actor);
+    if (!game.user.isGM || !tool) return;
+    if (!killerIds().includes(actor.id) && !blackenedIds().includes(actor.id)) return;
+    try {
+        await usedToolStore.whenHydrated();
+        const chapter = getClock()?.chapter ?? null, epoch = seasonEpoch();
+        const row = usedToolStore.get(actor.id);
+        const held = isThisChapters(row) ? row.cleaning : [];
+        if (held.includes(tool.id)) return;
+        await usedToolStore.patch(actor.id, { chapter, epoch, cleaning: [...held, tool.id] });
+    } catch (err) {
+        error(`Could not write down the Cleaning Tool ${actor.name} used`, err);
+    }
+}
+
+/** Is this `usedTools` row of the clock's chapter and season? */
+function isThisChapters(row) {
+    return row?.chapter === (getClock()?.chapter ?? null) && (row.epoch ?? 0) === seasonEpoch()
+        && Array.isArray(row.cleaning);
 }
 
 /** One Remnant token by id, from whichever scene it is on. */
@@ -1507,6 +1549,7 @@ export async function resolveCleanup({
 
     const refused = await cleanupRefusal(actor, token, data, viaAction);
     if (refused) return refused;
+    await noteCleaningTool(actor);
 
     const verdict = cleanupVerdict(actor, data, { total, isCritical, withHope, mode });
     const { transforming, dc, success, band, outcome } = verdict;
@@ -2027,6 +2070,7 @@ export async function resolveStageSix({
         return { refused: "that student cannot be framed" };
     }
     if (key === "moveBody" && !bodyIsHere(actor)) return { refused: "the body is not in the killer's room" };
+    await noteCleaningTool(actor);
 
     const relief = def.toolBonusPerTier ? cleaningTier(actor) * def.toolBonusPerTier : 0;
     const threshold = Math.max(0, (def.threshold ?? 0) - relief);
@@ -2699,10 +2743,14 @@ export async function openMoveBodyDialog(actor) {
  * `CLEANUP.destroysTools` has declared for some time that a crime tool used in
  * an incident is destroyed, and nothing was destroying anything. The cleaning tool
  * goes the same way and for the same reason - one crime scene, one set of
- * gloves. Both are read as EQUIPPED items: an unopened spare in the stash is not
- * a thing that was used.
+ * gloves, broken at the discovery (`destroyCleaningTools`). Both are read from
+ * what the incident wrote down (`rememberedTools`): an unopened spare in the
+ * stash is not a thing that was used.
  *
- * Called by `endMurder`, so it also covers a GM closing an incident by hand.
+ * Called by `endMurder` for every killer of an incident that reached Stage 6, so
+ * it also covers a GM closing an incident by hand - and only then (E32+E07 C12;
+ * audit S04-17): the rules use the crime tool up in Stage 6, so a fight closed
+ * before it breaks nothing, a weapon swung in it included.
  */
 export async function endResolution(actor) {
     return destroyTools(actor, CLEANUP.destroysTools);
@@ -2714,19 +2762,55 @@ export async function endResolution(actor) {
  * Called by `discoverBody`, which is the moment the guide names. The killer is
  * read off the incident state rather than passed in, because by then whoever
  * closed the murder is not necessarily the person holding the tool.
+ *
+ * Every killer, not the first one. An accomplice cleaning alongside them is
+ * holding a tool of their own, and leaving it in their bag after the body turns
+ * up is a Truth Bullet the guide says should no longer exist.
+ *
+ * AND A CLOSED INCIDENT'S KILLERS TOO (E32+E07 C12, 02.10.2026; audit S04-20,
+ * S05-23). The table's usual order is the GM closing the night and somebody
+ * finding the body in the morning, and by then `endMurder` has wiped the incident:
+ * `killerIds()` answered nobody, and nothing broke. So the killers are the running
+ * incident's, this chapter's Blackened (the register outlives the close), and
+ * everybody the GMs' `usedTools` ledger wrote a tool down for - each once. The
+ * ledger's rows go after: the tools they named are broken now, or were stashed,
+ * lost or broken before.
  */
 export async function destroyCleaningTools() {
     if (!game.user.isGM) return [];
-    // Every killer, not the first one. An accomplice cleaning alongside them is
-    // holding a tool of their own, and leaving it in their bag after the body
-    // turns up is a Truth Bullet the guide says should no longer exist.
+    await usedToolStore.whenHydrated();
+    const rows = usedToolRows();
     const destroyed = [];
-    for (const id of killerIds()) {
+    for (const id of new Set([...killerIds(), ...blackenedIds(), ...Object.keys(rows)])) {
         const killer = game.actors.get(id);
         if (!killer) continue;
         destroyed.push(...await destroyTools(killer, CLEANUP.destroysToolsOnDiscovery ?? []));
     }
+    const read = Object.keys(rows);
+    if (read.length) {
+        try {
+            await usedToolStore.dropMany(read);
+        } catch (err) {
+            error("Could not take the used Cleaning Tools off the ledger after the discovery", err);
+        }
+    }
     return destroyed;
+}
+
+/** The `usedTools` rows of the clock's chapter and season, by character. GM-side. */
+function usedToolRows() {
+    return Object.fromEntries(Object.entries(usedToolStore.entries()).filter(([, row]) => isThisChapters(row)));
+}
+
+/**
+ * Every row this GM's browser holds, of any chapter, taken away: the chapter's end
+ * (chapter.mjs `applyChapterEnd`) and the season reset. Another GM's browser drops
+ * its copy by the tombstones, as `clearBlackened` does it.
+ */
+export async function clearUsedTools() {
+    if (!game.user.isGM) return;
+    if (isPrimaryGm()) await usedToolStore.clear();
+    else await usedToolStore.dropMany(Object.keys(usedToolStore.entries()));
 }
 
 /**
@@ -2744,18 +2828,32 @@ export async function destroyCleaningTools() {
  * See BROKEN_ITEMS in config.mjs and `discardBroken` in use-items.mjs.
  */
 /**
- * The thing this character used in the incident, if anything wrote it down.
+ * The things this character used in the incident, as far as anything wrote them
+ * down - or null when nothing could have, and the hand is the answer.
  *
- * Only the weapon is remembered - the swing is a single identifiable moment,
- * while cleaning is several actions with possibly several rags, and "the one in
- * your hands when the body turned up" is the honest answer for those.
+ * THE WEAPON ONLY BY MEMORY (E32+E07 C12, 02.10.2026; audit S04-17). The swing is
+ * a single identifiable moment and the cast wrote it down (CASE-04); a weapon
+ * nobody swung was not used, so a failed opening, a trap or a fourth walking in
+ * breaks nothing, however the killer is armed. There is no hand to fall back on.
+ *
+ * THE CLEANING TOOLS BY MEMORY TOO (the owner's D13; S05-38). They were left to
+ * the hand - "several actions with possibly several rags" - and the hand let one
+ * click put the gloves away before the body was found. Every tool a killer's scored
+ * attempt had readied is in the `usedTools` row now; the hand answers only for a
+ * character with no row this chapter - a killer the ledger never heard clean: an
+ * older world's, a write that failed, or one who never cleaned, whose readied
+ * gloves the discovery took before 1.2.66 too (the grid's DM02).
+ *
+ * Either way, a remembered thing gone from them, already ruined, or put in their
+ * stash since is left alone - the weapon's old rule, without its fall back to the
+ * hand.
  */
-function rememberedTool(actor, category) {
-    if (category !== "crimeTool") return null;
-    // From the GM's cast, where the crisis packet wrote it (CASE-04).
-    const item = swungWeaponOf(actor);
-    // Gone, already ruined, or stashed since: fall back to the hand.
-    return item && !isBroken(item) && !isStashed(item) ? item : null;
+function rememberedTools(actor, category) {
+    const kept = item => item && !isBroken(item) && !isStashed(item);
+    if (category === "crimeTool") return [swungWeaponOf(actor)].filter(kept);
+    if (category !== "cleaningTool") return null;
+    const row = usedToolRows()[actor.id];
+    return row ? row.cleaning.map(id => actor.items.get(id)).filter(kept) : null;
 }
 
 async function destroyTools(actor, categories) {
@@ -2771,18 +2869,23 @@ async function destroyTools(actor, categories) {
          * used a cleaning tool, and the guide's "the gloves come off when the
          * body turns up" is about what was used, not which row it sits in.
          *
-         * BY MEMORY for the weapon: with one hand (E9) a killer holds the knife
-         * for the murder and the gloves for the clean-up, so reading the hand at
-         * closing time would spare the murder weapon every single time. The
-         * swing wrote down what it swung; that is the thing this destroys.
+         * BY MEMORY: with one hand (E9) a killer holds the knife for the murder
+         * and the gloves for the clean-up, so reading the hand at closing time
+         * would spare the murder weapon every single time. The swing wrote down
+         * what it swung, and the clean-up what it cleaned with (`rememberedTools`);
+         * those are the things this destroys.
+         *
+         * NAMED ONCE BROKEN (E32+E07 C12; audit S05-23): the name went on the
+         * list before the write, so a write that failed was still reported to
+         * the owner as ruined. `breakItem` answers whether it held.
          */
-        const item = rememberedTool(actor, category) ?? equippedFor(actor, category);
-        if (!item) continue;
-        try {
-            destroyed.push(item.name);
-            await breakItem(item);
-        } catch (err) {
-            error(`Could not ruin the ${category} used in the incident`, err);
+        const items = rememberedTools(actor, category) ?? [equippedFor(actor, category)].filter(Boolean);
+        for (const item of items) {
+            try {
+                if (await breakItem(item)) destroyed.push(item.name);
+            } catch (err) {
+                error(`Could not ruin the ${category} used in the incident`, err);
+            }
         }
     }
 

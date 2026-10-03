@@ -4470,13 +4470,21 @@ async function closeIncident(state, { reason, followUp }) {
     } catch (err) {
         error("Could not record who the Blackened was", err);
     }
-    const killer = state?.killerId ? game.actors.get(state.killerId) : null;
-    if (killer) {
-        try {
-            const { endResolution } = await import("./cleanup.mjs");
-            await endResolution(killer);
-        } catch (err) {
-            error("Could not destroy the tools the incident used", err);
+    /* EVERY KILLER'S SWING, AND ONLY AFTER STAGE 6 (E32+E07 C12, 02.10.2026; audit S04-17,
+       S05-23). This broke the first killer's tools at every close: a failed opening, a trap, a
+       GM's early close broke the knife in the killer's hand though nothing was swung, and an
+       accomplice's own knife, swung in the fight, stayed whole. Stage 6 is where the crime tool
+       is used up (CLEANUP.destroysTools), and each killer's is the one their swing wrote down. */
+    if (state?.stage === "resolution") {
+        for (const id of killerIds(state)) {
+            const killer = game.actors.get(id);
+            if (!killer) continue;
+            try {
+                const { endResolution } = await import("./cleanup.mjs");
+                await endResolution(killer);
+            } catch (err) {
+                error("Could not destroy the tools the incident used", err);
+            }
         }
     }
 
@@ -5845,8 +5853,9 @@ function incidentPeople(now) {
    with its own first child, and the second refresh has nothing left to find. Measured
    on 11.09 with exactly that mistake: one Pass the turn and the window read "Player A
    -> Player B" and nothing else, with `.drpg-incident-live` gone from the DOM.
-   `buildConsole` in trial-floor-ui.mjs carries its own class for the same reason. */
-function incidentTrackerHtml(now, cleanup) {
+   `buildConsole` in trial-floor-ui.mjs carries its own class for the same reason.
+   Exported for the suite, which reads its clean-up table (E32+E07 C12). */
+export function incidentTrackerHtml(now, cleanup) {
     // The incident is gone but the window is still up - the live hook below closes it
     // on the next tick, and until then it says so rather than showing a dead fight.
     if (!now) {
@@ -5908,7 +5917,7 @@ function incidentTrackerHtml(now, cleanup) {
             hp: left("hitPoints"), stress: left("stress")
         })}</p>
         <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
-        ${cleanupSection(killer, cleanup)}</div>`;
+        ${cleanupSection(killerIds(now).map(id => game.actors.get(id)).filter(Boolean), cleanup)}</div>`;
 }
 
 /* WHICH BUTTONS ARE ON IT, which `keepLive` cannot change - it replaces a region of
@@ -6104,14 +6113,25 @@ export async function openIncidentTracker() {
  * they are read off the trace's own visibility, which is the answer key.
  */
 /**
- * @param {Actor|undefined} killer
+ * EVERY KILLER'S (E32+E07 C12, 02.10.2026; audit S04-17): an accomplice cleans with their
+ * own Sanity and their own tool, and the table showed the first killer's alone. With two,
+ * each section is headed with its killer's name.
+ *
+ * @param {Actor[]} killers
  * @param {object} cleanup  cleanup.mjs, imported once by the caller - see the note there.
  */
-function cleanupSection(killer, cleanup) {
+function cleanupSection(killers, cleanup) {
     const state = murderState();
-    if (state?.stage !== "resolution" || !killer) return "";
+    if (state?.stage !== "resolution" || !killers.length) return "";
+    return killers.map(killer => killerCleanup(killer, cleanup, killers.length > 1)).join("");
+}
 
+/** One killer's part of `cleanupSection`; `named` heads it with their name. */
+function killerCleanup(killer, cleanup, named) {
     const { cleanableRemnants, cleaningTier, cleaningTool } = cleanup;
+    const title = named
+        ? game.i18n.format("DRPG.Cleanup.gmTitleFor", { name: foundry.utils.escapeHTML(killer.name) })
+        : game.i18n.localize("DRPG.Cleanup.title");
     const traces = cleanableRemnants(killer);
 
     const tool = cleaningTool(killer);
@@ -6122,7 +6142,7 @@ function cleanupSection(killer, cleanup) {
         : game.i18n.localize("DRPG.Cleanup.gmNoTool");
 
     if (!traces.length) {
-        return `<h4>${game.i18n.localize("DRPG.Cleanup.title")}</h4>
+        return `<h4>${title}</h4>
                 <p class="notes">${toolLine}</p>
                 <p><em>${game.i18n.localize("DRPG.Cleanup.gmNothingHere")}</em></p>`;
     }
@@ -6142,7 +6162,7 @@ function cleanupSection(killer, cleanup) {
         Math.floor((resourceMax(killer, "stress") - resourceValue(killer, "stress"))
             / RESOLUTION_STRESS_COST));
 
-    return `<h4>${game.i18n.localize("DRPG.Cleanup.title")}</h4>
+    return `<h4>${title}</h4>
         <p class="notes">${toolLine}</p>
         <p class="notes">${plural("DRPG.Cleanup.gmAttemptsLeft", { n: left })}</p>
         <table class="drpg-vault-table"><thead><tr>
