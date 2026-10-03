@@ -826,6 +826,22 @@ export const rerollBookmarkStore = defineGmStore({
 });
 
 /**
+ * A CLEAN-UP'S RECEIPT (E08+E28 C3, 03.10.2026; audit S05-44). A row per character, what their
+ * last clean-up attempt did, so a Reroll can take it back (cleanup.mjs `undoLastCleanup`):
+ * `tokenId`, `attempt`, the Sanity before and after, `free`, `erased` (the trace's whole
+ * creation data, its token id with it), `leftBehind`, `transformed` and `handedBack`. Until
+ * 1.2.67 a Map on the GM's browser that resolved the attempt, so a GM's reload lost it while
+ * the player's Reroll still said the clean-up was replayed. Synced between the GMs and not
+ * backed up: a row is worth one Reroll, minutes long - the Reroll's bookmark's trade. Cut by
+ * the reset's "incident" group. No player copy - R182 has nothing to ask of it - and no old key.
+ */
+export const cleanupAttemptStore = defineGmStore({
+    name: "cleanupAttempts", key: SETTINGS.gmCleanupAttempts,
+    kind: "ledger", resetGroup: "incident", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
  * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the

@@ -862,6 +862,47 @@ async function safewordRun(S, player, act, read) {
     }
 }
 
+/*
+ * A CLEAN-UP'S FIXTURE (E08+E28 C3, 03.10.2026). A trace on the scene on screen, copied onto a
+ * bullet of `who` so the Tamper road takes it (`cleanupRefusal`); `scrub` drives the GM's
+ * `resolveCleanup` as the bridge calls it, on the erase road unless told otherwise, a price
+ * paid on the client unless `price` says none; `since` lists the ids of the tokens made from a
+ * mark on; `putBack` deletes every token made while the fixture stood - a trace a Reroll put
+ * back, one a botched wipe left - with the bullet, and puts the Sanity back.
+ */
+async function cleanupFixture(who, note) {
+    const cleanup = await import("./cleanup.mjs");
+    const remnants = await import("./remnants.mjs");
+    const bullets = await import("./truth-bullets.mjs");
+    const scene = game.scenes.active ?? canvas?.scene;
+    const anchor = scene?.tokens?.find(t => t.x || t.y);
+    const sanity = who.system.resources.stress.value;
+    const made = [];
+    const hook = Hooks.on("createToken", doc => { made.push(doc); });
+    const trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, note });
+    const copy = trace ? await bullets.createTruthBullet(who, { name: `${note}, a copy`, realType: "neutral", visibility: "obvious",
+        remnantId: trace.id, sceneId: scene.id }) : null;
+    const scrub = (total, more = {}) => cleanup.resolveCleanup({ actorId: who.id, tokenId: trace?.id, total, isCritical: false,
+        withHope: true, viaAction: true, mode: "erase", price: "stress", ...more });
+    return {
+        trace, copy, scene, scrub,
+        mark: () => made.length,
+        since: at => made.slice(at).map(doc => doc.id),
+        putBack: async () => {
+            Hooks.off("createToken", hook);
+            for (const doc of made) {
+                const live = doc.parent?.tokens?.get(doc.id);
+                if (!live) continue;
+                try { await remnants.dropRemnantSecret(live); } catch { /* nothing filed */ }
+                try { await live.delete(); } catch { /* already gone */ }
+            }
+            try { await copy?.delete(); } catch { /* already gone */ }
+            await who.update({ "system.resources.stress.value": sanity });
+            await settle();
+        }
+    };
+}
+
 const SCENARIOS = [
     ["a document keeps a given id only with keepId", async () => {
         /*
@@ -3570,6 +3611,157 @@ const SCENARIOS = [
                 "the GM's own roll was not kept, or a fact for the roll before it landed on it (verdict, first roll read, second kept, its roller, fact written, facts)");
         } finally {
             await game.messages.get(second?.id ?? "")?.delete();
+            await F.putBack();
+        }
+    }],
+
+    ["a Reroll of a successful erase removes the trace again", async () => {
+        /*
+         * E08+E28 C3, 03.10.2026; audit S05-07. The undo re-placed the trace it erased under an id
+         * Foundry minted, and the replay looked for the old one: "vanished", the trace standing
+         * under the new id. It comes back under its own id now (`keepId`; C1's harness keeps a
+         * given id only with it, so this measures the module and not the harness). An erase, a
+         * Reroll that misses - the trace back under its id, its ledger row live with the note it
+         * had, and still live once the deletion's tombstone has settled - then a Reroll that
+         * hits: removed again. Read: each replay's answer, the ids the miss made, the row, and
+         * what of the fixture's traces stands at the end.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const { remnantData, remnantsOn } = await import("./remnants.mjs");
+        const note = "SUITE E08 C3 a trace erased and rerolled";
+        const F = await cleanupFixture(who, note);
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            const id = F.trace.id;
+            const first = await F.scrub(30);
+            await settle();
+            must(first?.removed === true && !F.scene.tokens.get(id), `the first erase did not remove the trace: ${stableJson(first)}`);
+            const at = F.mark();
+            const miss = await F.scrub(0, { undo: true });
+            await settle();
+            const back = F.since(at);
+            const row = remnantData(F.scene.tokens.get(id));
+            const hit = await F.scrub(30, { undo: true });
+            await settle();
+            const standing = remnantsOn(F.scene).filter(t => remnantData(t)?.note === note).map(t => t.id);
+            equal(stableJson([miss?.gone ?? false, back.includes(id), row?.note ?? null, hit?.removed ?? null,
+                Boolean(F.scene.tokens.get(id)), standing]),
+            stableJson([false, true, note, true, false, []]),
+                "a Reroll did not put the erased trace back under its id with its row live, or did not remove it again "
+                + "(the miss found it gone, the miss made its id, the row's note after the miss, the hit removed it, "
+                + "the id standing at the end, the fixture's traces standing)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["the undo of an approved reshape unties it", async () => {
+        /*
+         * E08+E28 C3, 03.10.2026; audit S05-44. A killer's reshape ties an untied trace (the
+         * ruling's `tie`, cleanup.mjs `reshapeTrace`), and the receipt's snapshot held the type
+         * and the band and not the tie, so a Reroll that took the reshape back left the trace
+         * tied - the chapter's Faint sweep spares it, the dashboard files it under the murder. A
+         * Tamper that succeeds, the GM's approval with the tie, then a Reroll that misses. Read:
+         * the trace's tie and type after the approval and after the Reroll, and the tie the
+         * snapshot kept.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const cleanup = await import("./cleanup.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const S = await import("./gm-stores.mjs");
+        const F = await cleanupFixture(who, "SUITE E08 C3 a trace reshaped and rerolled");
+        const change = { name: "SUITE E08 C3 a kettle", text: "SUITE E08 C3 it was always there" };
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            must(remnantData(F.trace)?.tiedToCrime === false, "the fixture's trace is tied before the reshape - this would measure nothing");
+            await F.scrub(30, { mode: "transform", change });
+            await settle();
+            const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, ...change, tie: true });
+            await settle();
+            must(applied === true, "the approval was refused - this would measure nothing");
+            const approved = remnantData(F.trace);
+            const from = S.cleanupAttemptStore?.get(who.id)?.transformed?.from ?? null;
+            await F.scrub(0, { mode: "transform", change, undo: true });
+            await settle();
+            const undone = remnantData(F.trace);
+            equal(stableJson([approved?.tiedToCrime, approved?.type, from?.tiedToCrime ?? null, undone?.tiedToCrime, undone?.type]),
+                stableJson([true, "resolution", false, false, "prep"]),
+                "the Reroll of an approved reshape did not untie the trace it had tied "
+                + "(tied and type after the approval, the tie the snapshot kept, tied and type after the Reroll)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a clean-up's receipt survives a GM reload", async () => {
+        /*
+         * E08+E28 C3, 03.10.2026; audit S05-44. The receipt was a Map on the browser that
+         * resolved the attempt, so a GM's reload between the clean-up and its Reroll lost it, and
+         * the Reroll was not replayed. A GM store now (`cleanupAttemptStore`): an erase, the
+         * store written out and its cached copy dropped (`reload`, the engine's "a write this
+         * engine did not make"), then the Reroll. Read: the row as read back, and the Reroll.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const S = await import("./gm-stores.mjs");
+        const F = await cleanupFixture(who, "SUITE E08 C3 a receipt across a reload");
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            const id = F.trace.id;
+            const first = await F.scrub(30);
+            await settle();
+            must(first?.removed === true, `the erase did not remove the trace: ${stableJson(first)}`);
+            await S.cleanupAttemptStore?.idle();
+            S.cleanupAttemptStore?.reload();
+            const row = S.cleanupAttemptStore?.get(who.id) ?? null;
+            const replay = await F.scrub(30, { undo: true });
+            await settle();
+            equal(stableJson([row?.tokenId ?? null, row?.erased?._id ?? null, replay?.removed ?? null, Boolean(F.scene.tokens.get(id))]),
+                stableJson([id, id, true, false]),
+                "the receipt did not come back from the GM's storage, or the Reroll after it was not replayed "
+                + "(the row's trace, the erased trace's id, the replay removed it, the trace standing)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a refused attempt does not leave the previous one's receipt", async () => {
+        /*
+         * E08+E28 C3, 03.10.2026; audit S05-44. A clean-up refused - here the trace reinforced
+         * between two attempts - kept no receipt of its own and left the previous attempt's, so a
+         * Reroll of the refused one took back the attempt before it: its Sanity, and whatever its
+         * miss left. A miss that pays its Sanity on the GM, the trace reinforced, an attempt
+         * refused, then that attempt's Reroll. Read: the row after the refusal, the Reroll's
+         * answer, the Sanity it moved, and the fixture's traces standing before and after it.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const S = await import("./gm-stores.mjs");
+        const { setRemnantSecret } = await import("./remnants.mjs");
+        const F = await cleanupFixture(who, "SUITE E08 C3 a trace reinforced between two attempts");
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            await who.update({ "system.resources.stress.value": 0 });
+            const miss = await F.scrub(0, { price: null });
+            await settle();
+            must(miss && !miss.removed && who.system.resources.stress.value === 1,
+                `the first attempt did not miss at a Sanity's price: ${stableJson([miss, who.system.resources.stress.value])}`);
+            await setRemnantSecret(F.trace, { reinforced: true });
+            const refused = await F.scrub(30, { price: null });
+            await settle();
+            must(refused?.reinforced === true, `the second attempt was not refused: ${stableJson(refused)}`);
+            const row = S.cleanupAttemptStore?.has(who.id) ?? null;
+            const left = F.since(0).filter(tid => F.scene.tokens.get(tid));
+            const before = who.system.resources.stress.value;
+            const replay = await F.scrub(30, { price: null, undo: true });
+            await settle();
+            equal(stableJson([row, replay ?? null, who.system.resources.stress.value - before, F.since(0).filter(tid => F.scene.tokens.get(tid))]),
+                stableJson([false, null, 0, left]),
+                "a refused attempt left the previous one's receipt, and its Reroll took that attempt back "
+                + "(a row after the refusal, the Reroll's answer, the Sanity it moved, the traces standing after it)");
+        } finally {
             await F.putBack();
         }
     }],

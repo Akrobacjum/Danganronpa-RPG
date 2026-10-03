@@ -1187,6 +1187,7 @@
       "nothingHere": "Nothing to clean up in this room.",
       "allReinforced": "Every trace here is reinforced. None of it comes off.",
       "rerollLost": "A Reroll arrived for a clean-up with no record here. Score the new number against that trace by hand, then put the Remnant back or refund the Sanity to match.",
+      "rerollManual": "The clean-up was not replayed. If the GM has no record of the first attempt, they will judge the new roll against the trace by hand.",
       "reinforcedFlag": "reinforced - cannot be removed",
       "reinforced": "The {what} will not come off. Whatever left it, left it for good.",
       "vanished": "The trace you were working on is already gone. The effort still cost you.",
@@ -3459,6 +3460,7 @@
         "lootTraces": "What has been taken off each body, and its trace",
         "confusions": "The Confusions armed on a character and not rolled yet",
         "rerollBookmarks": "Each character's last roll a Reroll would take back, and what the GMs did for it",
+        "cleanupAttempts": "Each character's last clean-up, kept so a Reroll can take it back",
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found"
       },
       "row": {

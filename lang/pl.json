@@ -1186,6 +1186,7 @@
       "nothingHere": "W tym pokoju nie ma czego sprzątać.",
       "allReinforced": "Każdy ślad tutaj jest Reinforced. Nic z tego nie schodzi.",
       "rerollLost": "Przyszedł Reroll sprzątania bez zapisu tutaj. Oceń nową liczbę ręcznie względem tego śladu, potem przywróć Remnant albo zwróć Sanity, jak wypadnie.",
+      "rerollManual": "Sprzątania nie odtworzono. Jeśli GM nie ma zapisu pierwszej próby, oceni nowy rzut względem śladu ręcznie.",
       "reinforcedFlag": "Reinforced - nie da się usunąć",
       "reinforced": "{what} nie schodzi. Cokolwiek to zostawiło, zostawiło na dobre.",
       "vanished": "Tego śladu już nie ma. Wysiłek i tak cię kosztował.",
@@ -4696,6 +4697,7 @@
         "lootTraces": "Co zabrano z każdego ciała, i jego ślad",
         "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
+        "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała"
       },
       "row": {

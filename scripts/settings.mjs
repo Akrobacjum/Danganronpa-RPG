@@ -343,6 +343,13 @@ export const SETTINGS = {
      */
     gmRerollBookmarks: "gmRerollBookmarks",
     /**
+     * A CLEAN-UP'S RECEIPT (E08+E28 C3, 1.2.67; audit S05-44): a GM store (gm-stores.mjs
+     * `cleanupAttemptStore`), a row per character - what their last clean-up attempt did, for
+     * the Reroll that takes it back. Synced, not backed up; no player copy. A Map in the
+     * resolving GM's memory until then.
+     */
+    gmCleanupAttempts: "gmCleanupAttempts",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -1340,6 +1347,14 @@ export function registerSettings() {
     // The Reroll's bookmark on the GMs (E08+E28 C2): no `onChange` - shown nowhere, and
     // read by the Reroll on a GM once C4a makes it there.
     game.settings.register(MODULE_ID, SETTINGS.gmRerollBookmarks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A clean-up's receipt on the GMs (E08+E28 C3): no `onChange` - shown nowhere, read by
+    // the Reroll's replay of a clean-up (cleanup.mjs `undoLastCleanup`).
+    game.settings.register(MODULE_ID, SETTINGS.gmCleanupAttempts, {
         scope: "client",
         config: false,
         type: Object,

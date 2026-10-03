@@ -136,6 +136,39 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("gm: a critical Finishing blow's first clean-up costs the killer no Sanity and spends the grant, and the second costs one",
         gloves.placed && gloves.free.placed && gloves.free.named === true && gloves.free.first === 0 && gloves.free.left === null
             && gloves.free.second === 1, JSON.stringify(gloves.free), { flow: "murder-incident" });
+    /* A REROLL OF AN ERASE, UNDER ONE ID (E08+E28 C3, 03.10.2026; audit S05-07). Chie scrubs a third
+       trace, and the Reroll of that scrub (`undo`, as the Reroll's replay asks it) puts the trace back
+       under the id it had and erases it again. At 1.2.66 it came back under a new id, the replay found
+       the old one "vanished", and the new one stood. Read on the GM: the two answers, the ids of every
+       token made from the scrub on, and which of them stands; on p1, whether the id is on its scene.
+       Her Sanity is put back. */
+    const reroll = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const CL = await import("${repoUrl}/scripts/cleanup.mjs");
+        const chie = game.actors.get("${ids.chie}"), floor = canvas.scene, at = floor.tokens.find(t => t.actorId === chie.id);
+        const was = chie.system.resources.stress.value, made = [];
+        const hook = Hooks.on("createToken", d => made.push(d.id));
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+        try {
+            await chie.update({ "system.resources.stress.value": 0 });
+            const trace = await R.placeRemnant({ type: "incident", visibility: "evident", x: at.x, y: at.y, scene: floor, note: "E08 C3 10 a trace Chie scrubs twice" });
+            const ask = undo => CL.resolveCleanup({ actorId: chie.id, tokenId: trace?.id, total: 30, isCritical: false, withHope: true, undo });
+            const first = await ask(false);
+            await wait(300);
+            const replay = await ask(true);
+            await wait(300);
+            return { scene: floor.id, id: trace?.id ?? null, first: first?.removed ?? null, replay: replay ? { removed: replay.removed ?? null, gone: replay.gone ?? false } : null,
+                made: [...made], standing: made.filter(id => floor.tokens.get(id)) };
+        } finally {
+            Hooks.off("createToken", hook);
+            for (const id of made) { const t = floor.tokens.get(id); if (t) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); } }
+            await chie.update({ "system.resources.stress.value": was });
+        }`, { timeout: 60000 });
+    await settle(500);
+    const rerollOnP1 = await p1.eval(`return Boolean(game.scenes.get(${JSON.stringify(reroll.scene)})?.tokens?.get(${JSON.stringify(reroll.id)}));`);
+    check("gm: a Reroll of the killer's erase puts the trace back under its id and erases it again, and nothing of it stands, on p1 neither",
+        Boolean(reroll.id) && reroll.first === true && reroll.replay?.removed === true && reroll.replay.gone === false
+            && reroll.made.length === 2 && reroll.made.every(id => id === reroll.id) && reroll.standing.length === 0 && rerollOnP1 === false,
+        JSON.stringify({ reroll, rerollOnP1 }), { flow: "murder-incident" });
     const found = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const C = await import("${repoUrl}/scripts/chapter.mjs");
         const daichi = game.actors.get("${ids.daichi}"), botan = game.actors.get("${ids.botan}");

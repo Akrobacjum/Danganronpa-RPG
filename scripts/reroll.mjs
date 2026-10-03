@@ -1012,7 +1012,12 @@ async function settleCleanup(actor, bookmark, after, done) {
         undo: true
     });
 
-    if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.cleanupReplayed"));
+    /* NOT "REPLAYED" WHEN NOTHING WAS (E08+E28 C3, 03.10.2026; audit S05-44). A GM with no
+       receipt of the first attempt - none kept, or the one kept for another trace - aborts the
+       replay and tells the GMs (`rerollLost`), and the asker gets a refusal. The card said
+       nothing of it, so the player read the new dice as the clean-up's; it now says the replay
+       did not happen, in the conditional, since a refusal does not say which of its reasons it was. */
+    done.push(game.i18n.localize(res.ok ? "DRPG.Reroll.cleanupReplayed" : "DRPG.Cleanup.rerollManual"));
     return { cleanup: bookmark.cleanup };
 }
 

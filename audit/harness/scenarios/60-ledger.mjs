@@ -149,6 +149,34 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO 
     check("gm: a room unticked stays unticked when a player whose copy still holds it answers the rebuild",
         staleOnP1.includes(hidden) && !afterRebuild.includes(hidden) && afterRebuild.length === 1, JSON.stringify({ hidden, staleOnP1, afterRebuild }));
 
+    /* 5b. A TRACE PUT BACK UNDER ITS ID KEEPS A LIVE ROW (E08+E28 C3, 03.10.2026; audit S05-07). A
+       clean-up's Reroll puts the trace it erased back under the id it had (`placeRemnant`'s
+       `keepId`), so the trace's ledger key is the key the erase tombstoned - by `removeRemnant`, and
+       by the primary's `deleteToken` hook after it. The row written for the trace put back is a
+       revive the remnant store keeps, not one the tombstone cuts: read on the GM after the
+       deletion's writes have settled and the store has been written out and read back from its
+       storage. The trace is taken away after. */
+    phase("a trace put back under its id", { flow: "murder-incident" });
+    const putBack = await gm.eval(`const R = await import("${REPO}/scripts/remnants.mjs"); ${stores}
+        const floor = canvas.scene, note = "E08 C3 60 a trace put back", wait = ms => new Promise(r => setTimeout(r, ms));
+        const trace = await R.placeRemnant({ type: "prep", visibility: "subtle", x: 0, y: 0, scene: floor, note });
+        const id = trace?.id ?? null, key = id ? floor.id + "." + id : null;
+        if (trace) await R.removeRemnant(trace);
+        await wait(300);
+        const dead = Boolean(key) && S.remnantStore.tombstone(key) > 0 && !S.remnantStore.has(key);
+        const back = trace ? await R.placeRemnant({ _id: id, type: "prep", visibility: "subtle", x: 0, y: 0, scene: floor, note }, { keepId: true }) : null;
+        await wait(500);
+        await S.remnantStore.idle();
+        S.remnantStore.reload();
+        const row = key ? S.remnantStore.get(key) : null;
+        const out = { id, back: back?.id ?? null, dead, note: row?.note ?? null, type: row?.type ?? null,
+            after: key ? S.remnantStore.stampOf(key) > S.remnantStore.tombstone(key) : false };
+        if (back) await R.removeRemnant(back);
+        return out;`, { timeout: 30000 });
+    check("gm: a trace put back under its id has a live ledger row, written after the deletion's tombstone and read back from storage",
+        Boolean(putBack.id) && putBack.back === putBack.id && putBack.dead === true && putBack.note === "E08 C3 60 a trace put back"
+            && putBack.type === "prep" && putBack.after === true, JSON.stringify(putBack), { flow: "murder-incident" });
+
     // 6. the reset empties everyone
     phase("reset", { flow: "discovery-ledger" });
     await gm.eval(`const F = await import("${REPO}/scripts/fog.mjs"); await F.resetLedger(); return true;`);

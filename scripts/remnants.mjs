@@ -270,8 +270,12 @@ export async function dropRemnant(actor, {
 /**
  * Place a Remnant at explicit coordinates. GM-only: creating tokens needs it,
  * so a player action routes through the GM bridge.
+ *
+ * `keepId` (GM-side only, never read off a packet): the trace is made under the
+ * `_id` in `data` - a clean-up's Reroll putting back the trace it erased
+ * (cleanup.mjs `undoLastCleanup`).
  */
-export async function placeRemnant(data = {}) {
+export async function placeRemnant(data = {}, { keepId = false } = {}) {
     if (!game.user.isGM) {
         // Answered once placed (E31), and refused as failed when the GM's client
         // could not place it (E31 review), so "placed" means placed at every caller.
@@ -355,6 +359,25 @@ export async function placeRemnant(data = {}) {
     if (!target) return null;
 
     /*
+     * BACK UNDER ITS OWN ID (E08+E28 C3, 03.10.2026; audit S05-07). A trace a Reroll put
+     * back used to come back under an id Foundry minted, and the replay that followed
+     * looked for the old one: "vanished", with the trace standing. `keepId` is Foundry's
+     * option for a document made under the id it is given, and the harness keeps a given
+     * id only with it (C1); a deleted token's id given back at a real table is not measured
+     * here. An id still taken on the scene is not reused - the trace is made under a new
+     * one, as it always was.
+     *
+     * THE ROW, AFTER THE DELETION'S TOMBSTONE. The ledger key is the scene and the token
+     * id, so the same id is the same key, and that key carries the tombstone the erase
+     * wrote - `removeRemnant`'s, and the primary's `deleteToken` hook's, which is
+     * fire-and-forget and is awaited here. A row written after both is a revive the store
+     * keeps (gm-store.mjs: a revive carries what was written after the tombstone); one
+     * written before the hook's would be cut by it. Read back below.
+     */
+    const givenId = keepId && typeof data._id === "string" && !target.tokens?.get(data._id) ? data._id : null;
+    if (givenId) await tombstoning.get(`${target.id}.${givenId}`);
+
+    /*
      * AN INCIDENT'S TRACE IS THE CAST'S ONLY WHILE ITS INCIDENT RUNS (E05 C14, 27.09.2026;
      * audit S05-42). D11 creates one un-hidden, marked `fromIncident`, so a participant's
      * client can draw it (below, and visibility.mjs `myIncidentTrace`) - and that client
@@ -399,6 +422,7 @@ export async function placeRemnant(data = {}) {
 
     try {
         const [created] = await target.createEmbeddedDocuments("Token", [{
+            ...(givenId ? { _id: givenId } : {}),
             name: publicName,
             actorId: actor.id,
             actorLink: false,
@@ -470,7 +494,7 @@ export async function placeRemnant(data = {}) {
                     ...(castSees ? { [REMNANT_FLAGS.fromIncident]: true } : {})
                 }
             }
-        }]);
+        }], givenId ? { keepId: true } : {});
 
         // The answer key, off the token and onto the GM's own shelf.
         if (created) {
@@ -499,6 +523,9 @@ export async function placeRemnant(data = {}) {
             });
         }
 
+        if (givenId && created && !remnantStore.has(keyOf(created))) {
+            error(`A trace put back under its id (${created.id}) has no live row in the ledger.`);
+        }
         log(`Remnant placed: ${label} (by ${sourceName || "?"})`);
         if (created) announceRemnant(created);
         return created ?? null;
@@ -543,6 +570,9 @@ function actionLabel(action) {
 
 /** Traces seen this turn, oldest first. Keyed so the reveal can pull one out. */
 const pendingTraces = new Map();
+
+/** Ledger key -> the primary's `deleteToken` tombstone being written (see `placeRemnant`'s `keepId`). */
+const tombstoning = new Map();
 
 /** The card one trace gets, whether it goes out alone or in the digest. */
 function traceCard(data, { heading = true } = {}) {
@@ -1376,7 +1406,11 @@ export function registerRemnantLedger() {
     Hooks.on("deleteToken", (doc, options) => {
         if (options?.drpgReset) return;
         if (!isPrimaryGm() || !doc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
-        dropRemnantSecret(doc).catch(err => warn("Could not tombstone a deleted Remnant's row", err));
+        // Held until written, for `placeRemnant`'s `keepId` (E08+E28 C3).
+        const key = keyOf(doc);
+        const done = dropRemnantSecret(doc).catch(err => warn("Could not tombstone a deleted Remnant's row", err))
+            .finally(() => { if (tombstoning.get(key) === done) tombstoning.delete(key); });
+        if (key) tombstoning.set(key, done);
     });
 
     /*
@@ -1855,8 +1889,8 @@ export async function retuneRemnant(sceneId, tokenId,
      * inside.
      *
      * `=== null` rather than falsy: the caller must be able to say "leave it
-     * alone", and today nothing says "untie" - but a field that cannot express
-     * false is a field somebody will work around later.
+     * alone", and the undo of an approved reshape says "untie" when the trace
+     * was untied before it (cleanup.mjs `undoLastCleanup`, E08+E28 C3).
      */
     if (tiedToCrime !== null) secret.tiedToCrime = Boolean(tiedToCrime);
     /*
