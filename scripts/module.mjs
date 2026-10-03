@@ -292,6 +292,10 @@ Hooks.once("ready", () => {
     // arrived, before the stores open, so it cannot miss it (the primary only).
     safely("the case health check", registerCaseHealth);
     safely("the GM stores", openGmStores);
+    // Every browser, once: the Reroll's old bookmark out of its client storage (E08+E28 C4a).
+    import("./action-rolls.mjs")
+        .then(m => m.forgetRollBookmarks())
+        .catch(err => error("Could not take the retired Reroll bookmark out of this browser", err));
     // First, and before anything below reads a saved shape: bring this world's
     // data up to the shape this build expects. Primary GM only, silent when
     // there is nothing to do, and deliberately NOT awaited - a slow pass must

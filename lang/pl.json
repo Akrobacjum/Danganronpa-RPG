@@ -2557,6 +2557,7 @@
         "trap.event": "Zgłoszenie dla pułapek",
         "roll.subject": "Zgłoszenie, czyj to był rzut",
         "roll.bookmark": "Co zrobił rzut, zapisane na Reroll",
+        "reroll.ask": "Reroll",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu"
@@ -3007,6 +3008,8 @@
       "analyzeReplayed": "Ten sam Truth Bullet analizowany jest ponownie z nowym rzutem. Blokada po pierwszej próbie zdejmowana jest najpierw.",
       "crisisReplayed": "Akcja kryzysowa zostaje cofnięta i wykonana ponownie z nowym rzutem - obrażenia, ślad i utrudnienia idą razem z nią. Tura nie jest wydawana dwa razy.",
       "deathStands": "Akcji kryzysowej, która zabiła, nie da się cofnąć: śmierć zostaje.",
+      "busy": "Reroll tej postaci już trwa. Poczekaj, aż się skończy.",
+      "messageGone": "Tego rzutu nie ma już na czacie, więc nie ma czego rzucać ponownie. Nic nie zostało wydane.",
       "trailStands": "Kości przepisano, ale podłożony ślad już leży w pokoju - przerzut go nie podniesie. Zapytaj GM-a, czy ma zniknąć.",
       "stealStands": "Kości przepisano, ale chwila nie. Twoja ręka już była w cudzej kieszeni, a odkładanie czegoś z powrotem właściciel by zobaczył.",
       "cleanupReplayed": "Sprzątanie zostaje cofnięte i podjęte ponownie. Ślad wraca, wszystko, co zostawiło spartaczone wycieranie, znika, a Sanity wraca najpierw.",
@@ -4698,6 +4701,7 @@
         "confusions": "Confusion uzbrojone na postaci, a jeszcze nierzucone",
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",
+        "rerollJournal": "Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała"
       },
       "row": {

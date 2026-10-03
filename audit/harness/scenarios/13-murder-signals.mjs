@@ -665,6 +665,52 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         Boolean(open.id) && open.stage === "incident" && unforced.animated && !unforced.played.length,
         JSON.stringify({ open, unforced }), { flow: "private-rolls" });
 
+    /* ---- 1c'. a Reroll's dice, sent by the GM that made it -----------------
+       E08+E28 C4a, 03.10.2026; the plan's 2.3 step 4; the owner's rule of 27.09 (the roller sees
+       the roll as their own). The Reroll is made on the GM, which rewrites the message - and Dice
+       So Nice animates no update - so the GM sends `dice.show { id, by, rewrite }` to the roll's
+       readers and the roller (private-rolls.mjs `relayRerolledDice`). Aiko's roll above, thrown
+       on p1's browser in the fight, is Rerolled from p1's; the harness's roll message has no
+       `Roll#reroll`, so on the GM it reads as one of the scenario's that throws a 9 and a 4
+       (`STAND`). Read on each player's browser: the rewrite packets it was sent and the dice its
+       Dice So Nice model played for the message. Aiko's Hope and the GM's message are put back. */
+    const STAND = `const m = game.messages.get("${open.id}");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 7, fear: 3 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 9, fear: 4 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });`;
+    const REWRITES = `globalThis.__rewrites = [];
+        if (!globalThis.__rewritesOn) { globalThis.__rewritesOn = true; game.socket.on("module.${MOD}", p => { if (p?.action === "dice.show" && p.rewrite) globalThis.__rewrites.push({ id: p.id, by: p.by ?? null }); }); }
+        return true;`;
+    for (const c of [p1, p2, p3]) { await c.eval(DICE_NET); await c.eval(REWRITES); }
+    const hopeWas = await gm.eval(`${STAND}
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), was = aiko.system.resources.hope.value;
+        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, was) });
+        return was;`, { timeout: 60000 });
+    const rerolled = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+        const out = await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll");
+        return Boolean(out);`, { timeout: 60000 });
+    await settle(1200);
+    const REWRITE_READ = `return { sent: globalThis.__rewrites.filter(r => r.id === "${open.id}"),
+        played: globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null && c.total === 13).map(c => c.user) };`;
+    const rewriteSeen = { roller: await p1.eval(REWRITE_READ), bystander: await p2.eval(REWRITE_READ), killer: await p3.eval(REWRITE_READ) };
+    await gm.eval(`const m = game.messages.get("${open.id}"); if (m) delete m.rolls;
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(hopeWas) || 0} });
+        return true;`, { timeout: 60000 });
+    const sentTo = who => JSON.stringify(rewriteSeen[who].sent) === JSON.stringify([{ id: open.id, by: p1.userId }])
+        && JSON.stringify(rewriteSeen[who].played) === JSON.stringify([p1.userId]);
+    check("dice: a Reroll the GM makes sends its new dice to the roller and the killer, played as the roller's, and nothing to the bystander",
+        rerolled === true && sentTo("roller") && sentTo("killer") && !rewriteSeen.bystander.sent.length && !rewriteSeen.bystander.played.length,
+        JSON.stringify({ rerolled, rewriteSeen }), { flow: "reroll" });
+
     /* ---- 1d. what a hit leaves, each reader told their own line ------------
        E32+E07 C7, 28.09.2026; audit S04-05. With no Sanity left and all of her Health, Aiko
        takes Chie's critical Strike on Sanity, which the GM scores: both marks land on Health

@@ -5502,6 +5502,8 @@ const REGRESSIONS = [
             sendBackRefusal: "returns", playerArmRefusal: "returns", observeResolveRefusal: "returns", removalRefusal: "returns",
             searchSpendRefusal: "returns", narrowPlayerRemnant: "refused", resolveAnalyze: "refused", resolveStageSix: "refused",
             answerKeysRefusal: "returns", shareBullet: "refused", applyRecordedMove: "refused",
+            // E08+E28 C4a: the Reroll the GM makes, and the checks it asks before the payment.
+            rerollOnGm: "refused", makeReroll: "refused", rerollRefusal: "why", replayRefusal: "returns",
             resolveObserve: "passes", spendRerollReceipt: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);

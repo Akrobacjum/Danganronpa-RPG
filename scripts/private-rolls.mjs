@@ -1045,7 +1045,8 @@ function subjectReported(messageId, ms) {
  *   in the fight, the incident's audience at that stage (`incidentAudienceIds`). The one
  *   rule; E28, which throws the players' dice on the GM, asks it too.
  * - `relayIncidentDice`: the primary GM, once it keeps a roll's subject (or sees
- *   a Reroll rewrite its rolls), sends `dice.show { id }` to that audience less
+ *   its rolls rewritten by hand; a Reroll's GM sends its own, `relayRerolledDice`),
+ *   sends `dice.show { id }` to that audience less
  *   the GMs, the author and whoever rewrote it, by addressed socket. The packet
  *   carries the message's id and nothing else; each receiver plays the rolls of
  *   its own copy of the message (`showRelayedDice`), which every browser holds -
@@ -1065,6 +1066,12 @@ function subjectReported(messageId, ms) {
 
 /** The socket action of the incident's dice, GM to player. */
 const DICE_SHOW = "dice.show";
+
+/**
+ * The update option a Reroll's rewrite carries (reroll.mjs, E08+E28 C4a): its dice are sent
+ * by the GM that made it (`relayRerolledDice`), so the relay below sends nothing for it.
+ */
+export const REROLL_SHOWN = "drpgRerollShown";
 
 /**
  * `diceSoNiceMessagePreProcess` (Dice So Nice 6.0 and later): the decision is the
@@ -1120,10 +1127,51 @@ function relayIncidentDice(message, { except = [] } = {}) {
     }
 }
 
-/** `updateChatMessage`, on the primary GM: a roll the module threw was given new dice - a Reroll. */
+/**
+ * `updateChatMessage`, on the primary GM: a roll the module threw was given new dice by
+ * somebody's own hand. A Reroll's rewrite says so (`REROLL_SHOWN`), and its dice have been
+ * sent already. On the primary that made it the option is the one it passed; one another GM
+ * made reaches it through Foundry's broadcast of the update, which carries its options -
+ * read in Foundry's source, not measured at a real table.
+ */
 function onRollsRewritten(message, changes, options, userId) {
     if (!changes || !Object.hasOwn(changes, "rolls") || !isPrimaryGm() || !isClaimedRoll(message)) return;
+    if (options?.[REROLL_SHOWN]) return;
     relayIncidentDice(message, { except: [userId] });
+}
+
+/**
+ * A REROLL'S DICE, FROM THE GM THAT MADE IT (E08+E28 C4a, 03.10.2026; the owner's rule of
+ * 27.09: the roller sees the roll as their own). The roller's own browser threw them to
+ * the roll's readers until this commit (reroll.mjs's `showRerolledDice`, a synchronised
+ * throw Dice So Nice sent to every client and filtered as it arrived); the GM rewrites the
+ * message now, and Dice So Nice animates no update. So the GM sends `dice.show { id, by,
+ * rewrite }` to the readers of `diceAudienceIds` and the roller (`by`, the user whose
+ * browser threw the roll), and plays them on its own screen; each receiver plays its own
+ * copy's new rolls as `by`'s dice (`showRelayedDice`). Not awaited on this screen: the
+ * Reroll does not wait for an animation. How it looks at a real table, with and without
+ * Dice So Nice, is not measured here.
+ */
+export function relayRerolledDice(message, byId = null) {
+    if (!message?.id) return;
+    const by = game.users.get(byId ?? "") ?? message.author ?? null;
+    const recipients = [...new Set([...diceAudienceIds(message), ...(by?.id ? [by.id] : [])])].filter(id => id !== game.user?.id);
+    try {
+        if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null, rewrite: true }, { recipients });
+    } catch (err) {
+        error("Could not send a Reroll's dice", err);
+    }
+    void playRolls(message, by ?? game.user);
+}
+
+/** A message's rolls on this screen as `user`'s dice, or the dice sound where Dice So Nice is not. */
+async function playRolls(message, user) {
+    try {
+        if (typeof game.dice3d?.showForRoll !== "function") return void foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
+        for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, user, false);
+    } catch (err) {
+        error("Could not show a Reroll's dice", err);
+    }
 }
 
 /**
@@ -1133,20 +1181,27 @@ function onRollsRewritten(message, changes, options, userId) {
  * they fell instead of veiling a roll this client cannot read, and only here.
  *
  * NOT A ROLL THIS CLIENT READS (E06 fix r1-G2, 28.09.2026; review F2). With rolls
- * not forced private a roll the module threw is public, Dice So Nice animates it on
- * every client, and a Reroll's dice go to everybody (reroll.mjs `showRerolledDice`) -
- * so the relay played each incident roll a second time on every other participant's
- * screen. Asked of the message as it is here rather than of the setting on the GM:
- * what decides is whether this client's Dice So Nice shows it itself.
+ * not forced private a roll the module threw is public, and Dice So Nice animates it on
+ * every client - so the relay played each incident roll a second time on every other
+ * participant's screen. Asked of the message as it is here rather than of the setting on
+ * the GM: what decides is whether this client's Dice So Nice shows it itself.
+ *
+ * A REROLL'S (`rewrite`, E08+E28 C4a) is played even where this client reads the message:
+ * Dice So Nice animates a new message, not new rolls on an old one. As `by`'s dice - the
+ * roller's appearance - when `by` names a user, else the message's author's.
  */
 async function showRelayedDice(payload, senderId) {
     if (!game.users.get(senderId)?.isGM) return;
     const id = typeof payload?.id === "string" ? payload.id : null;
-    if (!id || typeof game.dice3d?.showForRoll !== "function") return;
+    const rewrite = payload?.rewrite === true;
+    if (!id) return;
     try {
         const { messageArrives } = await import("./secret.mjs");
         const message = game.messages.get(id) ?? await messageArrives(id);
-        if (!message || message.isContentVisible) return;
+        if (!message || (message.isContentVisible && !rewrite)) return;
+        const by = rewrite && typeof payload.by === "string" ? game.users.get(payload.by) ?? null : null;
+        if (rewrite) return await playRolls(message, by ?? message.author);
+        if (typeof game.dice3d?.showForRoll !== "function") return;
         for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, message.author, false);
     } catch (err) {
         error("Could not show the incident's dice", err);

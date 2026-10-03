@@ -45,6 +45,54 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         ? Object.entries(obj).flatMap(([k, v]) => pathsTo(v, needle, at ? `${at}.${k}` : k))
         : (typeof obj === "string" && obj.includes(needle) ? [at] : []);
 
+    /*
+     * A PLAYER'S REROLL, MADE ON THE GM (E08+E28 C4a, 03.10.2026; audit S02-47). The Reroll is one
+     * request, `reroll.ask`, and the GM pays, throws, rewrites, takes the action back and makes it
+     * again; p1's browser only asks and posts the card. The harness's roll message has no
+     * `Roll#reroll`, so on the GM the roll Aiko's row names reads as one of the scenario's, which
+     * throws `next` (`REROLL_ARM`); the GM records who wrote Aiko's Hope and the message's rolls,
+     * and who deleted her items, while p1 asks. `REROLL_READ` takes the stand-in and the hooks off.
+     */
+    const REROLL_ARM = (first, next) => `const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const { automatedUpdate } = await import("${REPO}/scripts/resource-guard.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get("${ids.aiko}");
+        const m = game.messages.get(row?.messageId ?? "");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = ${JSON.stringify(first)}; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = ${JSON.stringify(next)}; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        const hopeWas = aiko.system.resources.hope.value;
+        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(4, hopeWas) });
+        const w = globalThis.__rerollWrites = { hope: [], rolls: [], items: [], hooks: [], messageId: m?.id ?? null, hopeWas,
+            hopeAt: aiko.system.resources.hope.value, row: row ? { actionKey: row.actionKey, claims: row.claims, facts: row.facts, by: row.by } : null };
+        w.hooks.push(["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (d.id === aiko.id && foundry.utils.hasProperty(c, "system.resources.hope")) w.hope.push(u ?? null); })]);
+        w.hooks.push(["updateChatMessage", Hooks.on("updateChatMessage", (d, c, o, u) => { if (d.id === w.messageId && c && "rolls" in c) w.rolls.push(u ?? null); })]);
+        w.hooks.push(["deleteItem", Hooks.on("deleteItem", (d, o, u) => { if (d.parent?.id === aiko.id) w.items.push([d.id, u ?? null]); })]);
+        return { messageId: w.messageId, row: w.row };`;
+    const REROLL_ASK = `const C = await import("${REPO}/scripts/calls.mjs");
+        const at = game.messages.contents.length;
+        const out = await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll");
+        await new Promise(r => setTimeout(r, 600));
+        const S = await import("${REPO}/scripts/secret.mjs");
+        const card = game.messages.contents.slice(at).map(m => String(S.contentOf(m) ?? "")).find(t => t.includes("Reroll")) ?? null;
+        return { made: Boolean(out), card: card ? card.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400) : null };`;
+    const REROLL_READ = `const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const { automatedUpdate } = await import("${REPO}/scripts/resource-guard.mjs");
+        const w = globalThis.__rerollWrites, aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get("${ids.aiko}");
+        for (const [name, id] of w.hooks) Hooks.off(name, id);
+        const m = game.messages.get(w.messageId ?? ""); if (m) delete m.rolls;
+        const out = { hope: w.hope, rolls: w.rolls, items: w.items, paid: w.hopeAt - aiko.system.resources.hope.value,
+            row: row ? { total: row.total, claims: row.claims, facts: row.facts, rerolled: row.rerolled ?? false } : null,
+            journal: Boolean(S.rerollJournalStore.has("${ids.aiko}")), gm: game.user.id };
+        await automatedUpdate(aiko, { "system.resources.hope.value": w.hopeWas });
+        return out;`;
+
     // ---- 0. season setup basics: Monokuma pool, clock at day 1 morning ----------------------
     phase("season setup", { flow: "clock-day" });
     await gm.eval(`
@@ -161,6 +209,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         JSON.stringify(p2Flags) === JSON.stringify(["drpgMessage", "secret"]) && typeof gmTitle === "string" && /search/i.test(gmTitle),
         JSON.stringify({ p2Flags, gmTitle }));
     console.log("[qa] p1 notifications after Search:", JSON.stringify(search.notifs));
+
+    /* THE SEARCH, REROLLED FROM p1's BROWSER AND MADE ON THE GM (E08+E28 C4a). The new dice are a
+       Hope result too low to find anything, so the GM takes back the item the Search put on
+       Aiko's sheet. Read on the GM: who wrote Aiko's Hope and the message's rolls, who deleted
+       the item, what was paid, the row after; on p1: the Call's card. */
+    phase("a Reroll", { flow: "reroll" });
+    const searchArm = await gm.eval(REROLL_ARM({ hope: 9, fear: 5 }, { hope: 3, fear: 1 }), { timeout: 30000 });
+    const searchAsk = await p1.eval(REROLL_ASK, { timeout: 90000 });
+    await settle(600);
+    const searchReroll = await gm.eval(REROLL_READ, { timeout: 30000 });
+    const takenBack = searchArm.row?.claims?.itemId ?? null;
+    check("p1: a Reroll of the Search is paid and made on the GM - its Hope, the message's rolls and the item taken back each written by the GM's hand",
+        searchArm.row?.actionKey === "search" && searchArm.row?.by === IDS.p1 && searchAsk.made === true && Boolean(searchAsk.card)
+            && searchReroll.hope.length === 1 && searchReroll.hope.every(u => u === searchReroll.gm) && searchReroll.paid === 3
+            && JSON.stringify(searchReroll.rolls) === JSON.stringify([searchReroll.gm])
+            && Boolean(takenBack) && JSON.stringify(searchReroll.items) === JSON.stringify([[takenBack, searchReroll.gm]])
+            && searchReroll.row?.total === 4 && searchReroll.row?.rerolled === true && searchReroll.row?.claims?.itemId === null && !searchReroll.journal,
+        JSON.stringify({ searchReroll, made: searchAsk.made, card: Boolean(searchAsk.card), arm: searchArm.row }), { flow: "reroll" });
 
     // ---- 3. a Hope Call that waits for the GM (Ultimate) ------------------------------------
     phase("a Hope Call", { flow: "hope-call" });
@@ -494,6 +560,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         await new Promise(r => setTimeout(r, 600));
         return { ...out, rolled, dialogs: globalThis.__dialogLog.map(d => d.title) };`, { timeout: 120000 });
     await settle(600);
+    /* THE WORK, REROLLED FROM p1's BROWSER AND MADE ON THE GM (E08+E28 C4a). The second Work's
+       new dice are a Hope result too low to score, so the GM takes the progress it added back off
+       the project. Read on the GM as for the Search, and the project's progress before and after. */
+    const progressOf = `const P = await import("${REPO}/scripts/projects.mjs"); return P.allProjects().find(p => p.id === "${workProject}")?.current ?? null;`;
+    const workArm = await gm.eval(REROLL_ARM({ hope: 9, fear: 5 }, { hope: 2, fear: 1 }), { timeout: 30000 });
+    const progressBefore = await gm.eval(progressOf);
+    const workAsk = await p1.eval(REROLL_ASK, { timeout: 90000 });
+    await settle(600);
+    const workReroll = await gm.eval(REROLL_READ, { timeout: 30000 });
+    const progressAfter = await gm.eval(progressOf);
+    const added = Number(workArm.row?.facts?.progress ?? 0);
+    check("p1: a Reroll of a Work on a project is paid and made on the GM - its Hope and the message's rolls by the GM's hand, and the progress it added taken off",
+        workArm.row?.actionKey === "project" && workArm.row?.by === IDS.p1 && added > 0 && workAsk.made === true
+            && workReroll.hope.length === 1 && workReroll.hope.every(u => u === workReroll.gm) && workReroll.paid === 3
+            && JSON.stringify(workReroll.rolls) === JSON.stringify([workReroll.gm])
+            && progressBefore - progressAfter === added && workReroll.row?.facts?.progress === 0 && !workReroll.journal,
+        JSON.stringify({ workReroll, progressBefore, progressAfter, added, made: workAsk.made, arm: workArm.row }), { flow: "reroll" });
+
     const workGm = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
         const trait = P.allProjects().find(p => p.id === "${workProject}")?.trait ?? null;
         const pressed = globalThis.__traitRulings.map(r => ({ offered: r.offered, picked: r.picked }));

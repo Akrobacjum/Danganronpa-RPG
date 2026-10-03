@@ -86,6 +86,8 @@ const ACTION_GM_READY = "bridge.gmReady";
 const ACTION_LOOT = "body.loot";
 const ACTION_NOTE_SAVE = "note.save";
 const ACTION_ROLL_BOOKMARK = "roll.bookmark";
+/** player -> GM: make my character's Reroll (E08+E28 C4a) - see reroll.mjs `rerollOnGm`. */
+const ACTION_REROLL = "reroll.ask";
 
 /**
  * A primary GM has finished loading and can answer questions again.
@@ -756,8 +758,8 @@ async function handleProgress(payload, sender, ctx) {
     const { addProgress } = await import("./projects.mjs");
     const rolls = await import("./action-rolls.mjs");
     // The roll this progress is for, as the request arrives (E08+E28 C2): see `noteProgressFact`.
-    const kept = rolls.rollOfSender(sender.id, "project");
-    const roll = amount > 0 && payload.messageId && kept?.messageId === payload.messageId ? kept : null;
+    const kept = amount > 0 && payload.messageId ? await rolls.rollOfSenderNaming(sender.id, "project", payload.messageId) : null;
+    const roll = kept?.messageId === payload.messageId ? kept : null;
     // Who asked, so a finished project can fall back to them when nobody
     // recorded who proposed it.
     const result = await addProgress(payload.countdownId, amount, { by: asker });
@@ -1127,6 +1129,18 @@ async function handleRollBookmark(payload, sender) {
         experiences: payload.experiences,
         context: payload.context
     }, sender);
+}
+
+/**
+ * The run of `reroll.ask` (E08+E28 C4a): the GM makes the sender's Reroll of their character
+ * and answers the lines of the Call's card, or refuses with why - before anything was paid,
+ * or after giving back what was.
+ */
+async function handleReroll(payload, sender) {
+    const { rerollOnGm } = await import("./reroll.mjs");
+    const out = await rerollOnGm(game.actors.get(payload.actorId), sender);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: { lines: out?.lines ?? [] } };
 }
 
 /**
@@ -1589,8 +1603,22 @@ export const BRIDGE_ACTIONS = table({
         claims: {
             messageId: guardRollAuthor,
             experiences: "the roller's own sheet's: keepGmBookmark (action-rolls.mjs) keeps up to twelve short strings",
-            context: "picked per action by rollClaims (action-rolls.mjs ROLL_CLAIMS): what touches only the roller's own sheet"
+            context: "picked per action by rollClaims (action-rolls.mjs ROLL_CLAIMS): what the roller alone saw; a Reroll's replay judges anything it writes beyond the roller's own sheet"
         }
+    },
+    /*
+     * THE REROLL, ASKED OF THE GM (E08+E28 C4a, 03.10.2026; audit S02-47). One request, and
+     * the GM makes all of it from its own bookmark (reroll.mjs `rerollOnGm`): the packet names
+     * the character and nothing else. Not queued: a second Reroll of a character while one is
+     * made is refused there, not made after it. Not resent to a GM who reloads - the journal
+     * a reload leaves is read on the GMs' side (C4b).
+     */
+    [ACTION_REROLL]: {
+        label: "DRPG.Bridge.what.reroll.ask",
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleReroll,
+        answer: "reply"
     }
 });
 
@@ -2157,6 +2185,17 @@ export function requestCrisisResult({
 export function requestRollBookmark(payload) {
     return ask(ACTION_ROLL_BOOKMARK, payload, {
         local: () => import("./action-rolls.mjs").then(m => m.keepGmBookmark(payload, game.user))
+    });
+}
+
+/**
+ * Ask the GM to make this character's Reroll (E08+E28 C4a): it pays, throws, replays and
+ * settles, and answers `{ lines }` - or, on a GM's own client, `{ refused, say }` where a
+ * player's request is refused by the bridge.
+ */
+export function requestReroll(actorId) {
+    return ask(ACTION_REROLL, { actorId }, {
+        local: () => import("./reroll.mjs").then(m => m.rerollOnGm(game.actors.get(actorId ?? ""), game.user))
     });
 }
 

@@ -513,7 +513,7 @@ async function askWhichRemnant(actor, room, request, candidates) {
  *
  * Now the character has to be the entry's, the account has to be the one the
  * key was minted for, a key is resolved once, and an undo needs a result to undo.
- * Since E05 C7 the bookmark is in the roller's own browser (`rollBookmarks`), so the
+ * Since E05 C7 the bookmark is out of world data (the GMs' store since E08+E28 C4a), so the
  * key is no longer in world data either; these checks stay, because they are what
  * holds whatever a packet claims.
  * Pure, so the suite can hold it to that with an entry it made up.

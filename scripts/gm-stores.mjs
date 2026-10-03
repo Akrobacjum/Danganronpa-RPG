@@ -810,17 +810,35 @@ export const confusionCopy = defineGmCopy({
  * THE REROLL'S BOOKMARK, ON THE GMS (E08+E28 C2, 03.10.2026; audit S05-08, S08-04, S04-18; the
  * plan's 2.2). A row per character, the last roll the GMs were told of: `messageId`, `actionKey`,
  * `trait`, `experiences`, `total`, `withFear`, `isCritical`, `first` (its rolls as first thrown),
- * `at` and `by`, the user whose browser threw it; then `facts`, written by the GM that did a thing
+ * `room` (where the character stood as the GM kept it, E08+E28 C4a), `at` and `by`, the user
+ * whose browser threw it; then `facts`, written by the GM that did a thing
  * for that roll - the trace it placed, the plant it handed over, the crisis action's item and the
  * resources before it, the clean-up attempt - and `claims`, what only the roller's browser saw
  * (its Search's item on its own sheet, a Project's relief), picked per action (action-rolls.mjs
- * `ROLL_CLAIMS`). Written by `keepGmBookmark` and `noteRollFact` (action-rolls.mjs); until C4a
- * nothing reads it, and the Reroll reads the roller's own bookmark as before. Synced between the
+ * `ROLL_CLAIMS`). Written by `keepGmBookmark` and `noteRollFact` (action-rolls.mjs), and read by
+ * the Reroll the GM makes (reroll.mjs `rerollOnGm`, E08+E28 C4a). Synced between the
  * GMs and not backed up: a row is worth one Reroll, minutes long. Cut by the reset's "actions"
  * group, beside the Confusions. No player copy - R182 has nothing to ask of it - and no old key.
  */
 export const rerollBookmarkStore = defineGmStore({
     name: "rerollBookmarks", key: SETTINGS.gmRerollBookmarks,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * A REROLL HALF MADE (E08+E28 C4a, 03.10.2026; audit S02-47; the plan's 2.3). A row per
+ * character while the GM makes its Reroll (reroll.mjs `rerollOnGm`): `phase` - "paid" once the
+ * Hope is taken, "rolled" once the message holds the new dice, "replaying" while the action is
+ * taken back and made again - `hope` (what was paid), `messageId`, `firstRolls` (the message's
+ * rolls before this Reroll), `at` and `by`. Dropped when the Reroll stands or has been given
+ * back; a row still here is a Reroll a reload cut, which C4b puts right or tells. Synced
+ * between the GMs, so the next primary reads what the last one left, and not backed up: a row
+ * is seconds long. Cut by the reset's "actions" group, beside the bookmark. No player copy -
+ * R182 has nothing to ask of it - and no old key.
+ */
+export const rerollJournalStore = defineGmStore({
+    name: "rerollJournal", key: SETTINGS.gmRerollJournal,
     kind: "ledger", resetGroup: "actions", backup: false, sync: true,
     exists: actorId => Boolean(game.actors?.has(actorId))
 });

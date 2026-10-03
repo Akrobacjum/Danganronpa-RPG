@@ -12,8 +12,9 @@
  * removes is evidence.
  *
  * The one thing a real Reroll always does before any of those packets leaves
- * is rewrite the ROLLS of the roller's own chat message (`rerollLastAction`,
- * `message.update({ rolls })`), and the server tells every client who made
+ * is rewrite the ROLLS of the roller's own chat message (`message.update({ rolls })`,
+ * in the roller's tab until E08+E28 C4a, which makes the Reroll on the GM and sends
+ * no undo packet of a player's), and the server tells every client who made
  * that update. So the primary GM watches for it. An undo from a player is taken
  * only when the same player rewrote a roll of the same character within
  * `TIMING.rerollReceiptMs`, and each receipt pays for one undo of each kind.
@@ -61,10 +62,10 @@ function rememberFear(messageId, withFear) {
 }
 
 /**
- * Every character a roll message speaks for - the reroll's own test (`belongsTo`),
- * after the character its roller reported to this GM (`rollSubjectNow`, E06 C5a),
- * which is the one a roll whose speaker names nobody still has. Exported for the
- * suite.
+ * Every character a roll message speaks for - the test the Reroll's scan of recent chat
+ * made until E08+E28 C4a - after the character its roller reported to this GM
+ * (`rollSubjectNow`, E06 C5a), which is the one a roll whose speaker names nobody
+ * still has. Exported for the suite.
  */
 export function actorIdsOf(message) {
     const ids = new Set();

@@ -123,10 +123,10 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
         scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
     // E08+E28 C2 (03.10.2026): the GMs keep each character's last roll and what they did for it; the roller's browser
-    // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one; C4a adds `reroll.ask`
-    // and 40-flow's Reroll made on the GM.
-    { id: "reroll", what: "The Reroll: the GMs keep each character's last roll and what its action did, and the roller reports what only its browser saw",
-        entry: { bridge: ["roll.bookmark"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E08" },
+    // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one. C4a: the Reroll is asked of
+    // the GM (`reroll.ask`) and made there - 40-flow's player Rerolls, 30's refused asks, 13's dice of a rewrite.
+    { id: "reroll", what: "The Reroll: the GMs keep each character's last roll and what its action did, the roller reports what only its browser saw, and the GM makes the Reroll it is asked for",
+        entry: { bridge: ["roll.bookmark", "reroll.ask"] }, scenarios: ["13-murder-signals", "30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E08" },
     { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected or when no card lands in time (fix r2-G3)",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",

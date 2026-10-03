@@ -220,6 +220,69 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             && undoAnswer?.reason === "deathStands" && undoReasons.some(r => /the death stands/.test(r)),
         JSON.stringify({ undoBefore, undoAfter, undoAnswer, undoReasons }));
 
+    /* THE REROLL IS ASKED OF THE GM (E08+E28 C4a, 03.10.2026; audit S02-47). One request,
+       `reroll.ask { actorId }`, and the GM pays and makes all of it - so the request is the
+       one gate. p1 asks a Reroll of Botan, p2's character: refused for ownership, told to p1,
+       Botan's Hope and roll as they were. Then p2 throws Botan's crisis roll, as a player's
+       crisis action throws it, and asks its Reroll from Botan's own browser: the blow before it
+       killed (the incident's receipt), so the GM refuses it for the death before anything is
+       paid, and tells p2. The harness's roll message has no `Roll#reroll`; on the GM it reads
+       as one of the scenario's (`REROLLABLE`), so the refusal is the death's, not the roll's.
+       Both checks carry the `reroll` flow inside the crisis actions' phase. */
+    const readReroll = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = S.rerollBookmarkStore?.get("${ids.botan}");
+        return { hope: game.actors.get("${ids.botan}").system.resources.hope.value, row: row ? { messageId: row.messageId, total: row.total } : null,
+            journal: Boolean(S.rerollJournalStore?.has("${ids.botan}")), dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")),
+            receipt: JSON.stringify(game.drpg.murderState()?.lastCrisis ?? null) };`;
+    const botanRoll = await p2.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        try { const out = await A.rollTrait(game.actors.get("${ids.botan}"), "body", { actionKey: "crisis", context: { crisis: "finishingBlow" } });
+            return out?.raw?.message?.id ?? null; }
+        finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    await settle(900);
+    const REROLLABLE = `const m = game.messages.get("${botanRoll}");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 9, fear: 4 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 2, fear: 11 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const botan = game.actors.get("${ids.botan}");
+        await automatedUpdate(botan, { "system.resources.hope.value": Math.max(4, botan.system.resources.hope.value) });
+        return true;`;
+    await gm.eval(REROLLABLE, { timeout: 30000 });
+    await settle(500);
+    const forgedReroll = await forge("reroll.ask", { actorId: ids.botan }, readReroll);
+    check("SECURITY: a reroll.ask for another player's character is refused for ownership, told to p1, and pays and rewrites nothing",
+        Boolean(botanRoll) && forgedReroll.unchanged && forgedReroll.forOwnership && forgedReroll.told.some(t => t.what === "reroll.ask")
+            && forgedReroll.after.row?.messageId === botanRoll,
+        JSON.stringify(forgedReroll), { flow: "reroll" });
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const lethalBefore = await gm.eval(readReroll);
+    const lethalAsk = await p2.eval(`globalThis.__rerollRefused = [];
+        game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused" && payload.what === "reroll.ask") globalThis.__rerollRefused.push(payload.reason ?? null); });
+        const C = await import("${repoUrl}/scripts/calls.mjs");
+        const out = await C.spendHopeCall(game.actors.get("${ids.botan}"), "reroll");
+        await new Promise(r => setTimeout(r, 300));
+        return { made: Boolean(out), told: globalThis.__rerollRefused.slice() };`, { timeout: 60000 });
+    await settle(900);
+    const lethalAfter = await gm.eval(readReroll);
+    const lethalReasons = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "reroll.ask"')).map(e => e.message);`);
+    check("SECURITY: a Reroll of the crisis action that killed is refused on the GM with deathStands, nothing paid, and the death stands",
+        lethalBefore.dead === true && JSON.stringify(lethalAfter) === JSON.stringify(lethalBefore) && lethalAsk.made === false
+            && JSON.stringify(lethalAsk.told) === JSON.stringify(["deathStands"]) && lethalReasons.some(r => /the death stands/.test(r)),
+        JSON.stringify({ lethalBefore, lethalAfter, lethalAsk, lethalReasons }), { flow: "reroll" });
+    await gm.eval(`const m = game.messages.get("${botanRoll}"); if (m) delete m.rolls; await m?.delete();
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        if (S.rerollBookmarkStore?.has("${ids.botan}")) await S.rerollBookmarkStore.drop("${ids.botan}");
+        return true;`, { timeout: 30000 });
+
     /* STAGE 6 IS DECIDED ON THE GM'S SIDE (E03; audit S05-04). The Tamper list with
        `mine: false` is the whole room, types and all, and it used to be the asking
        client that decided it was Stage 6. A hidden trace nobody has found lies in

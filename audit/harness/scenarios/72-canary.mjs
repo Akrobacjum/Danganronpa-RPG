@@ -402,16 +402,22 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return t ? { id: t.id, scene: t.parent?.id ?? null, hidden: t.hidden, marked: t.getFlag("${MOD}", "fromIncident") ?? null } : null;`, { timeout: 60000 });
     await p3.eval(`delete globalThis.__forceRoll; globalThis.__dialogAuto = false; return true;`);
     /* THE CRISIS ROLL'S BOOKMARK (E05 C7, 26.09.2026; audit S02-01). A crisis action's roll is
-       bookmarked for a Reroll with its key (murder.mjs `takeCrisisAction`); here p3 throws Chie's
-       the way that roll is thrown, and the GM rules the blow as before. Until 1.2.64 the bookmark
-       was Chie's actor flag, which this phase's world scan found on p1 and p2 (measured on the C6
-       tree with this roll); it is p3's own client setting now. */
-    const crisisMark = await p3.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+       bookmarked for a Reroll (murder.mjs `takeCrisisAction`); here p3 throws Chie's the way that
+       roll is thrown, and the GM rules the blow as before. Until 1.2.64 the bookmark was Chie's
+       actor flag, which this phase's world scan found on p1 and p2 (measured on the C6 tree with
+       this roll); E05 C7 made it p3's own client setting, and E08+E28 C4a the GMs' row, which
+       p3's browser reports the roll to (action-rolls.mjs `tellGmsOfRoll`). */
+    await p3.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         globalThis.__forceRoll = { hope: 8, fear: 3 };
         try { await A.rollTrait(game.actors.get("${IDS.chie}"), "body", { actionKey: "crisis", context: { crisis: "finishingBlow" } }); }
         finally { delete globalThis.__forceRoll; }
-        return A.rollBookmark?.(game.actors.get("${IDS.chie}"))?.crisis ?? null;`, { timeout: 60000 });
-    check("p3: Chie's crisis roll is bookmarked, with its key, in p3's own browser", crisisMark === "finishingBlow", JSON.stringify({ crisisMark }));
+        return true;`, { timeout: 60000 });
+    const crisisMark = await gm.eval(`const { rerollBookmarkStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        for (let i = 0; i < 40 && rerollBookmarkStore.get("${IDS.chie}")?.by !== "${IDS.p3}"; i++) await new Promise(r => setTimeout(r, 100));
+        const row = rerollBookmarkStore.get("${IDS.chie}");
+        return row ? { actionKey: row.actionKey, by: row.by } : null;`, { timeout: 60000 });
+    check("gm: Chie's crisis roll is kept for a Reroll on the GMs, as p3 threw it", crisisMark?.actionKey === "crisis" && crisisMark.by === IDS.p3,
+        JSON.stringify({ crisisMark }));
     /* A DEATH IN TWO PHASES (E05 C10, 26.09.2026; audit S06-11). Botan carries a Truth Bullet
        into the incident; the blow kills him for the GMs and for his own player (p2), and p1's
        browser reads him alive - no flag, no marker, his bullet still on the sheet - until the

@@ -26,7 +26,7 @@ import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
 // the whole trial floor into the action pipeline.
-import { getClock, getSetting, SETTINGS } from "./settings.mjs";
+import { getClock } from "./settings.mjs";
 // The chains, and the one payer (T-1). Static, and safe to be: price.mjs imports
 // nothing but leaves and never reaches back into the action pipeline.
 import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
@@ -800,57 +800,45 @@ function traitRolled(result, fallback) {
 }
 
 /* ==========================================================================
- * THE REROLL BOOKMARK, IN THE ROLLER'S OWN BROWSER
+ * WHAT THIS BROWSER TELLS THE GMS OF ITS NEWEST ROLL
  * ==========================================================================
  *
- * E05 C7, 26.09.2026; audit S02-01. The bookmark was the actor flag `lastAction`
- * until 1.2.64, and an actor's flags are on every browser: 72-canary read Chie's
- * crisis context off p1's copy of her actor. It is the client setting
- * `rollBookmarks` now (settings.mjs), one entry per world and character, on the
- * browser that rolled - the browser a Reroll is made from (the owner's answer Q6;
- * E08 moves it to the GMs: since its C2 they keep their own beside this one, see
- * "ON THE GMS" below, and C4a retires this one). A roll made in another browser, or before the update
- * (the `dropRollBookmarks` clause), has no bookmark here, and Reroll falls back to
- * the recent-chat scan in reroll.mjs as it always did for a sheet roll.
+ * E05 C7 moved the Reroll's bookmark off the actor flag `lastAction` (on every
+ * browser: 72-canary read Chie's crisis context off p1's copy of her actor) into the
+ * roller's own client setting `rollBookmarks`, and the Reroll read it there. Since
+ * E08+E28 C4a (03.10.2026; audit S02-47, the owner's answer to E05's Q6) the Reroll
+ * is made on a GM from the GMs' own bookmark ("ON THE GMS" below), and this browser
+ * keeps nothing a Reroll reads. What is left here is the roll this browser threw last
+ * for each character, in memory and for this session only, so an action that learns
+ * more of its roll (`noteRollContext`) can tell the GMs the roller's claims again
+ * whole - `keepGmBookmark` takes them whole. A reload loses it, and loses nothing:
+ * the GMs were told as the roll returned.
  *
- * Read and written whole, with no await between the read and the `set`: two
- * characters rolled from one browser at once cannot take each other's entry out.
+ * The retired setting is unregistered, and its value is taken out of this browser's
+ * client storage once (`forgetRollBookmarks`), where Foundry keeps a client setting
+ * under `<namespace>.<key>` - read in Foundry's `ClientSettings`, not measured at a
+ * real table; the harness keeps no client storage, so there it does nothing.
  */
-const EMPTY_BOOKMARKS = () => ({ v: 1, worlds: {} });
+const rollsInHand = new Map();
 
-function allBookmarks() {
-    try {
-        const all = getSetting(SETTINGS.rollBookmarks);
-        return all && all.v === 1 && all.worlds && typeof all.worlds === "object" ? all : EMPTY_BOOKMARKS();
-    } catch {
-        return EMPTY_BOOKMARKS();
-    }
+/** What this browser last told the GMs of its newest roll of this character, or null. Exported for the suite. */
+export function rollInHand(actor) {
+    return actor?.id ? rollsInHand.get(actor.id) ?? null : null;
 }
 
-/** This browser's bookmark for this character in this world, or null. */
-export function rollBookmark(actor) {
-    const world = game.world?.id ?? null;
-    if (!actor?.id || !world) return null;
-    return allBookmarks().worlds[world]?.[actor.id] ?? null;
-}
-
-/** Replace this character's bookmark in this browser - whole, never merged; null takes it out. */
-export async function keepRollBookmark(actor, bookmark) {
-    const world = game.world?.id ?? null;
-    if (!actor?.id || !world) return;
-    const all = allBookmarks();
-    const here = { ...(all.worlds[world] ?? {}) };
-    if (bookmark) here[actor.id] = bookmark;
-    else delete here[actor.id];
-    await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, { v: 1, worlds: { ...all.worlds, [world]: here } });
+/** The retired client setting `rollBookmarks`, out of this browser's client storage (E08+E28 C4a). At ready. */
+export function forgetRollBookmarks() {
+    const storage = game.settings?.storage?.get?.("client");
+    const key = `${MODULE_ID}.rollBookmarks`;
+    if (typeof storage?.getItem === "function" && storage.getItem(key) !== null) storage.removeItem(key);
 }
 
 /**
  * Record what was just rolled, so the Reroll Hope Call has something to take
- * back. Only the newest roll is kept - the guide's Reroll undoes an action, not
- * a history.
+ * back: the GMs are told (`tellGmsOfRoll`). Only the newest roll is kept - the
+ * guide's Reroll undoes an action, not a history.
  *
- * The bookmark is written fresh here rather than merged, so leftovers from the
+ * The record is written fresh here rather than merged, so leftovers from the
  * previous action - a project id, a Remnant token, an item - can never be
  * attributed to this one. Each action then attaches its own context with
  * `noteRollContext` once it knows what it did.
@@ -860,7 +848,8 @@ export async function keepRollBookmark(actor, bookmark) {
  * was `gmRuled` - `replayAction` tests it before it looks at the action key, so
  * a single Observe earlier in the session sent every subsequent Reroll down the
  * "ask the GM again" path instead of replaying the Search or the project that
- * was actually rerolled. `keepRollBookmark` writes the entry whole.
+ * was actually rerolled. The GMs' row is started afresh for a new roll the same
+ * way (`keepGmBookmark`).
  */
 async function rememberRoll(actor, outcome, result, actionKey = null, context = null) {
     try {
@@ -880,18 +869,19 @@ async function rememberRoll(actor, outcome, result, actionKey = null, context = 
             freeCritical: Boolean(outcome.freeCritical),
             at: game.time?.worldTime ?? 0
         };
-        await keepRollBookmark(actor, bookmark);
+        if (actor?.id) rollsInHand.set(actor.id, bookmark);
         // Before the action asks the GM for anything it does: see `tellGmsOfRoll`.
         await tellGmsOfRoll(actor, bookmark);
     } catch {
-        // Losing the bookmark costs a Reroll, not the roll itself.
+        // Losing the record costs a Reroll, not the roll itself.
     }
 }
 
 /**
- * Where a Remnant this action dropped ended up, in a form the bookmark can
- * carry. A player's Remnant is placed by the GM over the socket, so there is no
- * document to point at - Reroll says so rather than pretending it can retune it.
+ * Where a Remnant this action dropped ended up, in a form the record can carry: a
+ * GM's own trace, which `noteRollContext` writes onto the GMs' row as a fact. A
+ * player's Remnant is placed by the GM over the socket, and that GM writes the fact
+ * itself (gm-bridge.mjs `handleRemnant`).
  */
 function remnantRef(placed) {
     const doc = placed?.document ?? placed;
@@ -900,7 +890,7 @@ function remnantRef(placed) {
 }
 
 /**
- * Attach the action's own context to the bookmark, once it is known.
+ * Attach the action's own context to the roll, once it is known.
  *
  * Replacement rather than merge, like `rememberRoll` - the spread of `current`
  * is what carries the rest forward, so a caller passing `{itemId: null}` here
@@ -908,10 +898,10 @@ function remnantRef(placed) {
  */
 async function noteRollContext(actor, data) {
     try {
-        const current = rollBookmark(actor);
+        const current = rollInHand(actor);
         if (!current) return;
         const next = { ...current, ...data };
-        await keepRollBookmark(actor, next);
+        rollsInHand.set(actor.id, next);
         // Told again only when it changes what the GMs keep of the roller's word: most
         // contexts add facts the GM did, which the GM wrote itself.
         if (next.actionKey !== current.actionKey
@@ -956,8 +946,19 @@ async function noteRollContext(actor, data) {
  *
  * The roll itself - its total, its duality, its rolls as first thrown - is read off
  * the message on the GM; the trait and the experiences are the roller's (the message
- * does not hold the experiences, see `rememberRoll`). Until C4a the Reroll still
- * reads the roller's bookmark, and nothing reads this one.
+ * does not hold the experiences, see `rememberRoll`), and so is the room the character
+ * stood in as the row started, read on the GM. The Reroll reads this row on the GM
+ * since C4a (reroll.mjs `rerollOnGm`): its replay is handed the claims with the facts
+ * over them (`replayBookmark`).
+ *
+ * WHAT A REPLAY NEEDS OF THE ROLLER (E08+E28 C4a). The replays read more of the roll
+ * than C2's claims held, and each was a field of the roller's own bookmark: a Listen's
+ * room, a ruling's request, the clean-up's declaration, whether a Project's critical
+ * gave its action back and from what. They are claims now, of the same kinds; none of
+ * them names a document the replay writes but the roller's own sheet, and the clean-up's
+ * are judged again where they were judged for the first throw - `resolveCleanup` holds
+ * the trace to the GMs' receipt of the attempt (`undoLastCleanup`) and bounds the
+ * declaration and the price.
  *
  * ORDER. `roll.bookmark` leaves as the roll returns, before the action sends anything
  * else, and packets from one sender reach the GM in order. Its guards wait only when
@@ -972,17 +973,27 @@ async function noteRollContext(actor, data) {
  * not listed claims nothing.
  */
 export const ROLL_CLAIMS = Object.freeze({
-    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", stashDie: "bool", claimed: "bool", fromVault: "bool" }),
-    project: Object.freeze({ relief: "num", bonus: "num" }),
+    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", stashDie: "bool", claimed: "bool", fromVault: "bool",
+        gmRuled: "bool", label: "text", request: "text" }),
+    project: Object.freeze({ relief: "num", bonus: "num", refunded: "bool", burst: "bool" }),
     sabotage: Object.freeze({ penalty: "num", relief: "num" }),
-    dynamic: Object.freeze({ bandIndex: "num", description: "text" })
+    dynamic: Object.freeze({ bandIndex: "num", description: "text" }),
+    listen: Object.freeze({ target: "text" }),
+    observe: Object.freeze({ gmRuled: "bool", label: "text", request: "text" }),
+    analyze: Object.freeze({ gmRuled: "bool", label: "text", request: "text" }),
+    cleanup: Object.freeze({ cleanup: "text", cleanupKey: "text", cleanupChange: "obj", cleanupVia: "bool", cleanupPrice: "text",
+        cleanupGrant: "bool", cleanupTarget: "id" })
 });
 
 const CLAIM_AS = Object.freeze({
     id: v => typeof v === "string" && v.length > 0 && v.length <= 128 ? v : null,
     text: v => typeof v === "string" ? v.slice(0, 400) : null,
     num: v => typeof v === "number" && Number.isFinite(v) ? v : null,
-    bool: v => typeof v === "boolean" ? v : null
+    bool: v => typeof v === "boolean" ? v : null,
+    obj: v => {
+        if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+        try { return JSON.stringify(v).length <= 400 ? JSON.parse(JSON.stringify(v)) : null; } catch { return null; }
+    }
 });
 
 /** The claims an action's context makes, as `ROLL_CLAIMS` lists them; anything else is dropped. */
@@ -1034,6 +1045,24 @@ export function rollOfSender(userId, actionKey) {
 }
 
 /**
+ * `rollOfSender`, once it names `messageId` - or what it names after `ms` (E08+E28 C4a,
+ * 03.10.2026). A Work's progress names its roll, and leaves the roller's browser after the
+ * roll's report; but the report's run awaits before it keeps the row, and the progress was
+ * judged first in 40-flow's player Work (measured 03.10: the row's facts empty, so its Reroll
+ * replayed nothing). Asked only for a progress that names a roll; a report the GM refused
+ * keeps no row, and the wait ends at `ms`.
+ */
+export async function rollOfSenderNaming(userId, actionKey, messageId, ms = 1500) {
+    const end = Date.now() + ms;
+    let found = rollOfSender(userId, actionKey);
+    while (messageId && found?.messageId !== messageId && Date.now() < end) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        found = rollOfSender(userId, actionKey);
+    }
+    return found;
+}
+
+/**
  * The run of `roll.bookmark`, and a GM's own roll's (E08+E28 C2). The guards tied the
  * message to the sender and the character to them. The same roll again patches its
  * row - the action's claims, which grow as it goes - and keeps its facts; another
@@ -1062,7 +1091,7 @@ export async function keepGmBookmark({ actorId, messageId, actionKey = null, tra
     return rerollBookmarkStore.patch(actor.id, {
         messageId: message.id, ...told, total, withFear, isCritical,
         first: foundry.utils.deepClone(message.toObject().rolls ?? []),
-        at: Date.now(), by: by?.id ?? null, facts: {}
+        room: roomOfActor(actor) ?? null, at: Date.now(), by: by?.id ?? null, facts: {}
     });
 }
 
@@ -2695,7 +2724,7 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     let applied = null;
     // Named for this roll (E08+E28 C2): the GMs' bookmark keeps what it added, and a Call's progress names none.
-    if (progress > 0) applied = await addProgress(project.id, progress, { messageId: rollBookmark(actor)?.messageId ?? null });
+    if (progress > 0) applied = await addProgress(project.id, progress, { messageId: rollInHand(actor)?.messageId ?? null });
 
     // Reroll needs to know what this roll gave the project, so it can take the
     // same amount back before applying the new result.

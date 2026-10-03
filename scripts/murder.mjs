@@ -1962,7 +1962,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     }
 
     const { requestCrisisResult } = await import("./gm-bridge.mjs");
-    const res = await requestCrisisResult({
+    await requestCrisisResult({
         actorId: actor.id, key,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
@@ -1976,18 +1976,11 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     });
 
     /*
-     * AN ACTION THAT KILLED IS KEPT AS ONE ON THE ROLL'S BOOKMARK (E32+E07 C8b), so the
-     * Reroll Call refuses it before anything is paid (`lethalReroll`, reroll.mjs). The
-     * GM answers `lethal` when the action's own resolution killed somebody (its receipt's
-     * `killed`); the asker is in the death card's audience already. The bookmark is this
-     * browser's; the GM refuses the undo whatever it says (`undoLastCrisis`).
+     * The GM answers `lethal` when the action's own resolution killed somebody (its
+     * receipt's `killed`, E32+E07 C8b). This browser marked its bookmark with it until
+     * E08+E28 C4a; the Reroll is made on the GM now, which reads the receipt itself before
+     * anything is paid (reroll.mjs `rerollRefusal`), and nothing here reads the answer.
      */
-    if (res.ok && res.value?.lethal) {
-        const { rollBookmark, keepRollBookmark } = await import("./action-rolls.mjs");
-        const bookmark = rollBookmark(actor);
-        if (bookmark?.crisis === key) await keepRollBookmark(actor, { ...bookmark, lethal: true });
-    }
-
     return { roll, choice };
 }
 
@@ -2632,8 +2625,9 @@ async function closeReceipt(receipt, entry) {
 /**
  * Whether a crisis action's receipt says its own resolution killed somebody. A
  * receipt from before E32+E07 C8b has no `killed`, and reads as killing nobody.
+ * Exported for the Reroll's check on the GM (reroll.mjs `rerollRefusal`).
  */
-function crisisKilled(receipt) {
+export function crisisKilled(receipt) {
     return Array.isArray(receipt?.killed) && receipt.killed.length > 0;
 }
 

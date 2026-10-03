@@ -929,15 +929,6 @@ async function freeRestEffect(actor, call, choice, done) {
     done.push(...(rested.applied ?? []));
 }
 
-// --- reroll the last action ---
-async function rerollEffect(actor, call, choice, done) {
-    const { rerollLastAction } = await import("./reroll.mjs");
-    const lines = await rerollLastAction(actor);
-    // `rerollLastAction` has already said why.
-    if (!lines) throw new NothingToDo("nothing to reroll");
-    done.push(...lines);
-}
-
 // --- a new rule, announced to everyone AND written down ---
 //
 // Twelve Despair used to buy a chat message that scrolled away. The
@@ -1073,7 +1064,8 @@ export async function applyCall(actor, key, kind, choice = {}) {
         if (call.freeMoves) await freeMovesEffect(actor, call, choice, done);
         if (call.freeActions) await freeActionsEffect(actor, call, choice, done);
         if (call.freeRest) await freeRestEffect(actor, call, choice, done);
-        if (call.reroll) await rerollEffect(actor, call, choice, done);
+        // No branch for `reroll`: since E08+E28 C4a the GM pays for it and makes it, asked by
+        // calls.mjs `askReroll` instead of this (reroll.mjs `rerollOnGm`).
         if (call.announces && choice.text) await newRuleEffect(actor, call, choice, done);
         if (call.sealsRoom && choice.room) await sealRoomEffect(actor, call, choice, done);
         if (call.silences && choice.target) await silenceEffect(actor, call, choice, done);

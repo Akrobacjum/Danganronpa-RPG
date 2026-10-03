@@ -339,9 +339,16 @@ export const SETTINGS = {
      * THE REROLL'S BOOKMARK, ON THE GMS (E08+E28 C2, 1.2.67; audit S05-08, S08-04, S04-18): a GM
      * store (gm-stores.mjs `rerollBookmarkStore`), a row per character - its last roll, what the
      * GMs did for it (`facts`) and what its roller's browser alone saw (`claims`). Synced, not
-     * backed up; no player copy. The roller's own `rollBookmarks` stays beside it until C4a.
+     * backed up; no player copy. The Reroll reads it on the GM since C4a.
      */
     gmRerollBookmarks: "gmRerollBookmarks",
+    /**
+     * A REROLL HALF MADE (E08+E28 C4a, 1.2.67; audit S02-47): a GM store (gm-stores.mjs
+     * `rerollJournalStore`), a row per character while the GM makes its Reroll - the phase it
+     * reached, the Hope paid, the message and its rolls before. Synced, not backed up; no
+     * player copy.
+     */
+    gmRerollJournal: "gmRerollJournal",
     /**
      * A CLEAN-UP'S RECEIPT (E08+E28 C3, 1.2.67; audit S05-44): a GM store (gm-stores.mjs
      * `cleanupAttemptStore`), a row per character - what their last clean-up attempt did, for
@@ -358,21 +365,6 @@ export const SETTINGS = {
      * written.
      */
     secretCards: "secretCards",
-    /**
-     * WHAT THIS BROWSER ROLLED LAST, PER CHARACTER - the Reroll bookmark (E05 C7,
-     * 26.09.2026; audit S02-01). `{ v: 1, worlds: { [worldId]: { [actorId]: bookmark } } }`.
-     *
-     * CLIENT-SCOPED, on the roller's own browser. Until 1.2.64 the bookmark was the
-     * actor flag `lastAction`, which every browser holds: a crisis roll's keys, Stage
-     * 6's token ids and the words of a reshaped trace, a palm's victim and item, an
-     * Observe's key - each readable from any console. A Reroll is made by the player
-     * who rolled, from the browser that rolled (call-effects.mjs), so that browser is
-     * the only one that needs it; the owner chose it over a GM store for now (plan Q6,
-     * 26.09), and E08 moves it to the GMs. Not synced, not backed up: a bookmark is the
-     * newest roll, and a roll made in another browser is Rerolled from there. Per world,
-     * because a client setting is one entry for every world this browser opens.
-     */
-    rollBookmarks: "rollBookmarks",
     /*
      * WHICH ITEM IS THE TRAP, AND WHAT IS WAITING IN WHICH ROOM.
      *
@@ -1345,8 +1337,15 @@ export function registerSettings() {
         default: {}
     });
     // The Reroll's bookmark on the GMs (E08+E28 C2): no `onChange` - shown nowhere, and
-    // read by the Reroll on a GM once C4a makes it there.
+    // read by the Reroll the GM makes (E08+E28 C4a).
     game.settings.register(MODULE_ID, SETTINGS.gmRerollBookmarks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A Reroll half made (E08+E28 C4a): no `onChange` - shown nowhere.
+    game.settings.register(MODULE_ID, SETTINGS.gmRerollJournal, {
         scope: "client",
         config: false,
         type: Object,
@@ -1362,13 +1361,6 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.secretCards, {
-        scope: "client",
-        config: false,
-        type: Object,
-        default: {}
-    });
-
-    game.settings.register(MODULE_ID, SETTINGS.rollBookmarks, {
         scope: "client",
         config: false,
         type: Object,

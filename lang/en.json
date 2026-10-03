@@ -2469,6 +2469,7 @@
         "trap.event": "A report for the traps",
         "roll.subject": "A report of whose roll it was",
         "roll.bookmark": "What a roll did, kept for a Reroll",
+        "reroll.ask": "Reroll",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back"
@@ -2895,6 +2896,8 @@
       "analyzeReplayed": "The same Truth Bullet is analyzed again with the new roll. Any lock the first attempt left is lifted first.",
       "crisisReplayed": "The crisis action is taken back and made again with the new roll - the damage, the trace and any hindrance go with it. The turn is not spent twice.",
       "deathStands": "A crisis action that killed cannot be taken back: the death stands.",
+      "busy": "A Reroll of this character is already being made. Wait for it to finish.",
+      "messageGone": "The roll is no longer in the chat, so there is nothing to throw again. Nothing was spent.",
       "trailStands": "The dice are rewritten, but what you planted is already lying in the room - a reroll cannot pick it back up. Ask the GM if it should come out.",
       "stealStands": "The dice are rewritten, but the moment is not. Your hand has already been in their pocket, and putting something back is something they would watch you do.",
       "cleanupReplayed": "The clean-up is taken back and attempted again. The trace comes back, anything the botched wipe left is removed, and the Sanity is refunded first.",
@@ -3461,6 +3464,7 @@
         "confusions": "The Confusions armed on a character and not rolled yet",
         "rerollBookmarks": "Each character's last roll a Reroll would take back, and what the GMs did for it",
         "cleanupAttempts": "Each character's last clean-up, kept so a Reroll can take it back",
+        "rerollJournal": "A Reroll the GM is making, step by step, so a reload in the middle can be put right",
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found"
       },
       "row": {

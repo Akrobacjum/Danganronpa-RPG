@@ -595,6 +595,48 @@ async function playerRollBookmark(player, actor, actionKey, context = {}) {
         } };
 }
 
+/**
+ * A ROLL THE GM CAN THROW AGAIN (E08+E28 C4a, 03.10.2026). The harness's roll message holds
+ * plain JSON, with no `Roll#reroll`, and the Reroll on the GM rebuilds the roll by its own
+ * class (reroll.mjs `rollAsThrown`) and throws that again. So `message.rolls` reads, on this
+ * client alone, one roll of a class of the suite's with the faces `first`; thrown again it has
+ * the faces `next`, once `onReroll` has run - a moment after the payment and before the
+ * rewrite. The document is untouched; `putBack` takes the stand-in off. The class is fix
+ * r1-G3's `SuiteRoll`, moved here when three tests came to need it.
+ */
+function rerollableRoll(message, { first, next, onReroll = null }) {
+    class SuiteRoll {
+        constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { ...first }; }
+        get dHope() { return { total: this.faces.hope }; }
+        get dFear() { return { total: this.faces.fear }; }
+        get total() { return this.faces.hope + this.faces.fear; }
+        get withHope() { return this.faces.hope > this.faces.fear; }
+        get withFear() { return this.faces.hope < this.faces.fear; }
+        get isCritical() { return this.faces.hope === this.faces.fear; }
+        async reroll() {
+            if (onReroll) await onReroll();
+            const r = new SuiteRoll(this._formula, {}, this.options);
+            r.faces = { ...next };
+            return r;
+        }
+        toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+    }
+    Object.defineProperty(message, "rolls", { configurable: true, get: () => [new SuiteRoll("1d12 + 1d12", {}, { roll: { trait: "instinct" } })] });
+    return { putBack: () => { delete message.rolls; } };
+}
+
+/** Hope writes on `actor` and roll rewrites of `messageId`, with the user Foundry names for each, until `stop()`. */
+function watchRerollWrites(actor, messageId) {
+    const hope = [], rolls = [];
+    const a = Hooks.on("updateActor", (doc, change, options, userId) => {
+        if (doc.id === actor.id && foundry.utils.hasProperty(change, "system.resources.hope")) hope.push(userId ?? null);
+    });
+    const m = Hooks.on("updateChatMessage", (doc, change, options, userId) => {
+        if (doc.id === messageId && change && "rolls" in change) rolls.push(userId ?? null);
+    });
+    return { hope, rolls, stop: () => { Hooks.off("updateActor", a); Hooks.off("updateChatMessage", m); } };
+}
+
 /** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
 async function playerInRoom() {
     const { locateActor } = await import("./movement.mjs");
@@ -1730,17 +1772,19 @@ const SCENARIOS = [
          * E32+E07 C8b, 28.09.2026; AUDIT-1.2.42 section 9, the owner's answer (A). A Reroll
          * that took back the Finishing blow that killed replayed the blow and left the victim
          * dead, the blow gone. The death stands, and the Reroll Call is refused before anything
-         * is paid: the GM's answer marks the roll's bookmark `lethal`, and `spendHopeCall` asks
-         * it before the price (reroll.mjs `lethalReroll`). The GM throws the killer's blow from
+         * is paid. E08+E28 C4a: the GM makes the Reroll, and refuses it there before the payment
+         * from the action's receipt (`crisisKilled`, reroll.mjs `rerollRefusal`); the browser's
+         * `lethal` mark is gone. The GM throws the killer's blow from
          * this browser (`swingFixture`, one Health left, so the threshold is 5); the killer's
          * Reroll is then asked for. Read: what the Call answered, the Hope writes on the killer
-         * after the blow, the Hope, the reason shown, the bookmark's mark, the roll's total, the
-         * receipt, and whether the victim is still dead for the GMs.
+         * after the blow, the Hope, the reason shown, whether the GMs' row still names the blow's
+         * roll and holds no half-made Reroll, the roll's total, the receipt, and whether the
+         * victim is still dead for the GMs.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const { spendHopeCall } = await import("./calls.mjs");
-        const { lastRollOf } = await import("./reroll.mjs");
+        const { rerollBookmarkStore, rerollJournalStore } = await import("./gm-stores.mjs");
         const { M, killer, victim, putBack } = await swingFixture();
         const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
         const warn = ui.notifications.warn, warned = [];
@@ -1754,9 +1798,10 @@ const SCENARIOS = [
             globalThis.__forceRoll = { hope: 10, fear: 3 };
             const taken = await M.takeCrisisAction(killer, "finishingBlow");
             await settle();
-            const { bookmark, message } = lastRollOf(killer);
-            must(taken?.roll?.withHope && isDeadForGm(victim) && bookmark?.crisis === "finishingBlow" && message,
-                `the fixture's blow did not kill, or left no bookmark to reroll: ${stableJson([taken?.roll ?? null, bookmark])}`);
+            const row = rerollBookmarkStore.get(killer.id);
+            const message = game.messages.get(row?.messageId ?? "");
+            must(taken?.roll?.withHope && isDeadForGm(victim) && row?.facts?.crisis === "finishingBlow" && message,
+                `the fixture's blow did not kill, or left no bookmark to reroll: ${stableJson([taken?.roll ?? null, row])}`);
             const hope = killer.system.resources.hope.value, total = message.rolls[0].total;
             const receipt = stableJson(M.murderState()?.lastCrisis ?? null);
             writes = 0;
@@ -1764,10 +1809,11 @@ const SCENARIOS = [
             const spent = await spendHopeCall(killer, "reroll");
             await settle();
             equal(stableJson([spent, writes, killer.system.resources.hope.value - hope, warned.includes(game.i18n.localize("DRPG.Reroll.deathStands")),
-                lastRollOf(killer).bookmark?.lethal ?? null, game.messages.get(message.id)?.rolls?.[0]?.total === total,
+                rerollBookmarkStore.get(killer.id)?.messageId === message.id && !rerollJournalStore.has(killer.id),
+                game.messages.get(message.id)?.rolls?.[0]?.total === total,
                 stableJson(M.murderState()?.lastCrisis ?? null) === receipt, isDeadForGm(victim)]),
             stableJson([null, 0, 0, true, true, true, true, true]),
-            "the Reroll of the blow that killed was paid for, not refused with its reason, or took something back (answer, Hope writes, Hope moved, reason shown, bookmark lethal, total kept, receipt kept, victim dead)");
+            "the Reroll of the blow that killed was paid for, not refused with its reason, or took something back (answer, Hope writes, Hope moved, reason shown, the row kept and no journal, total kept, receipt kept, victim dead)");
         } finally {
             ui.notifications.warn = warn;
             Hooks.off("updateActor", hook);
@@ -1888,70 +1934,188 @@ const SCENARIOS = [
         }
     }],
 
-    ["a Reroll whose replay the GM refuses gives the Hope and the first dice back", async () => {
+    ["a refused replay gives back exactly 3 Hope and the first rolls", async () => {
         /*
-         * E32+E07 fix r1-G3, 02.10.2026; C8b's A2. The dice are rewritten and settled before
-         * the GM is asked to replay, and a refused replay left the new dice on the card and the
-         * Hope paid (`settleCrisis` read no refusal); the resources the new dice move are
-         * settled only once the replay stands now. The GM's Finishing blow kills from this
-         * browser (`swingFixture`, one Health left); its bookmark loses the `lethal` mark, as a
-         * lost answer would leave it, so the Call is paid and the GM's `undoLastCrisis` refuses.
-         * The harness has no Daggerheart roll to throw again, so the card's roll is one of the
-         * suite's (`SuiteRoll`), thrown again as Despair. Read: what the Call answered, the
-         * killer's Hope, the card's rolls, how often they were rewritten, the Despair pool,
-         * whether the victim is dead and the receipt as it was.
+         * E32+E07 fix r1-G3, 02.10.2026, moved onto the GM by E08+E28 C4a (03.10.2026; audit
+         * S02-47; the plan's 2.4). A Reroll whose replay is refused after the payment gives back
+         * the card's first rolls and the 3 Hope - as +3 on the Hope held then, so a grant that
+         * landed in between stays. The GM's Finishing blow, which kills nobody (`swingFixture`,
+         * the victim unmarked), is Rerolled from this browser; the roll is the suite's
+         * (`rerollableRoll`), and as it is thrown again - after the payment - the killer is
+         * granted 1 Hope and the GM passes the turn, so the replay's rewind finds the incident
+         * moved on (murder.mjs `undoLastCrisis`) and answers null. Read: what the Call answered,
+         * the killer's Hope against before, the card's rolls against before, how often they were
+         * rewritten, the Despair pool, the GMs' row's total, and whether a journal row is left.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const { spendHopeCall } = await import("./calls.mjs");
-        const { lastRollOf } = await import("./reroll.mjs");
-        const { keepRollBookmark } = await import("./action-rolls.mjs");
+        const { rerollBookmarkStore, rerollJournalStore } = await import("./gm-stores.mjs");
         const { monokumaFor } = await import("./assignments.mjs");
         const { getDespair } = await import("./despair.mjs");
         const { M, killer, victim, putBack } = await swingFixture();
         const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
         const mk = monokumaFor(killer);
         const pool = () => (mk ? getDespair(mk.id) : null);
-        class SuiteRoll {
-            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 10, fear: 3 }; }
-            get dHope() { return { total: this.faces.hope }; }
-            get dFear() { return { total: this.faces.fear }; }
-            get total() { return this.faces.hope + this.faces.fear; }
-            get withHope() { return this.faces.hope > this.faces.fear; }
-            get withFear() { return this.faces.hope < this.faces.fear; }
-            get isCritical() { return this.faces.hope === this.faces.fear; }
-            async reroll() { const r = new SuiteRoll(this._formula, {}, this.options); r.faces = { hope: 2, fear: 9 }; return r; }
-            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
-        }
-        let rewrites = 0, card = null;
-        const hook = Hooks.on("updateChatMessage", (m, change) => { if (m.id === card?.id && change && "rolls" in change) rewrites++; });
+        let stand = null, watch = null;
         try {
-            await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
             await killer.update({ "system.resources.hope.value": 4 });
             globalThis.__forceRoll = { hope: 10, fear: 3 };
             await M.takeCrisisAction(killer, "finishingBlow");
             await settle();
-            const { bookmark, message } = lastRollOf(killer);
-            card = message;
-            must(isDeadForGm(victim) && bookmark?.crisis === "finishingBlow" && bookmark?.lethal && bookmark?.trait && message,
-                `the fixture's blow did not kill, or left no marked bookmark with its statistic: ${stableJson(bookmark)}`);
-            await keepRollBookmark(killer, { ...bookmark, lethal: false });
-            Object.defineProperty(message, "rolls", { configurable: true, get: () => [new SuiteRoll(`1d12 + 1d12`, {}, { roll: { trait: "body" } })] });
-            const hope = killer.system.resources.hope.value, rolls = stableJson(message.toObject().rolls), despair = pool();
-            const receipt = stableJson(M.murderState()?.lastCrisis ?? null);
+            const row = rerollBookmarkStore.get(killer.id);
+            const message = game.messages.get(row?.messageId ?? "");
+            must(!isDeadForGm(victim) && row?.facts?.crisis === "finishingBlow" && row?.trait && message,
+                `the fixture's blow killed, or left no bookmark with its statistic to reroll: ${stableJson(row)}`);
+            stand = rerollableRoll(message, { first: { hope: 10, fear: 3 }, next: { hope: 11, fear: 3 }, onReroll: async () => {
+                await killer.update({ "system.resources.hope.value": killer.system.resources.hope.value + 1 });
+                await M.passTurn();
+            } });
+            const hope = killer.system.resources.hope.value, rolls = stableJson(message.toObject().rolls), despair = pool(), total = row.total;
+            watch = watchRerollWrites(killer, message.id);
             const spent = await spendHopeCall(killer, "reroll");
             await settle();
-            equal(stableJson([spent, killer.system.resources.hope.value - hope, stableJson(message.toObject().rolls) === rolls, rewrites, pool() === despair,
-                isDeadForGm(victim), stableJson(M.murderState()?.lastCrisis ?? null) === receipt]),
-            stableJson([null, 0, true, 2, true, true, true]),
-            "a Reroll whose replay the GM refused kept the new dice or the Hope, or moved something (answer, Hope moved, first rolls on the card, rewrites, Despair as it was, victim dead, receipt kept)");
+            equal(stableJson([spent, killer.system.resources.hope.value - hope, stableJson(message.toObject().rolls) === rolls, watch.rolls.length,
+                pool() === despair, rerollBookmarkStore.get(killer.id)?.total === total, rerollJournalStore.has(killer.id)]),
+            stableJson([null, 1, true, 2, true, true, false]),
+            "a Reroll whose replay was refused kept the new dice, gave back other than 3 Hope on the Hope held, or moved something (answer, Hope against before with the grant, first rolls on the card, rewrites, Despair as it was, the row's total, a journal left)");
         } finally {
-            Hooks.off("updateChatMessage", hook);
-            if (card) delete card.rolls;
+            watch?.stop();
+            stand?.putBack();
             if (hadForce) globalThis.__forceRoll = force;
             else delete globalThis.__forceRoll;
             await putBack();
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a Reroll is paid and made on the GM: the player's browser writes neither Hope nor the message", async () => {
+        /*
+         * E08+E28 C4a, 03.10.2026; audit S02-47; the plan's 2.3. The Reroll was paid and made in
+         * the player's tab: their browser wrote their Hope and rewrote their roll's message. It is
+         * one request now, `reroll.ask`, and the GM does both. A player's roll of their character,
+         * bookmarked as a Search their browser reports never ran (`playerRollBookmark`, so only
+         * the dice are replayed), thrown again on the suite's roll (`rerollableRoll`, a Hope
+         * result to a Hope result, so nothing but the price moves Hope); the player's `reroll.ask`
+         * is judged as the primary's listener judges it. Read: the packets the asker was sent, the
+         * users Foundry names for the Hope writes and the rewrites, the Hope against before, the
+         * GMs' row's total and first rolls, and whether a journal row is left. The packet crossing
+         * the socket from a player's own browser is 40-flow's.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packet is a connected player's, as Foundry names only those");
+        const { player, actor } = await playerInRoom();
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { rerollJournalStore } = await import("./gm-stores.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const F = await playerRollBookmark(player, actor, "search", { claimed: false });
+        let stand = null, watch = null;
+        try {
+            must(F.verdict === true && F.row()?.by === player.id, `the player's roll was not bookmarked as theirs: ${stableJson([F.verdict, F.row()])}`);
+            must(!await hopeCallRefusal(actor), `${actor.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            await actor.update({ "system.resources.hope.value": 5 });
+            stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
+            const first = stableJson(F.row().first), hope = actor.system.resources.hope.value;
+            watch = watchRerollWrites(actor, F.message.id);
+            const sent = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "reroll.ask", requestId: "suite-e08c4a-ask", actorId: actor.id }, player.id,
+                { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null, Array.isArray(packet?.value?.lines) ? packet.value.lines.length : null]) });
+            await settle();
+            equal(stableJson([sent, watch.hope, watch.rolls, actor.system.resources.hope.value - hope, F.row()?.total ?? null,
+                stableJson(F.row()?.first ?? null) === first, rerollJournalStore.has(actor.id)]),
+            stableJson([[["bridge.ack", null, null], ["bridge.done", null, 2]], [game.user.id], [game.user.id], -3, 13, true, false]),
+            "the player's Reroll was not answered with its lines, or its Hope or its message was written by another hand, or the row or the journal is wrong (packets, Hope writers, rewriters, Hope moved, row total, first rolls kept, journal left)");
+        } finally {
+            watch?.stop();
+            stand?.putBack();
+            await F.putBack();
+        }
+    }],
+
+    ["a Reroll of a roll whose message is gone is refused before the Hope is paid", async () => {
+        /*
+         * E08+E28 C4a, 03.10.2026; audit S02-47. With its bookmarked message gone, the Reroll
+         * scanned the character's rolls of the last half hour and threw the newest of them again
+         * - a roll nobody asked to take back - after the Hope was paid. The GM refuses it now,
+         * before anything is written ("the roll is no longer in the chat"). A roll of a student's,
+         * bookmarked on the GMs, its message deleted, another roll of theirs left in the chat; the
+         * Reroll asked from this browser. Read: what the Call answered, the Hope writes, the Hope
+         * against before, the line shown, the other roll's rewrites, and whether a journal row
+         * was written.
+         */
+        const [who] = cast(1);
+        const { spendHopeCall, hopeCallRefusal } = await import("./calls.mjs");
+        const { rerollBookmarkStore, rerollJournalStore } = await import("./gm-stores.mjs");
+        const warn = ui.notifications.warn, warned = [];
+        const made = [];
+        let watch = null, journalled = 0;
+        const journal = Hooks.on("clientSettingChanged", key => { if (key === `${MODULE_ID}.${SETTINGS.gmRerollJournal}`) journalled++; });
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            await who.update({ "system.resources.hope.value": 5 });
+            const other = await neutralRoll(who, { faces: { hope: 9, fear: 4 } });
+            const gone = await neutralRoll(who, { remember: true, faces: { hope: 8, fear: 2 } });
+            made.push(other.message?.id ?? null);
+            must(other.message && gone.message && rerollBookmarkStore.get(who.id)?.messageId === gone.message.id,
+                "the roll to take back is not the one the GMs keep - this would measure nothing");
+            await gone.message.delete();
+            const hope = who.system.resources.hope.value;
+            watch = watchRerollWrites(who, other.message.id);
+            journalled = 0;
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const spent = await spendHopeCall(who, "reroll");
+            await settle();
+            equal(stableJson([spent, watch.hope.length, who.system.resources.hope.value - hope, warned.includes(game.i18n.localize("DRPG.Reroll.messageGone")),
+                watch.rolls.length, journalled, rerollJournalStore.has(who.id)]),
+            stableJson([null, 0, 0, true, 0, 0, false]),
+            "a Reroll of a roll whose message is gone was paid for, rewrote another roll, or was not refused with its reason (answer, Hope writes, Hope moved, line shown, the other roll rewritten, journal writes, journal left)");
+        } finally {
+            ui.notifications.warn = warn;
+            Hooks.off("clientSettingChanged", journal);
+            watch?.stop();
+            for (const id of made) await game.messages.get(id ?? "")?.delete();
+        }
+    }],
+
+    ["two Rerolls of one character at once: one is made, the other refused", async () => {
+        /*
+         * E08+E28 C4a, 03.10.2026; the plan's 2.3 step 1. The GM makes one Reroll of a character
+         * at a time; a second asked while the first runs is refused, not queued behind it - made
+         * after it, it would reroll the first's new roll and be paid twice. A student's roll,
+         * bookmarked on the GMs and thrown again on the suite's roll (`rerollableRoll`), which
+         * holds the first Reroll at its throw until the second has answered. Read: the two
+         * answers, the line shown, the Hope against before, and how often the card was rewritten.
+         */
+        const [who] = cast(1);
+        const { spendHopeCall, hopeCallRefusal } = await import("./calls.mjs");
+        const warn = ui.notifications.warn, warned = [];
+        let release = () => {};
+        const gate = new Promise(resolve => { release = resolve; });
+        let stand = null, watch = null, message = null;
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            await who.update({ "system.resources.hope.value": 6 });
+            ({ message } = await neutralRoll(who, { remember: true, faces: { hope: 9, fear: 4 } }));
+            must(message, "the roll made no message");
+            stand = rerollableRoll(message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 }, onReroll: () => gate });
+            const hope = who.system.resources.hope.value;
+            watch = watchRerollWrites(who, message.id);
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const answers = [];
+            const asked = [spendHopeCall(who, "reroll"), spendHopeCall(who, "reroll")].map(p => p.then(out => { answers.push(out ? "made" : null); }));
+            await until(() => answers.length >= 1, 4000);
+            release();
+            await Promise.all(asked);
+            await settle();
+            equal(stableJson([answers.slice().sort(), warned.includes(game.i18n.localize("DRPG.Reroll.busy")), who.system.resources.hope.value - hope, watch.rolls.length]),
+                stableJson([["made", null].sort(), true, -3, 1]),
+                "two Rerolls at once were both made, both refused, or the second was not refused as busy (answers, line shown, Hope moved, rewrites)");
+        } finally {
+            release();
+            ui.notifications.warn = warn;
+            watch?.stop();
+            stand?.putBack();
+            await message?.delete();
         }
     }],
 
@@ -3808,12 +3972,12 @@ const SCENARIOS = [
          * character on the message: the roller's scan of recent chat (`belongsTo`), the GM's
          * receipt (`actorIdsOf`) and the settlement of Hope and Sanity (`rollTarget`, from the
          * roll's `source.actor`). A roll whose document names nobody, with its bookmark: the
-         * bookmark finds it, and so does the scan once the bookmark is gone - from what this
-         * browser kept when it threw it; the receipt's reader names the character; and the
+         * bookmark finds it - the GMs' since E08+E28 C4a, whose Reroll has no scan; the receipt's
+         * reader names the character; and the
          * settlement lands on the character the Reroll was asked for, where the roll alone names
-         * nobody. The Reroll itself is not thrown: `Roll#reroll` is not in the harness, and a
+         * nobody. The Reroll itself is not thrown here: `Roll#reroll` is not in the harness, and a
          * receipt is a player's, made on the GM's client from that player's rewrite -
-         * 33-bridge-paths' A10 makes one. The bookmark store and the message are put back.
+         * 33-bridge-paths' A10 makes one. The message is put back.
          * E06 fix r1-G1, 28.09.2026: the roll is thrown with the student's experience picked, and
          * the bookmark keeps it - the roll's message no longer does, and the Reroll rebuilds the
          * formula from the bookmark's (reroll.mjs `rollAsThrown`, R204).
@@ -3823,24 +3987,20 @@ const SCENARIOS = [
         must(picked.length, `${who.name} has no experience to pick - this would measure nothing`);
         const R = await import("./reroll.mjs");
         const { actorIdsOf } = await import("./reroll-receipts.mjs");
-        const kept = getSetting(SETTINGS.rollBookmarks);
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
         let message = null;
         try {
             ({ message } = await neutralRoll(who, { remember: true, faces: { hope: 9, fear: 5 }, experiences: picked }));
             must(message && !message.speaker?.actor && !message.system?.source?.actor && message.rolls?.[0],
                 "the roll's document still names its character, or holds no roll - this measured nothing");
-            const byMark = R.lastRollOf(who).message?.id ?? null;
-            const marked = R.lastRollOf(who).bookmark?.experiences ?? null;
+            const row = rerollBookmarkStore.get(who.id);
             const stored = typeof message.toObject().rolls[0] === "string" ? JSON.parse(message.toObject().rolls[0]) : message.toObject().rolls[0];
-            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, {});
-            const byScan = R.lastRollOf(who).message?.id ?? null;
             const original = message.rolls[0];
             const [target, alone] = [await R.rollTarget(original, who), await R.rollTarget(original)];
-            equal(stableJson([byMark, byScan, actorIdsOf(message), target?.id ?? null, alone?.id ?? null, marked, stored?.options?.experiences ?? null]),
-                stableJson([message.id, message.id, [who.id], (who.system?.partner ?? who).id, null, picked, null]),
+            equal(stableJson([row?.messageId ?? null, actorIdsOf(message), target?.id ?? null, alone?.id ?? null, row?.experiences ?? null, stored?.options?.experiences ?? null]),
+                stableJson([message.id, [who.id], (who.system?.partner ?? who).id, null, picked, null]),
                 "a Reroll would not find the roll, its receipt or its settlement would not name the character, or its bookmark lost the experiences the roll no longer holds");
         } finally {
-            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, kept ?? {});
             await message?.delete();
         }
     }],
@@ -4048,34 +4208,41 @@ const SCENARIOS = [
     ["a Reroll's dice are thrown to the roll's readers alone", async () => {
         /*
          * E06 C6, 27.09.2026; audit S02-13. A Reroll threw its new dice with
-         * `showForRoll(rerolled, game.user, true)` - to every screen. It names the readers now
-         * (reroll.mjs `showRerolledDice`): the message's whisper list and its author, or
-         * everybody (no list) when the roll was not whispered, with the message's id. Dice So
-         * Nice is swapped for a recorder for the two calls, so a table's real one draws nothing.
+         * `showForRoll(rerolled, game.user, true)` - to every screen; E06 C6 named the readers.
+         * E08+E28 C4a: the GM makes the Reroll and sends its dice itself (private-rolls.mjs
+         * `relayRerolledDice`) - `dice.show { id, by, rewrite }` by addressed socket to the
+         * readers of `diceAudienceIds` and the roller, and on its own screen as the roller's
+         * dice, with no synchronised throw. The socket's emit and Dice So Nice are swapped for
+         * recorders for the one call. Read: each packet with its recipients, and each throw on
+         * this screen - as whose dice, and whether synchronised.
          */
         needs(world.moduleActive("dice-so-nice"), "a Reroll shows its dice through Dice So Nice");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roller is a connected player");
         const [who] = cast(1);
-        const R = await import("./reroll.mjs");
-        const { gmIds } = await import("./utils.mjs");
+        const P = await import("./private-rolls.mjs");
+        const player = game.users.find(u => !u.isGM && u.active);
         await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
         const { message } = await neutralRoll(who);
         must(message?.rolls?.length, "the roll made no message");
-        const real = game.dice3d;
-        const calls = [];
-        game.dice3d = { showForRoll: async (...args) => { calls.push(args); return true; } };
+        const readers = [...new Set([...P.diceAudienceIds(message), player.id])].filter(id => id !== game.user.id).sort();
+        const real = game.dice3d, emit = game.socket.emit;
+        const thrown = [], sent = [];
+        game.dice3d = { showForRoll: async (...args) => { thrown.push(args); return true; } };
+        game.socket.emit = (event, packet, opts) => {
+            if (packet?.action !== "dice.show") return emit.call(game.socket, event, packet, opts);
+            sent.push([packet, [...(opts?.recipients ?? [])].sort()]);
+        };
         try {
-            await R.showRerolledDice(message.rolls[0], message);
-            await message.update({ whisper: [] });
-            await R.showRerolledDice(message.rolls[0], message);
+            P.relayRerolledDice(message, player.id);
+            await settle();
         } finally {
             game.dice3d = real;
+            game.socket.emit = emit;
             await message.delete();
         }
-        const read = args => ({ sync: args[2] === true, users: args[3] ? [...args[3]].map(u => u?.id ?? u).sort() : null, id: args[5] ?? null });
-        equal(stableJson(calls.map(read)), stableJson([
-            { sync: true, users: [...new Set([...gmIds(), game.user.id])].sort(), id: message.id },
-            { sync: true, users: null, id: message.id }
-        ]), "a Reroll's dice go to somebody who does not read the roll, or a whispered roll's to everybody");
+        equal(stableJson([sent, thrown.map(args => [args[1]?.id ?? args[1] ?? null, args[2] === true])]),
+            stableJson([[[{ action: "dice.show", id: message.id, by: player.id, rewrite: true }, readers]], [[player.id, false]]]),
+            "a Reroll's dice go to somebody who does not read the roll, miss the roller, or are thrown here synchronised or as another's dice (packets, throws)");
     }],
 
     ["an incident roll's dice reach the incident's audience at the roll's stage, and nobody else", async () => {
@@ -16070,47 +16237,39 @@ const SCENARIOS = [
         }
     }],
 
-    ["a Reroll finds its bookmark in the roller's browser, and the actor carries none", async () => {
+    ["a Reroll reads the GMs' bookmark of the action's roll, and no browser setting or actor carries one", async () => {
         /*
-         * E05 C7, 26.09.2026; audit S02-01. The bookmark was the actor flag `lastAction`,
-         * in every browser; it is this browser's client setting `rollBookmarks` now, per
-         * world and character. Two rolls of one character: the action's own, with its
-         * context, and a supporting roll after it (`remember: false`), newer and not the
-         * one to take back. The bookmark names the first, from this browser's store under
-         * this world, the actor carries none, and a Reroll takes the first back - not the
-         * newest, which is what the recent-chat scan alone would pick. Then the only
-         * bookmark is another world's: it is not read here, and the scan picks the newest.
-         * The store, the dice and the two messages are put back.
+         * E05 C7, 26.09.2026; audit S02-01. The bookmark was the actor flag `lastAction`, in every
+         * browser; E05 C7 made it the roller's client setting `rollBookmarks`, and E08+E28 C4a the
+         * GMs' row (gm-stores.mjs `rerollBookmarkStore`), which the Reroll the GM makes reads. Two
+         * rolls of one character: the action's own, and a supporting roll after it (`remember:
+         * false`), newer and not the one to take back. The GMs' row names the first, with the
+         * room the character stood in; the client setting is not registered, and the actor
+         * carries no flag. The dice and the two messages are put back.
          */
         const [who] = cast(1);
         const rolls = await import("./action-rolls.mjs");
-        const R = await import("./reroll.mjs");
-        const kept = getSetting(SETTINGS.rollBookmarks);
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
         const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
         const made = [];
         try {
             globalThis.__forceRoll = { hope: 9, fear: 5 };
-            const first = await rolls.rollTrait(who, "eye", { actionKey: "suite-probe", context: { room: "SUITE room" } });
+            const first = await rolls.rollTrait(who, "eye", { actionKey: "suiteProbe", context: { room: "SUITE room" } });
             made.push(first?.raw?.message?.id ?? null);
             const second = await rolls.rollTrait(who, "eye", { remember: false });
             made.push(second?.raw?.message?.id ?? null);
             const [firstId, secondId] = made;
             ok(firstId && secondId && firstId !== secondId, "the two rolls did not each leave a message - this measured nothing");
-            const mark = rolls.rollBookmark(who);
-            equal(stableJson([mark?.messageId, mark?.actionKey, mark?.room]), stableJson([firstId, "suite-probe", "SUITE room"]),
-                "the bookmark is not the action's roll with its context");
-            equal(getSetting(SETTINGS.rollBookmarks)?.worlds?.[game.world.id]?.[who.id]?.messageId, firstId,
-                "the bookmark is not in this browser's store under this world and character");
+            const row = rerollBookmarkStore.get(who.id);
+            equal(stableJson([row?.messageId, row?.actionKey, row?.room ?? null, rolls.rollInHand(who)?.messageId]),
+                stableJson([firstId, "suiteProbe", roomOfActor(who) ?? null, firstId]),
+                "the GMs' row is not the action's roll with the room it was thrown in, or this browser told them another");
+            ok(!game.settings.settings.has(`${MODULE_ID}.rollBookmarks`), "the retired client setting rollBookmarks is still registered");
             ok(!Object.hasOwn(who.flags?.[MODULE_ID] ?? {}, FLAGS.lastAction), "the actor carries a Reroll bookmark in world data");
-            equal(R.lastRollOf(who).message?.id, firstId, "a Reroll would take back the newest roll, not the bookmarked one");
-
-            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, { v: 1, worlds: { "suite-other-world": { [who.id]: { messageId: firstId } } } });
-            equal(rolls.rollBookmark(who), null, "another world's bookmark was read as this world's");
-            equal(R.lastRollOf(who).message?.id, secondId, "with no bookmark here, a Reroll does not fall back to the newest roll");
         } finally {
             if (hadForce) globalThis.__forceRoll = force;
             else delete globalThis.__forceRoll;
-            await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, kept ?? {});
             for (const id of made) await game.messages.get(id ?? "")?.delete();
         }
     }],
@@ -18482,7 +18641,7 @@ const SCENARIOS = [
             const words = made.length === 1 ? String(await wordsOf(made[0], 2000) ?? "") : "";
             const line = `<p><em>${game.i18n.format("DRPG.Action.stashSetAside", { set: "5", total: total - 3 })}</em></p>`;
             equal(stableJson([made.length, thrown3d, words.includes(line), made[0] ? cardFlag(made[0], "stashStep") : null,
-                rolls.rollBookmark(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room).length]),
+                rolls.rollInHand(actor)?.stashDie ?? null, V.stashItemsIn(owner, stood.room).length]),
             stableJson([1, 0, true, { kind: "setAside", read: [5, 2], setAside: 5, rolled: null, change: -3, score: total - 3 }, true, 1]),
             "the Search made more than its card or threw dice, its card does not say the step and the total that counts, its meta does not hold the dice, or the bookmark lost the stash (messages, throws, line, meta, bookmark, stash)");
         } finally {
