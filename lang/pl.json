@@ -1442,6 +1442,7 @@
       "actionsLocked": "Jesteś w incydencie. Wszystko, co możesz zrobić, kryje się pod kafelkiem {tile}; Hope Calls wciąż działają.",
       "thirdJoined": "{name} staje po stronie zabójcy i zostaje w incydencie.",
       "thirdLeft": "{name} odwraca się i wychodzi. Nie bierze w tym udziału.",
+      "thirdEscapedAlone": "{name} ucieka w pojedynkę. Ofiara zostaje tam, gdzie jest, a {name} nie bierze już w tym udziału.",
       "openingYours": "Ten rzut jest twój i jest jedyny. Nie da się go pominąć.",
       "openingRequired": "Tego rzutu nie da się pominąć. Rzuć.",
       "openingDeclined": "Brak rzutu otwarcia od: {name}. Stage 4 nie da się pominąć: poproś o niego ponownie z trackera incydentu albo zakończ incydent.",

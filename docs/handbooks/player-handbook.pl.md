@@ -590,7 +590,7 @@ Potem **sprzątanie**. Twój kafelek Tamper wymienia teraz każdy ślad w pokoju
 Tej nocy, na własnej scenie, sprzątanie nie kosztuje akcji. Usuwanie, przerabianie i fałszywy trop wymieniają Shadow, Hand i Head: GM wybiera jedną na podstawie tego, co według ciebie robisz. Narzędzie do sprzątania w ręku daje przewagę i zdejmuje swój Tier z progu. Świadkowie w pokoju oznaczają ten sam rzut maskowania Shadow-16 i to samo Sanity za przyłapanie - poza Przenieś ciało, które nie rzuca na maskowanie.
 
 > [!WARNING]
-> Każde narzędzie zbrodni, którym zamachnąłeś się w walce, zostaje zniszczone, gdy zamyka się incydent, który doszedł do sprzątania (Finishing blow nie jest zamachem); każde narzędzie do sprzątania, które miałeś na sobie przy próbie sprzątania, zostaje zniszczone, gdy znajdzie się ciało, nawet jeśli od tamtej pory je odłożyłeś - ale nie, jeśli schowałeś je do skrytki. Oba zostają w ekwipunku jako zepsute dowody.
+> Każde narzędzie zbrodni, którym zamachnąłeś się w walce, zostaje zniszczone, gdy zamyka się incydent, który doszedł do sprzątania (Finishing blow nie jest zamachem); każde narzędzie do sprzątania, które miałeś na sobie przy próbie sprzątania, zostaje zniszczone, gdy znajdzie się ciało twojej ofiary, nawet jeśli od tamtej pory je odłożyłeś - ale nie, jeśli schowałeś je do skrytki; jeśli nie sprzątałeś, zniszczone zostaje to, które masz wtedy w ręku. Oba zostają w ekwipunku jako zepsute dowody.
 
 ### Jeśli na to wchodzisz
 

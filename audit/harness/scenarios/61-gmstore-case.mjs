@@ -753,13 +753,13 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     /* The opening's statistic is the GMs' (E32+E07 C11c): the killer's copy holds it null, and its stamp reads as the
        newest of the parts the copy shows (murder.mjs `castPacket`), as the Key Remnants' count's does - which the
        opening's result wrote last, so its stamp is that newest already. Who struck a critical Finishing blow
-       (`freeCleanup`, E32+E07 C13) is withheld the same way, so its stamp reads as that newest too - the C13 chain
-       (03.10.2026) failed F3 until this line named it. The fight's last turns (`recent`, E32+E07 C17) are the
+       (`freeCleanup`, E32+E07 C13) was withheld the same way until fix r2-G3 (03.10.2026; the round-2 review's
+       C2-m1), and is the killers' to read now - p3's copy holds it with the record's stamp. The fight's last turns (`recent`, E32+E07 C17) are the
        GMs' as well, and withheld the same way; so, since fix r2-G2 (03.10.2026), are the Reroll receipt and who
        walked into the fight and out of it (`lastCrisis`, `departed`). */
-    const withheldF = ["keyRemnants", "openingTrait", "freeCleanup", "recent", "lastCrisis", "departed"];
+    const withheldF = ["keyRemnants", "openingTrait", "recent", "lastCrisis", "departed"];
     const shownF = Math.max(0, ...Object.entries(stampsF).filter(([f]) => !withheldF.includes(f)).map(([, t]) => t ?? 0));
-    const heldStampsF = { ...stampsF, openingTrait: shownF, freeCleanup: shownF, recent: shownF, lastCrisis: shownF, departed: shownF };
+    const heldStampsF = { ...stampsF, openingTrait: shownF, recent: shownF, lastCrisis: shownF, departed: shownF };
     check("F3: the primary answers the killer's player with the cast and every part's stamp, a bystander with nothing and the seats' stamps alone, and both GMs hold the killer",
         castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === castAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi

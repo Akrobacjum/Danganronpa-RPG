@@ -50,7 +50,7 @@ import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf }
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 // `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
 // now (action-rolls.mjs), because that is where the body tile lives.
-import { isCleaner, tamperPriceSkip, witnessesTo } from "./cleanup.mjs";
+import { isCleaner, tamperQuote, witnessesTo } from "./cleanup.mjs";
 // The price a tile is about to charge, quoted from the same table the charge
 // reads (T-1). Synchronous by design - this file calls it from a render path.
 import { quotePrice, priceLabel, stripeKindFor } from "./price.mjs";
@@ -4402,7 +4402,8 @@ function costOf(actor, key, def) {
      * A PRICED ACTION IS QUOTED, NOT COUNTED (T-1).
      *
      * The killer's own night still skips the action step (D3) - but that is now
-     * `tamperPriceSkip`, the same list `chargeTamper` reads, rather than a
+     * `tamperPriceSkip`, the same list `chargeTamper` reads (through `tamperQuote`,
+     * which also knows a critical Finishing blow's free attempt), rather than a
      * separate `isCleaner` test in this file that had to be kept in step by hand.
      * What comes back is the step that will really pay, so a Tamper about to cost
      * a Sanity mark no longer reads "1 action".
@@ -4438,7 +4439,7 @@ function directMurderIsFree(actor) {
  * charge cannot disagree about the price the way they did on the E23 round.
  */
 function priceQuoteFor(actor, key) {
-    return quotePrice(actor, key, { skip: key === "tamper" ? tamperPriceSkip(actor) : [] });
+    return key === "tamper" ? tamperQuote(actor) : quotePrice(actor, key);
 }
 
 /**

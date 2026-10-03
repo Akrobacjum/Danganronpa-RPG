@@ -484,9 +484,15 @@ function castStamps() {
  * for a roll a direct murder's victim is not shown (D6) and a trap's builder is not shown
  * either, and the one player who rolls it is sent it with the invitation
  * (gm-bridge.mjs `askOpeningRoll`). Every reader of it runs on a GM's browser.
- * Who struck a critical Finishing blow (`freeCleanup`, E32+E07 C13), null in every copy as
- * well: its one reader is the GM's charge for a clean-up attempt (cleanup.mjs
- * `consumeFreeCleanup`), and nothing a player's browser draws reads it.
+ * Who struck a critical Finishing blow (`freeCleanup`, E32+E07 C13), null in every copy but
+ * the killers': the GM's charge spends it (cleanup.mjs `consumeFreeCleanup`), and since fix
+ * r2-G3 (03.10.2026; the round-2 review's C2-m1) the striker's own browser quotes the attempt
+ * free by it (`tamperQuote`) - before that a striker whose bar the blow filled was refused
+ * the attempt it paid for. The killers' and not the striker's alone: the spend writes null,
+ * and a copy that withheld null would stamp it as the newest of what it shows, which the
+ * spend does not move, so the striker's browser would not take it and keep quoting a spent
+ * grant (castCombine on the two packets, tier 2's free clean-up test). The critical itself
+ * was rolled in front of the incident's seats.
  * The fight's last turns (`recent`, E32+E07 C17), null in every copy too: the GM's tracker
  * is their one reader, and each names who acted, what they rolled and what it cost - a
  * history of the fight no seat's panel draws.
@@ -513,10 +519,11 @@ function castCopyFor(userId, cast, state = null) {
     if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };
     const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
     const afterFight = !incidentAudienceIds(seen, { stage: "incident" }).includes(userId);
+    const killer = killerIds(theirs).some(owns);
     const withheld = [...(afterFight ? [...INCIDENT_FIGHT, ...(copy.thirdId ? [] : ["thirdId", "thirdSide"])] : ["keyRemnants"]),
-        "lastCrisis", "departed", "openingTrait", "freeCleanup", "recent"];
+        "lastCrisis", "departed", "openingTrait", ...(killer ? [] : ["freeCleanup"]), "recent"];
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
-    if (!seen.indirect || killerIds(theirs).some(owns)) return { copy, withheld };
+    if (!seen.indirect || killer) return { copy, withheld };
     return { copy: { ...copy, killerId: null, killerTurnId: null }, withheld };
 }
 
@@ -2402,8 +2409,13 @@ async function applyCrisisAction({
             : def.failureExtraDrain;
         if (extra && side === "victim") await drain(state, extra, done);
         else if (extra) await takeReserves(actor, { stress: extra }, done);
-        // "Only you get out" (config.mjs `sharedEscape.failure`): the third has left (S04-21).
-        if (key === "sharedEscape") await thirdLeaves(actor);
+        // "Only you get out" (config.mjs `sharedEscape.failure`): the third has left (S04-21), and
+        // the card says so (fix r2-G3, 03.10.2026; the round-2 review's C2-m4) - a failure prints
+        // nothing from the table, so the killer and the victim were not told the third was gone.
+        if (key === "sharedEscape") {
+            await thirdLeaves(actor);
+            done.push(game.i18n.format("DRPG.Murder.thirdEscapedAlone", { name: foundry.utils.escapeHTML(actor.name) }));
+        }
     }
 
     // The third party's decisions are "automatyczny, darmowy wybór" - free in

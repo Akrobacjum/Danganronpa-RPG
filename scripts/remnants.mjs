@@ -220,7 +220,13 @@ export async function dropRemnant(actor, {
      * authority, that it was unrelated to it.
      */
     tiedToCrime = null,
-    itemIdentity = null
+    itemIdentity = null,
+    /*
+     * The project a Work trace was left by. Kept nowhere: a player's packet carries it so the
+     * GM can judge the tie to the crime on its own record (gm-bridge.mjs `handleRemnant`,
+     * E32+E07 fix r2-G3), since the packet's own `tiedToCrime` is never taken.
+     */
+    projectId = null
 } = {}) {
     const token = tokenFor(actor);
     if (!token) {
@@ -251,7 +257,7 @@ export async function dropRemnant(actor, {
         // socket to the GM, and a live document does not survive that.
         sceneId: token.document.parent?.id,
         type, visibility, faint, reinforced, note, action, subject, pointsAt, tiedToCrime,
-        itemIdentity,
+        itemIdentity, projectId,
         sourceActor: actor.id,
         sourceName: actor.name,
         room: roomOfActor(actor),

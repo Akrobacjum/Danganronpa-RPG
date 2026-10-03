@@ -330,9 +330,9 @@ export const SETTINGS = {
     gmLootTraces: "gmLootTraces",
     /**
      * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 1.2.66; audit S05-38, D13): a GM store
-     * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning }` - the ids
-     * of every Cleaning Tool readied at a clean-up attempt they made, broken at the body's
-     * discovery. No player copy.
+     * (gm-stores.mjs `usedToolStore`), a row per killer `{ chapter, epoch, cleaning, victims }` -
+     * the ids of every Cleaning Tool readied at a clean-up attempt they made, broken at the
+     * discovery of a body the row names (fix r2-G3). No player copy.
      */
     gmUsedTools: "gmUsedTools",
     /**

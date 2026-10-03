@@ -731,14 +731,15 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
        body kept by the GMs lying in this room are published before anything else - before the
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
-    await publishFoundBodies(room, victim, where);
+    const found = await publishFoundBodies(room, victim, where);
 
     const promoted = await promoteFaintPrep();
 
     // Stage 7 takes the gloves. The guide puts the cleaning tool's destruction
     // here rather than at the end of Stage 6 - see CLEANUP.destroysToolsOnDiscovery.
+    // The gloves of the bodies found, and no others (fix r2-G3: `destroyCleaningTools`).
     await import("./cleanup.mjs")
-        .then(m => m.destroyCleaningTools())
+        .then(m => m.destroyCleaningTools(found))
         .catch(err => error("Could not destroy the cleaning tools at body discovery", err));
 
     const { gatherEveryone } = await import("./call-effects.mjs");
@@ -780,14 +781,22 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
     return { promoted, moved };
 }
 
-/** The named victim, and every body kept by the GMs standing in `room` on `scene`, published (`publishDeath`). */
+/**
+ * The named victim, and every body kept by the GMs standing in `room` on `scene`, published
+ * (`publishDeath`). Answers every body the discovery found - the named victim and every body
+ * dead for the GMs in the room, a death the table already knew included - whose killers'
+ * cleaning tools it breaks (E32+E07 fix r2-G3; cleanup.mjs `destroyCleaningTools`).
+ */
 async function publishFoundBodies(room, victim, scene) {
     const ids = new Set(victim && deathStore.has(victim.id) ? [victim.id] : []);
+    const found = new Set(victim ? [victim.id] : []);
     try {
         const { roomOfToken } = await import("./movement.mjs");
         for (const t of scene?.tokens ?? []) {
             const id = t.actor?.id;
-            if (id && deathStore.has(id) && roomOfToken(t) === room) ids.add(id);
+            if (!id || roomOfToken(t) !== room) continue;
+            if (deathStore.has(id)) ids.add(id);
+            if (deathStore.has(id) || isDeadForGm(t.actor)) found.add(id);
         }
     } catch (err) {
         error("Could not read which bodies lie in the room of the discovery", err);
@@ -796,7 +805,7 @@ async function publishFoundBodies(room, victim, scene) {
         const body = game.actors.get(id);
         if (body) await publishDeath(body);
     }
-    return ids.size;
+    return [...found];
 }
 
 /**

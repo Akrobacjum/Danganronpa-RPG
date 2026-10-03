@@ -33,7 +33,7 @@ import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
 // The killer's skipped step and who actually counts as a witness. Static,
 // because `briefingFacts` is synchronous and R8 renders it for every action;
 // cleanup.mjs reaches back into this file only through a dynamic import.
-import { tamperPriceSkip, witnessesTo } from "./cleanup.mjs";
+import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
@@ -384,10 +384,11 @@ function briefingFacts(actor, actionKey, def, extraFacts = []) {
          * that the mark is their last. `priceLine` is that sentence, and it comes
          * from the same quote the tile and the payer read.
          */
-        facts.push(priceLine(actor, quotePrice(actor, actionKey,
-            // The killer on their own night pays no action step (D3), and the
-            // briefing has to say the price the charge will really take.
-            { skip: actionKey === "tamper" ? tamperPriceSkip(actor) : [] })));
+        facts.push(priceLine(actor,
+            // The killer on their own night pays no action step (D3), nor anything for the
+            // free attempt (`tamperQuote`), and the briefing has to say the price the charge
+            // will really take.
+            actionKey === "tamper" ? tamperQuote(actor) : quotePrice(actor, actionKey)));
     } else if (cost > 0) {
         facts.push(game.i18n.format("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
     }
@@ -2020,7 +2021,11 @@ export async function chooseVariant({
             ${prompt ? `<p>${prompt}</p>` : ""}
             <div class="drpg-choice-list">${rows}</div>
             ${extra}
-            ${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote }) : ""}
+            ${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote })
+                // A window that asks no statistic still says its note (fix r2-G3, 03.10.2026; the
+                // round-2 review's C2-m9 (b)): the Tamper menu's readied Cleaning Tool was only ever
+                // drawn inside the trait field it does not have, so no Tamper window showed it.
+                : traitNote ? `<p class="notes">${traitNote}</p>` : ""}
         </form>`),
         render: options.some(o => o.confirm)
             ? (event, dialog) => followConfirmLabel(dialog, confirmFor) : undefined,
@@ -2636,6 +2641,9 @@ async function hideProjectTraces(actor, project, progress, lines) {
         // committing it. `null` for every other project, which leaves
         // the incident rule free to answer.
         tiedToCrime: project.indirectMurder ? true : null,
+        // A player's packet is never taken at its word on the tie: the GM reads it off this
+        // project (gm-bridge.mjs `handleRemnant`, fix r2-G3).
+        projectId: project.id,
         action: "project",
         subject: project.name,
         note: trace
@@ -3212,15 +3220,17 @@ async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, 
                 why: game.i18n.localize("DRPG.Cleanup.bodyNotHere")
             }] : [])
         ],
-        // What is readied, said where the roll that uses it is chosen. The
-        // clean-up panel carried this line; the panel is gone and the sentence
-        // is not - a Cleaning Tool lowers the number and grants advantage, and
-        // a player deciding whether to scrub should know whether they are doing
-        // it bare-handed.
+        // What is readied, said where the clean-up is chosen. The clean-up
+        // panel carried this line; the panel is gone and the sentence is not -
+        // a Cleaning Tool lowers the number and grants advantage, and a player
+        // deciding whether to scrub should know whether they are doing it
+        // bare-handed. A line of its own: this window asks no statistic
+        // (`cleanupTrait` does, after), and until fix r2-G3 the note was drawn
+        // only inside a trait field, so it never showed.
         traitNote: (() => {
             const tool = equippedFor(actor, "cleaningTool");
             return tool
-                ? game.i18n.format("DRPG.Cleanup.readied", { item: tool.name })
+                ? game.i18n.format("DRPG.Cleanup.readied", { item: esc(tool.name) })
                 : game.i18n.localize("DRPG.Cleanup.noneReadied");
         })(),
         // The selects are always in the form and the CSS shows the one that
@@ -3292,10 +3302,10 @@ async function performTamper(actor, def, options) {
      * `free` is a GM's bypass only: `performAction` is on the API, and the chain
      * it skips is no longer only an action.
      */
-    const { tamperPriceSkip, tamperWatchBlock } = await import("./cleanup.mjs");
+    const { tamperWatchBlock } = await import("./cleanup.mjs");
     const free = Boolean(options.free) && game.user.isGM;
     if (!free) {
-        const quote = quotePrice(actor, "tamper", { skip: tamperPriceSkip(actor) });
+        const quote = tamperQuote(actor);
         if (quote.blocked) {
             ui.notifications.warn(quote.blocked);
             return null;

@@ -554,15 +554,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const R = await import("${REPO}/scripts/remnants.mjs");
         const left = R.remnantsOn(canvas.scene).filter(t => R.remnantData(t)?.subject === "${trapName}");
         const traces = left.map(t => R.remnantData(t)).map(d => [d.type, d.visibility]);
-        // Not asked of the check: a player's packet never decides that a trace is tied (gm-bridge.mjs, handleRemnant).
+        // Tied to the crime: the GM reads it off the project the packet names (gm-bridge.mjs \`worksOwnMurder\`, fix r2-G3).
         const tied = left.map(t => R.remnantData(t)?.tiedToCrime ?? null);
         for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
         if ("${trapProject}") await P.deleteProject("${trapProject}");
         return { traces, tied };`, { timeout: 30000 });
-    check("p1: a Work on an indirect murder whose cover window was closed leaves one Obvious trace, and says so on the card",
+    /* The trace is the crime's (E32+E07 fix r2-G3, 03.10.2026; the round-2 review's C2-m9 (a)): C13 dropped this
+       half of the check when it found a player's packet never tied a trace; the GM judges the tie on its own record. */
+    check("p1: a Work on an indirect murder whose cover window was closed leaves one Obvious trace tied to the crime, and says so on the card",
         Boolean(trapProject) && !uncovered.err && uncovered.listed.includes(trapProject)
             && JSON.stringify(uncovered.thrown.slice(-2)) === JSON.stringify(["finesse", "closed"]) && uncovered.carded === true
-            && JSON.stringify(uncoveredGm.traces) === JSON.stringify([["prep", "obvious"]]),
+            && JSON.stringify(uncoveredGm.traces) === JSON.stringify([["prep", "obvious"]]) && JSON.stringify(uncoveredGm.tied) === "[true]",
         JSON.stringify({ trapProject, uncovered, uncoveredGm }), { flow: "projects" });
 
     // ---- 7. uncaught errors ------------------------------------------------------------------

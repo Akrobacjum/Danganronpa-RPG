@@ -2034,12 +2034,14 @@ const SCENARIOS = [
             await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true });
             await settle();
             const written = S.usedToolStore?.get(killer.id)?.cleaning ?? [];
+            // The body it cleaned up after, since fix r2-G3: the discovery breaks the tools of the bodies it found.
+            const after = S.usedToolStore?.get(killer.id)?.victims ?? null;
             await gloves.update({ [`flags.${MODULE_ID}.equipped`]: false });
-            const broke = await CL.destroyCleaningTools();
-            equal(stableJson([written.includes(gloves.id), isBroken(gloves), broke.includes(gloves.name), Boolean(S.usedToolStore?.has(killer.id))]),
-                stableJson([true, true, true, false]),
-                "the clean-up did not write the gloves down, or the discovery did not break them once put away, name them, and take the row "
-                + "(written, broken, named, the row left)");
+            const broke = await CL.destroyCleaningTools([victim.id]);
+            equal(stableJson([written.includes(gloves.id), after, isBroken(gloves), broke.includes(gloves.name), Boolean(S.usedToolStore?.has(killer.id))]),
+                stableJson([true, [victim.id], true, true, false]),
+                "the clean-up did not write the gloves and the victim down, or the discovery did not break them once put away, name them, "
+                + "and take the row (written, the victims, broken, named, the row left)");
             const spec = S.usedToolStore?.spec ?? {};
             equal(stableJson([spec.kind, spec.resetGroup, spec.backup, spec.sync]), stableJson(["ledger", "incident", true, true]),
                 "the used Cleaning Tools are not a ledger cut by the reset's incident group, backed up and synced");
@@ -2048,6 +2050,68 @@ const SCENARIOS = [
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
             for (const doc of [gloves, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+        }
+    }],
+
+    ["a discovery breaks the gloves of the bodies it found, and a betrayer's stay while their victim is unfound", async () => {
+        /*
+         * E32+E07 fix r2-G3, 03.10.2026; the round-2 review's C2-m2 (the owner's Q3: a death nobody
+         * has found counts nowhere). `destroyCleaningTools` broke for every killer of the chapter
+         * whatever body was found, and took every row: with a betrayal's two bodies in two rooms,
+         * the first discovery broke the betrayer's gloves while their victim lay unfound, and a
+         * later one broke by the hand whatever a killer had readied since. It breaks for the killers
+         * of the bodies found now (the discovery hands them in), and a row loses only those bodies.
+         * Built on the GMs' two ledgers as the incidents leave them, not by playing them: the first
+         * killer killed twice and cleaned up after both (a register row and a `usedTools` row naming
+         * both bodies); the betrayer killed the first killer, never cleaned, and holds gloves (the
+         * hand, which answers for a killer with no row). The first body is found; the first killer
+         * puts the broken gloves down and readies new ones; the betrayer's victim is found; then the
+         * first killer's second. Read: what each discovery broke, and whether the first killer's
+         * row was left.
+         * Red at c09c275 (its runtime with these tests): the numbers are in fix r2-G3's commit message.
+         */
+        needs(world.atLeast("livingStudents", 4), "two killers and two victims");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const [first, betrayer, victim, second] = cast(4).filter(a => !S.blackenedStore.has(a.id) && !S.usedToolStore?.has(a.id));
+        must(second, "no four living students without a register or a ledger row");
+        must(!M.murderState(), "an incident is running");
+        const when = { chapter: getClock()?.chapter ?? null, epoch: seasonEpoch() };
+        const made = [];
+        try {
+            const gloves = {};
+            for (const [key, actor] of [["first", first], ["betrayer", betrayer]]) {
+                gloves[key] = await inHand(actor, "cleaningTool", `SUITE r2-G3 ${key}'s gloves`);
+                made.push(gloves[key]);
+            }
+            await S.blackenedStore.patchMany({
+                [first.id]: { ...when, at: 1, victims: [victim.id, second.id] },
+                [betrayer.id]: { ...when, at: 2, victims: [first.id] }
+            });
+            await S.usedToolStore.patch(first.id, { ...when, cleaning: [gloves.first.id], victims: [victim.id, second.id] });
+            const row = () => Boolean(S.usedToolStore.has(first.id));
+            const one = await CL.destroyCleaningTools([victim.id]);
+            const afterOne = row();
+            await gloves.first.update({ [`flags.${MODULE_ID}.equipped`]: false });
+            const fresh = await inHand(first, "cleaningTool", "SUITE r2-G3 first's new gloves");
+            made.push(fresh);
+            const two = await CL.destroyCleaningTools([first.id]);
+            const afterTwo = row();
+            const three = await CL.destroyCleaningTools([second.id]);
+            equal(stableJson([one, afterOne, two, afterTwo, three, row()]),
+                stableJson([[gloves.first.name], true, [gloves.betrayer.name], true, [], false]),
+                "a discovery broke gloves of a killer whose victim nobody found, or took a row with a body still unfound, or missed the "
+                + "betrayer's in hand, or the killer's second body broke what they readied after cleaning (the first discovery's broken, "
+                + "the row after it, the second's, the row after it, the third's, the row after it)");
+        } finally {
+            for (const actor of [first, betrayer]) {
+                if (S.blackenedStore.has(actor.id)) await S.blackenedStore.drop(actor.id);
+                if (S.usedToolStore?.has(actor.id)) await S.usedToolStore.drop(actor.id);
+            }
+            for (const doc of made) {
                 try { await doc?.delete(); } catch { /* already gone */ }
             }
         }
@@ -2100,7 +2164,7 @@ const SCENARIOS = [
             await M.endMurder({ reason: "closed", followUp: false });
             await settle();
             const atClose = [isBroken(mine), isBroken(theirs)];
-            await CL.destroyCleaningTools();
+            await CL.destroyCleaningTools([victim.id]);
             equal(stableJson([tables, atClose, [isBroken(mine), isBroken(theirs)], [killer, third].filter(a => S.usedToolStore?.has(a.id)).length]),
                 stableJson([[true, true], [false, false], [true, true], 0]),
                 "the tracker did not head a clean-up table for each killer, the close broke gloves, or the discovery after it left the killer's or "
@@ -2163,38 +2227,47 @@ const SCENARIOS = [
          * E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13. The card promised a critical
          * Finishing blow "one free action in Stage 6", and nothing read the band: Stage 6 costs a
          * killer no action, and every clean-up attempt cost its Sanity mark. The striker is named
-         * in the cast now (`freeCleanup`, the GMs' alone) and their first attempt costs no Sanity,
-         * hit or miss (cleanup.mjs `consumeFreeCleanup`). Two students with players: a plain blow
-         * (closed, the victim revived), then a critical one, then two scrubs made as the killer's
-         * browser and the bridge make them - the chain paid first (a Sanity mark, the killer's own
-         * Stage 6 skipping the action), the step claimed in the packet - and between them the
-         * first one's Reroll (`undo`, the same claim, as reroll.mjs replays it). Read: the plain
-         * blow's grant, the critical's, the killer's player's copy of it, what the first attempt
-         * moved the Sanity by, the grant after it, what its Reroll moved, and the second's.
-         * Red at 827f07b: <measured by A2>.
+         * in the cast now (`freeCleanup`) and their first attempt costs no Sanity, hit or miss
+         * (cleanup.mjs `consumeFreeCleanup`). Two students with players: a plain blow (closed, the
+         * victim revived), then a critical one, then two scrubs made as the killer's browser and
+         * the bridge make them - the quote and the charge first (`tamperQuote`, `chargeTamper`),
+         * the step claimed in the packet - and between them the first one's Reroll (`undo`, the
+         * same claim, as reroll.mjs replays it).
+         * THE STRIKER'S BROWSER KNOWS IT (fix r2-G3, 03.10.2026; the round-2 review's C2-m1): the
+         * grant was the GMs' alone, the striker's quote asked the Sanity step, and a bar the blow
+         * had filled refused the attempt before any GM was asked. The killers' copy carries it now,
+         * so the first scrub is made at a FULL bar and is quoted free; and the packet that tells
+         * the spend must be one the killer's copy takes (`castCombine`), or their browser would
+         * quote a spent grant. Read: the plain blow's grant, the critical's, the killer's player's
+         * copy of it and the victim's, the first's quote at a full bar and what it moved the
+         * Sanity by, the grant after it, whether the killer's copy takes the spend, what the
+         * Reroll moved, and the second's quote and Sanity.
+         * Red at c09c275 (its runtime with these tests): the numbers are in fix r2-G3's commit message.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         needs(world.atLeast("sceneOnScreen"), "the scrubbed traces are placed on the scene on screen");
         const M = await import("./murder.mjs");
         const CL = await import("./cleanup.mjs");
         const S = await import("./gm-stores.mjs");
-        const { payPrice } = await import("./price.mjs");
         const { placeRemnant } = await import("./remnants.mjs");
-        const { resourceValue } = await import("./character.mjs");
+        const { resourceValue, resourceMax } = await import("./character.mjs");
         const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [killer, victim] = livingStudents().filter(player);
         const scene = game.scenes.active ?? canvas?.scene;
         const anchor = scene?.tokens?.find(t => t.x || t.y);
         const traces = [];
-        // What one attempt moved the killer's Sanity by, the price their browser paid included.
-        const attempt = async trace => {
+        // What the killer's browser was quoted, and what one attempt moved their Sanity by, the price it paid included.
+        const attempt = async (trace, sanity) => {
+            await killer.update({ "system.resources.stress.value": sanity });
             const before = resourceValue(killer, "stress");
-            const charge = await payPrice(killer, "tamper", { skip: CL.tamperPriceSkip(killer), quiet: true });
-            must(charge?.pay === "stress", `the killer's Stage 6 price is not a Sanity mark: ${stableJson(charge)}`);
-            await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true, price: charge.pay });
-            await settle();
-            return resourceValue(killer, "stress") - before;
+            const quote = CL.tamperQuote(killer);
+            const charge = quote.blocked ? null : await CL.chargeTamper(killer);
+            if (charge) {
+                await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true, price: charge.pay });
+                await settle();
+            }
+            return [quote.blocked ? "refused" : quote.pay ?? "free", resourceValue(killer, "stress") - before];
         };
         const blow = async isCritical => {
             await fightOpen(M, killer, victim);
@@ -2204,6 +2277,10 @@ const SCENARIOS = [
             must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
             return M.murderState()?.freeCleanup ?? null;
         };
+        const packet = () => {
+            const p = M.castPacket(player(killer).id, S.castStore.record());
+            return { value: p.cast, stamps: p.stamps };
+        };
         try {
             await killer.update({ "system.resources.stress.value": 0 });
             const plain = await blow(false);
@@ -2211,24 +2288,30 @@ const SCENARIOS = [
             await reviveCharacter(victim, { quiet: true });
             await settle();
             const granted = await blow(true);
-            const copy = M.castFor(player(killer).id, S.castStore.record())?.freeCleanup ?? null;
+            const copies = [killer, victim].map(a => M.castFor(player(a).id, S.castStore.record())?.freeCleanup ?? null);
+            const held = packet();
             for (const n of [1, 2]) {
                 const trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
                     note: `SUITE C13 a trace the killer scrubs, ${n}` });
                 must(trace, "the fixture's trace was not placed");
                 traces.push(trace);
             }
-            const first = await attempt(traces[0]);
+            const first = await attempt(traces[0], resourceMax(killer, "stress"));
             const left = M.murderState()?.freeCleanup ?? null;
+            const took = S.castCombine(held, packet());
+            const told = took ? took.value?.freeCleanup ?? null : "kept";
             const before = resourceValue(killer, "stress");
-            await CL.resolveCleanup({ actorId: killer.id, tokenId: traces[0].id, total: 30, isCritical: false, withHope: true, undo: true, price: "stress" });
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: traces[0].id, total: 30, isCritical: false, withHope: true, undo: true, price: null });
             await settle();
             const replay = resourceValue(killer, "stress") - before;
-            const second = await attempt(traces[1]);
-            equal(stableJson([plain, granted === killer.id, copy, first, left, replay, second]), stableJson([null, true, null, 0, null, 0, 1]),
-                "a plain blow named a striker, or a critical named none, or the killer's player's copy holds it, or the first scrub cost "
-                + "Sanity or left the grant, or its Reroll cost Sanity, or the second was free too (the plain blow's grant, the critical's, "
-                + "the copy, the first's Sanity, the grant after it, the Reroll's Sanity, the second's Sanity)");
+            const second = await attempt(traces[1], 0);
+            equal(stableJson([plain, granted === killer.id, copies, first, left, told, replay, second]),
+                stableJson([null, true, [killer.id, null], ["free", 0], null, null, 0, ["stress", 1]]),
+                "a plain blow named a striker, or a critical named none, or the killer's player's copy lacks it or the victim's holds it, "
+                + "or the first scrub at a full bar was not quoted free or cost Sanity or left the grant, or the killer's copy would not "
+                + "take the spend, or its Reroll cost Sanity, or the second was free too (the plain blow's grant, the critical's, the "
+                + "killer's and the victim's copies, the first's quote and Sanity, the grant after it, the spend in the killer's copy, "
+                + "the Reroll's Sanity, the second's quote and Sanity)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
@@ -2238,6 +2321,7 @@ const SCENARIOS = [
             for (const doc of [...traces, ...back]) {
                 try { await doc?.delete(); } catch { /* already gone */ }
             }
+            await killer.update({ "system.resources.stress.value": 0 });
         }
     }],
 
@@ -2294,6 +2378,72 @@ const SCENARIOS = [
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             try { await trace?.delete(); } catch { /* already gone */ }
         }
+    }],
+
+    ["a kept death published from the Students list does not offer Stage 6 again", async () => {
+        /*
+         * E32+E07 fix r2-G3, 03.10.2026; the round-2 review's C2-m7. `applyAliveStates` offers
+         * Stage 6 for a death it makes, and only for one: `living` (gm-panel.mjs) keeps it quiet for
+         * a death the GMs already held - the Kill button's, whose offer the GM already answered. C13
+         * filed the mutant that drops `living` as equivalent; it is a missing test. The victim is
+         * killed by the Kill button's procedure mid-fight (`killCharacter`, kept secret as an
+         * incident victim's death is), the GM declines Stage 6, and the death is then published from
+         * the list. Read: the Stage 6 windows asked, the stage, and the death on the table.
+         * Red with `living` taken out (a mutant): fix r2-G3's commit message.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { livingStudents, isDeadForGm, isDeceased, killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const title = game.i18n.localize("DRPG.Chapter.stageSixTitle");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const asked = [];
+        try {
+            await fightOpen(M, killer, victim);
+            D.confirm = async cfg => {
+                asked.push(cfg?.window?.title ?? "");
+                return false;
+            };
+            must(await killCharacter(victim, { keepBullets: true }), `${victim.name}'s death by the Kill button was not recorded`);
+            await settle();
+            const kept = [isDeadForGm(victim), isDeceased(victim)];
+            must(await applyAliveStates({ [victim.id]: { state: "dead" } }), `${victim.name}'s death from the list was not recorded`);
+            await settle();
+            equal(stableJson([kept, asked.filter(t => t === title).length, M.murderState()?.stage ?? null, isDeceased(victim)]),
+                stableJson([[true, false], 1, "incident", true]),
+                "the Kill button's death was not kept, or Stage 6 was not offered once - the list offered it again for a death the GMs "
+                + "already held - or the declined fight moved on, or the list did not publish the death (kept, Stage 6 windows, stage, on the table)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a choice window that asks no statistic still shows its note", async () => {
+        /*
+         * E32+E07 fix r2-G3, 03.10.2026; the round-2 review's C2-m9 (b). The Tamper menu works out
+         * which Cleaning Tool is readied and passes it as `traitNote`, and `chooseVariant` drew the
+         * note only inside the trait field - which the Tamper menu has none of (the statistic is
+         * asked after, `cleanupTrait`), so the line never showed, as at 0642f1a. A window with no
+         * statistic and a note, the dialog's content read as it is asked and the window closed.
+         */
+        const [actor] = cast(1);
+        const { chooseVariant } = await import("./action-rolls.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const note = game.i18n.format("DRPG.Cleanup.readied", { item: "SUITE r2-G3 gloves" });
+        let content = null;
+        try {
+            D.wait = async cfg => { content = cfg?.content?.innerHTML ?? String(cfg?.content ?? ""); return null; };
+            await chooseVariant({ actor, title: "SUITE r2-G3", options: [{ value: "a", label: "A" }], traitNote: note });
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own); else delete D.wait;
+        }
+        ok(content?.includes(note), `the window's content does not hold its note: ${String(content).slice(-300)}`);
     }],
 
     ["a closed Cover your traces window leaves an Obvious trace", async () => {
@@ -4003,17 +4153,23 @@ const SCENARIOS = [
             await walk(0, false);
             await walk(0, true);
             seen.push(read());
+            const cards = new Set(game.messages.map(m => m.id));
             await M.resolveCrisisAction({ actorId: fourth.id, key: "sharedEscape", total: 2, isCritical: false, withHope: true });
             await settle();
             seen.push([...read(), M.murderState()?.thirdActed ?? null]);
+            // The card says the third got out alone (fix r2-G3, the round-2 review's C2-m4): a failure prints nothing from the table.
+            const { contentOf } = await import("./secret.mjs");
+            const alone = game.i18n.format("DRPG.Murder.thirdEscapedAlone", { name: foundry.utils.escapeHTML(fourth.name) });
+            seen.push(game.messages.some(m => !cards.has(m.id) && contentOf(m).includes(alone)));
             for (const [i, inside] of [[1, false], [1, true], [0, false], [0, true]]) await walk(i, inside);
             seen.push(read());
             // Who left is the GMs' alone since fix r2-G2 (the round-2 review's S2-m1): the victim's copy holds it null.
             seen.push(await M.thirdPartyEnters(third) === null, M.castFor(player(victim).id, incidentCast()).departed ?? null);
             const left = [third.id, fourth.id];
             equal(stableJson(seen), stableJson([["incident", third.id, []], ["incident", null, [third.id]], ["incident", fourth.id, [third.id]],
-                ["incident", fourth.id, [third.id]], ["incident", null, left, false], ["incident", null, left], true, null]),
-            "a third who left was seated again by their token or the GM's call, a failed escape's third still counted, or the victim's copy holds who left");
+                ["incident", fourth.id, [third.id]], ["incident", null, left, false], true, ["incident", null, left], true, null]),
+            "a third who left was seated again by their token or the GM's call, a failed escape's third still counted or its card did not say "
+            + "they got out alone, or the victim's copy holds who left");
         } finally {
             for (const [i, t] of tokens.entries()) if (canvas.scene.tokens.has(t.id)) await t.update(was[i], PLACE);
             await stood.back();

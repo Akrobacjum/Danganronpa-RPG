@@ -1425,6 +1425,7 @@
       "actionsLocked": "You are in an incident. Everything you can do is behind {tile}; Hope Calls still work.",
       "thirdJoined": "{name} throws in with the killer and stays in the incident.",
       "thirdLeft": "{name} turns away and leaves. They take no part in this.",
+      "thirdEscapedAlone": "{name} gets out alone. The victim stays where they are, and {name} takes no part in this any more.",
       "openingYours": "This roll is yours, and it is the only one. It cannot be skipped.",
       "openingRequired": "This roll cannot be skipped. Throw it.",
       "openingDeclined": "{name} did not throw the opening roll. Stage 4 cannot be skipped: ask again from the Incident tracker, or end the incident.",

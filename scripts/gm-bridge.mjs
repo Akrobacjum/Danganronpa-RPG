@@ -817,12 +817,30 @@ async function handleRemnant(payload, sender, ctx) {
         const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor, { sceneId: data.sceneId ?? null }), getClock());
         if (narrowed.refused) return { refused: narrowed.refused };
         data = narrowed.data;
+        if (await worksOwnMurder(payload.data?.projectId, actor, data.action)) data.tiedToCrime = true;
     }
     // A trace this client could not place (no scene, no Remnant actor, a token
     // that could not be created) is a failure, not "placed" (E31 review): the
     // player's item stays on the sheet.
     if (!await placeRemnant(data)) return { refused: "the trace could not be placed" };
     debug("Placed a Remnant on behalf of a player.");
+}
+
+/**
+ * A PLAYER'S WORK ON THEIR OWN INDIRECT MURDER IS THE CRIME'S TRACE (E32+E07 fix r2-G3, 03.10.2026;
+ * the round-2 review's C2-m9 (a)). The module's own drop says so (action-rolls.mjs
+ * `hideProjectTraces`: an indirect murder is the murder, built in instalments), and the rebuild
+ * above drops every packet's `tiedToCrime` - so since E03 a trap built from a player's browser left
+ * untied traces, which the chapter's end sweeps. Judged here on the GMs' record, not on the packet:
+ * the project it names is an indirect murder, and the sender's character is its killer or the one
+ * who proposed it. A Sabotage's trace is not judged: nothing the GMs keep records a failed one.
+ */
+async function worksOwnMurder(projectId, actor, action) {
+    if (action !== "project" || typeof projectId !== "string" || !projectId || !actor) return false;
+    const { isIndirectMurder, secretsOf } = await import("./projects.mjs");
+    if (!isIndirectMurder(projectId)) return false;
+    const { killerId, by } = secretsOf(projectId);
+    return killerId === actor.id || by === actor.id;
 }
 
 async function handleTieTrace(payload, sender, ctx) {

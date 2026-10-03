@@ -2412,8 +2412,9 @@ const REGRESSIONS = [
         ok(button.includes("priced?.blocked"),
             "the tile's refusal is back to counting pips instead of printing the chain's reason");
 
-        // The killer's own night, said once: the skip list, shared with the charge.
-        ok(sheet.includes("tamperPriceSkip("),
+        // The killer's own night, said once: the skip list, shared with the charge - read through
+        // `tamperQuote` since E32+E07 fix r2-G3, which also knows the critical's free attempt.
+        ok(sheet.includes("tamperQuote("),
             "the sheet decides the killer's discount for itself again");
 
         // A full Sanity track only stops a WATCHED attempt (Dawid, 17.09).

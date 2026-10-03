@@ -569,20 +569,23 @@ const STEPS = {
     },
 
     /* The discovery's two parts the invariants read (chapter.mjs `runDiscovery`): the
-       bodies published, and the cleaning tools broken. The gather that moves every token
-       is not run - the runner could not put the scene back. */
+       bodies published, and the cleaning tools of their killers broken - the bodies found
+       are handed to it, as `runDiscovery` hands it the bodies in the room (fix r2-G3). The
+       gather that moves every token is not run - the runner could not put the scene back. */
     async discover(run) {
         const { publishDeath } = await import("./chapter.mjs");
         const { destroyCleaningTools } = await import("./cleanup.mjs");
+        const found = [];
         for (const [id, body] of run.bodies) {
             if (body.discovered) continue;
             must(await publishDeath(game.actors.get(id)), `${game.actors.get(id)?.name}'s death could not be published`);
             body.discovered = true;
+            found.push(id);
             for (const killer of body.killers) {
                 for (const [key, item] of run.items) if (key.endsWith(":gloves") && item.parent?.id === killer) run.broken.add(item.id);
             }
         }
-        await destroyCleaningTools();
+        await destroyCleaningTools(found);
     },
 
     /*
@@ -853,8 +856,10 @@ async function assertIncidentInvariants(run) {
         if (!none(copy.lastCrisis) || "swung" in copy) run.violate("I2", `${user.name}'s copy holds the Reroll receipt or the swing memo`);
         // The opening's statistic is the GMs' pick and in no player's copy (E32+E07 C11c): its roller is sent it with the invitation.
         if (!none(copy.openingTrait)) run.violate("I2", `${user.name}'s copy holds the opening's statistic, ${copy.openingTrait}`);
-        // Nor who struck a critical Finishing blow (E32+E07 C13): the GMs' charge for a clean-up reads it, nothing of a player's.
-        if (!none(copy.freeCleanup)) run.violate("I2", `${user.name}'s copy holds the free clean-up's striker, ${nameOf(copy.freeCleanup)}`);
+        // Who struck a critical Finishing blow (E32+E07 C13) only in a killer's copy, whose browser quotes the free
+        // attempt by it (fix r2-G3, the round-2 review's C2-m1): the GMs' value there, null in anybody else's.
+        const freeDue = killerSide ? state?.freeCleanup ?? null : null;
+        if ((copy.freeCleanup ?? null) !== freeDue) run.violate("I2", `${user.name}'s copy names the free clean-up's striker ${nameOf(copy.freeCleanup)}, due ${nameOf(freeDue)}`);
         // Nor the fight's last turns (E32+E07 C17): the GM's tracker is their one reader.
         if (!none(copy.recent)) run.violate("I2", `${user.name}'s copy holds the fight's last turns, ${JSON.stringify(copy.recent)}`);
         /* The fight as the GMs hold it: a seat reads its turn off its own copy (E32 C2) - but the Key
@@ -868,7 +873,7 @@ async function assertIncidentInvariants(run) {
         const copied = [...FIGHT_FIELDS, "departed"];
         const afterFight = m.kind === "trap" && killerSide;
         const withheld = [...(afterFight ? [...FIGHT_FIELDS, ...(none(copy.thirdId) ? ["thirdId", "thirdSide"] : [])] : ["keyRemnants"]),
-            "departed", "lastCrisis", "openingTrait", "freeCleanup", "recent"];
+            "departed", "lastCrisis", "openingTrait", ...(killerSide ? [] : ["freeCleanup"]), "recent"];
         const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
         const unlike = copied.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);

@@ -279,7 +279,8 @@ export const INCIDENT_FIGHT = Object.freeze([
  * `freeCleanup` (E32+E07 C13, 03.10.2026; audit S04-07, the owner's D13): the actor id of
  * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
  * spends it (cleanup.mjs `consumeFreeCleanup`). Written with the stage that ends the fight,
- * so not the fight's; the GMs' alone, every player's copy holds it null (murder.mjs `castFor`).
+ * so not the fight's. Every player's copy holds it null but a killer's, whose browser quotes
+ * the free attempt by it since fix r2-G3 (murder.mjs `castFor`, cleanup.mjs `tamperQuote`).
  *
  * `recent` (E32+E07 C17, 03.10.2026; audit S04-29): the fight's last three turns for the GM's
  * tracker, `{ turn, side, key, band, success, changes }` each, written with the action's
@@ -684,9 +685,10 @@ export const lootTraceStore = defineGmStore({
 /**
  * THE CLEANING TOOLS A CLEAN-UP USED (E32+E07 C12, 02.10.2026; audit S05-38, S04-20, S05-23;
  * the owner's D13: the Cleaning Tool remembered like the weapon). A row per killer,
- * `{ chapter, epoch, cleaning }`: the clock's chapter and season (`seasonEpoch`, as the
- * Blackened rows keep it), and the id of every Cleaning Tool they had readied at a clean-up
- * attempt the GM scored (cleanup.mjs `noteCleaningTool`). Until 1.2.66 the discovery broke
+ * `{ chapter, epoch, cleaning, victims }`: the clock's chapter and season (`seasonEpoch`, as the
+ * Blackened rows keep it), the id of every Cleaning Tool they had readied at a clean-up
+ * attempt the GM scored (cleanup.mjs `noteCleaningTool`), and since fix r2-G3 the bodies those
+ * attempts cleaned up after, so a discovery breaks only the tools of the bodies it found. Until 1.2.66 the discovery broke
  * what the killers held in hand at that moment, read off `killerIds()` - so gloves put away
  * after the clean-up survived it, and a discovery after the close, when the incident and its
  * killers are gone, broke nothing at all. Read and emptied by `destroyCleaningTools`; a row of
