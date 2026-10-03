@@ -48,7 +48,7 @@
 
 import {
     MODULE_ID, FLAGS, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS,
-    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect, TIMING
+    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, callEffect, TIMING
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
@@ -1493,62 +1493,6 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
  * ========================================================================== */
 
 /**
- * Take one crisis action, roll it, and apply everything mechanical about it.
- *
- * Called from the actor's own client - it is their roll - but every world write
- * it produces goes through the GM, same as the rest of the module.
- */
-/**
- * The briefing every crisis action now opens with.
- *
- * Built from the same fields the handbook prints - what it does, what it costs,
- * which statistic it rolls, the number to beat and what a miss does - so the
- * window is the rules entry rather than a second, drifting description of it.
- * The threshold comes from `availableCrisisActions` because a Finishing Blow's
- * is not a constant: it falls as the victim runs out of Health, and quoting the
- * table value would be a lie exactly when the number matters most.
- *
- * @returns {Promise<boolean>} false if they backed out.
- */
-async function confirmCrisisAction(actor, key, def, state, side) {
-    const offered = availableCrisisActions(actor).find(o => o.key === key);
-    const facts = [];
-
-    if (def.kind === "resolution" && !def.noRoll) {
-        facts.push(game.i18n.format("DRPG.Murder.briefCostStress", { n: RESOLUTION_STRESS_COST }));
-    }
-
-    const variant = def.indirectVictim && side === "victim" && state.indirect ? def.indirectVictim : null;
-    const traits = variant?.traits ?? def.traits;
-    if (traits?.length) {
-        facts.push(game.i18n.format("DRPG.Action.usesTrait", {
-            traits: traits.map(t => TRAITS[t]?.label ?? t).join(" / ")
-        }));
-    }
-    if (offered?.threshold != null) {
-        facts.push(game.i18n.format("DRPG.Murder.briefThreshold", { n: offered.threshold }));
-    }
-    if (offered?.hindered) facts.push(game.i18n.localize("DRPG.Murder.actionHindered"));
-
-    const body = [def.hint, def.failure].filter(Boolean)
-        .map(part => `<p>${foundry.utils.escapeHTML(part)}</p>`).join("");
-
-    const go = await DialogV2.confirm({
-        classes: ["drpg-panel"],
-        window: { title: def.label },
-        content: dialogContent(`<div class="drpg-briefing-block">
-            ${body}
-            <ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>
-        </div>`),
-        yes: { label: game.i18n.localize(def.noRoll ? "DRPG.Murder.briefTake" : "DRPG.Murder.briefRoll") },
-        no: { label: game.i18n.localize("DRPG.Advance.cancel") },
-        rejectClose: false
-    });
-
-    return Boolean(go);
-}
-
-/**
  * A critical Strike lets the killer pick the resource. Ask them.
  *
  * `damage.critical` is `{ choice: true }` in the table, and the engine read that
@@ -1687,6 +1631,12 @@ export function crisisVariant(actor, key, state = murderState()) {
     return def?.indirectVictim && sideOf(actor, state) === "victim" && state?.indirect ? "indirectVictim" : null;
 }
 
+/**
+ * Take one crisis action, roll it, and apply everything mechanical about it.
+ *
+ * Called from the actor's own client - it is their roll - but every world write
+ * it produces goes through the GM, same as the rest of the module.
+ */
 export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     const state = murderState();
     const side = sideOf(actor);
@@ -1706,19 +1656,15 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         return null;
     }
 
-    // Say what this does before it is done.
-    //
-    // Every ordinary action on the sheet opens with a briefing - what it is,
-    // which statistic it uses, what it costs, what happens if it misses - and
-    // the crisis actions were the one set that did not. They went straight to
-    // the dice, which meant the most consequential decisions in the game were
-    // the only ones taken blind: a player picked a tile, a roll dialog appeared
-    // naming a statistic they had not been told about, and the outcome table
-    // was somewhere in the handbook.
-    //
-    // After the guards, so the briefing is only ever shown for an action that
-    // could actually be taken; before the dice, so cancelling costs nothing.
-    if (!await confirmCrisisAction(actor, key, def, state, side)) return null;
+    /*
+     * NO BRIEFING WINDOW HERE ANY MORE (E32+E07 C15, 03.10.2026; audit S02-32, S04-27).
+     * The crisis actions once went straight to the dice, so a briefing was put here -
+     * what it is, its statistic, its price, what a miss does - and it became the second
+     * of three windows to one roll, repeating the menu's row with Cancel as its default.
+     * Those facts unfold under the picked row of the menu now (action-rolls.mjs
+     * `openCrisisMenu`), so the GM's pick below follows the menu directly. The sheet's
+     * "use" button on an item reaches this with no menu: the item is the choice.
+     */
 
     /*
      * G-18: THIS ONE IS TAKEN, NOT ROLLED.
@@ -1765,7 +1711,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * them, `(variant?.traits ?? def.traits)[0]`, and nobody was asked. Now a GM picks one
      * from what the player says in their thread (trait-ruling.mjs `traitFor`); one listed
      * trait is rolled as it is, and an armed Resolve leaves the pick to the roll window.
-     * After the briefing, so backing out of it asks nobody; before anything is armed for
+     * After the menu, so backing out of it asks nobody; before anything is armed for
      * the dice or paid - the Sanity and the price are the GM's, once the roll is scored -
      * so a refusal or a request not carried out ends here with nothing spent. In a fight
      * the turn waits for the GM. The indirect victim is asked about their own table

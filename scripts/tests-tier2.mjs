@@ -653,6 +653,61 @@ function press(cfg, root) {
 }
 
 /**
+ * THE TILE IN A FIGHT, PRESSED (E32+E07 C15, 03.10.2026). Direct Murder at the incident stage
+ * opens the crisis menu (action-rolls.mjs `openCrisisMenu`); here on this GM's browser, with
+ * every window answered: the menu by `choose(rows)` - the value of the row to check before its
+ * default button is pressed, or null for none, which closes it - the GM's statistic window by
+ * `pick(offered)`, any other closed; a `DialogV2.confirm` is answered yes, as the harness's
+ * own is. `asked` is every window in order (a confirm as "confirm: <title>"); `menu` the menu
+ * as built: its default button as [action, label], the others' actions, and each row as
+ * { value, disabled, hint, details } - the text of the block it unfolds, or null.
+ */
+async function pressCrisisTile(actor, { choose = () => null, pick = offered => offered[0] } = {}) {
+    const { performAction } = await import("./action-rolls.mjs");
+    const D = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(D, "confirm");
+    const menuTitle = game.i18n.localize("DRPG.Murder.yourTurn");
+    const traitTitle = game.i18n.localize("DRPG.TraitRuling.title");
+    const text = el => el ? el.textContent.replace(/\s+/g, " ").trim() : null;
+    const asked = [];
+    let menu = null;
+    const windows = answerWindows((cfg, root) => {
+        const title = cfg?.window?.title ?? "";
+        asked.push(title);
+        if (title === traitTitle) return pick((cfg.buttons ?? []).map(b => b.action).filter(action => action !== "cancel"));
+        if (title !== menuTitle) return null;
+        const button = (cfg.buttons ?? []).find(b => b.default) ?? null;
+        menu = {
+            button: [button?.action ?? null, button?.label ?? null],
+            others: (cfg.buttons ?? []).filter(b => !b.default).map(b => b.action),
+            rows: [...root.querySelectorAll('input[name="variant"]')].map(input => ({
+                value: input.value, disabled: input.disabled,
+                hint: text(input.closest("label")?.querySelector("small")),
+                details: text(root.querySelector(`.drpg-choice-details[data-drpg-for="${input.value}"]`))
+            }))
+        };
+        const value = choose(menu.rows);
+        const input = value ? root.querySelector(`input[name="variant"][value="${value}"]`) : null;
+        if (!input) return null;
+        input.checked = true;
+        return press(cfg, root);
+    });
+    D.confirm = async cfg => {
+        asked.push(`confirm: ${cfg?.window?.title ?? ""}`);
+        return true;
+    };
+    let answer;
+    try {
+        answer = await performAction(actor, "directMurder");
+    } finally {
+        windows.restore();
+        if (own) Object.defineProperty(D, "confirm", own);
+        else delete D.confirm;
+    }
+    return { asked, menu, answer };
+}
+
+/**
  * One student stood alone in a room nobody else is in (E32+E07 C11d), so a Sabotage there asks
  * no concealment roll and a project made for that room is theirs to reach: the token teleported
  * to its centre and read back, as `aloneTogether` stands two. `back()` puts it where it was. Ask
@@ -12914,6 +12969,177 @@ const SCENARIOS = [
             closeOpen("drpg-window-murder");
             closeOpen("drpg-window-incident");
             await settle();
+        }
+    }],
+
+    ["one choice opens the roll window, after the GM's pick where the action lists several traits", async () => {
+        /*
+         * E32+E07 C15, 03.10.2026; audit S02-32. The tile in a fight opened the crisis menu, and
+         * the row picked there opened a confirmation (murder.mjs `confirmCrisisAction`) that said
+         * the row again and asked "Roll it" a second time: three windows to one roll. At the
+         * killer's turn (`swingFixture`), on this GM's browser, the tile is pressed twice
+         * (`pressCrisisTile`): Pin them down, which lists Body alone, and Attack with a weapon
+         * (Body / Hand / Leg), whose GM's window is answered Leg. The character's own `rollTrait`
+         * notes the trait and the GM's mark and throws nothing, as a closed roll window does.
+         * Read: the windows each press opened, in order, and the throws. Until C15 each press
+         * opened a confirm between the menu and the rest.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { killer, putBack } = await swingFixture();
+        const thrown = [];
+        try {
+            killer.rollTrait = async (dh, config) => { thrown.push([dh, config?.[TRAIT_BY_GM] === true]); return null; };
+            const pin = await pressCrisisTile(killer, { choose: () => "pin" });
+            const attack = await pressCrisisTile(killer, { choose: () => "weaponAttack", pick: () => "leg" });
+            const menu = game.i18n.localize("DRPG.Murder.yourTurn"), ruling = game.i18n.localize("DRPG.TraitRuling.title");
+            equal(stableJson([pin.asked, attack.asked, thrown]),
+                stableJson([[menu], [menu, ruling], [[TRAITS.body.dh, false], [TRAITS.leg.dh, true]]]),
+                "a crisis action opened a window between the menu and the roll, the GM was not asked where the action lists several, or the throws did not follow (Pin's windows, the attack's, throws)");
+        } finally {
+            delete killer.rollTrait;
+            await putBack();
+        }
+    }],
+
+    ["Roll it is the default", async () => {
+        /*
+         * E32+E07 C15, 03.10.2026; audit S04-27. The menu's button said "Proceed", and the
+         * confirmation after it made Cancel its default, so the filled button a player reached
+         * for in a fight was the one that backed out. At the killer's turn (`swingFixture`) the
+         * tile is pressed and the menu closed. Read off the menu as built: its default button
+         * (action and label), the other buttons, and the windows it opened. Until C15 the
+         * default said "Proceed".
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { killer, putBack } = await swingFixture();
+        try {
+            const { asked, menu, answer } = await pressCrisisTile(killer);
+            equal(stableJson([menu?.button ?? null, menu?.others ?? null, asked.length, answer]),
+                stableJson([["ok", game.i18n.localize("DRPG.Murder.briefRoll")], ["cancel"], 1, null]),
+                "the menu's default is not Roll it, Cancel is not the other button, or closing it opened another window (default, others, windows, answer)");
+        } finally {
+            await putBack();
+        }
+    }],
+
+    ["a free take shows no threshold", async () => {
+        /*
+         * E32+E07 C15, 03.10.2026; audit S04-27. A critical Self-defence hands the victim one
+         * resolution action taken without dice (murder.mjs `isFreeTake`), and the menu still
+         * printed Survive's "Beat 18" and the confirmation still said "Roll it", so a player
+         * could back out of a sure thing thinking it a risk. The victim's critical Self-defence
+         * is scored by the GM, as "a critical Self-defence hands over one action" does; then
+         * the tile is pressed on a drawn window. Read: Survive's row (its line and what it
+         * unfolds into), and the confirm button's words with Survive checked, then with Leave
+         * a clue - the button follows the picked row. Until C15 the row said "Beat 18" and the
+         * button "Proceed" whatever was picked.
+         */
+        needs(env.dialogs(), "the confirm button's words are read off the drawn menu");
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+        if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await M.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 30, isCritical: true, withHope: true });
+        await settle();
+        must(M.freeResolutionFor("victim") && M.isTheirTurn(victim), `the fixture's victim holds no free take at their turn: ${stableJson(M.murderState())}`);
+        const title = game.i18n.localize("DRPG.Murder.yourTurn");
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
+        const answer = performAction(victim, "directMurder");
+        try {
+            must(await until(() => drawn()?.element), "the crisis menu did not draw");
+            const root = drawn().element;
+            const text = el => el ? el.textContent.replace(/\s+/g, " ").trim() : null;
+            const button = () => text(root.querySelector('footer button[data-action="ok"]'));
+            const pickRow = value => {
+                const input = root.querySelector(`input[name="variant"][value="${value}"]`);
+                input.checked = true;
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+                return button();
+            };
+            const survive = root.querySelector('input[name="variant"][value="survive"]');
+            const hint = text(survive?.closest("label")?.querySelector("small"));
+            const details = text(root.querySelector('.drpg-choice-details[data-drpg-for="survive"]'));
+            const beat = game.i18n.format("DRPG.Murder.thresholdShort", { n: 18 });
+            equal(stableJson([hint?.startsWith(game.i18n.localize("DRPG.Murder.noRollItWorks")) ?? null, hint?.includes(beat) ?? null,
+                details?.includes("18") ?? null, pickRow("survive"), pickRow("leaveClue")]),
+            stableJson([true, false, false, game.i18n.localize("DRPG.Murder.briefTake"), game.i18n.localize("DRPG.Murder.briefRoll")]),
+            "the free Survive's row does not say it needs no roll, still shows its threshold, or the button does not follow the picked row (says no roll, threshold in the line, threshold unfolded, button on Survive, on Leave a clue)");
+        } finally {
+            await drawn()?.close();
+            await answer;
+        }
+    }],
+
+    ["Breakdown's disadvantage is said", async () => {
+        /*
+         * E32+E07 C15, 03.10.2026; audit S02-31. A character with no Sanity left rolls every
+         * roll at disadvantage (roll-dialog.mjs `stateGrant`), and a Despair opening fills the
+         * victim's: the roll window showed the die locked on, and nothing before it said why.
+         * At the killer's turn (`swingFixture`) the tile is pressed and the menu closed, once
+         * with Sanity to spare and once with every mark of Sanity taken. Read: whether Attack
+         * with a weapon's unfolded block says Breakdown's disadvantage each time. Until C15
+         * the menu unfolded nothing.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isBrokenDown, resourceMax } = await import("./character.mjs");
+        const { killer, putBack } = await swingFixture();
+        const said = async () => {
+            const { menu } = await pressCrisisTile(killer);
+            const row = menu?.rows.find(r => r.value === "weaponAttack");
+            return row?.details?.includes(game.i18n.localize("DRPG.Murder.breakdownDisadvantage")) ?? null;
+        };
+        try {
+            await killer.update({ "system.resources.stress.value": 0 });
+            const calm = await said();
+            await killer.update({ "system.resources.stress.value": resourceMax(killer, "stress") });
+            must(isBrokenDown(killer), "the fixture could not put the killer in Breakdown");
+            equal(stableJson([calm, await said()]), stableJson([false, true]),
+                "the menu said Breakdown with Sanity to spare, or did not say it in Breakdown (calm, broken down)");
+        } finally {
+            await putBack();
+        }
+    }],
+
+    ["the crisis menu says who picks the statistic: the GM among several, the player with Resolve armed", async () => {
+        /*
+         * E32+E07 C15, 03.10.2026; the owner's Q4 as corrected on 28.09. The GM picks among
+         * an action's several statistics from what the player says in their thread, and a
+         * player with Resolve armed picks in the roll window (trait-ruling.mjs `traitFor`); the
+         * confirmation listed the statistics and said neither. At the killer's turn
+         * (`swingFixture`) the tile is pressed and the menu closed, then again with Resolve
+         * armed on the killer. Read: the statistic line of Pin them down (Body alone) and of
+         * Attack with a weapon, each time, and what a miss unfolds into for Strike.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const C = await import("./call-effects.mjs");
+        const { CRISIS_ACTIONS, TRAITS } = await import("./config.mjs");
+        const { killer, putBack } = await swingFixture();
+        const lines = async () => {
+            const { menu } = await pressCrisisTile(killer);
+            const of = key => menu?.rows.find(r => r.value === key)?.details ?? "";
+            return [of("pin"), of("weaponAttack"), of("strike")];
+        };
+        const several = CRISIS_ACTIONS.weaponAttack.traits.map(t => TRAITS[t].label).join(" / ");
+        const has = (line, key, data) => line.includes(game.i18n.format(key, data));
+        try {
+            const [pin, attack, strike] = await lines();
+            must(await C.armCall(killer, { key: "determination", kind: "hope", grants: "trait" }), "Resolve could not be armed on the killer");
+            const [, armed] = await lines();
+            const miss = game.i18n.format("DRPG.Murder.onAMiss", { text: CRISIS_ACTIONS.strike.failure }).replace(/\s+/g, " ").trim();
+            equal(stableJson([has(pin, "DRPG.Action.usesTrait", { traits: TRAITS.body.label }), has(attack, "DRPG.Murder.gmPicksTrait", { traits: several }),
+                has(armed, "DRPG.Murder.youPickTrait", { traits: several }), strike.includes(miss)]),
+            stableJson([true, true, true, true]),
+            "the menu does not name Pin's one statistic, does not say the GM picks among several, does not say Resolve's pick, or does not label a miss (Pin, the attack, armed, Strike's miss)");
+        } finally {
+            await C.consumeCalls(killer);
+            await putBack();
         }
     }],
 

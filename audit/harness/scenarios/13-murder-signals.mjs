@@ -25,7 +25,8 @@
  * hands the turn back to the victim, with no Pass (E32+E07 C9, part 2). A third who averts
  * their eyes and walks back in is seated by nobody, and the next student in is (E32+E07 C10, 1b).
  * A crisis action that lists several statistics waits for the GM's pick on a veiled card in its
- * player's thread, and rolls the pick (E32+E07 C11b, 1c). A trap's card opens the GM's murder
+ * player's thread, and rolls the pick (E32+E07 C11b, 1c); taken from the tile, it is one window on
+ * the player's browser, the menu (E32+E07 C15, 1c). A trap's card opens the GM's murder
  * window on the student the trap read, and opens nothing until the GM confirms (E32+E07 C14, part 2).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
@@ -320,7 +321,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     /* ---- 1c. the incident's rolls reach its participants, and only them -----
        E06 C6, 27.09.2026; audit S02-40, S04-01; the owner's requirement on incident rolls.
        Each participant throws a crisis action on their own browser, the way a player does
-       (`takeCrisisAction`, its briefing answered): the victim a Leave a clue with Dice So
+       (from the tile, its menu answered - see `ACT`): the victim a Leave a clue with Dice So
        Nice's model on and its secret-roll hiding off, then the killer a Strike on a table
        without the module (`game.dice3d` gone everywhere, put back after). Every browser nets
        the `dice.show` packets (the primary's relay, private-rolls.mjs) and the words of every
@@ -346,20 +347,33 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             });
         }
         return true;`;
+    /* Each action is taken from the tile, as a player takes it (E32+E07 C15, 03.10.2026): Direct
+       Murder in a fight opens the crisis menu (action-rolls.mjs `openCrisisMenu`), whose row is
+       checked and whose default button is pressed by the queued answer; nothing else is queued,
+       so a second window - the confirmation the menu was followed by until C15 - is closed, as a
+       player who sits still closes it. `windows` is every window the press opened, in order. */
     const ACT = (actorId, key, faces) => `const M = await import("${repoUrl}/scripts/murder.mjs");
+        const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
-        const { TRAIT_BY_GM } = await import("${repoUrl}/scripts/action-rolls.mjs");
         const had = new Set(game.messages.contents.map(m => m.id));
         const actor = game.actors.get("${actorId}");
         const own = actor.rollTrait;
-        actor.rollTrait = function (dh, config, ...rest) { globalThis.__lastThrow = [dh, config?.[TRAIT_BY_GM] === true]; return own.call(this, dh, config, ...rest); };
+        actor.rollTrait = function (dh, config, ...rest) { globalThis.__lastThrow = [dh, config?.[A.TRAIT_BY_GM] === true]; return own.call(this, dh, config, ...rest); };
         globalThis.__lastThrow = null;
-        globalThis.__dialogAnswers.push(true);
+        const menu = game.i18n.localize("DRPG.Murder.yourTurn");
+        globalThis.__dialogAnswers.push(cfg => {
+            const row = cfg?.window?.title === menu ? cfg.content?.querySelector?.('input[name="variant"][value="${key}"]') : null;
+            if (!row) return null;
+            row.checked = true;
+            return (cfg.buttons ?? []).find(b => b.default)?.callback?.(null, null, { element: cfg.content }) ?? null;
+        });
+        const logAt = globalThis.__dialogLog.length;
         globalThis.__forceRoll = ${JSON.stringify(faces)};
-        try { await M.takeCrisisAction(actor, "${key}"); }
+        try { await A.performAction(actor, "directMurder"); }
         finally { delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; delete actor.rollTrait; }
         const roll = game.messages.contents.find(m => !had.has(m.id) && m.getFlag("${MOD}", "supersededRoll"));
         return { id: roll?.id ?? null, total: roll?.rolls?.[0]?.total ?? null, thrown: globalThis.__lastThrow,
+            windows: globalThis.__dialogLog.slice(logAt).map(d => d.kind === "confirm" ? "confirm: " + d.title : d.title), menu,
             label: foundry.utils.escapeHTML(CRISIS_ACTIONS["${key}"].label), stage: game.drpg.murderState()?.stage ?? null };`;
     const DICE_READ = act => `const n = globalThis.__diceNet;
         const card = n.words.find(h => h.includes(${JSON.stringify(act.label)} + " - ")) ?? null;
@@ -392,6 +406,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         && rulingSeen.victim.words >= 1 && rulingSeen.bystander.words === 0 && rulingSeen.killer.words === 0
         && rulingSeen.bystander.veiled && rulingSeen.bystander.named === false,
         JSON.stringify({ ruled, thrown: clue.thrown, rulingSeen }), { flow: "trait-ruling" });
+    /* ONE MENU, ONE ROLL (E32+E07 C15, 03.10.2026; audit S02-32, S04-27). From the tile the
+       victim's player saw the crisis menu, then a confirmation repeating the row with Cancel
+       its default, then the roll: Leave a clue's windows on p1 are the menu alone now - the
+       GM's pick is asked on a card in her thread, not in a window of hers. */
+    check("dice: the victim's Leave a clue from the tile opens one window on her browser, the menu, and then the roll",
+        JSON.stringify(clue.windows) === JSON.stringify([clue.menu]) && Boolean(clue.id) && ruled.length === 1,
+        JSON.stringify({ windows: clue.windows, id: clue.id, ruled: ruled.length }));
     const withDsn = { victim: await p1.eval(DICE_READ(clue)), bystander: await p2.eval(DICE_READ(clue)), killer: await p3.eval(DICE_READ(clue)) };
     check("dice: the victim's crisis roll is played on the killer's screen by the GM's relay, and its card tells the killer the action and the total",
         Boolean(clue.id) && clue.stage === "incident" && withDsn.killer.relayed && withDsn.killer.played.includes(clue.total)
@@ -500,7 +521,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify(fightSeen));
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__useMark = new Set(game.messages.contents.map(m => m.id)); return true;`);
     const took = await p1.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
-        globalThis.__dialogAnswers.push(true, true);
+        globalThis.__dialogAnswers.push(true);
         globalThis.__forceRoll = { hope: 11, fear: 5 };
         try { const r = await M.takeCrisisAction(game.actors.get("${ids.aiko}"), "useItem", { itemId: "${handed.kit}" }); return { total: r?.roll?.total ?? null }; }
         finally { delete globalThis.__forceRoll; globalThis.__dialogAnswers.length = 0; }`, { timeout: 60000 });

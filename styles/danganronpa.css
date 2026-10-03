@@ -5107,6 +5107,24 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     font-size: 0.82em;
 }
 
+/* What a row unfolds into once picked (E32+E07 C15, 03.10.2026; audit S02-32): the
+   crisis menu's price, statistics and miss, which a confirmation window used to say
+   after the menu. The block follows its row's <label> (`chooseVariant`), so the row
+   that is checked opens the one right after it and the others stay shut. Not
+   measured in a browser (the harness has no layout): LIVE-E07-05 is the look at a table. */
+.drpg-choice-details {
+    display: none;
+    padding: 0 0.5rem 0.25rem 2.1rem;
+}
+
+.drpg-choice:has(input:checked) + .drpg-choice-details {
+    display: block;
+}
+
+.drpg-choice-details .drpg-briefing-facts {
+    margin-top: 0.15rem;
+}
+
 /* A labelled field under a choice list.
    --------------------------------------------------------------------------
    TWO KINDS, and they used to be one. Some of these belong to the window (the

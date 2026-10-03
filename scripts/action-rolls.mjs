@@ -1929,8 +1929,13 @@ async function performSearch(actor, def, options) {
  * @param {string}   [config.intro]    HTML above the list - usually a briefing.
  * @param {string}   [config.prompt]   One line asking the question.
  * @param {Array}    config.options    `{ value, label, hint, icon, gmRoute,
- *                                        disabled, why }` - `label`/`hint`/`why`
- *                                        are literal text, already localised.
+ *                                        disabled, why, details, confirm }` -
+ *                                        `label`/`hint`/`why`/`confirm` are
+ *                                        literal text, already localised;
+ *                                        `details` is markup, already escaped,
+ *                                        unfolded under the row while it is the
+ *                                        one picked; `confirm` names the confirm
+ *                                        button while that row is picked.
  * @param {string[]} [config.traits]   Show a trait picker for these.
  * @param {string}   [config.extra]    Extra HTML inside the form, under the list.
  * @param {string}   [config.confirm]  Label for the confirm button.
@@ -1983,6 +1988,8 @@ export async function chooseVariant({
 
     const first = usable[0].value;
 
+    // A row's details are a sibling of its <label>, not a child: a list is no phrasing
+    // content, and the stylesheet unfolds the block right after the picked row.
     const rows = options.map(o => `
         <label class="drpg-choice${o.disabled ? " unavailable" : ""}${
             o.gmRoute ? " drpg-gm-route" : ""}">
@@ -1993,7 +2000,11 @@ export async function chooseVariant({
                 <strong>${esc(o.label)}</strong>
                 <small>${esc(o.disabled ? (o.why ?? o.hint ?? "") : (o.hint ?? ""))}</small>
             </span>
-        </label>`).join("");
+        </label>${o.details && !o.disabled
+            ? `<div class="drpg-choice-details" data-drpg-for="${esc(o.value)}">${o.details}</div>` : ""}`).join("");
+
+    const fallback = confirm ?? game.i18n.localize("DRPG.Action.proceed");
+    const confirmFor = value => options.find(o => o.value === value)?.confirm ?? fallback;
 
     const picked = await DialogV2.wait({
         window: { title },
@@ -2004,10 +2015,12 @@ export async function chooseVariant({
             ${extra}
             ${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote }) : ""}
         </form>`),
+        render: options.some(o => o.confirm)
+            ? (event, dialog) => followConfirmLabel(dialog, confirmFor) : undefined,
         buttons: [
             {
                 action: "ok", default: true,
-                label: confirm ?? game.i18n.localize("DRPG.Action.proceed"),
+                label: confirmFor(first),
                 callback: (e, b, d) => {
                     const form = d.element.querySelector("form");
                     return {
@@ -2024,6 +2037,26 @@ export async function chooseVariant({
 
     if (!picked || picked === "cancel") return null;
     return picked;
+}
+
+/**
+ * The confirm button says what the picked row does (E32+E07 C15, 03.10.2026; audit
+ * S04-27): the crisis menu's "Roll it" became "Do it" on a free take, which throws no
+ * dice. Foundry draws a button's label in a <span> beside its icon; the harness's
+ * window draws the bare text, so either is written.
+ */
+function followConfirmLabel(dialog, confirmFor) {
+    const root = dialog?.element;
+    const button = root?.querySelector('footer button[data-action="ok"]');
+    if (!button) return;
+    const sync = () => {
+        const label = confirmFor(root.querySelector('input[name="variant"]:checked')?.value);
+        (button.querySelector("span") ?? button).textContent = label;
+    };
+    root.addEventListener("change", event => {
+        if (event.target?.name === "variant") sync();
+    });
+    sync();
 }
 
 async function chooseSearchCategory(actor, def = ACTIONS.search) {
@@ -3337,10 +3370,21 @@ async function performTamper(actor, def, options) {
  *
  * The hidden one stays hidden: using an item is reached by pressing "use" on
  * the thing you want to use, which is where a player already looks for it.
+ *
+ * ONE MENU, ONE ROLL (E32+E07 C15, 03.10.2026; audit S02-32, S04-27, S02-31). The
+ * menu was followed by a confirmation (`confirmCrisisAction`) that repeated the
+ * row's sentence and its threshold, started the miss with "Nothing happens." under
+ * no label, and made Cancel its filled default: three windows to one roll. What it
+ * said that the row did not now unfolds under the picked row (`crisisDetails`), and
+ * the menu's own button - the default - says "Roll it", or "Do it" for a row that
+ * throws no dice. Then the GM's pick where the action lists several statistics,
+ * then the roll window.
  */
 async function openCrisisMenu(actor) {
-    const { availableCrisisActions, isTheirTurn, takeCrisisAction } =
+    const { availableCrisisActions, isTheirTurn, takeCrisisAction, crisisVariant } =
         await import("./murder.mjs");
+    const { listedTraits, resolveArmed } = await import("./trait-ruling.mjs");
+    const { isBrokenDown } = await import("./character.mjs");
 
     const options = availableCrisisActions(actor).filter(o => !o.hidden);
     if (!options.length) {
@@ -3367,24 +3411,34 @@ async function openCrisisMenu(actor) {
         return null;
     }
 
+    const brokenDown = isBrokenDown(actor);
+    const youPick = resolveArmed(actor);
     const picked = await chooseVariant({
         actor,
         title: game.i18n.localize("DRPG.Murder.yourTurn"),
         prompt: game.i18n.localize("DRPG.Murder.crisisPrompt"),
-        confirm: game.i18n.localize("DRPG.Action.proceed"),
-        options: options.map(({ key, def, threshold, hindered, blocked, locked, spent, lockedBy }) => ({
+        confirm: game.i18n.localize("DRPG.Murder.briefRoll"),
+        options: options.map(({ key, def, threshold, free, hindered, blocked, locked, spent, lockedBy }) => ({
             value: key,
             icon: def.icon ?? "fa-burst",
             label: def.label,
             // The number to beat, which the guide prints in its own crisis
             // table - a player choosing between Strike at 15 and Pin at 12 is
             // making the decision that table is for. The three third-party
-            // decisions have no dice and say so.
-            hint: `${threshold === null || threshold === undefined
-                ? game.i18n.localize("DRPG.Murder.noRollNeeded")
-                : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
+            // decisions have no dice and say so, and so does a free take: its
+            // threshold is no number to beat when nothing is thrown (S04-27).
+            hint: `${free
+                ? game.i18n.localize("DRPG.Murder.noRollItWorks")
+                : threshold === null || threshold === undefined
+                    ? game.i18n.localize("DRPG.Murder.noRollNeeded")
+                    : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
                 def.hint ? ` - ${def.hint}` : ""}${
-                hindered ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
+                hindered && !free ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
+            details: crisisDetails(def, {
+                free, brokenDown, youPick,
+                traits: listedTraits({ kind: "crisis", key, variant: crisisVariant(actor, key) })
+            }),
+            confirm: game.i18n.localize(free || def.noRoll ? "DRPG.Murder.briefTake" : "DRPG.Murder.briefRoll"),
             disabled: blocked,
             // Say WHICH kind of shut this is, in the same precedence the tiles
             // used: locked behind another action, already spent, or blocked by
@@ -3399,6 +3453,43 @@ async function openCrisisMenu(actor) {
 
     if (!picked) return null;
     return takeCrisisAction(actor, picked.value);
+}
+
+/**
+ * What a crisis row unfolds into once picked: the facts the confirmation used to
+ * list after the menu (E32+E07 C15), markup for `chooseVariant`'s `details`, or ""
+ * when there is nothing to add to the row. The threshold and a Pin's disadvantage
+ * stay in the row's own line, which every row shows; this says the rest.
+ *
+ *   - what the action costs: a resolution action's Sanity, a free take's too - the
+ *     critical buys certainty about the dice, not the price (`takeCrisisAction`);
+ *   - the statistics it lists, and who picks among several: the GM, from what the
+ *     player says in their thread (trait-ruling.mjs `traitFor`), or the player in the
+ *     roll window with Resolve armed;
+ *   - Breakdown's disadvantage (S02-31): `stateGrant` in roll-dialog.mjs sets it on
+ *     every roll of a character with no Sanity left - a Despair opening fills the
+ *     victim's - and the roll window showed it locked with nothing here saying why;
+ *   - and what a miss does, under a label, so it does not read as what the action does.
+ *
+ * A free take and the third's decisions throw nothing, so only the price is said.
+ */
+function crisisDetails(def, { free, brokenDown, youPick, traits }) {
+    const facts = [];
+    if (def.kind === "resolution" && !def.noRoll) {
+        facts.push(game.i18n.format("DRPG.Murder.briefCostStress", { n: RESOLUTION_STRESS_COST }));
+    }
+    if (!free && !def.noRoll) {
+        const named = traits.map(t => TRAITS[t]?.label ?? t).join(" / ");
+        if (traits.length > 1) {
+            facts.push(game.i18n.format(youPick ? "DRPG.Murder.youPickTrait" : "DRPG.Murder.gmPicksTrait", { traits: named }));
+        } else if (traits.length) {
+            facts.push(game.i18n.format("DRPG.Action.usesTrait", { traits: named }));
+        }
+        if (brokenDown) facts.push(game.i18n.localize("DRPG.Murder.breakdownDisadvantage"));
+        if (def.failure) facts.push(game.i18n.format("DRPG.Murder.onAMiss", { text: esc(def.failure) }));
+    }
+    return facts.length
+        ? `<ul class="drpg-briefing-facts">${facts.map(f => `<li>${f}</li>`).join("")}</ul>` : "";
 }
 
 /* ==========================================================================
