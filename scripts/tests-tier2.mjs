@@ -16653,6 +16653,52 @@ const SCENARIOS = [
         });
     }],
 
+    ["a migration pass begun on a GM that is not the primary writes no stamp, though it is the primary by its end", async () => {
+        /*
+         * E32+E07 fix r2-G4, 03.10.2026; the correctness review's m8. The runner asked for the
+         * primacy only after its clauses, so a pass begun on a GM that was not the primary - by
+         * hand on a second GM whose primary then left - stamped the world as long as it was the
+         * primary at the end, over every clause that had skipped on its way with the plain null.
+         * Here a GM whose id sorts first is in the user list as the pass starts and gone before
+         * its one clause runs: `migrate1_2_0` reaches its first await synchronously, so the user
+         * list is put back as the call returns. The lift then runs as the primary and finds
+         * nothing; the pass names no clause skipped, fails none, and the stamp stays where it
+         * was. The stamp is put back.
+         */
+        const G = await import("./migrate.mjs");
+        const { moduleVersion } = await import("./config.mjs");
+        const users = game.users, ownFilter = Object.hasOwn(users, "filter"), realFilter = users.filter;
+        const FIRST = { id: "!suiteFirstGm", name: "SUITE first GM", active: true, isGM: true, role: CONST.USER_ROLES.GAMEMASTER };
+        const putBack = () => {
+            if (users.filter === realFilter && Object.hasOwn(users, "filter") === ownFilter) return;
+            if (ownFilter) users.filter = realFilter;
+            else delete users.filter;
+        };
+        const stampBefore = getSetting(SETTINGS.migratedVersion);
+        const older = "1.2.64";
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, older);
+            users.filter = function (fn, ...rest) {
+                const found = realFilter.call(this, fn, ...rest);
+                return fn(FIRST) ? [...found, FIRST] : found;
+            };
+            let running;
+            try {
+                running = G.migrate1_2_0({ force: true, quiet: true, only: ["liftEclipseMoves"] });
+            } finally {
+                putBack();
+            }
+            const pass = await running;
+            equal(stableJson([pass?.failed ?? null, pass?.notPrimary ?? null, getSetting(SETTINGS.migratedVersion) === older,
+                older !== moduleVersion()]),
+            stableJson([[], [], true, true]),
+            `a pass begun while another GM was the primary stamped the world, or its clause did not run as the primary: ${stableJson(pass)}`);
+        } finally {
+            putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.migratedVersion, stampBefore);
+        }
+    }],
+
     ["a trap a world half still holds is a trap to every reader until the lift reaches it", async () => {
         /*
          * E05 fix r1-G1, 27.09.2026; the correctness review's M2. An incident opened under

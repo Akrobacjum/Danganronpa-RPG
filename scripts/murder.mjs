@@ -176,8 +176,9 @@ const CAST_MINE_REQUEST = "incident.myCastRequest";
  * The GMs' record, or a participant's copy (settings.mjs, `incidentCast`, E04).
  */
 function readCast() {
-    // What each player was last sent (`sent`, `sendCast`) is the GMs' delivery memo, not the incident's.
-    const { sent, ...cast } = incidentCast();
+    // What each player was last sent (`sent`, `sendCast`) is the GMs' delivery memo, not the incident's;
+    // the opening's request cards (`openingNotices`, `keepOpeningNotice`) are the GMs' memo too.
+    const { sent, openingNotices, ...cast } = incidentCast();
     return cast;
 }
 
@@ -510,7 +511,7 @@ export function castFor(userId, cast, state = null) {
 
 /** `castFor`'s copy, and the fields it holds null for this holder's sake (`castPacket` stamps them). */
 function castCopyFor(userId, cast, state = null) {
-    const { swung, sent, ...theirs } = cast ?? {};
+    const { swung, sent, openingNotices, ...theirs } = cast ?? {};
     if (!Object.keys(theirs).length) return { copy: theirs, withheld: [] };
     const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
     const seen = { ...live, ...theirs, indirect: incidentIndirect(theirs, live) };
@@ -3951,11 +3952,11 @@ export async function enterCast({ killerId = null, victimId = null, thirdId = nu
  * world 1.2.63 stamped over names it kept runs this once more). Idempotent: a world
  * already through this has no names in `murderState` and no flags.
  *
- * @returns {Promise<null|{lifted: number, offers: number, flags: number, kept: number}>}  `kept` 0:
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, offers: number, flags: number, kept: number}>}  `kept` 0:
  *   anything else throws.
  */
 export async function liftIncidentSecrets() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await castStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the cast did not arrive; the next load tries again");
     }
@@ -5782,33 +5783,46 @@ function openingTitle(side, state = murderState()) {
  * taken back (`revokeOpeningInvitation`), and a notice drawn from a deleted card goes with
  * it (popup.mjs).
  *
- * The ids are kept on the browser that posted the cards, which is the GM's that asked: the
- * same one that resolves the roll on one GM's table, and that closes the murder from its
- * tracker. A second GM's re-ask whose roll the primary resolves leaves that GM's request
- * standing until the murder closes on it - read off the code, not measured with two GMs.
+ * THE IDS ARE THE GMS' (E32+E07 fix r2-G4, 03.10.2026; the correctness review's m3). Until
+ * this fix they were kept in a Set on the browser that posted the cards, and a player's result
+ * is judged on the primary GM alone (gm-bridge.mjs `handleOpeningResult`): a murder opened on
+ * another GM, a re-ask from one, or the posting GM's reload left the deciding browser's Set
+ * empty, and "This roll is yours" stayed through the fight (scenario 61 F9: a second GM's
+ * re-ask stayed on the killer's player's browser after the primary closed the murder). They
+ * are kept in the cast's `openingNotices` now, an id a key, which every GM's browser holds and
+ * a reload reads back, and whichever GM resolves, takes back or closes deletes them all. Not
+ * a flag on the cards: while an incident runs a player's card is veiled (secret.mjs
+ * `incidentVeils`), its document addressed to every browser, and a flag there would tell every
+ * player that an opening roll is out (read off `postSecret`, not run). The memo's one writer runs outside the incident's queue,
+ * as `rememberSent` does (R205): the request goes out from inside it and from outside.
  */
-const openingNotices = new Set();
+function rememberOpeningNotices(notices) {
+    return castStore.patch(RECORD, { openingNotices: notices })
+        .catch(err => error("Could not keep the opening's request cards for the GMs", err));
+}
 
 function keepOpeningNotice(message) {
-    if (message?.id) openingNotices.add(message.id);
+    if (message?.id) void rememberOpeningNotices({ [message.id]: true });
 }
 
 async function retireOpeningNotices() {
-    const ids = [...openingNotices];
-    openingNotices.clear();
+    const ids = Object.keys(castStore.record()?.openingNotices ?? {});
+    if (!ids.length) return;
     for (const id of ids) {
         try {
             await game.messages.get(id)?.delete();
         } catch {
-            // A card somebody already cleared is not a problem.
+            // A card another GM cleared first is not a problem.
         }
     }
+    // The whole memo at once: a card another GM posts after this stamp is kept.
+    await rememberOpeningNotices(null);
 }
 
 /**
  * Whom this browser last sent an opening's invitation, and for which incident (E32+E07 C17;
  * audit S04-29): the tracker names them while it waits. Kept on the GM's browser that sent
- * it, as the request's card is (`openingNotices`): another GM's tracker says whose roll it
+ * it, as the request's card was until fix r2-G4: another GM's tracker says whose roll it
  * waits for and not to whom it went.
  */
 let openingInvited = null;

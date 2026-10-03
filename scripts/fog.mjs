@@ -785,11 +785,11 @@ export async function resetLedger() {
  * world 1.2.63 stamped over a ledger it kept runs this once more). Idempotent: a world
  * already through this has nothing in it.
  *
- * @returns {Promise<null|{lifted: number, monokuma: number, emptied: boolean}>}  `emptied`
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, monokuma: number, emptied: boolean}>}  `emptied`
  *   true: anything else throws.
  */
 export async function liftDiscoveryLedger() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await discoveryStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the fog ledger did not arrive; the next load tries again");
     }

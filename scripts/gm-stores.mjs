@@ -292,7 +292,12 @@ export const INCIDENT_FIGHT = Object.freeze([
  * betrayal offer alone - split a stamp per user, kept by the GMs so that every GM repeats
  * it (murder.mjs `sendCast`). `resetRecord` leaves it, no stamp of it is sent, and
  * murder.mjs reads the incident without it (`readCast`); a reset of the incident group
- * empties it with the record.
+ * empties it with the record. Nor `openingNotices` (E32+E07 fix r2-G4, 03.10.2026; the
+ * correctness review's m3): the ids of the opening's request cards and of the line that a GM
+ * is picking its statistic, a stamp per card, so that whichever GM resolves the opening,
+ * takes it back or closes the murder deletes the cards another GM posted (murder.mjs
+ * `retireOpeningNotices`). The same way as `sent`: left by `resetRecord`, sent to nobody, and
+ * read out of the incident by `readCast` and `castCopyFor`.
  */
 export const CAST_FIELDS = Object.freeze([
     "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
@@ -323,7 +328,7 @@ export const CAST_FIELDS = Object.freeze([
  */
 export const castStore = defineGmStore({
     name: "cast", key: SETTINGS.incidentCast, legacyKey: SETTINGS.legacyIncidentCast,
-    kind: "record", fields: CAST_FIELDS, split: ["swung", "sent"], resetGroup: "incident", backup: true, sync: true,
+    kind: "record", fields: CAST_FIELDS, split: ["swung", "sent", "openingNotices"], resetGroup: "incident", backup: true, sync: true,
     afterRestore: () => import("./murder.mjs").then(m => m.retellCast()),
     legacyCount: legacy => (isPlain(legacy) && Object.keys(legacy).length ? 1 : 0),
     claim: legacy => {

@@ -204,11 +204,11 @@ export async function archiveKeyPlan(chapter) {
  * migrate.mjs, above the lifts) - as it does when the emptied key does not read back
  * empty. Idempotent: a world already through this holds nothing.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
  *   `emptied` true: anything else throws.
  */
 export async function liftKeyPlan() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await keyPlanStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the Key Remnant plan did not arrive; the next load tries again");
     }

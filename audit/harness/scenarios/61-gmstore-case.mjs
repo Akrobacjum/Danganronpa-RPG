@@ -654,19 +654,28 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        is not the primary, lifts nothing and writes no stamp, and the GM is told. Until then its lift
        answered the null "nothing to do", the runner stamped the world over it, and no later load
        lifted what a 1.2.65 table left. A fight field goes back into the world half and the stamp back
-       to an older version first; the primary's pass after gm2's lifts the field and stamps. E04's lift of
-       the names, which still answers a plain null on gm2, is held to no stamp by the runner's own question. */
+       to an older version first; the primary's pass after gm2's lifts the field and stamps. Since fix r2-G4
+       (03.10.2026; the security review's S2-m5) every one of the 1.2.64-1.2.66 clauses that asks for the
+       primacy says on gm2 that it skipped, as the fight's does: until then E04's and E05's answered the plain
+       null, and only the runner's question after the clauses held the stamp back - a primacy lost and back
+       within one pass stamped over them. */
     const stampL = await gm.eval(`const was = game.settings.get("${MOD}", "migratedVersion");
         await game.settings.set("${MOD}", "murderState", { ...game.settings.get("${MOD}", "murderState"), turn: 9 });
         await game.settings.set("${MOD}", "migratedVersion", "1.2.64");
         return was;`);
     await settle(600);
-    const passL = (client, quiet, key = "liftIncidentFight") => client.eval(`${LIFT_L} const G = await import("${repoUrl}/scripts/migrate.mjs");
+    // The clauses that ask for the primacy (migrate.mjs CLAUSES), in the runner's order.
+    const PRIMARY_ONLY = ["liftIncidentSecrets", "liftDiscoveryLedger", "liftProjectSecrets", "liftPendingMurders", "liftEclipseMoves",
+        "liftKeyPlan", "liftNotes", "dropRollBookmarks", "dropCardSummaries", "liftIncidentMethod", "liftOverflowCount", "liftBulletRefs",
+        "neutralTraceNames", "liftLootTraces", "migrateRemnantsOnce", "retireOldIncidentMarks", "neutraliseOldCards", "unsignArmedCalls",
+        "liftArmedConfusions", "sealOldRepairs", "liftIncidentFight"];
+    const passL = (client, quiet, keys = ["liftIncidentFight"]) => client.eval(`${LIFT_L} const G = await import("${repoUrl}/scripts/migrate.mjs");
         const told = [], warn = ui.notifications.warn;
         ui.notifications.warn = text => { told.push(String(text)); return null; };
         try {
-            const pass = await G.migrate1_2_0({ force: true, quiet: ${quiet}, only: ["${key}"] });
-            return { failed: pass?.failed ?? null, notPrimary: pass?.notPrimary ?? null, done: pass?.clauses?.["${key}"] ?? null, told,
+            const pass = await G.migrate1_2_0({ force: true, quiet: ${quiet}, only: ${J(keys)} });
+            return { failed: pass?.failed ?? null, notPrimary: pass?.notPrimary ?? null, done: pass?.clauses?.["${keys[0]}"] ?? null, told,
+                changed: pass?.changed ?? null,
                 stamp: game.settings.get("${MOD}", "migratedVersion"), turn: M.murderState()?.turn ?? null,
                 world: Object.keys(game.settings.get("${MOD}", "murderState") ?? {}).sort() };
         } finally {
@@ -674,14 +683,14 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         }`);
     const l3 = await passL(gm2, false);
     await settle(400);
-    const l3s = await passL(gm2, true, "liftIncidentSecrets");
+    const l3s = await passL(gm2, true, PRIMARY_ONLY);
     await settle(400);
     const l3p = await passL(gm, true);
     await settle(400);
-    check("L3: the clause on a GM that is not the primary lifts nothing, writes no stamp and tells the GM, nor does E04's lift there, which answers a plain null; the primary's pass after them lifts the field and stamps",
+    check("L3: the clause on a GM that is not the primary lifts nothing, writes no stamp and tells the GM, and every clause of 1.2.64-1.2.66 that asks for the primacy says there that it skipped; the primary's pass after them lifts the field and stamps",
         l3.stamp === "1.2.64" && J(l3.failed) === "[]" && J(l3.notPrimary) === J(["liftIncidentFight"]) && l3.done === null
         && l3.told.length === 1 && !l3.told[0].startsWith("DRPG.") && J(l3.world) === J(["active", "stage", "turn"])
-        && l3s.stamp === "1.2.64" && J(l3s.failed) === "[]" && J(l3s.notPrimary) === "[]" && l3s.done === null && l3s.told.length === 0
+        && l3s.stamp === "1.2.64" && J(l3s.failed) === "[]" && J(l3s.notPrimary) === J(PRIMARY_ONLY) && l3s.changed === 0 && l3s.told.length === 0
         && l3p.stamp === stampL && J(l3p.failed) === "[]" && J(l3p.notPrimary) === "[]" && J(l3p.done) === J({ lifted: 1, dropped: 0, kept: 0 })
         && l3p.turn === 2 && J(l3p.world) === J(["active", "stage"]), J({ stampL, l3, l3s, l3p }));
     await gm.eval(`${LIFT_L} await M.endMurder({ reason: "E32 61L", followUp: false }); return true;`);
@@ -902,6 +911,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         return true;`);
     const PICKS = `const T = game.i18n.localize("DRPG.TraitRuling.title"); return globalThis.__dialogLog.filter(d => d.title === T).length;`;
     const picksBefore = { gm: await gm.eval(PICKS), gm2: await gm2.eval(PICKS) };
+    const f9from = await gm.eval(`return game.messages.contents.length;`);
     const f9open = await gm.eval(`${CAST} const T = game.i18n.localize("DRPG.TraitRuling.title");
         globalThis.__dialogAnswers.push(cfg => (cfg?.window?.title === T ? "hand" : ((cfg?.buttons ?? []).find(b => b.default) ?? cfg?.buttons?.[0])?.action ?? null));
         const opened = await M.openMurder({ killerId: "${IDS.chie}", victimId: "${IDS.daichi}" });
@@ -921,8 +931,30 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         && picksAfter.gm - picksBefore.gm === 1 && picksAfter.gm2 === picksBefore.gm2
         && J(f9p3.held) === J([["finesse", true], ["finesse", true]]) && f9p3.copy === null,
         J({ f9open, f9reask, f9p3, picksBefore, picksAfter }), { flow: "trait-ruling" });
+    /* E32+E07 fix r2-G4 (03.10.2026; the correctness review's m3): the request cards go when the
+       murder closes, whichever GM posted them. Each GM kept the ids of the cards it posted, and the
+       primary closing here deleted its own alone: gm2's re-ask stayed on the killer's player's
+       browser. Found by their words, which a GM holds (secret.mjs `wordsOf`), among the cards posted
+       since F9 began, on gm before the close, and looked up by id on every GM and p3 after it. */
+    const REQUESTS = `const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const yours = game.i18n.localize("DRPG.Murder.openingYours"), ids = [];
+        for (const m of game.messages.contents.slice(${f9from})) if ((await wordsOf(m, 500) ?? "").includes(yours)) ids.push(m.id);
+        return ids;`;
+    const f9cards = await gm.eval(REQUESTS);
+    const MEMO = `${CAST} return Object.keys(S.castStore.record()?.openingNotices ?? {}).length;`;
+    // What the killer's player is sent (`castFor` on the primary) and what their browser holds; the incident as the GM reads it.
+    const f9held = { gm: await gm.eval(MEMO), gm2: await gm2.eval(MEMO),
+        state: await gm.eval(`${CAST} return Object.hasOwn(M.murderState() ?? {}, "openingNotices");`),
+        sent: await gm.eval(`${CAST} const a = game.actors.get("${IDS.chie}"), u = game.users.find(x => !x.isGM && a.testUserPermission(x, "OWNER"));
+            return Object.hasOwn(M.castFor(u.id, S.castStore.record()), "openingNotices");`),
+        p3: await p3.eval(`return Object.hasOwn((await import("${repoUrl}/scripts/settings.mjs")).incidentCast(), "openingNotices");`) };
     await gm.eval(`${CAST} await M.endMurder({ reason: "E32+E07 61F9", followUp: false }); return true;`);
     await settle(800);
+    const HELD = `return ${J(f9cards)}.filter(id => game.messages.has(id)).length;`;
+    const f9left = { gm: await gm.eval(HELD), gm2: await gm2.eval(HELD), p3: await p3.eval(HELD), memo: [await gm.eval(MEMO), await gm2.eval(MEMO)] };
+    check("F9b: the close on the primary deletes the opening's request cards both GMs posted, on every browser; both GMs hold their ids until then and forget them after, and the killer's player is sent none and holds none, nor does the incident the GM reads",
+        f9cards.length === 2 && f9held.gm >= 2 && f9held.gm2 === f9held.gm && f9held.sent === false && f9held.p3 === false && f9held.state === false
+        && f9left.gm === 0 && f9left.gm2 === 0 && f9left.p3 === 0 && J(f9left.memo) === "[0,0]", J({ f9cards, f9held, f9left }), { flow: "trait-ruling" });
     await p3.eval(`const a = game.actors.get("${IDS.chie}"); delete a.rollTrait;
         for (const r of globalThis.__heldOpenings ?? []) r(null); delete globalThis.__heldOpenings; delete globalThis.__heldTraits; return true;`);
     await disconnect("gm2");

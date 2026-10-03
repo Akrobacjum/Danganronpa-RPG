@@ -1480,8 +1480,6 @@
       "tileCrisis": "Akcje kryzysowe",
       "tileFightBack": "Broń się",
       "offTurn": "Teraz ich tura. Twoje akcje kryzysowe otworzą się, gdy tura wróci do ciebie.",
-      "betrayTileLabel": "Zwróć się przeciw partnerowi",
-      "betrayTileHint": "Zabij osobę, której właśnie pomagasz. To otwiera drugi incydent - ty jako zabójca, oni jako ofiara - i zostawia dwa ciała z jednej nocy. GM potwierdza, zanim cokolwiek się stanie.",
       "briefCostStress": "Kosztuje {n} Sanity.",
       "briefRoll": "Rzuć",
       "briefTake": "Zrób to",

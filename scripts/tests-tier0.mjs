@@ -6228,10 +6228,12 @@ const REGRESSIONS = [
          * E32+E07 fix r2-G2 (03.10.2026): what each player was last sent of the cast (`sent`) is
          * the GMs' delivery memo, not the incident, and its one writer (`rememberSent`) runs
          * outside the queue - a push runs inside it, an answer outside - so its body is not read
-         * as a stray, and it writes `sent` alone.
+         * as a stray, and it writes `sent` alone. Fix r2-G4 (03.10.2026) adds the second memo of the
+         * GMs', the opening's request cards (`openingNotices`), whose one writer
+         * (`rememberOpeningNotices`) runs outside the queue for the same reason and writes that alone.
          */
         const LEAVES = ["writeCast", "armBetrayalWindow"];
-        const MEMO = "rememberSent";
+        const MEMO = "rememberSent", NOTICES = "rememberOpeningNotices";
         const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow)\(/g;
         const QUEUES = /(?<!function )\b(?:writeState|restoreState|incidentWrite)\(/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
@@ -6252,7 +6254,7 @@ const REGRESSIONS = [
             const queued = at => spans.some(([a, b]) => at > a && at < b);
             const stray = [], again = [];
             for (const m of src.matchAll(WRITE)) {
-                if (!queued(m.index) && !LEAVES.includes(fnAt(m.index)) && fnAt(m.index) !== MEMO) stray.push(`${file} ${fnAt(m.index)}`);
+                if (!queued(m.index) && !LEAVES.includes(fnAt(m.index)) && ![MEMO, NOTICES].includes(fnAt(m.index))) stray.push(`${file} ${fnAt(m.index)}`);
             }
             for (const m of src.matchAll(QUEUES)) {
                 if (queued(m.index) || LEAVES.includes(fnAt(m.index))) again.push(`${file} ${fnAt(m.index)}`);
@@ -6281,6 +6283,9 @@ const REGRESSIONS = [
         const memo = fnSource(bare, MEMO);
         ok(/\bcastStore\.patch\(RECORD, \{ sent: \{ \[userId\]: memo \} \}\)/.test(memo) && [...stripStrings(memo).matchAll(WRITE)].length === 1,
             `the memo's writer (${MEMO}) is gone, or writes more than what a player was sent`);
+        const notices = fnSource(bare, NOTICES);
+        ok(/\bcastStore\.patch\(RECORD, \{ openingNotices: notices \}\)/.test(notices) && [...stripStrings(notices).matchAll(WRITE)].length === 1,
+            `the request cards' writer (${NOTICES}) is gone, or writes more than the cards' ids`);
         const TRANSITIONS = ["checkVictimSpent", "finishIncident", "beginResolution", "passTurn", "thirdPartyEnters",
             "resolveKillerOpening", "resolveVictimOpening", "closeIncident", "undoLastCrisis"];
         const blind = TRANSITIONS.filter(fn => !/if \(!await (?:writeState|restoreState)\([^;]*\bexpect: /.test(fnSource(bare, fn)));

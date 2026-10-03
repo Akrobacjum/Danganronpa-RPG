@@ -5517,7 +5517,9 @@ const INVARIANTS = [
  * literal "DRPG.x" in the source, from the files Foundry serves, so the list
  * only repeated it: on 1.2.60, R1's pattern read 69 of its 78 keys. Of the
  * other nine, two (Murder.betrayTileLabel and betrayTileHint) were used by no
- * file and are gone; seven were built at run time. Four were left here, and
+ * file and left this list; they stayed in en.json and pl.json, stating a
+ * betrayal rule the module no longer has, until E32+E07 fix r2-G4 deleted them
+ * (03.10.2026). Seven were built at run time. Four were left here, and
  * E32+E07 C16 added two:
  *
  *   murder.mjs         victimTrapSprung / victimUnderAttackBy, by `state.indirect`

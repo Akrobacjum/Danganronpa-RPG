@@ -929,10 +929,10 @@ async function noteRollContext(actor, data) {
  * whose tokens keep their delta as plain data - how a real Foundry applies a deletion
  * on that path is not measured here.
  *
- * @returns {Promise<null|{dropped: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{dropped: number}>}
  */
 export async function dropRollBookmarks() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     const held = flags => Object.hasOwn(flags?.[MODULE_ID] ?? {}, FLAGS.lastAction);
     const holding = () => [
         ...(game.actors?.contents ?? []).filter(actor => held(actor.flags)),

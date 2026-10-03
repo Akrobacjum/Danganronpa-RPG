@@ -1461,8 +1461,6 @@
       "tileCrisis": "Crisis actions",
       "tileFightBack": "Fight back",
       "offTurn": "It is their turn. Your crisis actions open when it comes back to you.",
-      "betrayTileLabel": "Turn on your partner",
-      "betrayTileHint": "Kill the person you just helped. This opens a second incident with you as the killer and them as the victim, and leaves two bodies from one night. The GM confirms before anything happens.",
       "briefCostStress": "Costs {n} Sanity.",
       "briefRoll": "Roll it",
       "briefTake": "Do it",

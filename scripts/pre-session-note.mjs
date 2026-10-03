@@ -424,11 +424,11 @@ export function registerPreSessionNote() {
  * so the world is not stamped and the next load tries again (E05 fix r1-G1; migrate.mjs,
  * above the lifts). Idempotent: a world already through this holds no text.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
  *   `emptied` true: anything else throws.
  */
 export async function liftNotes() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await noteStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the pre-session notes did not arrive; the next load tries again");
     }

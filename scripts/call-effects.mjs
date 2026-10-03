@@ -294,10 +294,10 @@ function unsigned(entry) {
  * Foundry does on that path). Read back; one still signed throws with the count, so the
  * world is not stamped and the next load tries again.
  *
- * @returns {Promise<null|{unsigned: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{unsigned: number}>}
  */
 export async function unsignArmedCalls() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     const listOf = flags => flags?.[MODULE_ID]?.[FLAGS.pendingCall] ?? null;
     const signed = flags => {
         const stored = listOf(flags);
@@ -605,10 +605,10 @@ export function registerConfusionCopy() {
  * (monocub.mjs `resolveMeddle`), never on a token's own data. One still on a flag throws with
  * the count, so the world is not stamped and the next load tries again.
  *
- * @returns {Promise<null|{lifted: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number}>}
  */
 export async function liftArmedConfusions() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await confusionStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the Confusions did not arrive; the next load tries again");
     }

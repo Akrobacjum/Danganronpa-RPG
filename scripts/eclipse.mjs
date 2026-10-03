@@ -574,11 +574,11 @@ export async function clearParkedMurders() {
  * (E05 fix r1-G1; migrate.mjs, above the lifts). Idempotent: a world already through
  * this holds nothing.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
  *   `emptied` true: anything else throws.
  */
 export async function liftPendingMurders() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await pendingMurderStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the declarations did not arrive; the next load tries again");
     }
@@ -1094,11 +1094,11 @@ function registerMovesCopy() {
  * not stamped and the next load tries again (E05 fix r1-G1; migrate.mjs, above the
  * lifts). Idempotent: a world already through this holds nothing.
  *
- * @returns {Promise<null|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
+ * @returns {Promise<null|{notPrimary: true}|{lifted: number, kept: number, emptied: boolean}>}  `kept` 0 and
  *   `emptied` true: anything else throws.
  */
 export async function liftEclipseMoves() {
-    if (!isPrimaryGm()) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
     if (await eclipseMoveStore.whenHydrated() === "timedOut") {
         throw new Error("the other GMs' copies of the crossings did not arrive; the next load tries again");
     }

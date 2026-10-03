@@ -607,7 +607,7 @@ const CLAUSES = [
         run: async () => {
             const { liftIncidentSecrets } = await import("./murder.mjs");
             const report = await liftIncidentSecrets();
-            return report && (report.lifted || report.offers || report.flags) ? report : null;
+            return report && (report.notPrimary || report.lifted || report.offers || report.flags) ? report : null;
         }
     },
     {
@@ -625,7 +625,7 @@ const CLAUSES = [
         run: async () => {
             const { liftDiscoveryLedger } = await import("./fog.mjs");
             const report = await liftDiscoveryLedger();
-            return report && (report.lifted || report.monokuma) ? report : null;
+            return report && (report.notPrimary || report.lifted || report.monokuma) ? report : null;
         }
     },
     {
@@ -641,7 +641,7 @@ const CLAUSES = [
         run: async () => {
             const { liftProjectSecrets } = await import("./projects.mjs");
             const report = await liftProjectSecrets();
-            return report?.lifted ? report : null;
+            return report?.notPrimary || report?.lifted ? report : null;
         }
     },
     {
@@ -658,7 +658,7 @@ const CLAUSES = [
         run: async () => {
             const { liftPendingMurders } = await import("./eclipse.mjs");
             const report = await liftPendingMurders();
-            return report?.lifted ? report : null;
+            return report?.notPrimary || report?.lifted ? report : null;
         }
     },
     {
@@ -676,7 +676,7 @@ const CLAUSES = [
         run: async () => {
             const { liftEclipseMoves } = await import("./eclipse.mjs");
             const report = await liftEclipseMoves();
-            return report?.lifted ? report : null;
+            return report?.notPrimary || report?.lifted ? report : null;
         }
     },
     {
@@ -693,7 +693,7 @@ const CLAUSES = [
         run: async () => {
             const { liftKeyPlan } = await import("./investigation.mjs");
             const report = await liftKeyPlan();
-            return report?.lifted ? report : null;
+            return report?.notPrimary || report?.lifted ? report : null;
         }
     },
     {
@@ -709,7 +709,7 @@ const CLAUSES = [
         run: async () => {
             const { liftNotes } = await import("./pre-session-note.mjs");
             const report = await liftNotes();
-            return report?.lifted ? report : null;
+            return report?.notPrimary || report?.lifted ? report : null;
         }
     },
     {
@@ -775,7 +775,7 @@ const CLAUSES = [
         run: async () => {
             const { liftOverflowCount } = await import("./overflow.mjs");
             const report = await liftOverflowCount();
-            return report && (report.lifted || report.dropped) ? report : null;
+            return report && (report.notPrimary || report.lifted || report.dropped) ? report : null;
         }
     },
     {
@@ -792,7 +792,7 @@ const CLAUSES = [
         run: async () => {
             const { liftBulletRefs } = await import("./truth-bullets.mjs");
             const report = await liftBulletRefs();
-            return report && (report.lifted || report.dropped) ? report : null;
+            return report && (report.notPrimary || report.lifted || report.dropped) ? report : null;
         }
     },
     {
@@ -825,7 +825,7 @@ const CLAUSES = [
         run: async () => {
             const { liftLootTraces } = await import("./handover.mjs");
             const report = await liftLootTraces();
-            return report && (report.lifted || report.dropped) ? report : null;
+            return report && (report.notPrimary || report.lifted || report.dropped) ? report : null;
         }
     },
     {
@@ -1071,10 +1071,11 @@ function veiledToday(src, words) {
  *
  * What a real table's log of 717 messages (E17) costs this pass has not been measured.
  *
- * @returns {Promise<null|{rolls: number, cards: number, reports: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{rolls: number, cards: number, reports: number}>}
  */
 export async function neutraliseOldCards({ messages = null } = {}) {
-    if (!isPrimaryGm() || !game.messages) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
+    if (!game.messages) return null;
     const gms = gmIds();
     if (!gms.length) return null;
     const { neutralRollSource, oldRollReaders } = await import("./private-rolls.mjs");
@@ -1308,6 +1309,8 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
     const report = {
         from, to, forced: force, wasInPlay: inPlay, clauses: {}, changed: 0, skipped: [], failed: [], notPrimary: []
     };
+    // Asked before the first clause, with no await in between: see the stamp's note below.
+    const primaryAtStart = isPrimaryGm();
 
     const clauses = Array.isArray(only) ? CLAUSES.filter(clause => only.includes(clause.key)) : CLAUSES;
     for (const clause of clauses) {
@@ -1353,15 +1356,22 @@ export async function migrate1_2_0({ force = false, quiet = false, wasInPlay = n
      * No stamp from a GM that is not the primary (E32+E07 fix r1-G4, the security review's m2).
      * Until 1.2.66 a lift on another GM answered the null "nothing to do", the stamp went on over
      * it, and no later load lifted what it left in world data: `game.drpg.migrate1_2_0()` by hand
-     * on a second GM did that to the fight's lift (measured in scenario 61, 02.10.2026). Two
-     * questions, because each answers what the other cannot. A clause that ran while this GM was
-     * not the primary says so (`notPrimary`, the cast's two lifts), which holds even if this GM is
-     * the primary by now. And the primacy is asked again here, after the clauses, for the lifts
-     * that still answer a plain null on another GM (E04's, E05's; measured with E04's names in
-     * scenario 61) and for a pass whose GM stopped being the primary while it ran, a GM whose id
-     * sorts first having come in (read, not run). The primary's next load runs the pass.
+     * on a second GM did that to the fight's lift (measured in scenario 61, 02.10.2026). Three
+     * questions, because each answers what the others cannot. Every clause that asks for the
+     * primacy - the 1.2.64-1.2.66 lifts and drops, nineteen of them since fix r2-G4 (the security
+     * review's S2-m5, 03.10.2026) besides the cast's two - says it was skipped (`notPrimary`), so
+     * a primacy lost only while one of them ran, a GM whose id sorts first having come in and
+     * gone again within the pass, holds the stamp back though this GM is the primary at both
+     * ends (read, not run: scenario 61 L3 measures each clause's answer on a second GM, not the
+     * race). The primacy is asked before the first clause (fix r2-G4, the correctness review's
+     * m8): a pass begun by hand on another GM whose primary left while it ran is the primary at
+     * its end, and a clause that skipped with the plain null on its way - every lift's answer
+     * until this fix, and a new lift's if it is written that way - would be stamped as done
+     * (the tier-2 test "a migration pass begun on a GM that is not the primary..."). And it is
+     * asked again here, after the clauses, for a pass whose GM stopped being the primary while
+     * it ran. The primary's next load runs the pass.
      */
-    if (report.notPrimary.length || !isPrimaryGm()) {
+    if (report.notPrimary.length || !primaryAtStart || !isPrimaryGm()) {
         if (!quiet) ui.notifications.warn(game.i18n.localize("DRPG.Migrate.notPrimary"));
         log("Migration: stamp NOT written, because this GM is not the primary.", report);
         return report;

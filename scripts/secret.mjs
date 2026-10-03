@@ -1039,10 +1039,11 @@ export function secretSummaries(since = 0) {
  * without it), twenty-five writes at a time, and read back; one still there throws,
  * so the world is not stamped and the next load tries again.
  *
- * @returns {Promise<null|{dropped: number}>}
+ * @returns {Promise<null|{notPrimary: true}|{dropped: number}>}
  */
 export async function dropCardSummaries() {
-    if (!isPrimaryGm() || !game.messages) return null;
+    if (!isPrimaryGm()) return { notPrimary: true };
+    if (!game.messages) return null;
     const holding = () => game.messages.filter(m => Object.hasOwn(m.flags?.[MODULE_ID] ?? {}, "summary"));
     const found = holding();
     if (!found.length) return null;
