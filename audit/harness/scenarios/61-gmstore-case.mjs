@@ -754,10 +754,11 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        newest of the parts the copy shows (murder.mjs `castPacket`), as the Key Remnants' count's does - which the
        opening's result wrote last, so its stamp is that newest already. Who struck a critical Finishing blow
        (`freeCleanup`, E32+E07 C13) is withheld the same way, so its stamp reads as that newest too - the C13 chain
-       (03.10.2026) failed F3 until this line named it. */
-    const withheldF = ["keyRemnants", "openingTrait", "freeCleanup"];
+       (03.10.2026) failed F3 until this line named it. The fight's last turns (`recent`, E32+E07 C17) are the
+       GMs' as well, and withheld the same way. */
+    const withheldF = ["keyRemnants", "openingTrait", "freeCleanup", "recent"];
     const shownF = Math.max(0, ...Object.entries(stampsF).filter(([f]) => !withheldF.includes(f)).map(([, t]) => t ?? 0));
-    const heldStampsF = { ...stampsF, openingTrait: shownF, freeCleanup: shownF };
+    const heldStampsF = { ...stampsF, openingTrait: shownF, freeCleanup: shownF, recent: shownF };
     check("F3: the primary answers the killer's player with the cast and every part's stamp, a bystander with nothing and the seats' stamps alone, and both GMs hold the killer",
         castsFrom("gm") > castBefore.gm && p3AfterGm.stamp === castAt && onGmF.state === IDS.chie && onGm2F.state === IDS.chie
         && answeredF.p3.length === 1 && answeredF.p3[0].cast?.killerId === IDS.chie && answeredF.p3[0].cast?.victimId === IDS.daichi
@@ -825,6 +826,32 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         enteredAt > openedAt && fromGm2.length === 1 && fromGm2[0].cast?.thirdId === IDS.aiko && fromGm2[0].stamps?.killerTurnId < enteredAt
         && p3Merged.third === IDS.aiko && p3Merged.stamps?.killerTurnId === enteredAt && p1Merged.third === IDS.aiko
         && p1Merged.stamps?.killerTurnId === enteredAt && onGm2F5.killerTurnId === enteredAt, J({ enteredAt, fromGm2, p3Merged, p1Merged, onGm2F5 }));
+
+    /* F10 (E32+E07 C17, 03.10.2026; audit S04-29): the fight's last turns are the cast's and the GMs'. The
+       primary scores Aiko's Averted eyes - the third's, which passes no turn and marks nothing - and the
+       second GM's record holds the turn, and its tracker lists it. The killer's player holds none of it in
+       the packet that carried the write: their copy is read once its receipt's stamp (`lastCrisis`, written
+       with the turns and held null in it as well) is the record's. Aiko's player leaves with her. Until C17
+       the tracker kept no history at all. */
+    await gm.eval(`${CAST} await M.resolveCrisisAction({ actorId: "${IDS.aiko}", key: "avertedEyes", total: 0, isCritical: false, withHope: true });
+        return true;`, { timeout: 60000 });
+    const writtenF10 = (await castStampsOn(gm)).lastCrisis;
+    const historyF10 = await gm2.eval(`${CAST} const CL = await import("${repoUrl}/scripts/cleanup.mjs");
+        const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
+        const end = Date.now() + 6000;
+        while (!(M.murderState()?.recent ?? []).length && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const recent = M.murderState()?.recent ?? [];
+        const line = game.i18n.format("DRPG.Murder.trackerTurnLine", { turn: recent[0]?.turn, side: game.i18n.localize("DRPG.Murder.side.third"),
+            action: foundry.utils.escapeHTML(CRISIS_ACTIONS.avertedEyes.label), result: game.i18n.localize("DRPG.Murder.trackerResult.free") });
+        return { recent: recent.map(e => [e.side, e.key, e.band, e.changes?.length ?? null]), listed: M.incidentTrackerHtml(M.murderState(), CL).includes("<li>" + line + "</li>") };`);
+    const copyF10 = await p3.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const end = Date.now() + 6000;
+        while ((E.mineStamps("cast")?.lastCrisis ?? 0) < ${writtenF10} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { stamp: E.mineStamps("cast")?.lastCrisis ?? null, recent: incidentCast().recent ?? null };`);
+    check("F10: the fight's last turns reach the second GM's record and its tracker, and not the killer's player's copy",
+        J(historyF10.recent) === J([["third", "avertedEyes", null, 0]]) && historyF10.listed === true
+        && copyF10.stamp === writtenF10 && copyF10.recent === null, J({ writtenF10, historyF10, copyF10 }));
 
     /* F6, the round-2 review's M1 (26.09): a GM whose browser lost the cast - here forgotten, as a
        lost browser has it - presses Pass the turn while the GM that kept it is away. Every field of

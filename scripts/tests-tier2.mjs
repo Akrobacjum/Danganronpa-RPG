@@ -13319,6 +13319,178 @@ const SCENARIOS = [
         }
     }],
 
+    ["at the opening the tracker names whose roll it waits for", async () => {
+        /*
+         * E32+E07 C17, 03.10.2026; audit S04-29. At the opening the GM's tracker read the fight's
+         * fields before there is a fight - "Opening · turn 0 · victim to act" - while the roll it
+         * waited for was the killer's, or a trap's victim's. A direct murder opens with its
+         * invitation held (`heldInvitations`, so no player's browser answers it), then a trap
+         * between the same two. Read off the tracker's body (`incidentTrackerHtml`) for each:
+         * whether it names the roller's opening roll, the player this browser sent the
+         * invitation to, and the old turn 0.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player the invitation goes to");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const esc = foundry.utils.escapeHTML;
+        const stage = game.i18n.localize("DRPG.Murder.stage.openingRoll");
+        const turnZero = game.i18n.format("DRPG.Murder.trackerState", { stage, turn: 0, side: game.i18n.localize("DRPG.Murder.side.victim") });
+        const read = async roller => {
+            const waiting = game.i18n.format("DRPG.Murder.trackerWaiting", { stage, name: esc(roller.name) });
+            const invited = game.i18n.format("DRPG.Murder.trackerInvited", { user: esc(player(roller).name) });
+            const html = () => M.incidentTrackerHtml(M.murderState(), CL);
+            // The invitation goes out after `openMurder` has answered.
+            await until(() => html().includes(invited), 6000);
+            return [html().includes(waiting), html().includes(invited), html().includes(turnZero)];
+        };
+        try {
+            const seen = await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                const direct = await read(killer);
+                await M.endMurder({ reason: "test", followUp: false });
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, indirect: true, openingTrait: "eye" });
+                const trap = await read(victim);
+                return [direct, trap];
+            });
+            equal(stableJson(seen), stableJson([[true, true, false], [true, true, false]]),
+                "the tracker at the opening does not name whose roll it waits for or whom the invitation went to, or still says turn 0 (direct, trap: [waiting, invited, turn 0])");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        }
+    }],
+
+    ["the tracker shows the last turns", async () => {
+        /*
+         * E32+E07 C17, 03.10.2026; audit S04-29. The tracker said whose turn it was and nothing of
+         * what had happened. The cast keeps the last three turns now (`recent`) and the tracker
+         * lists them. A direct murder between two students with players: a critical Self-defence
+         * (which keeps the turn and stops the drain, so a turn's marks are the action's alone),
+         * Secure a trace missed with Hope, a Strike missed with Despair, Secure a trace made with
+         * Hope - then that last one's Reroll, missed with Despair. Read: each turn kept (turn,
+         * side, action, band, made it, what it marked against what the victim's marks moved),
+         * whether the tracker lists three and the Strike's line with its loss, and not the
+         * Self-defence; then the turns after the Reroll, which takes the place of the line it
+         * replaces. Until C17 nothing was kept.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { resourceValue, reserveNote } = await import("./character.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const esc = foundry.utils.escapeHTML;
+        const marks = () => resourceValue(victim, "hitPoints") + resourceValue(victim, "stress");
+        const moved = [];
+        const act = async (actor, key, total, isCritical, withHope) => {
+            await turnFor(M, actor, key);
+            const before = marks();
+            await M.resolveCrisisAction({ actorId: actor.id, key, total, isCritical, withHope });
+            moved.push(marks() - before);
+        };
+        const kept = () => (M.murderState()?.recent ?? []).map(e => [e.side, e.key, e.band, e.success,
+            (e.changes ?? []).reduce((n, c) => n + (c.actorId === victim.id ? c.landed : 0), 0)]);
+        try {
+            await fightOpen(M, killer, victim);
+            const first = M.murderState()?.turn ?? null;
+            await act(victim, "selfDefence", 30, true, true);
+            must(M.murderState()?.drainStopped === true, "the critical Self-defence did not stop the drain");
+            await act(victim, "secureTrace", 1, false, true);
+            await act(killer, "strike", 1, false, false);
+            await act(victim, "secureTrace", 30, false, true);
+            const turns = kept();
+            const strike = M.murderState()?.recent?.[1] ?? {};
+            const line = game.i18n.format("DRPG.Murder.trackerTurnLine", { turn: strike.turn, side: game.i18n.localize("DRPG.Murder.side.killer"),
+                action: esc(CRISIS_ACTIONS.strike.label),
+                result: game.i18n.format("DRPG.Murder.trackerResult.miss", { band: game.i18n.localize("DRPG.Murder.band.despair") }) });
+            const note = reserveNote({ name: esc(victim.name) }, strike.changes ?? []);
+            const html = M.incidentTrackerHtml(M.murderState(), CL);
+            const listed = [(html.match(/<li>/g) ?? []).length, html.includes(`<li>${line} ${note}</li>`), html.includes(esc(CRISIS_ACTIONS.selfDefence.label))];
+            await M.resolveCrisisAction({ actorId: victim.id, key: "secureTrace", total: 1, isCritical: false, withHope: false, undo: true });
+            const rerolled = kept().map(([side, key, band, success]) => [side, key, band, success]);
+            equal(stableJson([typeof first === "number" && (M.murderState()?.recent ?? []).every(e => e.turn >= first), turns, listed, rerolled]),
+                stableJson([true, [["victim", "secureTrace", "hope", false, moved[1]], ["killer", "strike", "despair", false, moved[2]], ["victim", "secureTrace", "hope", true, moved[3]]],
+                    [3, true, false],
+                    [["victim", "secureTrace", "hope", false], ["killer", "strike", "despair", false], ["victim", "secureTrace", "despair", false]]]),
+                "the cast does not keep the last three turns as they went, with what each marked, the tracker does not list them or lists the fourth from last, "
+                + "or a Reroll added a line rather than replacing one (turns from the fight's first, kept, [lines, the Strike's, the Self-defence's], after the Reroll)");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        }
+    }],
+
+    ["no player's packet holds the fight's last turns", async () => {
+        /*
+         * E32+E07 C17, 03.10.2026; audit S04-29. The last turns (`recent`) name who acted, what
+         * they rolled and what it cost them: the GM's tracker reads them, and no seat's panel. A
+         * direct murder between two students with players, one Secure a trace missed with Hope;
+         * then the packet each side's player is sent (`castPacket`, which `sendCast` sends). Read:
+         * the turns the GMs hold, and for each player the turns in their copy and whether their
+         * stamp is the newest of the packet's - a stamp of its own would time a turn.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, victim, "secureTrace");
+            await M.resolveCrisisAction({ actorId: victim.id, key: "secureTrace", total: 1, isCritical: false, withHope: true });
+            const record = S.castStore.record();
+            const sent = [killer, victim].map(a => M.castPacket(player(a).id, record))
+                .map(({ cast, stamps }) => [cast.recent ?? null, stamps.recent === Math.max(...Object.values(stamps))]);
+            equal(stableJson([(record.recent ?? []).length, sent]), stableJson([1, [[null, true], [null, true]]]),
+                "the GMs do not hold the turn, or a player's packet holds the fight's last turns or stamps them apart (GMs' turns, [killer's, victim's]: [turns, stamp the newest])");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        }
+    }],
+
+    ["a failed opening tells the GM on screen", async () => {
+        /*
+         * E32+E07 C17, 03.10.2026; audit S04-29. A failed opening closed the murder and its
+         * tracker, and said so in a whisper to the GMs - which raises no notice on a GM's screen
+         * (popup.mjs) - so the tracker vanished and nothing on screen said why. A direct murder
+         * whose invitation is held (`heldInvitations`) and whose opening the GM scores a miss
+         * with Despair, then one scored a success. Read: whether each murder still runs, and how
+         * many warnings on this screen say the opening's failure. Until C17 none did.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { MURDER_OPENING } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const said = [];
+        const own = Object.getOwnPropertyDescriptor(ui.notifications, "warn");
+        const warn = ui.notifications.warn;
+        ui.notifications.warn = function (message, ...rest) {
+            said.push(String(message));
+            return warn.call(this, message, ...rest);
+        };
+        try {
+            const running = await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                await M.resolveKillerOpening({ total: 1, isCritical: false, withHope: false });
+                const failed = Boolean(M.murderState());
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+                return [failed, Boolean(M.murderState())];
+            });
+            equal(stableJson([running, said.filter(m => m === MURDER_OPENING.killer.failure).length]), stableJson([[false, true], 1]),
+                "the failed opening left the murder running, the success did not open it, or the GM's screen was not told the failure once (running after each, warnings)");
+        } finally {
+            if (own) Object.defineProperty(ui.notifications, "warn", own); else delete ui.notifications.warn;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        }
+    }],
+
     ["the slider moves the type under Monokuma Legacy and moves nothing under the glass", async () => {
         /*
          * W-2, measured rather than read - and this is the only test that would catch

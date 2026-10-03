@@ -469,6 +469,9 @@ function castStamps() {
  * Who struck a critical Finishing blow (`freeCleanup`, E32+E07 C13), null in every copy as
  * well: its one reader is the GM's charge for a clean-up attempt (cleanup.mjs
  * `consumeFreeCleanup`), and nothing a player's browser draws reads it.
+ * The fight's last turns (`recent`, E32+E07 C17), null in every copy too: the GM's tracker
+ * is their one reader, and each names who acted, what they rolled and what it cost - a
+ * history of the fight no seat's panel draws.
  * A holder seated for the offer alone is sent the offer alone, the fight not included.
  *
  * THE VALUES ARE NULLED, and what their stamps say is `castPacket`'s. A third who moves to
@@ -491,7 +494,7 @@ function castCopyFor(userId, cast, state = null) {
     const offer = theirs.betrayal && owns(theirs.betrayal.thirdId) ? theirs.betrayal : null;
     if (!incidentAudienceIds(seen).includes(userId)) return { copy: offer ? { betrayal: offer } : {}, withheld: [] };
     const withheld = [...(incidentAudienceIds(seen, { stage: "incident" }).includes(userId) ? ["keyRemnants"] : [...INCIDENT_FIGHT, "departed"]),
-        "openingTrait", "freeCleanup"];
+        "openingTrait", "freeCleanup", "recent"];
     const copy = { ...theirs, lastCrisis: null, ...("betrayal" in theirs ? { betrayal: offer } : {}) };
     for (const f of withheld) if (Object.hasOwn(copy, f)) copy[f] = null;
     if (!seen.indirect || killerIds(theirs).some(owns)) return { copy, withheld };
@@ -1088,6 +1091,8 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         freeResolution: null,
         // Who struck a critical Finishing blow, whose first clean-up costs no Sanity (C13): nobody yet.
         freeCleanup: null,
+        // The last turns, for the GM's tracker (C17): none yet.
+        recent: [],
         thirdActed: null,
         openedAt,
         keyRemnantsStale: null,
@@ -1337,6 +1342,11 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
 
     if (!success) {
         await tellGms(prose.failure);
+        /* On screen as well as by card (E32+E07 C17, 03.10.2026; audit S04-29): the murder
+           closes and its tracker with it, and the card is a whisper, which raises no notice on
+           a GM's screen (popup.mjs) - the GM watching the tracker saw it vanish and nothing
+           say why. On this browser, the GM's that scored the roll. */
+        ui.notifications.warn(prose.failure);
         // No follow-up: the killer lost their nerve, so there is no body, no
         // room to announce and nothing to investigate. The checklist would be
         // asking the GM to find a corpse that does not exist.
@@ -2346,13 +2356,17 @@ async function applyCrisisAction({
         success, band, total, threshold, done, stage, promised
     });
     receipt.messageId = announcement?.id ?? null;
+    // The tracker's line for this turn (`recent`), read before the pass: the drain at the
+    // victim's turn is the next turn's, not this action's. No band for a take with no roll.
+    const entry = { turn: state.turn ?? 0, side, key, band: def.noRoll || free ? null : band, success,
+        changes: landedSince(receipt) };
 
     // A third party's action is free: it is taken out of the victim→killer
     // order and must not advance it, or somebody walking in would silently
     // skip whoever's turn it actually was. It is also the only one they get -
     // and that is written at the top of this function now, not here.
     if (side === "third") {
-        await closeReceipt(receipt);
+        await closeReceipt(receipt, entry);
         return { success, band, done, ranOut, lethal: receipt.killed.length > 0 };
     }
 
@@ -2373,7 +2387,7 @@ async function applyCrisisAction({
         await checkVictimSpent(null, receipt.killed);
     }
 
-    await closeReceipt(receipt);
+    await closeReceipt(receipt, entry);
     return { success, band, done, ranOut, lethal: receipt.killed.length > 0 };
 }
 
@@ -2456,7 +2470,40 @@ function openReceipt(actorId, key, state) {
  */
 const CRISIS_MOVES = ["stage", "endedBy", "turn", "turnSide", "killerTurnId", "thirdId"];
 
-async function closeReceipt(receipt) {
+/**
+ * THE FIGHT'S LAST TURNS, FOR THE GM'S TRACKER (E32+E07 C17, 03.10.2026; audit S04-29). The
+ * tracker said whose turn it was and nothing of what had happened: a GM who looked away for
+ * two actions read the victim's marks and had to scroll the chat for why. The last
+ * `RECENT_TURNS` actions are kept in the cast as `{ turn, side, key, band, success, changes }`
+ * - `band` null for a take with no roll, `changes` what each reserve took (`landedSince`) -
+ * and written with the action's receipt, in the same write; every player's copy holds them
+ * null (`castFor`). A Reroll's rewind puts back the list
+ * the receipt's snapshot holds, so its replay takes the place of the line it replaces rather
+ * than adding one.
+ */
+const RECENT_TURNS = 3;
+
+/**
+ * What an action marked on the reserves its receipt holds the values of - the actor's and the
+ * victim's, the only two an action marks (`applyDamage`, `takeReserves`, `spendStress`) - as
+ * `reserveNote` reads it: `{ actorId, key, landed }`, losses only.
+ */
+function landedSince(receipt) {
+    const read = [[receipt.actorId, "stress", receipt.actorStress], [receipt.actorId, "hitPoints", receipt.actorHp],
+        [receipt.victimId, "hitPoints", receipt.victimHp], [receipt.victimId, "stress", receipt.victimStress]];
+    const seen = new Set();
+    const changes = [];
+    for (const [actorId, key, was] of read) {
+        const actor = actorId ? game.actors.get(actorId) : null;
+        if (!actor || was === null || seen.has(`${actorId}.${key}`)) continue;
+        seen.add(`${actorId}.${key}`);
+        const landed = resourceValue(actor, key) - was;
+        if (landed > 0) changes.push({ actorId, key, landed });
+    }
+    return changes;
+}
+
+async function closeReceipt(receipt, entry) {
     try {
         /* WHAT THE ACTION LEFT, so a Reroll can tell its own consequences from
            a GM who has moved the incident on since (E03 second review): Survive,
@@ -2464,7 +2511,8 @@ async function closeReceipt(receipt) {
            the undo puts the stage back with the rest of the state. */
         const after = murderState() ?? {};
         receipt.after = Object.fromEntries(CRISIS_MOVES.map(key => [key, after[key] ?? null]));
-        await writeState({ lastCrisis: receipt });
+        const recent = [...(after.recent ?? []), entry].slice(-RECENT_TURNS);
+        await writeState({ lastCrisis: receipt, recent });
     } catch (err) {
         error("Could not record what this crisis action did; a Reroll will not be able to replay it", err);
     }
@@ -5676,6 +5724,14 @@ async function retireOpeningNotices() {
 }
 
 /**
+ * Whom this browser last sent an opening's invitation, and for which incident (E32+E07 C17;
+ * audit S04-29): the tracker names them while it waits. Kept on the GM's browser that sent
+ * it, as the request's card is (`openingNotices`): another GM's tracker says whose roll it
+ * waits for and not to whom it went.
+ */
+let openingInvited = null;
+
+/**
  * Exported for the suite, which re-asks through it as the tracker's "Ask for the opening
  * roll again" does (`reaskOpening`, which adds only its cooldown).
  */
@@ -5689,6 +5745,7 @@ export async function rollOpening(side, state) {
     if (owner?.active) {
         const { askOpeningRoll } = await import("./gm-bridge.mjs");
         if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side, trait })) {
+            openingInvited = { openedAt: state?.openedAt ?? null, userId: owner.id };
             const title = openingTitle(side, state);
             keepOpeningNotice(await whisperToOwner(actor,
                 `${cardHead({ action: title })}<p>${game.i18n.localize("DRPG.Murder.openingYours")}</p>`,
@@ -6027,6 +6084,17 @@ export function incidentTrackerHtml(now, cleanup) {
         now.victimId && !victim ? game.i18n.localize("DRPG.Murder.side.victim") : null
     ].filter(Boolean);
 
+    /*
+     * AT THE OPENING, WHOSE ROLL IT WAITS FOR (E32+E07 C17, 03.10.2026; audit S04-29). Until
+     * this commit the line read the fight's fields as they stand before there is a fight -
+     * "Opening · turn 0 · victim to act" - while the roll it waited for was the killer's (a
+     * trap's victim's). It names the roller now, and on the GM's browser that sent the
+     * invitation, the player it went to (`openingInvited`).
+     */
+    const opening = now.stage === "openingRoll";
+    const invited = opening && openingInvited?.openedAt === (now.openedAt ?? null)
+        ? game.users.get(openingInvited.userId) ?? null : null;
+
     return `<div class="drpg-incident-live">
         ${lost.length ? `<p class="drpg-warning">${game.i18n.format(
             "DRPG.Murder.trackerCastGone", { who: lost.join(", ") })}</p>` : ""}
@@ -6040,7 +6108,12 @@ export function incidentTrackerHtml(now, cleanup) {
                 third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
                     name: foundry.utils.escapeHTML(third.name)
                 })}` : ""}`}</p>
-        <p>${now.selfInflicted
+        <p>${opening
+            ? game.i18n.format("DRPG.Murder.trackerWaiting", {
+                stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
+                name: foundry.utils.escapeHTML((now.indirect ? victim : killer)?.name ?? "?")
+            })
+            : now.selfInflicted
             // No turn and no side to report: there is no Stage 5 in this one.
             ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
                 stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
@@ -6050,11 +6123,46 @@ export function incidentTrackerHtml(now, cleanup) {
                 turn: now.turn,
                 side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
             })}</p>
+        ${invited ? `<p class="notes">${game.i18n.format("DRPG.Murder.trackerInvited", {
+            user: foundry.utils.escapeHTML(invited.name)
+        })}</p>` : ""}
+        ${recentTurnsHtml(now.recent)}
         <p>${game.i18n.format("DRPG.Murder.victimMarks", {
             hp: left("hitPoints"), stress: left("stress")
         })}</p>
         <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
         ${cleanupSection(killerIds(now).map(id => game.actors.get(id)).filter(Boolean), cleanup)}</div>`;
+}
+
+/**
+ * The fight's last turns (`recent`, see `RECENT_TURNS`), oldest first, as the tracker lists
+ * them: "Turn 1 - victim: Self-defence, missed with Despair." and what each reserve took, by
+ * name ("Aiko loses 1 Health.", `reserveNote`). Nothing before the first action.
+ */
+function recentTurnsHtml(recent) {
+    const lines = (recent ?? []).map(({ turn, side, key, band, success, changes }) => {
+        const result = !band
+            ? game.i18n.localize("DRPG.Murder.trackerResult.free")
+            : band === "critical"
+                ? game.i18n.localize("DRPG.Murder.trackerResult.critical")
+                : game.i18n.format(success ? "DRPG.Murder.trackerResult.hit" : "DRPG.Murder.trackerResult.miss", {
+                    band: game.i18n.localize(`DRPG.Murder.band.${band}`)
+                });
+        const byActor = new Map();
+        for (const change of changes ?? []) byActor.set(change.actorId, [...(byActor.get(change.actorId) ?? []), change]);
+        const notes = [...byActor].map(([id, list]) => reserveNote({
+            name: foundry.utils.escapeHTML(game.actors.get(id)?.name ?? "?")
+        }, list)).filter(Boolean);
+        return [game.i18n.format("DRPG.Murder.trackerTurnLine", {
+            turn,
+            side: game.i18n.localize(`DRPG.Murder.side.${side}`),
+            action: foundry.utils.escapeHTML(CRISIS_ACTIONS[key]?.label ?? key),
+            result
+        }), ...notes].join(" ");
+    });
+    return lines.length
+        ? `<ul class="drpg-incident-recent">${lines.map(line => `<li>${line}</li>`).join("")}</ul>`
+        : "";
 }
 
 /* WHICH BUTTONS ARE ON IT, which `keepLive` cannot change - it replaces a region of

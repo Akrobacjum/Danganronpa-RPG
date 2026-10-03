@@ -278,9 +278,14 @@ export const INCIDENT_FIGHT = Object.freeze([
  * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
  * spends it (cleanup.mjs `consumeFreeCleanup`). Written with the stage that ends the fight,
  * so not the fight's; the GMs' alone, every player's copy holds it null (murder.mjs `castFor`).
+ *
+ * `recent` (E32+E07 C17, 03.10.2026; audit S04-29): the fight's last three turns for the GM's
+ * tracker, `{ turn, side, key, band, success, changes }` each, written with the action's
+ * receipt (murder.mjs `closeReceipt`). It names who acted and what it cost them, so not the
+ * fight's either: the GMs' alone, every player's copy holds it null.
  */
 export const CAST_FIELDS = Object.freeze([
-    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "departed", "openingTrait", "freeCleanup", "recent", "lastCrisis", "betrayal", "swung", ...INCIDENT_METHOD,
     ...INCIDENT_FIGHT
 ]);
 

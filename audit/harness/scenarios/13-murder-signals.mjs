@@ -28,6 +28,8 @@
  * player's thread, and rolls the pick (E32+E07 C11b, 1c); taken from the tile, it is one window on
  * the player's browser, the menu (E32+E07 C15, 1c). A trap's card opens the GM's murder
  * window on the student the trap read, and opens nothing until the GM confirms (E32+E07 C14, part 2).
+ * The GM's tracker names whose opening roll it waits for, and lists the fight's last turns, which
+ * no participant's copy holds (E32+E07 C17, 0 and 1d).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -250,6 +252,38 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     await settle(300);
     const noticeSecond = await p3.eval(NOTICE_READ(24, true));
     const castsAtSecond = await p1.eval(CAST_NET);
+
+    /* THE GM'S TRACKER, DRAWN (E32+E07 C17, 03.10.2026; audit S04-29). At the opening it read the fight's
+       fields before there is a fight - "Opening · turn 0 · victim to act" - while the roll it waited for was
+       Chie's; it names whose roll it waits for now, and on this GM, which sent the invitation, the player it
+       went to. Drawn as a GM opens it (`game.drpg.incidentTracker`), its live region read and the window
+       closed. The same reading after the Strike (1d) lists the fight's last turns. */
+    const TRACKER_READ = `const { closeOpen } = await import("${repoUrl}/scripts/live.mjs");
+        const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.classes?.includes("drpg-window-incident"));
+        const text = el => el.textContent.replace(/\\s+/g, " ").trim();
+        const windows = globalThis.__dialogWindows;
+        globalThis.__dialogWindows = true;
+        try {
+            game.drpg.incidentTracker()?.catch?.(() => null);
+            await until(() => drawn()?.element?.querySelector(".drpg-incident-live"));
+            const live = drawn()?.element?.querySelector(".drpg-incident-live");
+            return { lines: [...(live?.querySelectorAll(":scope > p") ?? [])].map(text), turns: [...(live?.querySelectorAll(".drpg-incident-recent li") ?? [])].map(text) };
+        } finally {
+            globalThis.__dialogWindows = windows;
+            closeOpen("drpg-window-incident");
+        }`;
+    const trackerAtOpening = await gm.eval(`const esc = foundry.utils.escapeHTML, stage = game.i18n.localize("DRPG.Murder.stage.openingRoll");
+        const said = { waiting: game.i18n.format("DRPG.Murder.trackerWaiting", { stage, name: esc(game.actors.get("${ids.chie}").name) }),
+            invited: game.i18n.format("DRPG.Murder.trackerInvited", { user: esc(game.users.find(u => u.character?.id === "${ids.chie}")?.name ?? "?") }),
+            turnZero: game.i18n.format("DRPG.Murder.trackerState", { stage, turn: 0, side: game.i18n.localize("DRPG.Murder.side.victim") }) };
+        const read = await (async () => { ${TRACKER_READ} })();
+        return { said, read };`, { timeout: 60000 });
+    await settle(300);
+    check("opening: the GM's tracker says whose opening roll it waits for and to whom the invitation went, and no turn 0",
+        trackerAtOpening.read.lines.includes(trackerAtOpening.said.waiting) && trackerAtOpening.read.lines.includes(trackerAtOpening.said.invited)
+        && !trackerAtOpening.read.lines.includes(trackerAtOpening.said.turnZero) && trackerAtOpening.read.turns.length === 0,
+        JSON.stringify(trackerAtOpening), { flow: "murder-incident" });
 
     /* ---- 1. a DIRECT murder: the killer is in the room ---------------------- */
     phase("direct", { flow: "murder-incident" });
@@ -662,6 +696,33 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         && hitSeen.killer.cards === 1 && hitSeen.killer.them && !hitSeen.killer.you && !hitSeen.killer.marker
         && hitSeen.bystander.cards === 0,
         JSON.stringify({ hit, hitSeen }));
+
+    /* The Strike is the last of the fight's turns on the GM's tracker (E32+E07 C17): its band, and what it
+       took off Aiko before the pass drained her - the 2 Health the card says, not the Health the pass added.
+       Neither participant's copy holds the turns, read once their copy holds the action's receipt stamp
+       (`lastCrisis`, written with them). */
+    const trackerAfterHit = await gm.eval(`const { plural } = await import("${repoUrl}/scripts/utils.mjs");
+        const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
+        const M = await import("${repoUrl}/scripts/murder.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const esc = foundry.utils.escapeHTML, last = M.murderState()?.recent?.at(-1) ?? null;
+        const said = game.i18n.format("DRPG.Murder.trackerTurnLine", { turn: last?.turn, side: game.i18n.localize("DRPG.Murder.side.killer"),
+            action: esc(CRISIS_ACTIONS.strike.label), result: game.i18n.localize("DRPG.Murder.trackerResult.critical") })
+            + " " + game.i18n.format("DRPG.Murder.theyLose", { name: esc(game.actors.get("${ids.aiko}").name), what: plural("DRPG.Reserve.health", { n: 2 }) });
+        const read = await (async () => { ${TRACKER_READ} })();
+        return { last: last && [last.side, last.key, last.band, last.success, last.changes], said, read, stamp: S.castStore.stampOf("record", "lastCrisis") };`, { timeout: 60000 });
+    await settle(300);
+    const RECENT_HELD = `const E = await import("${repoUrl}/scripts/gm-store.mjs");
+        const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
+        const end = Date.now() + 6000;
+        while ((E.mineStamps("cast")?.lastCrisis ?? 0) < ${trackerAfterHit.stamp ?? 0} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return { stamp: E.mineStamps("cast")?.lastCrisis ?? null, recent: incidentCast().recent ?? null };`;
+    const recentHeld = { victim: await p1.eval(RECENT_HELD), killer: await p3.eval(RECENT_HELD) };
+    check("hit: the GM's tracker lists the Strike last, with the 2 Health it took, and neither participant's copy holds the fight's turns",
+        JSON.stringify(trackerAfterHit.last) === JSON.stringify(["killer", "strike", "critical", true, [{ actorId: ids.aiko, key: "hitPoints", landed: 2 }]])
+        && trackerAfterHit.read.turns.at(-1) === trackerAfterHit.said && trackerAfterHit.read.turns.length <= 3
+        && Object.values(recentHeld).every(r => r.stamp === trackerAfterHit.stamp && r.recent === null),
+        JSON.stringify({ trackerAfterHit, recentHeld }), { flow: "murder-incident" });
 
     /* ---- 1e. a swing's wear, taken by the GM after the blow ------------------
        E32+E07 C8, 28.09.2026; audit S04-04, and E06 fix r1-G3's routing (the stage's A1). Chie

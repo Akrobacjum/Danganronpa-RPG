@@ -109,6 +109,8 @@ const FRESH = Object.freeze({
     freeResolution: none,
     // Who struck a critical Finishing blow, whose first clean-up costs no Sanity (E32+E07 C13): nobody yet.
     freeCleanup: none,
+    // The fight's last turns, for the GM's tracker (E32+E07 C17): none yet.
+    recent: emptyList,
     lastCrisis: none,
     swung: v => none(v) || !Object.keys(v).length,
     endedBy: none,
@@ -853,6 +855,8 @@ async function assertIncidentInvariants(run) {
         if (!none(copy.openingTrait)) run.violate("I2", `${user.name}'s copy holds the opening's statistic, ${copy.openingTrait}`);
         // Nor who struck a critical Finishing blow (E32+E07 C13): the GMs' charge for a clean-up reads it, nothing of a player's.
         if (!none(copy.freeCleanup)) run.violate("I2", `${user.name}'s copy holds the free clean-up's striker, ${nameOf(copy.freeCleanup)}`);
+        // Nor the fight's last turns (E32+E07 C17): the GM's tracker is their one reader.
+        if (!none(copy.recent)) run.violate("I2", `${user.name}'s copy holds the fight's last turns, ${JSON.stringify(copy.recent)}`);
         /* The fight as the GMs hold it: a seat reads its turn off its own copy (E32 C2) - but the Key
            Remnants' count, the GMs' alone, and for a trap's killers, seated from Stage 6 on, all of it:
            their rolls' results, which E06 keeps from the builder (fix r1-G1; the review's m1, M2). What
@@ -860,7 +864,7 @@ async function assertIncidentInvariants(run) {
            the copy shows, so it moves when they do and never alone. Who walked in and out again
            (`departed`, E32+E07 C10) is a cast field beside the fight, and is held as the fight is. */
         const copied = [...FIGHT_FIELDS, "departed"];
-        const withheld = [...(m.kind === "trap" && killerSide ? copied : ["keyRemnants"]), "openingTrait", "freeCleanup"];
+        const withheld = [...(m.kind === "trap" && killerSide ? copied : ["keyRemnants"]), "openingTrait", "freeCleanup", "recent"];
         const due = f => (withheld.includes(f) ? null : state?.[f] ?? null);
         const unlike = copied.filter(f => JSON.stringify(copy[f] ?? null) !== JSON.stringify(due(f)));
         if (unlike.length) run.violate("I2", `${user.name}'s copy holds the fight's ${unlike.join(", ")} unlike the GMs'`);
