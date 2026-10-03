@@ -418,6 +418,40 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         notifs: globalThis.__notifications.map(n => n.level + ": " + n.msg) };`);
     p1Pain.cards = (await cardsSince(p1, pain0)).filter(x => x.visible).map(x => x.says.slice(0, 200));
     check("p1: the victim of the Call was told", [...p1Pain.cards, ...p1Pain.notifs].some(t => t.includes(p1Pain.expect)), JSON.stringify(p1Pain));
+
+    /* p1'S REROLL INTO A DESPAIR RESULT, SETTLED AS A FRESH ROLL (E08+E28 C4b, 03.10.2026; audit
+       S02-22). Aiko feeds this GM's pool (the Pain above pointed her at it). p1 throws a Hope roll
+       of hers, kept on the GMs; the GM arms it to throw a Despair result (`REROLL_ARM`) and p1 asks
+       the Reroll - twice, with "Rolls grant Despair" on and then off. A Reroll's Despair went
+       through the pool's bounds alone, so it fed the pool with the setting off. Read on the GM:
+       the pool's move across each Reroll, whether each was made by the GM's hand, and the Hope
+       it took - 4: the price and the Hope result's own point (the harness world's players' Hope
+       and Fear automation is on). */
+    const grantWas = await gm.eval(`await game.drpg.setDespair(game.user.id, 3).catch(() => {}); return game.settings.get("${MOD}", "despairFromRolls");`);
+    const despairRerolls = {};
+    for (const grant of [true, false]) {
+        await gm.eval(`await game.settings.set("${MOD}", "despairFromRolls", ${grant}); return true;`);
+        const thrown = await p1.eval(`globalThis.__forceRoll = { hope: 9, fear: 5 };
+            try { const A = await import("${REPO}/scripts/action-rolls.mjs"); const o = await A.rollTrait(game.actors.get("${ids.aiko}"), "eye", { remember: true }); return o?.raw?.message?.id ?? null; }
+            finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+        const kept = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs"); const end = Date.now() + 6000;
+            while (S.rerollBookmarkStore.get("${ids.aiko}")?.messageId !== ${JSON.stringify(thrown)} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            return S.rerollBookmarkStore.get("${ids.aiko}")?.messageId === ${JSON.stringify(thrown)};`, { timeout: 30000 });
+        const arm = await gm.eval(REROLL_ARM({ hope: 9, fear: 5 }, { hope: 2, fear: 10 }), { timeout: 30000 });
+        const pool0 = await gm.eval(`return game.drpg.getDespair(game.user.id);`);
+        const asked = await p1.eval(REROLL_ASK, { timeout: 90000 });
+        await settle(600);
+        const read = await gm.eval(REROLL_READ, { timeout: 30000 });
+        const pool1 = await gm.eval(`const m = game.messages.get(${JSON.stringify(thrown)}); await m?.delete(); return game.drpg.getDespair(game.user.id);`);
+        despairRerolls[grant ? "on" : "off"] = { thrown: Boolean(thrown), kept, armed: arm.messageId === thrown, made: asked.made, paid: read.paid,
+            byGm: read.rolls.length === 1 && read.rolls.every(u => u === read.gm), moved: pool1 - pool0 };
+    }
+    await gm.eval(`await game.settings.set("${MOD}", "despairFromRolls", ${JSON.stringify(grantWas)}); return true;`);
+    const dr = despairRerolls;
+    check("p1: a Reroll into a Despair result feeds Aiko's Monokuma one point with \"Rolls grant Despair\" on, and none with it off",
+        ["on", "off"].every(k => dr[k]?.thrown && dr[k].kept && dr[k].armed && dr[k].made === true && dr[k].paid === 4 && dr[k].byGm)
+            && dr.on.moved === 1 && dr.off.moved === 0,
+        JSON.stringify(dr), { flow: "despair" });
     /*
      * THE RAIL, AND WHAT IS STILL MASKED ON IT.
      *

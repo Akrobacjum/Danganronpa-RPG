@@ -6,17 +6,29 @@
  * the moment it is paid for, on the single most recent roll and nothing older.
  *
  * "Replace the old result with the new one" is not a chat-card edit. It means
- * the action is taken back and run again:
+ * the action is taken back and run again, on the GM, as one unit (`rerollOnGm`,
+ * E08+E28 C4a):
  *
  *   the dice      the chat message is rewritten in place, so the table sees one
  *                 roll with new numbers rather than two contradictory rolls
  *   Hope / Sanity `settleDualityReroll`, a port of what `DualityRoll#reroll`
  *                 settles, moves these from the old duality to the new one
  *   Despair       ours, not the system's - a Despair result that becomes a Hope
- *                 result has to hand the point back to the Monokuma that got it
+ *                 result hands the point back to the Monokuma that got it
  *   the action    whatever the roll actually did is undone and redone against
  *                 the new number: project progress, the item a Search drew, the
  *                 Remnant it left, the freeze and repair a Sabotage caused
+ *
+ * WHAT A REROLL SETTLES IS WHAT A FRESH ROLL SETTLES (E08+E28 C4b, 03.10.2026;
+ * audit S02-22). The same dice pay the same, behind the same gates: Hope, Sanity
+ * and Fear only with Daggerheart's `hopeFear.players` (a player's roll, wherever
+ * it is settled - the system's own funnel asks that flag for a GM's roll too);
+ * Despair through the fresh award's own function (despair-award.mjs
+ * `awardRollDespair`: "Rolls grant Despair", a Monokuma's own roll, a full pool's
+ * spill and its give-back); the critical's second Hope behind the gate the funnel
+ * pays it behind (critical.mjs). A reaction pays none of them. A reload in the
+ * middle of a Reroll is put right, or told, from the GMs' journal of it
+ * (`recoverRerollJournal`).
  *
  * Which action to replay comes off the bookmark `rollTrait` writes. Until that
  * bookmark carried an `actionKey`, only Work on Project ever recorded one - so
@@ -29,11 +41,12 @@
  */
 
 import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
-import { resolveThreshold, easedBy, log, error, plural } from "./utils.mjs";
+import { resolveThreshold, easedBy, log, error, plural, esc, isPrimaryGm, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
 import { searchTier, stashStepFor, stashText } from "./action-rolls.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore } from "./gm-stores.mjs";
+import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
 import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
 
 /**
@@ -139,6 +152,14 @@ export function rerolledSource(rerolled, message) {
  * the system does not export, ending in the same `modifyResource` the system's
  * own resource map calls. It runs after the replay (`makeReroll`), on the GM that
  * makes the Reroll since E08+E28 C4a.
+ *
+ * THE PLAYERS' FLAG, ON A GM TOO (E08+E28 C4b, 03.10.2026; audit S02-22). The port read
+ * `game.user.isGM ? hopeFear.gm : hopeFear.players`, which was the roller's flag while the
+ * roller's tab made the Reroll and is the GMs' flag now that a GM does: a world with player
+ * automation off and the GMs' on paid a player's Reroll what no fresh roll of theirs was paid.
+ * A fresh roll's funnel asks `shouldUseHopeFearAutomation()`, whose default `gmAsPlayer: true`
+ * reads `hopeFear.players` on every client (Daggerheart 2.6.5, helpers/utils.mjs, read
+ * 03.10.2026), so this does too.
  */
 async function settleDualityReroll(original, rerolled, actor) {
     if (original.options?.actionType === "reaction") return;
@@ -147,7 +168,7 @@ async function settleDualityReroll(original, rerolled, actor) {
         const { hope, stress, fear } = rerollDeltas(original, rerolled);
         const { hopeFear, countdownAutomation } = dhAutomation();
 
-        if (game.user.isGM ? hopeFear.gm : hopeFear.players) {
+        if (hopeFear.players) {
             const updates = [];
             if (hope) updates.push({ key: "hope", value: hope, enabled: true });
             // NOT the system's Sanity line (review of CALL-08). A critical clears no
@@ -244,8 +265,8 @@ function advantageDice(roll) {
  * answers the lines for the Call's card. A refusal before the payment changes
  * nothing; one after it (a write that threw, a replay answering null) gives back the
  * first rolls and the Hope paid, as +3 on the Hope held then. The journal's phases
- * are there for a reload in the middle, which C4b puts right or tells; this commit
- * writes and drops them.
+ * are there for a reload in the middle: `recoverRerollJournal` below puts it right
+ * or tells it (E08+E28 C4b).
  * ========================================================================== */
 
 /** The characters whose Reroll this client is making now: a second while one runs is refused. */
@@ -347,8 +368,12 @@ async function makeReroll(actor, sender) {
     const journal = fields => rerollJournalStore.patch(actor.id, fields);
 
     await rerollJournalStore.whenHydrated();
-    await journal({ phase: "paid", hope: cost, messageId: message.id, firstRolls, at: Date.now(), by: sender?.id ?? null });
+    // `gm` is the client making it, `first` and `action` what a GM told of a Reroll cut short
+    // is told (`recoverRerollJournal`).
+    await journal({ phase: "paid", hope: cost, messageId: message.id, firstRolls, at: Date.now(), by: sender?.id ?? null,
+        gm: game.user.id, first: before.total ?? null, action: row.actionKey ?? null });
     await automatedUpdate(actor, { "system.resources.hope.value": held - cost });
+    if (cutHere("paid")) return { cut: "paid" };
 
     const done = [];
     let rerolled;
@@ -361,6 +386,7 @@ async function makeReroll(actor, sender) {
         await giveBack(actor, message, firstRolls, cost);
         return { refused: "the Reroll could not be made; its Hope and the first roll are given back", say: "DRPG.Reroll.failed" };
     }
+    if (cutHere("rolled")) return { cut: "rolled" };
     relayRerolledDice(message, row.by ?? null);
 
     const after = dualityOfRoll(rerolled);
@@ -371,7 +397,8 @@ async function makeReroll(actor, sender) {
     // actually left behind - not from the row as the Reroll began, which put the OLD
     // progress figure back straight after the replay had corrected it, so a second
     // Reroll subtracted a number the project no longer held.
-    await journal({ phase: "replaying" });
+    await journal({ phase: "replaying", total: after.total ?? null });
+    if (cutHere("replaying")) return { cut: "replaying" };
     const patch = await replayAction(actor, bookmark, after, done, rerolled);
     if (patch === null) {
         await giveBack(actor, message, firstRolls, cost);
@@ -384,15 +411,15 @@ async function makeReroll(actor, sender) {
      * replay until that fix; a replay the GM refused then had them to move back, and an
      * inverse is not one at the edges: that fix's first build moved them back, and in the
      * full suite the Despair pool did not come back to its number (alone it did; e32run
-     * g3f1, 02.10). Read off `adjustDespair`, a point that does not fit a full pool spills
-     * to the overflow, and the point given back is the pool's own. Settled here, a refused
-     * replay has moved none of them. Settled on the GM now, as they are; C4b gives them a
-     * fresh roll's gates.
+     * g3f1, 02.10) - a point that did not fit a full pool had spilled to the overflow, and
+     * the point given back came off the pool. Settled here, a refused replay has moved none
+     * of them. Settled as a fresh roll is since E08+E28 C4b (the header): the same gates, and
+     * the Despair through the fresh award's own function, whose give-back at a full pool
+     * comes off the overflow first. A reaction roll paid no Despair and no critical Hope, so
+     * a reroll of one has none to move - the test `settleDualityReroll` makes for itself
+     * (review of CALL-08, 17.09: the one-die path reaches here for a reaction too).
      */
     await settleDualityReroll(original, rerolled, actor);
-    // A reaction roll paid no Despair and no critical Hope, so a reroll of one
-    // has none to move - the same test `settleDualityReroll` makes (review of
-    // CALL-08, 17.09: the one-die path now reaches here for a reaction too).
     if (original.options?.actionType !== "reaction") {
         await settleDespair(actor, before, after, done);
         await settleCritHope(actor, before, after, done);
@@ -455,11 +482,122 @@ async function giveBack(actor, message, firstRolls, cost) {
  * sends nothing for it (`REROLL_SHOWN`).
  */
 async function putFirstRollBack(message, firstRolls) {
+    // A message deleted since, or a journal row without its rolls: nothing to put back on.
+    if (!message || !firstRolls?.length) return;
     try {
         await message.update({ rolls: firstRolls }, { [REROLL_SHOWN]: true });
     } catch (err) {
         error("Could not put the first roll back on its card after a Reroll that did not stand", err);
     }
+}
+
+/* ==========================================================================
+ * A REROLL CUT SHORT
+ * --------------------------------------------------------------------------
+ * E08+E28 C4b, 03.10.2026; audit S02-47's reload; the plan's 2.4. A Reroll is made on one
+ * GM's client, and a reload there (or that GM leaving) stops it between two writes. The
+ * journal row says how far it got, and every GM holds it (`rerollJournal`, synced). The
+ * primary reads it as its stores open - its own reload, and every load - and when a GM
+ * leaves, which is how a new primary comes to read it.
+ *
+ *   paid, rolled  nothing of the action was touched yet: the first rolls go back on the
+ *                 card, the Hope paid comes back as +3 on the Hope held now (`giveBack`),
+ *                 and the player and the GMs are told (`DRPG.Reroll.interrupted`).
+ *   replaying     the undo may have run in part, and what it wrote cannot be read back
+ *                 out of the world: the GMs get one card with the character, the action
+ *                 and the two totals and what to check (`DRPG.Reroll.interruptedGm`), the
+ *                 player is told the GM will settle it, and the Hope stays paid. The GMs'
+ *                 bookmark of that roll goes, so the roll cannot be rerolled again on a
+ *                 row that no longer says what it did.
+ *
+ * NOT ON `drpgPrimaryReady`, which the plan named: that hook fires on the OTHER clients
+ * when the primary's GM_READY arrives (gm-bridge.mjs `onGmReady`), never on the primary
+ * itself, and the primary is the one that must read the journal. A row is left alone
+ * while the GM client it names is connected (on that client itself, while it is making
+ * it): another GM's Reroll still running reads, from here, exactly as one cut short.
+ * ========================================================================== */
+
+/** Suite only: the phase after which the next Reroll made on this client stops, as a reload there would leave it. */
+let cutAt = null;
+export function cutRerollAfter(phase) {
+    cutAt = phase ?? null;
+}
+function cutHere(phase) {
+    if (cutAt !== phase) return false;
+    cutAt = null;
+    return true;
+}
+
+/** A row nobody is making any more: this client's and not in hand, or a GM's who is gone. */
+function orphaned(actorId, row, gone) {
+    if (row?.gm === game.user.id) return !making.has(actorId);
+    if (gone && row?.gm === gone) return true;
+    return !game.users.get(row?.gm ?? "")?.active;
+}
+
+let recovering = Promise.resolve();
+
+/**
+ * Put right, or tell, every Reroll the journal holds that nobody is making any more. The
+ * primary only, one pass at a time. `gone` is a GM who has just left, read as gone whether
+ * or not this client's user list says so yet. Answers `[actorId, "givenBack" | "told" |
+ * "dropped"]` per row handled. Exported for the suite.
+ */
+export function recoverRerollJournal({ gone = null } = {}) {
+    const run = async () => {
+        if (!isPrimaryGm()) return [];
+        await rerollJournalStore.whenHydrated();
+        const done = [];
+        for (const [actorId, row] of Object.entries(rerollJournalStore.entries())) {
+            if (!row || !orphaned(actorId, row, gone)) continue;
+            try {
+                done.push([actorId, await recoverOne(actorId, row)]);
+            } catch (err) {
+                error(`Could not put right the Reroll a reload cut short (${actorId})`, err);
+            }
+        }
+        return done;
+    };
+    recovering = recovering.then(run, run);
+    return recovering;
+}
+
+async function recoverOne(actorId, row) {
+    const actor = game.actors.get(actorId) ?? null;
+    const message = game.messages.get(row.messageId ?? "") ?? null;
+    if (!actor) {
+        await rerollJournalStore.drop(actorId);
+        return "dropped";
+    }
+    const name = esc(actor.name);
+    if (row.phase === "paid" || row.phase === "rolled") {
+        await giveBack(actor, message, row.firstRolls ?? [], Number(row.hope) || HOPE_CALLS.reroll.cost);
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Reroll.interrupted", { name })}</p>`);
+        log(`${actor.name}'s Reroll, cut short at "${row.phase}", is given back.`);
+        return "givenBack";
+    }
+    // `replaying`, or a phase this build does not know: told, not guessed.
+    const action = esc(ACTIONS[row.action]?.label ?? row.action ?? "-");
+    await whisperToGms(`<h3>${esc(game.i18n.localize("DRPG.Reroll.title"))}</h3><p>${game.i18n.format("DRPG.Reroll.interruptedGm", {
+        name, action, first: esc(String(row.first ?? "?")), total: esc(String(row.total ?? "?"))
+    })}</p>`);
+    if (ownerOf(actor)) await whisperToOwnerOnly(actor, `<p>${game.i18n.format("DRPG.Reroll.interruptedPending", { name })}</p>`);
+    if (rerollBookmarkStore.get(actorId)?.messageId === row.messageId) await rerollBookmarkStore.drop(actorId);
+    await rerollJournalStore.drop(actorId);
+    log(`${actor.name}'s Reroll, cut short at "${row.phase}", is told to the GMs.`);
+    return "told";
+}
+
+/**
+ * The two moments the primary reads the journal: its stores open, and a GM leaves. Not while the
+ * suite holds the stores or stands them in another world (`gmStoresQuiet`): a hydration then is
+ * the suite's, and the rows it would read are a test's.
+ */
+export function registerRerollRecovery() {
+    onGmStoresHydrated(() => { if (!gmStoresQuiet()) void recoverRerollJournal(); });
+    Hooks.on("userConnected", (user, connected) => {
+        if (!connected && user?.isGM) void recoverRerollJournal({ gone: user.id });
+    });
 }
 
 /** Hope / Despair / critical, read straight off the dice so it always works.
@@ -489,26 +627,29 @@ export function dualityOfRoll(roll) {
 /**
  * Despair is this module's own pool, so the system's reroll knows nothing about
  * it. A roll that was made with Despair and is no longer gives its point back;
- * one that becomes a Despair roll takes a point now.
+ * one that becomes a Despair roll takes a point now - through the fresh award's
+ * own function, with its gates (despair-award.mjs `awardRollDespair`, E08+E28
+ * C4b). It ran `requestDespairAdjust` until then, whose only rule was the
+ * pool's bounds: a Reroll fed a pool with "Rolls grant Despair" off, had no
+ * rule for a Monokuma's own roll, and gave a spilled point back off the pool.
+ * The GM making the Reroll writes it; an assistant's pool write goes to the
+ * primary as every assistant's does (`adjustDespair`).
  */
 async function settleDespair(actor, before, after, done) {
     if (before.withFear === after.withFear) return;
 
     try {
-        const { monokumaFor } = await import("./assignments.mjs");
-        const monokuma = monokumaFor(actor);
-        if (!monokuma) return;
-
-        const delta = after.withFear ? 1 : -1;
-        const { requestDespairAdjust } = await import("./gm-bridge.mjs");
+        const { awardRollDespair } = await import("./despair-award.mjs");
         const { poolLabel } = await import("./despair.mjs");
-        const res = await requestDespairAdjust(monokuma.id, delta, { actorId: actor.id });
-        // Only what was asked for and not refused (E31): the refusal has been said.
-        if (!res.ok) return;
+        const delta = after.withFear ? 1 : -1;
+        const moved = await awardRollDespair(actor, delta);
+        if (!moved) return;
 
-        // The pool's name, as the Despair bar shows it - not the GM's account.
+        // The pool's name, as the Despair bar shows it - not the GM's account. Where the
+        // point went (the pool or the overflow) is not said: a player's screen masks the
+        // overflow's count.
         done.push(game.i18n.format(delta > 0 ? "DRPG.Reroll.despairGained" : "DRPG.Reroll.despairReturned", {
-            name: poolLabel(monokuma)
+            name: poolLabel(moved.monokuma)
         }));
     } catch (err) {
         error("Could not settle Despair after a reroll", err);
@@ -530,11 +671,17 @@ async function settleDespair(actor, before, after, done) {
  * would for a crit arrived at by rerolling, so the second one is owed here. The
  * same call with -1 hands it back when a reroll throws a critical away, which is
  * why this is a signed delta rather than a payment.
+ *
+ * BEHIND THE FUNNEL'S GATE (E08+E28 C4b, 03.10.2026; audit S02-22). critical.mjs tops up
+ * only what the funnel paid, and the funnel pays nothing with Daggerheart's
+ * `hopeFear.players` off; this paid its point whatever the flag said. It asks the flag
+ * `settleDualityReroll` asks.
  */
 async function settleCritHope(actor, before, after, done) {
     if (before.isCritical === after.isCritical) return;
 
     try {
+        if (!dhAutomation()?.hopeFear?.players) return;
         const { adjustCritHopeTopUp } = await import("./despair-award.mjs");
         const delta = after.isCritical ? 1 : -1;
         await adjustCritHopeTopUp(actor, delta);

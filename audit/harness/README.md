@@ -93,7 +93,7 @@ release or stage the status belongs to.
 | 17 | scenarios/17-assistant.mjs | ci | exists | E30 | an Assistant GM (role 3) is a GM, and its relay packets are judged like a player's |
 | 18 | scenarios/18-trial.mjs | ci | planned | E40 | the trial with real ballots, a player leak scan after every step (plan v2 calls it 15-trial; 15 is 15-held) |
 | 19 | scenarios/19-standing-cast.mjs | ci | exists | E32+E07 fix r2-G2 | what a player outside the running incident is sent of its cast: one packet, repeated by every GM, no newer than the opening |
-| 20 | scenarios/20-crit-hope.mjs | ci | exists | <=1.2.50 | a critical pays +2 Hope, a Hope roll +1 |
+| 20 | scenarios/20-crit-hope.mjs | ci | exists | <=1.2.50 | a critical pays +2 Hope, a Hope roll +1; a Reroll into a critical pays the second Hope only with the players' Hope and Fear automation on (1.2.67) |
 | 30 | scenarios/30-security.mjs | ci | exists | <=1.2.50 | forged packets and writes change nothing on the GM |
 | 31 | scenarios/31-fuzz.mjs | ci, local-gate | planned | E43 | malformed packets to every bridge entry and socket: no write, no GM exception, a refusal with a reason |
 | 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |

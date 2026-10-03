@@ -59,17 +59,6 @@ async function onChatMessage(message) {
             return;
         }
 
-        // Monokumas roll too - a trait check to walk somewhere, a forced roll a
-        // player triggered against them - but they are not students. Hope and
-        // Despair pools are guide resources for the two sides of the table, not
-        // for the actor playing the antagonist; a Monokuma's crit was quietly
-        // refilling the Hope `setMonokuma` had zeroed out, and a Monokuma's
-        // Despair roll was feeding its own controller's pool.
-        if (isMonokuma(actor)) {
-            debug(`${actor.name} is a Monokuma; rolls do not grant Hope or feed a Despair pool.`);
-            return;
-        }
-
         /*
          * NO CRIT HOPE IS PAID HERE, AND THAT IS THE FIX FOR A DOUBLE PAYMENT.
          *
@@ -86,40 +75,87 @@ async function onChatMessage(message) {
          * economy rather than a rounding error.
          *
          * The reroll path is the exception and it still needs a top-up, which
-         * is why `adjustCritHopeTopUp` below stays exported: a reroll goes
-         * through `DualityRoll#reroll` -> `updateResourcesForDualityReroll`,
-         * which this module does not wrap, so the system pays its own 1 there
-         * and reroll.mjs adds the second. See `settleCritHope` in reroll.mjs.
+         * is why `adjustCritHopeTopUp` below stays exported: a reroll is settled
+         * by reroll.mjs's port of `updateResourcesForDualityReroll`, which the
+         * funnel never sees and which pays the system's own 1, and reroll.mjs
+         * adds the second - behind the gate the funnel has, Daggerheart's
+         * `hopeFear.players` (E08+E28 C4b). See `settleCritHope` in reroll.mjs.
          */
 
-        if (!outcome.withFear) return;
-        if (!game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) return;
-
-        const monokuma = monokumaFor(actor);
-        if (!monokuma) return;
-
-        const before = getDespair(monokuma.id);
-        if (before >= despairMax()) {
-            /*
-             * IT USED TO GRANT NOTHING, AND THAT WAS TWO THIRDS OF THE INCOME
-             * (Z10). The season run measured 628 of 950 points dying on this
-             * line. They now feed the Despair Overflow instead: the cap still
-             * stops a Monokuma banking a chapter's worth of Calls, but the
-             * Despair itself stops evaporating.
-             *
-             * What the pool owes for a conversion is paid first (E05 C12,
-             * despair.mjs `spillFrom`): a full pool that owes two stood at ten.
-             */
-            const next = await spillFrom(monokuma.id, before, 1, `roll spill from ${monokuma.name}`);
-            debug(`${monokuma.name} is at maximum Despair; the roll ${next?.spill ? "fed the overflow" : "paid what the pool owes"}.`);
-            return;
-        }
-
-        await adjustDespair(monokuma.id, 1);
-        debug(`${actor.name} rolled with Despair -> +1 to ${monokuma.name} (${before + 1}/${despairMax()}).`);
+        if (outcome.withFear) await awardRollDespair(actor, 1);
     } catch (err) {
         error("Could not award Despair from a roll", err);
     }
+}
+
+/**
+ * A roll's point of Despair to the Monokuma who looks after `actor`, or (`delta` -1) that point
+ * given back. Answers `{ monokuma, pool, overflow }` - what moved where - or null when nothing
+ * was owed. GM only: the pool and the overflow are written by a GM.
+ *
+ * ONE FUNCTION FOR A FRESH ROLL AND A REROLL (E08+E28 C4b, 03.10.2026; audit S02-22). The fresh
+ * award had three rules the Reroll's settlement did not: "Rolls grant Despair", a Monokuma's
+ * own roll, and a full pool's spill. A Reroll into a Despair result fed a pool with the setting
+ * off, and a point given back at a full pool came off the pool rather than the overflow it had
+ * spilled to. Both now run these lines (`onChatMessage` above, reroll.mjs `settleDespair`).
+ */
+export async function awardRollDespair(actor, delta) {
+    if (!game.user?.isGM || !actor || !delta) return null;
+
+    // Monokumas roll too - a trait check to walk somewhere, a forced roll a
+    // player triggered against them - but they are not students. Hope and
+    // Despair pools are guide resources for the two sides of the table, not
+    // for the actor playing the antagonist; a Monokuma's crit was quietly
+    // refilling the Hope `setMonokuma` had zeroed out, and a Monokuma's
+    // Despair roll was feeding its own controller's pool.
+    if (isMonokuma(actor)) {
+        debug(`${actor.name} is a Monokuma; rolls do not grant Hope or feed a Despair pool.`);
+        return null;
+    }
+    if (!game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) return null;
+
+    const monokuma = monokumaFor(actor);
+    if (!monokuma) return null;
+
+    const before = getDespair(monokuma.id);
+    if (delta < 0) {
+        /*
+         * THE POINT GIVEN BACK COMES OFF THE OVERFLOW FIRST, AT A FULL POOL. Only a full pool
+         * spills, so only a full pool gives back to the overflow: there the point the roll
+         * earned went to the counter (or paid what the pool owed), and taking it off the pool
+         * left the pool one short (E32+E07 fix r1-G3's first build, e32run g3f1, 02.10). An
+         * empty counter gives back off the pool. Not inferred: whether this roll's point was
+         * the one that filled the pool, or paid a debt rather than spilled - the pool keeps no
+         * record of which roll fed it.
+         */
+        if (before >= despairMax()) {
+            const { takeOverflow } = await import("./overflow.mjs");
+            if (await takeOverflow(1, { reason: `a Reroll gave back ${monokuma.name}'s point` })) return { monokuma, pool: 0, overflow: -1 };
+        }
+        if (before <= 0) return null;
+        await adjustDespair(monokuma.id, -1);
+        return { monokuma, pool: -1, overflow: 0 };
+    }
+
+    if (before >= despairMax()) {
+        /*
+         * IT USED TO GRANT NOTHING, AND THAT WAS TWO THIRDS OF THE INCOME
+         * (Z10). The season run measured 628 of 950 points dying on this
+         * line. They now feed the Despair Overflow instead: the cap still
+         * stops a Monokuma banking a chapter's worth of Calls, but the
+         * Despair itself stops evaporating.
+         *
+         * What the pool owes for a conversion is paid first (E05 C12,
+         * despair.mjs `spillFrom`): a full pool that owes two stood at ten.
+         */
+        const next = await spillFrom(monokuma.id, before, 1, `roll spill from ${monokuma.name}`);
+        debug(`${monokuma.name} is at maximum Despair; the roll ${next?.spill ? "fed the overflow" : "paid what the pool owes"}.`);
+        return { monokuma, pool: 0, overflow: next?.spill ?? 0 };
+    }
+
+    await adjustDespair(monokuma.id, 1);
+    debug(`${actor.name} rolled with Despair -> +1 to ${monokuma.name} (${before + 1}/${despairMax()}).`);
+    return { monokuma, pool: 1, overflow: 0 };
 }
 
 /**

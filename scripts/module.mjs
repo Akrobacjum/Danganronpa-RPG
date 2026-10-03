@@ -36,6 +36,7 @@ import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerBridgeReplies } from "./bridge-guards.mjs";
 import { registerRerollReceipts } from "./reroll-receipts.mjs";
+import { registerRerollRecovery } from "./reroll.mjs";
 import { registerRelayGuard } from "./relay-guard.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
 import { registerTruthBullets } from "./truth-bullets.mjs";
@@ -166,6 +167,8 @@ Hooks.once("init", () => {
     safely("the player status strip", registerPlayerStatus);
     safely("Despair pools", registerDespair);
     safely("Despair awards", registerDespairAwards);
+    // Before the GM stores open at ready: the primary reads the Reroll's journal as they do (E08+E28 C4b).
+    safely("the Reroll's journal", registerRerollRecovery);
     safely("Despair overflow", registerOverflow);
     safely("movement", registerMovement);
     safely("the projects tray", registerProjectsUi);

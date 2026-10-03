@@ -637,6 +637,87 @@ function watchRerollWrites(actor, messageId) {
     return { hope, rolls, stop: () => { Hooks.off("updateActor", a); Hooks.off("updateChatMessage", m); } };
 }
 
+/**
+ * DAGGERHEART'S AUTOMATION, SET FOR ONE RUN (E08+E28 C4b, 03.10.2026). `patch` is merged over the
+ * world's Automation setting while `run` runs, and the setting and Daggerheart's Fear are put
+ * back after it: restore() covers neither, and a roll or a Reroll settles Fear. Countdowns are
+ * switched off by every caller: the harness has no Countdowns window to tick, and the Reroll's
+ * settlement would log a failure there that is not the test's.
+ */
+async function withDhAutomation(patch, run) {
+    const { gameSettings } = CONFIG.DH.SETTINGS;
+    const held = game.settings.get(CONFIG.DH.id, gameSettings.Automation);
+    const was = foundry.utils.deepClone(held?.toObject?.() ?? held);
+    const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+    try {
+        await game.settings.set(CONFIG.DH.id, gameSettings.Automation, foundry.utils.mergeObject(foundry.utils.deepClone(was), patch));
+        return await run();
+    } finally {
+        await settle();
+        await game.settings.set(CONFIG.DH.id, gameSettings.Automation, was);
+        if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+    }
+}
+
+/**
+ * A FRESH ROLL, ITS DESPAIR LANDED (E08+E28 C4b, 03.10.2026). `who` throws `faces` (`neutralRoll`);
+ * a fresh roll's Despair is awarded as its message is made, a moment after the roll answers
+ * (despair-award.mjs `onChatMessage` waits for the roller's report), so where one is owed -
+ * a Despair result with "Rolls grant Despair" on - `state()` (what a Despair can move, read by
+ * the caller) is waited on until it moves. The caller deletes the message.
+ */
+async function thrownFresh(who, faces, state, { remember = false } = {}) {
+    const before = stableJson(state());
+    const { message } = await neutralRoll(who, { remember, faces });
+    must(message, `no roll of ${who.name} was thrown - this would measure nothing`);
+    if (faces.fear > faces.hope && game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) await until(() => stableJson(state()) !== before, 6000);
+    await settle();
+    return message;
+}
+
+/**
+ * A STUDENT'S ROLL AND ITS REROLL, BOTH ON THIS GM (E08+E28 C4b, 03.10.2026). `who` throws `first`
+ * bookmarked on the GMs (`thrownFresh`), and the Reroll is made here as a GM's own
+ * (`rerollOnGm`) onto `next` (`rerollableRoll`); `cut` stops it after that phase (reroll.mjs
+ * `cutRerollAfter`). Answers what the Reroll answered, the message (the caller deletes it), and
+ * the Hope held just before the Reroll.
+ */
+async function rerollOnto(who, first, next, state, { cut = null } = {}) {
+    const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+    const message = await thrownFresh(who, first, state, { remember: true });
+    must(rerollBookmarkStore.get(who.id)?.messageId === message.id, "the roll to take back is not the one the GMs keep - this would measure nothing");
+    return { message, ...await rerollAgain(who, message, first, next, { cut }) };
+}
+
+/** The Reroll alone, of the roll the GMs keep for `who`, thrown as `first` and again as `next`. */
+async function rerollAgain(who, message, first, next, { cut = null } = {}) {
+    const R = await import("./reroll.mjs");
+    const stand = rerollableRoll(message, { first, next });
+    const hope = who.system.resources.hope.value;
+    try {
+        if (cut) R.cutRerollAfter(cut);
+        const out = await R.rerollOnGm(who, game.user);
+        await settle();
+        return { out, hope };
+    } finally {
+        R.cutRerollAfter(null);
+        stand.putBack();
+    }
+}
+
+/**
+ * What a Despair result of `who`'s moves, and the fixture for it: their Monokuma's pool, the
+ * overflow's count, and what the pool owes. Asks for a Monokuma (`must`).
+ */
+async function despairOf(who) {
+    const D = await import("./despair.mjs");
+    const o = await import("./overflow.mjs");
+    const { monokumaFor } = await import("./assignments.mjs");
+    const mono = monokumaFor(who);
+    must(mono, `${who.name} feeds no Monokuma's pool - this would measure nothing`);
+    return { D, o, mono, state: () => [D.getDespair(mono.id), o.overflowCount()] };
+}
+
 /** A connected player's character standing in a named room on the scene on screen, as the bridge's guards find it. */
 async function playerInRoom() {
     const { locateActor } = await import("./movement.mjs");
@@ -2116,6 +2197,232 @@ const SCENARIOS = [
             watch?.stop();
             stand?.putBack();
             await message?.delete();
+        }
+    }],
+    ["a Reroll from Hope into Despair with 'Rolls grant Despair' off moves no pool", async () => {
+        /*
+         * E08+E28 C4b, 03.10.2026; audit S02-22; the plan's 2.6. A Reroll's Despair went through
+         * `requestDespairAdjust`, whose only rule is the pool's bounds, so with the world's "Rolls
+         * grant Despair" off a Reroll into a Despair result still fed the Monokuma - which no fresh
+         * roll does. It goes through the fresh award's own function now (despair-award.mjs
+         * `awardRollDespair`). A student's Hope roll, bookmarked on the GMs and rerolled on this
+         * GM into a Despair result (`rerollOnto`) with the setting off and the pool below its
+         * maximum. Read: whether the Reroll was made, and the pool and the overflow's count
+         * against before.
+         */
+        const [who] = cast(1);
+        const { D, mono, state } = await despairOf(who);
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        let message = null;
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, false);
+                await D.setDespair(mono.id, 3);
+                await who.update({ "system.resources.hope.value": 5 });
+                const before = state();
+                const made = await rerollOnto(who, { hope: 9, fear: 4 }, { hope: 2, fear: 10 }, state);
+                message = made.message;
+                equal(stableJson([Array.isArray(made.out?.lines), state()]), stableJson([true, before]),
+                    "a Reroll into a Despair result with \"Rolls grant Despair\" off was not made, or moved the pool or the overflow (made, [pool, overflow])");
+            });
+        } finally {
+            await message?.delete();
+        }
+    }],
+
+    ["a Reroll from Hope into Despair at a full pool feeds the overflow, and back takes it off the overflow first", async () => {
+        /*
+         * E08+E28 C4b, 03.10.2026; audit S02-22; the plan's 2.6. A roll's point into a full pool
+         * spills to the overflow (`adjustDespair`, `spillFrom`), and a Reroll that turned the roll
+         * back gave the point back off the pool: the pool stood one short and the spilled point
+         * stayed counted - what E32+E07 fix r1-G3's first build left in the full suite (e32run
+         * g3f1, 02.10). A point given back at a full pool comes off the overflow first now
+         * (despair-award.mjs `awardRollDespair`). A student's Hope roll at their Monokuma's full
+         * pool, owing nothing and with the overflow short of firing by more than one, rerolled
+         * into a Despair result and then back into a Hope result. Read: whether each Reroll was
+         * made, and the pool and what the overflow gained after each.
+         */
+        const [who] = cast(1);
+        const { D, o, mono, state } = await despairOf(who);
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        let message = null;
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, true);
+                await D.setDespair(mono.id, D.despairMax());
+                must(D.owedOf(mono.id) === 0 && o.overflowCount() + 1 < o.overflowThreshold(),
+                    "the pool owes Despair or the overflow fires at one more point - the spill would pay a debt or a darkening, not count this point");
+                const [, spilled] = state();
+                const hope = { hope: 9, fear: 4 }, despair = { hope: 2, fear: 10 };
+                await who.update({ "system.resources.hope.value": 5 });
+                const into = await rerollOnto(who, hope, despair, state);
+                message = into.message;
+                const fed = state();
+                await who.update({ "system.resources.hope.value": 5 });
+                const back = await rerollAgain(who, message, despair, hope);
+                const [pool, count] = state();
+                equal(stableJson([Array.isArray(into.out?.lines), fed[0], fed[1] - spilled, Array.isArray(back.out?.lines), pool, count - spilled]),
+                    stableJson([true, D.despairMax(), 1, true, D.despairMax(), 0]),
+                    "a Reroll into Despair at a full pool did not feed the overflow, or the Reroll back took its point off the pool (made, pool, overflow gained; made back, pool, overflow gained)");
+            });
+        } finally {
+            await message?.delete();
+        }
+    }],
+
+    ["a Reroll that gains a critical pays the second Hope only with player automation on", async () => {
+        /*
+         * E08+E28 C4b, 03.10.2026; audit S02-22; the plan's 2.6. A fresh critical's second Hope is
+         * paid at Daggerheart's funnel (critical.mjs), which pays nothing with the players' Hope
+         * and Fear automation off; a Reroll paid it whatever that flag said, and settled the
+         * duality behind the GMs' flag once a GM made it (E08+E28 C4a). Twice: a student's Hope
+         * roll rerolled into a critical, once with the players' flag off and the GMs' on, once
+         * with both on. Read: whether each was made, and the Hope each moved besides the price
+         * (a Hope result to a critical moves none in Daggerheart's own arithmetic, so the second
+         * Hope is all of it).
+         */
+        const [who] = cast(1);
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const messages = [];
+        const run = players => withDhAutomation({ hopeFear: { gm: true, players }, countdownAutomation: false }, async () => {
+            await who.update({ "system.resources.hope.value": 4 });
+            const made = await rerollOnto(who, { hope: 9, fear: 4 }, { hope: 7, fear: 7 }, () => null);
+            messages.push(made.message.id);
+            return [Array.isArray(made.out?.lines), who.system.resources.hope.value - made.hope + HOPE_CALLS.reroll.cost];
+        });
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            const off = await run(false);
+            const on = await run(true);
+            equal(stableJson([off, on]), stableJson([[true, 0], [true, 1]]),
+                "a Reroll into a critical paid the second Hope with the players' automation off, or not with it on ([made, Hope besides the price] off, on)");
+        } finally {
+            for (const id of messages) await game.messages.get(id)?.delete();
+        }
+    }],
+
+    ["the same dice settle the same Hope and Despair fresh or rerolled", async () => {
+        /*
+         * E08+E28 C4b, 03.10.2026; audit S02-22; the plan's 2.6 and E08's verify. A Reroll settles
+         * what a fresh roll of its new dice settles: a fresh roll of `next`, against a fresh roll
+         * of `first` rerolled onto `next`, each from the same Hope and the same pool, compared
+         * field by field - the Hope (the Reroll's price added back), the Monokuma's pool and the
+         * overflow's count. In three worlds: both automations on; the players' Hope and Fear off
+         * (the GMs' on) with "Rolls grant Despair" off; and a full pool. The cases cross Hope,
+         * Despair and a critical each way the worlds can tell apart. Daggerheart's Fear is not
+         * compared: `neutralRoll` puts it back after a fresh roll.
+         */
+        const [who] = cast(1);
+        const { D, o, mono, state } = await despairOf(who);
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const H = { hope: 9, fear: 4 }, F = { hope: 3, fear: 10 }, C = { hope: 7, fear: 7 };
+        const worlds = [
+            { name: "both on", players: true, despair: true, full: false, cases: [[H, F], [F, H], [F, C]] },
+            { name: "players' off, Rolls grant Despair off", players: false, despair: false, full: false, cases: [[F, C], [H, F]] },
+            { name: "a full pool", players: true, despair: true, full: true, cases: [[F, H]] }
+        ];
+        const fresh = [], rerolled = [], made = [], messages = [];
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            for (const w of worlds) {
+                await withDhAutomation({ hopeFear: { gm: true, players: w.players }, countdownAutomation: false }, async () => {
+                    await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, w.despair);
+                    const start = async () => {
+                        await D.setDespair(mono.id, w.full ? D.despairMax() : 3);
+                        await who.update({ "system.resources.hope.value": 3 });
+                        await settle();
+                        must(D.owedOf(mono.id) === 0 && o.overflowCount() + 1 < o.overflowThreshold(),
+                            "the pool owes Despair or the overflow fires at one more point - a spill would not be counted");
+                        return [who.system.resources.hope.value, ...state()];
+                    };
+                    const moved = (from, price = 0) => [who.system.resources.hope.value, ...state()].map((n, i) => n - from[i] + (i === 0 ? price : 0));
+                    for (const [first, next] of w.cases) {
+                        let from = await start();
+                        messages.push((await thrownFresh(who, next, state)).id);
+                        fresh.push([w.name, next, moved(from)]);
+                        from = await start();
+                        const r = await rerollOnto(who, first, next, state);
+                        messages.push(r.message.id);
+                        made.push(Array.isArray(r.out?.lines));
+                        rerolled.push([w.name, next, moved(from, HOPE_CALLS.reroll.cost)]);
+                    }
+                });
+            }
+            equal(stableJson([made, rerolled]), stableJson([made.map(() => true), fresh]),
+                "a Reroll onto some dice settled other Hope or Despair than a fresh roll of them, or was not made ([made], [world, dice, [Hope, pool, overflow]] rerolled; expected: fresh)");
+        } finally {
+            for (const id of messages) await game.messages.get(id)?.delete();
+        }
+    }],
+
+    ["a Reroll cut at `paid` is given back at the next primary's ready, and one cut at `replaying` is told", async () => {
+        /*
+         * E08+E28 C4b, 03.10.2026; audit S02-47's reload; the plan's 2.4. A Reroll is made on one
+         * GM's client, and a reload there stops it between two writes; the GMs' journal says how
+         * far it got, and nothing read it. The primary reads it as its stores open and when a GM
+         * leaves (reroll.mjs `recoverRerollJournal`). A student's roll, rerolled on this GM and
+         * stopped by the suite's hook (`cutRerollAfter`) after three phases in turn - `paid`,
+         * `rolled` (its card rewritten) and `replaying` - and after each the journal read as the
+         * primary's ready reads it. Read, after each cut: the phase the journal holds and the Hope
+         * paid; after each recovery: what it answered, the Hope against the Reroll's start, the
+         * journal row, the card's rolls against the first ones, whether the GMs' bookmark stands,
+         * and the lines said - the player's and the GMs' "given back", or the GMs' card with the
+         * two totals and the player's "the GM will settle it".
+         */
+        const [who] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { rerollBookmarkStore, rerollJournalStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm, ownerOf } = await import("./utils.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, and the journal is the primary's to read - this would measure nothing");
+        // A card's words as a reader sees them (entities read, tags gone), against the sentence as the language file has it.
+        const text = html => { const box = document.createElement("div"); box.innerHTML = String(html ?? ""); return box.textContent.replace(/\s+/g, " ").trim(); };
+        const line = (key, data) => game.i18n.format(key, data).replace(/\s+/g, " ").trim();
+        const rollsOf = id => stableJson(game.messages.get(id)?.toObject().rolls ?? null);
+        const messages = [];
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            const readings = await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                const out = [];
+                for (const [cut, next] of [["paid", { hope: 10, fear: 3 }], ["rolled", { hope: 10, fear: 3 }], ["replaying", { hope: 2, fear: 10 }]]) {
+                    await who.update({ "system.resources.hope.value": 5 });
+                    const made = await rerollOnto(who, { hope: 9, fear: 4 }, next, () => null, { cut });
+                    messages.push(made.message.id);
+                    const row = rerollJournalStore.get(who.id) ?? null;
+                    const key = rerollBookmarkStore.get(who.id)?.actionKey ?? null;
+                    const at = [made.out?.cut ?? null, row?.phase ?? null, who.system.resources.hope.value - made.hope];
+                    const from = new Set(game.messages.map(m => m.id));
+                    const handled = await R.recoverRerollJournal();
+                    await settle();
+                    // The words of a card this GM receives; a card to the player alone is read by its addressee.
+                    const cards = game.messages.filter(m => !from.has(m.id));
+                    const said = (await Promise.all(cards.map(m => wordsOf(m, 2000)))).map(text);
+                    const owner = ownerOf(who);
+                    const lines = cut === "replaying"
+                        ? [line("DRPG.Reroll.interruptedGm", { name: who.name, action: ACTIONS[key]?.label ?? key ?? "-", first: 13, total: 12 })]
+                        : [line("DRPG.Reroll.interrupted", { name: who.name })];
+                    const toPlayer = cut === "replaying" && owner ? cards.filter(m => stableJson(m.whisper ?? []) === stableJson([owner.id])).length : 0;
+                    out.push([...at, stableJson(handled), who.system.resources.hope.value - made.hope, rerollJournalStore.has(who.id),
+                        rollsOf(made.message.id) === stableJson(row?.firstRolls ?? null), rerollBookmarkStore.has(who.id),
+                        lines.every(wanted => said.some(t => t.includes(wanted))), toPlayer, cards.length]);
+                }
+                return out;
+            });
+            const owned = ownerOf(who) ? 1 : 0;
+            equal(stableJson(readings), stableJson([
+                ["paid", "paid", -3, stableJson([[who.id, "givenBack"]]), 0, false, true, true, true, 0, 1],
+                ["rolled", "rolled", -3, stableJson([[who.id, "givenBack"]]), 0, false, true, true, true, 0, 1],
+                ["replaying", "replaying", -3, stableJson([[who.id, "told"]]), -3, false, false, false, true, owned, 1 + owned]
+            ]), "a Reroll cut short was not given back at paid or rolled, or was given back or not told at replaying (per cut: cut, journal phase, Hope paid; answered, Hope against the start, journal left, card back to its first rolls, GMs' bookmark left, the GMs' line said, cards to the player alone, cards posted)");
+        } finally {
+            if (rerollJournalStore.has(who.id)) await rerollJournalStore.drop(who.id);
+            for (const id of messages) await game.messages.get(id)?.delete();
         }
     }],
 

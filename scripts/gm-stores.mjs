@@ -831,8 +831,11 @@ export const rerollBookmarkStore = defineGmStore({
  * character while the GM makes its Reroll (reroll.mjs `rerollOnGm`): `phase` - "paid" once the
  * Hope is taken, "rolled" once the message holds the new dice, "replaying" while the action is
  * taken back and made again - `hope` (what was paid), `messageId`, `firstRolls` (the message's
- * rolls before this Reroll), `at` and `by`. Dropped when the Reroll stands or has been given
- * back; a row still here is a Reroll a reload cut, which C4b puts right or tells. Synced
+ * rolls before this Reroll), `at` and `by`; since C4b also `gm` (the GM client making it), `first`
+ * and `action` (the first total, the action's key) and, from "replaying", the new `total`. Dropped
+ * when the Reroll stands or has been given
+ * back; a row still here is a Reroll a reload cut, which the primary puts right or tells
+ * (reroll.mjs `recoverRerollJournal`, E08+E28 C4b). Synced
  * between the GMs, so the next primary reads what the last one left, and not backed up: a row
  * is seconds long. Cut by the reset's "actions" group, beside the bookmark. No player copy -
  * R182 has nothing to ask of it - and no old key.
