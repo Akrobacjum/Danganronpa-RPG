@@ -818,6 +818,9 @@ async function handleShare(payload, sender, ctx, prepared) {
     debug(`Shared project ${payload.countdownId} with ${payload.targetUserId} on behalf of a player.`);
 }
 
+/** The actions whose Reroll takes back the trace their roll left (reroll.mjs `settleSearch`, `settleSabotage`, `settleDynamic`). */
+const TRACE_OF_ROLL = Object.freeze(["search", "sabotage", "dynamic"]);
+
 async function handleRemnant(payload, sender, ctx) {
     /*
      * REBUILT, NOT NARROWED (CASE-13, then E03; audit S05-13, S10-10). A
@@ -829,10 +832,8 @@ async function handleRemnant(payload, sender, ctx) {
      * `narrowPlayerRemnant`, which now builds every one of them here.
      */
     const { placeRemnant, narrowPlayerRemnant } = await import("./remnants.mjs");
-    const { rollOfNow, noteRollFact } = await import("./action-rolls.mjs");
+    const { noteFactOfRoll } = await import("./action-rolls.mjs");
     let data = { ...(payload.data ?? {}) };
-    // The roll this trace is for, as the request arrives (E08+E28 C2): `noteRollFact`.
-    const roll = rollOfNow(data.sourceActor);
     if (!sender.isGM) {
         const actor = game.actors.get(data.sourceActor);
         const { locateActor } = await import("./movement.mjs");
@@ -851,9 +852,18 @@ async function handleRemnant(payload, sender, ctx) {
     if (!placed) return { refused: "the trace could not be placed" };
     /* WHICH TRACE, ON THE GMS' BOOKMARK (E08+E28 C2; audit S05-08). The player's browser is
        answered as before, with no id: a Reroll that retunes or removes this trace is the GM's
-       from C4a, and finds it by this fact - the browser's `remnantRef` named none. */
+       from C4a, and finds it by this fact - the browser's `remnantRef` named none. Written on
+       the row of the roll the packet names, when it is the sender's roll of this character and
+       its action is one whose replay owns a trace and placed this one (fix r1-G1; the review's
+       M3 = S2): until then it went on the character's newest row, whatever had placed it, and a
+       discarded item's trace became the Search's before it, for that Search's Reroll to lift. A
+       placement naming no roll writes none. */
     const doc = placed.document ?? placed;
-    if (doc?.id) await noteRollFact(data.sourceActor, roll, { remnantId: doc.id, remnantScene: doc.parent?.id ?? data.sceneId ?? null });
+    const owner = TRACE_OF_ROLL.includes(data.action) ? [data.action] : [];
+    if (doc?.id && payload.rollId && owner.length) {
+        await noteFactOfRoll(payload.rollId, { by: sender.id, actorId: data.sourceActor, actions: owner },
+            { remnantId: doc.id, remnantScene: doc.parent?.id ?? data.sceneId ?? null });
+    }
     debug("Placed a Remnant on behalf of a player.");
 }
 
@@ -918,14 +928,18 @@ async function handleRemnantEdit(payload, sender, ctx) {
 async function handleSabotage(payload, sender, ctx) {
     const { sabotageProject } = await import("./projects.mjs");
     const rolls = await import("./action-rolls.mjs");
-    // The roll this freeze is for, as the request arrives (E08+E28 C2): the packet names no character.
-    const roll = rolls.rollOfSender(sender.id, "sabotage");
     // Who asked, so that only their own Reroll can take it back (E03).
     const result = await sabotageProject(payload.targetId, Math.trunc(payload.difficulty),
         { saboteur: sender.isGM ? null : sender.id });
-    // Which project it froze and the repair it made, for the Reroll's undo on a GM (C4a).
-    if (result && roll) {
-        await rolls.noteRollFact(roll.actorId, roll.messageId, { targetProjectId: payload.targetId, repairId: result.repair?.id ?? null });
+    /* Which project it froze and the repair it made, for the Reroll's undo on a GM (C4a), on the
+       row of the roll the packet names (fix r1-G1; the review's B1). The sender's newest Sabotage
+       row, read as the packet arrived, was the previous Sabotage's or none: `roll.bookmark`'s run
+       ended after this one in 5 of 5 of the review's runs at f941051 (2 of 3 of its 97 at d20fadb),
+       and the Reroll into a miss left the project frozen. The fact now waits for its row (`noteFactOfRoll`); a packet naming no roll
+       writes none. */
+    if (result && payload.rollId) {
+        await rolls.noteFactOfRoll(payload.rollId, { by: sender.id, actions: ["sabotage"] },
+            { targetProjectId: payload.targetId, repairId: result.repair?.id ?? null });
     }
 
     // Tell the asker what actually happened - not just that the request
@@ -1425,12 +1439,13 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_REMNANT]: {
         label: "DRPG.Bridge.what.remnant.place",
         guards: [knownSender, ownsActorAt(payload => payload?.data?.sourceActor, "sender does not own the character leaving it", ["data"])],
-        sanitize: pick({ data: as.raw }),
+        sanitize: pick({ data: as.raw, rollId: as.id }),
         run: handleRemnant,
         // Answered once placed (E31), and as failed when it could not be (E31 review):
         // the item a planted trace stands for leaves the sheet only when it was.
         answer: "reply",
-        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs); a GM's is placed as written" }
+        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs); a GM's is placed as written",
+            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an action that owns a trace" }
     },
     [ACTION_TIE_TRACE]: {
         label: "DRPG.Bridge.what.remnant.tieForItem",
@@ -1476,9 +1491,10 @@ export const BRIDGE_ACTIONS = table({
             inRange("difficulty", n => Number.isFinite(n) && n >= 1 && n <= hardestRepair(),
                 sent => `difficulty ${sent} is out of range (1-${hardestRepair()})`)
         ],
-        sanitize: pick({ targetId: as.id, difficulty: as.num }),
+        sanitize: pick({ targetId: as.id, difficulty: as.num, rollId: as.id }),
         run: handleSabotage,
-        answer: "reply", resend: true, queue: "project"
+        answer: "reply", resend: true, queue: "project",
+        claims: { rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own Sabotage row of that message" }
     },
     [ACTION_UNSABOTAGE]: {
         label: "DRPG.Bridge.what.project.unsabotage",
@@ -1754,8 +1770,8 @@ export function sendDespairToPrimary(targetUserId, delta) {
  * arrived, and the answer - two world writes and a repair project - may take
  * longer than that on a slow client.
  */
-export function requestSabotage(targetId, difficulty, timeoutMs = TIMING.rulingMs) {
-    return ask(ACTION_SABOTAGE, { targetId, difficulty }, { timeoutMs });
+export function requestSabotage(targetId, difficulty, { rollId = null, timeoutMs = TIMING.rulingMs } = {}) {
+    return ask(ACTION_SABOTAGE, { targetId, difficulty, rollId }, { timeoutMs });
 }
 
 /**
@@ -1817,8 +1833,8 @@ export function requestTieTrace(identity) {
  * for is taken off the sheet only when it was placed, and "trace left" is said
  * only then.
  */
-export function requestRemnant(data) {
-    return ask(ACTION_REMNANT, { data });
+export function requestRemnant(data, rollId = null) {
+    return ask(ACTION_REMNANT, { data, rollId });
 }
 
 /**

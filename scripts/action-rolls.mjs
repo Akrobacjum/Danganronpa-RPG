@@ -945,7 +945,8 @@ async function noteRollContext(actor, data) {
  * one only on the row of the roll it was asked for: each writer reads the row's
  * message as it starts (`rollOfNow`) and names it as it writes, so a fact that took
  * a GM's dialog long enough for the character to roll again is dropped, not pinned
- * on the newer roll.
+ * on the newer roll. A player's Sabotage and trace name their roll in the packet, and
+ * their facts wait for that roll's row (`noteFactOfRoll`, fix r1-G1).
  *
  * THE ROLLER'S CLAIMS, sent once after the roll by `roll.bookmark` and again when
  * the action adds one (`tellGmsOfRoll`): what the GM cannot see - which item the
@@ -1097,7 +1098,8 @@ async function reportCardOf(id, roll, by) {
 /**
  * The run of `roll.bookmark`, and a GM's own roll's (E08+E28 C2). The guards tied the
  * message to the sender and the character to them. The same roll again patches its
- * row - the action's claims, which grow as it goes - and keeps its facts; another
+ * row - the action's claims, which grow as it goes - and keeps its facts and the action,
+ * trait and experiences it was first told (fix r1-G1); another
  * roll starts the row afresh, unless it is older than the one kept. The roll's card,
  * once named, is kept beside them (`reportCardOf`, C5).
  */
@@ -1118,17 +1120,32 @@ export async function keepGmBookmark({ actorId, messageId, actionKey = null, tra
     const card = await reportCardOf(reportMessageId, message, by);
     if (card) told.reportMessageId = card;
     const held = rerollBookmarkStore.get(actor.id);
-    if (held?.messageId === message.id) return rerollBookmarkStore.patch(actor.id, told);
+    if (held?.messageId === message.id) {
+        // The same roll again: its claims, and its card once named. The action is the first
+        // one told (fix r1-G1; the review's S2): it chooses which replay reads the GM's facts,
+        // and a packet sent again for the same message within `guardRollAuthor`'s minute
+        // could rename it. Palm's hand roll is told as "steal" and renamed "palm" by its
+        // context - one replay (reroll.mjs `settleSteal`), and no claims under either; every
+        // other action names its key as it throws (`rollTrait`), so the first is the action's.
+        const again = { claims: rollClaims(held.actionKey ?? null, context), ...(card ? { reportMessageId: card } : {}) };
+        const facts = takeFactsAwaiting(message.id, actor.id, held);
+        if (Object.keys(facts).length) again.facts = { ...(held.facts ?? {}), ...facts };
+        return rerollBookmarkStore.patch(actor.id, again);
+    }
     const kept = held ? game.messages.get(held.messageId ?? "") : null;
-    if (kept && (kept.timestamp ?? 0) > (message.timestamp ?? 0)) return null;
+    if (kept && (kept.timestamp ?? 0) > (message.timestamp ?? 0)) {
+        takeFactsAwaiting(message.id, actor.id, null);
+        return null;
+    }
     const { dualityOfRoll } = await import("./reroll.mjs");
     const { total, withFear, isCritical } = dualityOfRoll(message.rolls?.[0]);
-    // Every field, so a new roll leaves nothing of the last one behind.
-    return rerollBookmarkStore.patch(actor.id, {
-        messageId: message.id, reportMessageId: null, ...told, total, withFear, isCritical,
+    // Every field, so a new roll leaves nothing of the last one behind - and the facts the GM
+    // wrote for this roll before its row was kept (`noteFactOfRoll`), taken with no await
+    // between them and the patch.
+    const row = { messageId: message.id, reportMessageId: null, ...told, total, withFear, isCritical,
         first: foundry.utils.deepClone(message.toObject().rolls ?? []),
-        room: roomOfActor(actor) ?? null, at: Date.now(), by: by?.id ?? null, facts: {}
-    });
+        room: roomOfActor(actor) ?? null, at: Date.now(), by: by?.id ?? null };
+    return rerollBookmarkStore.patch(actor.id, { ...row, facts: takeFactsAwaiting(message.id, actor.id, row) });
 }
 
 /**
@@ -1141,6 +1158,89 @@ export async function noteRollFact(actorId, messageId, facts) {
     const held = rerollBookmarkStore.get(actorId);
     if (held?.messageId !== messageId) return false;
     await rerollBookmarkStore.patch(actorId, { facts: { ...(held.facts ?? {}), ...facts } });
+    return true;
+}
+
+/*
+ * A FACT FOR THE ROLL ITS PACKET NAMES (E08+E28 fix r1-G1, 04.10.2026; the round-1 review's B1
+ * and M3 = S2). A player's Sabotage and a player's trace are carried out by the GM's handler
+ * (gm-bridge.mjs `handleSabotage`, `handleRemnant`), and that handler wrote the fact on the row
+ * it found as the packet arrived: the sender's newest Sabotage row, or the character's newest
+ * row of any kind. Both were wrong. `roll.bookmark` leaves the roller's browser first, but its
+ * run - three guards, the store's hydration, the card's lookup, an import - ended after the
+ * Sabotage's handler had read the store (the review's 97a/97b: 5 of 5 runs at f941051, and 2 of
+ * 3 of its 97 at d20fadb, no `targetProjectId` on the row, so the Reroll into a miss left the
+ * project frozen), and a trace
+ * of a roll that keeps no row (a discarded item's) was written on whatever the character had
+ * rolled before (99c, probe B: the Search's Reroll then lifted the discard's trace).
+ *
+ * So the packet names its roll's message (`rollId`, the roller's `rollInHand`; from C14 the
+ * record's id) and the fact goes on the row of that message only, and only when the row's `by`
+ * is the packet's sender, its character the one the packet names (when it names one) and its
+ * action one of `actions` - the replay that reads the fact. A row not kept yet is waited for: the
+ * fact is parked under the message's id and merged by `keepGmBookmark` as it creates the row
+ * (`takeFactsAwaiting`), in the same synchronous step as the store's patch, which writes its
+ * section before it awaits (gm-store.mjs `patch`) - so no reading in between can miss both. A
+ * fact still parked after the Reroll window (`TIMING.rerollWindowMinutes`), or whose row turned
+ * out to be another's, another action's or older than the row kept, is dropped and logged on
+ * this GM. The map is this client's, in memory: the primary GM judges every player's packet
+ * (gm-bridge.mjs, the `isPrimaryGm` gate), `roll.bookmark` included; a fact parked as the primary
+ * leaves, or reloads, is lost with it - its Reroll then takes back what the row holds, as before.
+ */
+const factsAwaitingRow = new Map();
+
+function dropStaleFacts(now = Date.now()) {
+    for (const [messageId, waiting] of factsAwaitingRow) {
+        const left = waiting.filter(w => now - w.at <= TIMING.rerollWindowMinutes * 60_000);
+        if (left.length === waiting.length) continue;
+        log(`Dropped ${waiting.length - left.length} fact(s) for roll ${messageId}: its row never came within the Reroll window.`);
+        if (left.length) factsAwaitingRow.set(messageId, left);
+        else factsAwaitingRow.delete(messageId);
+    }
+}
+
+/** Does a row of `actorId` take a fact asked for `by` this sender, for these actions? */
+function rowTakes(row, actorId, wanted) {
+    return row?.by === wanted.by && (!wanted.actorId || wanted.actorId === actorId) && wanted.actions.includes(row.actionKey);
+}
+
+/**
+ * The facts parked for `messageId`, as its row is created or patched: those the row takes,
+ * merged; the rest dropped and logged - nothing else will ever name that message's row.
+ */
+function takeFactsAwaiting(messageId, actorId, row) {
+    const waiting = factsAwaitingRow.get(messageId);
+    if (!waiting) return {};
+    factsAwaitingRow.delete(messageId);
+    const taken = {};
+    for (const w of waiting) {
+        if (rowTakes(row, actorId, w)) Object.assign(taken, w.facts);
+        else log(`Dropped a fact for roll ${messageId}: its row was not kept as ${w.by}'s ${w.actions.join("/")} roll.`, Object.keys(w.facts));
+    }
+    return taken;
+}
+
+/**
+ * Write `facts` on the row of the roll `messageId` names, or park them until `keepGmBookmark`
+ * keeps it (above). `by` is the user Foundry names as the packet's sender, `actorId` the
+ * character the packet names (null when it names none), `actions` the row's actions that take
+ * the fact. True when written or parked; false for a row that does not take it. A GM's only.
+ */
+export async function noteFactOfRoll(messageId, { by, actorId = null, actions }, facts) {
+    if (!game.user?.isGM || typeof messageId !== "string" || !messageId || !by || !facts || !Object.keys(facts).length) return false;
+    await rerollBookmarkStore.whenHydrated();
+    dropStaleFacts();
+    const wanted = { by, actorId, actions, facts, at: Date.now() };
+    const [rowActor, row] = Object.entries(rerollBookmarkStore.entries()).find(([, r]) => r?.messageId === messageId) ?? [];
+    if (!row) {
+        factsAwaitingRow.set(messageId, [...(factsAwaitingRow.get(messageId) ?? []), wanted]);
+        return true;
+    }
+    if (!rowTakes(row, rowActor, wanted)) {
+        log(`Refused a fact for roll ${messageId}: its row is not ${by}'s ${actions.join("/")} roll.`, Object.keys(facts));
+        return false;
+    }
+    await rerollBookmarkStore.patch(rowActor, { facts: { ...(row.facts ?? {}), ...facts } });
     return true;
 }
 
@@ -1988,6 +2088,8 @@ async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, grante
             tiedToCrime: null,
             itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
             action: "search",
+            // The roll this trace is the Search's of, for the GMs' row (fix r1-G1).
+            rollId: rollInHand(actor)?.messageId ?? null,
             subject: drawn?.name ?? "",
             note: game.i18n.format("DRPG.Remnant.searchNote", {
                 actor: actor.name,
@@ -3129,7 +3231,8 @@ async function performSabotage(actor, def, options, preset = null) {
     let repair = null;
     if (success) {
         const difficulty = sabotageRepairScale(roll, score, relief);
-        repair = await sabotageProject(project.id, difficulty);
+        // Named, so the GM writes the freeze on this roll's row and no other (fix r1-G1).
+        repair = await sabotageProject(project.id, difficulty, { rollId: rollInHand(actor)?.messageId ?? null });
     }
     // The dice succeeded but nobody was there (or ready in time) to actually
     // write the freeze - say so rather than claiming a state that never
@@ -3308,6 +3411,7 @@ async function dropSabotageTrace(actor, def, roll, { project, room, success, hit
         visibility,
         faint: true,
         action: "sabotage",
+        rollId: rollInHand(actor)?.messageId ?? null,
         subject: project.name,
         note: game.i18n.format("DRPG.Remnant.sabotageNote", {
             actor: actor.name,
@@ -5301,6 +5405,7 @@ async function performDynamic(actor, options) {
             visibility,
             faint: true,
             action: "dynamic",
+            rollId: rollInHand(actor)?.messageId ?? null,
             subject: description.slice(0, 60),
             note: game.i18n.format("DRPG.Remnant.dynamicNote", {
                 actor: actor.name,

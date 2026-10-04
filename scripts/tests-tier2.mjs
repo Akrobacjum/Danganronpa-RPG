@@ -4170,8 +4170,9 @@ const SCENARIOS = [
          * (`handleRemnant`), and the player's browser is answered with no id, so its Reroll
          * could neither retune nor remove it (`remnantRef` -> null). The GMs' bookmark keeps
          * it now: the player's roll is bookmarked, then their Search's trace is asked for as
-         * the listener judges it. Read: the bookmark's verdict, the placement's, the tokens
-         * the scene gained, and the row's trace, scene and roller.
+         * the listener judges it - naming its roll, as the Search names it since fix r1-G1
+         * (action-rolls.mjs `leaveSearchTrace`). Read: the bookmark's verdict, the placement's,
+         * the tokens the scene gained, and the row's trace, scene and roller.
          */
         needs(world.atLeast("playerCharactersInRooms"), "a player's trace is placed where their character stands");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -4180,13 +4181,132 @@ const SCENARIOS = [
         const scene = where.scene, made = [];
         try {
             const had = new Set(scene.tokens.map(t => t.id));
-            const placed = await F.ask({ action: "remnant.place", requestId: "suite-e08c2-trace",
+            const placed = await F.ask({ action: "remnant.place", requestId: "suite-e08c2-trace", rollId: F.message.id,
                 data: { sourceActor: actor.id, action: "search", type: "prep", visibility: "evident", sceneId: scene.id } });
             made.push(...scene.tokens.filter(t => !had.has(t.id)).map(t => t.id));
             const facts = F.row()?.facts ?? {};
             equal(stableJson([F.verdict, placed, made.length, facts.remnantId === made[0], facts.remnantScene === scene.id, F.row()?.by ?? null]),
                 stableJson([true, true, 1, true, true, player.id]),
                 `the bookmark was refused, the trace not placed, or the GMs' row does not name it (verdict, placed, tokens made, trace, scene, roller): ${stableJson(F.row())}`);
+        } finally {
+            for (const id of made) await scene.tokens.get(id)?.delete();
+            await F.putBack();
+        }
+    }],
+
+    ["a player's Sabotage judged before its roll's row is kept still writes its freeze on that row", async () => {
+        /*
+         * E08+E28 fix r1-G1, 04.10.2026; the round-1 review's B1. A player's Sabotage is frozen by
+         * the GM's handler (gm-bridge.mjs `handleSabotage`), which wrote the project and its repair
+         * on the sender's newest Sabotage row as the packet arrived. `roll.bookmark` leaves first,
+         * but its run ended after the Sabotage's in 5 of 5 of the review's runs at f941051 (2 of 3
+         * of its 97 at d20fadb): no row, or the previous Sabotage's, and the Reroll into a miss left
+         * the project frozen. The packet names its roll now and the fact waits for that roll's row
+         * (action-rolls.mjs `noteFactOfRoll`). Measured here in that order, made certain: a roll of
+         * the player's character in their name, its `roll.bookmark` judged with the store's
+         * hydration held for that run alone - not the store's `patch`, which 97b wrapped: the parked
+         * facts are taken in the step before the patch, and a patch held back would open a window
+         * the store's synchronous write does not have - the Sabotage judged meanwhile, and a second
+         * one naming the same roll from another sender (the GM), whose fact the row is not theirs
+         * to take; then the run let go. Read: the verdicts, whether the row of the roll existed when
+         * the Sabotage was carried out (it must not, or this measured nothing), and the row's
+         * message, action and facts against the player's project and its repair.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the roller is a player's character");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const S = await import("./gm-stores.mjs");
+        const P = await import("./projects.mjs");
+        const store = S.rerollBookmarkStore;
+        const { player, actor } = await playerInRoom();
+        const meta = foundry.utils.deepClone(P.projectMeta());
+        const made = [];
+        const ownHydrated = Object.hasOwn(store, "whenHydrated") ? store.whenHydrated : null;
+        const hydrated = store.whenHydrated;
+        let release = null, message = null;
+        try {
+            const target = await P.createProject({ name: "SUITE fix r1-G1 sabotage target", target: 6 });
+            const other = await P.createProject({ name: "SUITE fix r1-G1 another target", target: 6 });
+            must(target?.id && other?.id, "could not create the projects to sabotage");
+            made.push(target.id, other.id);
+            ({ message } = await neutralRoll(actor, { faces: { hope: 9, fear: 4 } }));
+            must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+            await message.update({ author: player.id });
+            const ask = packet => G.judge(BRIDGE_ACTIONS, packet, player.id, { send: () => {} });
+            const gate = new Promise(resolve => { release = resolve; });
+            let first = true;
+            store.whenHydrated = async (...args) => {
+                if (first) { first = false; await gate; }
+                return hydrated.apply(store, args);
+            };
+            const kept = ask({ action: "roll.bookmark", actorId: actor.id, messageId: message.id, actionKey: "sabotage",
+                trait: "eye", experiences: [], context: { penalty: 0, relief: 0 } });
+            const froze = await ask({ action: "project.sabotage", requestId: "suite-r1g1-sabotage", targetId: target.id,
+                difficulty: 3, rollId: message.id });
+            const elsewhere = await G.judge(BRIDGE_ACTIONS, { action: "project.sabotage", requestId: "suite-r1g1-other",
+                targetId: other.id, difficulty: 3, rollId: message.id }, game.user.id, { send: () => {} });
+            const rowFirst = store.get(actor.id)?.messageId === message.id;
+            release();
+            const verdict = await kept;
+            const repair = P.allProjects().find(p => P.repairs(p.id) === target.id) ?? null;
+            made.push(...P.allProjects().filter(p => [target.id, other.id].includes(P.repairs(p.id))).map(p => p.id));
+            const row = store.get(actor.id) ?? null;
+            equal(stableJson([verdict, froze, elsewhere, rowFirst, Boolean(repair), row?.messageId === message.id, row?.actionKey ?? null,
+                row?.facts?.targetProjectId === target.id, Boolean(repair) && row?.facts?.repairId === repair.id]),
+                stableJson([true, true, true, false, true, true, "sabotage", true, true]),
+                `the Sabotage's freeze is not on its roll's row, or another sender's is (bookmark, sabotage, the GM's, row kept first, repair made, row's message, action, target, repair): ${stableJson(row)}`);
+        } finally {
+            release?.();
+            if (ownHydrated) store.whenHydrated = ownHydrated;
+            else delete store.whenHydrated;
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+            if (message) await game.messages.get(message.id)?.delete();
+            if (store.has(actor.id)) await store.drop(actor.id);
+            await settle();
+        }
+    }],
+
+    ["a trace a player leaves after a Search is not the Search's and its Reroll leaves that trace standing", async () => {
+        /*
+         * E08+E28 fix r1-G1, 04.10.2026; the round-1 review's M3 = S2. A player's trace was written
+         * on the character's newest row whatever had placed it, so a discarded item's trace (its
+         * roll keeps no row) became the trace of the Search before it, and the Search's Reroll
+         * into nothing lifted it (the review's 99c and probe B). The packet names its roll now, and
+         * the GM writes the trace on that roll's row only when the row's action owns a trace and
+         * placed this one. And the row's action is the first one told: a packet sent again for the
+         * same roll could rename it, choosing which replay reads the GM's facts. A player's Search
+         * is bookmarked; a discard's trace is left naming no roll, and again naming the Search's;
+         * the Search's `roll.bookmark` is sent again as a Dynamic action; the Search is replayed
+         * on a total that finds nothing. Read: both placements, the row's trace and action, and
+         * which of the two traces stand after the replay.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "a player's trace is placed where their character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const R = await import("./reroll.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const F = await playerRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
+        const scene = where.scene, made = [];
+        const discard = rollId => F.ask({ action: "remnant.place", requestId: `suite-r1g1-discard-${made.length}`,
+            ...(rollId ? { rollId } : {}),
+            data: { sourceActor: actor.id, action: "discard", type: "prep", visibility: "evident", sceneId: scene.id } });
+        try {
+            must(F.verdict === true && F.row()?.actionKey === "search", `the Search was not bookmarked - this would measure nothing: ${stableJson(F.row())}`);
+            const placed = [];
+            for (const rollId of [null, F.message.id]) {
+                const had = new Set(scene.tokens.map(t => t.id));
+                placed.push(await discard(rollId));
+                made.push(...scene.tokens.filter(t => !had.has(t.id)).map(t => t.id));
+            }
+            must(made.length === 2, `the two discard traces were not placed - this would measure nothing: ${stableJson(placed)}`);
+            const renamed = await F.ask({ action: "roll.bookmark", actorId: actor.id, messageId: F.message.id, actionKey: "dynamic",
+                trait: "eye", experiences: [], context: { bandIndex: 0 } });
+            const row = F.row();
+            await R.settleSearch(actor, R.replayBookmark(row), { total: 2, isCritical: false, withHope: true, withFear: false }, []);
+            equal(stableJson([placed, renamed, row?.facts?.remnantId ?? null, row?.actionKey ?? null, made.map(id => Boolean(scene.tokens.get(id)))]),
+                stableJson([[true, true], true, null, "search", [true, true]]),
+                `a discard's trace was written on the Search's row, the row's action renamed, or the Search's Reroll lifted a trace not its own (placed, renamed, row's trace, action, standing): ${stableJson(row)}`);
         } finally {
             for (const id of made) await scene.tokens.get(id)?.delete();
             await F.putBack();
@@ -4512,7 +4632,11 @@ const SCENARIOS = [
          * (`ROLL_CLAIMS`): a Search's item, category, goal and tier - not a trace or a project,
          * which are the GM's own facts. A connected player's Search bookmarked with the fields a
          * Search claims and three it does not; then the same roll named as an Observe, which
-         * claims nothing. Read: the row's claims after each, and its facts.
+         * claims nothing. Since fix r1-G1 (the review's S2) the row keeps the action it was
+         * first told - a later packet for the same roll patches its claims only, read by the
+         * Search's list: the item kept, the Project's relief dropped. Until then the second packet
+         * renamed the row an Observe and emptied its claims. Read: the row's claims after each,
+         * its action, and its facts.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the note is a connected player's, as Foundry names only those");
         const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
@@ -4524,9 +4648,9 @@ const SCENARIOS = [
             const first = F.row()?.claims ?? null;
             const again = await F.ask({ action: "roll.bookmark", actorId: actor.id, messageId: F.message.id, actionKey: "observe",
                 context: { itemId: "SUITEE08C2ITEM00", relief: 2 } });
-            equal(stableJson([F.verdict, first, again, F.row()?.claims ?? null, F.row()?.facts ?? null]),
-                stableJson([true, { category: "tool", itemId: "SUITEE08C2ITEM00", tier: 2 }, true, {}, {}]),
-                "a claim the action does not make was kept, or one it makes was lost (verdict, a Search's claims, the second verdict, an Observe's claims, facts)");
+            equal(stableJson([F.verdict, first, again, F.row()?.claims ?? null, F.row()?.actionKey ?? null, F.row()?.facts ?? null]),
+                stableJson([true, { category: "tool", itemId: "SUITEE08C2ITEM00", tier: 2 }, true, { itemId: "SUITEE08C2ITEM00" }, "search", {}]),
+                "a claim the action does not make was kept, one it makes was lost, or the row renamed (verdict, a Search's claims, the second verdict, the claims then, the action, facts)");
         } finally {
             await F.putBack();
         }

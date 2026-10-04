@@ -226,7 +226,14 @@ export async function dropRemnant(actor, {
      * GM can judge the tie to the crime on its own record (gm-bridge.mjs `handleRemnant`,
      * E32+E07 fix r2-G3), since the packet's own `tiedToCrime` is never taken.
      */
-    projectId = null
+    projectId = null,
+    /*
+     * The message of the roll this trace is that roll's own trace of - a Search's, a Sabotage's,
+     * a Dynamic action's - so the GM writes it on that roll's row and no other (gm-bridge.mjs
+     * `handleRemnant`, E08+E28 fix r1-G1). Null for a trace no roll's replay owns (a discarded
+     * item's, an indirect murder's covering, a GM's own). Travels beside the packet's data.
+     */
+    rollId = null
 } = {}) {
     const token = tokenFor(actor);
     if (!token) {
@@ -264,7 +271,7 @@ export async function dropRemnant(actor, {
         chapter: clock.chapter,
         day: clock.day,
         timeOfDay: clock.timeOfDay
-    });
+    }, { rollId });
 }
 
 /**
@@ -273,14 +280,15 @@ export async function dropRemnant(actor, {
  *
  * `keepId` (GM-side only, never read off a packet): the trace is made under the
  * `_id` in `data` - a clean-up's Reroll putting back the trace it erased
- * (cleanup.mjs `undoLastCleanup`).
+ * (cleanup.mjs `undoLastCleanup`). `rollId` (a player's only): the roll this
+ * trace is that roll's own, sent beside `data` (`dropRemnant`).
  */
-export async function placeRemnant(data = {}, { keepId = false } = {}) {
+export async function placeRemnant(data = {}, { keepId = false, rollId = null } = {}) {
     if (!game.user.isGM) {
         // Answered once placed (E31), and refused as failed when the GM's client
         // could not place it (E31 review), so "placed" means placed at every caller.
         const { requestRemnant } = await import("./gm-bridge.mjs");
-        const res = await requestRemnant(data);
+        const res = await requestRemnant(data, rollId);
         return res.ok ? { pending: true } : null;
     }
 

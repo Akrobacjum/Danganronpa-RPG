@@ -689,10 +689,11 @@ export function repairs(countdownId) {
  * @param {number} difficulty Progress the repair needs - harder sabotage, harder fix.
  * @returns {Promise<{repair: object, target: string}|null>}
  */
-export async function sabotageProject(targetId, difficulty = 3, { saboteur = null } = {}) {
+export async function sabotageProject(targetId, difficulty = 3, { saboteur = null, rollId = null } = {}) {
     if (!game.user.isGM) {
         const { requestSabotage } = await import("./gm-bridge.mjs");
-        const res = await requestSabotage(targetId, difficulty);
+        // `rollId`: the Sabotage roll's message, whose row on the GMs takes the freeze (gm-bridge.mjs `handleSabotage`).
+        const res = await requestSabotage(targetId, difficulty, { rollId });
         // What the GM wrote, `{ repair, target }`, or null: the contract every caller reads.
         return res.ok ? res.value : null;
     }

@@ -728,6 +728,54 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         !work.err && JSON.stringify(work.rolled) === JSON.stringify(["finesse", "finesse"]) && workGm.pressed.length === 1,
         JSON.stringify({ rolled: work.rolled, pressed: workGm.pressed }), { flow: "projects" });
 
+    // ---- 6c'. a player's Sabotage, rerolled into a miss ------------------------------------------
+    /*
+     * THE SABOTAGE'S FACTS ON ITS OWN ROW (E08+E28 fix r1-G1, 04.10.2026; the round-1 review's B1).
+     * The GM wrote a player's freeze and repair on the sender's newest Sabotage row as the packet
+     * arrived, and `roll.bookmark`'s run kept the row after it (5 of 5 of the review's runs), so
+     * the Reroll into a miss took nothing back. The packet names its roll now, and the fact waits
+     * for that roll's row (action-rolls.mjs `noteFactOfRoll`). p1 sabotages a project alone in
+     * Aiko's room on forced dice, and rerolls into 3 (`REROLL_ARM`). Read on the GM: the row's
+     * facts (the freeze, the repair and the Sabotage's own trace, which names the roll too), the
+     * freeze and the repairs of the target before and after. The race itself is timing: at
+     * d20fadb's runtime this check passed (1 run, the row kept before the packet in this order)
+     * while the review's 97 failed 2 runs of 3; tier 2's "a player's Sabotage judged before its
+     * roll's row is kept..." holds the order. What this one catches is the naming, end to end
+     * (the Sabotage or its trace sent with no roll: red).
+     */
+    phase("a player's Sabotage and its Reroll", { flow: "projects" });
+    const sabTarget = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const M = await import("${REPO}/scripts/movement.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        await game.drpg.setActions(actor, game.drpg.actionsMax(actor));
+        return (await P.createProject({ name: "QA sabotage target", target: 6, room: M.roomOfActor(actor), trait: "eye" }))?.id ?? null;`, { timeout: 30000 });
+    await settle(600);
+    const sabotaged = await p1.eval(`globalThis.__forceRoll = { hope: 9, fear: 5 };
+        const actor = game.actors.get("${ids.aiko}"); let r = null, err = null;
+        try { r = await game.drpg.performAction(actor, "sabotage", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete globalThis.__forceRoll; }
+        return { err, success: r?.success ?? null, applied: r?.applied ?? null };`, { timeout: 120000 });
+    await settle(1500);
+    const freezeOf = `const P = await import("${REPO}/scripts/projects.mjs");
+        return { frozen: P.isFrozen("${sabTarget}"), repairs: P.allProjects().filter(p => P.repairs(p.id) === "${sabTarget}").map(p => p.id) };`;
+    const sabArm = await gm.eval(REROLL_ARM({ hope: 9, fear: 5 }, { hope: 2, fear: 1 }), { timeout: 30000 });
+    const sabBefore = await gm.eval(freezeOf);
+    const sabAsk = await p1.eval(REROLL_ASK, { timeout: 90000 });
+    await settle(600);
+    const sabReroll = await gm.eval(REROLL_READ, { timeout: 30000 });
+    const sabAfter = await gm.eval(freezeOf);
+    await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        for (const id of [...P.allProjects().filter(p => P.repairs(p.id) === "${sabTarget}").map(p => p.id), "${sabTarget}"]) await P.deleteProject(id).catch(() => {});
+        return true;`, { timeout: 30000 });
+    check("p1: a Reroll of a Sabotage into a miss thaws the project and deletes its one repair, both on the roll's own row on the GM",
+        Boolean(sabTarget) && !sabotaged.err && sabotaged.applied === true && sabArm.row?.actionKey === "sabotage"
+            && sabBefore.frozen && sabBefore.repairs.length === 1
+            && sabArm.row?.facts?.targetProjectId === sabTarget && sabArm.row?.facts?.repairId === sabBefore.repairs[0]
+            && Boolean(sabArm.row?.facts?.remnantId)
+            && sabAsk.made === true && sabReroll.paid === 3 && !sabAfter.frozen && sabAfter.repairs.length === 0 && !sabReroll.journal,
+        JSON.stringify({ sabTarget, sabotaged, arm: sabArm.row, sabBefore, sabAfter, made: sabAsk.made, paid: sabReroll.paid, journal: sabReroll.journal }),
+        { flow: "reroll" });
+
     // ---- 6d. an indirect murder's work: the cover window closed ---------------------------------
     /*
      * A CLOSED WINDOW COVERS NOTHING (E32+E07 C13, 03.10.2026; audit S02-03). Every Work on an
