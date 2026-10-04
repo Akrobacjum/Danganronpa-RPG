@@ -394,8 +394,10 @@ function usedStamp(actor, item) {
  * `again` (E08+E28 C6b, 03.10.2026; audit S04-18): `{ resource }`, a use a Reroll's replay makes
  * again on a GM after its rewind gave the item and the heal back (murder.mjs `afterCrisisRoll`).
  * Its questions were asked at the first use, so it asks none: the reserve is the one the first
- * use restored (`resource`, where this item can restore it, else the first it offers). No Hope
- * bonus - the rewind does not take the first use's back, the row keeps no Hope - no card and no
+ * use restored (`resource`, where this item can restore it, else the first it offers). Its Hope
+ * bonus is paid as a fresh use's is: the rewind takes the first use's back (murder.mjs
+ * `undoLastCrisis`, fix r1-G6; the round-1 review's m5 - C6b paid none and took none back, so a
+ * tier 3 rerolled into a miss kept 2 Hope for a use that no longer happened). No card and no
  * stamp: the first use's card stands, and a trap that watches for the item heard it then
  * (traps.mjs `onChatMessage`). A creative use is the GM's ruling, not asked again of the die:
  * it counts as used and restores nothing.
@@ -437,7 +439,7 @@ export async function useItem(actor, item, { again = null } = {}) {
         const choice = again ? sameAgain(effect.choose) : await askWhichResource(item, effect);
         if (!choice) return null;
         asked = true;
-        amounts = { [choice]: effect.amount, ...(again ? {} : effect.bonus ?? {}) };
+        amounts = { [choice]: effect.amount, ...(effect.bonus ?? {}) };
     } else {
         const kind = usableKindOf(item);
         const resource = USABLE_KINDS[kind]?.resource;

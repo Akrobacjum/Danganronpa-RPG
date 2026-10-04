@@ -810,6 +810,7 @@ export const confusionCopy = defineGmCopy({
  * THE REROLL'S BOOKMARK, ON THE GMS (E08+E28 C2, 03.10.2026; audit S05-08, S08-04, S04-18; the
  * plan's 2.2). A row per character, the last roll the GMs were told of: `messageId`, `actionKey`,
  * `trait`, `experiences`, `total`, `withFear`, `isCritical`, `first` (its rolls as first thrown),
+ * `stands` (the rolls its last Reroll wrote, E08+E28 fix r1-G6; reroll.mjs `standingRolls`),
  * `room` (where the character stood as the GM kept it, E08+E28 C4a), `at` and `by`, the user
  * whose browser threw it, and `reportMessageId`, the card the roll was reported on, which a
  * Reroll marks (C5); then `facts`, written by the GM that did a thing

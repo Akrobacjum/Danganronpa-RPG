@@ -3019,6 +3019,7 @@
       "stillMaking": "Klient GM-a nie odpowiedział na czas w sprawie Rerolla, ale Reroll może jeszcze zostać wykonany: jeśli tak, przyjdzie jego karta; jeśli nie, Hope nie przepada.",
       "cardReplaced": "Przerzucono: {from} -> {to} (zob. kartę Reroll).",
       "observeBusy": "GM wciąż opisuje, co znalazło to Observe. Przerzuć je, gdy wynik już będzie. Nic nie zostało wydane.",
+      "diceChanged": "Kości tego rzutu nie są tymi, które zachowali GM-owie: ich zmiana jest cofana. Przerzuć go za chwilę. Nic nie zostało wydane.",
       "trailStands": "Kości przepisano, ale podłożony ślad już leży w pokoju - przerzut go nie podniesie. Zapytaj GM-a, czy ma zniknąć.",
       "stealStands": "Kości przepisano, ale chwila nie. Twoja ręka już była w cudzej kieszeni, a odkładanie czegoś z powrotem właściciel by zobaczył.",
       "cleanupReplayed": "Sprzątanie zostaje cofnięte i podjęte ponownie. Ślad wraca, wszystko, co zostawiło spartaczone wycieranie, znika, a Sanity wraca najpierw.",

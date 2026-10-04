@@ -307,26 +307,30 @@ function paintChatCard(message, element) {
 
 /*
  * THE CARD A REROLL REPLACED (E08+E28 C5, 03.10.2026; audit S02-21; the plan's 2.7). The GM
- * making a Reroll stamps the action's card `flags.danganronpa-rpg.rerolled = { from, to, tone, at }`
- * (reroll.mjs `markReplacedCard`), and every client that draws the card strikes its header's
- * total and adds one line under the header - "Rerolled: 14 -> 4 (see the Reroll card)" - in
- * the new roll's colour.
+ * making a Reroll marks the action's card `rerolled = { from, to, tone, at }` (reroll.mjs
+ * `markReplacedCard`) - a private card's in the meta its readers keep with its words (fix r1-G6,
+ * read with `cardFlag`), any other's on its document - and every client that draws the card
+ * strikes its header's total and adds one line under the header - "Rerolled: 14 -> 4 (see the
+ * Reroll card)" - in the new roll's colour.
  * Drawn here, never written into the words: a private card's words are its readers' alone
- * (secret.mjs), and the GM could not write them again for anybody.
+ * (secret.mjs), and the GM, who sends its own copy of them again to carry the mark, sends them
+ * as they were.
  *
  * AFTER THE WORDS, NOT BEFORE. This hook is registered at init and secret.mjs's, which puts a
  * private card's words into the element, at ready (module.mjs) - so on a private card this runs
  * on the stub, and the words replace whatever it drew. The mark waits for the end of the hook's
  * run (a microtask; every listener of `renderChatMessageHTML` runs in one synchronous call) and
- * is drawn only where a header with a total is there to strike: a client without the words, or
- * a veiled card it was not sent, draws no line, so the totals reach nobody the card does not.
- * The flag sits on a document the card's author may write, as they wrote its words: the line is
+ * is drawn only where a header with a total is there to strike. Until fix r1-G6 (04.10.2026; the
+ * round-1 review's S4) that was the whole of "the totals reach nobody the card does not": the
+ * drawn line did not, but the mark was on a private card's document, which every browser holds.
+ * A private card's mark now arrives with its words, to its readers alone. The card's author may
+ * write a mark of their own, in its meta or on its document, as they wrote its words: the line is
  * the card's own word, as the rest of it is.
  */
 const REPLACED_LINE = "drpg-reroll-replaced";
 
 function markReplaced(message, html) {
-    const mark = message?.flags?.[MODULE_ID]?.rerolled;
+    const mark = cardFlag(message, "rerolled");
     if (!mark || typeof mark !== "object") return;
     queueMicrotask(() => {
         try {
@@ -965,7 +969,7 @@ export function oldRollReaders(message) {
  * and the source are still read after it, for the rolls the module did not
  * throw and for those written before 1.2.65.
  *
- * In memory, like the Reroll receipts: a GM who reloads forgets what was
+ * In memory, as the primary's first throws are (reroll-receipts.mjs): a GM who reloads forgets what was
  * reported before, and such a message is read as an unclaimed one is - its
  * speaker, its source, then its author's one living character. E28 moves the
  * record into the GM's store behind the same function.
@@ -980,7 +984,7 @@ const rollSubjects = new Map();
  * HOW LONG, AND HOW MANY. A subject is read when the roll lands (the Despair
  * award) and again whenever a Reroll rewrites the roll (the receipt until
  * E08+E28 C8; the GMs' warning of a player's rewrite put back since), which
- * the recent-chat scan allows up to `TIMING.rerollWindowMinutes` after it, so
+ * the GMs' row of the roll allows up to `TIMING.rerollWindowMinutes` after it, so
  * that is how long one is kept. The E06 plan said twice the receipt's five
  * minutes, ten: that would forget a roll a Reroll can still reach, and the
  * receipt would have fallen back to the author's character. Five hundred bounds a table that

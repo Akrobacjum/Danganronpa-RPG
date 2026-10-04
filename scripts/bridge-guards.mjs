@@ -207,6 +207,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["busy", /^a Reroll of that character is already being made$/],
     // E08+E28 C6a: an Observe whose result the GM is still describing (reroll.mjs replayRefusal).
     ["busy", /^the GM is still describing what that Observe found$/],
+    // E08+E28 fix r1-G6: a roll whose dice differ from the ones the GMs kept (reroll.mjs `standingRolls`).
+    ["busy", /^the dice of that roll are not the ones the GMs kept$/],
     ["nothingToUndo", /^the GMs keep no roll of that character to reroll$/],
     ["notYours", /^the kept roll of that character is not the sender's$/],
     ["noReroll", /^the kept roll of that character is older than a Reroll can reach$/],

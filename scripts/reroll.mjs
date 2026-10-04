@@ -43,7 +43,7 @@
  */
 
 import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
-import { resolveThreshold, easedBy, log, error, plural, esc, isPrimaryGm, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
+import { resolveThreshold, easedBy, log, error, plural, esc, isPrimaryGm, gmIds, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
 import { searchTier, stashStepFor, stashText, rollTone, listenLabels } from "./action-rolls.mjs";
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
@@ -319,7 +319,7 @@ export function replayBookmark(row) {
  * there was nothing to take back, and the first result was then written under the new
  * dice. So it is refused here, nothing paid: while the GM is still describing it
  * (`observeBeingDescribed`), and while the row has no result to undo. An Observe the GM
- * ruled by hand has no key and is asked again instead (`settleGmRuling`).
+ * ruled by hand has no key and is asked again instead (`settleGmRuling`, `ruledByHand`).
  */
 async function replayRefusal(actor, row) {
     /* A CRISIS ROW WITHOUT ITS FACT (E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1). Its
@@ -332,24 +332,45 @@ async function replayRefusal(actor, row) {
         const { crisisUndoRefusal } = await import("./murder.mjs");
         return crisisUndoRefusal(actor, row.facts.crisis);
     }
-    if (row.actionKey === "observe" && !row.claims?.gmRuled) {
+    const bookmark = replayBookmark(row);
+    if (row.actionKey === "observe") {
         const { observeBeingDescribed } = await import("./observe.mjs");
         if (observeBeingDescribed(actor.id)) return "the GM is still describing what that Observe found";
-        if (!row.facts?.observeKey) return "that Observe has no result to take back";
+        if (!row.facts?.observeKey && !ruledByHand(bookmark)) return "that Observe has no result to take back";
     }
-    const bookmark = replayBookmark(row);
-    if (row.actionKey === "cleanup" && !bookmark.gmRuled && bookmark.cleanup
+    if (row.actionKey === "cleanup" && bookmark.cleanup
         && ["eraseTrace", "transformTrace"].includes(bookmark.cleanupKey ?? "eraseTrace")) {
         const { attemptOf } = await import("./cleanup.mjs");
         if ((await attemptOf(actor.id))?.tokenId !== bookmark.cleanup) return "no clean-up attempt of that trace to take back";
     }
-    if (row.actionKey === "analyze" && !bookmark.gmRuled && bookmark.bulletId) {
+    if (row.actionKey === "analyze" && bookmark.bulletId) {
         const { secretOf } = await import("./truth-bullets.mjs");
         const { getClock } = await import("./clock.mjs");
         const bullet = actor.items.get(bookmark.bulletId);
         if (!bullet || secretOf(bullet.uuid).analysedChapter !== getClock().chapter) return "no Analyze of that bullet this chapter to take back";
     }
     return null;
+}
+
+/**
+ * WHETHER A HUMAN RULED THE ROLL, READ ON THE GM (E08+E28 fix r1-G6, 04.10.2026; the round-1
+ * review's S5). `gmRuled` is the roller's claim (action-rolls.mjs `ROLL_CLAIMS`), and it was
+ * read first: an Observe's `roll.bookmark` sent again with it skipped both of C6a's refusals
+ * above, and its Reroll asked the GM for a second ruling on the new dice while the first
+ * result stood. The GMs write the fact a scored Observe or Analyze leaves - the Observe's key
+ * (observe.mjs `keepResult`), the Analyze's bullet (analyze.mjs) - and a row holding it is
+ * taken back by its undo whatever the claim says. The claim still decides where the GMs hold
+ * nothing: a Search's described find, and an Observe or a hint the GM was asked for by hand
+ * (action-rolls.mjs `ruleObserve`, the Analyze's hint), which leave no fact anywhere. The
+ * review's fix asked C6a's "no result to take back" of every Observe row; that refused every
+ * Reroll of an Observe the GM ruled by hand, which the plan (1.1) re-asks. What a claim gains
+ * here is that re-asking - the GM's card, answered by hand, as an honest one is.
+ */
+function ruledByHand(bookmark) {
+    if (!bookmark?.gmRuled) return false;
+    if (bookmark.actionKey === "observe") return !bookmark.observeKey;
+    if (bookmark.actionKey === "analyze") return !bookmark.bulletId;
+    return bookmark.actionKey === "search";
 }
 
 /**
@@ -413,7 +434,34 @@ async function rerollRefusal(actor, sender, cost) {
     // Last, and still before the payment: a roll this client cannot throw again (a roll of another
     // system's, or the harness's plain record) would only be paid for and given back.
     if (typeof message.rolls[0].reroll !== "function") return { why: "that message holds no roll to throw again", say: "DRPG.Reroll.notARoll" };
-    return { row, message };
+    // After every await of the checks, so nothing lands between this reading and `makeReroll`'s.
+    const stand = await standingRolls(message, row);
+    if (stand && JSON.stringify(message.toObject().rolls ?? []) !== JSON.stringify(stand)) {
+        return { why: "the dice of that roll are not the ones the GMs kept", say: "DRPG.Reroll.diceChanged" };
+    }
+    return { row, message, stand };
+}
+
+/**
+ * THE DICE THE ROLL STANDS ON, AS THE GMS READ THEM (E08+E28 fix r1-G6, 04.10.2026; the round-1
+ * review's S6). The Reroll took the message as it stood: its first rolls to give back, and the
+ * roll the Hope, Fear, Despair and the critical's Hope are settled from. A player's rewrite of
+ * their own roll is put back by the primary (reroll-receipts.mjs `judgeRewrite`) only once it has
+ * reached the primary and the put-back has landed, and a Reroll asked in that interval settled
+ * against the rewritten dice and, refused, wrote them back as a GM's write - which the primary
+ * then keeps as the roll's truth. The primary reads the rolls it kept as the message was created
+ * (`keptRollsOf`); another GM, and a primary that kept none, the row's: `stands`, the rolls the
+ * last Reroll of the roll wrote (`keepRerolledRow`), else `first`, read as the roll reached the
+ * GMs. A message that holds other dice is refused before anything is paid - a put-back in flight,
+ * or a rewrite nobody kept the dice of. A row with neither names nothing to compare, and the
+ * message stands as it is.
+ */
+async function standingRolls(message, row) {
+    const { keptRollsOf } = await import("./reroll-receipts.mjs");
+    const kept = isPrimaryGm() ? keptRollsOf(message.id) : null;
+    if (kept?.rolls?.length) return kept.rolls;
+    const read = Array.isArray(row.stands) && row.stands.length ? row.stands : row.first;
+    return Array.isArray(read) && read.length ? read : null;
 }
 
 /**
@@ -440,12 +488,13 @@ async function makeReroll(actor, sender) {
     const cost = HOPE_CALLS.reroll.cost;
     const checked = await rerollRefusal(actor, sender, cost);
     if (checked.why) return { refused: checked.why, say: checked.say ?? null, said: checked.said ?? null };
-    const { row, message } = checked;
+    const { row, message, stand } = checked;
     const bookmark = replayBookmark(row);
+    // The message holds the dice the GMs kept (`standingRolls`), so its roll is theirs.
     const original = message.rolls[0];
     const before = dualityOfRoll(original);
-    // The message's rolls before this Reroll: what a Reroll that does not stand puts back.
-    const firstRolls = foundry.utils.deepClone(message.toObject().rolls ?? []);
+    // The rolls before this Reroll: what a Reroll that does not stand puts back.
+    const firstRolls = foundry.utils.deepClone(stand ?? message.toObject().rolls ?? []);
     const journal = fields => rerollJournalStore.patch(actor.id, fields);
 
     /*
@@ -525,7 +574,7 @@ async function makeReroll(actor, sender) {
 
     await markReplacedCard(row, before, after);
     try {
-        await keepRerolledRow(actor, row, patch, after);
+        await keepRerolledRow(actor, row, patch, after, message);
     } catch (err) {
         // A stale row only costs a second Reroll.
         error("Could not keep the rerolled roll's bookmark", err);
@@ -540,9 +589,10 @@ async function makeReroll(actor, sender) {
  * The new row: the replay's patch, a claim where the action's claims name the field and
  * a fact otherwise, over the row as the replay left it - a replay's own GM work writes
  * its facts on it as it goes (action-rolls.mjs `noteRollFact`). `first` and `by` are the
- * first throw's still.
+ * first throw's still; `stands` is the rolls this Reroll wrote, which the roll stands on now
+ * (`standingRolls`, fix r1-G6).
  */
-async function keepRerolledRow(actor, row, patch, after) {
+async function keepRerolledRow(actor, row, patch, after, message) {
     const { ROLL_CLAIMS } = await import("./action-rolls.mjs");
     const named = Object.hasOwn(ROLL_CLAIMS, row.actionKey ?? "") ? ROLL_CLAIMS[row.actionKey] : {};
     const now = rerollBookmarkStore.get(actor.id) ?? row;
@@ -550,7 +600,8 @@ async function keepRerolledRow(actor, row, patch, after) {
     const claims = { ...(now.claims ?? {}) }, facts = { ...(now.facts ?? {}) };
     for (const [field, value] of Object.entries(patch ?? {})) (Object.hasOwn(named, field) ? claims : facts)[field] = value;
     await rerollBookmarkStore.patch(actor.id, {
-        claims, facts, total: after.total, withFear: after.withFear, isCritical: after.isCritical, rerolled: true
+        claims, facts, total: after.total, withFear: after.withFear, isCritical: after.isCritical, rerolled: true,
+        stands: foundry.utils.deepClone(message.toObject().rolls ?? [])
     });
 }
 
@@ -559,23 +610,43 @@ async function keepRerolledRow(actor, row, patch, after) {
  * header's "rewritten in place" is the roll's message; the action's card beside it was posted
  * from the roller's browser, from facts the replay has just changed, and kept its first total
  * and its first words - the table read two outcomes of one roll. The GM cannot write those
- * words again, so the card is marked, not rewritten: `flags.danganronpa-rpg.rerolled` on its document,
- * `{ from, to, tone, at }` - the total the card prints, the new one, and the new roll's colour
- * (action-rolls.mjs `rollTone`) - and every reader draws the struck total and one line from it
- * (private-rolls.mjs `markReplaced`). A private card's words (secret.mjs) are not touched: the
- * flag is the document's, the line is drawn where the words are. A second Reroll of the same
- * roll keeps `from`, the number the card itself prints. The card is the one the roller named
- * (action-rolls.mjs `reportCardOf`); a row naming none is a roll whose card was never named,
- * and nothing is marked. Written once the Reroll stands, so a refused one leaves it as it was.
+ * words again, so the card is marked, not rewritten: `rerolled`, `{ from, to, tone, at }` - the
+ * total the card prints, the new one, and the new roll's colour (action-rolls.mjs `rollTone`) -
+ * and every reader draws the struck total and one line from it (private-rolls.mjs
+ * `markReplaced`). A second Reroll of the same roll keeps `from`, the number the card itself
+ * prints. The card is the one the roller named (action-rolls.mjs `reportCardOf`); a row naming
+ * none is a roll whose card was never named, and nothing is marked. Written once the Reroll
+ * stands, so a refused one leaves it as it was.
+ *
+ * A PRIVATE CARD'S MARK TRAVELS WITH ITS WORDS (E08+E28 fix r1-G6, 04.10.2026; the round-1
+ * review's S4). C5 wrote it on the document, which every browser holds: the two totals and the
+ * tone of a card whose words only its readers hold, tied to the character the card speaks for
+ * - E05 C7 took `summary.total` off this very card for that reason. It goes as the card's meta
+ * now (secret.mjs `updateSecret`, as `settleCall`'s `settled` does), with this GM's own copy of
+ * the words - cleaned, if a player wrote them (`secretHtml`) - to the readers who hold them: the
+ * whisper list, or for a veiled card, whose document names everybody, the card's author (the
+ * roller, `reportCardOf`) and the GMs. A GM that holds no words of the card has nothing to send
+ * them with, and marks nothing: the Reroll's own card says what changed. A card that is not
+ * private carries its words on its document, and its mark goes there as before.
  */
 async function markReplacedCard(row, before, after) {
     const card = game.messages.get(row.reportMessageId ?? "") ?? null;
     if (!card) return;
-    const held = card.flags?.[MODULE_ID]?.rerolled ?? null;
+    const { cardFlag, secretHtml, updateSecret, isVeiled, SECRET_FLAG } = await import("./secret.mjs");
+    const held = cardFlag(card, "rerolled") ?? null;
+    const rerolled = { from: held?.from ?? before.total ?? null, to: after.total ?? null, tone: rollTone(after), at: Date.now() };
     try {
-        await card.update({ [`flags.${MODULE_ID}.rerolled`]: {
-            from: held?.from ?? before.total ?? null, to: after.total ?? null, tone: rollTone(after), at: Date.now()
-        } });
+        if (!card.flags?.[MODULE_ID]?.[SECRET_FLAG]) {
+            await card.update({ [`flags.${MODULE_ID}.rerolled`]: rerolled });
+            return;
+        }
+        const words = secretHtml(card);
+        if (!words) {
+            log(`The card a Reroll replaced (${card.id}) is not marked: this GM holds none of its words.`);
+            return;
+        }
+        const author = card.author?.id ?? card.user?.id ?? null;
+        await updateSecret(card, words, isVeiled(card) ? [author, ...gmIds()] : null, { rerolled });
     } catch (err) {
         // The Reroll stands without it: the Reroll's own card says what changed.
         error("Could not mark the card a Reroll replaced", err);
@@ -871,7 +942,7 @@ async function replayAction(actor, bookmark, after, done, rerolled = null) {
 
     try {
         // A ruling a human made cannot be rewritten by a die. Ask again instead.
-        if (bookmark?.gmRuled) return await settleGmRuling(actor, bookmark, after, done);
+        if (ruledByHand(bookmark)) return await settleGmRuling(actor, bookmark, after, done);
 
         switch (key) {
             case "project": return await settleProgress(actor, bookmark, after, done);

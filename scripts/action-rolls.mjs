@@ -1145,7 +1145,7 @@ export async function keepGmBookmark({ actorId, messageId, actionKey = null, tra
     // wrote for this roll before its row was kept (`noteFactOfRoll`), taken with no await
     // between them and the patch.
     const row = { messageId: message.id, reportMessageId: null, ...told, total, withFear, isCritical,
-        first: foundry.utils.deepClone(message.toObject().rolls ?? []),
+        first: foundry.utils.deepClone(message.toObject().rolls ?? []), stands: null,
         room: roomOfActor(actor) ?? null, at: Date.now(), by: by?.id ?? null };
     return rerollBookmarkStore.patch(actor.id, { ...row, facts: takeFactsAwaiting(message.id, actor.id, row) });
 }
@@ -1276,11 +1276,12 @@ export function noteFactOn(roll, facts) {
 
 /**
  * THE OLD BOOKMARKS OUT OF WORLD DATA (E05 C7; audit S02-01) - the `dropRollBookmarks`
- * clause. Once, on the primary. Nothing is lifted: a bookmark is the newest roll, a
- * Reroll does not reach across an update, and a roll made before it is still found by
- * reroll.mjs's recent-chat scan. Every actor's `lastAction` flag is deleted in one
- * write (`forcedDeletion()`, `unsetFlag` in a Foundry without it) and read back; one
- * still there throws, so the world is not stamped and the next load tries again.
+ * clause. Once, on the primary. Nothing is lifted: a bookmark is the newest roll, and a
+ * Reroll does not reach across an update - since E08+E28 C4a it reads the GMs' row of the
+ * roll (`keepGmBookmark`), which a roll made before it never had. Every actor's
+ * `lastAction` flag is deleted in one write (`forcedDeletion()`, `unsetFlag` in a
+ * Foundry without it) and read back; one still there throws, so the world is not
+ * stamped and the next load tries again.
  * Idempotent: a world already through it holds none.
  *
  * AND EVERY TOKEN'S OWN ACTOR DATA (E05's fix round, S1-m4, 27.09.2026). 1.2.63 wrote the

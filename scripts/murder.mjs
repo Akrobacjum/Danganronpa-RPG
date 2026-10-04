@@ -48,7 +48,7 @@
 
 import {
     MODULE_ID, FLAGS, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS,
-    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, callEffect, TIMING
+    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, callEffect, TIMING, USABLE_EFFECTS
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS, incidentCast, incidentIndirect, incidentSeats, seasonEpoch, isDeadForGm, isDeceased } from "./settings.mjs";
@@ -59,7 +59,7 @@ import { resourceValue, resourceMax, marksOf, reserveOf, reserveChange, reserveN
 import { youOrThem } from "./secret.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken, isStashed, servesAs, wearOf } from "./inventory.mjs";
-import { equippedFor, breakOnDespair, isEquipped, readiedItems, EQUIPPED_FLAG } from "./use-items.mjs";
+import { equippedFor, breakOnDespair, isEquipped, readiedItems, tierOf, EQUIPPED_FLAG } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import { keepLive, closeOpen } from "./live.mjs";
 import {
@@ -1952,7 +1952,8 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
 
 /**
  * WHAT A THROWN CRISIS ACTION ASKS ONCE ITS DICE ARE KNOWN: a critical's pick, and Use an
- * item's use. `{ choice, usedItemId, before }`.
+ * item's use. `{ choice, usedItemId, before, hopeGranted }` - the last the Hope the use gave,
+ * which a replay's receipt keeps (`hopeTheUseGave` reads a first throw's on the GM).
  *
  * SHARED WITH THE REROLL'S REPLAY (E08+E28 C6b, 03.10.2026; audit S04-18). Moved out of
  * `takeCrisisAction`, which asks it on the player's browser, so that the replay a Reroll makes
@@ -1988,7 +1989,7 @@ async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
      * and the item goes in; a success with DESPAIR leaves the trace and nothing
      * else - you were seen fumbling with it and it stayed in your pocket.
      */
-    let usedItemId = null, before = null;
+    let usedItemId = null, before = null, hopeGranted = 0;
     if (def.usesItem) {
         const hit = roll.isCritical || roll.total >= def.threshold;
         if (hit && (roll.isCritical || roll.withHope)) {
@@ -1999,16 +2000,21 @@ async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
             before = {
                 hp: actor.system?.resources?.hitPoints?.value ?? null,
                 stress: actor.system?.resources?.stress?.value ?? null,
-                qty: item ? Number(item.system?.quantity ?? 1) : null
+                qty: item ? Number(item.system?.quantity ?? 1) : null,
+                hope: actor.system?.resources?.hope?.value ?? null
             };
             // `useItem` can still be backed out of at its own confirm. The roll
             // and the turn are spent either way - a player who changes their
             // mind at the last dialog has still done the thing on the clock.
             // A replay's use asks nothing (`again`), on the first use's resource.
-            if (item && await useItem(actor, item, again ? { again: { resource: again.resource ?? null } } : {})) usedItemId = item.id;
+            const restored = item ? await useItem(actor, item, again ? { again: { resource: again.resource ?? null } } : {}) : null;
+            if (restored) {
+                usedItemId = item.id;
+                hopeGranted = Number(restored.hope) || 0;
+            }
         }
     }
-    return { choice, usedItemId, before };
+    return { choice, usedItemId, before, hopeGranted };
 }
 
 /**
@@ -2279,11 +2285,30 @@ async function noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, s
     await rolls.noteFactOn(roll, { crisis: key, choice: choice ?? null, usedItemId: usedItemId ?? null, swungId, before: was, usedFor });
 }
 
-/** `{ hp, stress, qty }` as whole numbers or null each, or null for anything that is not an object. */
+/** `{ hp, stress, qty, hope }` as whole numbers or null each, or null for anything that is not an object. */
 function resourcesBefore(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     const n = v => (typeof v === "number" || typeof v === "string") && v !== "" && Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : null;
-    return { hp: n(raw.hp), stress: n(raw.stress), qty: n(raw.qty) };
+    return { hp: n(raw.hp), stress: n(raw.stress), qty: n(raw.qty), hope: n(raw.hope) };
+}
+
+/**
+ * THE HOPE A FIRST USE GAVE, READ ON THE GM (E08+E28 fix r1-G6, 04.10.2026; the round-1 review's
+ * m5). A tier 3 item adds Hope to what it restores (config.mjs `USABLE_EFFECTS`), and its Reroll
+ * took nothing of it back: a use rerolled into a miss kept the Hope. The use runs on the player's
+ * browser before the action reaches the GM (`afterCrisisRoll`), so what it gave is read as
+ * `usedFor` is - the Hope held now against the `before` the player read (their word about their
+ * own character) - and held to the bonus the item's tier pays: never less than nothing, never
+ * more than the rules give. Read as the receipt opens, before the action writes anything. A
+ * Hope change of another kind that lands between the player's reading and this one is counted
+ * in, up to that bound; not measured at a table.
+ */
+function hopeTheUseGave(actor, usedItemId, before) {
+    const item = usedItemId ? actor?.items?.get(usedItemId) : null;
+    const bonus = Number(USABLE_EFFECTS[tierOf(item)]?.bonus?.hope) || 0;
+    const was = resourcesBefore(before)?.hope;
+    if (!item || !bonus || typeof was !== "number") return 0;
+    return Math.max(0, Math.min(bonus, resourceValue(actor, "hope") - was));
 }
 
 async function applyCrisisAction({
@@ -2345,8 +2370,9 @@ async function applyCrisisAction({
 
     // A replay asks what its first throw asked, with that throw's answers (`afterCrisisRoll`):
     // after the rewind, which gave the item back, and before the receipt, as the first.
+    let hopeGranted = 0;
     if (undo && again) {
-        ({ choice, usedItemId } = await afterCrisisRoll(actor, def, { total, isCritical, withHope }, again.usedItemId,
+        ({ choice, usedItemId, hopeGranted } = await afterCrisisRoll(actor, def, { total, isCritical, withHope }, again.usedItemId,
             { choice: again.choice ?? null, resource: again.usedFor ?? null }));
     }
 
@@ -2387,6 +2413,8 @@ async function applyCrisisAction({
     // applied, because half of it is "the value this resource had a moment ago".
     const receipt = openReceipt(actorId, key, state);
     receipt.swungId = weapon?.id ?? null;
+    // A replay's use ran on this GM and said what it gave; a first throw's is read (fix r1-G6).
+    if (!undo) hopeGranted = hopeTheUseGave(actor, usedItemId, before);
     if (roll) await noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId: weapon?.id ?? null, before, receipt });
 
     /*
@@ -2440,6 +2468,7 @@ async function applyCrisisAction({
         // Spent on the player's client; recorded here so a Reroll can undo it.
         if (def.usesItem) {
             receipt.usedItemId = usedItemId;
+            receipt.hopeGranted = usedItemId ? hopeGranted : 0;
             done.push(game.i18n.localize(usedItemId
                 ? "DRPG.Murder.useItemWorked" : "DRPG.Murder.useItemFumbled"));
         }
@@ -2828,6 +2857,13 @@ async function undoLastCrisis({ actorId, key, before = null }) {
     const actor = game.actors.get(actorId);
     await restoreResource(actor, "stress", marksBack(actor, "stress", receipt.actorStress, used?.stress));
     await restoreResource(actor, "hitPoints", marksBack(actor, "hitPoints", receipt.actorHp, used?.hp));
+    /* And the Hope the use gave (fix r1-G6, 04.10.2026; the round-1 review's m5), off the Hope held
+       now: the Reroll's own price and anything granted since stay. The receipt's, not the row's -
+       the row keeps the first throw's facts, and a second Reroll takes back what the replay's use
+       gave, or nothing where the replay missed (no `usedItemId`). */
+    if (receipt.usedItemId && receipt.hopeGranted > 0) {
+        await restoreResource(actor, "hope", Math.max(0, resourceValue(actor, "hope") - receipt.hopeGranted));
+    }
     const victim = receipt.victimId && receipt.victimId !== actorId ? game.actors.get(receipt.victimId) : null;
     await restoreResource(victim, "hitPoints", receipt.victimHp);
     await restoreResource(victim, "stress", receipt.victimStress);

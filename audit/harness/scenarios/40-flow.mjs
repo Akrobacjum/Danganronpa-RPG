@@ -238,8 +238,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
        Search card in the roll's bookmark, and the GM making the Reroll stamped it. Each browser draws
        it through the log's render hooks onto a bare card element, a stub in its body as the document
        carries, and is read once the hooks' run has ended: p1, a reader, draws the header's total
-       struck and the line with both totals in the new roll's colour; p2 holds the stamped document
-       and not the words, and draws neither. */
+       struck and the line with both totals in the new roll's colour; p2 holds the document and not
+       the words, and draws neither. The stamp itself (E08+E28 fix r1-G6, 04.10.2026; the round-1
+       review's S4) came with the words to p1 (`cardFlag`), and p2 holds it nowhere: C5 wrote it on
+       the document, and p2's browser held both totals of a card it may not read. */
     const replacedOn = c => c.eval(`const m = game.messages.get(${JSON.stringify(searchCard?.id ?? null)});
         if (!m) return null;
         const li = document.createElement("li");
@@ -247,15 +249,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         Hooks.callAll("renderChatMessageHTML", m, li);
         await new Promise(r => setTimeout(r, 0));
         const line = li.querySelector(".drpg-reroll-replaced");
-        return { mark: m.flags?.["${MOD}"]?.rerolled ?? null,
+        const S = await import("${REPO}/scripts/secret.mjs");
+        return { mark: S.cardFlag(m, "rerolled") ?? null, onDoc: m.flags?.["${MOD}"]?.rerolled ?? null,
             struck: li.querySelector(".drpg-card-head .drpg-card-total")?.style.getPropertyValue("text-decoration") ?? null,
             line: line?.textContent ?? null, tone: line?.dataset.tone ?? null };`);
     const replacedP1 = await replacedOn(p1), replacedP2 = await replacedOn(p2);
-    check("p1: the Search's card a Reroll replaced is drawn with its total struck and a line of both totals in the new roll's colour - p2, without its words, draws neither",
+    check("p1: the Search's card a Reroll replaced is drawn with its total struck and a line of both totals in the new roll's colour - p2, without its words, draws neither and holds no mark",
         Boolean(searchCard) && searchArm.row?.reportMessageId === searchCard.id
             && replacedP1?.mark?.from === 14 && replacedP1.mark.to === 4 && replacedP1.mark.tone === "hope"
             && replacedP1.struck === "line-through" && / 14 -> 4 /.test(replacedP1.line ?? "") && replacedP1.tone === "hope"
-            && replacedP2?.mark?.to === 4 && replacedP2.struck === null && replacedP2.line === null,
+            && replacedP1.onDoc === null && replacedP2 && replacedP2.mark === null && replacedP2.onDoc === null
+            && replacedP2.struck === null && replacedP2.line === null,
         JSON.stringify({ named: searchArm.row?.reportMessageId ?? null, card: searchCard?.id ?? null, replacedP1, replacedP2 }), { flow: "reroll" });
 
     /* THE PLANT CAME BACK AS ITSELF (E08+E28 C6a, 03.10.2026; audit S08-04). The Search above was

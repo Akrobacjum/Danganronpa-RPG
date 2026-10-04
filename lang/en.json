@@ -2907,6 +2907,7 @@
       "stillMaking": "The GM's client did not answer the Reroll in time, but it may still be made: if it is, its card follows; if it is not, its Hope is not kept.",
       "cardReplaced": "Rerolled: {from} -> {to} (see the Reroll card).",
       "observeBusy": "The GM is still describing what this Observe found. Reroll it once the result is in. Nothing was spent.",
+      "diceChanged": "This roll's dice are not the ones the GMs kept: a change to them is being put back. Reroll it in a moment. Nothing was spent.",
       "trailStands": "The dice are rewritten, but what you planted is already lying in the room - a reroll cannot pick it back up. Ask the GM if it should come out.",
       "stealStands": "The dice are rewritten, but the moment is not. Your hand has already been in their pocket, and putting something back is something they would watch you do.",
       "cleanupReplayed": "The clean-up is taken back and attempted again. The trace comes back, anything the botched wipe left is removed, and the Sanity is refunded first.",
