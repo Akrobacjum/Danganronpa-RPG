@@ -255,6 +255,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["alreadyDone", /^that Observe has already been resolved$/],
     ["alreadyDone", /^that betrayal is already declared$/],
     ["nothingToUndo", /^that Observe has no result to take back$/],
+    // E08+E28 fix r1-G2: a crisis row whose fact never reached it (reroll.mjs `replayRefusal`).
+    ["nothingToUndo", /^that crisis action has no result to take back$/],
     ["nothingToUndo", /^no Analyze of that bullet this chapter to take back$/],
     // E32+E07 C8b: a Reroll of a crisis action whose own resolution killed (murder.mjs crisisUndoRefusal).
     ["deathStands", /^that crisis action killed somebody; the death stands$/],

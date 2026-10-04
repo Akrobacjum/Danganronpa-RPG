@@ -945,8 +945,10 @@ async function noteRollContext(actor, data) {
  * one only on the row of the roll it was asked for: each writer reads the row's
  * message as it starts (`rollOfNow`) and names it as it writes, so a fact that took
  * a GM's dialog long enough for the character to roll again is dropped, not pinned
- * on the newer roll. A player's Sabotage and trace name their roll in the packet, and
- * their facts wait for that roll's row (`noteFactOfRoll`, fix r1-G1).
+ * on the newer roll. Every packet that leads to a fact names its roll now, and the fact
+ * waits for that roll's row (`noteFactOfRoll`): the Sabotage and the trace since fix
+ * r1-G1, the resolvers' since fix r1-G2 (`rollOfFact`); a Reroll's replay still writes on
+ * the row it read as it started.
  *
  * THE ROLLER'S CLAIMS, sent once after the roll by `roll.bookmark` and again when
  * the action adds one (`tellGmsOfRoll`): what the GM cannot see - which item the
@@ -1242,6 +1244,34 @@ export async function noteFactOfRoll(messageId, { by, actorId = null, actions },
     }
     await rerollBookmarkStore.patch(rowActor, { facts: { ...(row.facts ?? {}), ...facts } });
     return true;
+}
+
+/*
+ * AND THE RESOLVERS' FACTS THE SAME WAY (E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1,
+ * its rest). A crisis action, an Analyze, a clean-up, an Observe and a Search's plant are carried
+ * out by a resolver on the GM, which read the character's row as it started (`rollOfNow`) - the
+ * same read as the Sabotage's, and as early: a Strike's packet leaves right after its roll's
+ * `roll.bookmark`. A row not kept yet took no fact, and a crisis row without one was settled as
+ * "the dice are the whole result" while the first throw's damage, trace and turn stood. Each
+ * packet names its roll now (`rollId`, the roller's `rollInHand`), and the resolver writes on that
+ * roll's row for the sender (`by`, the user Foundry names; this GM for its own) through
+ * `noteFactOfRoll`. A resolver run with no roll named - a crisis action taken without dice, a
+ * GM's macro - writes none. A Reroll's replay (`undo`) is a GM's alone (the bridge's
+ * `guardUndoIsTheGms`) and runs on the row the Reroll is being made on, so it keeps writing on
+ * the row it read as it started.
+ */
+
+/** Where a resolver's fact goes: `{ actorId, messageId }` for a replay, `{ actorId, rollId, by, actions }` for a first throw. */
+export function rollOfFact({ undo = false, rollId = null, by = null, actorId = null, actions = [] } = {}) {
+    if (undo) return { actorId, messageId: rollOfNow(actorId) };
+    return { actorId, rollId, by: by ?? game.user?.id ?? null, actions };
+}
+
+/** Write `facts` where `rollOfFact` said: true when written, or parked for its row. */
+export function noteFactOn(roll, facts) {
+    if (!roll) return false;
+    if ("messageId" in roll) return noteRollFact(roll.actorId, roll.messageId, facts);
+    return noteFactOfRoll(roll.rollId, { by: roll.by, actorId: roll.actorId, actions: roll.actions }, facts);
 }
 
 /**
@@ -1994,7 +2024,9 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
      * all returned, and each of those leaves the plant in the room (ACT-03).
      */
 async function searchDraw(room, category, tier, goalKey, actor = null) {
-    const plant = await SearchTokens.takePlant(room, undefined, { actorId: actor?.id ?? null });
+    // The roll it is drawn for, so the GMs' fact of it goes on that roll's row (fix r1-G2).
+    const plant = await SearchTokens.takePlant(room, undefined,
+        { actorId: actor?.id ?? null, rollId: actor ? rollInHand(actor)?.messageId ?? null : null });
 
     return plant
         ? {
@@ -4420,7 +4452,9 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
         actorId: actor.id,
         key: observeKey,
         total: roll.total,
-        isCritical: Boolean(roll.isCritical)
+        isCritical: Boolean(roll.isCritical),
+        // The roll the GMs' fact of the result goes on (fix r1-G2).
+        rollId: rollInHand(actor)?.messageId ?? null
     });
 
     // Deliberately silent about the outcome: the verdict is the GM's to send,
@@ -4705,7 +4739,9 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
         actorId: actor.id,
         itemId: subject.id,
         total: roll.total,
-        isCritical: Boolean(roll.isCritical)
+        isCritical: Boolean(roll.isCritical),
+        // The roll the GMs' fact of the bullet goes on (fix r1-G2).
+        rollId: rollInHand(actor)?.messageId ?? null
     });
 
     /*

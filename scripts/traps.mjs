@@ -450,21 +450,25 @@ export async function plantItem(projectId, room, { sceneId = null, ...item } = {
  * the searcher's - a GM's own, or the one the bridge's sender owns (search-tokens.mjs
  * `runTakePlant`) - the plant's name, identity, room and scene go on the GMs' bookmark of
  * that roll, so a Reroll on a GM (C6a) gives back this plant rather than a fresh draw.
+ * The roll is the one the Search names (`rollId`), and the fact goes on its row only when
+ * that is `by`'s Search of that character (fix r1-G2; action-rolls.mjs `rollOfFact`): the
+ * character's newest row, read here, was the roll before whenever the Search's own row
+ * was still on its way.
  */
-export async function takePlant(room, sceneId = null, { actorId = null } = {}) {
+export async function takePlant(room, sceneId = null, { actorId = null, rollId = null, by = null } = {}) {
     if (!game.user.isGM || !room) return null;
 
     const key = plantKey(room, sceneId);
     const found = plants()[key] ? structuredClone(plants()[key]) : null;
     if (!found) return null;
     const rolls = actorId ? await import("./action-rolls.mjs") : null;
-    const roll = rolls?.rollOfNow(actorId) ?? null;
+    const roll = rolls?.rollOfFact({ rollId, by, actorId, actions: ["search"] }) ?? null;
 
     // A stamped drop (E04): the plant is gone on every GM, and a copy from a GM
     // that had not heard yet cannot bring it back for a second finder.
     await trapPlantStore.drop(key);
     if (roll) {
-        await rolls.noteRollFact(actorId, roll, { plant: {
+        await rolls.noteFactOn(roll, { plant: {
             name: found.name ?? null, identity: found.drpgItemId ?? null, room, sceneId: sceneId ?? game.scenes?.current?.id ?? null
         } });
     }

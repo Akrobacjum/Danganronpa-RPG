@@ -286,7 +286,8 @@ async function handleObserveResolve(payload, sender, ctx) {
         isCritical: payload.isCritical,
         undo: payload.undo,
         senderId: sender.id,
-        senderIsGm: sender.isGM
+        senderIsGm: sender.isGM,
+        rollId: payload.rollId
     });
     // Not a guard: the key is judged inside `resolveObserve`, against the entry
     // it has just read, and for a GM's own resolve as much as for a packet.
@@ -302,7 +303,9 @@ async function handleAnalyzeResolve(payload, sender, ctx) {
         itemId: payload.itemId,
         total: payload.total,
         isCritical: payload.isCritical,
-        undo: payload.undo
+        undo: payload.undo,
+        rollId: payload.rollId,
+        by: sender.id
     });
     // Not a guard: one Analyze per bullet per chapter is the resolver's own
     // rule, asked of a GM's throw too (analyze.mjs).
@@ -573,6 +576,9 @@ async function handleCrisis(payload, sender, ctx, prepared) {
         // (the declaration's `owns`), numbers or nothing (`resourcesBefore`). Kept on the
         // GMs' bookmark only (E08+E28 C2).
         before: payload.before,
+        // The roll the GMs' fact of it goes on, for this sender (fix r1-G2): `rollOfFact`.
+        rollId: payload.rollId,
+        by: sender.id,
         /*
          * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY
          * SOMETHING FOR NOTHING.
@@ -703,7 +709,9 @@ async function handleCleanup(payload, sender, ctx, prepared) {
         // trace has to belong to the sender. Forging it costs them the
         // right to touch anybody else's trace, which is the only thing the
         // waived guards were protecting.
-        viaAction: payload.viaAction
+        viaAction: payload.viaAction,
+        rollId: payload.rollId,
+        by: sender.id
     });
     if (!cleaned) return { refused: "nothing was carried out: resolveCleanup cleaned nothing" };
 }
@@ -1203,21 +1211,23 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_OBSERVE_RESOLVE]: {
         label: "DRPG.Bridge.what.observe.resolve",
         guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, undo: as.gmFlag }),
+        sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleObserveResolve,
         // The "got it" only: the run can wait on the GM describing what was found
         // (`describeFind`, observe.mjs), and what its asker says on the answer is
         // that the GM has it - "The GM is judging what you found", and a Reroll's
         // "goes back to the GM" (E31 review).
-        answer: "ack"
+        answer: "ack",
+        claims: { rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Observe" }
     },
     [ACTION_ANALYZE_RESOLVE]: {
         label: "DRPG.Bridge.what.analyze.resolve",
         guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.gmFlag }),
+        sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleAnalyzeResolve,
         answer: "reply",
-        claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world" }
+        claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world",
+            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze" }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
@@ -1303,7 +1313,7 @@ export const BRIDGE_ACTIONS = table({
         // murder.mjs before the guards, as the handler imported it (the plan's W2).
         prepare: () => import("./murder.mjs"),
         sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, undo: as.gmFlag,
-            choice: as.oneOf("stress", "hp"), usedItemId: as.id, swungId: as.id, free: as.bool, before: as.raw }),
+            choice: as.oneOf("stress", "hp"), usedItemId: as.id, swungId: as.id, free: as.bool, before: as.raw, rollId: as.id }),
         run: handleCrisis,
         // Answered once applied, which can wait on the GM: two killers' victim
         // running out is asked of them (`checkVictimSpent`, murder.mjs).
@@ -1311,7 +1321,8 @@ export const BRIDGE_ACTIONS = table({
         claims: {
             usedItemId: "narrowed in the run to an item the acting character holds, else null",
             swungId: "narrowed in the run to an item the acting character holds, else null",
-            before: "numbers or null by resourcesBefore (murder.mjs): a claim about the sender's own character, kept on the GMs' bookmark"
+            before: "numbers or null by resourcesBefore (murder.mjs): a claim about the sender's own character, kept on the GMs' bookmark",
+            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a crisis action"
         }
     },
     [ACTION_PARK_MURDER]: {
@@ -1336,7 +1347,8 @@ export const BRIDGE_ACTIONS = table({
         // cleanup.mjs before the guards, as the handler imported it.
         prepare: () => import("./cleanup.mjs"),
         sanitize: pick({ actorId: as.id, tokenId: as.id, key: as.text, targetId: as.id, total: as.num, isCritical: as.bool,
-            withHope: as.bool, viaAction: as.bool, undo: as.gmFlag, grant: as.bool, price: as.raw, transform: as.raw, change: as.raw }),
+            withHope: as.bool, viaAction: as.bool, undo: as.gmFlag, grant: as.bool, price: as.raw, transform: as.raw, change: as.raw,
+            rollId: as.id }),
         run: handleCleanup,
         answer: "reply",
         claims: {
@@ -1344,7 +1356,8 @@ export const BRIDGE_ACTIONS = table({
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
             price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
-            change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)"
+            change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
+            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a clean-up"
         }
     },
     [ACTION_MEDDLE]: {
@@ -2096,9 +2109,9 @@ export async function requestCleanableTraces(actorId, { mine = false, quiet = fa
  * describing what was found, so the request waits only for the "got it", and a
  * refusal after it is still told.
  */
-export function requestObserveResolve({ actorId, key, total, isCritical, undo = false }) {
-    return ask(ACTION_OBSERVE_RESOLVE, { actorId, key, total, isCritical, undo }, {
-        local: () => import("./observe.mjs").then(m => m.resolveObserve({ key, total, isCritical, undo, actorId }))
+export function requestObserveResolve({ actorId, key, total, isCritical, undo = false, rollId = null }) {
+    return ask(ACTION_OBSERVE_RESOLVE, { actorId, key, total, isCritical, undo, rollId }, {
+        local: () => import("./observe.mjs").then(m => m.resolveObserve({ key, total, isCritical, undo, actorId, rollId }))
     });
 }
 
@@ -2110,9 +2123,9 @@ export function requestObserveResolve({ actorId, key, total, isCritical, undo = 
  * person, so the request waits for it (E31 review) and a Reroll says the bullet
  * was analysed again only when it was.
  */
-export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo = false }) {
-    return ask(ACTION_ANALYZE_RESOLVE, { actorId, itemId, total, isCritical, undo }, {
-        local: () => import("./analyze.mjs").then(m => m.resolveAnalyze({ actorId, itemId, total, isCritical, undo }))
+export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo = false, rollId = null }) {
+    return ask(ACTION_ANALYZE_RESOLVE, { actorId, itemId, total, isCritical, undo, rollId }, {
+        local: () => import("./analyze.mjs").then(m => m.resolveAnalyze({ actorId, itemId, total, isCritical, undo, rollId }))
     });
 }
 
@@ -2170,11 +2183,14 @@ export function requestCrisisResult({
     swungId = null,
     // The character's Health, Stress and the item's quantity before the item was used
     // (E08+E28 C2; audit S04-18), for the GMs' bookmark: what a Reroll puts back.
-    before = null
+    before = null,
+    // The roll it was thrown with (fix r1-G2): the GMs' fact of it goes on that roll's row. None
+    // for an action taken without dice.
+    rollId = null
 }) {
-    return ask(ACTION_CRISIS, { actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId, before }, {
+    return ask(ACTION_CRISIS, { actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId, before, rollId }, {
         local: () => import("./murder.mjs").then(m => m.resolveCrisisAction({
-            actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId, before
+            actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId, before, rollId
         }))
     });
 }
@@ -2218,7 +2234,9 @@ export function requestCleanup({
     // T-1: which step of Tamper's price chain the client already paid, and
     // whether a Burst paid it. Absent means "nothing was paid on the client",
     // and the resolver charges the Sanity itself.
-    price = null, grant = false
+    price = null, grant = false,
+    // The roll it was thrown with (fix r1-G2): the GMs' fact of the attempt goes on that roll's row.
+    rollId = null
 }) {
     // The two that aim at a TRACE go to `resolveCleanup`; the two that roll
     // against a flat threshold go to `resolveStageSix`. Naming the first pair
@@ -2228,12 +2246,12 @@ export function requestCleanup({
     const mode = key === "transformTrace" ? "transform" : "erase";
     return ask(ACTION_CLEANUP, {
         actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
-        change, viaAction, price, grant
+        change, viaAction, price, grant, rollId
     }, {
         local: () => import("./cleanup.mjs").then(m => aimed
             ? m.resolveCleanup({
                 actorId, tokenId, total, isCritical, withHope, undo, transform,
-                mode, change, viaAction, price, grant
+                mode, change, viaAction, price, grant, rollId
             })
             : m.resolveStageSix({
                 actorId, key, targetId, total, isCritical, withHope, viaAction,

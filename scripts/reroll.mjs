@@ -305,7 +305,13 @@ export function replayBookmark(row) {
  * ruled by hand has no key and is asked again instead (`settleGmRuling`).
  */
 async function replayRefusal(actor, row) {
-    if (row.actionKey === "crisis" && row.facts?.crisis) {
+    /* A CRISIS ROW WITHOUT ITS FACT (E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1). Its
+       replay (`settleCrisis`) reads the action off the row; without it the Reroll was paid and
+       settled as "the dice are the whole result", while the first throw's damage, trace and turn
+       stood. The fact now waits for its row (action-rolls.mjs `rollOfFact`), and a row still
+       without one - a refused action, or a fact still on its way - is refused here, nothing paid. */
+    if (row.actionKey === "crisis" && !row.facts?.crisis) return "that crisis action has no result to take back";
+    if (row.actionKey === "crisis") {
         const { crisisUndoRefusal } = await import("./murder.mjs");
         return crisisUndoRefusal(actor, row.facts.crisis);
     }

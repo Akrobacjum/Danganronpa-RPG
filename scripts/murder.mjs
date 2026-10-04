@@ -1925,6 +1925,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     const { choice, usedItemId, before } = await afterCrisisRoll(actor, def, roll, itemId);
 
     const { requestCrisisResult } = await import("./gm-bridge.mjs");
+    const { rollInHand } = await import("./action-rolls.mjs");
     await requestCrisisResult({
         actorId: actor.id, key,
         total: roll.total,
@@ -1935,7 +1936,9 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         usedItemId,
         // What was swung, so Stage 6 ruins the right thing (E9).
         swungId: swung?.id ?? null,
-        before
+        before,
+        // The roll the GMs' facts of it go on (fix r1-G2).
+        rollId: rollInHand(actor)?.messageId ?? null
     });
 
     /*
@@ -2273,7 +2276,7 @@ async function noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, s
     const healed = (b, now) => typeof b === "number" && typeof now === "number" && b > now;
     const usedFor = !usedItemId ? null
         : healed(was?.hp, receipt.actorHp) ? "hitPoints" : healed(was?.stress, receipt.actorStress) ? "stress" : null;
-    await rolls.noteRollFact(actorId, roll, { crisis: key, choice: choice ?? null, usedItemId: usedItemId ?? null, swungId, before: was, usedFor });
+    await rolls.noteFactOn(roll, { crisis: key, choice: choice ?? null, usedItemId: usedItemId ?? null, swungId, before: was, usedFor });
 }
 
 /** `{ hp, stress, qty }` as whole numbers or null each, or null for anything that is not an object. */
@@ -2298,12 +2301,16 @@ async function applyCrisisAction({
     // The first throw's facts, from the GMs' row, when a Reroll's replay on a GM runs this
     // (reroll.mjs `settleCrisis`, E08+E28 C6b): `{ choice, usedItemId, usedFor, before }`. The
     // bridge's handler names none, so a packet's undo replays as it did.
-    again = null
+    again = null,
+    // The roll it was thrown with and who threw it (fix r1-G2): see `noteCrisisFact`.
+    rollId = null, by = null
 } = {}) {
     if (!game.user.isGM) return null;
-    // The roll this action is for, as it arrives (E08+E28 C2): see `noteCrisisFact`.
+    // The roll this action is for (E08+E28 C2): the one its packet names, and its sender's (fix
+    // r1-G2; action-rolls.mjs `rollOfFact`) - none for an action taken without dice. A replay
+    // keeps the facts of the throw it replays.
     const rolls = await import("./action-rolls.mjs");
-    const roll = undo ? null : rolls.rollOfNow(actorId);
+    const roll = undo ? null : rolls.rollOfFact({ rollId, by, actorId, actions: ["crisis"] });
 
     // A Reroll's replay names no weapon (reroll.mjs `settleCrisis`): it swings
     // what the action it takes back swung, as its receipt recorded it (E32+E07 C8) - and

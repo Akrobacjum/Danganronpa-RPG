@@ -596,6 +596,52 @@ async function playerRollBookmark(player, actor, actionKey, context = {}) {
 }
 
 /**
+ * A PLAYER'S ROLL WHOSE ROW IS HELD BACK (E08+E28 fix r1-G2, 04.10.2026). `playerRollBookmark`, with
+ * the run of its `roll.bookmark` held at the store's hydration until `letGo` - fix r1-G1's hold,
+ * made a helper - so whatever the test judges meanwhile is judged before the roll's row exists, the
+ * order the round-1 review measured (B1). The hold is the first `whenHydrated` after the bookmark is
+ * judged, and the helper waits until the run is in it: a judgement started earlier could take the
+ * hold itself. `kept` is whether the row of this roll exists now (read before `letGo`, it must not,
+ * or the test measured nothing); `letGo` releases the run and answers its verdict.
+ */
+async function heldRollBookmark(player, actor, actionKey, context = {}) {
+    const G = await import("./bridge-guards.mjs");
+    const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+    const { rerollBookmarkStore: store } = await import("./gm-stores.mjs");
+    const { message } = await neutralRoll(actor, { faces: { hope: 9, fear: 4 } });
+    must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+    await message.update({ author: player.id });
+    const own = Object.hasOwn(store, "whenHydrated") ? store.whenHydrated : null;
+    const hydrated = store.whenHydrated;
+    let release = null, held = false;
+    const gate = new Promise(resolve => { release = resolve; });
+    store.whenHydrated = async (...args) => {
+        if (!held) { held = true; await gate; }
+        return hydrated.apply(store, args);
+    };
+    const unhold = () => {
+        release();
+        if (own) store.whenHydrated = own;
+        else delete store.whenHydrated;
+    };
+    const run = G.judge(BRIDGE_ACTIONS, { action: "roll.bookmark", actorId: actor.id, messageId: message.id, actionKey, trait: "eye",
+        experiences: [], context }, player.id, { send: () => {} });
+    await until(() => held);
+    if (!held) unhold();
+    must(held, "the roll's bookmark never reached the store - this would measure nothing");
+    return { message,
+        kept: () => store.get(actor.id)?.messageId === message.id,
+        row: () => store.get(actor.id) ?? null,
+        letGo: async () => { unhold(); return run; },
+        putBack: async () => {
+            unhold();
+            await run.catch(() => {});
+            await game.messages.get(message.id)?.delete();
+            if (store.has(actor.id)) await store.drop(actor.id);
+        } };
+}
+
+/**
  * A ROLL THE GM CAN THROW AGAIN (E08+E28 C4a, 03.10.2026). The harness's roll message holds
  * plain JSON, with no `Roll#reroll`, and the Reroll on the GM rebuilds the roll by its own
  * class (reroll.mjs `rollAsThrown`) and throws that again. So `message.rolls` reads, on this
@@ -797,7 +843,7 @@ async function useItemRerolled(next) {
         await killer.update({ "system.resources.hitPoints.value": 1 });
         await pack.update({ "system.quantity": 1 });
         const used = await F.ask({ action: "murder.crisis", requestId: "suite-e08c6b-use", actorId: killer.id, key: "useItem",
-            total: 20, isCritical: false, withHope: true, usedItemId: pack.id, before });
+            total: 20, isCritical: false, withHope: true, usedItemId: pack.id, before, rollId: F.message.id });
         await settle();
         must(used && F.row()?.facts?.usedItemId === pack.id && M.murderState()?.lastCrisis?.usedItemId === pack.id,
             `the first Use an item was not scored with the pack on the row and the receipt - this would measure nothing: ${stableJson([used, F.row()?.facts ?? null])}`);
@@ -4313,6 +4359,208 @@ const SCENARIOS = [
         }
     }],
 
+    ["a player's Strike judged before its roll's row is kept still writes its crisis action on that row", async () => {
+        /*
+         * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1, its rest. A crisis action's facts -
+         * the action, the pick, the item, the weapon - were written on the row the resolver read as
+         * it started (`rollOfNow`), and a Strike's packet leaves right after its roll's
+         * `roll.bookmark`: a row not kept yet took none, and the Reroll then settled "the dice are
+         * the whole result" while the first throw's damage and turn stood. The packet names its roll
+         * now and the fact waits for that roll's row (action-rolls.mjs `rollOfFact`). At the killer's
+         * turn (`swingFixture`) the killer's player's roll is thrown with its row held back
+         * (`heldRollBookmark`), a critical Strike on Sanity judged meanwhile as the listener judges
+         * it, then the row let go. Read: the two verdicts, whether the row existed when the Strike
+         * was carried out (it must not, or this measured nothing), and the row's action and facts.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { killer, putBack } = await swingFixture();
+        const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+        let H = null;
+        try {
+            H = await heldRollBookmark(player, killer, "crisis");
+            const struck = await G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId: "suite-r1g2-strike", actorId: killer.id,
+                key: "strike", total: 24, isCritical: true, withHope: true, choice: "stress", rollId: H.message.id }, player.id, { send: () => {} });
+            const rowFirst = H.kept();
+            const verdict = await H.letGo();
+            const row = H.row();
+            equal(stableJson([verdict, struck, rowFirst, row?.messageId === H.message.id, row?.actionKey ?? null,
+                row?.facts?.crisis ?? null, row?.facts?.choice ?? null]),
+            stableJson([true, true, false, true, "crisis", "strike", "stress"]),
+            `the Strike's fact is not on its roll's row (bookmark, strike, row kept first, row's message, action, crisis, pick): ${stableJson(row)}`);
+        } finally {
+            await H?.putBack();
+            await putBack();
+        }
+    }],
+
+    ["a player's Analyze judged before its roll's row is kept still writes its bullet on that row", async () => {
+        /*
+         * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1, its rest. The bullet an Analyze
+         * read went on the row `resolveAnalyze` found as it started (`rollOfNow`). The packet names
+         * its roll now (action-rolls.mjs `rollOfFact`). A player's character holds a fresh bullet;
+         * its Analyze roll is thrown with the row held back (`heldRollBookmark`), the Analyze judged
+         * meanwhile as the listener judges it, then the row let go. Read: the verdicts, whether the
+         * row existed when the Analyze was scored (it must not), and the row's action and bullet.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the analyst is a player's character");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { player, actor } = await playerInRoom();
+        let H = null, bullet = null;
+        try {
+            bullet = await bullets.createTruthBullet(actor, { name: "SUITE fix r1-G2 an analysed bullet", realType: "neutral", visibility: "obvious" });
+            must(bullet?.id, "the bullet was not made - this would measure nothing");
+            H = await heldRollBookmark(player, actor, "analyze", { bulletId: bullet.id });
+            const read = await G.judge(BRIDGE_ACTIONS, { action: "analyze.resolve", requestId: "suite-r1g2-analyze", actorId: actor.id,
+                itemId: bullet.id, total: 40, isCritical: false, rollId: H.message.id }, player.id, { send: () => {} });
+            const rowFirst = H.kept();
+            const verdict = await H.letGo();
+            const row = H.row();
+            equal(stableJson([verdict, read, rowFirst, row?.messageId === H.message.id, row?.actionKey ?? null, row?.facts?.bulletId === bullet.id]),
+                stableJson([true, true, false, true, "analyze", true]),
+                `the Analyze's bullet is not on its roll's row (bookmark, analyze, row kept first, row's message, action, bullet): ${stableJson(row)}`);
+        } finally {
+            await H?.putBack();
+            if (bullet) {
+                const uuid = bullet.uuid;
+                await actor.items.get(bullet.id)?.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+        }
+    }],
+
+    ["a player's clean-up scored before its roll's row is kept still writes its attempt on that row", async () => {
+        /*
+         * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1, its rest. The attempt a clean-up
+         * made went on the row `resolveCleanup` found as it started (`rollOfNow`), and a Reroll of an
+         * attempt the row does not name finds nothing to take back. The packet names its roll now
+         * (action-rolls.mjs `rollOfFact`). A trace and a Truth Bullet copy of it (`cleanupFixture`);
+         * the player's character's clean-up roll thrown with its row held back (`heldRollBookmark`),
+         * the erase scored meanwhile as the bridge's handler scores it - the roll the packet named
+         * and its sender - then the row let go. Read: the verdict, the erase, whether the row existed
+         * when it was scored (it must not), and the row's action and attempt against the GMs' receipt.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        needs(world.atLeast("playerCharactersInRooms"), "the cleaner is a player's character");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const { cleanupAttemptStore } = await import("./gm-stores.mjs");
+        const { player, actor } = await playerInRoom();
+        const F = await cleanupFixture(actor, "SUITE fix r1-G2 a trace erased before its row");
+        let H = null;
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            H = await heldRollBookmark(player, actor, "cleanup", { cleanup: F.trace.id, cleanupKey: "eraseTrace" });
+            const erased = await F.scrub(30, { rollId: H.message.id, by: player.id });
+            const rowFirst = H.kept();
+            const verdict = await H.letGo();
+            const row = H.row();
+            const attempt = cleanupAttemptStore.get(actor.id)?.attempt ?? null;
+            equal(stableJson([verdict, erased?.removed ?? null, rowFirst, row?.messageId === H.message.id, row?.actionKey ?? null,
+                Boolean(attempt) && row?.facts?.cleanupAttempt === attempt]),
+            stableJson([true, true, false, true, "cleanup", true]),
+            `the clean-up's attempt is not on its roll's row (bookmark, erased, row kept first, row's message, action, attempt): ${stableJson([attempt, row])}`);
+        } finally {
+            await H?.putBack();
+            await F.putBack();
+        }
+    }],
+
+    ["a player's Observe resolved before its roll's row is kept still writes its result on that row", async () => {
+        /*
+         * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1, its rest. An Observe's key and
+         * result went on the row `scoreObserve` found as it started (`rollOfNow`); a row without them
+         * refuses the Reroll (C6a), so an Observe whose row came late could never be rerolled. The
+         * resolve names its roll now (action-rolls.mjs `rollOfFact`). A trace where the player's
+         * character stands, the Observe aimed at it, the roll thrown with its row held back
+         * (`heldRollBookmark`), the resolve run as the bridge's handler runs it - the roll the packet
+         * named and its sender - with any window of the GM's closed at once, then the row let go.
+         * Read: the verdict, whether the row existed when the result was written (it must not), and
+         * the row's action and key.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const observe = await import("./observe.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const had = new Set(actor.items.map(i => i.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        D.wait = () => Promise.resolve(null);
+        let trace = null, H = null;
+        try {
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                x: where.tokenDoc.x, y: where.tokenDoc.y, note: "test fixture - the trace an Observe resolved before its row" });
+            must(trace, "the trace was not placed");
+            const target = await observe.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            must(target?.ok, `the Observe found nothing to aim at where its trace lies: ${stableJson(target)}`);
+            H = await heldRollBookmark(player, actor, "observe");
+            await observe.resolveObserve({ key: target.key, total: 20, isCritical: false, actorId: actor.id, senderId: player.id,
+                senderIsGm: false, rollId: H.message.id });
+            const rowFirst = H.kept();
+            const verdict = await H.letGo();
+            const row = H.row();
+            equal(stableJson([verdict, rowFirst, row?.messageId === H.message.id, row?.actionKey ?? null, row?.facts?.observeKey === target.key]),
+                stableJson([true, false, true, "observe", true]),
+                `the Observe's result is not on its roll's row (bookmark, row kept first, row's message, action, key): ${stableJson(row)}`);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            await H?.putBack();
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+            if (trace) {
+                await remnants.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+    }],
+
+    ["a Reroll of a crisis roll whose row holds no crisis action is refused before the Hope is paid", async () => {
+        /*
+         * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1. A crisis row without its fact - an
+         * action the GM refused, or a fact still on its way - was rerolled: the Hope paid, the dice
+         * rewritten and "the dice are the whole result" said (reroll.mjs `settleCrisis`), while
+         * whatever the first throw did stood. It is refused now before anything is paid
+         * (`replayRefusal`). At the killer's turn (`swingFixture`) the killer's player's crisis roll
+         * is kept with no crisis action judged for it, and their Reroll asked for. Read: the
+         * refusal, its code, the Hope it took and the rewrites of the roll's message.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const R = await import("./reroll.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { killer, putBack } = await swingFixture();
+        const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+        let F = null, stand = null, watch = null;
+        try {
+            F = await playerRollBookmark(player, killer, "crisis");
+            must(F.verdict && F.row()?.actionKey === "crisis" && !F.row()?.facts?.crisis, `the crisis row was not kept bare - this would measure nothing: ${stableJson(F.row())}`);
+            await automatedUpdate(killer, { "system.resources.hope.value": Math.max(4, killer.system.resources.hope.value) });
+            stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
+            watch = watchRerollWrites(killer, F.message.id);
+            const hope0 = killer.system.resources.hope.value;
+            const asked = await R.rerollOnGm(killer, player);
+            await settle();
+            equal(stableJson([asked?.refused ?? null, reasonOf(asked?.refused ?? ""), hope0 - killer.system.resources.hope.value, watch.rolls.length]),
+                stableJson(["that crisis action has no result to take back", "nothingToUndo", 0, 0]),
+                `a Reroll of a crisis roll with no crisis action was made or paid (refusal, code, Hope taken, rewrites): ${stableJson(asked)}`);
+        } finally {
+            watch?.stop();
+            stand?.putBack();
+            await F?.putBack();
+            await putBack();
+        }
+    }],
+
     ["the GM's bookmark of a Search that drew a plant names the plant and its identity", async () => {
         /*
          * E08+E28 C2, 03.10.2026; audit S08-04. A Search that is handed a plant takes it out of
@@ -4321,7 +4569,10 @@ const SCENARIOS = [
          * Reroll on a GM (C6a). A plant is left in the room the player's character stands in,
          * the player's roll bookmarked, and the spend and the plant check run as the bridge runs
          * them for that player (`SEARCH_ACTIONS`, the token spend stubbed so no room's count
-         * moves - their guards are R166's). Read: the reply's find, and the row's plant.
+         * moves - their guards are R166's). Since fix r1-G2 the plant check names the roll and the
+         * row is held back until it has run (`heldRollBookmark`; the round-1 review's B1): the
+         * plant waits for its row. Read: the bookmark's verdict, the reply's find, whether the row
+         * existed when the plant was handed over (it must not), and the row's plant.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the plant waits where the player's character stands");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -4329,7 +4580,7 @@ const SCENARIOS = [
         const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
         const { player, actor, where } = await playerInRoom();
         const room = where.room, sceneId = where.scene.id;
-        const F = await playerRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
+        const F = await heldRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
         // The plants are a GM store since E04: tier 2's restore puts them back.
         const spend = SearchTokens.spend;
         SearchTokens.spend = async () => true;
@@ -4339,10 +4590,12 @@ const SCENARIOS = [
             must(identity, "nothing was planted");
             const take = SEARCH_ACTIONS["searchTokens.takePlant"];
             await SEARCH_ACTIONS["searchTokens.spend"].run({ roomName: room, sceneId }, player, {});
-            reply = (await take.run(take.sanitize({ roomName: room, sceneId, actorId: actor.id }), player, { requestId: "suite-e08c2-plant" }))?.reply ?? null;
-            equal(stableJson([F.verdict, reply?.ok ?? null, F.row()?.facts?.plant ?? null]),
-                stableJson([true, true, { name: "SUITE E08 C2 plant", identity, room, sceneId }]),
-                `the plant was not handed over, or the GMs' row does not name it and its identity (verdict, found, plant): ${stableJson(F.row())}`);
+            reply = (await take.run(take.sanitize({ roomName: room, sceneId, actorId: actor.id, rollId: F.message.id }), player, { requestId: "suite-e08c2-plant" }))?.reply ?? null;
+            const rowFirst = F.kept();
+            const verdict = await F.letGo();
+            equal(stableJson([verdict, reply?.ok ?? null, rowFirst, F.row()?.facts?.plant ?? null]),
+                stableJson([true, true, false, { name: "SUITE E08 C2 plant", identity, room, sceneId }]),
+                `the plant was not handed over, or the GMs' row does not name it and its identity (verdict, found, row kept first, plant): ${stableJson(F.row())}`);
         } finally {
             SearchTokens.spend = spend;
             await F.putBack();
@@ -4376,7 +4629,7 @@ const SCENARIOS = [
         const replay = async total => {
             const identity = await T.plantItem("SUITE-E08C6a-project", room, { sceneId, name: "SUITE E08 C6a plant" });
             must(identity, "nothing was planted");
-            const plant = await T.takePlant(room, sceneId, { actorId: actor.id });
+            const plant = await T.takePlant(room, sceneId, { actorId: actor.id, rollId: F.message.id, by: player.id });
             must(plant?.drpgItemId === identity && F.row()?.facts?.plant?.identity === identity,
                 `the plant was not handed over onto the row - this would measure nothing: ${stableJson(F.row()?.facts ?? null)}`);
             const item = await grantItem(actor, { name: plant.name, category: "usable", tier: 1, goal: "healing", quiet: true,
@@ -4450,7 +4703,8 @@ const SCENARIOS = [
             const hope0 = actor.system.resources.hope.value;
             // Before the resolve has even begun: the row holds no result yet.
             const early = await R.rerollOnGm(actor, player);
-            resolving = observe.resolveObserve({ key: target.key, total: 24, isCritical: true, actorId: actor.id, senderId: player.id, senderIsGm: false });
+            resolving = observe.resolveObserve({ key: target.key, total: 24, isCritical: true, actorId: actor.id, senderId: player.id, senderIsGm: false,
+                rollId: F.message.id });
             await until(() => asked.length > 0);
             must(asked.length === 1 && answer, "the GM was not asked to describe the find - this would measure nothing");
             const busy = await R.rerollOnGm(actor, player);
@@ -4509,7 +4763,7 @@ const SCENARIOS = [
             const [item] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C2 bandage", type: "loot", system: { quantity: 2 } }]);
             F = await playerRollBookmark(player, killer, "crisis");
             const used = await F.ask({ action: "murder.crisis", requestId: "suite-e08c2-use", actorId: killer.id, key: "useItem",
-                total: 20, isCritical: false, withHope: true, usedItemId: item.id, before: { hp: 5, stress: "2", qty: 2, extra: 9 } });
+                total: 20, isCritical: false, withHope: true, usedItemId: item.id, before: { hp: 5, stress: "2", qty: 2, extra: 9 }, rollId: F.message.id });
             const facts = F.row()?.facts ?? {};
             equal(stableJson([F.verdict, used, facts.crisis ?? null, facts.usedItemId === item.id, facts.before ?? null]),
                 stableJson([true, true, "useItem", true, { hp: 5, qty: 2, stress: 2 }]),
@@ -4542,7 +4796,7 @@ const SCENARIOS = [
             F = await playerRollBookmark(player, killer, "crisis");
             const before = marks();
             const struck = await F.ask({ action: "murder.crisis", requestId: "suite-e08c6b-strike", actorId: killer.id, key: "strike",
-                total: 24, isCritical: true, withHope: true, choice: "stress" });
+                total: 24, isCritical: true, withHope: true, choice: "stress", rollId: F.message.id });
             await settle();
             const first = marks();
             must(struck && F.row()?.facts?.choice === "stress" && first[0] === before[0] && first[1] > before[1],

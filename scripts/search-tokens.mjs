@@ -105,15 +105,15 @@ export class SearchTokens {
      *
      * @returns {Promise<object|null>}
      */
-    static async takePlant(roomName, sceneId = this.currentSceneId, { actorId = null } = {}) {
+    static async takePlant(roomName, sceneId = this.currentSceneId, { actorId = null, rollId = null, by = null } = {}) {
         if (!roomName) return null;
         if (!game.user.isGM) {
-            const res = await requestPlantCheck(roomName, sceneId, actorId);
+            const res = await requestPlantCheck(roomName, sceneId, actorId, rollId);
             return res.ok ? res.value?.plant ?? null : null;
         }
         try {
             const { takePlant } = await import("./traps.mjs");
-            return await takePlant(roomName, sceneId, { actorId });
+            return await takePlant(roomName, sceneId, { actorId, rollId, by });
         } catch (err) {
             // A search that cannot check for a plant is an ordinary search.
             error("Could not check a room for a planted item", err);
@@ -464,10 +464,12 @@ async function runTakePlant(payload, sender, ctx) {
     const key = searchKey(sender.id, sceneId, payload.roomName);
     const at = searchedBy.get(key);
     searchedBy.delete(key);
-    // The searcher, for the GMs' bookmark of their roll (E08+E28 C2): only a character the sender plays.
+    // The searcher, for the GMs' bookmark of their roll (E08+E28 C2): only a character the sender
+    // plays; and the roll, written on only when it is the sender's Search of that character (fix
+    // r1-G2, traps.mjs `takePlant`).
     const actorId = ownsActor(sender, payload.actorId) ? payload.actorId : null;
     const plant = at && Date.now() - at < PLANT_WINDOW_MS
-        ? await SearchTokens.takePlant(payload.roomName, sceneId, { actorId })
+        ? await SearchTokens.takePlant(payload.roomName, sceneId, { actorId, rollId: payload.rollId ?? null, by: sender.id })
         : null;
     if (plant) {
         for (const [id, entry] of handedOut) {
@@ -526,10 +528,11 @@ export const SEARCH_ACTIONS = table({
     [ACTION_TAKE_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.takePlant",
         guards: [knownSender, guardSearchRoom],
-        sanitize: pick({ roomName: as.text, sceneId: as.id, actorId: as.id }),
+        sanitize: pick({ roomName: as.text, sceneId: as.id, actorId: as.id, rollId: as.id }),
         run: runTakePlant,
         answer: "reply", timeoutMs: TIMING.plantRequestMs,
-        claims: { sceneId: guardSearchRoom, actorId: guardSearchRoom }
+        claims: { sceneId: guardSearchRoom, actorId: guardSearchRoom,
+            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a Search" }
     },
     [ACTION_RETURN_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.returnPlant",
@@ -568,8 +571,8 @@ function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, actorId =
  * arrives after the clock goes back to its room (`late`), while the GM's client
  * still takes one back.
  */
-function requestPlantCheck(roomName, sceneId = SearchTokens.currentSceneId, actorId = null) {
-    return askSearch(ACTION_TAKE_PLANT, { roomName, sceneId, actorId }, {
+function requestPlantCheck(roomName, sceneId = SearchTokens.currentSceneId, actorId = null, rollId = null) {
+    return askSearch(ACTION_TAKE_PLANT, { roomName, sceneId, actorId, rollId }, {
         quiet: true,
         lateMs: PLANT_WINDOW_MS,
         late: (value, plantRequestId) => {

@@ -644,9 +644,12 @@ export async function attemptCleanup(actor, tokenId, {
         : null;
 
     const { requestCleanup } = await import("./gm-bridge.mjs");
+    const { rollInHand } = await import("./action-rolls.mjs");
     await requestCleanup({
         actorId: actor.id,
         tokenId,
+        // The roll the GMs' fact of the attempt goes on (fix r1-G2).
+        rollId: rollInHand(actor)?.messageId ?? null,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope),
@@ -1531,7 +1534,10 @@ export async function resolveCleanup({
     // T-1: which step of `PRICE_CHAINS.tamper` the client paid, and whether a
     // Burst paid it. Bounded on arrival by `validPrice` - a packet may claim any
     // string, and only a step the table knows is honoured.
-    price = null, grant = false
+    price = null, grant = false,
+    // The roll it was thrown with and who threw it, for the GMs' fact of the attempt (fix
+    // r1-G2): action-rolls.mjs `rollOfFact`.
+    rollId = null, by = null
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -1548,9 +1554,9 @@ export async function resolveCleanup({
     // to put right by hand.
     // Whether the attempt being replaced was the free one, read before the rewind takes its receipt.
     const replayFree = Boolean(undo && (await attemptOf(actorId))?.free);
-    // The roll this attempt is for, as it arrives (E08+E28 C2): see `keepAttemptFact`.
+    // The roll this attempt is for (E08+E28 C2; the one its packet names since fix r1-G2): see `keepAttemptFact`.
     const rolls = await import("./action-rolls.mjs");
-    const roll = rolls.rollOfNow(actorId);
+    const roll = rolls.rollOfFact({ undo, rollId, by, actorId, actions: ["cleanup"] });
     if (undo && !await undoLastCleanup(actor, tokenId)) return null;
 
     // Searched across every scene rather than only the one the killer is
@@ -2365,7 +2371,7 @@ async function forgetAttempt(actorId) {
  */
 async function keepAttemptFact(rolls, roll, actorId, receipt) {
     if (cleanupAttemptStore.get(actorId)?.attempt !== receipt.attempt) return;
-    await rolls.noteRollFact(actorId, roll, { cleanupAttempt: receipt.attempt });
+    await rolls.noteFactOn(roll, { cleanupAttempt: receipt.attempt });
 }
 
 /**

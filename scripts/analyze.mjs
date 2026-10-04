@@ -55,7 +55,10 @@ async function tellGmsKeyMissing(item) {
  * @returns {Promise<{success: boolean, locked: boolean}|null>}
  */
 export async function resolveAnalyze({
-    actorId, itemId, total, isCritical = false, undo = false
+    actorId, itemId, total, isCritical = false, undo = false,
+    // The roll it was thrown with and who threw it, for the GMs' fact of the bullet (fix r1-G2):
+    // action-rolls.mjs `rollOfFact`.
+    rollId = null, by = null
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -68,9 +71,10 @@ export async function resolveAnalyze({
 
     const { getClock } = await import("./clock.mjs");
     const chapter = getClock().chapter;
-    // The roll this is for, as it arrives (E08+E28 C2): the bullet goes on the GMs' bookmark below.
+    // The roll this is for (E08+E28 C2; the one its packet names since fix r1-G2): the bullet
+    // goes on the GMs' bookmark below.
     const rolls = await import("./action-rolls.mjs");
-    const roll = rolls.rollOfNow(actor.id);
+    const roll = rolls.rollOfFact({ undo, rollId, by, actorId: actor.id, actions: ["analyze"] });
 
     /*
      * THE RULE ON THIS SIDE TOO (E03, 24.09.2026; audit S05-40). One Analyze
@@ -176,7 +180,7 @@ export async function resolveAnalyze({
     }
 
     // Which bullet this roll read, for a Reroll's undo on a GM (C4a).
-    await rolls.noteRollFact(actor.id, roll, { bulletId: item.id });
+    await rolls.noteFactOn(roll, { bulletId: item.id });
 
     const visibility = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.visibility) ?? "evident";
     const realType = secret.realType ?? "neutral";

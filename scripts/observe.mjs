@@ -548,7 +548,9 @@ export function observeResolveRefusal(entry, { actorId = null, senderId = null, 
  * @returns {Promise<object|null>} `{ refused }` when `observeResolveRefusal` says no.
  */
 export async function resolveObserve({ key, total, isCritical = false, undo = false,
-    actorId = null, senderId = null, senderIsGm = true } = {}) {
+    actorId = null, senderId = null, senderIsGm = true,
+    // The roll it was thrown with, for the GMs' fact of the result (fix r1-G2): `scoreObserve`.
+    rollId = null } = {}) {
     if (!game.user.isGM) return null;
     // THE CACHE FIRST, THEN THE SWEEP. A sweep over an unloaded cache is a sweep
     // over nothing, and it would then write that nothing back (ACT-08).
@@ -600,7 +602,7 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
     if (!actor) return null;
     describing.set(key, actor.id);
     try {
-        return await scoreObserve(actor, entry, key, { total, isCritical, undo });
+        return await scoreObserve(actor, entry, key, { total, isCritical, undo, rollId, by: senderId });
     } finally {
         describing.delete(key);
     }
@@ -625,11 +627,12 @@ export function observeBeingDescribed(actorId) {
 }
 
 /** `resolveObserve`'s scoring, once its checks have passed. */
-async function scoreObserve(actor, entry, key, { total, isCritical, undo }) {
-    // The roll this result is for, as the resolve arrives (E08+E28 C2): describing a find can
-    // wait on a GM's dialog, and a roll thrown meanwhile is not this one (`keepResult`).
+async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId = null, by = null }) {
+    // The roll this result is for (E08+E28 C2): describing a find can wait on a GM's dialog, and
+    // a roll thrown meanwhile is not this one (`keepResult`). The one the resolve's packet names,
+    // and its sender's (fix r1-G2; action-rolls.mjs `rollOfFact`).
     const rolls = await import("./action-rolls.mjs");
-    const roll = rolls.rollOfNow(actor.id);
+    const roll = rolls.rollOfFact({ undo, rollId, by, actorId: actor.id, actions: ["observe"] });
 
     // A Reroll replaces a result rather than adding to it. What the first throw
     // produced is recorded here rather than sent to the observer and quoted
@@ -698,7 +701,7 @@ async function scoreObserve(actor, entry, key, { total, isCritical, undo }) {
  */
 async function keepResult(rolls, roll, key, entry) {
     await writePending();
-    await rolls.noteRollFact(entry.actorId, roll, { observeKey: key, observeResult: structuredClone(entry.result) });
+    await rolls.noteFactOn(roll, { observeKey: key, observeResult: structuredClone(entry.result) });
 }
 
 /** Put back whatever the previous throw of this same Observe did. */
