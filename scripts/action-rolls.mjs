@@ -1574,7 +1574,8 @@ export function searchOdds(actor, room, category, vault) {
  * (`CONFIG.Dice.randomUniform`, mapped as its dice map it - forced-roll.mjs reads the same
  * `ceil((1 - u) * faces)`). Not a `Roll`: a roll would be a message, or a throw in Dice So
  * Nice for every screen, and either says a hidden stash is here to people the card does not
- * reach. The harness has no `randomUniform`, and the dice there are `Math.random`'s.
+ * reach. The harness's `randomUniform` is `Math.random` (since E08+E28 C10, which made its
+ * dice draw from it too); `Math.random` here is for a client that has none.
  */
 function stashDraw(n) {
     const u = typeof CONFIG?.Dice?.randomUniform === "function" ? CONFIG.Dice.randomUniform() : Math.random();

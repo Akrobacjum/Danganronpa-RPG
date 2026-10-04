@@ -17204,6 +17204,101 @@ const SCENARIOS = [
         }
     }],
 
+    ["the configuration hook gets the unevaluated roll, and its evaluate is the one thrown", async () => {
+        /*
+         * E08+E28 C10, 04.10.2026. Daggerheart builds a roll in three steps (dhRoll.mjs `build`,
+         * 2.10.5): it configures the roll - the pre hooks, the window, then the two configuration
+         * hooks, `daggerheart.postDualityRollConfiguration` and `daggerheart.postRollConfiguration`,
+         * handed the roll not yet thrown - evaluates it, and posts it after the two postRoll hooks.
+         * forced-roll.mjs's Loaded Die stands on the first step, and E28's draw on the GM will:
+         * the roll the hook is handed is the roll then thrown, so an `evaluate` shadowed on that
+         * instance throws the dice. A statistic rolled as off the sheet (a reaction, so nothing is
+         * owed), every one of the six hooks listened to; the configuration hook's listener shadows
+         * the roll's evaluate with one that scripts Foundry's randomiser to a 7 and a 2. Read: the
+         * hooks in order, the roll as the hook saw it (a DualityRoll, not thrown) and after it
+         * (thrown, with those faces), the shadow's one call, the faces and total of the result
+         * and of its message, and the roll rebuilt from its JSON (`fromData`, which the GM's draw
+         * will rebuild a roll with). Until C10 the harness wrote the roll without building it,
+         * and no hook fired.
+         */
+        const [who] = cast(1);
+        const names = ["preRollDuality", "preRoll", "postDualityRollConfiguration", "postRollConfiguration", "postRollDuality", "postRoll"]
+            .map(name => `daggerheart.${name}`);
+        const D = CONFIG.Dice;
+        const heard = [];
+        let handed = null, seen = null, shadowed = 0;
+        const shadow = (roll, config) => {
+            handed = roll;
+            seen = { duality: roll instanceof game.system.api.dice.DualityRoll, thrown: Boolean(roll._evaluated), trait: config?.roll?.trait ?? null };
+            const evaluate = roll.evaluate;
+            Object.defineProperty(roll, "evaluate", { configurable: true, writable: true, value: async function (...args) {
+                shadowed += 1;
+                const real = D.randomUniform, faces = [7, 2];
+                D.randomUniform = () => faces.length ? 1 - (faces.shift() - 0.5) / 12 : real();
+                try {
+                    return await evaluate.apply(this, args);
+                } finally {
+                    D.randomUniform = real;
+                    delete this.evaluate;
+                }
+            } });
+        };
+        const listeners = names.map(name => [name, Hooks.on(name, (...args) => {
+            heard.push(name);
+            if (name === "daggerheart.postDualityRollConfiguration" && typeof args[0]?.evaluate === "function") shadow(...args);
+        })]);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        delete globalThis.__forceRoll;
+        let result = null, card = null;
+        try {
+            result = await who.rollTrait("instinct", { dialog: { configure: false }, actionType: "reaction" });
+            card = result?.message?.rolls?.[0] ?? null;
+        } finally {
+            for (const [name, fn] of listeners) Hooks.off(name, fn);
+            if (hadForce) globalThis.__forceRoll = force;
+            await result?.message?.delete();
+        }
+        const total = 9 + Number(who.system?.traits?.instinct?.value ?? 0);
+        const DR = game.system.api.dice.DualityRoll;
+        const back = handed ? DR.fromData(JSON.parse(JSON.stringify({ ...handed.toJSON(), options: {} }))) : null;
+        equal(stableJson([heard, seen, shadowed, handed && [handed._evaluated, handed.dHope?.total, handed.dFear?.total],
+            [result?.roll?.hope?.value, result?.roll?.fear?.value, result?.roll?.total], [card?.dHope?.total, card?.dFear?.total, card?.total],
+            back && [back instanceof DR, back._evaluated, back.dHope?.total, back.dFear?.total, back.total]]),
+        stableJson([names, { duality: true, thrown: false, trait: "instinct" }, 1, [true, 7, 2], [7, 2, total], [7, 2, total], [true, true, 7, 2, total]]),
+        "the hooks did not fire in Daggerheart's order, the configuration hook was not handed the roll before its throw, the dice were not the ones its shadowed evaluate threw, or its JSON does not rebuild it (hooks, the roll as handed, shadow calls, the roll after, the result, the message, the rebuilt roll)");
+    }],
+
+    ["a Loaded Die loads the first die of the roll it was bought for, through Daggerheart's configuration hook", async () => {
+        /*
+         * E08+E28 C10, 04.10.2026. forced-roll.mjs loads the die where Daggerheart hands the roll
+         * over (`daggerheart.postDualityRollConfiguration`): it shadows that roll's `evaluate` so
+         * that the first draw of Foundry's randomiser is the top face, for the roll that carries
+         * the Call's mark and no other. Until C10 the harness fired no hook, so no Loaded Die was
+         * thrown headless (the incident's cards test arms one and reads its card alone). A Free
+         * Critical armed on a character, then two of its action rolls, the randomiser scripted to
+         * a 5 and a 3 for each (`__forceRoll`). Read: each roll's faces and its Free Critical. The
+         * loaded roll's Hope die shows 12 and its Fear die the script's first face, 5 - the
+         * loaded die drew nothing from the script, as at a table; the second roll is honest, 5
+         * and 3, as the Call was spent on the first.
+         */
+        const [who] = cast(1);
+        const { appendArmedCall } = await import("./call-effects.mjs");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const faces = { hope: 5, fear: 3 };
+        let loaded = null, honest = null;
+        try {
+            must(await appendArmedCall(who, { key: "freeCrit", kind: "hope", grants: "critical", nonce: foundry.utils.randomID() }),
+                "the Free Critical was not armed");
+            loaded = await neutralRoll(who, { remember: true, faces });
+            honest = await neutralRoll(who, { remember: true, faces });
+        } finally {
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        const read = r => [r?.outcome?.raw?.roll?.hope?.value ?? null, r?.outcome?.raw?.roll?.fear?.value ?? null, r?.outcome?.freeCritical ?? null];
+        equal(stableJson([read(loaded), read(honest)]), stableJson([[12, 5, true], [5, 3, false]]),
+            "the Loaded Die did not load the first die of its roll through the configuration hook, or loaded the next roll too (Hope, Fear, Free Critical of each)");
+    }],
+
     ["the day summary reads the words' store, and the card's document carries no facts", async () => {
         /*
          * E05 C7, 26.09.2026; audit S10-05, S02-11. An action's result card carried its

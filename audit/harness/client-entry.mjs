@@ -13,7 +13,7 @@ import { DataFieldOperator, ForcedDeletion, ForcedReplacement, revive } from "./
 import { readVersions } from "./lib/versions.mjs";
 import { attachModuleStyles, wrapGetComputedStyle } from "./lib/css.mjs";
 import { AUTOMATION_DEFAULT, resourceTables, ResourceUpdateMap, addDualityResourceUpdates, modifyResource, updateFear } from "./lib/daggerheart.mjs";
-import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
+import { HooksImpl, Collection, buildDocumentClasses, buildPIXI, buildApplications, RollImpl, Die, NumericTerm, OperatorTerm, REPO, MODULE_ID, recordError } from "./lib/shim.mjs";
 
 const WHO = process.env.DRPG_USER ?? "gm";
 const send = m => process.send?.(m);
@@ -433,18 +433,224 @@ const COMPANION_TITLES = { "dice-so-nice": "Dice So Nice!", "isometric-perspecti
 addModule(MODULE_ID, { title: moduleManifest.title, version: moduleManifest.version, relationships: moduleManifest.relationships, socket: true });
 for (const { id, version } of versions.modules) addModule(id, { title: COMPANION_TITLES[id] ?? id, version });
 
-class DualityRollMock {
-    /* The class the module finds at game.system.api.dice.DualityRoll. Its
-       resource step is Daggerheart 2.6.5's own (lib/daggerheart.mjs), called
-       through this class so critical.mjs's patch of it is what runs. */
+/* Daggerheart's Hope and Fear dice: dice of their own class, so a roll rebuilt from its JSON
+   knows which is which (dualityRoll.mjs `createBaseDice`, `fromData`, 2.10.5). */
+class HopeDie extends Die {}
+class FearDie extends Die {}
+
+/* A face the harness was told to show, as the `randomUniform` that draws it: Foundry maps u to
+   `ceil((1 - u) * faces)`, so the middle of the face's band, u = 1 - (f - 0.5) / faces, lands on f
+   whatever the rounding (the plan's 3.2 reads the GM's faces back the same way). */
+const uniformFor = (face, faces) => 1 - (face - 0.5) / faces;
+
+class DualityRollMock extends RollImpl {
+    /*
+     * The class the module finds at game.system.api.dice.DualityRoll. Its resource step is
+     * Daggerheart 2.6.5's own (lib/daggerheart.mjs), called through this class so critical.mjs's
+     * patch of it is what runs.
+     *
+     * THE ROLL AS DAGGERHEART BUILDS IT (E08+E28 C10, 04.10.2026). Until C10 `diceRoll` wrote a
+     * finished roll - its faces chosen, its message made - and no configuration hook fired, so
+     * forced-roll.mjs's Loaded Die, which shadows `evaluate` on the roll the hook hands it, never
+     * ran headless, and a test of it measured the harness rather than the module. Modelled here
+     * on 2.10.5's dhRoll.mjs and dualityRoll.mjs (read 04.10.2026; unchanged to 2.10.8, the
+     * plan measured), not copied: `build` (dhRoll.mjs:32-43) = `buildConfigure` (:53-81: the pre
+     * hooks, the roll window, then `daggerheart.postDualityRollConfiguration` and
+     * `daggerheart.postRollConfiguration` with the unevaluated roll; a `false` from one of those
+     * answers `[]`, which `build` takes for a roll, as Daggerheart's does) -> `buildEvaluate`
+     * (:88-100, d20Roll.mjs:152-191, dualityRoll.mjs:213-243: the roll's own `evaluate`, then
+     * `config.roll` replaced by the summary the system writes) -> `buildPost` (:107-118: the
+     * postRoll hooks and the message; dualityRoll.mjs:246-251, :318-334: `dualityUpdate`). Not
+     * modelled: the keybindings and the temporary modifiers (nothing headless presses a key),
+     * the countdowns `dualityUpdate` ticks and `handleTriggers` (the harness has neither), the
+     * advantage dice `fromData` re-classes (the harness's formula has none), `toMessage`'s item
+     * actions and reload. The message is the harness's as before C10 (`toMessage` below).
+     */
+    static JSON_CLASS = "DualityRoll";
+    constructor(formula, data = {}, options = {}) {
+        super(formula, data, options);
+        this.createBaseDice();
+    }
     get advantageNumber() { return this._adv ?? 1; }
     set advantageNumber(v) { this._adv = v; }
     applyAdvantage(count = 1) { this._adv = count; return `${count}d6kh`; }
     static applyAdvantage(count = 1) { return `${count}d6kh`; }
 
+    /* The first two dice are the Hope and the Fear die, re-classed in place where Daggerheart's
+       `createBaseDice` (dualityRoll.mjs:131-141) builds the two anew. */
+    createBaseDice() {
+        const dice = this.terms.filter(t => t instanceof Die);
+        for (const [die, cls] of [[dice[0], HopeDie], [dice[1], FearDie]]) {
+            if (!die || die instanceof cls) continue;
+            this.terms[this.terms.indexOf(die)] = new cls(die.toJSON());
+        }
+    }
+    get dHope() { return this.dice[0]; }
+    get dFear() { return this.dice[1]; }
+    get isCritical() { return Boolean(this.dHope?._evaluated && this.dFear?._evaluated) && this.dHope.total === this.dFear.total; }
+    get withHope() { return this._evaluated && this.dHope.total > this.dFear.total; }
+    get withFear() { return this._evaluated && this.dHope.total < this.dFear.total; }
+
+    static getHooks(hooks) { return [...(hooks ?? []), "Duality"]; }
+    /* Daggerheart's dialog stands in as pressed at once, unchanged: the window is not in the
+       harness (a test that needs it says so with `needs(env.systemSheets(), ...)`), and the
+       module's own hooks on it are called on a stand-in where a test reads them (tests-tier2.mjs
+       `rollWindow`, C7). */
+    static DefaultDialog = { configure: async (roll, config) => config };
+
+    static async build(config = {}, message = {}) {
+        const roll = await this.buildConfigure(config, message);
+        if (!roll) return;
+        if (config.skips?.createMessage) config.messageRoll = roll;
+        if (config.evaluate !== false) await this.buildEvaluate(roll, config, message);
+        await this.buildPost(roll, config, message);
+        return config;
+    }
+
+    /* The formula the harness has always thrown: the two d12 and the statistic's value, and a
+       `bonus` where the config names one (none does today). */
+    static createRollInstance(config) {
+        const mod = traitValue(config.actor, config.roll?.trait);
+        const bonus = Number(config.bonus ?? 0);
+        return new this(`1d12 + 1d12 + ${mod}${bonus ? ` ${bonus < 0 ? "-" : "+"} ${Math.abs(bonus)}` : ""}`, config.data, config);
+    }
+
+    static async buildConfigure(config = {}, message = {}) {
+        const id = game.system.id;
+        const named = hook => hook ? hook[0].toUpperCase() + hook.slice(1) : "";
+        config.hooks = [...this.getHooks(), ""];
+        config.dialog ??= {};
+        config.damageOptions ??= {};
+        for (const hook of config.hooks) {
+            if (hooks.call(`${id}.preRoll${named(hook)}`, config, message) === false) return null;
+        }
+        const roll = this.createRollInstance(config);
+        if (config.dialog.configure !== false) {
+            const dialog = config.dialog?.class ?? this.DefaultDialog;
+            if (!await dialog.configure(roll, config, message)) return;
+        }
+        for (const hook of config.hooks) {
+            if (hooks.call(`${id}.post${named(hook)}RollConfiguration`, roll, config, message) === false) return [];
+        }
+        return roll;
+    }
+
+    /*
+     * The roll's own `evaluate`, whatever the configuration hook left on the instance. The
+     * faces a test names in `globalThis.__forceRoll = { hope, fear }` are a script of
+     * `CONFIG.Dice.randomUniform` for this one evaluation: the next draws, in the order the dice
+     * ask for them, then the randomiser again - as a scripted randomiser is at a table. So a
+     * Loaded Die, which answers the first draw itself (forced-roll.mjs), hands the script's first
+     * face to the Fear die: `{ hope: 5, fear: 3 }` with a Loaded Die throws 12 and 5.
+     */
+    static async buildEvaluate(roll, config = {}, message = {}) {
+        const D = globalThis.CONFIG.Dice;
+        const forced = globalThis.__forceRoll;
+        const script = forced ? [forced.hope, forced.fear].map((face, i) => typeof face === "number" ? uniformFor(face, roll.dice[i]?.faces ?? 12) : null) : null;
+        const real = D.randomUniform;
+        if (script) D.randomUniform = () => script.shift() ?? real();
+        try {
+            await roll.evaluate();
+        } finally {
+            if (script) D.randomUniform = real;
+        }
+        const dice = roll.dice.map(d => ({ dice: d.denomination, total: d.total, formula: d.formula,
+            results: d.results.filter(r => !r.rerolled), rerolled: { any: d.results.some(r => r.rerolled), rerolls: d.results.filter(r => r.rerolled) } }));
+        const hope = roll.dHope.total, fear = roll.dFear.total;
+        config.roll = {
+            ...(roll.options.roll ?? {}),
+            total: roll.total,
+            formula: roll.formula,
+            dice,
+            type: config.actionType,
+            difficulty: config.roll?.difficulty,
+            ...(config.roll?.difficulty ? { success: roll.isCritical || roll.total >= config.roll.difficulty } : {}),
+            advantage: { type: config.roll?.advantage, dice: undefined, value: undefined },
+            isCritical: roll.isCritical,
+            extra: [],
+            modifierTotal: roll.total - hope - fear,
+            hope: { dice: roll.dHope.denomination, value: hope, rerolled: dice[0].rerolled },
+            fear: { dice: roll.dFear.denomination, value: fear, rerolled: dice[1].rerolled },
+            rally: { dice: undefined, value: undefined },
+            result: { duality: roll.withHope ? 1 : roll.withFear ? -1 : 0, total: hope + fear }
+        };
+        // The harness's key since E30, not Daggerheart's: the total on the config itself, which
+        // the message's options carried before C10 and a caller may read.
+        config.total = roll.total;
+    }
+
+    static async buildPost(roll, config, message) {
+        for (const hook of config.hooks) {
+            if (hooks.call(`${game.system.id}.postRoll${hook ? hook[0].toUpperCase() + hook.slice(1) : ""}`, config, message) === false) return null;
+        }
+        if (config.skips?.createMessage) {
+            // helpers/utils.mjs `triggerChatRollFx` (:805-813): the dice thrown to every screen.
+            if (game.modules.get("dice-so-nice")?.active) await game.dice3d?.showForRoll(roll, game.user, true, false, false);
+        } else if (!config.source?.message) {
+            config.message = await this.toMessage(roll, config);
+        }
+        await DualityRollMock.dualityUpdate(config);
+    }
+
+    /* The resource step alone: the countdowns are not in the harness. */
+    static async dualityUpdate(config) {
+        await DualityRollMock.addDualityResourceUpdates(config);
+    }
+
     static async addDualityResourceUpdates(config) {
         return addDualityResourceUpdates(config);
     }
+
+    /* dualityRoll.mjs:122-129: the first and the third term are the Hope and the Fear die. */
+    static fromData(data) {
+        if (data?.terms?.[0]) data.terms[0].class = "HopeDie";
+        if (data?.terms?.[2]) data.terms[2].class = "FearDie";
+        return super.fromData(data);
+    }
+
+    /*
+     * The message, as the harness wrote it before C10 (E06 C1 and its fixes, the block comment
+     * above `rollTrait`): a chat card faithful enough for despair-award.readDuality - two d12
+     * dice in Hope-then-Fear order, plus the actionType the reaction guard reads.
+     */
+    static async toMessage(roll, config) {
+        const actor = config.actor;
+        const traitKey = config.roll?.trait;
+        const mod = traitValue(actor, traitKey);
+        const hope = roll.dHope.total, fear = roll.dFear.total, total = roll.total;
+        const rollJson = {
+            class: "DualityRoll", formula: roll.formula, total, evaluated: true,
+            dHope: { total: hope }, dFear: { total: fear },
+            dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
+                   { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
+            options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
+                data: config.data, effects: [...(actor.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
+                experiences: [...config.experiences],
+                roll: { trait: traitKey, type: config.actionType,
+                    modifiers: traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
+                actionType: config.actionType }
+        };
+        const message = await classes.ChatMessage.create({
+            author: game.userId,
+            speaker: classes.ChatMessage.getSpeaker({ actor }),
+            content: `<div class="dice-roll">Duality: ${total}</div>`,
+            sound: globalThis.CONFIG.sounds.dice,
+            rolls: [rollJson],
+            system: { title: config.title ?? "", source: { actor: config.source.actor }, targets: [], roll: { ...rollJson, options: { actionType: config.actionType } } },
+            flags: {}
+        });
+        // dhRoll.mjs:162-165 (2.6.5), :160-166 (2.10.5): the message is created, then Dice So
+        // Nice's animation is waited for, and only then does the roll return (E06 fix r1-G2).
+        // Daggerheart asks `game.dice3d`, which a table has only with Dice So Nice on; the
+        // harness's is always there, so the module's state stands in for it.
+        if (roll.formula !== "" && game.modules.get("dice-so-nice")?.active) await game.dice3d?.waitFor3DAnimationByMessageID(message.id);
+        return message;
+    }
+}
+
+/* A statistic's value off the character, as the harness's formula and message read it. */
+function traitValue(actor, traitKey) {
+    return Number(actor?.system?.traits?.[traitKey]?.value ?? 0);
 }
 
 const game = {
@@ -650,9 +856,11 @@ globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
  * options say otherwise - and `diceRoll` stamps the roll's actor, data and its
  * own resource map. The card comes first and the resource step after it, as
  * `DualityRoll.buildPost` has them, and nothing is committed: the caller does
- * that, as the sheet's trait button and this module's `commitResources` do. The
- * dice are the harness's: random, or the faces in globalThis.__forceRoll =
- * {hope, fear}. The dialog is not modelled; game.drpg.suiteRolling asks for none.
+ * that, as the sheet's trait button and this module's `commitResources` do. Since
+ * E08+E28 C10 `diceRoll` hands the config to the roll class's `build`
+ * (DualityRollMock above): the dice are drawn from `CONFIG.Dice.randomUniform`,
+ * which globalThis.__forceRoll = {hope, fear} scripts for one evaluation, and the
+ * roll window stands in as pressed at once; game.drpg.suiteRolling asks for none.
  *
  * THE MESSAGE AS 2.6.5 WRITES IT (E06 C1, 27.09.2026), read in its source, not measured on a
  * real message (LIVE-E06-02 does that). actor.mjs `rollTrait` (:568-590) gives the config a
@@ -710,64 +918,13 @@ classes.Actor.prototype.diceRoll = async function diceRoll(config) {
     // names the dice (E06 fix r1-G1: the Reroll's bookmark keeps them).
     config.experiences = [...(config.experiences ?? globalThis.__forceExperiences ?? [])];
 
-    const traitKey = config.roll?.trait;
-    const forced = globalThis.__forceRoll;
-    const hope = forced?.hope ?? 1 + Math.floor(Math.random() * 12);
-    const fear = forced?.fear ?? 1 + Math.floor(Math.random() * 12);
-    const mod = Number(this.system?.traits?.[traitKey]?.value ?? 0);
-    const total = hope + fear + mod + Number(config.bonus ?? 0);
-    const isCritical = hope === fear;
-    const duality = isCritical ? 0 : (hope > fear ? 1 : -1);
-
-    const roll = new RollImpl(`1d12 + 1d12 + ${mod}`);
-    roll.total = total;
-    roll._evaluated = true;
-    roll.isCritical = isCritical;
-    roll.result = { duality, total };
-    roll.hope = { value: hope, total: hope };
-    roll.fear = { value: fear, total: fear };
-    roll.dice = [
-        { faces: 12, number: 1, total: hope, results: [{ result: hope, active: true }] },
-        { faces: 12, number: 1, total: fear, results: [{ result: fear, active: true }] }
-    ];
-    roll.terms = [
-        { constructor: { name: "HopeDie" }, total: hope },
-        { constructor: { name: "FearDie" }, total: fear },
-        { constructor: { name: "NumericTerm" }, total: mod }
-    ];
+    // The harness's own keys since E30, on the config before the roll is built as they were
+    // before C10, so the message's options carry them as they did: the character, and costs.
     config.actor = this;
-    config.roll = roll;
-    config.total = total;
     config.costs = config.costs ?? [];
-
-    // A chat card faithful enough for despair-award.readDuality: two d12 dice in
-    // Hope-then-Fear order, plus the actionType the reaction guard reads.
-    const rollJson = {
-        class: "DualityRoll", formula: roll.formula, total, evaluated: true,
-        dHope: { total: hope }, dFear: { total: fear },
-        dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
-               { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
-        options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
-            data: config.data, effects: [...(this.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
-            experiences: [...config.experiences],
-            roll: { trait: traitKey, type: config.actionType,
-                modifiers: traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
-            actionType: config.actionType }
-    };
-    config.message = await classes.ChatMessage.create({
-        author: game.userId,
-        speaker: classes.ChatMessage.getSpeaker({ actor: this }),
-        content: `<div class="dice-roll">Duality: ${total}</div>`,
-        sound: globalThis.CONFIG.sounds.dice,
-        rolls: [rollJson],
-        system: { title: config.title ?? "", source: { actor: config.source.actor }, targets: [], roll: { ...rollJson, options: { actionType: config.actionType } } },
-        flags: {}
-    });
-    // dhRoll.mjs:162-165 (2.6.5): the message is created, then Dice So Nice's animation is
-    // waited for, and only then does the roll return (E06 fix r1-G2).
-    if (game.modules.get("dice-so-nice")?.active) await game.dice3d?.waitFor3DAnimationByMessageID(config.message.id);
-    await game.system.api.dice.DualityRoll.addDualityResourceUpdates(config);
-    return config;
+    // actor.mjs `diceRoll` (:649-655, 2.10.5): the actor's roll class builds the roll, through
+    // the class the module finds, so a wrap of its `build` is what runs (E08+E28 C10).
+    return game.system.api.dice.DualityRoll.build(config);
 };
 
 /* ------------------------------ canvas ----------------------------------- */
@@ -913,7 +1070,9 @@ globalThis.CONFIG = {
     Macro: { documentClass: classes.Macro },
     ActiveEffect: { documentClass: classes.ActiveEffect },
     Region: { documentClass: classes.Region },
-    Dice: { rolls: [RollImpl], types: [], terms: {} },
+    /* Foundry's randomiser, which every die draws from (lib/shim.mjs `Die`): `Math.random` here,
+       a Mersenne Twister at a table. A test may script it, as forced-roll.mjs does (E08+E28 C10). */
+    Dice: { rolls: [RollImpl], types: [], terms: {}, termTypes: { HopeDie, FearDie }, randomUniform: () => Math.random() },
     queries: {},
     canvasTextStyle: {},
     fontDefinitions: {},
@@ -987,7 +1146,7 @@ globalThis.foundry = {
         }
     },
     documents: {},
-    dice: { Roll: RollImpl, terms: {} },
+    dice: { Roll: RollImpl, terms: { Die, NumericTerm, OperatorTerm } },
     abstract: { DataModel: class {}, TypeDataModel: class {} },
     // The operators as lib/operators.mjs models them (E30); `_del` and `_replace` below.
     data: {
