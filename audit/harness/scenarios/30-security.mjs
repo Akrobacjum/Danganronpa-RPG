@@ -1396,6 +1396,92 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         if (S.rerollBookmarkStore) await S.rerollBookmarkStore.dropMany(["${ids.aiko}", "${ids.botan}"]);
         return true;`);
 
+    phase("a trace the GM's Reroll meets", { flow: "reroll" });
+    /*
+     * 7k. The trace a Reroll may no longer touch (E08+E28 fix r1-G3, 04.10.2026; the round-1
+     * reviews' S1 = M2). Until C8 the two checks of 7j asked a player's Reroll edit not to
+     * re-rate a trace a GM had written on, nor one older than a Reroll can reach
+     * (`removalRefusal`, E03); since C4a the GM's own Reroll makes the edit and nothing asked it,
+     * so a Reroll deleted a trace another student had already copied into a Truth Bullet (the
+     * review's probe 99c). Put back against the GM-made Reroll (reroll.mjs `traceKept`): Aiko's
+     * Dynamic, rerolled on the GM onto a band that re-rates its trace (19, Hidden) or a miss
+     * that removes it (5). A trace a GM has written on, one somebody has found (copied into
+     * Chie's bullet; asked of a removal) and one two hours old stay as they were, the row keeps
+     * naming them, the card says it could not be adjusted and the GMs are told; the control is a
+     * fresh, unfound trace, re-rated and removed by the same Reroll.
+     */
+    const rerollOverTrace = (subject, how, next) => gm.eval(`
+        const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const X = await import("${repoUrl}/scripts/reroll.mjs");
+        const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const who = game.actors.get("${ids.aiko}");
+        const trace = await R.placeRemnant({ x: 1700, y: 550, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: who.id, sourceName: who.name, room: "Cafeteria", action: "dynamic", subject: "${subject}" });
+        const copy = "${how}" === "found" ? await B.createTruthBullet(game.actors.get("${ids.chie}"), { name: "${subject}, a copy",
+            realType: "prep", visibility: "obvious", remnantId: trace?.id, sceneId: canvas.scene.id }) : null;
+        if ("${how}" === "edited") await R.markRemnantEdited(trace);
+        if ("${how}" === "stale") await R.setRemnantSecret(trace, { placedAt: Date.now() - 2 * 3600_000 });
+        const m = await ChatMessage.create({ content: "SEC a Dynamic to reroll" });
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 11, fear: 9 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = ${JSON.stringify(next)}; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        const hopeWas = who.system.resources.hope.value;
+        await automatedUpdate(who, { "system.resources.hope.value": 5 });
+        if (S.rerollBookmarkStore.has(who.id)) await S.rerollBookmarkStore.drop(who.id);
+        await S.rerollBookmarkStore.patch(who.id, { messageId: m.id, reportMessageId: null, actionKey: "dynamic", trait: "eye", experiences: [],
+            claims: { bandIndex: 3, description: "${subject}" }, total: 20, withFear: false, isCritical: false, first: [], room: "Cafeteria",
+            at: Date.now(), by: game.user.id, facts: { remnantId: trace?.id ?? null, remnantScene: canvas.scene.id } });
+        const told = [];
+        // A whisper's words are secret.mjs's, not the document's (a private card holds a stub).
+        const hook = Hooks.on("createChatMessage", doc => { if (doc.whisper?.length) told.push(doc); });
+        let out = null;
+        try { out = await X.rerollOnGm(who, game.user); } finally { Hooks.off("createChatMessage", hook); }
+        const t = trace ? canvas.scene.tokens.get(trace.id) : null;
+        const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const words = await Promise.all(told.map(doc => wordsOf(doc)));
+        const result = { placed: Boolean(trace) && ("${how}" !== "found" || Boolean(copy)), lines: out?.lines ?? null, refused: out?.refused ?? null,
+            standing: Boolean(t), visibility: t ? R.remnantData(t)?.visibility ?? null : null,
+            rowNames: Boolean(trace) && S.rerollBookmarkStore.get(who.id)?.facts?.remnantId === trace.id,
+            cardSays: (out?.lines ?? []).includes(game.i18n.localize("DRPG.Reroll.remnantManual")),
+            gmsTold: words.some(c => String(c ?? "").includes("${subject}")) };
+        delete m.rolls; await m.delete();
+        await S.rerollBookmarkStore.drop(who.id);
+        await automatedUpdate(who, { "system.resources.hope.value": hopeWas });
+        if (t) { await R.dropRemnantSecret(t); await t.delete(); }
+        await copy?.delete();
+        return result;`, { timeout: 60000 });
+    const RETUNE = { hope: 10, fear: 9 }, REMOVE = { hope: 3, fear: 2 };
+    const keptAsWas = r => r.placed && r.standing && r.visibility === "obvious" && r.rowNames && r.cardSays && r.gmsTold;
+    const gmWritten = await rerollOverTrace("SEC dynamic, GM-written", "edited", RETUNE);
+    await settle(300);
+    check("SECURITY: the GM's Reroll does not re-rate a trace a GM has written on; the card and the GMs say so",
+        keptAsWas(gmWritten), JSON.stringify(gmWritten));
+    const foundTrace = await rerollOverTrace("SEC dynamic, found", "found", REMOVE);
+    await settle(300);
+    check("SECURITY: the GM's Reroll does not remove a trace somebody has already found",
+        keptAsWas(foundTrace), JSON.stringify(foundTrace));
+    const stale = await rerollOverTrace("SEC dynamic, stale", "stale", RETUNE);
+    await settle(300);
+    check("SECURITY: the GM's Reroll does not re-rate a trace older than a Reroll can reach",
+        keptAsWas(stale), JSON.stringify(stale));
+    const freshRetuned = await rerollOverTrace("SEC dynamic, fresh re-rated", "fresh", RETUNE);
+    await settle(300);
+    const freshRemoved = await rerollOverTrace("SEC dynamic, fresh removed", "fresh", REMOVE);
+    await settle(300);
+    check("control: the same Reroll re-rates and removes a fresh trace nobody has found, and tells the GMs nothing",
+        freshRetuned.placed && freshRetuned.standing && freshRetuned.visibility === "hidden" && !freshRetuned.cardSays && !freshRetuned.gmsTold
+        && freshRemoved.placed && !freshRemoved.standing && !freshRemoved.cardSays && !freshRemoved.gmsTold,
+        JSON.stringify({ freshRetuned, freshRemoved }));
+
     /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *

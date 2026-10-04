@@ -4561,6 +4561,142 @@ const SCENARIOS = [
         }
     }],
 
+    ["a clean-up Reroll with no attempt to take back is refused before the Hope is paid, and one refused late is given back", async () => {
+        /*
+         * E08+E28 fix r1-G3, 04.10.2026; the round-1 review's M1. Since C4a a clean-up's replay runs
+         * on the GM, the bridge answers a local run `ok` whatever it returned, and `settleCleanup`
+         * read only that: a Reroll whose undo found no receipt of the first attempt (cleanup.mjs
+         * `undoLastCleanup`) stood, paid, and its card said the clean-up was taken back and attempted
+         * again (the review's probe 98a: Hope 5 -> 2). The receipt is asked before the payment now
+         * (reroll.mjs `replayRefusal`), and an undo refused after it gives the Reroll back
+         * (`replayWasRefused`). A connected player's character erases a trace (`cleanupFixture`) on
+         * a roll the GMs keep (`playerRollBookmark`), and the Reroll is asked three times: with the
+         * receipt gone, with the receipt taken away while the dice are thrown again, and with it kept
+         * (the control). Read: each answer, the Hope each took, whether the card's rolls are the
+         * first ones after the late refusal, a journal row left, and the rewrites of the message.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        needs(world.atLeast("playerCharactersInRooms"), "the roll is a connected player's character's");
+        const R = await import("./reroll.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { cleanupAttemptStore, rerollJournalStore } = await import("./gm-stores.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { player, actor } = await playerInRoom();
+        const C = await cleanupFixture(actor, "SUITE E08 G3 a clean-up rerolled with nothing to take back");
+        let F = null, stand = null, watch = null, late = false;
+        try {
+            must(C.trace && C.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            const traceId = C.trace.id;
+            F = await playerRollBookmark(player, actor, "cleanup", { cleanup: traceId, cleanupKey: "eraseTrace", cleanupVia: true, cleanupPrice: "stress" });
+            const first = await C.scrub(30, { rollId: F.message.id, by: player.id });
+            await settle();
+            const receipt = foundry.utils.deepClone(cleanupAttemptStore.get(actor.id) ?? null);
+            must(F.verdict && first?.removed === true && receipt?.tokenId === traceId && F.row()?.claims?.cleanup === traceId,
+                `the erase or its row did not keep the attempt - this would measure nothing: ${stableJson({ first, receipt, row: F.row() })}`);
+            stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 },
+                onReroll: async () => { if (late) await cleanupAttemptStore.drop(actor.id); } });
+            const rolls = stableJson(F.message.toObject().rolls);
+            watch = watchRerollWrites(actor, F.message.id);
+            // Each Reroll asked with the Hope it costs, so one that stood does not refuse the next for its price.
+            const ask = async () => {
+                await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+                const hope = actor.system.resources.hope.value;
+                const out = await R.rerollOnGm(actor, player);
+                await settle();
+                return [out, hope - actor.system.resources.hope.value];
+            };
+            await cleanupAttemptStore.drop(actor.id);
+            const [none, noneTook] = await ask();
+            await cleanupAttemptStore.patch(actor.id, receipt);
+            late = true;
+            const [gone, goneTook] = await ask();
+            late = false;
+            const firstBack = stableJson(F.message.toObject().rolls) === rolls;
+            const journal = rerollJournalStore.has(actor.id);
+            await cleanupAttemptStore.patch(actor.id, receipt);
+            const [made, madeTook] = await ask();
+            const replayed = game.i18n.localize("DRPG.Reroll.cleanupReplayed");
+            equal(stableJson([none?.refused ?? null, reasonOf(none?.refused ?? ""), noneTook, gone?.refused ?? null, goneTook, firstBack, journal,
+                Array.isArray(made?.lines) && made.lines.includes(replayed), madeTook, watch.rolls.length]),
+            stableJson(["no clean-up attempt of that trace to take back", "nothingToUndo", 0, "the replay was refused; its Hope and the first roll are given back", 0,
+                true, false, true, 3, 3]),
+            `a clean-up Reroll with nothing to take back was paid or stood, or the control was not replayed (refusal, code, Hope taken, late refusal, Hope taken, first rolls back, journal left, control replayed, Hope taken, rewrites): ${stableJson({ none, gone, made })}`);
+        } finally {
+            watch?.stop();
+            stand?.putBack();
+            await F?.putBack();
+            await C.putBack();
+        }
+    }],
+
+    ["an Analyze Reroll of a bullet not analysed this chapter is refused before the Hope is paid, and one refused late is given back", async () => {
+        /*
+         * E08+E28 fix r1-G3, 04.10.2026; the round-1 review's M1. An Analyze's replay runs on the GM
+         * since C4a, and `settleAnalyze` read only the bridge's `ok`, which a local run always has: a
+         * Reroll whose undo `resolveAnalyze` refused ("no Analyze of that bullet this chapter to take
+         * back") stood, paid, and its card said the bullet was analysed again (probe 98a). That is
+         * asked before the payment now (reroll.mjs `replayRefusal`), and a refusal after it gives the
+         * Reroll back (`replayWasRefused`). A connected player's character analyses a bullet on a roll
+         * the GMs keep, and the Reroll is asked three times: with the bullet's Analyze of this chapter
+         * gone from its secret, with it taken away while the dice are thrown again, and with it kept
+         * (the control). Read: as the clean-up's test above.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the roll is a connected player's character's");
+        const R = await import("./reroll.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const { getClock } = await import("./clock.mjs");
+        const { rerollJournalStore } = await import("./gm-stores.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { player, actor } = await playerInRoom();
+        const chapter = getClock().chapter;
+        let F = null, stand = null, watch = null, late = false, bullet = null;
+        try {
+            bullet = await bullets.createTruthBullet(actor, { name: "SUITE E08 G3 a bullet analysed and rerolled", realType: "neutral", visibility: "evident" });
+            must(bullet, "the fixture bullet was not made");
+            F = await playerRollBookmark(player, actor, "analyze");
+            const first = await resolveAnalyze({ actorId: actor.id, itemId: bullet.id, total: 1, rollId: F.message.id, by: player.id });
+            await settle();
+            must(F.verdict && first && !first.refused && F.row()?.facts?.bulletId === bullet.id && bullets.secretOf(bullet.uuid).analysedChapter === chapter,
+                `the Analyze or its row did not keep the bullet - this would measure nothing: ${stableJson({ first, row: F.row() })}`);
+            const unread = () => bullets.setSecret(bullet.uuid, { analysedChapter: null });
+            stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 },
+                onReroll: async () => { if (late) await unread(); } });
+            const rolls = stableJson(F.message.toObject().rolls);
+            watch = watchRerollWrites(actor, F.message.id);
+            // Each Reroll asked with the Hope it costs, so one that stood does not refuse the next for its price.
+            const ask = async () => {
+                await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+                const hope = actor.system.resources.hope.value;
+                const out = await R.rerollOnGm(actor, player);
+                await settle();
+                return [out, hope - actor.system.resources.hope.value];
+            };
+            await unread();
+            const [none, noneTook] = await ask();
+            await bullets.setSecret(bullet.uuid, { analysedChapter: chapter });
+            late = true;
+            const [gone, goneTook] = await ask();
+            late = false;
+            const firstBack = stableJson(F.message.toObject().rolls) === rolls;
+            const journal = rerollJournalStore.has(actor.id);
+            await bullets.setSecret(bullet.uuid, { analysedChapter: chapter });
+            const [made, madeTook] = await ask();
+            const replayed = game.i18n.localize("DRPG.Reroll.analyzeReplayed");
+            equal(stableJson([none?.refused ?? null, reasonOf(none?.refused ?? ""), noneTook, gone?.refused ?? null, goneTook, firstBack, journal,
+                Array.isArray(made?.lines) && made.lines.includes(replayed), madeTook, watch.rolls.length]),
+            stableJson(["no Analyze of that bullet this chapter to take back", "nothingToUndo", 0, "the replay was refused; its Hope and the first roll are given back", 0,
+                true, false, true, 3, 3]),
+            `an Analyze Reroll with nothing to take back was paid or stood, or the control was not replayed (refusal, code, Hope taken, late refusal, Hope taken, first rolls back, journal left, control replayed, Hope taken, rewrites): ${stableJson({ none, gone, made })}`);
+        } finally {
+            watch?.stop();
+            stand?.putBack();
+            await F?.putBack();
+            if (bullet && actor.items.get(bullet.id)) await bullet.delete();
+        }
+    }],
+
     ["the GM's bookmark of a Search that drew a plant names the plant and its identity", async () => {
         /*
          * E08+E28 C2, 03.10.2026; audit S08-04. A Search that is handed a plant takes it out of

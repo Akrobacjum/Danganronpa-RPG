@@ -519,8 +519,9 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
                 // Kept for the GM's own screens, which used to read it off the
                 // token's name - see `label` above.
                 label,
-                // WHEN, in real time, so a player's Reroll can be held to a
-                // trace it could have made (`removalRefusal`, gm-bridge.mjs).
+                // WHEN, in real time, so a Reroll can be held to a trace it
+                // could have made (`removalRefusal`, bridge-guards.mjs, asked by
+                // reroll.mjs `traceKept`).
                 // Written here rather than read off `_stats.createdTime`, which
                 // no table has shown to be on a token (E03 second review). A
                 // trace a cleanup Reroll puts back keeps the age it had

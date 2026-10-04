@@ -291,9 +291,19 @@ export function replayBookmark(row) {
 /**
  * Why the action a row names cannot be taken back now, asked before the payment
  * (the plan's 2.5), or null. Each undo checks again as it writes. A crisis action is
- * asked what its undo's packet was asked by the bridge until this commit
- * (`crisisUndoRefusal`, murder.mjs); the other actions' own checks are C6b's, and
- * answer null here.
+ * asked what its undo's packet was asked by the bridge until C4a (`crisisUndoRefusal`,
+ * murder.mjs); an Observe, a clean-up and an Analyze what their own undo asks first.
+ * An action with no check here answers null and is replayed.
+ *
+ * A CLEAN-UP AND AN ANALYZE ARE ASKED TOO (E08+E28 fix r1-G3, 04.10.2026; the round-1
+ * review's M1). Since C4a their replays run on this client, the bridge settles a local
+ * run as answered whatever it answered, and the two settles read only that: a GM-made
+ * Reroll of a clean-up whose attempt the GMs no longer kept answered "the clean-up is
+ * taken back and attempted again", Hope 5 -> 2 (the review's probe 98a). What their
+ * undo refuses for is asked here, before the payment: a clean-up needs the GMs' receipt
+ * of an attempt on the trace its row names (cleanup.mjs `undoLastCleanup`), an Analyze
+ * an Analyze of its bullet in this chapter (analyze.mjs `resolveAnalyze`). A refusal
+ * that comes later, while the dice are thrown again, is given back (`replayWasRefused`).
  *
  * AN OBSERVE IS TAKEN BACK ONCE ITS RESULT STANDS (E08+E28 C6a, 03.10.2026; audit S05-22).
  * Its result is written on the GM's client after the GM has described the find, and the
@@ -320,7 +330,29 @@ async function replayRefusal(actor, row) {
         if (observeBeingDescribed(actor.id)) return "the GM is still describing what that Observe found";
         if (!row.facts?.observeKey) return "that Observe has no result to take back";
     }
+    const bookmark = replayBookmark(row);
+    if (row.actionKey === "cleanup" && !bookmark.gmRuled && bookmark.cleanup
+        && ["eraseTrace", "transformTrace"].includes(bookmark.cleanupKey ?? "eraseTrace")) {
+        const { attemptOf } = await import("./cleanup.mjs");
+        if ((await attemptOf(actor.id))?.tokenId !== bookmark.cleanup) return "no clean-up attempt of that trace to take back";
+    }
+    if (row.actionKey === "analyze" && !bookmark.gmRuled && bookmark.bulletId) {
+        const { secretOf } = await import("./truth-bullets.mjs");
+        const { getClock } = await import("./clock.mjs");
+        const bullet = actor.items.get(bookmark.bulletId);
+        if (!bullet || secretOf(bullet.uuid).analysedChapter !== getClock().chapter) return "no Analyze of that bullet this chapter to take back";
+    }
     return null;
+}
+
+/**
+ * Whether a replay's request to the GM's own resolver came back refused. A local run is
+ * answered `ok` whatever it returned (bridge-guards.mjs `bridgeRequest`), so the answer is
+ * read too: `resolveCleanup` answers null for an undo it could not make, `resolveAnalyze`
+ * null or `{ refused }`.
+ */
+function replayWasRefused(ok, value) {
+    return !ok || value == null || Boolean(value?.refused);
 }
 
 /** What a GM's own Reroll shows for a replay's refusal, where the bridge's code would say less. */
@@ -1297,10 +1329,13 @@ async function settleCleanup(actor, bookmark, after, done) {
 
     /* NOT "REPLAYED" WHEN NOTHING WAS (E08+E28 C3, 03.10.2026; audit S05-44). A GM with no
        receipt of the first attempt - none kept, or the one kept for another trace - aborts the
-       replay and tells the GMs (`rerollLost`), and the asker gets a refusal. The card said
-       nothing of it, so the player read the new dice as the clean-up's; it now says the replay
-       did not happen, in the conditional, since a refusal does not say which of its reasons it was. */
-    done.push(game.i18n.localize(res.ok ? "DRPG.Reroll.cleanupReplayed" : "DRPG.Cleanup.rerollManual"));
+       replay and tells the GMs (`rerollLost`). C3 had the card say the replay did not happen;
+       since C4a the replay runs here, `res.ok` held whatever the resolver answered, and the card
+       said "replayed" (the round-1 review's M1). Fix r1-G3 (04.10.2026): the common case is
+       refused before the payment (`replayRefusal`), and an undo refused after it - the receipt
+       gone while the dice were thrown again - gives the Reroll back (`makeReroll`). */
+    if (replayWasRefused(res.ok, res.value)) return null;
+    done.push(game.i18n.localize("DRPG.Reroll.cleanupReplayed"));
     return { cleanup: bookmark.cleanup };
 }
 
@@ -1351,7 +1386,9 @@ async function settleAnalyze(actor, bookmark, after, done) {
         undo: true
     });
 
-    if (res.ok) done.push(game.i18n.localize("DRPG.Reroll.analyzeReplayed"));
+    // A refused undo gives the Reroll back (fix r1-G3; `replayRefusal` asks the common case first).
+    if (replayWasRefused(res.ok, res.value)) return null;
+    done.push(game.i18n.localize("DRPG.Reroll.analyzeReplayed"));
     return { bulletId: bookmark.bulletId };
 }
 
@@ -1474,6 +1511,11 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
             : {};
     }
 
+    if (await traceKept(actor, bookmark, { removal: visibility === null, total: gate?.total ?? null })) {
+        done.push(game.i18n.localize("DRPG.Reroll.remnantManual"));
+        return {};
+    }
+
     if (visibility === null) {
         const removed = await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { remove: true });
         if (removed) done.push(game.i18n.localize("DRPG.Reroll.remnantRemoved"));
@@ -1490,6 +1532,43 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null, gat
     const retuned = await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { visibility, describes });
     if (traceFeedback(gate, retuned)) done.push(game.i18n.localize("DRPG.Reroll.remnantRetuned"));
     return {};
+}
+
+/**
+ * A TRACE A REROLL MAY NO LONGER TOUCH STAYS (E08+E28 fix r1-G3, 04.10.2026; the round-1
+ * review's M2 = S1). Until C4a a Reroll's trace edit was its player's `remnant.edit`, and E03's
+ * guard asked `removalRefusal` of it: not a trace a GM has written on, nor one a clean-up's
+ * Reroll put back, nor one older than a Reroll can reach, and - for a removal - nor one
+ * anybody has copied into a Truth Bullet, since once somebody has found it, it is evidence.
+ * C4a moved the edit onto this client and C8 took the guard away with the receipts, so nothing
+ * asked it: the review's probe 99c rerolled a Search 14 into 3 and the trace already copied
+ * into another student's bullet was deleted. The same question is asked here, with the guard's
+ * readings (a14db4e bridge-guards.mjs `guardRemnantEditReceipt`). On a refusal the trace stays,
+ * the row keeps naming it, the card says it could not be adjusted (not why: who found a trace is
+ * not the roller's to learn), and the GMs are told which trace and the new total, the reason in
+ * the console. A trace that is gone is not asked about; the retune finds nothing, as before.
+ */
+async function traceKept(actor, bookmark, { removal, total }) {
+    const scene = (bookmark.remnantScene ? game.scenes.get(bookmark.remnantScene) : null) ?? canvas?.scene;
+    const token = scene?.tokens?.get(bookmark.remnantId) ?? null;
+    if (!token) return false;
+    const { remnantData, remnantGmEdited } = await import("./remnants.mjs");
+    const { removalRefusal } = await import("./bridge-guards.mjs");
+    const data = remnantData(token);
+    let copied = false;
+    if (removal) {
+        const { copiedRemnants } = await import("./truth-bullets.mjs");
+        copied = game.actors.some(a => a.type === "character" && copiedRemnants(a).has(token.id));
+    }
+    const why = removalRefusal(token, {
+        gmEdited: remnantGmEdited(token), copied, placedAt: data?.placedAt ?? null, restored: Boolean(data?.restored)
+    });
+    if (!why) return false;
+    log(`${actor.name}'s Reroll leaves the trace ${token.id} as it was: ${why}.`);
+    await whisperToGms(`<h3>${esc(game.i18n.localize("DRPG.Reroll.title"))}</h3><p>${game.i18n.format("DRPG.Reroll.traceKept", {
+        name: esc(actor.name), trace: esc(data?.label ?? data?.subject ?? token.id), total: esc(String(total ?? "?"))
+    })}</p>`);
+    return true;
 }
 
 /**

@@ -2345,8 +2345,11 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
 const RECEIPT_FIELDS = ["actorId", "tokenId", "attempt", "free", "stressBefore", "stressAfter",
     "erased", "leftBehind", "transformed", "handedBack"];
 
-/** What a character's last clean-up attempt did, as the GMs' store holds it; null for none. */
-async function attemptOf(actorId) {
+/**
+ * What a character's last clean-up attempt did, as the GMs' store holds it; null for none.
+ * Exported for the Reroll's question before its payment (reroll.mjs `replayRefusal`).
+ */
+export async function attemptOf(actorId) {
     await cleanupAttemptStore.whenHydrated();
     return cleanupAttemptStore.get(actorId ?? "") ?? null;
 }
@@ -2441,8 +2444,10 @@ async function undoLastCleanup(actor, tokenId) {
     }
     if (receipt.tokenId !== tokenId) {
         error(`Cleanup reroll: the recorded attempt was on a different trace (${receipt.tokenId}).`);
-        // Same contract as a lost receipt: the caller aborts, and a human is
-        // told, because the dice on the player's screen have already changed.
+        // Same contract as a lost receipt: the caller aborts, and the GMs are
+        // told. The Reroll asks this before its payment (reroll.mjs `replayRefusal`),
+        // so only a receipt that changed while the dice were thrown again reaches
+        // here, and that Reroll is given back (fix r1-G3).
         await whisperToGms(`<p class="drpg-warning">${
             game.i18n.localize("DRPG.Cleanup.rerollLost")}</p>`);
         return false;
@@ -2466,8 +2471,8 @@ async function undoLastCleanup(actor, tokenId) {
             // Under the id it had (`recreationDataFor`).
             const back = await placeRemnant(data, { keepId: true });
             if (back && pub) await setRemnantPublic(back, pub);
-            // Marked as put back: a player's own Reroll may not lift or retune it
-            // (`removalRefusal`, bridge-guards.mjs), found or not.
+            // Marked as put back: a later Reroll does not lift or retune it, found
+            // or not (`removalRefusal`, asked by reroll.mjs `traceKept`).
             if (back) {
                 const { setRemnantSecret } = await import("./remnants.mjs");
                 await setRemnantSecret(back, { restored: true });

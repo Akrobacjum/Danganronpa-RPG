@@ -258,6 +258,8 @@ export const REASON_PATTERNS = Object.freeze([
     // E08+E28 fix r1-G2: a crisis row whose fact never reached it (reroll.mjs `replayRefusal`).
     ["nothingToUndo", /^that crisis action has no result to take back$/],
     ["nothingToUndo", /^no Analyze of that bullet this chapter to take back$/],
+    // E08+E28 fix r1-G3: a clean-up whose attempt the GMs no longer keep (reroll.mjs `replayRefusal`).
+    ["nothingToUndo", /^no clean-up attempt of that trace to take back$/],
     // E32+E07 C8b: a Reroll of a crisis action whose own resolution killed (murder.mjs crisisUndoRefusal).
     ["deathStands", /^that crisis action killed somebody; the death stands$/],
     ["cannotNow", /^that bullet cannot be analysed now$/],
@@ -520,15 +522,18 @@ export async function guardTieTraceHolder(sender, payload, ctx) {
 }
 
 /**
- * Why a player's Reroll may not lift or retune this trace, or null (E03). Pure.
- * `copied` is asked only of a removal: a player's retune moves only the
- * visibility band (a type in a player's packet is dropped above), which changes
- * how findable a trace is, not what it says.
+ * Why a Reroll may not lift or retune this trace, or null (E03). Pure.
+ * `copied` is asked only of a removal, as E03 asked it of a player's edit, which
+ * could move only the visibility band: a found trace a Reroll re-rates is still
+ * there. The GM's Reroll of a Search also rewrites what its trace is of
+ * (reroll.mjs `settleRemnant`, `describes`); E08+E28's round-1 fix list kept
+ * `copied` to removals, and that case is not asked here.
  *
  * Asked by nothing on the bridge since E08+E28 C8: the guard that asked it of a
  * player's `remnant.edit` went with the Reroll receipts, and no player edits a
- * trace now (`guardUndoIsTheGms`). The GM's own Reroll (reroll.mjs
- * `settleRemnant`) does not ask it - read on 03.10.2026, left as C4a wrote it.
+ * trace now (`guardUndoIsTheGms`). The Reroll the GM makes asks it before each
+ * removal or retune of the trace its first roll left (reroll.mjs `traceKept`,
+ * since fix r1-G3, 04.10.2026).
  */
 export function removalRefusal(token, { gmEdited = false, copied = false, placedAt = null, restored = false, now = Date.now() } = {}) {
     if (gmEdited) return "a GM has written on that trace";
