@@ -418,10 +418,9 @@ export async function addProgress(countdownId, amount, { by = null, actorId = nu
     if (!amount) return null;
 
     if (!game.user.isGM) {
-        // The character whose action this is travels with it: progress taken
-        // BACK is a Reroll's undo, and the GM pays for that from the receipt
-        // for this character (reroll-receipts.mjs), not on the packet's word.
-        // A Work on a Project names its roll as well (E08+E28 C2), so the GMs'
+        // Progress taken BACK is a Reroll's undo, which the GM's own Reroll makes
+        // on its own client: a player's is refused (`undoIsTheGms`, E08+E28 C8).
+        // The character whose action this is still travels with it. A Work on a Project names its roll as well (E08+E28 C2), so the GMs'
         // bookmark of that roll keeps what it added (gm-bridge.mjs `noteProgressFact`).
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
         const res = await requestProjectProgress(countdownId, amount, actorId, messageId);
@@ -792,9 +791,10 @@ export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = 
  * Take a sabotage back: thaw the target and delete the repair it spawned.
  *
  * Used by the Reroll Hope Call, which has to undo the action before applying
- * what the new dice are worth. Both writes are world settings, so a player's
- * request goes through the GM exactly as the sabotage itself did. Only the
- * pair the sabotage wrote is taken back - see `unsabotageRefusal`.
+ * what the new dice are worth. Both writes are world settings, and the Reroll
+ * is made on the GM (E08+E28 C4a); a player's request is refused since C8
+ * (`undoIsTheGms`). Only the pair the sabotage wrote is taken back - see
+ * `unsabotageRefusal`.
  *
  * @param {string|null} targetId  The project that was frozen.
  * @param {string|null} repairId  The repair project that was created.

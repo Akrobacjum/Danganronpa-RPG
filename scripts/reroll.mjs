@@ -651,9 +651,9 @@ export function registerRerollRecovery() {
 }
 
 /** Hope / Despair / critical, read straight off the dice so it always works.
- *  Exported for the GM's reroll receipts (reroll-receipts.mjs), which have to
- *  read the same duality off the same message and must not grow a second
- *  opinion of it. */
+ *  Exported for the GM's roll keeper (reroll-receipts.mjs, the receipts until
+ *  E08+E28 C8), which has to read the same duality off the same message and
+ *  must not grow a second opinion of it. */
 export function dualityOfRoll(roll) {
     const hope = roll?.dHope?.total;
     const fear = roll?.dFear?.total;

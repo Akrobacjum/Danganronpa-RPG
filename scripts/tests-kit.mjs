@@ -922,7 +922,8 @@ const BRIDGE_TABLE_FILES = Object.freeze([
  *      exported by the table's own file (counted, as `local`);
  *   4. the first guard is `knownSender` or a `gmOnly`, or reads no sender and is
  *      followed by `knownSender`;
- *   5. a guard that spends a Reroll receipt is the last one;
+ *   5. (retired with the Reroll receipts in E08+E28 C8: a guard that spent one
+ *      was the last);
  *   6. every id or raw field the run receives is covered: by a factory guard
  *      that names it, or by a claim - a guard of the declaration whose source
  *      reads `payload.<field>`, or a written reason of at least 20 characters;
@@ -983,11 +984,6 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
                 const opens = first === guards.knownSender || first?.factory === "gmOnly"
                     || (typeof first === "function" && !readsSender(first) && second === guards.knownSender);
                 if (!opens) problems.push(`${at}: its first guard is not knownSender or gmOnly, nor a check that reads no sender followed by knownSender`);
-                list.forEach((guard, i) => {
-                    if (i < list.length - 1 && /spendRerollReceipt\(/.test(source(guard))) {
-                        problems.push(`${at}: ${guard.name} spends a Reroll receipt and is not the last guard`);
-                    }
-                });
             }
 
             const kinds = decl.sanitize?.fields ?? {};

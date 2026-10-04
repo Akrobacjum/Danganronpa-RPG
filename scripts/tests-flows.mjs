@@ -78,7 +78,9 @@ export const FLOWS = Object.freeze([
         status: "partial", stage: "E37" },
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
         entry: { bridge: ["token.sendBack"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
-    { id: "despair", what: "Despair: a correction from a player's Reroll, a Despair Call from a GM, the pools every screen shows",
+    // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
+    // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
+    { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
         entry: { bridge: ["despair.adjust"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
@@ -127,6 +129,8 @@ export const FLOWS = Object.freeze([
     // the GM (`reroll.ask`) and made there - 40-flow's player Rerolls, 30's refused asks, 13's dice of a rewrite.
     // E08+E28 C4b: 20-crit-hope's rerolled critical, settled behind the players' flag.
     // E08+E28 C5: `roll.bookmark` names the roll's card, and 40-flow reads p1's Search card a Reroll replaced, marked on p1.
+    // E08+E28 C8: a player's rewrite of a roll's dice is put back by the primary (reroll-receipts.mjs, a hook, no
+    // bridge action); 30 and 33 rewrite one from a player's browser and read it put back.
     { id: "reroll", what: "The Reroll: the GMs keep each character's last roll and what its action did, the roller reports what only its browser saw, and the GM makes the Reroll it is asked for",
         entry: { bridge: ["roll.bookmark", "reroll.ask"] }, scenarios: ["13-murder-signals", "20-crit-hope", "30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E08" },
     { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected or when no card lands in time (fix r2-G3)",

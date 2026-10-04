@@ -2739,24 +2739,6 @@ const INVARIANTS = [
         equal(JSON.stringify(tick), JSON.stringify([{ id: "T1", current: -1, start: 0 }]), "the tick is not applied as the one difference it is");
     }],
 
-    ["R135 - a Reroll receipt pays for one undo of each kind, for a few minutes", async () => {
-        /*
-         * E03, 24.09.2026; audit S10-40. The GM-side receipt a player's Reroll leaves
-         * (reroll-receipts.mjs), asked about made-up receipts.
-         */
-        const R = await import("./reroll-receipts.mjs");
-        const now = 1e12;
-        ok(R.rerollReceiptRefusal(null, { now }), "no receipt pays for an undo");
-        ok(!R.rerollReceiptRefusal({ at: now - 1000, used: new Set() }, { kind: "observe", now }), "a fresh receipt is refused");
-        ok(R.rerollReceiptRefusal({ at: now - 10 * 60_000, used: new Set() }, { kind: "observe", now }), "a ten-minute-old receipt still pays");
-        ok(R.rerollReceiptRefusal({ at: now, used: new Set(["despair"]) }, { kind: "despair", now }), "one receipt pays for two Despair corrections");
-        ok(!R.rerollReceiptRefusal({ at: now, used: new Set(["despair"]) }, { kind: "observe", now }), "spending one kind used up another");
-        equal(R.receiptDespairDelta({ wasFear: false, nowFear: true }), 1, "a roll that became Despair does not owe +1");
-        equal(R.receiptDespairDelta({ wasFear: true, nowFear: false }), -1, "a roll that stopped being Despair does not owe -1");
-        equal(R.receiptDespairDelta({ wasFear: true, nowFear: true }), 0, "a roll that stayed Despair owes a point");
-        equal(R.receiptDespairDelta({ wasFear: null, nowFear: false }), -1, "an unseen roll is not read off its new dice");
-    }],
-
     ["R136 - a sabotage is taken back only as the pair it wrote", async () => {
         /*
          * E03, 24.09.2026; audit S10-03, S09-02. `undoSabotage` deleted whatever id

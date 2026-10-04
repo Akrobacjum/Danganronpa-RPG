@@ -6,12 +6,13 @@
  * one runner (scripts/bridge-guards.mjs), and every wait for an answer into one function. A wrong
  * guard in that table refuses a legal packet for every action at once, so the legal roads are
  * measured here first, on the tree before the refactor, and stay green after each of its commits:
- *   A  legal paths: a Reroll's undos in the order reroll.mjs sends them, a player who plays two
- *      characters, an Assistant GM (beside the GM, and as the primary once the GM has gone), and
+ *   A  legal paths: a Reroll's undos in the order reroll.mjs sent them from the roller's browser
+ *      until E08+E28 C8 - each refused from a player since, as the GM's own (A1-A5) - an
+ *      Assistant GM (beside the GM, and as the primary once the GM has gone), and
  *      the shapes Daggerheart's own relay sends for a player. Each lands once, the GM logs no
  *      refusal for it, and its asker is told none. Since E06 C5a also a roll's subject, reported by
  *      its roller for a roll whose document names nobody, and two reports that are not the
- *      sender's to make (A10). Since E32+E07 C11b also a crisis action's statistic, put to the GMs
+ *      sender's to make (A10), and since E08+E28 C8 a rewrite of its rolls put back. Since E32+E07 C11b also a crisis action's statistic, put to the GMs
  *      by its own player and picked on the card (A11). Since E08+E28 C2 also a roll's bookmark for the
  *      Reroll, kept on the GMs from its roller's report (A12).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
@@ -27,10 +28,10 @@
  * `update` for the send-back, `game.settings.set` for the sabotage - so the same injection works
  * before the table exists and after it.
  *
- * NOT MEASURED HERE: a real Reroll (`Roll#reroll` is not in the harness; a receipt is made as
- * 30-security makes one, by rewriting the rolls of the player's own roll message), and the crisis,
- * clean-up and Analyze undos, which need a running incident or a bullet - live check 21 and
- * LIVE-E31-01 in audit/AUDIT-1.2.42.md 9.2.
+ * NOT MEASURED HERE: a real Reroll (`Roll#reroll` is not in the harness; until E08+E28 C8 a
+ * receipt was made as 30-security made one, by rewriting the rolls of the player's own roll
+ * message), and the crisis, clean-up and Analyze undos, which need a running incident or a
+ * bullet - live check 21 and LIVE-E31-01 in audit/AUDIT-1.2.42.md 9.2.
  */
 export const layers = ["ci"];
 export const accounts = [{ who: "ag", id: "USERAG0000000000", name: "Assistant", role: 3, character: null, color: "#aa66ff" }];
@@ -69,7 +70,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const refusalsLogged = (host, action) => host.eval(`return ${utils}.sessionFailures()
         .filter(e => e.message.includes('Refused a "${action}"')).map(e => e.message);`);
     const errorsOf = c => c.eval(`return (globalThis.__errors ?? []).map(e => e.where + ": " + e.message);`);
-    /** A roll message of the player's own character, then its rolls rewritten - a Reroll's receipt (30-security's `rerollOn`). */
+    /** A roll message of the player's own character, then its rolls rewritten - a Reroll's receipt until E08+E28 C8 (30-security's `rerollOn`). */
     const rerollOn = (client, actorId, { fearBefore = false, fearAfter = false } = {}) => client.eval(`
         const roll = fear => ({ class: "DualityRoll", formula: "1d12 + 1d12", total: 14,
             dHope: { total: fear ? 3 : 9 }, dFear: { total: fear ? 9 : 3 } });
@@ -99,9 +100,21 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("setup: two public projects at 3 progress, and the GM's pool at 4",
         start.one.current === 3 && start.two.current === 3 && start.pool === 4, JSON.stringify({ proj, start }));
 
-    /* ---------------------------------------------- A. a Reroll's undos, in order */
+    /* ------------------------------------------- A. a Reroll's undos are the GM's */
 
-    // reroll.mjs:486 - progress taken back, naming the rerolling character.
+    /* Until E08+E28 C8 these were legal roads: a Reroll's undos from the roller's browser, in
+       the order reroll.mjs sent them, each paid for by a receipt - a rewrite of the rolls of a
+       roll of the same character (`rerollOn`). The GM makes the Reroll on its own client since
+       C4a (40-flow drives it) and C8 refuses each one from a player: refused, logged, told
+       `undoIsTheGms`, and nothing moved. A1 has a rewrite behind it, which pays for nothing.
+       A2 keeps what it measured on the road that is left: the GM's own undo of a sabotage and
+       a new one, back to back. A6, a receipt per character for a player who plays two, went
+       with the receipts. */
+    const UNDO = /an undo is the GM's own Reroll's/;
+    const refusedAsUndo = (a, action) => a.logged.length === 1 && UNDO.test(a.logged[0])
+        && a.told.some(t => t.what === action && t.reason === "undoIsTheGms");
+
+    // reroll.mjs:486 until C4a - progress taken back, naming the rerolling character.
     phase("a Reroll's progress", { flow: "projects" });
     await clearFailures(gm);
     let mark = await refusedCount(p1);
@@ -110,18 +123,25 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     await settle(1500);
     const a1 = { answer: a1answer, after: await gm.eval(progressOf(proj.one)),
         logged: await refusalsLogged(gm, "project.progress"), told: await refusedSince(p1, mark) };
-    check("A1: a Reroll's progress taken back, naming its own character, lands once and is refused nowhere",
-        a1.after.current === 2 && !a1.logged.length && !a1.told.length && notFailed(a1answer), JSON.stringify(a1));
+    check("A1: a player's progress taken back is refused as the GM's own undo, told, and moves nothing - a rewrite of the roll behind it or not",
+        a1.after.current === 3 && refusedAsUndo(a1, "project.progress") && a1answer === null, JSON.stringify(a1));
 
-    // reroll.mjs:624-636 - the old sabotage taken back and a new one made, back to back: the project queue.
+    // reroll.mjs:624-636 until C4a - the old sabotage taken back and a new one made, back to back.
     phase("a Reroll's sabotage", { flow: "projects" });
     const firstRepair = await p2.eval(`const r = await ${projects}.sabotageProject("${proj.one}", 3); return r?.repair?.id ?? null;`, { timeout: 60000 });
     await settle(800);
     await clearFailures(gm);
     mark = await refusedCount(p2);
-    await rerollOn(p2, IDS.botan);
-    const redo = await p2.eval(`const P = ${projects};
-        const undone = await P.undoSabotage("${proj.one}", "${firstRepair}", { actorId: "${IDS.botan}" });
+    const playerUndo = await p2.eval(`return await ${projects}.undoSabotage("${proj.one}", "${firstRepair}", { actorId: "${IDS.botan}" });`, { timeout: 60000 });
+    await settle(1500);
+    const a2refused = { answer: playerUndo, frozenBy: await gm.eval(`return ${projects}.metaFor("${proj.one}").frozenBy ?? null;`),
+        logged: await refusalsLogged(gm, "project.unsabotage"), told: await refusedSince(p2, mark) };
+    check("A2: a player's sabotage taken back is refused as the GM's own undo, told, and thaws nothing",
+        Boolean(firstRepair) && a2refused.frozenBy === firstRepair && refusedAsUndo(a2refused, "project.unsabotage") && playerUndo === null,
+        JSON.stringify(a2refused));
+    await clearFailures(gm);
+    const redo = await gm.eval(`const P = ${projects};
+        const undone = await P.undoSabotage("${proj.one}", "${firstRepair}");
         const again = await P.sabotageProject("${proj.one}", 6);
         return { undone, again: again?.repair?.id ?? null };`, { timeout: 60000 });
     await settle(1500);
@@ -129,14 +149,13 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         after: await gm.eval(`const P = ${projects}; const ids = P.allProjects().map(p => p.id);
             return { first: ids.includes("${firstRepair}"), frozenBy: P.metaFor("${proj.one}").frozenBy ?? null,
                 repairs: P.allProjects().filter(p => P.repairs(p.id) === "${proj.one}").map(p => p.id) };`),
-        logged: [...await refusalsLogged(gm, "project.unsabotage"), ...await refusalsLogged(gm, "project.sabotage")],
-        told: await refusedSince(p2, mark) };
-    check("A2: a Reroll's sabotage taken back and made again, back to back, leaves one freeze, by the new repair",
-        Boolean(firstRepair) && Boolean(redo.again) && redo.again !== firstRepair && a2.after.first === false
-        && a2.after.frozenBy === redo.again && a2.after.repairs.length === 1 && !a2.logged.length && !a2.told.length
+        logged: [...await refusalsLogged(gm, "project.unsabotage"), ...await refusalsLogged(gm, "project.sabotage")] };
+    check("A2: the GM's own undo of a sabotage and a new one, back to back, leave one freeze, by the new repair",
+        Boolean(redo.again) && redo.again !== firstRepair && a2.after.first === false
+        && a2.after.frozenBy === redo.again && a2.after.repairs.length === 1 && !a2.logged.length
         && notFailed(redo.undone), JSON.stringify(a2));
 
-    // reroll.mjs:734 - an Observe taken back and thrown again.
+    // reroll.mjs:734 until C4a - an Observe taken back.
     phase("a Reroll's Observe", { flow: "search-observe" });
     const observed = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
         await R.placeRemnant({ x: 450, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
@@ -152,31 +171,30 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const found = bullets1.filter(id => !bullets0.includes(id));
     await clearFailures(gm);
     mark = await refusedCount(p1);
-    await rerollOn(p1, IDS.aiko);
     const a3answer = await p1.eval(`return await ${bridge}.requestObserveResolve({ actorId: "${IDS.aiko}", key: "${observed.key}",
         total: 30, isCritical: false, undo: true });`, { timeout: 30000 });
     await settle(1500);
     const bullets2 = await gm.eval(bulletsOf);
     const a3 = { observed, found, counts: [bullets0.length, bullets1.length, bullets2.length], answer: a3answer,
         logged: await refusalsLogged(gm, "observe.resolve"), told: await refusedSince(p1, mark) };
-    check("A3: a Reroll's Observe replaces the first find with the new one, once, and is refused nowhere",
-        observed.ok === true && found.length === 1 && bullets2.length === bullets1.length && !bullets2.includes(found[0])
-        && !a3.logged.length && !a3.told.length && notFailed(a3answer), JSON.stringify(a3));
+    check("A3: a player's Observe taken back is refused as the GM's own undo, told, and the first find stays",
+        observed.ok === true && found.length === 1 && bullets2.length === bullets1.length && bullets2.includes(found[0])
+        && refusedAsUndo(a3, "observe.resolve"), JSON.stringify(a3));
 
-    // reroll.mjs:353 - a roll that became a Despair roll moves its Monokuma's pool by one.
+    // reroll.mjs:353 until C4b - a roll that became a Despair roll moved its Monokuma's pool by one.
     phase("a Reroll's Despair", { flow: "despair" });
     const pool0 = await gm.eval(pool);
     await clearFailures(gm);
     mark = await refusedCount(p1);
-    await rerollOn(p1, IDS.aiko, { fearBefore: false, fearAfter: true });
-    const a4answer = await p1.eval(`return await ${bridge}.requestDespairAdjust("${IDS.gm}", 1, { actorId: "${IDS.aiko}" });`, { timeout: 30000 });
+    await p1.eval(`game.socket.emit("${SOCKET}", { action: "despair.adjust", userId: game.user.id, requestId: "e08c8-despair",
+        targetUserId: "${IDS.gm}", delta: 1, actorId: "${IDS.aiko}" }, ${toGms}); return true;`);
     await settle(1500);
-    const a4 = { before: pool0, after: await gm.eval(pool), answer: a4answer,
+    const a4 = { before: pool0, after: await gm.eval(pool),
         logged: await refusalsLogged(gm, "despair.adjust"), told: await refusedSince(p1, mark) };
-    check("A4: a Reroll that turned Aiko's roll into Despair moves her Monokuma's pool by one, once",
-        a4.after === pool0 + 1 && !a4.logged.length && !a4.told.length && notFailed(a4answer), JSON.stringify(a4));
+    check("A4: a player's Despair correction is refused as the GM's own undo, told, and moves no pool",
+        a4.after === pool0 && refusedAsUndo(a4, "despair.adjust"), JSON.stringify(a4));
 
-    // reroll.mjs:1026 - the trace the first throw left, re-rated.
+    // reroll.mjs:1026 until C4a - the trace the first throw left, re-rated.
     phase("a Reroll's trace", { flow: "trace-remnant" });
     const traceOf = subject => `const R = await import("${repoUrl}/scripts/remnants.mjs");
         const t = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "${subject}");
@@ -189,49 +207,14 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const own = await gm.eval(traceOf("E31 own trace"));
     await clearFailures(gm);
     mark = await refusedCount(p1);
-    await rerollOn(p1, IDS.aiko);
     const a5answer = await p1.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
         return await R.retuneRemnant(canvas.scene.id, "${own?.id}", { visibility: "hidden" });`, { timeout: 30000 });
     await settle(1500);
     const a5 = { own, after: await gm.eval(traceOf("E31 own trace")), answer: a5answer,
         logged: await refusalsLogged(gm, "remnant.edit"), told: await refusedSince(p1, mark) };
-    check("A5: a Reroll re-rates its own character's fresh trace, and is refused nowhere",
-        Boolean(own) && own.visibility !== "hidden" && a5.after?.visibility === "hidden" && !a5.logged.length && !a5.told.length
-        && notFailed(a5answer), JSON.stringify(a5));
-
-    /* ------------------------------------------- A. a player with two characters */
-
-    // p3 plays Chie, and is given Daichi for this section: a receipt is per character and user.
-    phase("a player with two characters", { flow: "projects" });
-    await gm.eval(`await game.actors.get("${IDS.daichi}").update({ "ownership.${IDS.p3}": 3 }); return true;`);
-    await settle(600);
-    try {
-        const takeBack = () => p3.eval(`return await ${projects}.addProgress("${proj.two}", -1, { actorId: "${IDS.daichi}" });`, { timeout: 30000 });
-        await clearFailures(gm);
-        mark = await refusedCount(p3);
-        await rerollOn(p3, IDS.chie);
-        const wrongAnswer = await takeBack();
-        await settle(1500);
-        const wrong = { answer: wrongAnswer, after: await gm.eval(progressOf(proj.two)),
-            logged: await refusalsLogged(gm, "project.progress"), told: await refusedSince(p3, mark) };
-        check("A6: a Reroll of Chie's roll does not pay for Daichi's progress taken back, though p3 plays both",
-            wrong.after.current === 3 && wrong.logged.some(r => /no Reroll/.test(r)) && wrong.told.some(t => t.what === "project.progress"),
-            JSON.stringify(wrong));
-
-        await clearFailures(gm);
-        mark = await refusedCount(p3);
-        await rerollOn(p3, IDS.daichi);
-        const rightAnswer = await takeBack();
-        await settle(1500);
-        const right = { answer: rightAnswer, after: await gm.eval(progressOf(proj.two)),
-            logged: await refusalsLogged(gm, "project.progress"), told: await refusedSince(p3, mark) };
-        check("A6: a Reroll of Daichi's roll pays for Daichi's progress taken back, asked by the player who plays both",
-            right.after.current === 2 && !right.logged.length && !right.told.length && notFailed(rightAnswer), JSON.stringify(right));
-    } finally {
-        // Back to None, the level p3 had for Daichi before this section.
-        await gm.eval(`await game.actors.get("${IDS.daichi}").update({ "ownership.${IDS.p3}": 0 }); return true;`);
-        await settle(400);
-    }
+    check("A5: a player's re-rating of their own fresh trace is refused as the GM's own undo, told, and changes nothing",
+        Boolean(own) && a5.after?.visibility === own.visibility && refusedAsUndo(a5, "remnant.edit") && a5answer === null,
+        JSON.stringify(a5));
 
     /* --------------------------------------------------- A. an Assistant GM */
 
@@ -298,8 +281,10 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
        primary GM (`roll.subject`, E06 C5a). Until C5b a player's hook here did the emptying, as
        that commit was to: p1 throws Aiko's roll and p2 Botan's, each a Hope. The GM keeps each subject from its
        report - not from a fallback, which for p1 would also say Aiko - p1's reports of Botan on
-       its own roll and of Aiko on p2's roll are refused and logged, quietly, and p1 rewriting its
-       roll's rolls, as a Reroll does, leaves the receipt for Aiko. At 70dd497 nothing reports a subject. */
+       its own roll and of Aiko on p2's roll are refused and logged, quietly. p1 rewriting its
+       roll's rolls left the GM a receipt for Aiko until E08+E28 C8; the primary puts them back
+       now, on p1's and p2's browsers as on its own, and tells the GMs which roll it was
+       (S02-19). At 70dd497 nothing reports a subject. */
     phase("a neutral roll's subject", { flow: "private-rolls" });
     const neutralThrow = (client, actorId) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         globalThis.__forceRoll = { hope: 9, fear: 4 };
@@ -333,15 +318,20 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         && a10.logged.some(r => /sender did not write that roll message/.test(r)) && !a10.told.length
         && a10.after.mine === IDS.aiko && a10.after.theirs === IDS.botan, JSON.stringify(a10));
 
+    const totalOf = `return game.messages.get("${mine.id}")?.rolls?.[0]?.total ?? null;`;
+    const thrown = await gm.eval(totalOf);
+    const warnedBefore = await gm.eval(`return game.messages.contents.length;`);
     await p1.eval(`const m = game.messages.get("${mine.id}");
-        await m.update({ rolls: [JSON.stringify({ class: "DualityRoll", formula: "1d12 + 1d12", total: 12,
+        await m.update({ rolls: [JSON.stringify({ class: "DualityRoll", formula: "1d12 + 1d12", total: 99,
             dHope: { total: 8 }, dFear: { total: 4 } })] });
         return true;`, { timeout: 30000 });
-    await settle(1000);
-    const receipt = await gm.eval(`const R = await import("${repoUrl}/scripts/reroll-receipts.mjs");
-        return R.rerollReceiptFor("${IDS.aiko}", "${IDS.p1}")?.messageId ?? null;`);
-    check("A10: p1 rewriting the rolls of its neutral roll leaves the GM a Reroll receipt for Aiko",
-        receipt === mine.id, JSON.stringify({ receipt, mine }));
+    await settle(1500);
+    const putBack = { thrown, gm: await gm.eval(totalOf), p1: await p1.eval(totalOf), p2: await p2.eval(totalOf),
+        warned: await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+            return game.messages.contents.slice(${warnedBefore}).filter(m => S.contentOf(m).includes("drpg-warning")).length;`) };
+    check("A10: p1 rewriting the rolls of its neutral roll is put back on every browser, and the GMs are told",
+        typeof thrown === "number" && thrown !== 99 && putBack.gm === thrown && putBack.p1 === thrown && putBack.p2 === thrown
+        && putBack.warned >= 1, JSON.stringify(putBack), { flow: "reroll" });
     await gm.eval(`for (const id of ${JSON.stringify([mine.id, theirs.id])}) await game.messages.get(id ?? "")?.delete(); return true;`);
     await settle(400);
 

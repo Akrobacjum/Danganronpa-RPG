@@ -2583,7 +2583,7 @@
         "hopeBarred": "Teraz nie możesz użyć Hope Call.",
         "notEnoughHope": "Płacąca postać nie ma dość Hope.",
         "noReroll": "Cofnąć to może tylko Reroll rzutu tej postaci z ostatnich kilku minut.",
-        "rerollSpent": "Ten Reroll już raz za to zapłacił.",
+        "undoIsTheGms": "Cofnięcie wyniku należy do GM: o Reroll prosi się GM, który sam cofa pierwszy wynik.",
         "traceOutOfReach": "Reroll nie sięga już tego śladu.",
         "notInIncident": "Twoja postać nie bierze udziału w toczącym się incydencie.",
         "notYourTurn": "To nie twoja tura.",
@@ -3035,6 +3035,10 @@
       "actionOwed": "Krytyk zniknął, ale akcja, którą oddał, jest już zużyta. Zostajesz na minusie o jedną.",
       "gmReasked": "GM został poproszony o ponowną decyzję na podstawie nowego wyniku.",
       "rulingVoid": "Przerzut: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie."
+    },
+    "Rolls": {
+      "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM.",
+      "rewriteNotPutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); ta przeglądarka nie widziała tego rzutu, więc nie dało się przywrócić jego kości."
     },
     "Messenger": {
       "launcherTooltip": "Komunikator",

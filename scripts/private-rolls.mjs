@@ -914,7 +914,8 @@ export function oldRollReaders(message) {
  * --------------------------------------------------------------------------
  * Three readers on the primary GM find the character a roll is about on its
  * message: the Despair award (despair-award.mjs `resolveActor`), the Reroll
- * receipts (reroll-receipts.mjs `actorIdsOf`) and the diagnostics - by the
+ * receipts (reroll-receipts.mjs `actorIdsOf`, which since E08+E28 C8 names the
+ * roll in the GMs' warning of a rewrite put back) and the diagnostics - by the
  * speaker and by Daggerheart's `system.source.actor`. Both name the roller's
  * character to every browser that holds the message, and since E06 C5b both
  * are emptied on every roll the module throws (`neutralRollSource`), which
@@ -938,11 +939,12 @@ const rollSubjects = new Map();
 
 /*
  * HOW LONG, AND HOW MANY. A subject is read when the roll lands (the Despair
- * award) and again whenever a Reroll rewrites the roll (the receipt), which
+ * award) and again whenever a Reroll rewrites the roll (the receipt until
+ * E08+E28 C8; the GMs' warning of a player's rewrite put back since), which
  * the recent-chat scan allows up to `TIMING.rerollWindowMinutes` after it, so
- * that is how long one is kept. The E06 plan said twice `rerollReceiptMs`, ten
- * minutes: that would forget a roll a Reroll can still reach, and the receipt
- * would fall back to the author's character. Five hundred bounds a table that
+ * that is how long one is kept. The E06 plan said twice the receipt's five
+ * minutes, ten: that would forget a roll a Reroll can still reach, and the
+ * receipt would have fallen back to the author's character. Five hundred bounds a table that
  * rolls faster than that; it is a bound, not a measured session.
  */
 const SUBJECTS_KEPT = 500;
@@ -1097,7 +1099,8 @@ function subjectReported(messageId, ms) {
  *   in the fight, the incident's audience at that stage (`incidentAudienceIds`). The one
  *   rule; E28, which throws the players' dice on the GM, asks it too.
  * - `relayIncidentDice`: the primary GM, once it keeps a roll's subject (or sees
- *   its rolls rewritten by hand; a Reroll's GM sends its own, `relayRerolledDice`),
+ *   its rolls rewritten by a GM's hand - a player's is put back since E08+E28 C8;
+ *   a Reroll's GM sends its own, `relayRerolledDice`),
  *   sends `dice.show { id }` to that audience less
  *   the GMs, the author and whoever rewrote it, by addressed socket. The packet
  *   carries the message's id and nothing else; each receiver plays the rolls of
@@ -1189,6 +1192,9 @@ function relayIncidentDice(message, { except = [] } = {}) {
 function onRollsRewritten(message, changes, options, userId) {
     if (!changes || !Object.hasOwn(changes, "rolls") || !isPrimaryGm() || !isClaimedRoll(message)) return;
     if (options?.[REROLL_SHOWN]) return;
+    // A rewrite by a user who is not a GM is put back (reroll-receipts.mjs `judgeRewrite`,
+    // E08+E28 C8), so its dice are nobody's to watch.
+    if (!game.users.get(userId ?? "")?.isGM) return;
     relayIncidentDice(message, { except: [userId] });
 }
 

@@ -35,7 +35,7 @@ import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerBridgeReplies } from "./bridge-guards.mjs";
-import { registerRerollReceipts } from "./reroll-receipts.mjs";
+import { registerRollKeeper } from "./reroll-receipts.mjs";
 import { registerRerollRecovery } from "./reroll.mjs";
 import { registerRelayGuard } from "./relay-guard.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
@@ -339,9 +339,9 @@ Hooks.once("ready", () => {
     // after the sync socket because two of them react to world-state events
     // that arrive over it, and the listener has to exist before the event does.
     safely("the trap watchers", registerTraps);
-    // Before the bridge: an undo the bridge is asked for is paid for by a
-    // receipt this writes, and the receipt has to be watching first.
-    safely("the reroll receipts", registerRerollReceipts);
+    // Before the bridge, where the receipts it wrote until E08+E28 C8 had to be: each
+    // roll's dice as thrown are kept from the moment the bridge can be asked anything.
+    safely("the roll keeper", registerRollKeeper);
     safely("the GM bridge", registerGmBridge);
     // After the API, because the migration it kicks off reads the clock, and
     // after the other socket listeners for the same reason they are ordered:

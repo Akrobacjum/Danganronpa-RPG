@@ -1,71 +1,71 @@
 /**
- * Danganronpa RPG - the GM's receipt for a player's Reroll.
+ * Danganronpa RPG - each roll's dice as they were thrown, kept on the primary GM,
+ * and a player's rewrite of them put back.
  * ---------------------------------------------------------------------------
- * WHY THIS FILE EXISTS (E03, 24.09.2026; audit S10-40, and the undo half of
- * S10-03, S05-03, S04-09, S05-13 and S05-40). A Reroll takes an action back
- * before it runs it again, and the taking back reaches the GM as a packet that
- * says `undo`: give back the Sanity a missed Observe cost and delete the bullet
- * a found one made, thaw what a Sabotage froze, take back project progress,
- * lift a trace off the map, hand a point of Despair back. Every one of those
- * packets was believed. A console could send one without ever buying a Reroll,
- * and an undo is the most useful thing a console can send, because what it
- * removes is evidence.
+ * UNTIL E08+E28 C8 (03.10.2026) THIS FILE WROTE RECEIPTS (E03, 24.09.2026; audit
+ * S10-40). A Reroll ran in the roller's browser and took its action back with
+ * packets that said `undo`, and the primary GM took one only when the same player
+ * had rewritten the rolls of a message of the same character a few minutes before.
+ * Since C4a the Reroll is asked of the GM and made there, undo and all, so no honest
+ * player packet carries an undo, and C8 refuses every one (bridge-guards.mjs
+ * `guardUndoIsTheGms`). Nothing was left for a receipt to pay for, and the receipts
+ * went with the guards that spent them.
  *
- * The one thing a real Reroll always does before any of those packets leaves
- * is rewrite the ROLLS of the roller's own chat message (`message.update({ rolls })`,
- * in the roller's tab until E08+E28 C4a, which makes the Reroll on the GM and sends
- * no undo packet of a player's), and the server tells every client who made
- * that update. So the primary GM watches for it. An undo from a player is taken
- * only when the same player rewrote a roll of the same character within
- * `TIMING.rerollReceiptMs`, and each receipt pays for one undo of each kind.
+ * WHAT IS KEPT INSTEAD (S02-19). A player can still rewrite the rolls of a roll
+ * message of their own: Daggerheart's chat menu offers its author a free "Reroll",
+ * and a console can do the same. Every reader of the card - the GM's check of a
+ * total against it (E28) among them - would read the new dice. So the primary GM
+ * keeps each roll message's rolls as it saw them created (`firstOf`, bounded, the
+ * oldest forgotten first), and when a user who is not a GM rewrites them it puts
+ * them back, on every browser, and tells the GMs. A GM's write is what the roll
+ * stands on from then on: the GM's own Reroll (reroll.mjs), the put-back itself.
+ * A message the primary did not see created - thrown before this GM loaded - has
+ * nothing kept to put back: the GMs are told, and the rewrite stands.
  *
- * WHAT IT PROVES, AND WHAT IT DOES NOT. It proves that this user rewrote a roll
- * of this character a few minutes ago. It does not prove that the Reroll was
- * paid for: anybody may rewrite their own message's rolls - Daggerheart's own
- * dice-reroll in chat does exactly that - and a console can too. Whether the
- * Hope was spent and the numbers are honest is the second layer of the trust
- * model (E28, E29). Until then this narrows an undo from "any time, anything"
- * to "right after you rerolled that character, once".
+ * And the menu's two reroll entries are taken off a player's menu
+ * (`dropDaggerheartRerolls`). The hook's name, `getChatMessageContextOptions`,
+ * follows the two this module already listens to (`getActorContextOptions`,
+ * `getUserContextOptions`); no Foundry source is in this checkout and no browser
+ * ran it, so it is not measured (LIVE-E08-05).
  *
- * Kept in memory on the primary GM, on purpose: it is a few minutes long, and
- * a GM who reloads between a reroll and its undo loses it. That undo is then
- * refused and the player is told so, which is the honest failure; the action's
- * first result stands.
+ * In memory on the primary, as the receipts were: a GM who reloads keeps nothing
+ * of the rolls thrown before, and a rewrite of one of them is only told.
  */
 
-import { TIMING } from "./config.mjs";
-import { isPrimaryGm, debug, pause } from "./utils.mjs";
+import { isPrimaryGm, whisperToGms, debug, error } from "./utils.mjs";
 import { dualityOfRoll } from "./reroll.mjs";
-import { ownsActor } from "./bridge-guards.mjs";
-import { rollSubjectNow } from "./private-rolls.mjs";
+import { rollSubjectNow, REROLL_SHOWN } from "./private-rolls.mjs";
 
-/** `${actorId}|${userId}` -> { messageId, at, wasFear, nowFear, used: Set<string> } */
-const receipts = new Map();
-
-/**
- * Whether each recent roll message was a Despair roll, as the GM last saw it.
- * A Reroll that turns a Despair roll into a Hope one hands a point back, and
- * the only way to know which way it went is to remember what it was.
- */
-const fearOf = new Map();
+/** messageId -> { rolls, withFear }: the rolls each roll message stands on, as source data. */
+const firstOf = new Map();
 /** Enough for a long session's rolls; the oldest are forgotten first. */
-const FEAR_KEPT = 300;
+const FIRST_KEPT = 300;
+/** `${messageId}|${userId}|${key}` of the warnings already given: a loop of rewrites is told once. */
+const warned = new Set();
 
-function keyOf(actorId, userId) {
-    return `${actorId}|${userId}`;
+/** The labels of Daggerheart's two chat-menu rerolls (chatLog.mjs `_getEntryContextOptions`, read in 2.6.5 and 2.10.5). */
+const DAGGERHEART_REROLLS = Object.freeze(["DAGGERHEART.UI.ChatLog.rerollActionRoll", "DAGGERHEART.UI.ChatLog.rerollDamage"]);
+
+function keep(message) {
+    const rolls = foundry.utils.deepClone(message.toObject().rolls ?? []);
+    if (!rolls.length) return;
+    const roll = message.rolls?.[0];
+    firstOf.delete(message.id);
+    firstOf.set(message.id, { rolls, withFear: roll ? Boolean(dualityOfRoll(roll).withFear) : false });
+    while (firstOf.size > FIRST_KEPT) firstOf.delete(firstOf.keys().next().value);
 }
 
-function rememberFear(messageId, withFear) {
-    fearOf.delete(messageId);
-    fearOf.set(messageId, withFear);
-    while (fearOf.size > FEAR_KEPT) fearOf.delete(fearOf.keys().next().value);
+/** The rolls this primary keeps for a message, as a copy, or null. Exported for the suite. */
+export function keptRollsOf(messageId) {
+    const kept = firstOf.get(messageId ?? "");
+    return kept ? foundry.utils.deepClone(kept) : null;
 }
 
 /**
- * Every character a roll message speaks for - the test the Reroll's scan of recent chat
- * made until E08+E28 C4a - after the character its roller reported to this GM
- * (`rollSubjectNow`, E06 C5a), which is the one a roll whose speaker names nobody
- * still has. Exported for the suite.
+ * Every character a roll message speaks for: the one its roller reported to this GM
+ * (`rollSubjectNow`, E06 C5a), which is the one a roll whose speaker names nobody still
+ * has, then its speaker and its source. Names the roll in the GMs' warning. Exported for
+ * the suite.
  */
 export function actorIdsOf(message) {
     const ids = new Set();
@@ -81,109 +81,75 @@ export function actorIdsOf(message) {
     return [...ids];
 }
 
+/** Tell the GMs once per message, user and kind; returns the text, or null when it was told already. */
+function warnGms(key, message, user, userId) {
+    const once = `${message.id}|${userId}|${key}`;
+    if (warned.has(once)) return null;
+    warned.add(once);
+    if (warned.size > FIRST_KEPT) warned.delete(warned.values().next().value);
+    const esc = foundry.utils.escapeHTML;
+    const actor = game.actors.get(actorIdsOf(message)[0] ?? "");
+    const text = game.i18n.format(key, {
+        name: esc(user?.name ?? String(userId ?? "?")),
+        roll: esc(actor?.name ?? message.speaker?.alias ?? message.id)
+    });
+    void whisperToGms(`<p class="drpg-warning">${text}</p>`);
+    return text;
+}
+
 function onCreateMessage(message) {
-    if (!isPrimaryGm()) return;
-    const roll = message.rolls?.[0];
-    if (roll) rememberFear(message.id, Boolean(dualityOfRoll(roll).withFear));
+    if (isPrimaryGm()) keep(message);
 }
 
-function onUpdateMessage(message, changes, options, userId) {
-    if (!isPrimaryGm()) return;
-    if (!changes || !("rolls" in changes)) return;
-    const roll = message.rolls?.[0];
-    if (!roll) return;
-
-    const nowFear = Boolean(dualityOfRoll(roll).withFear);
-    const wasFear = fearOf.has(message.id) ? fearOf.get(message.id) : null;
-    rememberFear(message.id, nowFear);
-
-    // A GM needs no receipt, and only the message's own author rewrote it for
-    // themselves - a GM editing a player's message is not that player's Reroll.
-    const user = game.users.get(userId ?? "");
-    if (!user || user.isGM) return;
-    if ((message.author?.id ?? message.user?.id) !== user.id) return;
-
-    for (const actorId of actorIdsOf(message)) {
-        if (!ownsActor(user, actorId)) continue;
-        receipts.set(keyOf(actorId, user.id), {
-            messageId: message.id, at: Date.now(), wasFear, nowFear, used: new Set()
-        });
-        debug(`Reroll receipt: ${user.name} rewrote a roll of ${game.actors.get(actorId)?.name ?? actorId}.`);
+/**
+ * `updateChatMessage`, on the primary GM. A GM's rewrite of a message's rolls is kept; a
+ * rewrite by anybody else is put back to what was kept, marked so the dice relay sends
+ * nothing for it (`REROLL_SHOWN`), or, with nothing kept, only told. Returns what it did
+ * - null for a write it lets stand, `{ putBack, warned }` otherwise. Exported for the suite.
+ */
+export async function judgeRewrite(message, changes, options = {}, userId = null) {
+    if (!isPrimaryGm() || !changes || !Object.hasOwn(changes, "rolls")) return null;
+    const user = game.users.get(userId ?? "") ?? null;
+    if (user?.isGM) {
+        keep(message);
+        return null;
     }
+    const kept = firstOf.get(message.id);
+    if (!kept) {
+        debug(`A roll's dice were rewritten by ${user?.name ?? userId}, and this GM never saw them thrown: not put back.`);
+        return { putBack: false, warned: warnGms("DRPG.Rolls.rewriteNotPutBack", message, user, userId) };
+    }
+    try {
+        await message.update({ rolls: foundry.utils.deepClone(kept.rolls) }, { [REROLL_SHOWN]: true });
+    } catch (err) {
+        error("Could not put a roll's dice back after a player rewrote them", err);
+        return { putBack: false, warned: warnGms("DRPG.Rolls.rewriteNotPutBack", message, user, userId) };
+    }
+    debug(`A roll's dice rewritten by ${user?.name ?? userId} were put back.`);
+    return { putBack: true, warned: warnGms("DRPG.Rolls.rewritePutBack", message, user, userId) };
 }
 
-export function registerRerollReceipts() {
+/**
+ * Take Daggerheart's two rerolls off the chat menu of a user who is not a GM: the
+ * free reroll is not a rule of this game, and a rewrite of the rolls is put back
+ * anyway (`judgeRewrite`). Changes `options` in place, as the hook asks; returns
+ * how many it took off. Matched by `label`, as Daggerheart writes its entries, or `name`.
+ */
+export function dropDaggerheartRerolls(options, user = game.user) {
+    if (user?.isGM || !Array.isArray(options)) return 0;
+    let dropped = 0;
+    for (let i = options.length - 1; i >= 0; i--) {
+        const entry = options[i];
+        if (DAGGERHEART_REROLLS.includes(entry?.label ?? entry?.name)) {
+            options.splice(i, 1);
+            dropped++;
+        }
+    }
+    return dropped;
+}
+
+export function registerRollKeeper() {
     Hooks.on("createChatMessage", onCreateMessage);
-    Hooks.on("updateChatMessage", onUpdateMessage);
-}
-
-/**
- * Why a receipt does not pay for an undo of `kind`, or null when it does.
- * Pure, so the suite can hold it to its rules with a receipt it made up.
- *
- * @param {object|null} receipt  As stored above.
- * @param {object} [options]
- * @param {string} [options.kind]  What is being undone; each is paid for once.
- * @param {number} [options.now]
- * @param {number} [options.windowMs]
- * @returns {string|null}
- */
-export function rerollReceiptRefusal(receipt, { kind = null, now = Date.now(),
-    windowMs = TIMING.rerollReceiptMs } = {}) {
-    if (!receipt) return "no Reroll of that character by the sender";
-    if (!(now - receipt.at <= windowMs)) return "the sender's last Reroll of that character is too old";
-    if (kind && receipt.used?.has(kind)) return `that Reroll has already undone one "${kind}"`;
-    return null;
-}
-
-/**
- * The Despair a receipt's Reroll moved, as `settleDespair` in reroll.mjs moves
- * it: +1 when the roll became a Despair roll, -1 when it stopped being one, 0
- * when the duality did not change. A roll the GM did not see created (a GM who
- * loaded after it) is taken to have changed, which leaves only the sign to
- * check - the new roll still says which way it went.
- */
-export function receiptDespairDelta(receipt) {
-    if (!receipt) return 0;
-    if (receipt.wasFear === receipt.nowFear) return 0;
-    return receipt.nowFear ? 1 : -1;
-}
-
-/** The receipt standing for this character and this user, if any. */
-export function rerollReceiptFor(actorId, userId) {
-    return receipts.get(keyOf(actorId, userId)) ?? null;
-}
-
-/**
- * Spend one undo of `kind` from the receipt for `actorId` and `userId`.
- *
- * Returns why it was refused, or null when the undo is paid for - in which case
- * that kind is used up. Asks once more, a moment later, after ANY refusal: the
- * rewrite of the message and the undo are two messages to this client, and the
- * order they are handled in has not been measured at a table. The first build
- * waited only when there was no receipt at all, so after a character's first
- * Reroll a late rewrite met the previous, spent or stale receipt and was
- * refused at once (the E03 second review). A refusal that stands costs the
- * player that moment.
- *
- * @param {string} actorId
- * @param {string} userId
- * @param {string} kind
- * @param {(receipt: object) => string|null} [check]  One more question about the
- *   receipt before it is spent - the Despair a Reroll moved, for one.
- * @returns {Promise<string|null>}
- */
-export async function spendRerollReceipt(actorId, userId, kind, check = null) {
-    const judge = () => {
-        const receipt = rerollReceiptFor(actorId, userId);
-        return rerollReceiptRefusal(receipt, { kind }) ?? (check ? check(receipt) : null);
-    };
-    let why = judge();
-    if (why) {
-        await pause(TIMING.rerollReceiptRetryMs);
-        why = judge();
-    }
-    if (why) return why;
-    rerollReceiptFor(actorId, userId).used.add(kind);
-    return null;
+    Hooks.on("updateChatMessage", (message, changes, options, userId) => void judgeRewrite(message, changes, options, userId));
+    Hooks.on("getChatMessageContextOptions", (app, options) => dropDaggerheartRerolls(options));
 }

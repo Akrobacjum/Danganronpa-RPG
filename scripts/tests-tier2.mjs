@@ -1981,7 +1981,9 @@ const SCENARIOS = [
          * then sends an undo of it with a total of 0; the GM then asks its own undo. Read: the
          * packets the blow and the undo sent back (the blow's answer says `lethal`), the GM's
          * log of the refusal, the GM's own undo, whether the victim is dead, the stage, and
-         * whether the receipt moved.
+         * whether the receipt moved. Since E08+E28 C8 the player's undo is refused before the
+         * death is asked, for being a player's (`undoIsTheGms`): the GM's own undo is the one
+         * the death refuses.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
@@ -1994,7 +1996,7 @@ const SCENARIOS = [
         const ask = (requestId, fields) => G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId, actorId: killer.id, key: "finishingBlow", ...fields },
             player.id, { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null, packet?.value ?? null]) });
         const logged = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "murder.crisis"')
-            && String(e.message).includes("the death stands")).length;
+            && String(e.message).includes("an undo is the GM's own Reroll's")).length;
         try {
             await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
             await ask("suite-c8b-blow", { total: 99, isCritical: false, withHope: true });
@@ -2010,11 +2012,105 @@ const SCENARIOS = [
             await settle();
             equal(stableJson([blow, forged, logged() - before, own, isDeadForGm(victim), M.murderState()?.stage ?? null,
                 stableJson(M.murderState()?.lastCrisis ?? null) === receipt]),
-            stableJson([[["bridge.ack", null, null], ["bridge.done", null, { lethal: true }]], [["bridge.refused", "deathStands", null]], 1, null, true, "resolution", true]),
+            stableJson([[["bridge.ack", null, null], ["bridge.done", null, { lethal: true }]], [["bridge.refused", "undoIsTheGms", null]], 1, null, true, "resolution", true]),
             "the undo of the blow that killed was let through, refused for another reason, or moved something (the blow's packets, the undo's, the GM's log, the GM's own undo, victim dead, stage, receipt kept)");
         } finally {
             await putBack();
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a forged Observe undo is refused without a receipt to spend", async () => {
+        /*
+         * E08+E28 C8, 03.10.2026; audit S10-06 (the undo). An Observe taken back was a
+         * Reroll's packet from the roller's browser until C4a, and E03 let it through on a
+         * receipt: the same player had rewritten a roll of that character a few minutes
+         * before (refused "noReroll" without one). The GM takes an Observe back on its own
+         * client now, so a player's undo is refused before anything else is asked - before
+         * whose character it names, and whatever receipt there might have been. A player's
+         * own character's Observe undo, judged as the primary's listener judges that player's
+         * packet (`judge`). Read: what the runner sent back, the GM's log of the refusal, and
+         * the character's Truth Bullets. The packet crossing the socket is 30-security's.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected player who plays a character");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const U = await import("./utils.mjs");
+        const player = game.users.find(u => !u.isGM && u.active && u.character);
+        const actor = player.character;
+        const bullets = () => actor.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet")).map(i => i.id);
+        const logged = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "observe.resolve"')
+            && String(e.message).includes("an undo is the GM's own Reroll's")).length;
+        const before = { bullets: bullets(), logged: logged() };
+        const sent = [];
+        await G.judge(BRIDGE_ACTIONS, { action: "observe.resolve", requestId: "suite-e08c8-undo", actorId: actor.id,
+            key: "SUITEC8NOKEY0000", total: 0, isCritical: false, undo: true }, player.id,
+        { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null]) });
+        await settle();
+        equal(stableJson([sent, logged() - before.logged, bullets()]),
+            stableJson([[["bridge.refused", "undoIsTheGms"]], 1, before.bullets]),
+            "a player's Observe undo was let through, refused for another reason, unlogged, or moved a bullet (sent back, logged, bullets)");
+    }],
+
+    ["a player's console rewrite of their own roll is put back", async () => {
+        /*
+         * E08+E28 C8, 03.10.2026; audit S02-19. Daggerheart's chat menu gives a roll's author a
+         * free reroll that rewrites the message's rolls, and a console can write them too; until
+         * C8 the primary GM answered with a Reroll receipt and let the new dice stand. It keeps
+         * each roll's dice as it saw them thrown now, keeps a GM's rewrite as what the roll
+         * stands on, and puts a rewrite by anybody else back (reroll-receipts.mjs
+         * `judgeRewrite`), telling the GMs. The suite is one GM, so the player's write is stood
+         * in for: this GM rewrites the card for real - its own rewrite, which stands and is
+         * kept - then the dice it saw thrown are kept again (the handler asked about a stand-in
+         * of the card holding them, as a GM's write), and the handler is asked about the card
+         * as the primary's hook asks it of a player's update. Then a card this GM never saw
+         * created, which is told and not put back, and the chat menu of a player and of a GM.
+         * Read: what is kept, what the handler answered, the rolls the card holds, and the
+         * menus. The update crossing the socket is 33-bridge-paths' A10.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account");
+        const [actor] = cast(1);
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which keeps the rolls - this would measure nothing");
+        const K = await import("./reroll-receipts.mjs");
+        must(typeof K.judgeRewrite === "function", "reroll-receipts.mjs has no judgeRewrite - nothing puts a rewrite back");
+        const player = game.users.find(u => !u.isGM);
+        const { message } = await neutralRoll(actor, { faces: { hope: 9, fear: 4 } });
+        must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+        try {
+            const kept = () => stableJson(K.keptRollsOf(message.id)?.rolls ?? null);
+            const onCard = () => stableJson(game.messages.get(message.id)?.toObject().rolls ?? null);
+            const thrown = foundry.utils.deepClone(message.toObject().rolls);
+            const first = stableJson(thrown);
+            await until(() => kept() === first);
+            const rewritten = thrown.map(r => {
+                const data = typeof r === "string" ? JSON.parse(r) : foundry.utils.deepClone(r);
+                data.total = (Number(data.total) || 0) + 7;
+                return typeof r === "string" ? JSON.stringify(data) : data;
+            });
+            await game.messages.get(message.id).update({ rolls: rewritten });
+            await until(() => kept() === stableJson(rewritten));
+            const byGm = [kept() === first, kept() === stableJson(rewritten), onCard() === stableJson(rewritten)];
+            await K.judgeRewrite({ id: message.id, rolls: [], toObject: () => ({ rolls: foundry.utils.deepClone(thrown) }) },
+                { rolls: thrown }, {}, game.user.id);
+            const byPlayer = await K.judgeRewrite(game.messages.get(message.id), { rolls: rewritten }, {}, player.id);
+            await until(() => onCard() === first);
+            const putBack = [byPlayer?.putBack ?? null, typeof byPlayer?.warned === "string", onCard() === first, kept() === first];
+            let updates = 0;
+            const unseen = { id: `SUITEC8${foundry.utils.randomID(9)}`, speaker: {}, rolls: [], toObject: () => ({ rolls: [] }),
+                update: async () => { updates++; } };
+            const byPlayerUnseen = await K.judgeRewrite(unseen, { rolls: rewritten }, {}, player.id);
+            const menu = () => [{ label: "DAGGERHEART.UI.ChatLog.rerollActionRoll" }, { label: "DAGGERHEART.UI.ChatLog.rerollDamage" },
+                { label: "SUITE other" }];
+            const playerMenu = menu(), gmMenu = menu();
+            K.dropDaggerheartRerolls(playerMenu, player);
+            K.dropDaggerheartRerolls(gmMenu, game.user);
+            equal(stableJson([byGm, putBack, [byPlayerUnseen?.putBack ?? null, typeof byPlayerUnseen?.warned === "string", updates],
+                playerMenu.map(o => o.label), gmMenu.length]),
+            stableJson([[false, true, true], [true, true, true, true], [false, true, 0], ["SUITE other"], 3]),
+            "a GM's rewrite was not kept, a player's was not put back and told, an unseen card's was not only told, or the menus kept the wrong entries (GM, player, unseen, player's menu, GM's menu)");
+        } finally {
+            await game.messages.get(message.id)?.delete();
         }
     }],
 
@@ -2268,7 +2364,7 @@ const SCENARIOS = [
     ["a Reroll from Hope into Despair with 'Rolls grant Despair' off moves no pool", async () => {
         /*
          * E08+E28 C4b, 03.10.2026; audit S02-22; the plan's 2.6. A Reroll's Despair went through
-         * `requestDespairAdjust`, whose only rule is the pool's bounds, so with the world's "Rolls
+         * `requestDespairAdjust` (retired in C8), whose only rule was the pool's bounds, so with the world's "Rolls
          * grant Despair" off a Reroll into a Despair result still fed the Monokuma - which no fresh
          * roll does. It goes through the fresh award's own function now (despair-award.mjs
          * `awardRollDespair`). A student's Hope roll, bookmarked on the GMs and rerolled on this

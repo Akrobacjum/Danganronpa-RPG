@@ -202,8 +202,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        the owner's answer (A)). Botan's own player sends the undo of the blow that just killed -
        a Reroll's packet, a total of 0 and no Reroll behind it. Until 1.2.66 the guards let it
        as far as the Reroll receipt (refused there as "noReroll", and a player with one had the
-       blow taken back and Daichi left dead); the GM now refuses it first, for the death, and
-       nothing moves: Daichi dead, the stage and the action's receipt as they were. */
+       blow taken back and Daichi left dead); the GM refused it first, for the death, from C8b.
+       Since E08+E28 C8 no player's undo is taken at all - the GM's own Reroll takes an action
+       back - so it is refused before the death is asked (`undoIsTheGms`), and nothing moves:
+       Daichi dead, the stage and the action's receipt as they were. */
     const readUndo = `const s = game.drpg.murderState();
         return { stage: s?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")), receipt: JSON.stringify(s?.lastCrisis ?? null) };`;
     await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
@@ -217,7 +219,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         .filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message);`);
     check("SECURITY: the undo of the finishing blow that killed is refused on the GM, and the death stands",
         undoBefore.dead === true && JSON.stringify(undoAfter) === JSON.stringify(undoBefore) && undoAnswer?.ok === false
-            && undoAnswer?.reason === "deathStands" && undoReasons.some(r => /the death stands/.test(r)),
+            && undoAnswer?.reason === "undoIsTheGms" && undoReasons.some(r => /an undo is the GM's own Reroll's/.test(r)),
         JSON.stringify({ undoBefore, undoAfter, undoAnswer, undoReasons }));
 
     /* THE REROLL IS ASKED OF THE GM (E08+E28 C4a, 03.10.2026; audit S02-47). One request,
@@ -708,15 +710,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
      * Each block below sends one request a player's own client never sends - or
      * sends it without the Reroll that is the only honest reason for it - and checks
      * on the GM that nothing changed and that the GM said why. Each has a control
-     * beside it: the same road taken honestly still works. A "Reroll receipt" is made
-     * the way a real Reroll makes one: the player rewrites the rolls of their own
-     * character's roll message (reroll-receipts.mjs).
+     * beside it: the same road taken honestly still works. Until E08+E28 C8 a "Reroll
+     * receipt" paid for an undo, made the way a real Reroll made one: the player
+     * rewrote the rolls of their own character's roll message. Since C8 no player's
+     * undo is taken (`undoIsTheGms`) - the GM's own Reroll takes an action back - and
+     * the primary puts such a rewrite back (reroll-receipts.mjs); `rerollOn` still
+     * makes one, to show it pays for nothing.
      */
     const refusedFor = async action => gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
         .filter(e => e.message.includes('Refused a "${action}"')).map(e => e.message);`);
     const clearFailures = () => gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
     const toGms = `{ recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }`;
-    /** A roll message of the player's own character, and then its rolls rewritten - a Reroll's receipt. */
+    /** A roll message of the player's own character, and then its rolls rewritten - a receipt until E08+E28 C8. */
     const rerollOn = (client, actorId, { fearBefore = false, fearAfter = false } = {}) => client.eval(`
         const roll = fear => ({ class: "DualityRoll", formula: "1d12 + 1d12", total: 14,
             dHope: { total: fear ? 3 : 9 }, dFear: { total: fear ? 9 : 3 } });
@@ -740,9 +745,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         const ids = P.allProjects().map(p => p.id);
         return { secret: ids.includes("${projects.sec}"), repair: ids.includes("${sabotaged.repair}"), frozen: P.isFrozen("${projects.pub}") };`;
     const mismatched = await forge("project.unsabotage", { targetId: projects.pub, repairId: projects.sec, actorId: ids.aiko }, readPair);
-    check("SECURITY: an unsabotage naming a project that is not the repair deletes nothing and thaws nothing",
+    // Since E08+E28 C8 a player's unsabotage is refused before its pair is asked: a thaw is the GM's own Reroll's.
+    const UNDO_IS_THE_GMS = /an undo is the GM's own Reroll's/;
+    check("SECURITY: an unsabotage naming a project that is not the repair is refused as the GM's own undo, and deletes nothing and thaws nothing",
         Boolean(sabotaged.repair) && mismatched.after.secret && mismatched.after.repair && mismatched.after.frozen
-        && mismatched.reasons.some(r => /not what froze|does not repair/.test(r)), JSON.stringify({ sabotaged, mismatched }));
+        && mismatched.reasons.some(r => UNDO_IS_THE_GMS.test(r)), JSON.stringify({ sabotaged, mismatched }));
     /* WHO SABOTAGED IS THE GMS' (E05 fix r1-G1, 27.09.2026; the security review's S1-m1). p2's user
        id sat on the repair's projectMeta row, `saboteur`, which every browser holds, until the
        repair was finished; it is a field of the GMs' store now. p1 reads the repair's row, the GM
@@ -761,21 +768,34 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         return [C.ACTIONS.sabotage?.label, game.i18n.localize("DRPG.Roll.concealIntent")].filter(t => typeof t === "string" && t.trim() && !t.startsWith("DRPG."));`);
     await canary.chatScan({ who: ["p1"], actorIds: [ids.botan], names: ["Botan Kage"], userIds: [p2.userId], titles: sabotageTitles });
     const notTheirs = await forge("project.unsabotage", { targetId: projects.pub, repairId: sabotaged.repair, actorId: ids.aiko }, readPair);
-    check("SECURITY: p1 taking back p2's sabotage is refused - the GM reads who asked from its store - and nothing is thawed",
-        notTheirs.unchanged && notTheirs.after.frozen && notTheirs.reasons.some(r => /did not ask for that sabotage/.test(r)), JSON.stringify(notTheirs));
+    check("SECURITY: p1 taking back p2's sabotage is refused as the GM's own undo, and nothing is thawed",
+        notTheirs.unchanged && notTheirs.after.frozen && notTheirs.reasons.some(r => UNDO_IS_THE_GMS.test(r)), JSON.stringify(notTheirs));
     await clearFailures();
     await p2.eval(`game.socket.emit("${SOCKET}", { action: "project.unsabotage", userId: game.user.id, requestId: "noreceipt",
         targetId: "${projects.pub}", repairId: "${sabotaged.repair}", actorId: "${ids.botan}" }, ${toGms}); return true;`);
     await settle(1200);
     const noReceipt = { after: await gm.eval(readPair), reasons: await refusedFor("project.unsabotage") };
-    check("SECURITY: the saboteur's own unsabotage with no Reroll behind it is refused",
-        noReceipt.after.frozen && noReceipt.after.repair && noReceipt.reasons.some(r => /no Reroll/.test(r)), JSON.stringify(noReceipt));
-    await rerollOn(p2, ids.botan);
+    check("SECURITY: the saboteur's own unsabotage with no Reroll behind it is refused as the GM's own undo",
+        noReceipt.after.frozen && noReceipt.after.repair && noReceipt.reasons.some(r => UNDO_IS_THE_GMS.test(r)), JSON.stringify(noReceipt));
+    /* A REWRITE PAYS FOR NOTHING (E08+E28 C8; audit S02-19). p2 rewrites the rolls of a roll of
+       Botan's - Hope to Fear - which bought the same thaw until C8: it is refused all the same,
+       and the primary puts the rolls back as they were thrown, on p2's browser as on its own. */
+    await clearFailures();
+    const rewroteOn = await rerollOn(p2, ids.botan, { fearAfter: true });
     await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         B.requestUndoSabotage("${projects.pub}", "${sabotaged.repair}", "${ids.botan}"); return true;`);
     await settle(1500);
+    const fearOf = `const r = game.messages.get("${rewroteOn}")?.rolls?.[0]; return r?.dFear?.total ?? null;`;
+    const afterRewrite = { after: await gm.eval(readPair), reasons: await refusedFor("project.unsabotage"),
+        fear: { gm: await gm.eval(fearOf), p2: await p2.eval(fearOf) } };
+    check("SECURITY: a rewrite of Botan's roll pays for no unsabotage, and its dice are put back on every browser",
+        afterRewrite.after.frozen && afterRewrite.after.repair && afterRewrite.reasons.some(r => UNDO_IS_THE_GMS.test(r))
+        && afterRewrite.fear.gm === 3 && afterRewrite.fear.p2 === 3, JSON.stringify(afterRewrite), { flow: "reroll" });
+    await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        await P.undoSabotage("${projects.pub}", "${sabotaged.repair}"); return true;`, { timeout: 60000 });
+    await settle(1500);
     const undone = await gm.eval(readPair);
-    check("control: after a Reroll of Botan's roll, the same unsabotage thaws the project and removes its repair",
+    check("control: the GM's own undo of the same sabotage thaws the project and removes its repair",
         undone.frozen === false && undone.repair === false && undone.secret === true, JSON.stringify(undone));
 
     // 7b. project.progress onto a sabotaged project, and project.share of a public one.
@@ -935,27 +955,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const twice = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve") };
     check("SECURITY: the same Observe key resolves once",
         twice.after.botan === found.botan && twice.reasons.some(r => /already been resolved/.test(r)), JSON.stringify(twice));
+    /* A FORGED OBSERVE UNDO (E08+E28 C8, 03.10.2026; audit S10-06). Botan's own player takes
+       back the Observe that found the trace - a Reroll's packet, with no Reroll asked of the GM.
+       Until C8 it went as far as the receipt; the GM's own Reroll takes an Observe back now, so
+       it is refused first, and the bullet stays. */
+    await clearFailures();
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "observe.resolve", userId: game.user.id, requestId: "forged-undo",
+        actorId: "${ids.botan}", key: "${observed.key}", total: 0, isCritical: false, undo: true }, ${toGms}); return true;`);
+    await settle(1200);
+    const forgedUndo = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve") };
+    check("SECURITY: a forged Observe undo is refused as the GM's own undo, and the bullet it found stays",
+        forgedUndo.after.botan === found.botan && forgedUndo.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)),
+        JSON.stringify(forgedUndo));
 
-    // 7d. despair.adjust with no Reroll behind it, then with one, then again.
+    // 7d. despair.adjust from a player, with no Reroll behind it and with a rewrite of a roll (a receipt until E08+E28 C8).
     phase("Despair corrections", { flow: "despair" });
     const readPool = `return { pool: game.drpg.getDespair(game.user.id) };`;
     const noReroll = await forge("despair.adjust", { targetUserId: gm.userId, delta: -1, actorId: ids.aiko }, readPool);
     check("SECURITY: a player's Despair correction with no Reroll moves no pool",
-        noReroll.unchanged && noReroll.reasons.some(r => /no Reroll/.test(r)), JSON.stringify(noReroll));
+        noReroll.unchanged && noReroll.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)), JSON.stringify(noReroll));
     await rerollOn(p1, ids.aiko, { fearBefore: false, fearAfter: true });
-    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        await B.requestDespairAdjust("${gm.userId}", 1, { actorId: "${ids.aiko}" }); return true;`);
-    await settle(1500);
-    const paidPoint = await gm.eval(readPool);
-    check("control: after a Reroll that turned Aiko's roll into Despair, her player's +1 lands",
-        paidPoint.pool === noReroll.after.pool + 1, JSON.stringify({ before: noReroll.after, after: paidPoint }));
-    await clearFailures();
-    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        await B.requestDespairAdjust("${gm.userId}", 1, { actorId: "${ids.aiko}" }); return true;`);
-    await settle(1200);
-    const secondPoint = { after: await gm.eval(readPool), reasons: await refusedFor("despair.adjust") };
-    check("SECURITY: one Reroll pays for one Despair correction",
-        secondPoint.after.pool === paidPoint.pool && secondPoint.reasons.some(r => /already undone/.test(r)), JSON.stringify(secondPoint));
+    const paidPoint = await forge("despair.adjust", { targetUserId: gm.userId, delta: 1, actorId: ids.aiko }, readPool);
+    check("SECURITY: a player's Despair correction after a rewrite of Aiko's roll into Despair moves no pool either",
+        paidPoint.unchanged && paidPoint.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)), JSON.stringify(paidPoint));
 
     // 7e. token.sendBack to somewhere the token never stood.
     phase("a send-back", { flow: "crossing-fee-refund" });
@@ -997,15 +1019,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         badBand.after.n === 0 && badBand.reasons.some(r => /not a visibility/.test(r)), JSON.stringify(badBand));
 
     /*
-     * 7j. remnant.edit: a Reroll receipt pays for one re-rating of one fresh trace
-     * of the rerolling player's own character that no GM has written on. It is not
-     * tied to the particular trace the first throw left - a trace records no
-     * message it came from, so the GM cannot tell which one that was - which is why
-     * the control below re-rates a trace the GM placed. The first E03 build asked
-     * "fresh, and no GM has written on it" only of a removal, so a receipt from any
-     * Reroll turned a trace a GM had corrected to Hidden (the E03 review). Verified
-     * by hand on 24.09.2026: with the retune's `removalRefusal` call taken out of
-     * gm-bridge.mjs, the first check FAILED.
+     * 7j. remnant.edit: until E08+E28 C8 a Reroll receipt paid for one re-rating of one
+     * fresh trace of the rerolling player's own character that no GM had written on (the
+     * E03 review; verified by hand on 24.09.2026 with `removalRefusal` taken out). Since C8
+     * the GM's own Reroll re-rates a trace on its own client, so a player's edit is refused
+     * whatever trace it names and whatever rewrite of a roll is behind it - a trace a GM has
+     * written on, one two hours old, and the player's own fresh one alike - and the control
+     * is the GM's own re-rating.
      */
     const traceOf = subject => `const R = await import("${repoUrl}/scripts/remnants.mjs");
         const t = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "${subject}");
@@ -1024,38 +1044,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     await settle(600);
     const corrected = await gm.eval(traceOf("SEC corrected"));
     const rerolled = await gm.eval(traceOf("SEC rerolled"));
+    const staleBefore = await gm.eval(traceOf("SEC stale"));
     await clearFailures();
     await rerollOn(p1, ids.aiko);
     await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestRemnantEdit(canvas.scene.id, "${corrected?.id}", { visibility: "hidden" }); return true;`);
+        for (const id of ${JSON.stringify([corrected?.id, staleBefore?.id, rerolled?.id])}) B.requestRemnantEdit(canvas.scene.id, id, { visibility: "hidden" });
+        return true;`);
     await settle(1500);
-    const correctedAfter = { after: await gm.eval(traceOf("SEC corrected")), reasons: await refusedFor("remnant.edit") };
-    check("SECURITY: a Reroll does not re-rate a trace a GM has written on",
-        Boolean(corrected) && correctedAfter.after?.visibility === corrected.visibility
-        && correctedAfter.reasons.some(r => /GM has written/.test(r)), JSON.stringify({ corrected, correctedAfter }));
-    // Two hours old by the ledger: the same receipt, still unspent, does not reach it.
-    const staleBefore = await gm.eval(traceOf("SEC stale"));
-    await clearFailures();
-    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestRemnantEdit(canvas.scene.id, "${staleBefore?.id}", { visibility: "hidden" }); return true;`);
-    await settle(1500);
-    const staleAfter = { after: await gm.eval(traceOf("SEC stale")), reasons: await refusedFor("remnant.edit") };
-    check("SECURITY: a Reroll does not re-rate a trace older than a Reroll can reach",
-        Boolean(staleBefore) && staleAfter.after?.visibility === staleBefore.visibility
-        && staleAfter.reasons.some(r => /older than a Reroll/.test(r)), JSON.stringify({ staleBefore, staleAfter }));
-    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestRemnantEdit(canvas.scene.id, "${rerolled?.id}", { visibility: "hidden" }); return true;`);
-    await settle(1500);
+    const edits = { corrected: await gm.eval(traceOf("SEC corrected")), stale: await gm.eval(traceOf("SEC stale")),
+        rerolled: await gm.eval(traceOf("SEC rerolled")),
+        // Three refusals with one text are one row of the session log with a count of 3
+        // (utils.mjs `record`), so they are counted, not listed: `refusedFor` read 1 here.
+        undos: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+            .filter(e => e.message.includes('Refused a "remnant.edit"') && e.message.includes("an undo is the GM's own Reroll's"))
+            .reduce((n, e) => n + (e.count ?? 1), 0);`) };
+    check("SECURITY: a player's re-rating is refused as the GM's own undo - of a trace a GM wrote on, of one two hours old, and of their own fresh one",
+        Boolean(corrected && staleBefore && rerolled) && edits.corrected?.visibility === corrected.visibility
+        && edits.stale?.visibility === staleBefore.visibility && edits.rerolled?.visibility === rerolled.visibility
+        && edits.undos === 3, JSON.stringify({ corrected, staleBefore, rerolled, edits }));
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.retuneRemnant(canvas.scene.id, "${rerolled?.id}", { visibility: "hidden" }); return true;`, { timeout: 30000 });
+    await settle(600);
     const rerolledAfter = await gm.eval(traceOf("SEC rerolled"));
-    check("control: the same Reroll re-rates the player's own fresh trace",
+    check("control: the GM's own re-rating of the player's fresh trace lands",
         Boolean(rerolled) && rerolled.visibility !== "hidden" && rerolledAfter?.visibility === "hidden", JSON.stringify({ rerolled, rerolledAfter }));
 
     /*
-     * 7j'. What a player is told when an edit is refused (E31 review). Every refusal of
-     * a player's edit is told with one code, and none comes back before the receipt's
-     * retry. Chie's player, p3, holds no Reroll receipt in this scenario; one trace
-     * here is Chie's, the other Botan's. Both checks were red on the tree before the
-     * fix.
+     * 7j'. What a player is told when an edit is refused (E31 review): one reason for the
+     * player's own trace and for another character's. Chie's player, p3, edits one trace of
+     * Chie's and one of Botan's. Both checks were red on the tree before the E31 fix; the
+     * second, that neither refusal came back before the receipt's retry, went with the
+     * receipts in E08+E28 C8 - nothing is retried now, and the reason is `undoIsTheGms`.
      */
     await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
         await R.placeRemnant({ x: 1650, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
@@ -1067,22 +1086,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const ownTrace = await gm.eval(traceOf("SEC own, no receipt"));
     const otherTrace = await gm.eval(traceOf("SEC other, no receipt"));
     const toldEdits = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        const C = await import("${repoUrl}/scripts/config.mjs");
-        const out = { retryMs: C.TIMING.rerollReceiptRetryMs };
+        const out = {};
         for (const [k, id] of [["own", "${ownTrace?.id}"], ["other", "${otherTrace?.id}"]]) {
-            const t0 = Date.now();
             const r = await B.requestRemnantEdit(canvas.scene.id, id, { visibility: "hidden" });
-            out[k] = { ok: r.ok, refused: r.refused ?? false, reason: r.reason ?? null, ms: Date.now() - t0 };
+            out[k] = { ok: r.ok, refused: r.refused ?? false, reason: r.reason ?? null };
         }
         return out;`, { timeout: 60000 });
     const editsAfter = { own: await gm.eval(traceOf("SEC own, no receipt")), other: await gm.eval(traceOf("SEC other, no receipt")) };
     check("SECURITY: an edit with no Reroll behind it is told the same reason for the player's own trace and for another character's",
         Boolean(ownTrace && otherTrace) && toldEdits.own?.refused === true && toldEdits.other?.refused === true
-        && toldEdits.own.reason === toldEdits.other.reason
+        && toldEdits.own.reason === "undoIsTheGms" && toldEdits.other.reason === "undoIsTheGms"
         && editsAfter.own?.visibility === ownTrace.visibility && editsAfter.other?.visibility === otherTrace.visibility,
         JSON.stringify({ toldEdits, ownTrace, otherTrace, editsAfter }));
-    check("SECURITY: neither of those two refusals comes back before the receipt's retry",
-        toldEdits.own?.ms >= toldEdits.retryMs && toldEdits.other?.ms >= toldEdits.retryMs, JSON.stringify(toldEdits));
 
     /*
      * 7k. remnant.tieForItem outside a fight (audit S10-11). Holding the object is
