@@ -295,7 +295,8 @@ async function restore(snap) {
  * fixture that did not take would measure a refusal instead. `back()` puts them where
  * they were. A teleport, not a walk: see the handover test's note on walls. `asked`: the
  * test has asked the world for a second pair already (E06 C4) - a probe asked after the
- * first pair was stood is a write before the ask.
+ * first pair was stood is a write before the ask. `victim` null stands the killer alone
+ * (E08+E28 C19b), a killer the lights find with nobody to kill.
  */
 async function aloneTogether(killer, victim, { asked = false } = {}) {
     const { allRooms, othersInNamedRoom, othersInRoom, positionIn } = await import("./movement.mjs");
@@ -304,7 +305,7 @@ async function aloneTogether(killer, victim, { asked = false } = {}) {
         needs(world.atLeast("namedRooms", 2), "one room is left to the two of them");
     }
     const scene = canvas?.scene;
-    const tokens = [killer, victim].map(a => scene?.tokens?.find(t => t.actorId === a.id));
+    const tokens = [killer, victim].filter(Boolean).map(a => scene?.tokens?.find(t => t.actorId === a.id));
     ok(tokens.every(Boolean), "one of the two students has no token on the scene on screen");
     const room = allRooms().find(r => othersInNamedRoom(r).length === 0);
     ok(room, "every named room on the scene on screen has somebody in it");
@@ -312,7 +313,7 @@ async function aloneTogether(killer, victim, { asked = false } = {}) {
     const PLACE = { teleport: true, movementAction: "displace", animate: false };
     for (const t of tokens) await t.update(positionIn(room, t), PLACE);
     await settle();
-    equal(stableJson(othersInRoom(killer).map(a => a.id)), stableJson([victim.id]), `the fixture could not stand the two alone in ${room}`);
+    equal(stableJson(othersInRoom(killer).map(a => a.id)), stableJson(victim ? [victim.id] : []), `the fixture could not stand the two alone in ${room}`);
     return {
         room,
         back: async () => {
@@ -4495,9 +4496,13 @@ const SCENARIOS = [
          * already running" - that somebody was being killed somewhere at that moment. They are
          * told the ordinary refusal now (`murderRefused`), and the GMs keep the reason
          * (`murderSecondDeclaration`). Two pairs stood alone in two rooms, both declarations
-         * allowed and named for this Eclipse, the second declared after the first; the Eclipse
-         * ends and the words sent to the second killer's player are read off the packets, the
-         * GMs' card off this GM's own copy.
+         * named for this Eclipse, the second declared after the first, and each allowed through
+         * the GM's card's own call (`ruleOnParkedMurder`); the Eclipse ends, and the words sent
+         * to the second killer's player from before the first allowance to after the lights are
+         * read off the packets, the GMs' card off this GM's own copy. Until E08+E28 C19b the
+         * declarations were written allowed into the store, past the card, and the test never saw
+         * the allowance's own card, which told the second killer "allowed" before the lights told
+         * them "did not allow".
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers whose players are sent the lights' answers");
         needs(world.atLeast("livingStudents", 4), "two killers and two victims");
@@ -4522,9 +4527,11 @@ const SCENARIOS = [
             const id = E.eclipseId();
             ok(E.isEclipse() && id, `the Eclipse did not open, or has no name (${id})`);
             for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
-                await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE E06 C4 declared in the dark", at, approved: true, eclipse: id });
+                await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE E06 C4 declared in the dark", at, approved: null, eclipse: id });
             }
             words = await wordsSent(async () => {
+                for (const killer of [first, second]) equal(await E.ruleOnParkedMurder(killer.id, true), true, `the GM could not allow ${killer.name}'s declaration`);
+                await settle();
                 await E.endEclipse({ advance: false });
                 await settle();
             });
@@ -4540,6 +4547,72 @@ const SCENARIOS = [
         const gmKept = game.messages.contents.slice(from).some(m => contentOf(m).includes(reason));
         equal(stableJson([toSecond.length, toSecond.some(h => h.includes(refused)), gmKept]), stableJson([1, true, true]),
             `the second killer was not sent one card, the ordinary refusal, or the GMs lost the reason: ${
+                stableJson(toSecond.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 100)))}`);
+    }],
+
+    ["a killer allowed in the dark who stands alone is told so at the lights, even with an incident open", async () => {
+        /*
+         * E08+E28 C19b, 04.10.2026; D6's gap, the owner's decision of 03.10. The lights tested for
+         * a running incident before the room, so a second killer the GM had allowed on the card
+         * and who stood with nobody was told "The GM did not allow it" - a refusal that was not
+         * the GM's - and the GMs were told an incident was already open instead of why the
+         * attempt came to nothing. The room is read first now (eclipse.mjs `judgePendingMurders`).
+         * One pair stood alone, the second killer alone in another room, both declarations named
+         * for this Eclipse and allowed through the card's own call, the pair's first; the lights
+         * open the pair's incident, and the second killer's player is sent the room's words, read
+         * off the packets from before the first allowance to after the lights, and the GMs keep
+         * `murderCancelled`, not `murderSecondDeclaration`, off this GM's own copy.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two killers whose players are sent the lights' answers");
+        needs(world.atLeast("livingStudents", 3), "two killers and one victim");
+        needs(world.atLeast("studentTokensOnScreen", 3), "the pair and the lone killer are stood in rooms by their tokens");
+        needs(world.atLeast("namedRooms", 3), "a room is left to the pair and one to the lone killer");
+        const E = await import("./eclipse.mjs");
+        const S = await import("./gm-stores.mjs");
+        const M = await import("./murder.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [first, second] = livingStudents().filter(player);
+        const [victim] = livingStudents().filter(a => a !== first && a !== second);
+        equal(M.murderState(), null, "an incident was already running when this scenario started");
+        const stood = [await aloneTogether(first, victim, { asked: true })];
+        let words = [], opened = null;
+        const from = game.messages.size;
+        try {
+            stood.push(await aloneTogether(second, null, { asked: true }));
+            await E.startEclipse();
+            await settle();
+            const id = E.eclipseId();
+            ok(E.isEclipse() && id, `the Eclipse did not open, or has no name (${id})`);
+            for (const [at, killer, room] of [[1, first, stood[0].room], [2, second, stood[1].room]]) {
+                await S.pendingMurderStore.patch(killer.id, { room, note: "SUITE C19b declared in the dark", at, approved: null, eclipse: id });
+            }
+            words = await wordsSent(async () => {
+                for (const killer of [first, second]) equal(await E.ruleOnParkedMurder(killer.id, true), true, `the GM could not allow ${killer.name}'s declaration`);
+                await settle();
+                await E.endEclipse({ advance: false });
+                await settle();
+            });
+            opened = M.murderState()?.killerId ?? null;
+        } finally {
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await S.pendingMurderStore.dropMany([first.id, second.id].filter(id => S.pendingMurderStore.has(id)));
+            for (const s of [...stood].reverse()) await s.back();
+        }
+        const nobody = game.i18n.localize("DRPG.Action.murderNobody");
+        const refused = game.i18n.localize("DRPG.Action.murderRefused");
+        const toSecond = words.filter(w => w.to.includes(player(second).id)).map(w => w.html);
+        const kept = game.messages.contents.slice(from).map(m => contentOf(m));
+        const cancelled = game.i18n.format("DRPG.Action.murderCancelled", { killer: foundry.utils.escapeHTML(second.name),
+            room: foundry.utils.escapeHTML(stood[1].room), reason: foundry.utils.escapeHTML(nobody) });
+        const reason = game.i18n.format("DRPG.Action.murderSecondDeclaration", { killer: foundry.utils.escapeHTML(second.name) });
+        equal(stableJson([opened, toSecond.length, toSecond.some(h => h.includes(nobody)), toSecond.some(h => h.includes(refused)),
+            kept.some(c => c.includes(cancelled)), kept.some(c => c.includes(reason))]),
+        stableJson([first.id, 1, true, false, true, false]),
+            "the pair's incident did not open, or the lone killer was not sent one card with the room's words, or was sent the refusal, "
+            + `or the GMs were not told why it came to nothing (opened, cards, nobody, refused, cancelled, second declaration): ${
                 stableJson(toSecond.map(h => h.replace(/<[^>]+>/g, " ").trim().slice(0, 100)))}`);
     }],
 
@@ -9673,8 +9746,11 @@ const SCENARIOS = [
          * the killer's player. Driven through the game's own calls: the Eclipse opens; the
          * declaration is parked; the world's old key holds nothing, and the GMs' store holds it,
          * named for this Eclipse; the ask is one card in the GMs' log, no thread's; the GM allows
-         * it, and the killer's card of the ruling is veiled; the killer and the victim stand alone
-         * in a room, and the lights open the incident between them and leave no row behind.
+         * it, and the killer is sent nothing - the allowance is told at the lights (E08+E28 C19b,
+         * 04.10.2026: a declaration allowed in the dark can still be refused there, and its killer
+         * was told yes, then no); a second declaration, the victim's, is refused, and its card is
+         * veiled; the killer and the victim stand alone in a room, and the lights open the
+         * incident between them and leave no row behind.
          */
         const E = await import("./eclipse.mjs");
         const S = await import("./gm-stores.mjs");
@@ -9703,11 +9779,23 @@ const SCENARIOS = [
                 && asked[0].whisper.every(u => game.users.get(u)?.isGM),
                 `the ask is not one card in the GMs' log: ${stableJson(asked.map(m => [m.whisper, m.flags?.[MODULE_ID]?.thread ?? null]))}`);
 
-            equal(await E.ruleOnParkedMurder(killer.id, true), true, "the GM could not allow the declaration");
-            const ruled = saying(game.i18n.localize("DRPG.Action.murderApproved"));
-            ok(ruled.length === 1 && ruled[0].getFlag(MODULE_ID, "veiled") === true && ruled[0].speaker?.actor !== killer.id,
-                "the killer's card of the ruling is not veiled: its document names the killer, or it was not posted");
-            equal(S.pendingMurderStore.get(killer.id)?.approved, true, "the ruling did not reach the GMs' store");
+            const beforeRuling = game.messages.size;
+            const told = await wordsSent(async () => {
+                equal(await E.ruleOnParkedMurder(killer.id, true), true, "the GM could not allow the declaration");
+                await settle();
+            });
+            equal(stableJson([told.length, game.messages.size - beforeRuling, S.pendingMurderStore.get(killer.id)?.approved ?? null]),
+                stableJson([0, 0, true]), "the allowance sent the killer's player a card, posted one, or did not reach the GMs' store (packets, cards, approved)");
+
+            const REFUSED = "SUITE C19b refused in the dark";
+            await E.parkDirectMurder({ killerId: victim.id, room: stood.room, note: REFUSED });
+            await settle();
+            equal(await E.ruleOnParkedMurder(victim.id, false), false, "the GM could not refuse the second declaration");
+            await settle();
+            const refusal = saying(game.i18n.localize("DRPG.Action.murderRefused"));
+            ok(refusal.length === 1 && refusal[0].getFlag(MODULE_ID, "veiled") === true && refusal[0].speaker?.actor !== victim.id
+                && !S.pendingMurderStore.has(victim.id),
+                "the refusal's card is not veiled - its document names the one refused - or it was not posted, or the refused row stands");
 
             await E.endEclipse({ advance: false });
             await settle();

@@ -676,7 +676,6 @@
       "murderNeedsApproval": "A direct murder, declared in the dark. Nothing opens until you allow it - and who they end up alone with is not settled yet.",
       "murderApprove": "Allow it",
       "murderRefuse": "Refuse",
-      "murderApproved": "The GM has allowed the attempt. What comes of it still depends on where everyone ends up.",
       "murderRefused": "The GM did not allow it. The action is spent.",
       "murderApprovedGm": "{name}'s direct murder is allowed. It resolves when the Eclipse ends.",
       "murderRefusedGm": "{name}'s direct murder is refused. Their action is spent.",

@@ -662,7 +662,6 @@
       "murderNeedsApproval": "Direct Murder zgłoszony w ciemności. Nic się nie otworzy, dopóki nie pozwolisz - a z kim skończą sam na sam, jeszcze nie wiadomo.",
       "murderApprove": "Pozwól",
       "murderRefuse": "Odmów",
-      "murderApproved": "GM pozwolił na próbę. Co z niej wyniknie, zależy od tego, gdzie wszyscy skończą.",
       "murderRefused": "GM nie pozwolił. Akcja przepada.",
       "murderApprovedGm": "Direct Murder ({name}) dozwolony. Rozstrzygnie się z końcem Eclipse.",
       "murderRefusedGm": "Direct Murder ({name}) odrzucony. Akcja przepada.",

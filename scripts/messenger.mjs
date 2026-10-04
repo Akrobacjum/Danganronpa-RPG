@@ -26,7 +26,8 @@
  * whether it asks the GM (`gmAsk`) and when. A card whose mere existence in one
  * player's thread is the secret is not put there that way. The Direct Murder
  * declared in the dark goes to the GMs in their own log (`callGm` with
- * `gmOnly`), and its ruling reaches the killer veiled (eclipse.mjs). The trap's
+ * `gmOnly`), and a refusal reaches the killer veiled (eclipse.mjs; an allowance is
+ * told only at the lights, E08+E28 C19b). The trap's
  * receipt belongs in the killer's thread and a reshape card (Stage 6's, a
  * Tamper's) in its player's, and since E06 C8 (28.09.2026; audit L18, S05-15)
  * they are VEILED thread cards (`callGm` with `veiled`): the document is
