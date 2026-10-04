@@ -1869,11 +1869,20 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const src = name => stripComments(sources.get(name) ?? "");
 
-        // Listen names only the rooms the listener has discovered.
+        // Listen names only the rooms the listener has discovered - its first throw and, since
+        // E08+E28 fix r1-G4, its Reroll's lines (built on the roller's browser, reroll.mjs
+        // `listenLines`), through the one rule (`listenLabels`).
         const listen = src("action-rolls.mjs");
         const body = bodyOf(listen, "async function performListen", { until: "\n}" });
-        ok(/roomsKnownToMe\(\)/.test(body) && /DRPG\.Listen\.unknownRoom/.test(body),
-            "Listen names every neighbouring room again, discovered or not");
+        const rerolled = bodyOf(src("reroll.mjs"), "async function listenLines", { until: "\n}" });
+        const doors = /listenLabels\(neighbours, roomsKnownToMe\(\)\)/;
+        ok(doors.test(body) && doors.test(rerolled),
+            "Listen names every neighbouring room again, discovered or not (the first throw or the Reroll)");
+        const { listenLabels } = await import("./action-rolls.mjs");
+        const unexplored = n => game.i18n.format("DRPG.Listen.unknownRoom", { n });
+        equal(JSON.stringify([[...listenLabels(["A", "B", "C"], new Set(["B"])).values()], [...listenLabels(["A", "B"], null).values()]]),
+            JSON.stringify([[unexplored(1), "B", unexplored(2)], ["A", "B"]]),
+            "a room the viewer has not been in is not \"Unexplored room n\", or a GM's map loses a name");
         ok(/<option value="\$\{i\}">/.test(body), "Listen's options carry room names in the page");
         ok(game.i18n.has("DRPG.Listen.unknownRoom"), "the unexplored-room label has no text");
 

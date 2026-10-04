@@ -4697,6 +4697,69 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Listen's Reroll is heard on the roller's browser: the GM answers the dice, not who is in the room", async () => {
+        /*
+         * E08+E28 fix r1-G4, 04.10.2026; the round-1 review's S3. Since C4a a Listen's replay ran on
+         * the GM and built its lines with the GM's knowledge: a death only the GMs' store held left
+         * the character out of the room, where the roller's own browser - and so the first throw -
+         * still named them (the review's probe A: "In Cafeteria: empty"). The GM answers the row's
+         * room and target and the new dice now, and the roller's browser hears them (reroll.mjs
+         * `settleListen`, `heardLines`); what a player's browser names is 30-security's 7l. A
+         * connected player's character listens, on a roll the GMs keep, at a room where another
+         * student stands (the GM does not hold the target to the neighbours), and the Reroll (13
+         * to 20, the named band) is asked twice: with that student alive, and with their death
+         * held in the GMs' store only. Read: whether the two answers are the same, the answer's
+         * Listen entry, whether any line of either answer names the student, and whether this
+         * browser hears them from the answer once the death is gone.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the listened-to room is on the scene on screen");
+        needs(world.atLeast("playerCharactersInRooms"), "the roll is a connected player's character's");
+        needs(world.atLeast("studentsInRooms", 2), "another student stands in a room to be heard");
+        const R = await import("./reroll.mjs");
+        const M = await import("./movement.mjs");
+        const { deathStore } = await import("./gm-stores.mjs");
+        const { isDeadForGm } = await import("./settings.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const other = (canvas.tokens?.placeables ?? []).map(t => ({ them: t.actor, room: M.roomOfToken(t.document) }))
+            .find(o => o.them && o.room && M.occupantsOf(o.room, actor).some(a => a.id === o.them.id));
+        must(other, "no other student is heard in any room of the scene on screen - this would measure nothing");
+        must(!deathStore.has(other.them.id), `${other.them.name} has a death in the GMs' store already - this would measure nothing`);
+        const hopeWas = actor.system.resources.hope.value;
+        let F = null, stand = null, dead = false;
+        try {
+            F = await playerRollBookmark(player, actor, "listen", { room: where.room, target: other.room });
+            must(F.verdict && F.row()?.claims?.target === other.room,
+                `the Listen's row does not name the room listened to - this would measure nothing: ${stableJson(F.row())}`);
+            stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 11, fear: 9 } });
+            const ask = async () => {
+                await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+                const out = await R.rerollOnGm(actor, player);
+                await settle();
+                return out?.lines ?? null;
+            };
+            const alive = await ask();
+            await deathStore.patch(other.them.id, { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+            dead = true;
+            must(isDeadForGm(other.them), "the death in the GMs' store is not read on this GM - this would measure nothing");
+            const held = await ask();
+            await deathStore.drop(other.them.id);
+            dead = false;
+            const names = line => typeof line === "string" && line.includes(other.them.name);
+            const entry = (alive ?? []).find(line => line?.listen)?.listen ?? null;
+            equal(stableJson([stableJson(alive) === stableJson(held), entry, [...(alive ?? []), ...(held ?? [])].some(names)]),
+                stableJson([true, { room: F.row()?.room ?? null, target: other.room, total: 20, isCritical: false }, false]),
+                `a Listen's Reroll was heard on the GM (answers alike, the entry, a line of the GM's names ${other.them.name}): ${stableJson({ alive, held })}`);
+            const heard = await R.heardLines(actor, alive);
+            ok(heard.some(names), `this browser does not hear ${other.them.name} from the GM's answer: ${stableJson(heard)}`);
+        } finally {
+            if (dead) await deathStore.drop(other.them.id);
+            stand?.putBack();
+            await F?.putBack();
+            await automatedUpdate(actor, { "system.resources.hope.value": hopeWas });
+        }
+    }],
+
     ["the GM's bookmark of a Search that drew a plant names the plant and its identity", async () => {
         /*
          * E08+E28 C2, 03.10.2026; audit S08-04. A Search that is handed a plant takes it out of

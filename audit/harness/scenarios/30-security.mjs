@@ -1482,6 +1482,71 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         && freshRemoved.placed && !freshRemoved.standing && !freshRemoved.cardSays && !freshRemoved.gmsTold,
         JSON.stringify({ freshRetuned, freshRemoved }));
 
+    phase("a Listen the GM's Reroll answers", { flow: "reroll" });
+    /*
+     * 7l. What a Listen's Reroll hears (E08+E28 fix r1-G4, 04.10.2026; the round-1 review's S3).
+     * Since C4a the replay ran on the GM and built the lines with the GM's knowledge, so a death
+     * the GMs' store held and nobody had found left the body out of the room: the review's probe
+     * A - p1's own browser named Botan Kage in the Cafeteria, and p1's Listen rerolled from 14 to
+     * 19 came back "In Cafeteria: empty". The GM answers the dice and the rooms now, and p1's
+     * browser hears them (reroll.mjs `heardLines`). p1 throws Aiko's Listen at Botan's room (13),
+     * the GM holds Botan's death in its store only and makes the Reroll throw 20 (the named band),
+     * and p1 asks it as the Call does. Read: what p1's own browser names there, and p1's card.
+     */
+    const rooms = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        return { here: M.roomOfActor(game.actors.get("${ids.aiko}")), there: M.roomOfActor(game.actors.get("${ids.botan}")) };`);
+    const listened = await p1.eval(`globalThis.__forceRoll = { hope: 9, fear: 4 };
+        try { const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+            const o = await A.rollTrait(game.actors.get("${ids.aiko}"), "shadow", { actionKey: "listen",
+                context: { room: "${rooms.here}", target: "${rooms.there}" } });
+            return o?.raw?.message?.id ?? null; }
+        finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    await settle(1500);
+    const armed = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { isDeadForGm } = await import("${repoUrl}/scripts/settings.mjs");
+        const who = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get(who.id);
+        const m = game.messages.get(row?.messageId ?? "");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 9, fear: 4 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 11, fear: 9 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        globalThis.__secListenHope = who.system.resources.hope.value;
+        await automatedUpdate(who, { "system.resources.hope.value": 6 });
+        await S.deathStore.patch("${ids.botan}", { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+        return { row: row?.messageId === "${listened}" && row?.actionKey === "listen" && row?.claims?.target === "${rooms.there}",
+            gmDead: isDeadForGm(game.actors.get("${ids.botan}")) };`, { timeout: 30000 });
+    await settle(500);
+    const heard = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const C = await import("${repoUrl}/scripts/calls.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const sees = M.occupantsOf("${rooms.there}", aiko).map(a => a.name);
+        const at = game.messages.contents.length;
+        const made = Boolean(await C.spendHopeCall(aiko, "reroll"));
+        await new Promise(r => setTimeout(r, 800));
+        const card = game.messages.contents.slice(at).map(m => String(S.contentOf(m) ?? "")).find(t => t.includes("Reroll")) ?? null;
+        return { sees, made, card: card ? card.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 400) : null };`, { timeout: 90000 });
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const m = game.messages.get("${listened}");
+        if (m) { delete m.rolls; await m.delete(); }
+        await S.deathStore.drop("${ids.botan}");
+        if (S.rerollBookmarkStore.has("${ids.aiko}")) await S.rerollBookmarkStore.drop("${ids.aiko}");
+        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": globalThis.__secListenHope });
+        delete globalThis.__secListenHope;
+        return true;`, { timeout: 30000 });
+    await settle(300);
+    check("SECURITY: a Listen's Reroll names whom the roller's own browser hears - a death only the GMs hold is not told by it",
+        Boolean(listened) && armed.row && armed.gmDead && heard.made && heard.sees.includes("Botan Kage")
+        && Boolean(heard.card) && heard.card.includes("Botan Kage"), JSON.stringify({ rooms, listened, armed, heard }));
+
     /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *

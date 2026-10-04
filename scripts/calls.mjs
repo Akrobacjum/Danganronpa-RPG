@@ -308,7 +308,8 @@ async function postHopeCallCard(actor, call, note, done, left) {
  * action could be taken back - and made in this tab, which a reload or a closed sheet cut
  * half way. Now this browser pays nothing: it asks (`requestReroll`), the GM checks, pays,
  * makes it and answers the lines, and the card is posted from the answer with the Hope the
- * character holds after the GM's write. A refusal - before the payment, or after the GM gave
+ * character holds after the GM's write - a Listen's lines heard here, with what this browser
+ * holds (reroll.mjs `heardLines`, fix r1-G4). A refusal - before the payment, or after the GM gave
  * back what it took - was told to a player by the bridge (E31); on a GM's own client it is
  * said here. No card either way.
  */
@@ -327,7 +328,8 @@ async function askReroll(actor, key, call, { note, choice }) {
         }
         return null;
     }
-    await postHopeCallCard(actor, call, note, out.lines, hopeHeld(actor));
+    const { heardLines } = await import("./reroll.mjs");
+    await postHopeCallCard(actor, call, note, await heardLines(actor, out.lines), hopeHeld(actor));
     log(`${actor.name} spent ${call.cost} Hope on ${call.label}, paid and made by the GM.`);
     Hooks.callAll("drpgHopeCall", { actor, key, call, note, choice });
     return call;

@@ -4960,6 +4960,24 @@ async function askWhatToAnalyze(actor, def, bullets) {
 }
 
 /**
+ * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
+ * discovered or not, so opening Listen in a room with an unexplored neighbour printed that
+ * room's name - the one thing the fog and the refused crossing (`notConnectedText`) are
+ * careful never to say. A room this viewer has not been in is "Unexplored room 1, 2...",
+ * in the picker and in the answer alike, and the option values are indices, so the page
+ * carries no name either. A GM and the Mastermind, who know the map, see every name
+ * (`known` is `roomsKnownToMe()`, `null` for them). One function since E08+E28 fix r1-G4
+ * (04.10.2026): a Reroll's lines are built on the roller's browser from the same rooms
+ * (reroll.mjs `heardLines`), so the same door gets the same number twice.
+ */
+export function listenLabels(neighbours, known) {
+    let unexplored = 0;
+    return new Map(neighbours.map(r => [r, !known || known.has(r)
+        ? r
+        : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
+}
+
+/**
  * Listen - fully automatic, no GM.
  *
  * The guide's three outcomes map onto three amounts of information:
@@ -4984,17 +5002,7 @@ async function performListen(actor, def, options) {
         return null;
     }
 
-    /* THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
-       discovered or not, so opening Listen in a room with an unexplored neighbour printed that
-       room's name - the one thing the fog and the refused crossing (`notConnectedText`) are
-       careful never to say. A room this viewer has not been in is "Unexplored room 1, 2...",
-       in the picker and in the answer alike, and the option values are indices, so the page
-       carries no name either. A GM and the Mastermind, who know the map, see every name. */
-    const known = roomsKnownToMe();
-    let unexplored = 0;
-    const labelOf = new Map(neighbours.map(r => [r, !known || known.has(r)
-        ? r
-        : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
+    const labelOf = listenLabels(neighbours, roomsKnownToMe());
 
     const options_ = neighbours
         .map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(labelOf.get(r))}</option>`)

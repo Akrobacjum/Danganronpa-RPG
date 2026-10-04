@@ -44,7 +44,7 @@
 
 import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
 import { resolveThreshold, easedBy, log, error, plural, esc, isPrimaryGm, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
-import { searchTier, stashStepFor, stashText, rollTone } from "./action-rolls.mjs";
+import { searchTier, stashStepFor, stashText, rollTone, listenLabels } from "./action-rolls.mjs";
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
@@ -398,10 +398,11 @@ async function rerollRefusal(actor, sender, cost) {
 
 /**
  * Make `actor`'s Reroll on this GM's client, for `sender` (the user Foundry names, or
- * this GM). Answers `{ lines }` once it stands, or `{ refused, say }` - `refused` the
- * English reason the bridge refuses with, `say` (or `said`, already worded) what a GM's
- * own Reroll shows. Nothing is written before the checks pass; anything written after
- * them is given back when the Reroll does not stand.
+ * this GM). Answers `{ lines }` once it stands (a Listen's as an entry the roller hears,
+ * `heardLines`), or `{ refused, say }` - `refused` the English reason the bridge refuses
+ * with, `say` (or `said`, already worded) what a GM's own Reroll shows. Nothing is written
+ * before the checks pass; anything written after them is given back when the Reroll does
+ * not stand.
  */
 export async function rerollOnGm(actor, sender) {
     if (!game.user?.isGM || !actor?.id) return { refused: "no such character", say: "DRPG.Reroll.nothingToReroll" };
@@ -1167,10 +1168,6 @@ async function settleDynamic(actor, bookmark, after, done) {
 }
 
 /**
- * Listen leaves nothing behind, so there is nothing to undo - the new number
- * simply buys a different amount of information about the same room.
- */
-/**
  * Take back an Observe and score it again.
  *
  * The target does not move. The character was looking at one particular trace
@@ -1392,39 +1389,72 @@ async function settleAnalyze(actor, bookmark, after, done) {
     return { bulletId: bookmark.bulletId };
 }
 
+/**
+ * Listen leaves nothing behind, so there is nothing to undo - the new number
+ * simply buys a different amount of information about the same room.
+ *
+ * A LISTEN IS HEARD WHERE IT WAS THROWN (E08+E28 fix r1-G4, 04.10.2026; the round-1
+ * review's S3). Since C4a this ran on the GM and built the lines itself, with the GM's
+ * knowledge: `occupantsOf` leaves out a death the GMs' store holds and nobody has found
+ * (settings.mjs `isDeadForGm` - on a GM the GMs' row, on a player only their own copy),
+ * and reads the scene the GM has on screen. The review's probe A: with Botan Kage's death
+ * in the GMs' store only, p1's own browser named Botan in the Cafeteria, and p1's Listen
+ * rerolled from 14 to 19 came back "In Cafeteria: empty" - the Reroll told the roller of
+ * a death before the body was found. The lines also printed the raw names of rooms the
+ * roller had not been in, where the first throw says "Unexplored room n" (22.09). So the
+ * GM answers only what it holds - the row's room and target and the new dice - as one
+ * entry among the lines, and the roller's browser builds the words from it with what it
+ * holds itself (`heardLines`), as action-rolls.mjs `performListen` built the first ones.
+ * The target is the roller's own claim, and what is heard of it is what their browser
+ * already shows them, so the GM does not hold it to the room's neighbours.
+ */
 async function settleListen(actor, bookmark, after, done) {
-    const def = ACTIONS.listen;
-    const target = bookmark.target;
-    if (!target) {
+    if (!bookmark.target) {
         done.push(game.i18n.localize("DRPG.Reroll.noReplay"));
         return {};
     }
+    done.push({ listen: { room: bookmark.room ?? null, target: bookmark.target,
+        total: after.total ?? null, isCritical: Boolean(after.isCritical) } });
+    return {};
+}
 
-    const { neighbouringRooms, occupantsOf } = await import("./movement.mjs");
-    const hit = resolveThreshold(after.total, def.thresholds);
+/**
+ * The Reroll's lines as the roller reads them: the GM's words as they are, and a Listen's
+ * entry (`settleListen`) heard on this browser - its own tokens, its own copy of the deaths
+ * it may know, its own map (action-rolls.mjs `listenLabels`). Exported for calls.mjs
+ * `askReroll` and the suite.
+ */
+export async function heardLines(actor, lines) {
+    const out = [];
+    for (const line of Array.isArray(lines) ? lines : []) {
+        if (typeof line === "string") out.push(line);
+        else if (line?.listen) out.push(...await listenLines(actor, line.listen));
+    }
+    return out;
+}
+
+async function listenLines(actor, { room, target, total, isCritical }) {
+    const def = ACTIONS.listen;
+    const { neighbouringRooms, occupantsOf, roomsKnownToMe } = await import("./movement.mjs");
+    const neighbours = room ? neighbouringRooms(room) : [];
+    const labelOf = listenLabels(neighbours, roomsKnownToMe());
+    const shown = r => labelOf.get(r) ?? r;
+    const named = r => {
+        const who = occupantsOf(r, actor).map(a => a.name);
+        return who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty");
+    };
+    const hit = resolveThreshold(Number(total), def.thresholds);
     const namedFrom = Math.max(...def.thresholds.map(t => t.min));
 
-    if (after.isCritical) {
-        for (const room of neighbouringRooms(bookmark.room)) {
-            const who = occupantsOf(room, actor).map(a => a.name);
-            done.push(`${room} - ${who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty")}`);
-        }
-    } else if (hit && hit.min >= namedFrom) {
-        const who = occupantsOf(target, actor).map(a => a.name);
-        done.push(game.i18n.format("DRPG.Listen.named", {
-            room: target,
-            who: who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty")
-        }));
-    } else if (hit) {
+    if (isCritical) return neighbours.map(r => `${shown(r)} - ${named(r)}`);
+    if (hit && hit.min >= namedFrom) return [game.i18n.format("DRPG.Listen.named", { room: shown(target), who: named(target) })];
+    if (hit) {
         const count = occupantsOf(target, actor).length;
-        done.push(count
-            ? plural("DRPG.Listen.anonymous", { room: target, n: count })
-            : game.i18n.format("DRPG.Listen.emptyRoom", { room: target }));
-    } else {
-        done.push(def.failure);
+        return [count
+            ? plural("DRPG.Listen.anonymous", { room: shown(target), n: count })
+            : game.i18n.format("DRPG.Listen.emptyRoom", { room: shown(target) })];
     }
-
-    return {};
+    return [def.failure];
 }
 
 /**
