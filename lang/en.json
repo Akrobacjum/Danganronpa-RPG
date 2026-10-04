@@ -2950,7 +2950,16 @@
         "dice": "extra dice",
         "advantage": "advantage dice",
         "stash": "hidden stash not named"
-      }
+      },
+      "waitsForGm": "An action roll waits for a GM: no GM is connected, so the action was not taken and nothing was paid.",
+      "unwitnessed": "Thrown with no GM connected - the GM will see it.",
+      "awayTitle": "Rolls made while no GM was connected",
+      "awayLine": "{name}: Hope die {hope}, Despair die {fear} - {moves}",
+      "awayHope": "+{n} Hope",
+      "awayDespair": "+1 Despair",
+      "awayNothing": "nothing (a reaction)",
+      "grantAll": "Grant all",
+      "grantNone": "Grant none"
     },
     "Messenger": {
       "launcherTooltip": "Messenger",

@@ -53,6 +53,14 @@ async function onChatMessage(message) {
             return;
         }
 
+        // A roll thrown with no GM connected (E08+E28 C18, roll-draw.mjs `UNWITNESSED_FLAG`) is
+        // the GMs' card's to grant, its Despair with it: awarded here as well, a Grant all paid it
+        // twice. A stamp is its roller's word, so one written while a GM is here asks that GM too.
+        if (message.getFlag?.(MODULE_ID, "unwitnessed")) {
+            debug("A roll thrown with no GM connected: its Despair waits for the GMs' card.");
+            return;
+        }
+
         const actor = await resolveActor(message);
         if (!actor || actor.type !== "character") {
             debug("Roll had no character behind it; nothing awarded.", message?.speaker);

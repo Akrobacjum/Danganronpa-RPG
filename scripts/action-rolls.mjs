@@ -39,7 +39,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
@@ -110,6 +110,9 @@ function suiteRolling() {
  */
 const GM_ROUTE_CLASS = "drpg-gm-route";
 
+/** The actions `performAction` lets through with no GM connected: none of them throws dice there (E08+E28 C18). */
+const THROWS_NO_DICE = new Set(["move", "rest", "directMurder"]);
+
 /* ==========================================================================
  * ENTRY POINT
  * ========================================================================== */
@@ -129,6 +132,21 @@ export async function performAction(actor, actionKey, options = {}) {
         if (options.free && !game.user.isGM) options = { ...options, free: false };
         if (!actor || actor.type !== "character") {
             ui.notifications.warn(game.i18n.localize("DRPG.Character.notACharacter"));
+            return null;
+        }
+
+        /*
+         * AN ACTION ROLL WAITS FOR A GM (E08+E28 C18, 04.10.2026; the plan's 3.7). A player's
+         * action roll is drawn by the primary GM (roll-draw.mjs), so with no GM connected it
+         * cannot be made - and until C18 it was thrown here anyway and its request refused for
+         * want of a GM, after the price where the action pays first. Refused here, before any
+         * price or window: the first line every action passes. Move and Rest throw no dice, and
+         * Direct Murder's two roads
+         * (a betrayal, a declaration in the dark) ask the GM and say so themselves. A GM who
+         * leaves after this line has the roll refused at the draw (`drawOrThrow`).
+         */
+        if (!game.user.isGM && !activeGmIds().length && !THROWS_NO_DICE.has(actionKey)) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Rolls.waitsForGm"));
             return null;
         }
 

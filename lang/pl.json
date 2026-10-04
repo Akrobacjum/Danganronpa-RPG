@@ -3062,7 +3062,16 @@
         "dice": "dodatkowe kości",
         "advantage": "kości przewagi",
         "stash": "niezgłoszona ukryta skrytka"
-      }
+      },
+      "waitsForGm": "Rzut akcji czeka na GM-a: żaden GM nie jest połączony, więc akcja się nie odbyła i nic nie zapłacono.",
+      "unwitnessed": "Rzucono bez połączonego GM-a - GM to zobaczy.",
+      "awayTitle": "Rzuty wykonane bez połączonego GM-a",
+      "awayLine": "{name}: kość Hope {hope}, kość Despair {fear} - {moves}",
+      "awayHope": "+{n} Hope",
+      "awayDespair": "+1 Despair",
+      "awayNothing": "nic (reakcja)",
+      "grantAll": "Przyznaj wszystkie",
+      "grantNone": "Nie przyznawaj"
     },
     "Messenger": {
       "launcherTooltip": "Komunikator",

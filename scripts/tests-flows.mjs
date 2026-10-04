@@ -99,8 +99,10 @@ export const FLOWS = Object.freeze([
     // and record; 30-security sends a forged draw. Partial: the resolutions read the record from C14 on.
     // Covered from C17 (04.10.2026): every resolution that takes a roll's result reads it off the record (R218's
     // list is empty), and 30 and 40 drive a player's drawn roll and a console's packet that names one.
+    // E08+E28 C18 (04.10.2026): 15-held drops the GM - an action refused, a statistic stamped - and a GM's
+    // return grants it on the GMs' card.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
-        entry: { bridge: ["roll.draw"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "1.2.67" },
+        entry: { bridge: ["roll.draw"] }, scenarios: ["40-flow", "30-security", "15-held"], status: "covered", stage: "1.2.67" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
         entry: { bridge: ["call.approve"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",

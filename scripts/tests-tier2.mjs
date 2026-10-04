@@ -7,7 +7,7 @@
  * tests.mjs calls both. Never run it in a world somebody is playing in.
  */
 
-import { MODULE_ID, EQUIPPABLE, SFX_EVENTS, FLAGS, PRICE_CHAINS } from "./config.mjs";
+import { MODULE_ID, EQUIPPABLE, SFX_EVENTS, FLAGS, PRICE_CHAINS, CRITICAL } from "./config.mjs";
 import { SETTINGS, getSetting, BREAKPOINTS, narrowScreen, shortScreen, seasonEpoch } from "./settings.mjs";
 import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
@@ -6284,6 +6284,61 @@ const SCENARIOS = [
         } finally {
             await kept?.putBack();
             if (message) await game.messages.get(message.id)?.delete();
+        }
+    }],
+
+    ["Grant all grants each stamped roll once", async () => {
+        /*
+         * E08+E28 C18, 04.10.2026; the plan's 3.7. A roll thrown while no GM was connected is
+         * stamped and moves nothing (roll-draw.mjs `throwUnwitnessed`); on a GM's return the GMs'
+         * card grants it (`askAboutUnwitnessed`, `decideUnwitnessed`). The suite is a GM's browser,
+         * whose own rolls are never stamped, so the player's half is a roll thrown here and made
+         * theirs - its author the player, its stamp as the roller's browser writes it: a 9 and a 4
+         * and a 7 and a 7 of the player's character, and a 9 and a 4 stamped for a character the
+         * player does not play (a stamp is the roller's word). 15-held throws a stamped roll on a
+         * player's browser with the GM gone. Read: the card's list, then Grant all twice at once
+         * and once more - how many each granted, the Hope moved from 0 (1 and the critical's
+         * `CRITICAL.hope`, 2), each stamp's `granted` and whether the message is now this GM's.
+         * Red at C17's runtime: roll-draw.mjs has no card to ask with.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected player who plays a character");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "every character is the player's - the stamp for somebody else's would measure nothing");
+        const D = await import("./roll-draw.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const made = [];
+        let card = null;
+        const stamped = async (actor, faces) => {
+            const { message } = await neutralRoll(theirs, { faces });
+            must(message, `no roll of ${theirs.name} was thrown - this would measure nothing`);
+            made.push(message.id);
+            await message.update({ author: player.id,
+                [`flags.${MODULE_ID}.${D.UNWITNESSED_FLAG}`]: { nonce: foundry.utils.randomID(), actorId: actor.id, at: Date.now() } });
+            return message.id;
+        };
+        try {
+            const ids = [await stamped(theirs, { hope: 9, fear: 4 }), await stamped(theirs, { hope: 7, fear: 7 }), await stamped(other, { hope: 9, fear: 4 })];
+            card = await D.askAboutUnwitnessed(ids.map(id => game.messages.get(id)));
+            await until(() => Array.isArray(cardFlag(card, "awayRolls")));
+            const listed = cardFlag(card, "awayRolls");
+            await theirs.update({ "system.resources.hope.value": 0 });
+            const counts = await withDhAutomation({ hopeFear: { players: true } }, async () => {
+                const both = await Promise.all([D.decideUnwitnessed(ids, true), D.decideUnwitnessed(ids, true)]);
+                const again = await D.decideUnwitnessed(ids, true);
+                await until(() => theirs.system.resources.hope.value === 1 + CRITICAL.hope);
+                await settle();
+                return [both[0].length + both[1].length, again.length];
+            });
+            const marks = ids.map(id => {
+                const message = game.messages.get(id);
+                return [message?.getFlag(MODULE_ID, D.UNWITNESSED_FLAG)?.granted ?? null, message?.author?.id === game.user.id];
+            });
+            equal(stableJson([stableJson(listed) === stableJson(ids.slice(0, 2)), counts, theirs.system.resources.hope.value, marks]),
+                stableJson([true, [2, 0], 1 + CRITICAL.hope, [[true, true], [true, true], [null, false]]]),
+                "the card listed the wrong rolls, or Grant all granted one twice or a stamp for another's character, or left a roll its roller's (listed the two; granted at once, again; Hope; each: granted, this GM's)");
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+            if (card) await game.messages.get(card.id)?.delete();
         }
     }],
 

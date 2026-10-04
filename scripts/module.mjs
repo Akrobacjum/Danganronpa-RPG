@@ -73,7 +73,7 @@ import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerNoScrollingText } from "./no-scrolling-text.mjs";
 import { registerCriticalRule } from "./critical.mjs";
-import { registerRollDraw, announceRollDraw } from "./roll-draw.mjs";
+import { registerRollDraw, announceRollDraw, registerUnwitnessedRolls, askAboutUnwitnessed } from "./roll-draw.mjs";
 import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
@@ -271,6 +271,8 @@ Hooks.once("setup", () => {
     // A player's roll, drawn by the GM (E08+E28 C12a, roll-draw.mjs): the same class, at the
     // same moment, for the same reason.
     safely("the GM's draw of a player's roll", registerRollDraw);
+    // And a roll thrown while no GM was connected (E08+E28 C18): stamped as it is created, and asked of the GMs.
+    safely("the rolls thrown with no GM connected", registerUnwitnessedRolls);
 });
 
 Hooks.once("ready", () => {
@@ -293,6 +295,9 @@ Hooks.once("ready", () => {
     // And a Daggerheart whose roll the GM's draw was not written for (E08+E28 C12a), once per version.
     announceRollDraw().catch(err =>
         error("Could not say that rolls are not drawn by the GM", err));
+    // And the rolls the players threw while no GM was connected, on one card to grant or not (E08+E28 C18).
+    askAboutUnwitnessed().catch(err =>
+        error("Could not ask the GMs about the rolls thrown with no GM connected", err));
 
     // Before the migration, whose clauses read the GM-only stores and wait until
     // this client holds the other GMs' copies of them (E04, gm-stores.mjs): the

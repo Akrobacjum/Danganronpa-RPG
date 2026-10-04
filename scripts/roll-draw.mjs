@@ -18,8 +18,9 @@
  * read on the roller's browser alone (private-rolls.mjs `readableHere`). Daggerheart's own
  * item rolls (their source names an item or an action) and a Monocub's Meddle (a plain
  * `Roll`, which the GM throws itself since C17, monocub.mjs `meddleOnGm`) are not drawn; a GM's
- * own roll is its own; with no GM the roll is
- * thrown here, as in 1.2.66, until C18 makes an action wait. What the roll adds up to beyond its dice - the
+ * own roll is its own; with no GM an action's roll is not made and any other roll is thrown here,
+ * as in 1.2.66, stamped and moving nothing until a GM grants it (C18, "WITH NO GM CONNECTED"
+ * below). What the roll adds up to beyond its dice - the
  * statistic, the experiences, the advantage - is the roller's configuration, which
  * the GM holds against what it expects (C12b, "WHAT THE GM EXPECTS" below); the dice
  * are the GM's from here on.
@@ -45,10 +46,11 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING } from "./config.mjs";
+import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, whisperToGms, warn, error, esc } from "./utils.mjs";
-import { bridgeRequest } from "./bridge-guards.mjs";
+import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
+import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { rollStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
@@ -201,8 +203,15 @@ export function drawnByGm(config) {
  * one here, as a roll the module throws is (private-rolls.mjs `supersedingRoll`): the nonce the
  * GM's guard asks of the roll, and the place the roll window leaves the Calls it applied
  * (`noteWindowCalls`), which the GM spends. Its card is Daggerheart's (`keepCard`).
+ *
+ * With no GM connected (C18), before any of that: an action's roll is not made, and any other
+ * roll is thrown here, stamped and moving nothing ("WITH NO GM CONNECTED" below).
  */
 async function drawOrThrow(cls, original, config, message) {
+    if (awayFromGms(config)) {
+        if (config[DRPG_ACTION_ROLL] === true) return void ui.notifications?.warn(game.i18n.localize("DRPG.Rolls.waitsForGm"));
+        return throwUnwitnessed(cls, original, config, message);
+    }
     if (!drawsHere(config)) return original.call(cls, config, message);
     if (config[DRPG_ACTION_ROLL] === true) return drawAndPlay(cls, config, message);
     return supersedingRoll(nonce => {
@@ -809,4 +818,251 @@ export async function keepRerolledVersion(message, roll) {
         versions: [...(Array.isArray(record.versions) ? record.versions : []), previous], rerolledAt: Date.now()
     });
     return true;
+}
+
+/* ==========================================================================
+ * WITH NO GM CONNECTED (E08+E28 C18, 04.10.2026; the plan's 3.7)
+ * --------------------------------------------------------------------------
+ * With nobody to draw it, a player's roll had two ways to go, and the plan took both:
+ *   - AN ACTION'S ROLL IS NOT MADE. The action is refused at its start, before anything is
+ *     paid (action-rolls.mjs `performAction`, "an action roll waits for a GM"); a GM who
+ *     leaves between the window and the draw has the roll refused here, as a closed window
+ *     is, each action's own close path after it.
+ *   - ANY OTHER ROLL (a statistic from the sheet, a reaction, Daggerheart's own item rolls)
+ *     is thrown in this browser as in 1.2.66, its message stamped as it is created - the
+ *     module's flag `unwitnessed`, `{ nonce, actorId, at }` (the plan's `flags.drpg`) - and Daggerheart's
+ *     resource step skipped (`skips.resources`, dualityRoll.mjs `addDualityResourceUpdates`,
+ *     read in 2.10.5): no Hope, no Stress, no Fear. Read in the same source, a player's
+ *     resource write goes through Daggerheart's GM relay (actor.mjs `modifyResource`,
+ *     socket.mjs `emitAsGM`), so with no GM it reached nobody before C18 either; the skip
+ *     makes that a rule rather than a lost packet, and the stamp keeps what was owed.
+ *     The card says so to whoever reads it (`DRPG.Rolls.unwitnessed`, the owner's Q3 (a)).
+ * On a GM's return the primary posts one card to the GMs (`askAboutUnwitnessed`): each
+ * stamped roll nobody has decided, its character, its dice as the player's browser threw
+ * them and what they would have moved, with Grant all and Grant none. The grant is the GM's
+ * (`decideUnwitnessed`): Daggerheart's own resource step on the GM, as the draw runs it
+ * (`DrawnResources`, so critical.mjs's rule and Daggerheart's own gates apply), and the
+ * Despair through `awardRollDespair`, whose award at the message's creation stands aside
+ * for a stamped roll (despair-award.mjs). A stamp is the roller's browser's word, so a
+ * forged one only asks the GM, and the dice on the card are the ones the GM is asked to
+ * believe. The fallback (D1) has no seam, so on a build the draw was not written for
+ * only the action's refusal at its start applies, and nothing is stamped.
+ * ========================================================================== */
+
+/** The flag a stamped roll's message carries: `{ nonce, actorId, at }`, and `granted` once a GM decided. */
+export const UNWITNESSED_FLAG = "unwitnessed";
+/**
+ * The key the stamp's nonce rides under on the roll's config, which Daggerheart makes the
+ * roll's options and the message keeps (as private-rolls.mjs `ROLL_NONCE` does): how the
+ * message created for this roll is told from any other as it is created.
+ */
+const UNWITNESSED = "drpgUnwitnessed";
+/** The stamps of the rolls this browser is throwing with no GM, by nonce, until their message is created. */
+const pendingStamps = new Map();
+/** This client's decisions, one after another: a second click waits for the first's marks and writes. */
+let decisions = Promise.resolve();
+/** How long a grant waits for its character's write to land before the next decision. Chosen, not measured. */
+const GRANT_WAIT_MS = 2000;
+
+/**
+ * Is this a player's roll, with no GM connected to draw it, that will write a message? The
+ * same rolls `drawsHere` asks about, but for whether a GM is there; a GM's own roll is never one.
+ */
+function awayFromGms(config) {
+    if (game.user?.isGM || primaryGmId()) return false;
+    return Boolean(config) && config.evaluate !== false && !config.skips?.createMessage && !config.source?.message;
+}
+
+/** Daggerheart's own build, with the resource step skipped and the stamp handed to the message as it is created. */
+async function throwUnwitnessed(cls, original, config, message) {
+    let actorId = null;
+    try {
+        actorId = typeof config.source?.actor === "string" ? fromUuidSync(config.source.actor)?.id ?? null : null;
+    } catch {
+        actorId = null;
+    }
+    const stamp = { nonce: foundry.utils.randomID(), actorId, at: Date.now() };
+    config.skips = { ...(config.skips ?? {}), resources: true };
+    config[UNWITNESSED] = stamp.nonce;
+    pendingStamps.set(stamp.nonce, stamp);
+    try {
+        return await original.call(cls, config, message);
+    } finally {
+        pendingStamps.delete(stamp.nonce);
+    }
+}
+
+/** `preCreateChatMessage`: the stamp written into the message of a roll thrown with no GM, as it is created. */
+function stampUnwitnessed(message, data) {
+    if (!pendingStamps.size) return;
+    let roll = message?.rolls?.[0] ?? data?.rolls?.[0] ?? null;
+    if (typeof roll === "string") {
+        try { roll = JSON.parse(roll); } catch { return; }
+    }
+    const stamp = pendingStamps.get(roll?.options?.[UNWITNESSED] ?? "");
+    if (!stamp) return;
+    pendingStamps.delete(stamp.nonce);
+    message.updateSource({ [`flags.${MODULE_ID}.${UNWITNESSED_FLAG}`]: { ...stamp } });
+}
+
+/**
+ * A stamped roll no GM has decided, as the GMs' card lists it: the message, the character
+ * the stamp names - played by the message's author, or the stamp asks nothing - the two
+ * dice, and whether it was a reaction, which moves nothing. Null for anything else.
+ */
+function awayRowOf(message) {
+    const stamp = message?.getFlag?.(MODULE_ID, UNWITNESSED_FLAG);
+    if (!stamp || typeof stamp !== "object" || Object.hasOwn(stamp, "granted")) return null;
+    const author = message.author ?? null;
+    const actor = game.actors.get(typeof stamp.actorId === "string" ? stamp.actorId : "");
+    if (!author || author.isGM || !actor || !ownsActor(author, actor.id)) return null;
+    const outcome = readDuality(message);
+    if (!outcome) return null;
+    const dice = message.rolls?.[0] ?? null;
+    return { message, actor, outcome, reaction: dice?.options?.actionType === "reaction",
+        hope: dice?.dHope?.total ?? null, fear: dice?.dFear?.total ?? null };
+}
+
+/** What a stamped roll would have moved, in words: Hope, Despair, or nothing for a reaction. */
+function awayMoves({ outcome, reaction }) {
+    if (reaction) return game.i18n.localize("DRPG.Rolls.awayNothing");
+    const moves = [];
+    const hope = outcome.isCritical ? CRITICAL.hope : outcome.withHope ? 1 : 0;
+    if (hope) moves.push(game.i18n.format("DRPG.Rolls.awayHope", { n: hope }));
+    if (outcome.withFear) moves.push(game.i18n.localize("DRPG.Rolls.awayDespair"));
+    return moves.join(", ");
+}
+
+/**
+ * THE GMs' CARD. At the primary GM's `ready` (module.mjs), and on the primary for a stamped
+ * message created while it is here - a roll begun as it connected, or a stamp a console wrote,
+ * which only asks. Lists `messages` (every message in the log when not given) that carry a
+ * stamp nobody decided; posts nothing when there is none. Answers the card, or null.
+ */
+export async function askAboutUnwitnessed(messages = null) {
+    if (!isPrimaryGm()) return null;
+    const rows = (messages ?? game.messages?.contents ?? []).map(awayRowOf).filter(Boolean);
+    if (!rows.length) return null;
+    const lines = rows.map(row => `<li>${esc(game.i18n.format("DRPG.Rolls.awayLine", {
+        name: row.actor.name, hope: String(row.hope ?? "-"), fear: String(row.fear ?? "-"), moves: awayMoves(row) }))}</li>`).join("");
+    return whisperToGms(`<div class="drpg-away-card"><h3>${esc(game.i18n.localize("DRPG.Rolls.awayTitle"))}</h3><ul>${lines}</ul>`
+        + `<div class="drpg-away-actions"><button type="button" data-drpg-away="grant">${esc(game.i18n.localize("DRPG.Rolls.grantAll"))}</button>`
+        + `<button type="button" data-drpg-away="none">${esc(game.i18n.localize("DRPG.Rolls.grantNone"))}</button></div></div>`,
+    { flags: { [MODULE_ID]: { awayCard: true, awayRolls: rows.map(row => row.message.id) } } });
+}
+
+/**
+ * GRANT ALL, GRANT NONE: each listed roll still undecided is marked `granted` (true or false)
+ * and handed to this GM as its author, and, granted, gets what it would have moved. Handing it
+ * over is what makes the mark the GMs': a message's author may rewrite its flags, and a mark
+ * its roller could take off would list the roll again, to be granted again. A GM may set a
+ * message's author (the harness's model of Foundry allows it; not measured at a table). The
+ * mark is written before the grant, so a second card or a second click finds the roll decided,
+ * and this client's decisions run one after another (`decisions`); two GMs clicking at the
+ * same moment are not kept apart (not measured). GM only. Answers the rolls granted.
+ */
+export function decideUnwitnessed(messageIds, grant) {
+    const run = decisions.then(() => decideNow(messageIds, grant));
+    decisions = run.catch(() => null);
+    return run;
+}
+
+async function decideNow(messageIds, grant) {
+    if (!game.user?.isGM) return [];
+    const granted = [];
+    for (const id of new Set((Array.isArray(messageIds) ? messageIds : []).filter(id => typeof id === "string"))) {
+        const row = awayRowOf(game.messages.get(id));
+        if (!row) continue;
+        try {
+            await row.message.update({ author: game.user.id, [`flags.${MODULE_ID}.${UNWITNESSED_FLAG}.granted`]: grant === true });
+            if (grant === true) granted.push(row);
+        } catch (err) {
+            error("Could not decide a roll thrown with no GM connected", err);
+        }
+    }
+    try {
+        await grantRolls(granted);
+    } catch (err) {
+        error("Could not grant the rolls thrown with no GM connected", err);
+    }
+    return granted.map(row => ({ messageId: row.message.id, actorId: row.actor.id }));
+}
+
+/**
+ * What the rolls would have moved, moved now on this GM: Daggerheart's resource step for each
+ * (`addDualityResourceUpdates`, critical.mjs's top-up and Daggerheart's own gates - the Hope and
+ * Fear automation, a dead or defeated character - with it), summed into one map per character
+ * and written once, and each roll's Despair to its Monokuma. A reaction moves nothing.
+ *
+ * ONE WRITE PER CHARACTER, AND WAITED FOR. Daggerheart's `modifyResource` adds to the value it
+ * holds and returns before its write lands (actor.mjs, 2.10.5), so a grant per roll lost all but
+ * one of a character's: the first build of the suite's "Grant all grants each stamped roll once"
+ * granted a 9-4 and a 7-7 from Hope 0 and read 2, not 3 (04.10.2026, e08run/c18a1). The next
+ * decision waits for the write's `updateActor`, or `GRANT_WAIT_MS` - chosen, not measured -
+ * where none comes (a value already at its bound writes nothing).
+ */
+async function grantRolls(rows) {
+    const cls = game.system?.api?.dice?.DualityRoll;
+    const maps = new Map();
+    for (const { message, actor, outcome, reaction } of rows) {
+        if (reaction) continue;
+        if (!maps.has(actor.id)) maps.set(actor.id, new DrawnResources(actor));
+        const config = {
+            source: { actor: actor.uuid }, actionType: message.rolls?.[0]?.options?.actionType ?? "action", skips: {},
+            roll: { isCritical: outcome.isCritical, result: { duality: outcome.withHope ? 1 : outcome.withFear ? -1 : 0 } },
+            resourceUpdates: maps.get(actor.id)
+        };
+        if (typeof cls?.addDualityResourceUpdates === "function") await cls.addDualityResourceUpdates(config);
+    }
+    for (const [actorId, map] of maps) {
+        if (!map.size) continue;
+        const actor = game.actors.get(actorId);
+        const target = actor?.system?.partner ?? actor;
+        let heard = null;
+        const landed = new Promise(resolve => { heard = resolve; });
+        const hook = Hooks.on("updateActor", doc => { if (doc?.id === target?.id) heard(); });
+        try {
+            await map.updateResources();
+            await Promise.race([landed, new Promise(resolve => setTimeout(resolve, GRANT_WAIT_MS))]);
+        } finally {
+            Hooks.off("updateActor", hook);
+        }
+    }
+    for (const { actor, outcome, reaction } of rows) {
+        if (!reaction && outcome.withFear) await awardRollDespair(actor, 1);
+    }
+}
+
+/** The stamp's line on the roll's card, and the GMs' card's two buttons, wired on a GM. */
+function onRenderUnwitnessed(message, element) {
+    try {
+        const body = element.querySelector(".message-content") ?? element;
+        if (message.getFlag?.(MODULE_ID, UNWITNESSED_FLAG) && !body.querySelector(".drpg-unwitnessed")) {
+            body.insertAdjacentHTML("beforeend", `<p class="drpg-warning drpg-unwitnessed">${esc(game.i18n.localize("DRPG.Rolls.unwitnessed"))}</p>`);
+        }
+        // A GM's card only: a player's card to the GMs may carry any buttons it likes.
+        if (!game.user?.isGM || !message.author?.isGM || !cardFlag(message, "awayCard")) return;
+        const ids = cardFlag(message, "awayRolls");
+        const open = Array.isArray(ids) && ids.some(id => awayRowOf(game.messages.get(id)));
+        if (!open) return void element.querySelector(".drpg-away-actions")?.remove();
+        element.addEventListener("click", async event => {
+            const button = event.target?.closest?.("[data-drpg-away]");
+            if (!button) return;
+            event.preventDefault();
+            element.querySelector(".drpg-away-actions")?.remove();
+            await decideUnwitnessed(ids, button.dataset.drpgAway === "grant");
+        });
+    } catch (err) {
+        error("Could not draw a roll thrown with no GM connected", err);
+    }
+}
+
+/** At `setup`, beside the draw: the stamp as a message is created, its line and the GMs' card as one is drawn. */
+export function registerUnwitnessedRolls() {
+    Hooks.on("preCreateChatMessage", stampUnwitnessed);
+    Hooks.on("renderChatMessageHTML", onRenderUnwitnessed);
+    Hooks.on("createChatMessage", message => {
+        if (!isPrimaryGm() || !awayRowOf(message)) return;
+        askAboutUnwitnessed([message]).catch(err => error("Could not ask the GMs about a roll thrown with no GM connected", err));
+    });
 }
