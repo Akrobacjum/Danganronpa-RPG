@@ -708,6 +708,16 @@ export function buildDocumentClasses(ctx) {
         get character() { return ctx.gameRef().actors.get(this._source.character) ?? null; }
         get color() { return U.Color.from(this._source.color ?? 0x888888); }
         get isSelf() { return this.id === ctx.userId(); }
+        /* Daggerheart 2.10.8's relay moves an item only on `game.user.isActiveGM`
+           (E08+E28 C9, 04.10.2026); without it here that case never runs headless. Which
+           GM Foundry v14 calls active is not read off its source here: this is the
+           module's own rule (utils.mjs `primaryGmId`) - the connected GM of the highest
+           role, the lowest id among them. */
+        get isActiveGM() {
+            const here = ctx.gameRef().users.filter(u => u.active && u.isGM);
+            const top = Math.max(...here.map(u => u.role));
+            return here.filter(u => u.role === top).map(u => u.id).sort()[0] === this.id;
+        }
         get viewedScene() { return this._source.viewedScene ?? ctx.gameRef().canvas?.scene?.id ?? null; }
         hasRole(role, { exact = false } = {}) {
             const levels = { NONE: 0, PLAYER: 1, TRUSTED: 2, ASSISTANT: 3, GAMEMASTER: 4 };

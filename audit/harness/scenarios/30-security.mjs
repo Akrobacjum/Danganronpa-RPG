@@ -1607,6 +1607,63 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             ticked.tick === 2 && Object.keys(ticked.projects).length > 0 && Object.entries(ticked.projects).every(([id, current]) =>
                 projectsBefore[id] === undefined || projectsBefore[id].progress?.current === current),
             JSON.stringify({ ticked, tick: tick.projects.length }));
+
+        /*
+         * 2.10.8's item transfer (E08+E28 C9, 04.10.2026; the owner's Q1 (a), 03.10). The
+         * copy in lib/dh-relay.mjs is 2.10.8's, so the guard must know every case it has;
+         * a player's transfer moves nothing, every packet is logged, each sender is told,
+         * and the GM hears of it once a session - two players, three packets, one toast
+         * (a 30-second window per sender would make two). The target's `transferItem` is
+         * a recorder, which the control then hands the same packet through the copied
+         * relay itself: an item that did not move must be a refusal, not a relay with
+         * no such case (2.10.5's had none).
+         */
+        const guard = await gm.eval(`return game.drpg.relayGuard();`);
+        check("RELAY: the guard has reviewed every case of the copied relay (2.10.8), so none is called unreviewed",
+            guard.state === "ok" && guard.fingerprint.includes("TransferItem") && guard.unreviewed.length === 0,
+            JSON.stringify({ state: guard.state, fingerprint: guard.fingerprint, unreviewed: guard.unreviewed }));
+        const parcel = await gm.eval(`
+            const [item] = await game.actors.get("${ids.aiko}").createEmbeddedDocuments("Item", [{ name: "SEC parcel", type: "loot" }]);
+            const target = game.actors.get("${ids.botan}");
+            globalThis.__secTransfers = [];
+            target.transferItem = ({ item, quantity }) => globalThis.__secTransfers.push({ item: item?.uuid ?? null, quantity });
+            globalThis.__notifications.length = 0;
+            (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+            return { item: item.uuid, target: target.uuid };`);
+        const transfer = `game.socket.emit("${DH}", { action: "DhTransferItem",
+            data: { item: "${parcel.item}", targetActor: "${parcel.target}", quantity: 1 } });`;
+        const listen = `if (!globalThis.__refused) {
+                globalThis.__refused = [];
+                game.socket.on("${SOCKET}", (payload, senderId) => {
+                    if (payload?.action === "bridge.refused") globalThis.__refused.push({ what: payload.what, from: senderId });
+                });
+            }
+            globalThis.__refused.length = 0;`;
+        await p2.eval(`${listen} return true;`);
+        await p1.eval(`${listen} ${transfer} ${transfer} return true;`);
+        await settle(600);
+        await p2.eval(`${transfer} return true;`);
+        await settle(1500);
+        const transferred = await gm.eval(`return {
+            moved: globalThis.__secTransfers.slice(),
+            left: game.actors.get("${ids.aiko}").items.filter(i => i.name === "SEC parcel").length,
+            logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+                .filter(e => e.message.includes('Refused a Daggerheart "DhTransferItem"')).reduce((n, e) => n + (e.count ?? 1), 0),
+            toasts: (globalThis.__notifications ?? []).filter(n => String(n.msg ?? "").includes("an item transfer")).length };`);
+        const transferHeard = await Promise.all([p1, p2].map(p => p.eval(`return globalThis.__refused.filter(r => r.what === "daggerheart").length;`)));
+        check("RELAY: a player's DhTransferItem is refused on the GM - nothing moves, every packet is logged, each player is told and the GM once a session",
+            transferred.moved.length === 0 && transferred.left === 1 && transferred.logged === 3 && transferred.toasts === 1
+            && transferHeard.every(n => n >= 1), JSON.stringify({ transferred, transferHeard }));
+        const direct = await gm.eval(`const R = await import("${repoUrl}/audit/harness/lib/dh-relay.mjs");
+            globalThis.__secTransfers.length = 0;
+            await R.handleSocketEvent({ action: "DhTransferItem",
+                data: { item: "${parcel.item}", targetActor: "${parcel.target}", quantity: 1 } });
+            const calls = globalThis.__secTransfers.slice();
+            delete game.actors.get("${ids.botan}").transferItem;
+            await fromUuidSync("${parcel.item}")?.delete();
+            return calls;`);
+        check("control: the same packet run through the copied relay itself hands the item to the target",
+            direct.length === 1 && direct[0].item === parcel.item && direct[0].quantity === 1, JSON.stringify(direct));
     } finally {
         await gm.eval(`const u = game.users.get("${p1.userId}"); if (u.role !== 1) await u.update({ role: 1 }); return true;`);
     }
