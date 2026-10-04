@@ -66,10 +66,12 @@ function toolRelief(tool, tierOf) {
 export const DRPG_ACTION_ROLL = "drpgActionRoll";
 
 /**
- * The roll was drawn by the primary GM (E08+E28 C12a; roll-draw.mjs): `{ rollId, messageId }`
- * on the config the roller's browser plays the GM's faces into. The GM wrote the message and
- * settled the roll's resources, so `commitResources` commits nothing for it. Never sent: it is
- * put on the config after the roll has left for the GM.
+ * The roll was drawn by the primary GM (E08+E28 C12a; roll-draw.mjs): `{ rollId, messageId,
+ * stash, loaded }` on the config the roller's browser plays the GM's faces into. The GM wrote
+ * the message, settled the roll's resources and spent the Calls it applied, so
+ * `commitResources` commits nothing for it and `throwDice` spends nothing; `stash` is the
+ * hidden stash's step the GM drew (`stashStepOf`), `loaded` whether it loaded the die (C12b).
+ * Never sent: it is put on the config after the roll has left for the GM.
  */
 export const DRAWN_ROLL = "drpgDrawn";
 
@@ -759,7 +761,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // other, all called "Shadow Roll", and the player answers the same
         // question three times without being told which is which.
         ...(title ? { title, headerTitle: title } : {})
-    }), { subject: actor, actionKey });
+    }), { subject: actor, actionKey, facts: { calls: armedCalls.map(entry => entry.nonce), context } });
     if (!result) return null;
     // Which character the roll is about: told to the primary GM as the message
     // was created (the claim's `subject`, E06 fix r1-G2), because the Despair
@@ -777,8 +779,13 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // (roll-dialog.mjs `windowCalls`) and its close has spent them already where
     // there was a window; this spends them where there was none. One armed after
     // that stays armed for the next roll (S02-20, E08+E28 C7): `consumeCalls` spent
-    // the whole list, whatever this roll had applied.
-    if (armedCalls.length) await consumeCallsByNonce(actor, armedCalls.map(entry => entry.nonce));
+    // the whole list, whatever this roll had applied. A roll the GM drew had its Calls
+    // spent by the GM, who read them first (E08+E28 C12b, roll-draw.mjs `drawOnGm`); the
+    // claim's `facts` told it which.
+    const drawn = result?.[DRAWN_ROLL] ?? null;
+    if (armedCalls.length && !drawn) await consumeCallsByNonce(actor, armedCalls.map(entry => entry.nonce));
+    // The Loaded Die is the GM's to load on a drawn roll, and it says whether it did.
+    const loaded = drawn ? drawn.loaded === true : free;
 
     const outcome = {
         total,
@@ -789,11 +796,11 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // a Hand roll as Eye (ROLL-06). Falls back to the argument when the
         // system's result does not say.
         trait: traitRolled(result, drpgTrait),
-        freeCritical: free,
+        freeCritical: loaded,
         raw: result
     };
 
-    if (free) {
+    if (loaded) {
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.freeCritTitle")
         })}<p>${
@@ -1786,10 +1793,25 @@ export function stashDiceOf(roll, actor = null) {
     return { sign: results.length ? (advantage ? 1 : -1) : 0, results, faces };
 }
 
-/** `stashStep` on this roll's dice, at roll-dialog.mjs's cap - the one call `performSearch` and a Reroll share. */
+/** `stashStep` on this roll's dice, at roll-dialog.mjs's cap - the one call the GM's draw, a Search thrown here and a Reroll share. */
 export async function stashStepFor(roll, actor, draw = stashDraw) {
     const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
     return stashStep({ ...stashDiceOf(roll, actor), cap: ADVANTAGE_CAP }, draw);
+}
+
+/**
+ * THE STEP A SEARCH TAKES (E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on C11e).
+ * The set-aside die's index and the extra die were drawn in the searcher's browser and were in
+ * no message, so nothing checked them. For a roll the GM drew, the GM drew the step with the
+ * dice where the room it sees the searcher in holds a hidden stash (roll-draw.mjs `drawOnGm`)
+ * and sent it back with them (`DRAWN_ROLL`'s `stash`): that step is taken, and none is drawn
+ * here - a step the GM did not draw is no step. A roll thrown here (no GM connected, or a
+ * Daggerheart the draw was not written for) draws its own as in 1.2.66.
+ */
+export async function stashStepOf(roll, actor, stashDie, draw = stashDraw) {
+    const drawn = roll?.raw?.[DRAWN_ROLL];
+    if (drawn) return drawn.stash && typeof drawn.stash === "object" && STASH_LINES[drawn.stash.kind] ? { ...drawn.stash } : null;
+    return stashDie ? stashStepFor(roll, actor, draw) : null;
 }
 
 /**
@@ -2230,9 +2252,10 @@ async function performSearch(actor, def, options) {
 
     // The hidden stash's step lands here, on the total the tiers read, and the card says
     // so (`situationLine`); the roll message keeps the dice's own total. The die it sets
-    // aside or rolls is on the card and in its meta beside the total that counts (`stash`,
-    // for E28), and nowhere else: no message of its own, no Dice So Nice (`stashDraw`).
-    const step = stashDie ? await stashStepFor(roll, actor) : null;
+    // aside or rolls is on the card and in its meta beside the total that counts (`stash`),
+    // and nowhere else: no message of its own, no Dice So Nice (`stashDraw`). The GM's
+    // for a roll it drew (`stashStepOf`, E08+E28 C12b).
+    const step = await stashStepOf(roll, actor, stashDie);
     const { hit, tier, score } = searchTier(roll, step?.change ?? 0, def);
     const extra = situationLine(step, score);
     const stash = step ? { ...step, score } : null;

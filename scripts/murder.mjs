@@ -1115,8 +1115,8 @@ function nightNoteKey(indirect) {
     return indirect ? "DRPG.Murder.nightNoteIndirect" : "DRPG.Murder.nightNoteDirect";
 }
 
-/** Is it night? Whichever side rolls Stage 4 is modified by the answer. */
-function atNight() {
+/** Is it night? Whichever side rolls Stage 4 is modified by the answer - and the GM's draw expects it (roll-draw.mjs `expectedFor`). */
+export function atNight() {
     const t = getClock().timeOfDay;
     return t === "night" || t === "Night";
 }

@@ -240,7 +240,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         return { id: m?.id ?? null, author: m?.author?.id ?? null, gm: game.user.id, userId: r?.userId ?? null, actorId: r?.actorId ?? null,
             actionKey: r?.actionKey ?? null, total: r?.total ?? null, faces: [r?.hope ?? null, r?.fear ?? null],
             same: Boolean(r) && r.hope === roll?.dHope?.total && r.fear === roll?.dFear?.total && r.total === roll?.total,
-            hoped: Boolean(r?.withHope || r?.isCritical), hope: globalThis.__c12aHope };`);
+            hoped: Boolean(r?.withHope || r?.isCritical), hope: globalThis.__c12aHope,
+            flags: r?.flags ?? null, expected: r ? { trait: r.expected?.trait, from: r.expected?.traitFrom, situation: r.expected?.situationFrom } : null };`);
     const p1Drawn = await p1.eval(`const P = await import("${REPO}/scripts/private-rolls.mjs");
         const m = game.messages.get(${JSON.stringify(drawnSearch.id)});
         return { me: game.user.id, subject: P.keptRollSubject(m), shown: globalThis.__dsnShown.filter(s => s.user === game.user.id && !s.synchronize).map(s => s.total) };`);
@@ -254,6 +255,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         JSON.stringify({ owed: hopeOwed, hope: drawnSearch.hope }));
     check("p1: played the GM's dice as its own throw, and kept the roll's character",
         p1Drawn.shown.includes(drawnSearch.total) && p1Drawn.subject === ids.aiko, JSON.stringify(p1Drawn));
+    /* WHAT THE GM EXPECTED OF IT (E08+E28 C12b, 04.10.2026). The GM holds the roll against what it
+       knows (roll-draw.mjs `expectedFor`): Eye for a Search, the room's favour and hidden stash read
+       by the GM for the room it sees Aiko in, no Call armed - and p1's honest Search differs in
+       nothing. Until C12b nothing was expected. */
+    check("gm: p1's Search was held to Eye and to the room the GM sees Aiko in, and nothing was flagged",
+        drawnSearch.expected?.trait === "eye" && drawnSearch.expected?.from === "search" && drawnSearch.expected?.situation === "gm"
+            && Array.isArray(drawnSearch.flags) && drawnSearch.flags.length === 0,
+        JSON.stringify({ expected: drawnSearch.expected, flags: drawnSearch.flags }), { flow: "gm-rolls-total" });
 
     /* THE SEARCH, REROLLED FROM p1's BROWSER AND MADE ON THE GM (E08+E28 C4a). The new dice are a
        Hope result too low to find anything, so the GM takes back the item the Search put on
@@ -632,20 +641,54 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         return E.pendingCalls(game.actors.get("${ids.aiko}")).map(e => e.nonce);`);
     check("p1: a copy p2 hands p1 is not taken - p2 is no GM",
         !p1Forged.includes("p2forgedCall") && p1Forged.includes(armedNonce), JSON.stringify(p1Forged), { flow: "monocub-meddle" });
+    /* A REPORT IS NOT A ROLL (E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on E06 fix
+       r2-G4). p1 spends Aiko's Confusion with no roll - `consumeCalls`, as a console can - and its ask
+       tells the primary it is spent: the primary takes a report only for a nonce a drawn roll's
+       record names, so the GMs' store keeps it. Then a second Confusion, which p1 reads, and a roll
+       of Aiko's thrown from p1: the GM draws it, spends the Confusion the roll applied as it draws it,
+       and its record names it; p1's copy is sent without it. The harness's roll is built with no roll
+       window, so the Confusion's -1 is not on its dice, and the GM flags it - read, not asked. Until
+       C12b the report dropped the first, and p1's browser spent the second itself. */
     const p1Spent = await p1.eval(`
         const E = await import("${REPO}/scripts/call-effects.mjs");
         const spent = await E.consumeCalls(game.actors.get("${ids.aiko}"));
         return spent.filter(e => e.key === "meddle").map(e => e.nonce);`, { timeout: 30000 });
+    await settle(1000);
     const gmAfter = await gm.eval(`
         const S = await import("${REPO}/scripts/gm-stores.mjs");
-        const held = () => (S.confusionStore?.get("${ids.aiko}")?.calls ?? []).some(e => e.nonce === "${armedNonce}");
-        for (let i = 0; i < 50 && held(); i++) await new Promise(r => setTimeout(r, 100));
-        return held();`, { timeout: 30000 });
+        return (S.confusionStore?.get("${ids.aiko}")?.calls ?? []).some(e => e.nonce === "${armedNonce}");`, { timeout: 30000 });
+    check("gm: p1's report of Aiko's Confusion spent, with no roll naming it, leaves it armed in the GMs' store",
+        p1Spent.includes(armedNonce) && gmAfter === true, JSON.stringify({ armedNonce, p1Spent, gmStillHolds: gmAfter }), { flow: "monocub-meddle" });
+    const rolledNonce = await gm.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        await E.consumeCallsByNonce(aiko, ["${armedNonce}"]);
+        const had = new Set(E.armedCallsShown(aiko).map(e => e.nonce));
+        await E.armCall(aiko, { key: "meddle", grants: "bonus", amount: -1 });
+        return E.armedCallsShown(aiko).find(e => e.key === "meddle" && !had.has(e.nonce))?.nonce ?? null;`, { timeout: 30000 });
+    const p1Rolled = await p1.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs");
+        const A = await import("${REPO}/scripts/action-rolls.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        for (let i = 0; i < 50 && !E.pendingCalls(aiko).some(e => e.nonce === "${rolledNonce}"); i++) await new Promise(r => setTimeout(r, 100));
+        const read = E.pendingCalls(aiko).some(e => e.nonce === "${rolledNonce}");
+        globalThis.__forceRoll = { hope: 6, fear: 4 };
+        let total = null;
+        try { total = (await A.rollTrait(aiko, "eye", {}))?.total ?? null; } finally { delete globalThis.__forceRoll; }
+        for (let i = 0; i < 50 && E.pendingCalls(aiko).some(e => e.nonce === "${rolledNonce}"); i++) await new Promise(r => setTimeout(r, 100));
+        return { read, total, armed: E.pendingCalls(aiko).some(e => e.nonce === "${rolledNonce}") };`, { timeout: 60000 });
+    const gmRolled = await gm.eval(`
+        const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const row = Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}").sort((a, b) => b.at - a.at)[0] ?? null;
+        return { held: (S.confusionStore?.get("${ids.aiko}")?.calls ?? []).some(e => e.nonce === "${rolledNonce}"),
+            used: row?.used?.calls ?? null, total: row?.total ?? null, flags: (row?.flags ?? []).map(f => f.kind) };`);
     await settle(300);
     const p1After = await confusionSeen(p1);
-    check("p1: a roll's spend takes the Confusion out of the GMs' store and p1's copy",
-        p1Spent.includes(armedNonce) && gmAfter === false && p1After.armed.length === 0 && !(p1After.copy ?? []).includes(ids.aiko),
-        JSON.stringify({ armedNonce, p1Spent, gmStillHolds: gmAfter, p1: p1After }), { flow: "monocub-meddle" });
+    check("gm: a roll of Aiko's drawn from p1 spends the Confusion it applied on the GM, its record names it, and p1's copy loses it",
+        Boolean(rolledNonce) && p1Rolled.read === true && typeof p1Rolled.total === "number" && p1Rolled.armed === false
+            && gmRolled.held === false && (gmRolled.used ?? []).includes(rolledNonce) && gmRolled.total === p1Rolled.total
+            && p1After.armed.length === 0 && !(p1After.copy ?? []).includes(ids.aiko),
+        JSON.stringify({ rolledNonce, p1Rolled, gm: gmRolled, p1: p1After }), { flow: "monocub-meddle" });
 
     // ---- 6b+. a Call armed while the roll window is open waits for the next roll ------------
     /*
@@ -887,6 +930,81 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && JSON.stringify(uncovered.thrown.slice(-2)) === JSON.stringify(["finesse", "closed"]) && uncovered.carded === true
             && JSON.stringify(uncoveredGm.traces) === JSON.stringify([["prep", "obvious"]]) && JSON.stringify(uncoveredGm.tied) === "[true]",
         JSON.stringify({ trapProject, uncovered, uncoveredGm }), { flow: "projects" });
+
+    // ---- 6f. a Search at a hidden stash: its step is the GM's --------------------------------
+    /*
+     * E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on E32+E07 C11e. A hidden stash's
+     * step - one more disadvantage die here, the harness's roll having no advantage dice - was drawn
+     * on the searcher's browser and was in no message. The GM draws it now with the dice, where the
+     * room it sees the searcher in holds a hidden stash, and the searcher takes that step and draws
+     * none (action-rolls.mjs `stashStepOf`). The GM hides a thing in a stash of Daichi's in Aiko's
+     * room and scripts its randomiser to a 6 for the extra die; p1's is scripted to a 1, and p1
+     * searches - a miss, so the stash's thing stays where it is. Read on the GM: the record's step,
+     * the Search card's step (its meta, `stashStep`) and the record's flags. Until C12b the card's
+     * die was p1's 1, and the GM drew nothing.
+     */
+    phase("a Search at a hidden stash", { flow: "search-observe" });
+    const stashSet = await gm.eval(`
+        const V = await import("${REPO}/scripts/vault.mjs");
+        const INV = await import("${REPO}/scripts/inventory.mjs");
+        const M = await import("${REPO}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
+        const room = M.roomOfActor(aiko);
+        const region = room ? V.regionsByName().get(room) : null;
+        if (!region) return { room, err: "no region" };
+        const path = k => "flags.${MOD}." + k;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        // Aiko's armed Calls are set aside for the Search, so it applies none, and put back after.
+        globalThis.__c12bStash = { room, keys, before: keys.map(k => foundry.utils.deepClone(region.getFlag("${MOD}", k))), actions: game.drpg.actionsLeft(aiko),
+            calls: foundry.utils.deepClone(aiko.getFlag("${MOD}", "pendingCall") ?? null) };
+        if (globalThis.__c12bStash.calls) await aiko.unsetFlag("${MOD}", "pendingCall");
+        await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: daichi.id, concealed: true }],
+            [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+        const item = await INV.grantItem(daichi, { name: "Scenario 40 hidden kit", category: "usable", tier: 1, override: true, quiet: true });
+        await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: room });
+        globalThis.__c12bStash.item = item.id;
+        if (game.drpg.tokensLeft(room) <= 0) await game.drpg.resetTokens();
+        if (game.drpg.actionsLeft(aiko) < 1) await game.drpg.setActions(aiko, 1);
+        globalThis.__c12bU = CONFIG.Dice.randomUniform;
+        CONFIG.Dice.randomUniform = () => 0.01;
+        return { room, stashed: V.stashItemsIn(daichi, room).length };`, { timeout: 30000 });
+    const stashSearch = await p1.eval(`
+        const V = await import("${REPO}/scripts/vault.mjs");
+        const actor = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
+        for (let i = 0; i < 50 && !V.stashItemsIn(daichi, ${JSON.stringify(stashSet.room ?? "")}).length; i++) await new Promise(r => setTimeout(r, 100));
+        const seen = V.stashItemsIn(daichi, ${JSON.stringify(stashSet.room ?? "")}).length;
+        globalThis.__forceRoll = { hope: 2, fear: 1 };
+        const real = CONFIG.Dice.randomUniform;
+        CONFIG.Dice.randomUniform = () => 0.99;
+        let err = null;
+        try { await game.drpg.performAction(actor, "search", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { CONFIG.Dice.randomUniform = real; delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 800));
+        return { seen, err };`, { timeout: 90000 });
+    await settle(600);
+    const stashGm = await gm.eval(`
+        CONFIG.Dice.randomUniform = globalThis.__c12bU;
+        delete globalThis.__c12bU;
+        const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const SE = await import("${REPO}/scripts/secret.mjs");
+        const V = await import("${REPO}/scripts/vault.mjs");
+        const row = Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.actionKey === "search").sort((a, b) => b.at - a.at)[0] ?? null;
+        const card = [...game.messages.contents].reverse().find(m => SE.cardFlag(m, "stashStep")) ?? null;
+        const step = card ? SE.cardFlag(card, "stashStep") : null;
+        const { forcedDeletion } = await import("${REPO}/scripts/utils.mjs");
+        const { room, keys, before, item, actions, calls } = globalThis.__c12bStash ?? {};
+        delete globalThis.__c12bStash;
+        const region = room ? V.regionsByName().get(room) : null;
+        if (region) await region.update(Object.fromEntries(keys.map((k, i) => ["flags.${MOD}." + k, before[i] === undefined ? forcedDeletion() : before[i]])));
+        await game.actors.get("${ids.daichi}")?.items.get(item ?? "")?.delete();
+        const aiko = game.actors.get("${ids.aiko}");
+        if (typeof actions === "number" && game.drpg.actionsLeft(aiko) !== actions) await game.drpg.setActions(aiko, actions);
+        if (calls) await aiko.setFlag("${MOD}", "pendingCall", calls);
+        return { used: row?.used?.stash ?? null, flags: (row?.flags ?? []).map(f => f.kind), card: step };`, { timeout: 30000 });
+    check("p1: a Search at a hidden stash takes the extra die the GM drew (6), not one of its own (1), and the GM flags nothing",
+        stashSet.stashed === 1 && stashSearch.seen === 1 && !stashSearch.err && stashGm.used?.kind === "rolled" && stashGm.used.rolled === 6
+            && stashGm.card?.kind === "rolled" && stashGm.card.rolled === 6 && stashGm.card.change === stashGm.used.change && stashGm.flags.length === 0,
+        JSON.stringify({ stashSet, stashSearch, gm: stashGm }), { flow: "search-observe" });
 
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");

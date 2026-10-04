@@ -647,6 +647,9 @@ function rollNonceOf(message, data = null) {
  * @param {object} [opts]
  * @param {Actor|null} [opts.subject]  the character the roll is about, reported as its message is created (`reportClaimedRoll`).
  * @param {string|null} [opts.actionKey]  the action the roll is for, kept on the claim for the GM's draw (roll-draw.mjs); never on the roll.
+ * @param {object|null} [opts.facts]  what the GM's draw is told beside the roll (E08+E28 C12b): `calls`, the nonces of the
+ *   Calls the roll applied (the roll window's, `noteWindowCalls`), and `context`, the action's (a Search's category and
+ *   its stash). On the claim, in this browser's memory, and never on the roll, whose options its message keeps.
  *
  * The GM's draw of a player's roll (roll-draw.mjs `drawOnGm`, E08+E28 C12a) claims the
  * message it writes with the roller's nonce, which the roll already carries (`nonce`), stamps
@@ -654,8 +657,8 @@ function rollNonceOf(message, data = null) {
  * relay - their dice are played from the draw's answer (`except`) - and hears the message
  * created before Daggerheart's `toMessage` waits for Dice So Nice (`onCreated`).
  */
-export async function supersedingRoll(fn, { subject = null, actionKey = null, nonce = null, stamp = null, except = [], onCreated = null } = {}) {
-    const claim = { spent: false, subject, actionKey, reported: false, nonce: nonce ?? foundry.utils.randomID(), stamp, except, onCreated };
+export async function supersedingRoll(fn, { subject = null, actionKey = null, facts = null, nonce = null, stamp = null, except = [], onCreated = null } = {}) {
+    const claim = { spent: false, subject, actionKey, facts, reported: false, nonce: nonce ?? foundry.utils.randomID(), stamp, except, onCreated };
     rollClaims.push(claim);
     try {
         return await fn(claim.nonce);
@@ -684,7 +687,19 @@ function claimRollMessage(message, data) {
 /** The open claim whose roll carries this nonce: what the GM's draw is told of it (roll-draw.mjs). Null when none. */
 export function rollClaimOf(nonce) {
     const claim = typeof nonce === "string" && nonce ? rollClaims.find(c => c.nonce === nonce) : null;
-    return claim ? { subject: claim.subject, actionKey: claim.actionKey } : null;
+    return claim ? { subject: claim.subject, actionKey: claim.actionKey, facts: claim.facts } : null;
+}
+
+/**
+ * The Calls a roll window applied, kept on its roll's claim for the GM's draw (E08+E28 C12b;
+ * roll-dialog.mjs `onCloseApplication`): the window's list, which `throwDice`'s - read before
+ * the window opened - gives way to (E08+E28 C7). Synchronous, so it lands before the build goes
+ * on past the window. A claim without `facts` - a roll the module did not throw for an action -
+ * keeps nothing.
+ */
+export function noteWindowCalls(nonce, nonces) {
+    const claim = typeof nonce === "string" && nonce ? rollClaims.find(c => c.nonce === nonce) : null;
+    if (claim?.facts && typeof claim.facts === "object") claim.facts.calls = [...nonces];
 }
 
 /*
@@ -1053,19 +1068,25 @@ export const ROLL_ACTIONS = table({
      * message, settles its Hope, Stress and Fear, records it (`rollStore`) and answers with the
      * faces it drew. The roll is the sender's own character's (`owns`) and a duality roll
      * nobody has thrown, carrying the claim's nonce (`guardDrawnRoll`). What the roll adds up
-     * to beyond its dice is observed from C12b on, not refused (D2's allowance for 1.2.67).
+     * to beyond its dice is observed from C12b on, not refused (D2's allowance for 1.2.67):
+     * the statistic, the experiences, the Calls and the stash the packet names are the
+     * roller's word, held against what the GM knows (roll-draw.mjs `expectedFor`).
      */
     "roll.draw": {
         label: "DRPG.Bridge.what.roll.draw",
         guards: [knownSender, owns("actorId", "sender does not own that character"), guardDrawnRoll],
-        sanitize: pick({ actorId: as.id, actionKey: as.maybeText, nonce: as.id, claimed: as.bool, loaded: as.id, costs: as.raw, roll: as.raw }),
+        sanitize: pick({ actorId: as.id, actionKey: as.maybeText, nonce: as.id, claimed: as.bool, loaded: as.id, costs: as.raw, roll: as.raw,
+            trait: as.maybeText, experiences: as.raw, calls: as.raw, context: as.raw, situational: as.num }),
         run: drawRollOnGm,
         answer: "reply",
         claims: {
             roll: guardDrawnRoll,
             nonce: guardDrawnRoll,
             costs: "only what the sender's own character pays: drawOnGm (roll-draw.mjs) keeps up to eight enabled costs of a whole number from 1 to 12, each taken off that character",
-            loaded: "the Loaded Die is loaded on the GM only while that character's armed Calls hold this nonce (roll-draw.mjs drawOnGm)"
+            loaded: "the Loaded Die is loaded on the GM only while that character's armed Calls hold this nonce and the roll applied it (roll-draw.mjs drawOnGm)",
+            experiences: "only the sender's own character's experiences count, at the value the GM holds; one beyond what an armed Call allows is flagged to the GMs (roll-draw.mjs checkRoll)",
+            calls: "only Calls armed on the sender's own character as the GM holds them count; the GM spends those and reads its expectation from them (roll-draw.mjs appliedCalls)",
+            context: "a Search's category and stash as the roller saw them: the room is the GM's, its favour and its hidden stash read by the GM (roll-draw.mjs expectedFor)"
         }
     }
 });
@@ -1074,7 +1095,8 @@ export const ROLL_ACTIONS = table({
 async function drawRollOnGm(payload, sender, ctx) {
     const { drawOnGm } = await import("./roll-draw.mjs");
     return drawOnGm({ actorId: payload.actorId, actionKey: payload.actionKey, nonce: payload.nonce, claimed: payload.claimed,
-        loaded: payload.loaded, costs: payload.costs, roll: payload.roll }, sender);
+        loaded: payload.loaded, costs: payload.costs, roll: payload.roll, trait: payload.trait, experiences: payload.experiences,
+        calls: payload.calls, context: payload.context, situational: payload.situational }, sender);
 }
 
 /** The run of `roll.subject`: its guards tied the message to the sender and the character to them. */

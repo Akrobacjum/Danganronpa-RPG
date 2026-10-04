@@ -82,16 +82,34 @@ export function registerForcedRolls() {
  * shadowed on the instance - an own property over the prototype's method,
  * the same shape sheet.mjs uses for `render` - so the loaded randomiser exists
  * for exactly as long as this one roll is being evaluated.
+ *
+ * A roll the GM draws is not loaded here (E08+E28 C12b): the roller's copy only
+ * plays back the faces the GM threw, and the GM loads the die on its own throw
+ * where the character's armed Calls hold this mark (roll-draw.mjs `drawOnGm`).
  */
 function onConfigured(roll, config) {
-    loadDie(roll, config?.[LOADED_DIE]);
+    if (!drawnByGm(config)) loadDie(roll, config?.[LOADED_DIE]);
+}
+
+/*
+ * Whether the GM draws a roll is roll-draw.mjs's to say (`drawnByGm` there), and it says so
+ * at setup through `standAsideFor` rather than being imported here: roll-draw.mjs imports this
+ * file, and so do private-rolls.mjs and action-rolls.mjs, which roll-draw.mjs imports too - an
+ * import back closed the cycle R161 refuses (C12b's first suite run, 04.10.2026). Until it is
+ * told, no roll is the GM's, as with no seam.
+ */
+let drawnByGm = () => false;
+
+/** roll-draw.mjs's `drawnByGm`, handed over by `registerRollDraw`. */
+export function standAsideFor(predicate) {
+    if (typeof predicate === "function") drawnByGm = predicate;
 }
 
 /**
  * Load the first die `roll` throws, once per `mark`. The configuration hook's on this
  * client; and the primary GM's for a player's roll it draws (roll-draw.mjs `drawOnGm`,
- * E08+E28 C12a), where the roll the GM throws is not the one the roller's hook loaded - the
- * roller's browser takes its own shadow off before it plays the GM's faces back.
+ * E08+E28 C12a), where the roll the GM throws is not the one the roller's hook saw - which,
+ * since C12b, loads nothing (`onConfigured`).
  */
 export function loadDie(roll, mark) {
     if (!mark || spent.has(mark)) return;

@@ -109,7 +109,7 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
  * (actor.mjs:576; none where the system has no such call), and the statistic
  * and the experiences from the GMs' bookmark (action-rolls.mjs `keepGmBookmark`;
  * the roller's own browser's until E08+E28 C4a) - which is kept only for the roll
- * the bookmark names. A roll
+ * the bookmark names - or, for a roll the GM drew, from its record (E08+E28 C12b). A roll
  * the module threw that the bookmark does not name is refused rather than
  * thrown weaker: the Reroll's whole point is not to hand back a worse roll
  * than the one paid to replace. A roll the module did not throw is its own
@@ -119,13 +119,19 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
  */
 export async function rollAsThrown(original, actor, message, bookmark = null) {
     if (!isClaimedRoll(message)) return original;
+    // A roll the GM drew: the statistic and the experiences it was thrown with are the record's,
+    // kept at the draw (roll-draw.mjs `drawOnGm`, E08+E28 C12b), and the bookmark's - the
+    // roller's claim, which it may send again - are not read.
+    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    const record = drawnRecordOf(message);
     const named = Boolean(message.id) && bookmark?.messageId === message.id;
-    const trait = named ? TRAITS[bookmark.trait]?.dh ?? (TRAIT_BY_DH[bookmark.trait] ? bookmark.trait : null) : null;
+    const kept = record ?? (named ? bookmark : null);
+    const trait = kept ? TRAITS[kept.trait]?.dh ?? (TRAIT_BY_DH[kept.trait] ? kept.trait : null) : null;
     if (!trait) throw new Error(`no statistic is kept for roll ${message.id}`);
     const options = foundry.utils.deepClone(original.options ?? {});
     options.data = actor.getRollData();
     options.roll = { ...(options.roll ?? {}), trait };
-    options.experiences = Array.isArray(bookmark.experiences) ? [...bookmark.experiences] : [];
+    options.experiences = Array.isArray(kept.experiences) ? [...kept.experiences] : [];
     options.effects = await game.system?.api?.data?.actions?.actionsTypes?.base?.getActionRelevantEffects?.(actor) ?? [];
     return new original.constructor(original._formula ?? original.formula, {}, options);
 }
@@ -1053,6 +1059,18 @@ async function settleProgress(actor, bookmark, after, done) {
  * the claimed `itemId`; one that has left the sheet since (given, stashed, used) stays where
  * it went, and the Search is replayed as an ordinary one.
  */
+/**
+ * Whether a Search's Reroll takes a hidden stash's step again. For a roll the GM drew, the
+ * record's answer: the GM drew a step with the dice or it did not (`used.stash`, roll-draw.mjs
+ * `drawOnGm`, E08+E28 C12b; the plan's 2.5) - a step the GM did not draw is not taken. Else the
+ * bookmark's `stashDie`, the roller's claim, as before. Exported for the suite.
+ */
+export async function stashDieOf(bookmark) {
+    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    const record = drawnRecordOf(game.messages.get(bookmark?.messageId ?? ""));
+    return record ? Boolean(record.used?.stash) : Boolean(bookmark?.stashDie);
+}
+
 export async function settleSearch(actor, bookmark, after, done, rerolled = null) {
     // A Search whose token was refused never searched the room, and a Search
     // that opened a stash found what the drawer held: neither is a draw from
@@ -1073,7 +1091,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     // A 1.2.65 bookmark (E06 C11) carries a flat -1 and is scored with it; one from before
     // 1.2.65 has neither, and is scored on the dice alone.
     const def = ACTIONS.search;
-    const step = bookmark.stashDie ? await stashStepFor(rerolled ?? after, actor) : null;
+    const step = await stashDieOf(bookmark) ? await stashStepFor(rerolled ?? after, actor) : null;
     const change = step ? step.change : Number(bookmark.penalty) || 0;
     const { hit, tier, score } = searchTier(after, change, def);
     const found = Boolean(hit) || after.isCritical;

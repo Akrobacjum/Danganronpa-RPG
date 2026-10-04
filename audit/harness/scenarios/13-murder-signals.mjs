@@ -1046,6 +1046,22 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return true;
     `, { timeout: 60000 });
     await settle(900);
+    /* THE OPENING ROLL, HELD TO WHAT THE GM KNOWS (E08+E28 C12b, 04.10.2026; the plan's 3.3). The
+       victim's roll is drawn on the GM, which reads what it expects of it (roll-draw.mjs `expectedFor`):
+       the statistic the GM picked as the trap opened (`openingTrait`, Eye) and the opening's own die,
+       read off the clock by the GM - none in the morning this file plays in; at Night the victim's
+       die is one the harness's roll, with no roll window, could not carry. Read on the GM: the record
+       of Aiko's newest opening roll. Until C12b nothing was expected and nothing could be flagged. */
+    const openingDrawn = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const newest = () => Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.actionKey === "murderOpening")
+            .sort((a, b) => b.at - a.at)[0] ?? null;
+        for (let i = 0; i < 60 && !newest(); i++) await new Promise(r => setTimeout(r, 100));
+        const r = newest();
+        return r ? { trait: r.expected?.trait ?? null, from: r.expected?.traitFrom ?? null, situation: r.expected?.situationFrom ?? null,
+            advantage: r.expected?.advantage ?? null, flags: r.flags ?? null } : null;`, { timeout: 30000 });
+    check("trap: the victim's opening roll is drawn and held to the GM's pick (Eye) and to the opening's own die, read by the GM - nothing flagged",
+        openingDrawn?.trait === "eye" && openingDrawn.from === "opening" && openingDrawn.situation === "gm" && openingDrawn.advantage === 0
+        && Array.isArray(openingDrawn.flags) && openingDrawn.flags.length === 0, JSON.stringify(openingDrawn), { flow: "murder-incident" });
 
     const trap = await readAll();
     check("trap: the victim is still told", trap.victim?.witness === true && trap.victim?.knowsCast === true,

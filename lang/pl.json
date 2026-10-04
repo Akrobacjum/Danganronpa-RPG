@@ -3045,7 +3045,17 @@
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM.",
       "rewriteNotPutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); ta przeglądarka nie widziała tego rzutu, więc nie dało się przywrócić jego kości.",
-      "notDrawnHere": "Daggerheart {version} buduje rzuty inaczej, niż zakłada ten moduł, więc rzuty graczy wykonują się w ich przeglądarkach, a nie u GM-a. Ta wiadomość pojawia się raz dla tej wersji."
+      "notDrawnHere": "Daggerheart {version} buduje rzuty inaczej, niż zakłada ten moduł, więc rzuty graczy wykonują się w ich przeglądarkach, a nie u GM-a. Ta wiadomość pojawia się raz dla tej wersji.",
+      "unexpected": "GM wylosował rzut postaci {name}, a w rzucie było coś, czego GM się nie spodziewał: {list}. Rzut zostaje taki, jak go wylosowano; game.drpg.rollFlags() go wymienia.",
+      "flagLine": "{what} {claimed}, oczekiwano {expected}",
+      "flagsTitle": "Wylosowane rzuty z czymś, czego GM się nie spodziewał: {n}",
+      "flagKind": {
+        "trait": "statystyka",
+        "modifier": "modyfikator",
+        "dice": "dodatkowe kości",
+        "advantage": "kości przewagi",
+        "stash": "niezgłoszona ukryta skrytka"
+      }
     },
     "Messenger": {
       "launcherTooltip": "Komunikator",

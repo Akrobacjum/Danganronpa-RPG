@@ -18,7 +18,8 @@
  * GM's own roll is its own; with no GM the roll is thrown here, as in 1.2.66, until
  * C18 makes an action wait. What the roll adds up to beyond its dice - the
  * statistic, the experiences, the advantage - is the roller's configuration, which
- * C12b holds against what the GM expects; the dice are the GM's from here on.
+ * the GM holds against what it expects (C12b, "WHAT THE GM EXPECTS" below); the dice
+ * are the GM's from here on.
  *
  * THE SEAM IS DAGGERHEART'S `build` (the plan's 3.2), wrapped once, as critical.mjs
  * wraps `addDualityResourceUpdates`, and registered in patches.mjs. Not a hook: a
@@ -37,19 +38,23 @@
  * in that order, a configuration hook named by Daggerheart's template, and the
  * class's `fromData`, `toMessage` and `dualityUpdate`. Any other build is left
  * alone - rolls are thrown in the player's browser as in 1.2.66 - and the primary
- * GM is told once per Daggerheart version (`announceRollDraw`). R216 reads it.
+ * GM is told once per Daggerheart version (`announceRollDraw`). R217 reads it.
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, TIMING } from "./config.mjs";
+import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, whisperToGms, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
 import { rollStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf } from "./private-rolls.mjs";
-import { LOADED_DIE, loadDie } from "./forced-roll.mjs";
-import { DRPG_ACTION_ROLL, DRAWN_ROLL } from "./action-rolls.mjs";
-import { armedCallsShown } from "./call-effects.mjs";
+import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
+import { DRPG_ACTION_ROLL, DRAWN_ROLL, TRAIT_BY_GM, searchOdds, stashStepFor } from "./action-rolls.mjs";
+import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
+import { isBrokenDown } from "./character.mjs";
+import { isMonokuma } from "./monokuma.mjs";
+import { roomOfActor } from "./movement.mjs";
+import { cardFlag } from "./secret.mjs";
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
 const SEAM = Symbol.for("drpgRollDraw");
@@ -82,7 +87,7 @@ function sourcesOf(cls, name) {
  * Is `cls`'s build the one the draw was written for? `{ ok, why }`, `why` in English for
  * the log. Reads the functions' own source, as relay-guard.mjs `fingerprintOf` reads
  * the relay's - Daggerheart ships unminified - and the wrapper's original where the
- * class is wrapped already. Exported for R216.
+ * class is wrapped already. Exported for R217.
  */
 export function reviewBuild(cls) {
     if (typeof cls !== "function") return { ok: false, why: "no duality roll class" };
@@ -91,7 +96,10 @@ export function reviewBuild(cls) {
     if (at.some(i => i < 0) || !(at[0] < at[1] && at[1] < at[2])) {
         return { ok: false, why: "build does not call buildConfigure, buildEvaluate and buildPost in that order" };
     }
-    if (!sourcesOf(cls, "buildConfigure").some(text => /\.post\$\{[^}]*\}RollConfiguration`/.test(text))) {
+    // `\x60` is the backtick. Written as one, it opened a template string for the suite's
+    // source reader (tests-kit.mjs `stripStrings`), which then hid every name down to the
+    // next backtick from R22 (C12b's first suite run, 04.10.2026).
+    if (!sourcesOf(cls, "buildConfigure").some(text => /\.post\$\{[^}]*\}RollConfiguration\x60/.test(text))) {
         return { ok: false, why: "buildConfigure fires no configuration hook by Daggerheart's template" };
     }
     const hooks = typeof cls.getHooks === "function" ? cls.getHooks() : [];
@@ -101,7 +109,7 @@ export function reviewBuild(cls) {
     return { ok: true, why: "" };
 }
 
-/** What the seam found on this client, for R216 and patches.mjs. */
+/** What the seam found on this client, for R217 and patches.mjs. */
 export function rollDrawState() {
     return { ...seam };
 }
@@ -124,6 +132,7 @@ export function registerRollDraw() {
     drawnBuild.original = original;
     cls.build = drawnBuild;
     seam = { state: "ok", why: "" };
+    standAsideFor(drawnByGm);
 }
 
 /**
@@ -150,6 +159,16 @@ function drawsHere(config) {
     if (game.user?.isGM || !primaryGmId()) return false;
     if (config?.[DRPG_ACTION_ROLL] !== true || config.evaluate === false || config.skips?.createMessage || config.source?.message) return false;
     return Boolean(rollClaimOf(config[ROLL_NONCE])?.subject);
+}
+
+/**
+ * Will this configuration be drawn by the GM - the seam is in place and `drawsHere` says so?
+ * Asked by what stands aside for a drawn roll on the roller's browser (E08+E28 C12b): the Loaded
+ * Die's local swap (forced-roll.mjs `onConfigured`) and the roll window's spend of its Calls
+ * (roll-dialog.mjs `onCloseApplication`), both the GM's for a roll it draws.
+ */
+export function drawnByGm(config) {
+    return seam.state === "ok" && drawsHere(config);
 }
 
 /** The wrap's body: Daggerheart's own build for anything not drawn; for a drawn roll, configure, ask, play back. */
@@ -180,8 +199,31 @@ async function drawOrThrow(cls, original, config, message) {
  * character in every browser's copy of the message. The Loaded Die's mark, which the
  * neutral roll drops, travels beside it, and so do the window's costs. Exported for the suite,
  * which sends the GM a packet of its own roll's shape (tests-tier2.mjs `drawnForPlayer`).
+ *
+ * And what the GM holds the roll against (E08+E28 C12b), each the roller's word: the statistic
+ * and the experiences, which the neutral roll drops; the Calls the roll applied (the claim's
+ * `facts`, the roll window's list, private-rolls.mjs `noteWindowCalls`); the action's context a
+ * check reads (a Search's category and stash, a project's id, an opening's side, `CONTEXT_SENT`);
+ * and the situation's dice as this browser armed them (call-effects.mjs `situationalAdvantage`),
+ * which the GM reads for itself where it can.
  */
 const SENT_WITHOUT = new Set(["resourceUpdates", "message", "messageRoll", "data", "effects", "bonusEffects"]);
+const CONTEXT_SENT = Object.freeze({ category: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text" });
+const LISTED_MAX = 16;
+
+/** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
+function contextSent(context) {
+    const out = {};
+    for (const [key, kind] of Object.entries(CONTEXT_SENT)) {
+        const value = context?.[key];
+        if (kind === "bool" && typeof value === "boolean") out[key] = value;
+        else if (kind !== "bool" && typeof value === "string" && value.length > 0 && value.length <= 128) out[key] = value;
+    }
+    return out;
+}
+
+/** At most `LISTED_MAX` strings of a list, or none. */
+const strings = list => (Array.isArray(list) ? list : []).filter(item => typeof item === "string" && item.length <= 128).slice(0, LISTED_MAX);
 
 export function drawPacketOf(roll, config, claim) {
     const json = roll.toJSON();
@@ -199,21 +241,28 @@ export function drawPacketOf(roll, config, claim) {
         loaded: typeof config[LOADED_DIE] === "string" ? config[LOADED_DIE] : null,
         costs: (Array.isArray(config.costs) ? config.costs : []).filter(c => c?.enabled)
             .map(c => ({ key: c.key, value: c.value, enabled: true })),
+        trait: typeof options.roll?.trait === "string" ? options.roll.trait : null,
+        experiences: strings(options.experiences),
+        calls: strings(claim.facts?.calls),
+        context: contextSent(claim.facts?.context),
+        situational: situationalAdvantage(),
         roll: neutralRollOf({ ...plain, options })
     };
 }
 
 /**
- * The GM's faces, played into this browser's copy of the roll. forced-roll.mjs's shadow
- * of `evaluate` is taken off first: the GM loaded the die on its own throw, and this copy
- * only repeats what fell. Each face f is drawn as `u = 1 - (f - 0.5) / faces` - the
+ * The GM's faces, played into this browser's copy of the roll. The Loaded Die is the GM's
+ * to load on its own throw (forced-roll.mjs `onConfigured` stands aside for a drawn roll,
+ * C12b), and this copy only repeats what fell. Each face f is drawn as `u = 1 - (f - 0.5) / faces` - the
  * middle of the band Foundry's `ceil((1 - u) * faces)` maps to f - in the order the GM's
  * dice drew them, then the randomiser again for anything the GM did not draw. A total
- * this copy reads differently is the GM's (the record stands) and is logged.
+ * this copy reads differently is the GM's (the record stands) and is logged. What the
+ * GM decided beside the dice rides on the config with the record's id (`DRAWN_ROLL`):
+ * the hidden stash's step it drew (`stash`, action-rolls.mjs `stashStepOf`) and whether
+ * it loaded the die (`loaded`).
  */
-async function playBack(cls, roll, config, message, { rollId, messageId, faces, total }, subject) {
-    if (Object.hasOwn(roll, "evaluate")) delete roll.evaluate;
-    config[DRAWN_ROLL] = { rollId, messageId };
+async function playBack(cls, roll, config, message, { rollId, messageId, faces, total, stash = null, loaded = false }, subject) {
+    config[DRAWN_ROLL] = { rollId, messageId, stash: stash && typeof stash === "object" ? stash : null, loaded: loaded === true };
     const script = (Array.isArray(faces) ? faces : [])
         .map(face => 1 - (Number(face?.result) - 0.5) / Number(face?.faces))
         .filter(u => Number.isFinite(u));
@@ -309,9 +358,11 @@ function paidCosts(costs) {
  * have tied the character to the sender and the roll to a duality roll nobody threw. The
  * roll is rebuilt with Daggerheart's `fromData` - never the constructor, which builds the
  * advantage die again from the options (reroll.mjs `rerollKeepingDice`) - thrown here,
- * written, settled and recorded; answered `{ rollId, messageId, faces, total }`.
+ * written, settled, held against what this GM expects (`expectedFor`, `checkRoll`), its Calls
+ * spent and recorded; answered `{ rollId, messageId, faces, total, stash, loaded }`.
  */
-export async function drawOnGm({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json }, sender) {
+export async function drawOnGm({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
+    trait = null, experiences = [], calls = [], context = {}, situational = 0 }, sender) {
     const actor = game.actors.get(actorId ?? "");
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
@@ -326,11 +377,16 @@ export async function drawOnGm({ actorId, actionKey, nonce, claimed, loaded, cos
     config.costs = paidCosts(costs);
     config.resourceUpdates = new DrawnResources(actor);
     roll.data = actor.getRollData?.() ?? {};
+    const key = typeof actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(actionKey) ? actionKey : null;
+    const told = { trait: typeof trait === "string" ? trait : null, experiences: strings(experiences), context: contextSent(context),
+        situational: Number.isFinite(Number(situational)) ? Math.trunc(Number(situational)) : 0, byGm: config[TRAIT_BY_GM] === true };
+    // What the roll applied, as this GM holds it: read before the dice, and spent after them.
+    const applied = appliedCalls(actor, calls);
+    const expected = await expectedFor(actor, { actionKey: key, applied, ...told });
     // The Loaded Die (forced-roll.mjs): loaded here only while the character's armed Calls
-    // hold the mark. Its check of everything else a roll claims is C12b's.
-    if (typeof loaded === "string" && armedCallsShown(actor).some(call => call?.grants === "critical" && call.nonce === loaded)) {
-        loadDie(roll, loaded);
-    }
+    // hold the mark and the roll applied it.
+    const loads = typeof loaded === "string" && applied.some(call => call?.grants === "critical" && call.nonce === loaded);
+    if (loads) loadDie(roll, loaded);
     await cls.buildEvaluate(roll, config, {});
     const rollId = foundry.utils.randomID();
     const message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender });
@@ -338,17 +394,285 @@ export async function drawOnGm({ actorId, actionKey, nonce, claimed, loaded, cos
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));
     await config.resourceUpdates.updateResources();
+    // The hidden stash's step (action-rolls.mjs `stashStep`), drawn here on this GM's dice
+    // where the room the GM sees the searcher in holds one; the searcher takes this step and
+    // draws none of its own (`stashStepOf`).
+    const stash = expected.stashDie && told.context.stashDie === true ? await stashStepFor(roll, actor) : null;
+    const flags = checkRoll(roll, actor, told, expected);
+    const used = applied.map(call => call.nonce);
+    if (used.length) await spendCallsByNonce(actor, used);
     await keepRecord({
-        rollId, actorId: actor.id, userId: sender.id,
-        actionKey: typeof actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(actionKey) ? actionKey : null,
+        rollId, actorId: actor.id, userId: sender.id, actionKey: key,
         messageId: message.id, claimed: Boolean(claimed), formula: roll.formula,
+        // The statistic and the experiences the roll was thrown with, as the GM was told them at
+        // the draw - a Reroll rebuilds the roll from these (reroll.mjs `rollAsThrown`), not from a
+        // bookmark the roller may send again.
+        trait: traitKeyOf(told.trait), experiences: told.experiences.filter(name => actor.system?.experiences?.[name]),
         dice: roll.dice.map(die => ({ faces: die.faces, results: die.results.map(r => ({ result: r.result, active: r.active !== false })) })),
         total: roll.total, hope: roll.dHope?.total ?? null, fear: roll.dFear?.total ?? null,
         isCritical: Boolean(roll.isCritical), withHope: Boolean(roll.withHope), withFear: Boolean(roll.withFear),
         modifiers: (Array.isArray(config.roll?.modifiers) ? config.roll.modifiers : []).map(m => Number(m?.value) || 0),
-        expected: null, flags: [], used: {}, versions: [], at: Date.now()
+        expected: recordOf(expected), flags, used: { calls: used, stash, loaded: loads }, versions: [], at: Date.now()
     });
-    return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total } };
+    if (flags.length) await tellUnexpected(actor, flags);
+    return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, stash, loaded: loads } };
+}
+
+/* ==========================================================================
+ * WHAT THE GM EXPECTS OF A ROLL (E08+E28 C12b, 04.10.2026; the plan's 3.3)
+ * --------------------------------------------------------------------------
+ * The dice are the GM's from C12a; what the roll adds up to beyond them - the statistic, its
+ * value, the experiences, the bonus, the advantage dice - is still configured in the roller's
+ * browser, by Daggerheart's window under roll-dialog.mjs's locks. D2 (the owner, as E28 says
+ * it): a modifier outside the GM's record is at least flagged in 1.2.67, enforced from E29.
+ * So this GM reads, for each roll it draws, what it expects from what it holds, and a
+ * difference is a `flags` entry on the record, one whisper to the GMs per roll
+ * (`DRPG.Rolls.unexpected`) and a line in `game.drpg.rollFlags()`. The roll stands as drawn.
+ *
+ * What it reads, and from where:
+ *   - the statistic: Eye for a Search (ACTIONS.search), the project's own for a Work on it or
+ *     a Sabotage of it (projects.mjs, C11d), the opening's as the GM picked it (the incident's
+ *     `openingTrait`, C11c), and, for a roll whose window says a GM picked it, the newest pick
+ *     card for this character no drawn roll has used yet (gm-bridge.mjs `settleCall`'s
+ *     `ruling`, C11b), waited for a moment, as the card's meta can land after the answer; an
+ *     armed Resolve's roll is the player's pick, and any statistic stands. Any other roll's
+ *     statistic is not checked here: its action is the roller's word (E29);
+ *   - the flat modifier: the statistic's value off the character as this GM holds it, each
+ *     experience's value - one, and only where an Experience Call bought it, since the module's
+ *     window locks them otherwise and strips their Hope cost - the Calls' bonus, and
+ *     Daggerheart's roll bonuses from the character's active effects, as a range
+ *     (`effectRange`): which of them a roll's window selects is not sent;
+ *   - the advantage dice: the Calls the roll applied, Breakdown, and the situation's dice -
+ *     read by this GM for a Search (the room's favour and hindrance, vault.mjs) and an opening
+ *     (the Night's die, murder.mjs `atNight`), the roller's word elsewhere (a weapon in hand,
+ *     a second try, a tool) - summed and capped as roll-dialog.mjs `advantageSources` does;
+ *   - a hidden stash in the room this GM sees the searcher in, against the packet's word.
+ * Monokuma's rolls are not locked by the window (roll-dialog.mjs `isStudentRoll`), and nothing
+ * is expected of them.
+ *
+ * WHAT THE HARNESS CANNOT SHOW. Daggerheart's roll window is not in the headless harness, so
+ * a roll there is built without the dice and the bonus the window would impose: a drawn roll
+ * that applied a dice or bonus Call is flagged there, truthfully - its dice lack it - where a
+ * table's window would have put it on. Not measured at a table: LIVE-E28.
+ * ========================================================================== */
+
+/** The most Calls a packet may name; more is no roll's. */
+const CALLS_KEPT = 16;
+/** How long a roll a GM picked the statistic for waits for the pick card's meta. Chosen, not measured. */
+const PICK_WAIT_MS = 2000;
+
+/** The Calls the roll applied: the ones the packet names that are armed on the character as this GM holds them. */
+function appliedCalls(actor, nonces) {
+    const named = new Set(strings(nonces).slice(0, CALLS_KEPT));
+    return named.size ? armedCallsShown(actor).filter(call => named.has(call?.nonce)) : [];
+}
+
+/** Daggerheart's roll bonuses from the character's active effects, `[lowest, highest]` they can add up to. */
+function effectRange(actor) {
+    let low = 0, high = 0;
+    for (const effect of actor?.appliedEffects ?? []) {
+        for (const change of effect?.system?.changes ?? effect?.changes ?? []) {
+            if (!/bonuses\.roll/.test(String(change?.key ?? ""))) continue;
+            const value = Number(change.value) * (change.type === "subtract" ? -1 : 1);
+            if (!Number.isFinite(value)) continue;
+            if (value > 0) high += value;
+            else low += value;
+        }
+    }
+    return [low, high];
+}
+
+/** The module's key of a statistic, from Daggerheart's or the module's own; null for neither. */
+function traitKeyOf(trait) {
+    if (typeof trait !== "string") return null;
+    return TRAIT_BY_DH[trait] ?? (Object.hasOwn(TRAITS, trait) ? trait : null);
+}
+
+/** The pick kind of a GM's statistic card (trait-ruling.mjs) an action's roll is held to. */
+function pickKindOf(actionKey) {
+    if (actionKey === "crisis" || actionKey === "cleanup") return actionKey;
+    if (actionKey === "project" || actionKey === "sabotage") return "project";
+    return "generic";
+}
+
+/**
+ * The newest pick card a GM settled for this character and kind within the Reroll's window
+ * (`{ trait, pick }`, the card's id), or null - also when a drawn roll's record names that card
+ * already, so an older pick nobody rolled is never the one a roll is held to.
+ */
+function gmPickOf(actor, kind) {
+    const since = Date.now() - TIMING.rerollWindowMinutes * 60_000;
+    const used = new Set(Object.values(rollStore.entries() ?? {}).map(row => row?.expected?.pick).filter(Boolean));
+    const messages = game.messages?.contents ?? [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (typeof message.timestamp === "number" && message.timestamp < since) break;
+        const ruling = cardFlag(message, "ruling");
+        if (ruling?.type !== "trait" || ruling.actorId !== actor.id || ruling.kind !== kind) continue;
+        return used.has(message.id) ? null : { trait: traitKeyOf(ruling.trait), pick: message.id };
+    }
+    return null;
+}
+
+/**
+ * What this GM expects of a roll of `actor` for `actionKey` - see the note above. `applied` are
+ * the Calls it applied (`appliedCalls`); `context`, `situational` and `byGm` the packet's word.
+ * `trait` null where any statistic stands or none is known here; `traitFrom` says which.
+ * Exported for the suite.
+ */
+export async function expectedFor(actor, { actionKey = null, applied = [], context = {}, situational = 0, byGm = false } = {}) {
+    const grants = applied.map(call => call?.grants);
+    const out = { checked: !isMonokuma(actor), trait: null, traitFrom: null, pick: null, advantage: 0, situationFrom: "roller",
+        bonus: 0, experiences: grants.includes("experience") ? 1 : 0, effects: effectRange(actor), stashDie: false };
+    let situation = Math.max(-3, Math.min(3, Math.trunc(Number(situational)) || 0));
+    if (actionKey === "search") {
+        const odds = searchOdds(actor, roomOfActor(actor), context.category ?? null, await import("./vault.mjs"));
+        situation = odds.situational;
+        out.situationFrom = "gm";
+        out.stashDie = Boolean(odds.stashDie);
+    }
+    if (actionKey === "murderOpening") {
+        const { murderState, atNight } = await import("./murder.mjs");
+        const state = murderState();
+        const side = context.side === "killer" || context.side === "victim" ? context.side : null;
+        if (side && state?.stage === "openingRoll" && state[`${side}Id`] === actor.id) {
+            const def = MURDER_OPENING[side] ?? {};
+            situation = atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
+            out.situationFrom = "gm";
+            if (!grants.includes("trait")) Object.assign(out, { trait: traitKeyOf(state.openingTrait), traitFrom: "opening" });
+        }
+    }
+    if (grants.includes("trait")) out.traitFrom = "resolve";
+    else if (actionKey === "search" && (ACTIONS.search?.traits ?? []).length === 1) Object.assign(out, { trait: ACTIONS.search.traits[0], traitFrom: "search" });
+    else if (actionKey === "project" || actionKey === "sabotage") {
+        const id = actionKey === "project" ? context.projectId : context.targetProjectId;
+        const { allProjects } = await import("./projects.mjs");
+        const project = allProjects().find(p => p.id === id);
+        if (project?.trait) Object.assign(out, { trait: traitKeyOf(project.trait), traitFrom: "project" });
+    }
+    if (!out.trait && !out.traitFrom && byGm && actionKey !== "murderOpening") {
+        const kind = pickKindOf(actionKey);
+        let found = gmPickOf(actor, kind);
+        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            found = gmPickOf(actor, kind);
+        }
+        if (found?.trait) Object.assign(out, { trait: found.trait, traitFrom: "gm", pick: found.pick });
+    }
+    const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
+    const dice = grants.reduce((sum, g) => sum + (g === "advantage" ? 1 : g === "disadvantage" ? -1 : 0), 0)
+        + situation + (isBrokenDown(actor) ? -1 : 0);
+    out.advantage = Math.sign(dice) * Math.min(ADVANTAGE_CAP, Math.abs(dice));
+    out.bonus = applied.filter(call => call?.grants === "bonus" && Number.isFinite(Number(call.amount)))
+        .reduce((sum, call) => sum + Number(call.amount), 0);
+    return out;
+}
+
+/** What the record keeps of an expectation: plain, and with the pick card that a later roll may not use again. */
+function recordOf(expected) {
+    const { trait, traitFrom, pick, advantage, situationFrom, bonus, experiences, effects, stashDie, checked } = expected;
+    return { checked, trait, traitFrom, pick, advantage, situationFrom, bonus, experiences, effects, stashDie };
+}
+
+/** The roll's flat modifier: every term that is a plain number, with the sign of the operator before it. */
+function flatOf(roll) {
+    let flat = 0;
+    const terms = roll.terms ?? [];
+    for (let i = 0; i < terms.length; i++) {
+        const term = terms[i];
+        if (typeof term?.number !== "number" || Array.isArray(term.results) || term.faces !== undefined) continue;
+        flat += (terms[i - 1]?.operator === "-" ? -1 : 1) * term.number;
+    }
+    return flat;
+}
+
+/** The roll's advantage dice as a signed count, read as Daggerheart's `dAdvantage` / `dDisadvantage` hold them. */
+function advantageOf(roll) {
+    const die = roll.dAdvantage ?? roll.dDisadvantage ?? null;
+    const count = Number(die?.number) || (die ? 1 : 0);
+    return roll.dAdvantage ? count : -count;
+}
+
+/**
+ * The roll against the expectation: `[{ kind, expected, claimed }]`, empty when nothing differs.
+ * Kinds: `trait`, `modifier` (the flat sum), `dice` (a die beyond Hope, Fear and the advantage
+ * die), `advantage`, `stash` (a hidden stash the packet did not name).
+ */
+function checkRoll(roll, actor, told, expected) {
+    const flags = [];
+    if (expected.stashDie && told.context.stashDie !== true) flags.push({ kind: "stash", expected: "1", claimed: "0" });
+    if (!expected.checked) return flags;
+    const said = traitKeyOf(told.trait);
+    if (expected.trait && said !== expected.trait) flags.push({ kind: "trait", expected: expected.trait, claimed: said ?? "-" });
+    const traitValue = Number(actor.system?.traits?.[TRAITS[said]?.dh ?? ""]?.value) || 0;
+    const owned = told.experiences.filter(key => actor.system?.experiences?.[key]);
+    const fromExperiences = owned.slice(0, expected.experiences)
+        .reduce((sum, key) => sum + (Number(actor.system.experiences[key].value) || 0), 0);
+    const base = traitValue + fromExperiences + expected.bonus;
+    const off = flatOf(roll) - base;
+    const [low, high] = expected.effects;
+    if (off < low || off > high || owned.length > expected.experiences) {
+        flags.push({ kind: "modifier", expected: signed(base), claimed: signed(flatOf(roll)) });
+    }
+    const extra = (roll.dice?.length ?? 0) - 2 - (roll.dAdvantage || roll.dDisadvantage ? 1 : 0);
+    if (extra > 0) flags.push({ kind: "dice", expected: "0", claimed: String(extra) });
+    const dice = advantageOf(roll);
+    if (dice !== expected.advantage) flags.push({ kind: "advantage", expected: signed(expected.advantage), claimed: signed(dice) });
+    return flags;
+}
+
+const signed = n => (n > 0 ? `+${n}` : String(n));
+
+/** The line each kind is said as - written out, so each key is a literal the lang check can find. */
+const FLAG_KINDS = Object.freeze({
+    trait: "DRPG.Rolls.flagKind.trait",
+    modifier: "DRPG.Rolls.flagKind.modifier",
+    dice: "DRPG.Rolls.flagKind.dice",
+    advantage: "DRPG.Rolls.flagKind.advantage",
+    stash: "DRPG.Rolls.flagKind.stash"
+});
+
+/** One flag as words: what, what the roll had, what the GM expected. A statistic is said by its label. */
+export function flagText(flag) {
+    const word = value => (flag?.kind === "trait" ? TRAITS[value]?.label ?? value : value);
+    return game.i18n.format("DRPG.Rolls.flagLine", {
+        what: game.i18n.localize(FLAG_KINDS[flag?.kind] ?? "DRPG.Rolls.flagKind.modifier"),
+        claimed: String(word(flag?.claimed) ?? "-"), expected: String(word(flag?.expected) ?? "-")
+    });
+}
+
+/** One whisper to the GMs for a roll with anything flagged: whose roll, and each difference. */
+async function tellUnexpected(actor, flags) {
+    try {
+        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Rolls.unexpected", {
+            name: actor.name, list: flags.map(flagText).join("; ") }))}</p>`);
+    } catch (err) {
+        error("Could not tell the GMs of a roll's unexpected modifiers", err);
+    }
+}
+
+/**
+ * THE LIST E29 NEEDS (`game.drpg.rollFlags()`): every drawn roll whose record holds a flag, newest
+ * first, as this GM holds the records - which are swept past the Reroll's window
+ * (`TIMING.rerollWindowMinutes`, `keepRecord`), so it lists the last minutes, not a session. A
+ * table of them goes to the console under `DRPG.Rolls.flagsTitle`; a player's browser holds no
+ * record and answers an empty list.
+ */
+export function rollFlags({ quiet = false } = {}) {
+    if (!game.user?.isGM) return [];
+    const rows = Object.entries(rollStore.entries() ?? {})
+        .filter(([, row]) => Array.isArray(row?.flags) && row.flags.length)
+        .sort(([, a], [, b]) => (b.at ?? 0) - (a.at ?? 0))
+        .map(([rollId, row]) => ({
+            rollId, at: new Date(row.at ?? 0).toISOString(), character: game.actors.get(row.actorId)?.name ?? row.actorId,
+            player: game.users.get(row.userId)?.name ?? row.userId, action: row.actionKey ?? "-", messageId: row.messageId,
+            flags: row.flags.map(flagText).join("; ")
+        }));
+    if (!quiet) {
+        console.log(game.i18n.format("DRPG.Rolls.flagsTitle", { n: rows.length }));
+        if (rows.length) console.table(rows);
+    }
+    return rows;
 }
 
 /** Every face the roll drew, in the order its dice drew them. */

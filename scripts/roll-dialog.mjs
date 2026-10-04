@@ -26,6 +26,7 @@ import { debug } from "./utils.mjs";
 // dialog is opened BY the system, not by that file.
 import { DRPG_ACTION_ROLL, TRAIT_BY_GM } from "./action-rolls.mjs";
 import { LOADED_DIE } from "./forced-roll.mjs";
+import { ROLL_NONCE, noteWindowCalls } from "./private-rolls.mjs";
 
 export function registerRollDialog() {
     Hooks.on("renderApplicationV2", onRenderApplication);
@@ -45,6 +46,12 @@ export function registerRollDialog() {
  * (`windowCalls`) - and nothing armed after it opened, which waits for the next
  * roll (S02-20). Exported, with the render hook, for the suite: Daggerheart's
  * window is not in the harness, so the tier-2 tests hand both a stand-in.
+ *
+ * A ROLL THE GM DRAWS IS SPENT BY THE GM (E08+E28 C12b). The window's list is kept on
+ * its roll's claim before anything is awaited (private-rolls.mjs `noteWindowCalls`) and
+ * travels with the roll; the GM spends those Calls as it draws it (roll-draw.mjs
+ * `drawOnGm`), having read them first. Spent here as well, a flag write landing on the GM
+ * before the roll would have taken them out from under that reading.
  */
 export async function onCloseApplication(app) {
     try {
@@ -59,7 +66,10 @@ export async function onCloseApplication(app) {
         // not load waits for the action it was bought for - see `grantsFor`.
         const usable = grantsFor(app, actor);
         const nonces = windowCalls(app, actor).filter(entry => usable.has(entry.grants)).map(entry => entry.nonce);
+        noteWindowCalls(app.config[ROLL_NONCE], nonces);
         if (!nonces.length) return;
+        const { drawnByGm } = await import("./roll-draw.mjs");
+        if (drawnByGm(app.config)) return;
         const { consumeCallsByNonce } = await import("./call-effects.mjs");
         await consumeCallsByNonce(actor, nonces);
     } catch {

@@ -28,7 +28,7 @@ import {
     esc, primaryGmId} from "./utils.mjs";
 // A Confusion's armed Calls are the GMs' store and the owner's copy (E06 fix r2-G4), read
 // synchronously beside the flag - gm-stores.mjs reaches a domain module only by `import()`.
-import { confusionStore, confusionCopy } from "./gm-stores.mjs";
+import { confusionStore, confusionCopy, rollStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, ownsActor, replyForMe } from "./bridge-guards.mjs";
 
@@ -369,6 +369,19 @@ export async function consumeCalls(actor) {
  */
 export async function consumeCallsByNonce(actor, nonces) {
     if (shielded) return [];
+    return spendCallsByNonce(actor, nonces);
+}
+
+/**
+ * The spend itself, which no shield stands in front of: a GM spends with it the Calls a
+ * player's roll applied as it draws that roll (roll-draw.mjs `drawOnGm`, E08+E28 C12b), and
+ * this GM's own supporting roll, if one is open here, has nothing to do with somebody
+ * else's. The roller's browser spends nothing of a drawn roll (`throwDice`, roll-dialog.mjs
+ * `onCloseApplication`): the GM read what it applied before it threw the dice, so a spend
+ * landing first on the roller's side would have taken the Calls out from under the GM's
+ * reading.
+ */
+export async function spendCallsByNonce(actor, nonces) {
     const names = new Set(nonces ?? []);
     if (!names.size) return [];
     const pending = pendingCallsRaw(actor);
@@ -414,11 +427,13 @@ export function grants(actor, what) {
  * Approval are announced where they are bought, and a Monokuma's is the GM's.
  *
  * A roll on the owner's browser spends the Confusion there at once - off the
- * copy, with the nonce kept as `spent` - and the ask tells the primary, which
- * drops it from the store. With no GM connected the copy keeps it spent, and
- * the next ask - at a GM's arrival - drops it: a spent Confusion comes back to
- * no roll. What a real table's two GMs do with one ask each has not been
- * measured; the ask goes to the primary alone.
+ * copy, with the nonce kept as `spent` - and the ask tells the primary. Since
+ * E08+E28 C12b a roll the GM draws is spent by the GM as it draws it, and the
+ * primary takes an ask's `spent` only for a nonce a drawn roll's record names
+ * (`answerConfusions`): a roll thrown with no GM connected keeps its Confusion
+ * spent in this browser's copy for the session and armed in the store. What a
+ * real table's two GMs do with one ask each has not been measured; the ask goes
+ * to the primary alone.
  *
  * What the store does not hide: a Confusion's critical wastes or refunds an
  * action on the target, and action budgets are actor data every browser holds
@@ -562,12 +577,37 @@ function askForConfusions(primary = primaryGmId()) {
     }
 }
 
-/** Primary: drop what the asker spent on their own characters, then answer them and every other owner of what changed. */
-async function answerConfusions(sender, spent) {
+/*
+ * A REPORT OF A CONFUSION SPENT IS TAKEN FOR A ROLL THE GM DREW (E08+E28 C12b, 04.10.2026; the
+ * owner's note of 28.09.2026 on E06 fix r2-G4). The ask's `spent` was the owner's word for their
+ * own characters, and a Confusion that hinders is one a player gains by calling spent with no
+ * roll at all. Since C12b the GM spends the Calls a drawn roll applied as it draws it, and
+ * writes their nonces in the roll's record (`used.calls`, roll-draw.mjs `drawOnGm`); a report
+ * is taken for a nonce a record names, for that record's character, and no other - the rest
+ * stays armed. Where the players' rolls are thrown in their own browsers - a Daggerheart the
+ * draw was not written for (roll-draw.mjs `reviewBuild`) - there is no record to name anything,
+ * and the report is taken as in 1.2.66: without it a Confusion would stay armed for good.
+ */
+function namedByRecords() {
+    const named = new Map();
+    for (const row of Object.values(rollStore.entries() ?? {})) {
+        for (const nonce of Array.isArray(row?.used?.calls) ? row.used.calls : []) named.set(nonce, row.actorId);
+    }
+    return named;
+}
+
+/**
+ * Primary: drop what the asker spent on their own characters - a nonce a drawn roll's record
+ * names, above - then answer them and every other owner of what changed. Exported for the suite.
+ */
+export async function answerConfusions(sender, spent) {
+    const { rollDrawState } = await import("./roll-draw.mjs");
+    const named = rollDrawState().state === "ok" ? namedByRecords() : null;
     for (const [actorId, nonces] of Object.entries(spent && typeof spent === "object" ? spent : {})) {
         // A packet's actor ids are claims: only a character the asker owns has its Confusion spent.
         if (!Array.isArray(nonces) || !ownsActor(sender, actorId)) continue;
-        if (await dropConfusions(actorId, nonces.filter(nonce => typeof nonce === "string"))) tellConfusionOwners(actorId);
+        const taken = nonces.filter(nonce => typeof nonce === "string" && (!named || named.get(nonce) === actorId));
+        if (taken.length && await dropConfusions(actorId, taken)) tellConfusionOwners(actorId);
     }
     sendConfusionsTo(sender.id);
 }

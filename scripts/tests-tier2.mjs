@@ -4632,6 +4632,269 @@ const SCENARIOS = [
         ], before]), "a forged draw was carried out, refused with another code, or left a message or a record (verdict and answers per forgery; drawn messages and records)");
     }],
 
+    ["a roll with a bonus the GM did not expect is flagged to the GMs and scored as drawn", async () => {
+        /*
+         * E08+E28 C12b, 04.10.2026; the plan's 3.3; D2's observation for 1.2.67. What a drawn roll
+         * adds up to beyond its dice is configured in the roller's browser; the GM reads what it
+         * expects (roll-draw.mjs `expectedFor`) and a difference is flagged, not refused, until E29.
+         * The packet of a player's Search with three added to its formula, as a bonus field would
+         * add it, with no Call that buys one. Read: the total three ways (the record's, the answer's,
+         * the message's) against the faces and the three, the record's flags, the whispers to the
+         * GMs that say the flag's line, and `game.drpg.rollFlags()`. Until C12b the GM kept
+         * `flags: []` and said nothing.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        // The last two terms of the harness's formula are `+` and the statistic's value: copied, with a 3.
+        const edit = packet => {
+            const terms = packet.roll.terms;
+            const op = terms.find(t => t?.operator === "+"), num = terms.find(t => typeof t?.number === "number" && t.faces === undefined);
+            must(op && num, "the packet's formula has no plain number to add beside - this would measure nothing");
+            packet.roll.terms = [...terms, foundry.utils.deepClone(op), { ...foundry.utils.deepClone(num), number: 3 }];
+            packet.roll.formula = `${packet.roll.formula} + 3`;
+            return packet;
+        };
+        const F = await drawnForPlayer(player, theirs, { edit });
+        try {
+            must(F.record, "the GM kept no record of the draw - this measured nothing");
+            const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
+            const line = F.record.flags?.length ? D.flagText(F.record.flags[0]) : "C12B NO FLAG";
+            const said = [];
+            for (const m of game.messages.contents.filter(x => !had.has(x.id) && x.id !== F.message?.id)) {
+                if (String(await wordsOf(m, 1000) ?? "").includes(line)) said.push([...(m.whisper ?? [])].sort().join());
+            }
+            const listed = typeof D.rollFlags === "function" ? D.rollFlags({ quiet: true }).filter(row => row.rollId === F.value?.rollId).map(row => row.flags) : [];
+            equal(stableJson([F.record.total, F.value?.total, F.message?.rolls?.[0]?.total, (F.record.flags ?? []).map(f => f.kind), said.length,
+                said[0] === [...gmIds()].sort().join(), listed.length === 1 && listed[0].includes(line)]),
+            stableJson([9 + 4 + mod + 3, 9 + 4 + mod + 3, 9 + 4 + mod + 3, ["modifier"], 1, true, true]),
+                "a bonus the GM did not expect changed the drawn total, was not flagged, was told other than once to the GMs, or is not in rollFlags (record, answer and message totals; flags; whispers; to the GMs; listed)");
+        } finally {
+            await F.putBack();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+        }
+    }],
+
+    ["the trait the GM picked: another one is flagged", async () => {
+        /*
+         * E08+E28 C12b, 04.10.2026; the owner's rule of 28.09.2026 (E28's amend): the roll's
+         * statistic is held to the GM's pick, or the player's own after a Resolve. A roll whose
+         * window says a GM picked its statistic is held to the newest pick card a GM settled for
+         * that character (gm-bridge.mjs `settleCall`'s `ruling`), which one roll uses and no other.
+         * Three crisis draws of a player's character, each saying a GM picked: after a card picking
+         * Hand, a roll of Hand; after a card picking Body, a roll of Eye; then a roll of Eye with no
+         * new card - the newest is used already. And a Search, which rolls Eye, rolled with Hand.
+         * Read: each record's flags and the statistic it expected. Until C12b nothing was expected.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const { TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const card = async trait => {
+            const m = await whisperToGms("<p>SUITE C12b pick</p>");
+            must(m, "no card to settle a pick on - this would measure nothing");
+            await settleCall(m, "SUITE C12b", { type: "trait", actorId: theirs.id, kind: "crisis", key: "attack", variant: null, trait });
+            return m.id;
+        };
+        // The records are kept until the last draw: a pick a record names is used.
+        const drawn = [];
+        const draw = async (actionKey, trait, byGm) => {
+            const F = await drawnForPlayer(player, theirs, { actionKey,
+                edit: p => ({ ...p, trait: TRAITS[trait].dh, roll: { ...p.roll, options: { ...p.roll.options, ...(byGm ? { [TRAIT_BY_GM]: true } : {}) } } }) });
+            drawn.push(F);
+            // The statistic's flag alone: the packet's formula still carries Eye's value, which the modifier's flag reads.
+            return [(F.record?.flags ?? []).filter(f => f.kind === "trait").map(f => [f.kind, f.expected, f.claimed]), F.record?.expected?.trait ?? null];
+        };
+        const read = [];
+        try {
+            await card("hand");
+            read.push(await draw("crisis", "hand", true));
+            await card("body");
+            read.push(await draw("crisis", "eye", true));
+            read.push(await draw("crisis", "eye", true));
+            read.push(await draw("search", "hand", false));
+        } finally {
+            for (const F of drawn) await F.putBack();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson([
+            [[], "hand"],
+            [[["trait", "body", "eye"]], "body"],
+            [[], null],
+            [[["trait", "eye", "hand"]], "eye"]
+        ]), "a drawn roll's statistic was not held to the GM's newest unused pick, a used pick was held again, or a Search's Hand went unflagged (per draw: flags, expected statistic)");
+    }],
+
+    ["a Loaded Die bought and armed forces the first face on the GM and is spent there; one not armed does not", async () => {
+        /*
+         * E08+E28 C12b, 04.10.2026; the plan's 3.3. The Loaded Die's 12 is the GM's to put on the
+         * roll it draws, while the character's armed Calls hold the mark and the roll applied it;
+         * forced-roll.mjs's swap on the roller's browser stands aside for a drawn roll. The GM spends
+         * the Calls a roll applied, as it draws it (the roller's browser no longer spends them). Two
+         * draws of a player's character, the harness's faces 3 and 5: one marked with a Loaded Die
+         * armed on the character and named among the roll's Calls, one with a mark nothing armed.
+         * Read: the faces, the record's `used.loaded`, and whether the Call is still armed. C12a
+         * loaded the die already; until C12b the GM left the Call armed.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const before = new Set(E.armedCallsShown(theirs).map(c => c.nonce));
+        await E.armCall(theirs, { key: "freeCrit", kind: "hope", grants: "critical" });
+        const nonce = E.armedCallsShown(theirs).find(c => c.grants === "critical" && !before.has(c.nonce))?.nonce ?? null;
+        must(nonce, "the Loaded Die was not armed - this would measure nothing");
+        const read = [];
+        try {
+            for (const mark of [nonce, "C12BNOTARMEDDIE"]) {
+                const F = await drawnForPlayer(player, theirs, { faces: { hope: 3, fear: 5 }, edit: p => ({ ...p, loaded: mark, calls: [mark] }) });
+                try {
+                    read.push([F.record?.hope ?? null, F.record?.fear ?? null, F.record?.used?.loaded ?? null,
+                        E.armedCallsShown(theirs).some(c => c.nonce === nonce)]);
+                } finally {
+                    await F.putBack();
+                }
+            }
+        } finally {
+            if (E.armedCallsShown(theirs).some(c => c.nonce === nonce)) await E.consumeCallsByNonce(theirs, [nonce]);
+        }
+        equal(stableJson(read), stableJson([[12, 3, true, false], [3, 5, false, false]]),
+            "the GM did not load an armed Loaded Die, loaded one nothing armed, or left the one it loaded armed (per draw: Hope, Fear, loaded, still armed)");
+    }],
+
+    ["a Confusion reported spent without a roll naming it stays armed", async () => {
+        /*
+         * E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on E06 fix r2-G4. A player's ask
+         * says which of their character's Confusions a roll spent, and the primary dropped every one
+         * it named - so a hindering Confusion was a player's to drop with no roll at all. The report
+         * is taken now for a nonce a drawn roll's record names (call-effects.mjs `answerConfusions`).
+         * Two Confusions armed on a player's character; a record naming the second (a row of the
+         * GMs' `rolls` store, as a draw writes it); the player's report naming both. Read: which of
+         * the two the GMs' store still holds. Until C12b both went.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the ask is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { confusionStore, rollStore } = await import("./gm-stores.mjs");
+        const held = () => (confusionStore.get(theirs.id)?.calls ?? []).map(c => c.nonce);
+        const before = new Set(held());
+        await E.armCall(theirs, { key: "meddle", grants: "bonus", amount: -1 });
+        await E.armCall(theirs, { key: "meddle", grants: "bonus", amount: 1 });
+        const [unnamed, named] = held().filter(n => !before.has(n));
+        must(unnamed && named, "the two Confusions were not armed in the GMs' store - this would measure nothing");
+        const rollId = "C12BCONFUSIONROW";
+        let after = null;
+        try {
+            await rollStore.patch(rollId, { rollId, actorId: theirs.id, userId: player.id, actionKey: null, messageId: null,
+                flags: [], used: { calls: [named], stash: null, loaded: false }, at: Date.now() });
+            must(typeof E.answerConfusions === "function", "the primary's answer to a player's ask is not reachable here - this would measure nothing");
+            await E.answerConfusions(player, { [theirs.id]: [unnamed, named] });
+            await settle();
+            after = held();
+        } finally {
+            if (rollStore.has(rollId)) await rollStore.drop(rollId);
+            const left = held().filter(n => n === unnamed || n === named);
+            if (left.length) await E.consumeCallsByNonce(theirs, left);
+        }
+        equal(stableJson([after.includes(unnamed), after.includes(named)]), stableJson([true, false]),
+            "a Confusion reported spent with no drawn roll naming it was dropped, or one a record names stayed (unnamed held, named held)");
+    }],
+
+    ["a Search at a hidden stash takes the step the GM drew", async () => {
+        /*
+         * E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on C11e. A hidden stash's step -
+         * the advantage die set aside, drawn at random, or one more disadvantage die - was drawn in
+         * the searcher's browser and was in no message. The GM draws it with the dice now, where the
+         * room it sees the searcher in holds a hidden stash, and the searcher takes that step and
+         * draws none (action-rolls.mjs `stashStepOf`). A player's character stood alone in a room
+         * where another student keeps a hidden stash with one thing in it, its Search's packet
+         * naming the stash; the GM's randomiser scripted to give a 6 for the extra die, then the
+         * searcher's to give a 1. Read: the step the GM answered and recorded, and the step the
+         * searcher's half takes from the answer. Until C12b the GM drew none and the searcher drew
+         * its own, the 1.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const { player, theirs } = playerAndCharacters();
+        const owner = cast(2).find(a => a.id !== theirs.id);
+        must(owner, "no other student keeps the stash - this would measure nothing");
+        const rolls = await import("./action-rolls.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const stood = await standAlone(theirs);
+        const region = V.regionsByName().get(stood.room);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const path = k => `flags.${MODULE_ID}.${k}`;
+        const Dice = CONFIG.Dice;
+        const hadU = Object.hasOwn(Dice, "randomUniform"), realU = Dice.randomUniform;
+        let item = null, F = null, taken = null;
+        try {
+            must(region, `${stood.room} has no region`);
+            await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: owner.id, concealed: true }],
+                [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+            item = await INV.grantItem(owner, { name: "SUITE C12b hidden", category: "usable", tier: 1, override: true, quiet: true });
+            must(item, "the stash's thing was not made");
+            await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: stood.room });
+            await settle();
+            must(V.stashItemsIn(owner, stood.room).length === 1, "the thing is not in the hidden stash");
+            // ceil((1 - 0.01) * 6) = 6 on the GM; ceil((1 - 0.99) * 6) = 1 on the searcher's half.
+            Dice.randomUniform = () => 0.01;
+            F = await drawnForPlayer(player, theirs, { edit: p => ({ ...p, context: { category: "usable", stashDie: true } }) });
+            Dice.randomUniform = () => 0.99;
+            const drawn = { rollId: F.value?.rollId ?? null, messageId: F.value?.messageId ?? null, stash: F.value?.stash ?? null, loaded: false };
+            taken = typeof rolls.stashStepOf === "function"
+                ? await rolls.stashStepOf({ raw: { [rolls.DRAWN_ROLL]: drawn } }, theirs, true)
+                : await rolls.stashStepFor(F.message?.rolls?.[0] ?? {}, theirs);
+        } finally {
+            if (hadU) Dice.randomUniform = realU;
+            else delete Dice.randomUniform;
+            if (F) await F.putBack();
+            if (item) await owner.items.get(item.id)?.delete();
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+            await stood.back();
+        }
+        const answered = F?.value?.stash ?? null;
+        equal(stableJson([answered?.kind ?? null, answered?.rolled ?? null, stableJson(F?.record?.used?.stash ?? null) === stableJson(answered),
+            stableJson(taken) === stableJson(answered)]), stableJson(["rolled", 6, true, true]),
+            "the GM did not draw the hidden stash's step, did not record the one it answered, or the searcher took a step of its own (kind, die, recorded, taken)");
+    }],
+
+    ["a drawn roll's Reroll takes its statistic, experiences and stash from the GM's record, not the bookmark", async () => {
+        /*
+         * E08+E28 C12b, 04.10.2026; round 1's security review (a Reroll's formula took the statistic and
+         * the experiences from the bookmark's row - the roller's claim, which it may send again) and the
+         * plan's 2.5 (a Search's Reroll takes the stash's step from the record once it is there). The GM
+         * keeps them on the record as it draws (roll-draw.mjs `drawOnGm`), and the Reroll reads them
+         * there for a roll the GM drew (reroll.mjs `rollAsThrown`, `stashDieOf`). A player's Search,
+         * drawn; a bookmark naming its message that says Hand, an experience and a hidden stash. Read:
+         * the statistic and the experiences of the roll the Reroll rebuilds, and whether it takes a
+         * stash's step. Until C12b all three were the bookmark's.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const R = await import("./reroll.mjs");
+        const F = await drawnForPlayer(player, theirs);
+        try {
+            must(F.message && F.record, "the GM drew nothing - this would measure nothing");
+            const bookmark = { messageId: F.message.id, trait: "hand", experiences: ["C12B-claimed"], stashDie: true };
+            // The roll as the class rebuilds it from the packet's JSON: the harness's message keeps its rolls as JSON alone.
+            const original = game.system.api.dice.DualityRoll.fromData(foundry.utils.deepClone(F.packet.roll));
+            const thrown = await R.rollAsThrown(original, theirs, F.message, bookmark);
+            const stash = typeof R.stashDieOf === "function" ? await R.stashDieOf(bookmark) : bookmark.stashDie;
+            equal(stableJson([thrown?.options?.roll?.trait ?? null, thrown?.options?.experiences ?? null, stash]), stableJson(["instinct", [], false]),
+                "a drawn roll's Reroll was rebuilt from the bookmark's statistic or experiences, or took a stash's step the GM did not draw (statistic, experiences, step)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
     ["the GM's bookmark of a player's Search names the trace it placed", async () => {
         /*
          * E08+E28 C2, 03.10.2026; audit S05-08. A player's trace is placed by the GM
