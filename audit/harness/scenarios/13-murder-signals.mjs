@@ -416,12 +416,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        victim's browser says whose roll it is as the message is created, not once the dice have
        landed; every browser's chat log calls its notifier as a message is created, and the
        roll must light the pip and ring only where it is read; and with rolls not forced private
-       the killer's own Dice So Nice animates the victim's roll and the relay plays no copy. */
+       the killer's own Dice So Nice animates the victim's roll and the relay plays no copy.
+       E08+E28 C13 (04.10.2026; the plan's 3.4): the GM draws each player's roll and writes its
+       message, which no Dice So Nice animates on its own (it would in the GM's colours), so the
+       relay plays it as the roller's dice - forced private or not - and the roller plays its
+       own from the draw's answer; each browser keeps the dice sounds it plays (`__sounds`). */
     phase("dice", { flow: "murder-incident" });
     const DICE_NET = `globalThis.__diceNet = { show: [], words: [], showAt: {} }; globalThis.__dsnShown = []; globalThis.__dsnAnimated = [];
-        globalThis.__dsnHideSecret = false; globalThis.__chatNotified = []; globalThis.__chatRung = []; globalThis.__dsnFell = {};
+        globalThis.__dsnHideSecret = false; globalThis.__chatNotified = []; globalThis.__chatRung = []; globalThis.__dsnFell = {}; globalThis.__sounds = [];
         if (!globalThis.__diceNetOn) {
             globalThis.__diceNetOn = true;
+            const H = foundry.audio.AudioHelper, play = H.play;
+            H.play = function (data, ...rest) { globalThis.__sounds?.push(String(data?.src ?? "")); return play.call(this, data, ...rest); };
             game.socket.on("module.${MOD}", p => {
                 if (p?.action === "dice.show") { globalThis.__diceNet.show.push(p.id ?? null); globalThis.__diceNet.showAt[p.id] ??= Date.now(); }
                 if (p?.action === "secret.card") globalThis.__diceNet.words.push(String(p.html ?? ""));
@@ -458,19 +464,34 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             label: foundry.utils.escapeHTML(CRISIS_ACTIONS["${key}"].label), stage: game.drpg.murderState()?.stage ?? null };`;
     const DICE_READ = act => `const n = globalThis.__diceNet;
         const card = n.words.find(h => h.includes(${JSON.stringify(act.label)} + " - ")) ?? null;
-        return { relayed: n.show.includes("${act.id}"), played: globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null).map(c => c.total),
+        const thrown = globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null);
+        return { relayed: n.show.includes("${act.id}"), played: thrown.map(c => c.total), as: thrown.map(c => c.user),
+            heard: globalThis.__sounds.filter(s => s === CONFIG.sounds.dice).length,
             animated: globalThis.__dsnAnimated.includes("${act.id}"), card: Boolean(card), total: Boolean(card?.includes("<p>${act.total} ")),
             dice3d: Boolean(game.dice3d), notified: globalThis.__chatNotified.includes("${act.id}"), rung: globalThis.__chatRung.includes("${act.id}"),
             shownAt: n.showAt["${act.id}"] ?? null, fell: globalThis.__dsnFell["${act.id}"] ?? null };`;
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
-    await p1.eval(`globalThis.__dsnAnimation = async id => { await new Promise(r => setTimeout(r, 1500)); globalThis.__dsnFell[id] ??= Date.now(); }; return true;`);
+    /* The victim's Dice So Nice holds her own throw 1.5 s: since E08+E28 C12a that throw is the
+       draw's answer played on her screen (roll-draw.mjs `playDice`, `showForRoll` as her own, not
+       synchronised), so the hold is put on that call here and stamped with the drawn message's id. */
+    await p1.eval(`globalThis.__dsnAnimation = async id => { await new Promise(r => setTimeout(r, 1500)); globalThis.__dsnFell[id] ??= Date.now(); };
+        const show = game.dice3d.showForRoll;
+        globalThis.__showAway = show;
+        game.dice3d.showForRoll = async (roll, user, synchronize, ...rest) => {
+            const shown = await show(roll, user, synchronize, ...rest);
+            const own = !synchronize && (user?.id ?? user) === game.user.id;
+            const drawn = own ? game.messages.contents.filter(m => m.getFlag("${MOD}", "drawn")).at(-1) : null;
+            if (drawn) await globalThis.__dsnAnimation?.(drawn.id);
+            return shown;
+        };
+        return true;`);
     /* Leave a clue lists Hand, Leg and Shadow: the GM picks Shadow - the last, so a roll of
        the first listed, as before E32+E07 C11b, cannot pass for the pick (client-entry.mjs
        `__traitRulingAuto`). */
     await gm.eval(`globalThis.__traitRulings.length = 0; globalThis.__traitRulingAuto = "shadow"; return true;`);
     const clue = await p1.eval(ACT(ids.aiko, "leaveClue", { hope: 9, fear: 5 }), { timeout: 60000 });
     const ruled = await gm.eval(`globalThis.__traitRulingAuto = true; return globalThis.__traitRulings.slice();`);
-    await p1.eval(`delete globalThis.__dsnAnimation; return true;`);
+    await p1.eval(`delete globalThis.__dsnAnimation; game.dice3d.showForRoll = globalThis.__showAway; delete globalThis.__showAway; return true;`);
     await settle(900);
     /* THE GM'S PICK OF A STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). The card asking
        it is veiled in Aiko's thread: its words reach the victim's browser and no other
@@ -502,18 +523,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const ownDice = (r, total) => r.animated || r.played.includes(total);
     check("dice: the victim's crisis roll is played on the killer's screen by the GM's relay, and its card tells the killer the action and the total",
         Boolean(clue.id) && clue.stage === "incident" && withDsn.killer.relayed && withDsn.killer.played.includes(clue.total)
-        && withDsn.killer.card && withDsn.killer.total && ownDice(withDsn.victim, clue.total) && !withDsn.victim.relayed,
+        && withDsn.killer.card && withDsn.killer.total && ownDice(withDsn.victim, clue.total) && !withDsn.victim.relayed
+        && withDsn.killer.as.every(user => user === p1.userId),
         JSON.stringify({ clue, withDsn }), { flow: "private-rolls" });
     check("dice: the bystander is sent neither the roll's dice nor its card, and animates nothing though Dice So Nice's secret-roll hiding is off",
         Boolean(clue.id) && !withDsn.bystander.relayed && !withDsn.bystander.played.length && !withDsn.bystander.animated && !withDsn.bystander.card,
         JSON.stringify(withDsn.bystander), { flow: "private-rolls" });
-    /* Red from E08+E28 C12a until C13: the victim's dice are played from the GM's answer
-       (`showForRoll`), not waited for on the message (`waitFor3DAnimationByMessageID`, which
-       `__dsnAnimation` holds), so `fell` is never stamped and the order is not measured. */
+    /* Red from E08+E28 C12a to C13: the victim's dice were played from the GM's answer and the hold
+       sat on `waitFor3DAnimationByMessageID`, which nothing on her browser calls any more, so `fell`
+       was never stamped. Held on her own throw since C13 (above). */
     check("dice: the victim's roll reaches the killer while the victim's own dice still fall",
         Boolean(withDsn.killer.shownAt) && Boolean(withDsn.victim.fell) && withDsn.killer.shownAt < withDsn.victim.fell,
-        JSON.stringify({ killer: withDsn.killer.shownAt, fell: withDsn.victim.fell }), { flow: "private-rolls",
-            measured: Boolean(withDsn.killer.shownAt) && withDsn.victim.played.includes(clue.total), expectedRed: { stage: "E28", why: "C13: a drawn roll's dice are played from the GM's answer, which __dsnAnimation does not hold" } });
+        JSON.stringify({ killer: withDsn.killer.shownAt, fell: withDsn.victim.fell }), { flow: "private-rolls" });
 
     await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
         if (!M.isTheirTurn(game.actors.get("${ids.chie}"))) await M.passTurn();
@@ -528,15 +549,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         Boolean(strike.id) && strike.stage === "incident" && noDsn.victim.dice3d === false && noDsn.victim.card && noDsn.victim.total
         && !noDsn.bystander.card && !noDsn.bystander.relayed,
         JSON.stringify({ strike, noDsn }), { flow: "private-rolls" });
-    const pip = r => ({ notified: r.notified, rung: r.rung });
+    /* The roll's sound (E08+E28 C13): the GM writes a drawn roll's message muted, so where it is read
+       without Dice So Nice the roller hears the dice the draw's answer plays (`heard`), not the chat's
+       ring of the message (`rung`) - one or the other, once. Red from C12a to C13: the roller's browser
+       could not read the GM's message (`readableHere`), so it lit no pip there. */
+    const pip = r => ({ notified: r.notified, rung: r.rung, heard: r.heard });
+    const rang = r => r.rung || r.heard > 0;
     check("dice: a roll the module threw lights the Chat pip and rings only where it is read - never on the other participant's screen or the bystander's, with Dice So Nice or without",
-        withDsn.victim.notified && !withDsn.victim.rung && noDsn.killer.notified && noDsn.killer.rung
-        && [withDsn.killer, withDsn.bystander, noDsn.victim, noDsn.bystander].every(r => !r.notified && !r.rung),
+        withDsn.victim.notified && !rang(withDsn.victim) && noDsn.killer.notified && rang(noDsn.killer) && !(noDsn.killer.rung && noDsn.killer.heard > 0)
+        && noDsn.killer.heard <= 1 && [withDsn.killer, withDsn.bystander, noDsn.victim, noDsn.bystander].every(r => !r.notified && !rang(r)),
         JSON.stringify({ withDsn: [withDsn.victim, withDsn.killer, withDsn.bystander].map(pip), noDsn: [noDsn.killer, noDsn.victim, noDsn.bystander].map(pip) }),
-        // Red from E08+E28 C12a until C13: the GM writes a drawn roll's message, which its roller's browser
-        // does not read until C13 makes it readable there (`readableHere`), so it lights no pip on the roller's.
-        { flow: "private-rolls", measured: Boolean(clue.id && strike.id),
-            expectedRed: { stage: "E28", why: "C13: a drawn roll's message is not yet readable on its roller's browser" } });
+        { flow: "private-rolls" });
 
     /* A CARD ANOTHER FILE POSTS FOR A ROLL OF THE FIGHT, FROM THE PLAYER'S OWN BROWSER (E06 fix
        r1-G3, 28.09.2026; review M2). A tool Chie holds breaks on a Despair on p3's browser
@@ -718,8 +741,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const unforced = await p3.eval(DICE_READ(open));
     await gm.eval(FORCED(true));
     for (const c of [p1, p3]) await c.eval(`globalThis.__dsnHideSecret = true; return true;`);
-    check("dice: with rolls not forced private the killer's own Dice So Nice animates the victim's roll, and the relay does not play it a second time",
-        Boolean(open.id) && open.stage === "incident" && unforced.animated && !unforced.played.length,
+    /* E08+E28 C13: the victim's roll is the GM's message, which the killer's Dice So Nice would throw
+       in the GM's colours - so its own decision is off, and the relay plays it once, as p1's dice. */
+    check("dice: with rolls not forced private the victim's roll is played once on the killer's screen, as the victim's dice, and the killer's own Dice So Nice does not animate it",
+        Boolean(open.id) && open.stage === "incident" && !unforced.animated && unforced.relayed
+        && JSON.stringify(unforced.played) === JSON.stringify([open.total]) && unforced.as.every(user => user === p1.userId),
         JSON.stringify({ open, unforced }), { flow: "private-rolls" });
 
     /* ---- 1c'. a Reroll's dice, sent by the GM that made it -----------------

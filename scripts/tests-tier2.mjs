@@ -4895,6 +4895,124 @@ const SCENARIOS = [
         }
     }],
 
+    ["a roll the GM drew is thrown as its roller's dice to its audience, and no Dice So Nice decides it for itself", async () => {
+        /*
+         * E08+E28 C13, 04.10.2026; the plan's 3.4; the owner's note of 27.09 (the roller sees the
+         * roll as their own; nobody is ever shown "the GM rolled"). The GM's message of a drawn roll
+         * has the GM for its author, so Dice So Nice's own decision would throw it in the GM's
+         * colours wherever it is readable - on every GM at least. It is off for a drawn roll on
+         * every browser (private-rolls.mjs `keepDiceToReaders`), and the primary shows the dice as
+         * the roller's: on its own screen, and by `dice.show { id, by }` to the rest of the roll's
+         * audience, the roller left out, who plays the draw's answer - 12-social reads that on p1
+         * (`relayDrawnDice`). Two draws of `drawnForPlayer`'s packet, with rolls forced private and
+         * not: where they are not, the audience is every connected user, whose Dice So Nice threw
+         * each public roll until C13. Read: Dice So Nice's decision as it asks it of this GM, each
+         * throw on this screen (as whose dice, synchronised or not), and each packet with its
+         * recipients. Until C13 Dice So Nice decided for itself here, in the GM's colours, and no
+         * packet left.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        needs(world.moduleActive("dice-so-nice"), "the dice of a drawn roll are thrown through Dice So Nice");
+        const { gmIds } = await import("./utils.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const dice3d = game.dice3d, show = dice3d.showForRoll, emit = game.socket.emit;
+        const readings = [], expected = [];
+        for (const forced of [true, false]) {
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+            const thrown = [], sent = [];
+            const watch = () => {
+                dice3d.showForRoll = async (...args) => { thrown.push(args); return true; };
+                game.socket.emit = (event, packet, opts) => {
+                    if (packet?.action === "dice.show") sent.push([packet, [...(opts?.recipients ?? [])].sort()]);
+                    return emit.call(game.socket, event, packet, opts);
+                };
+                return () => { dice3d.showForRoll = show; game.socket.emit = emit; };
+            };
+            const F = await drawnForPlayer(player, theirs, { watch });
+            try {
+                must(F.message, "the GM wrote no message for the draw - this measured nothing");
+                const interception = { willTrigger3DRoll: true };
+                Hooks.callAll("diceSoNiceMessagePreProcess", F.message.id, interception);
+                readings.push([forced, interception.willTrigger3DRoll, thrown.map(args => [args[1]?.id ?? args[1] ?? null, args[2] === true]), sent]);
+                const others = (forced ? gmIds() : game.users.filter(u => u.active).map(u => u.id))
+                    .filter(id => id !== game.user.id && id !== player.id).sort();
+                expected.push([forced, false, [[player.id, false]], others.length ? [[{ action: "dice.show", id: F.message.id, by: player.id }, others]] : []]);
+            } finally {
+                await F.putBack();
+            }
+        }
+        equal(stableJson(readings), stableJson(expected),
+            "a drawn roll is animated by Dice So Nice's own decision, thrown here as another's dice or synchronised, or sent to somebody outside its audience, to its roller, or not as the roller's (per draw: forced, decision, throws, packets)");
+    }],
+
+    ["a statistic from the sheet drawn by the GM keeps Daggerheart's card and names nobody", async () => {
+        /*
+         * E08+E28 C13, 04.10.2026; the plan's 3.4. A statistic clicked on a sheet is drawn by the
+         * GM since C13 (roll-draw.mjs `sheetRollOf`), and the roller's packet says the module's card
+         * does not stand for it (`claimed: false`): the GM's message keeps Daggerheart's card - no
+         * `supersededRoll`, so it is not hidden - and is written as every drawn roll is, its author
+         * the GM, its speaker the private cards' own, whispered to the GMs where rolls are private,
+         * and its subject kept as it is created (the Despair award reads it). The packet is
+         * `drawnForPlayer`'s, made a sheet's: no action, not claimed. Until C13 the GM's draw
+         * stamped every message it wrote as superseded. The roller's browser reading it is
+         * 12-social's on p1.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const P = await import("./private-rolls.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const F = await drawnForPlayer(player, theirs, { actionKey: null, edit: packet => ({ ...packet, actionKey: null, claimed: false }) });
+        try {
+            const m = F.message;
+            must(m, "the GM wrote no message for the draw - this measured nothing");
+            const doc = JSON.stringify(m.toObject());
+            const named = [theirs.id, theirs.name, theirs.uuid, player.id, player.name].filter(term => doc.includes(term));
+            const privately = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+            equal(stableJson([P.isClaimedRoll(m), P.isDrawnRoll(m), Object.keys(m.flags?.[MODULE_ID] ?? {}).sort(), m.author?.id ?? null,
+                m.speaker?.actor ?? null, privately ? [...(m.whisper ?? [])].sort() : null, named, F.record ? F.record.actionKey : "no record", P.keptRollSubject(m)]),
+            stableJson([false, true, ["drawn", "rollId"], game.user.id, null, privately ? gmIds().sort() : null, [], null, theirs.id]),
+                "a drawn statistic was hidden as superseded, or its message names its roller or character, or is not the GM's (claimed, drawn, flags, author, speaker, whisper, names found, action, subject)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a drawn statistic is readable on a browser only where a GM's dice packet names it", async () => {
+        /*
+         * E08+E28 C13, 04.10.2026; the plan's 3.4 and its risks (the visibility patch, a local rule
+         * fed only by the GM's addressed packets). A roll the GM drew is whispered to the GMs alone,
+         * so a player reads it - the roller, an incident's audience - only by `readableHere`, which a
+         * patch of `isContentVisible` asks before core's rule (private-rolls.mjs `readableRule`). This
+         * GM reads every whisper to the GMs, so two drawn statistics are made unreadable here as a
+         * bystander's copy is - a blind whisper to the player alone - and each is handed a
+         * `dice.show` as the socket hands it (`showRelayedDice`): the first from this GM, the second
+         * from the player, who is no GM. Read: each one's readability before and after, and the
+         * patch's row (patches.mjs). The roller's own reading, from the draw's answer, is
+         * 12-social's on p1, and a bystander's of a drawn crisis roll 72-canary's.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const P = await import("./private-rolls.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const sheet = packet => ({ ...packet, actionKey: null, claimed: false });
+        const A = await drawnForPlayer(player, theirs, { actionKey: null, edit: sheet });
+        const B = await drawnForPlayer(player, theirs, { actionKey: null, edit: sheet });
+        try {
+            must(A.message && B.message, "the GM wrote no message for a draw - this would measure nothing");
+            for (const F of [A, B]) await F.message.update({ whisper: [player.id], blind: true });
+            const before = [A.message.isContentVisible, B.message.isContentVisible];
+            await P.showRelayedDice({ action: "dice.show", id: A.message.id, by: player.id }, game.user.id);
+            await P.showRelayedDice({ action: "dice.show", id: B.message.id, by: player.id }, player.id);
+            const row = PATCHES.find(r => r.target === "ChatMessage.prototype.isContentVisible")?.probe?.() ?? null;
+            equal(stableJson([before, [A.message.isContentVisible, B.message.isContentVisible], row]),
+                stableJson([[false, false], [true, false], { present: true, ours: true }]),
+                "a drawn statistic is read without a GM's packet naming it, a GM's packet leaves it unread, or the patch is not in place (before, after, patch)");
+        } finally {
+            await A.putBack();
+            await B.putBack();
+        }
+    }],
+
     ["the GM's bookmark of a player's Search names the trace it placed", async () => {
         /*
          * E08+E28 C2, 03.10.2026; audit S05-08. A player's trace is placed by the GM

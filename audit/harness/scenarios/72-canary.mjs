@@ -422,14 +422,19 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        crisis roll above was thrown on p3's client and drawn by the GM (roll-draw.mjs): the GM wrote
        its message, the record's id and `drawn` beside the claim's flag. p1 holds the document, as
        every browser does: its author is the GM, its module flags are those three, and nothing in it
-       names Chie or p3, by id or by name. Who sees its dice is C13's. */
+       names Chie or p3, by id or by name. And p1, a bystander, cannot read it (E08+E28 C13): a roll
+       the GM drew is read beside the GMs only where the draw's answer or a GM's dice packet says
+       (private-rolls.mjs `readableHere`), which is p3's browser and the victim's, not p1's. */
     const drawnCopy = await p1.eval(`const m = game.messages.contents.filter(x => x.getFlag("${MOD}", "drawn")).at(-1) ?? null;
         const doc = m ? JSON.stringify(m.toObject()) : "";
         const terms = ["${IDS.chie}", "${IDS.p3}", game.actors.get("${IDS.chie}")?.name, game.users.get("${IDS.p3}")?.name].filter(Boolean);
-        return { id: m?.id ?? null, author: m?.author?.id ?? null, flags: Object.keys(m?.flags?.["${MOD}"] ?? {}).sort(), named: terms.filter(t => doc.includes(t)) };`);
+        return { id: m?.id ?? null, author: m?.author?.id ?? null, flags: Object.keys(m?.flags?.["${MOD}"] ?? {}).sort(), named: terms.filter(t => doc.includes(t)),
+            readable: m ? m.isContentVisible : null };`);
     check("p1: the GM's message of p3's drawn crisis roll is the GM's, holds three module flags, and names neither Chie nor p3",
         Boolean(drawnCopy.id) && drawnCopy.author === IDS.gm && JSON.stringify(drawnCopy.flags) === JSON.stringify(["drawn", "rollId", "supersededRoll"])
             && drawnCopy.named.length === 0, JSON.stringify(drawnCopy));
+    check("p1: a bystander's browser cannot read the GM's message of p3's drawn crisis roll",
+        Boolean(drawnCopy.id) && drawnCopy.readable === false, JSON.stringify(drawnCopy));
     /* A DEATH IN TWO PHASES (E05 C10, 26.09.2026; audit S06-11). Botan carries a Truth Bullet
        into the incident; the blow kills him for the GMs and for his own player (p2), and p1's
        browser reads him alive - no flag, no marker, his bullet still on the sheet - until the

@@ -1,7 +1,7 @@
 /**
  * Danganronpa RPG - the register of every method this module overrides.
  * ---------------------------------------------------------------------------
- * Ten places reach into Foundry's or Daggerheart's objects and put a
+ * Eleven places reach into Foundry's or Daggerheart's objects and put a
  * function of ours where theirs was. Each has its reasons written beside it in
  * its own file; what none of them had was a list (audit A18), so a system
  * update that moved one of the targets was found by whichever feature stopped
@@ -165,6 +165,19 @@ export const PATCHES = [
         probe: () => {
             const fn = chatLogClass()?.prototype?.notify;
             return { present: typeof fn === "function", ours: Boolean(fn?.[Symbol.for("drpgVeiledNotify")]) };
+        }
+    },
+    {
+        target: "ChatMessage.prototype.isContentVisible",
+        owner: "foundry",
+        file: "private-rolls.mjs",
+        why: "A roll the GM drew is read on its roller's browser, and where a GM sent its dice, without a whisper naming them (E08+E28 C13).",
+        when: "always",
+        probe: () => {
+            let proto = (CONFIG.ChatMessage?.documentClass ?? foundry.documents?.ChatMessage)?.prototype ?? null;
+            while (proto && !Object.hasOwn(proto, "isContentVisible")) proto = Object.getPrototypeOf(proto);
+            const get = proto ? Object.getOwnPropertyDescriptor(proto, "isContentVisible")?.get : null;
+            return { present: typeof get === "function", ours: Boolean(get?.[Symbol.for("drpgReadableHere")]) };
         }
     },
     {

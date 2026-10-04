@@ -12,11 +12,13 @@
  * through Daggerheart's `buildEvaluate`, so everything after the roll reads the
  * system's own shape, and plays the dice on its own screen.
  *
- * WHICH ROLLS, IN THIS COMMIT. A roll the module throws for an action
- * (`DRPG_ACTION_ROLL`, action-rolls.mjs), by a player, while a primary GM is
- * connected. A statistic from the sheet is not drawn until C13 gives it its card; a
- * GM's own roll is its own; with no GM the roll is thrown here, as in 1.2.66, until
- * C18 makes an action wait. What the roll adds up to beyond its dice - the
+ * WHICH ROLLS. A roll the module throws for an action (`DRPG_ACTION_ROLL`,
+ * action-rolls.mjs), by a player, while a primary GM is connected; and since C13 a
+ * statistic from the sheet (`sheetRollOf`), whose message keeps Daggerheart's card and is
+ * read on the roller's browser alone (private-rolls.mjs `readableHere`). Daggerheart's own
+ * item rolls (their source names an item or an action) and a Monocub's Meddle (a plain
+ * `Roll`, monocub.mjs) are not drawn; a GM's own roll is its own; with no GM the roll is
+ * thrown here, as in 1.2.66, until C18 makes an action wait. What the roll adds up to beyond its dice - the
  * statistic, the experiences, the advantage - is the roller's configuration, which
  * the GM holds against what it expects (C12b, "WHAT THE GM EXPECTS" below); the dice
  * are the GM's from here on.
@@ -47,7 +49,7 @@ import { SETTINGS } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, whisperToGms, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest } from "./bridge-guards.mjs";
 import { rollStore } from "./gm-stores.mjs";
-import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf } from "./private-rolls.mjs";
+import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, TRAIT_BY_GM, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
@@ -154,11 +156,32 @@ export async function announceRollDraw() {
  * THE ROLLER'S SIDE
  * ========================================================================== */
 
-/** Is this roll drawn by the GM? A player's action roll the module claimed, with a primary GM to draw it. */
+/**
+ * Is this roll drawn by the GM? A player's roll with a primary GM to draw it, thrown and written
+ * (not `evaluate: false`, not `skips.createMessage`, not a roll of a message already written):
+ * an action roll the module claimed, or a statistic from the sheet.
+ */
 function drawsHere(config) {
     if (game.user?.isGM || !primaryGmId()) return false;
-    if (config?.[DRPG_ACTION_ROLL] !== true || config.evaluate === false || config.skips?.createMessage || config.source?.message) return false;
-    return Boolean(rollClaimOf(config[ROLL_NONCE])?.subject);
+    if (!config || config.evaluate === false || config.skips?.createMessage || config.source?.message) return false;
+    if (config[DRPG_ACTION_ROLL] === true) return Boolean(rollClaimOf(config[ROLL_NONCE])?.subject);
+    return Boolean(sheetRollOf(config));
+}
+
+/**
+ * A STATISTIC FROM THE SHEET (E08+E28 C13; the plan's 3.4): the character a duality roll of a
+ * statistic is about, when the module did not throw it and no item or action of Daggerheart's is
+ * its source - the sheet's statistic (character-sheet.mjs `rollTrait`, actor.mjs `diceRoll`, read
+ * in 2.10.5), a reaction a GM asks for in the chat, a companion's roll on its partner - and this
+ * player owns that character; else null. Daggerheart's own item rolls go on to a damage step,
+ * targets and effects the draw does not carry, and stay this browser's.
+ */
+function sheetRollOf(config) {
+    if (config?.[DRPG_ACTION_ROLL] === true || typeof config?.roll?.trait !== "string") return null;
+    if (config.source?.item || config.source?.action || typeof config.source?.actor !== "string") return null;
+    let actor = null;
+    try { actor = fromUuidSync(config.source.actor); } catch { actor = null; }
+    return actor?.documentName === "Actor" && actor.type === "character" && actor.testUserPermission(game.user, "OWNER") ? actor : null;
 }
 
 /**
@@ -171,9 +194,28 @@ export function drawnByGm(config) {
     return seam.state === "ok" && drawsHere(config);
 }
 
-/** The wrap's body: Daggerheart's own build for anything not drawn; for a drawn roll, configure, ask, play back. */
+/**
+ * The wrap's body: Daggerheart's own build for anything not drawn; for a drawn roll, configure,
+ * ask, play back. A statistic from the sheet comes with no claim of the module's, so it is given
+ * one here, as a roll the module throws is (private-rolls.mjs `supersedingRoll`): the nonce the
+ * GM's guard asks of the roll, and the place the roll window leaves the Calls it applied
+ * (`noteWindowCalls`), which the GM spends. Its card is Daggerheart's (`keepCard`).
+ */
 async function drawOrThrow(cls, original, config, message) {
     if (!drawsHere(config)) return original.call(cls, config, message);
+    if (config[DRPG_ACTION_ROLL] === true) return drawAndPlay(cls, config, message);
+    return supersedingRoll(nonce => {
+        config[ROLL_NONCE] = nonce;
+        return drawAndPlay(cls, config, message);
+    }, { subject: sheetRollOf(config), facts: { calls: [], context: {} }, keepCard: true });
+}
+
+/**
+ * Configure the roll here, ask the GM to draw it, play its answer back. While the GM draws, this
+ * browser reads the message the GM writes for this roll's nonce (private-rolls.mjs `awaitDrawn`),
+ * and after it by the message's id (`playBack`).
+ */
+async function drawAndPlay(cls, config, message) {
     const roll = await cls.buildConfigure(config, message);
     // Daggerheart's own build returns on no roll, and throws as it evaluates the `[]` a
     // configuration hook's `false` leaves; here that is a roll not made, said in the log.
@@ -183,10 +225,15 @@ async function drawOrThrow(cls, original, config, message) {
         return;
     }
     const claim = rollClaimOf(config[ROLL_NONCE]);
-    const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
-    // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made.
-    if (!answer?.ok || typeof answer.value?.messageId !== "string") return;
-    await playBack(cls, roll, config, message, answer.value, claim.subject);
+    const drawn = awaitDrawn(config[ROLL_NONCE]);
+    try {
+        const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
+        // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made.
+        if (!answer?.ok || typeof answer.value?.messageId !== "string") return;
+        await playBack(cls, roll, config, message, answer.value, claim.subject);
+    } finally {
+        drawn();
+    }
     return config;
 }
 
@@ -237,7 +284,8 @@ export function drawPacketOf(roll, config, claim) {
         actorId: claim.subject?.id ?? null,
         actionKey: claim.actionKey ?? null,
         nonce: config[ROLL_NONCE],
-        claimed: true,
+        // The module's card stands for the roll and Daggerheart's is hidden - not for a statistic from the sheet (C13).
+        claimed: claim.keepCard !== true,
         loaded: typeof config[LOADED_DIE] === "string" ? config[LOADED_DIE] : null,
         costs: (Array.isArray(config.costs) ? config.costs : []).filter(c => c?.enabled)
             .map(c => ({ key: c.key, value: c.value, enabled: true })),
@@ -281,15 +329,19 @@ async function playBack(cls, roll, config, message, { rollId, messageId, faces, 
     const { messageArrives } = await import("./secret.mjs");
     config.message = game.messages.get(messageId) ?? await messageArrives(messageId);
     // Whose roll it is, kept here as for a roll this browser threw, so `reportRollSubject`
-    // asks nothing: the GM kept it as it wrote the message.
+    // asks nothing: the GM kept it as it wrote the message. And the message is this browser's
+    // to read from here on (C13), as it was while the GM drew it (`awaitDrawn`).
     if (subject?.id) keepSubject(messageId, subject.id, game.user?.id ?? null);
+    readHere(messageId);
     await playDice(roll);
 }
 
 /*
  * THE ROLLER'S DICE, ON THE ROLLER'S SCREEN (the plan's 3.4, its first line). Played from
  * this copy of the roll, as this user's, not synchronised: nobody else's screen throws
- * them (the GMs' and the incident's audience are the relay's, private-rolls.mjs). With no
+ * them (the GMs' and the incident's audience are the relay's, private-rolls.mjs
+ * `relayDrawnDice`, in this user's colours too, C13; Dice So Nice's own decision is off for the
+ * GM's message on every browser, `keepDiceToReaders`). With no
  * Dice So Nice, the dice sound. Waited for as Daggerheart's `toMessage` waits for the
  * animation, so the module's card does not land while the dice still fall - bounded as
  * `diceSettled` is (action-rolls.mjs), for a tab in the background.
@@ -359,7 +411,8 @@ function paidCosts(costs) {
  * roll is rebuilt with Daggerheart's `fromData` - never the constructor, which builds the
  * advantage die again from the options (reroll.mjs `rerollKeepingDice`) - thrown here,
  * written, settled, held against what this GM expects (`expectedFor`, `checkRoll`), its Calls
- * spent and recorded; answered `{ rollId, messageId, faces, total, stash, loaded }`.
+ * spent and recorded; answered `{ rollId, messageId, faces, total, stash, loaded }`. `claimed` false
+ * is a statistic from the sheet, whose message keeps Daggerheart's card (C13).
  */
 export async function drawOnGm({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
     trait = null, experiences = [], calls = [], context = {}, situational = 0 }, sender) {
@@ -389,7 +442,7 @@ export async function drawOnGm({ actorId, actionKey, nonce, claimed, loaded, cos
     if (loads) loadDie(roll, loaded);
     await cls.buildEvaluate(roll, config, {});
     const rollId = foundry.utils.randomID();
-    const message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender });
+    const message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false });
     await cls.dualityUpdate(config);
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));
@@ -686,15 +739,18 @@ function facesOf(roll) {
  * threw applies as it is created: claimed, emptied of its character, whispered to the GMs where
  * rolls are private, the record's id and `drawn` beside the claim's flag. The claim's subject
  * is kept as the message is created - before the Despair award, which listens later in the same
- * hook, asks for it - and the incident's audience is sent its dice, the roller left out: their
- * dice are played from the answer. `toMessage` then waits for Dice So Nice; the draw does not
+ * hook, asks for it - and its dice are shown as the roller's (`by`) to the GMs and the roll's
+ * audience, the roller left out: their dice are played from the answer (private-rolls.mjs
+ * `relayDrawnDice`, C13). A statistic from the sheet keeps Daggerheart's card (`keepCard`): no
+ * `supersededRoll` flag. `toMessage` then waits for Dice So Nice, which does not animate this
+ * message and so answers at once (`keepDiceToReaders`); the draw does not wait for it either
  * (the plan's 3.3): it goes on as soon as the message exists.
  */
-async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender }) {
+async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard = false }) {
     let heard = null;
     const created = new Promise(resolve => { heard = resolve; });
     const writing = supersedingRoll(() => cls.toMessage(roll, config),
-        { subject: actor, nonce, stamp: { rollId, drawn: true }, except: [sender.id], onCreated: heard });
+        { subject: actor, nonce, stamp: { rollId, drawn: true }, by: sender.id, keepCard, onCreated: heard });
     const message = await Promise.race([created, writing]);
     writing.catch(err => error("The message of a roll the GM drew failed after it was written", err));
     if (!message?.id) throw new Error("the drawn roll's message was not written");
