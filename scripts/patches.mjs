@@ -1,7 +1,7 @@
 /**
  * Danganronpa RPG - the register of every method this module overrides.
  * ---------------------------------------------------------------------------
- * Nine places reach into Foundry's or Daggerheart's objects and put a
+ * Ten places reach into Foundry's or Daggerheart's objects and put a
  * function of ours where theirs was. Each has its reasons written beside it in
  * its own file; what none of them had was a list (audit A18), so a system
  * update that moved one of the targets was found by whichever feature stopped
@@ -58,11 +58,25 @@ export const PATCHES = [
         }
     },
     {
+        target: "DualityRoll.build",
+        owner: "daggerheart",
+        file: "roll-draw.mjs",
+        why: "A player's action roll is configured in their browser and drawn by the primary GM (E08+E28 C12a).",
+        when: "always, unless the build is not the one the draw was written for (then never, and the GMs are told once per version)",
+        probe: () => {
+            const fn = game.system?.api?.dice?.DualityRoll?.build;
+            return {
+                present: typeof fn === "function",
+                ours: Boolean(fn?.[Symbol.for("drpgRollDraw")])
+            };
+        }
+    },
+    {
         target: "CONFIG.Dice.randomUniform",
         owner: "foundry",
         file: "forced-roll.mjs",
         why: "One die of the next duality roll lands on its highest face (Free Critical).",
-        when: "only while a Free Critical's own roll evaluates; lifted in a finally (A4)",
+        when: "only while a Free Critical's own roll evaluates, or a roll the GM drew is played back with its faces (roll-draw.mjs); lifted in a finally (A4)",
         probe: () => ({
             present: typeof CONFIG.Dice?.randomUniform === "function",
             ours: null

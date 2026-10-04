@@ -443,6 +443,26 @@ class FearDie extends Die {}
    whatever the rounding (the plan's 3.2 reads the GM's faces back the same way). */
 const uniformFor = (face, faces) => 1 - (face - 0.5) / faces;
 
+/*
+ * A PLAYER'S FACES, FOR THE GM'S DRAW (E08+E28 C12a, 04.10.2026). From C12a a player's action roll
+ * is thrown on the primary GM (roll-draw.mjs), and the scenarios name its faces on the player's
+ * client, as they always have (`__forceRoll`, read where the roll is evaluated). So the harness
+ * carries them: a `roll.draw` packet a player sends while `__forceRoll` is set takes a copy under
+ * `__harnessForceRoll` (`socket.emit` below), the GM keeps it by the roll's nonce as the packet
+ * arrives (the "socketMsg" case), and the GM's evaluation of that roll reads it before its own
+ * `__forceRoll` (`buildEvaluate`). Nothing in the module reads the field - the guards and the
+ * run see only what the declaration lists - and nothing like it exists at a table, where the
+ * GM's randomiser is the GM's. The roller's copy, played back from the GM's faces, reads no
+ * `__forceRoll` of its own (`config.drpgDrawn`, action-rolls.mjs `DRAWN_ROLL`).
+ */
+const relayedFaces = new Map();
+const relayedFacesOf = roll => {
+    const nonce = roll?.options?.drpgRollNonce;
+    const faces = nonce ? relayedFaces.get(nonce) : null;
+    if (faces) relayedFaces.delete(nonce);
+    return faces ?? null;
+};
+
 class DualityRollMock extends RollImpl {
     /*
      * The class the module finds at game.system.api.dice.DualityRoll. Its resource step is
@@ -545,7 +565,7 @@ class DualityRollMock extends RollImpl {
      */
     static async buildEvaluate(roll, config = {}, message = {}) {
         const D = globalThis.CONFIG.Dice;
-        const forced = globalThis.__forceRoll;
+        const forced = config?.drpgDrawn ? null : relayedFacesOf(roll) ?? globalThis.__forceRoll;
         const script = forced ? [forced.hope, forced.fear].map((face, i) => typeof face === "number" ? uniformFor(face, roll.dice[i]?.faces ?? 12) : null) : null;
         const real = D.randomUniform;
         if (script) D.randomUniform = () => script.shift() ?? real();
@@ -614,7 +634,10 @@ class DualityRollMock extends RollImpl {
      * dice in Hope-then-Fear order, plus the actionType the reaction guard reads.
      */
     static async toMessage(roll, config) {
-        const actor = config.actor;
+        // The harness's own `config.actor` (E30), or - for a roll the GM drew (E08+E28 C12a), whose
+        // config came over the wire without it - the character its `source.actor` names, as
+        // Daggerheart's `toMessage` reads the speaker off the roll's data rather than a key of ours.
+        const actor = config.actor ?? (config.source?.actor ? globalThis.fromUuidSync(config.source.actor) : null);
         const traitKey = config.roll?.trait;
         const mod = traitValue(actor, traitKey);
         const hope = roll.dHope.total, fear = roll.dFear.total, total = roll.total;
@@ -624,8 +647,8 @@ class DualityRollMock extends RollImpl {
             dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] },
                    { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
             options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
-                data: config.data, effects: [...(actor.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
-                experiences: [...config.experiences],
+                data: config.data, effects: [...(actor?.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
+                experiences: [...(config.experiences ?? [])],
                 roll: { trait: traitKey, type: config.actionType,
                     modifiers: traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
                 actionType: config.actionType }
@@ -634,7 +657,8 @@ class DualityRollMock extends RollImpl {
             author: game.userId,
             speaker: classes.ChatMessage.getSpeaker({ actor }),
             content: `<div class="dice-roll">Duality: ${total}</div>`,
-            sound: globalThis.CONFIG.sounds.dice,
+            // dhRoll.mjs:151 (2.10.5): a muted roll's message has no sound (the GM's draw, C12a).
+            sound: config.mute ? null : globalThis.CONFIG.sounds.dice,
             rolls: [rollJson],
             system: { title: config.title ?? "", source: { actor: config.source.actor }, targets: [], roll: { ...rollJson, options: { actionType: config.actionType } } },
             flags: {}
@@ -719,7 +743,13 @@ const game = {
             return this;
         },
         prependAny(fn) { this._any.unshift(fn); return this; },
-        emit(channel, ...args) { bus.socketEmit(channel, args); }
+        emit(channel, ...args) {
+            // A player's faces for the GM's draw (E08+E28 C12a): see `relayedFaces` above.
+            if (args[0]?.action === "roll.draw" && globalThis.__forceRoll && !game.user?.isGM) {
+                args = [{ ...args[0], __harnessForceRoll: { ...globalThis.__forceRoll } }, ...args.slice(1)];
+            }
+            bus.socketEmit(channel, args);
+        }
     },
     audio: { play: async () => ({ stop() {} }), context: new globalThis.AudioContext(), unlock: Promise.resolve() },
     video: { render: () => {} },
@@ -1346,6 +1376,10 @@ process.on("message", async msg => {
             case "socketMsg": {
                 // Foundry hands a module socket handler `(payload, senderId)`. The
                 // emit's options (`{ recipients }`) are for the server, not the handler.
+                const drawn = msg.args?.[0];
+                if (drawn?.action === "roll.draw" && drawn.__harnessForceRoll && typeof drawn.nonce === "string" && game.user?.isGM) {
+                    relayedFaces.set(drawn.nonce, drawn.__harnessForceRoll);
+                }
                 for (const fn of game.socket._any) {
                     try { fn(msg.channel, ...(msg.args ?? []).slice(0, 1), msg.senderId); } catch (err) {
                         recordError(`socket any-listener ${msg.channel}`, err);

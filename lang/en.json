@@ -2469,6 +2469,7 @@
         "trap.event": "A report for the traps",
         "roll.subject": "A report of whose roll it was",
         "roll.bookmark": "What a roll did, kept for a Reroll",
+        "roll.draw": "A roll for the GM to throw",
         "reroll.ask": "Reroll",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
@@ -2931,7 +2932,8 @@
     },
     "Rolls": {
       "rewritePutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",
-      "rewriteNotPutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; this browser did not see that roll thrown, so its dice could not be put back."
+      "rewriteNotPutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; this browser did not see that roll thrown, so its dice could not be put back.",
+      "notDrawnHere": "Daggerheart {version} builds its rolls in a way this module was not written for, so the players' rolls are thrown in their own browsers and not drawn by the GM. Said once for this version."
     },
     "Messenger": {
       "launcherTooltip": "Messenger",
@@ -3480,6 +3482,7 @@
         "rerollBookmarks": "Each character's last roll a Reroll would take back, and what the GMs did for it",
         "cleanupAttempts": "Each character's last clean-up, kept so a Reroll can take it back",
         "rerollJournal": "A Reroll the GM is making, step by step, so a reload in the middle can be put right",
+        "rolls": "The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them",
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found"
       },
       "row": {

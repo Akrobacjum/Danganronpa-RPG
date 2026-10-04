@@ -865,6 +865,28 @@ export const cleanupAttemptStore = defineGmStore({
 });
 
 /**
+ * THE ROLLS THE GM DREW (E08+E28 C12a, 04.10.2026; audit S16-05; the plan's 3.3). A row per
+ * roll, keyed by its `rollId`: `actorId`, `userId` (the roller), `actionKey`, `messageId`,
+ * `claimed`, `formula`, `dice` (`faces` and each result), `total`, `hope`, `fear`, `isCritical`,
+ * `withHope`, `withFear`, `modifiers`, then `expected`, `flags`, `used` and `versions` for the
+ * checks and resolutions that read it (C12b on), and `at`. Written by the primary GM as it draws
+ * a player's roll (roll-draw.mjs `drawOnGm`), and read by the guard that ties a drawn message to
+ * its roller (bridge-guards.mjs `guardRollAuthor`). Synced between the GMs and not backed up: a
+ * row is worth a roll's resolution and its Reroll, minutes long, and is swept past
+ * `TIMING.rerollWindowMinutes` as the next is written. Cut by the reset's "actions" group,
+ * beside the bookmark. Its `exists` answers no for every key: a row's key is a roll, which is no
+ * document, and a swept roll is gone for good - so its tombstone is compacted after
+ * `TIMING.gmStoreTombstoneDays` (`compactGmStores`) rather than kept one per roll for ever; a row
+ * a GM who held it brings back is swept again by its `at`. No player copy - R182 has nothing to
+ * ask of it - and no old key.
+ */
+export const rollStore = defineGmStore({
+    name: "rolls", key: SETTINGS.gmRolls,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: () => false
+});
+
+/**
  * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the

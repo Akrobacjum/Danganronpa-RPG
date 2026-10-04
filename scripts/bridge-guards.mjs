@@ -287,7 +287,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no such roll message$/],
     ["badRequest", /^that message is not a roll the module threw$/],
     ["notYours", /^sender did not write that roll message$/],
-    ["cannotNow", /^that roll message is too old to report$/]
+    ["cannotNow", /^that roll message is too old to report$/],
+    // E08+E28 C12a: a roll sent for the GM to draw that is not one (guardDrawnRoll).
+    ["badRequest", /^that is not a duality roll nobody has thrown$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -728,9 +730,40 @@ export async function guardRollAuthor(sender, payload, ctx) {
     if (!message) return "no such roll message";
     const { isClaimedRoll } = await import("./private-rolls.mjs");
     if (!isClaimedRoll(message)) return "that message is not a roll the module threw";
-    if ((message.author?.id ?? message.user?.id) !== sender.id) return "sender did not write that roll message";
+    /* A roll the primary GM drew for its player (E08+E28 C12a) is written by that GM: whose
+       roll it is, the GMs' record of the draw says (roll-draw.mjs `rollRecord`), not the
+       author. The round-1 security review's hand-over note: without this the roller's
+       bookmark and report of a drawn roll were refused. */
+    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    const drawn = drawnRecordOf(message);
+    if (drawn ? drawn.userId !== sender.id : (message.author?.id ?? message.user?.id) !== sender.id) return "sender did not write that roll message";
     if (!(Date.now() - (message.timestamp ?? 0) <= ROLL_REPORT_MS)) return "that roll message is too old to report";
     return null;
+}
+
+/*
+ * A ROLL FOR THE GM TO DRAW (E08+E28 C12a, 04.10.2026; the plan's 3.3). `roll.draw` carries the
+ * roll the roller's browser configured, as Foundry's `toJSON` writes it, and the GM rebuilds it
+ * with Daggerheart's `fromData` and throws it (roll-draw.mjs `drawOnGm`). So it is a duality roll,
+ * not thrown yet - `evaluated` false and no term holding a result - with terms to rebuild, and it
+ * carries the nonce the packet names, by which the GM's claim stamps the message it writes
+ * (private-rolls.mjs `ROLL_NONCE`). The class is read as Foundry writes it, the constructor's
+ * name: Daggerheart's own and the name of the class this client holds, in case a build renames
+ * it. The bounds on its size are this guard's, not measured on a table's largest roll.
+ */
+const DRAWN_TERMS_MAX = 64;
+const DRAWN_FORMULA_MAX = 512;
+export async function guardDrawnRoll(sender, payload, ctx) {
+    const { ROLL_NONCE } = await import("./private-rolls.mjs");
+    const roll = payload?.roll;
+    const terms = Array.isArray(roll?.terms) ? roll.terms : [];
+    const classes = new Set(["DualityRoll", game.system?.api?.dice?.DualityRoll?.name]);
+    const fits = roll && typeof roll === "object" && classes.has(roll.class) && roll.evaluated === false
+        && terms.length > 0 && terms.length <= DRAWN_TERMS_MAX
+        && typeof roll.formula === "string" && roll.formula.length <= DRAWN_FORMULA_MAX
+        && !terms.some(term => Array.isArray(term?.results) && term.results.length)
+        && typeof payload.nonce === "string" && payload.nonce.length > 0 && roll.options?.[ROLL_NONCE] === payload.nonce;
+    return fits ? null : "that is not a duality roll nobody has thrown";
 }
 
 /** A relay is about the sender's own character, or it is refused - see the note above `relay` in traps.mjs. */

@@ -321,17 +321,24 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const totalOf = `return game.messages.get("${mine.id}")?.rolls?.[0]?.total ?? null;`;
     const thrown = await gm.eval(totalOf);
     const warnedBefore = await gm.eval(`return game.messages.contents.length;`);
-    await p1.eval(`const m = game.messages.get("${mine.id}");
-        await m.update({ rolls: [JSON.stringify({ class: "DualityRoll", formula: "1d12 + 1d12", total: 99,
-            dHope: { total: 8 }, dFear: { total: 4 } })] });
-        return true;`, { timeout: 30000 });
+    /* E08+E28 C12a (04.10.2026): p1's roll is drawn by the primary GM, who writes its message
+       (roll-draw.mjs), so Foundry refuses p1's update of it outright - S02-19 closed by
+       construction for a drawn roll. The put-back below is for a roll its player still writes
+       (a statistic from the sheet until C13, any roll where the draw falls back); either way
+       the roll keeps its dice on every browser, and a put-back is told to the GMs. */
+    const rewrite = await p1.eval(`const m = game.messages.get("${mine.id}");
+        try {
+            await m.update({ rolls: [JSON.stringify({ class: "DualityRoll", formula: "1d12 + 1d12", total: 99,
+                dHope: { total: 8 }, dFear: { total: 4 } })] });
+            return { refused: null };
+        } catch (err) { return { refused: String(err?.message ?? err).slice(0, 160) }; }`, { timeout: 30000 });
     await settle(1500);
-    const putBack = { thrown, gm: await gm.eval(totalOf), p1: await p1.eval(totalOf), p2: await p2.eval(totalOf),
+    const putBack = { thrown, rewrite, gm: await gm.eval(totalOf), p1: await p1.eval(totalOf), p2: await p2.eval(totalOf),
         warned: await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
             return game.messages.contents.slice(${warnedBefore}).filter(m => S.contentOf(m).includes("drpg-warning")).length;`) };
-    check("A10: p1 rewriting the rolls of its neutral roll is put back on every browser, and the GMs are told",
+    check("A10: p1 rewriting the rolls of its neutral roll is refused (the GM wrote it) or put back on every browser, and a put-back is told to the GMs",
         typeof thrown === "number" && thrown !== 99 && putBack.gm === thrown && putBack.p1 === thrown && putBack.p2 === thrown
-        && putBack.warned >= 1, JSON.stringify(putBack), { flow: "reroll" });
+        && (rewrite.refused ? /permission/i.test(rewrite.refused) : putBack.warned >= 1), JSON.stringify(putBack), { flow: "reroll" });
     await gm.eval(`for (const id of ${JSON.stringify([mine.id, theirs.id])}) await game.messages.get(id ?? "")?.delete(); return true;`);
     await settle(400);
 

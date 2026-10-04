@@ -66,6 +66,14 @@ function toolRelief(tool, tierOf) {
 export const DRPG_ACTION_ROLL = "drpgActionRoll";
 
 /**
+ * The roll was drawn by the primary GM (E08+E28 C12a; roll-draw.mjs): `{ rollId, messageId }`
+ * on the config the roller's browser plays the GM's faces into. The GM wrote the message and
+ * settled the roll's resources, so `commitResources` commits nothing for it. Never sent: it is
+ * put on the config after the roll has left for the GM.
+ */
+export const DRAWN_ROLL = "drpgDrawn";
+
+/**
  * The trait on this roll is a GM's pick (E32+E07 C11b; trait-ruling.mjs): the roll
  * window keeps its Statistic select locked and says who chose it (roll-dialog.mjs
  * `lockTrait`). A string key for the reason above.
@@ -751,7 +759,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // other, all called "Shadow Roll", and the player answers the same
         // question three times without being told which is which.
         ...(title ? { title, headerTitle: title } : {})
-    }), { subject: actor });
+    }), { subject: actor, actionKey });
     if (!result) return null;
     // Which character the roll is about: told to the primary GM as the message
     // was created (the claim's `subject`, E06 fix r1-G2), because the Despair
@@ -1488,6 +1496,9 @@ async function diceSettled(messageId) {
 
 /** Apply the Hope/Sanity/Fear changes the roll produced, plus any costs. */
 async function commitResources(result) {
+    // A roll the GM drew was settled on the GM's client, costs and all (roll-draw.mjs
+    // `drawOnGm`, E08+E28 C12a): committing it here as well paid its Hope twice.
+    if (result?.[DRAWN_ROLL]) return;
     const updates = result?.resourceUpdates;
     if (!updates?.updateResources) return;
 

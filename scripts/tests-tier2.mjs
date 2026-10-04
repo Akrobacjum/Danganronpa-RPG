@@ -596,6 +596,73 @@ async function playerRollBookmark(player, actor, actionKey, context = {}) {
 }
 
 /**
+ * A PLAYER'S ROLL, DRAWN BY THE GM (E08+E28 C12a, 04.10.2026). The suite is the GM's browser,
+ * whose own rolls are not drawn, so the player's half is a packet of the shape the roller's
+ * browser sends (roll-draw.mjs `drawPacketOf`), cut from a roll of `actor` thrown here at the
+ * moment Daggerheart's configuration hook hands it over unevaluated, and judged as the primary
+ * GM judges `roll.draw` from `player` (private-rolls.mjs `ROLL_ACTIONS`). `edit` changes the
+ * packet first (a forged one); `faces` are the GM's throw where the harness scripts it
+ * (`__forceRoll`; a table throws for real); `watch` is started just before the GM judges the packet
+ * and its answer stopped once that has settled, so it sees the draw and not the roll thrown here
+ * to cut the packet from. Answers the verdict, what was sent back, the
+ * answer's value, the GM's message and record, and `putBack`, which deletes both messages and
+ * the record and puts Daggerheart's Fear back as found. Ask the world's rows first - it writes.
+ */
+async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null } = {}) {
+    const G = await import("./bridge-guards.mjs");
+    const P = await import("./private-rolls.mjs");
+    const D = await import("./roll-draw.mjs");
+    const { gameSettings } = CONFIG.DH.SETTINGS;
+    const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+    let packet = null;
+    const hook = Hooks.on(`${game.system.id}.postDualityRollConfiguration`, (roll, config) => {
+        if (!packet && config?.[P.ROLL_NONCE]) packet = D.drawPacketOf(roll, config, { subject: actor, actionKey });
+    });
+    const made = [];
+    let thrown;
+    try {
+        thrown = await neutralRoll(actor);
+    } finally {
+        Hooks.off(`${game.system.id}.postDualityRollConfiguration`, hook);
+    }
+    made.push(thrown.message?.id);
+    must(packet, `no roll of ${actor.name} reached Daggerheart's configuration hook - this would measure nothing`);
+    if (edit) packet = edit(foundry.utils.deepClone(packet));
+    const sent = [];
+    const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+    let verdict;
+    const stop = typeof watch === "function" ? watch() : null;
+    try {
+        if (faces) globalThis.__forceRoll = faces;
+        verdict = await G.judge(P.ROLL_ACTIONS, { action: "roll.draw", requestId: `C12A${foundry.utils.randomID(8)}`, ...packet }, player.id,
+            { send: (to, reply) => sent.push({ action: reply?.action ?? null, reason: reply?.reason ?? null, value: reply?.value ?? null }) });
+    } finally {
+        if (hadForce) globalThis.__forceRoll = force;
+        else delete globalThis.__forceRoll;
+        await settle();
+        if (typeof stop === "function") stop();
+    }
+    const value = sent.find(r => r.action === "bridge.done")?.value ?? null;
+    const message = game.messages.get(value?.messageId ?? "") ?? null;
+    made.push(message?.id);
+    return { verdict, sent, value, message, record: D.rollRecord(value?.rollId ?? null), packet,
+        putBack: async () => {
+            const { rollStore } = await import("./gm-stores.mjs");
+            for (const id of made) await game.messages.get(id ?? "")?.delete();
+            if (value?.rollId && rollStore.has(value.rollId)) await rollStore.drop(value.rollId);
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+        } };
+}
+
+/** A connected player and a character they play, and one they do not; ask `connectedPlayersWithCharacter` first. */
+function playerAndCharacters() {
+    const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
+    const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => plays(u, a)));
+    must(player, "no connected player plays a character");
+    return { player, theirs: game.actors.find(a => plays(player, a)), other: game.actors.find(a => a.type === "character" && !plays(player, a)) ?? null };
+}
+
+/**
  * A PLAYER'S ROLL WHOSE ROW IS HELD BACK (E08+E28 fix r1-G2, 04.10.2026). `playerRollBookmark`, with
  * the run of its `roll.bookmark` held at the store's hydration until `letGo` - fix r1-G1's hold,
  * made a helper - so whatever the test judges meanwhile is judged before the roll's row exists, the
@@ -4419,6 +4486,150 @@ const SCENARIOS = [
         } finally {
             for (const id of made) await game.messages.get(id ?? "")?.delete();
         }
+    }],
+
+    ["a player's Search is drawn on the GM: the message's author is the GM, its dice are the record's", async () => {
+        /*
+         * E08+E28 C12a, 04.10.2026; audit S16-05; the plan's 3.3. A player's action roll is thrown
+         * on the primary GM: the GM rebuilds the configured roll, throws it, writes its message and
+         * records it, and answers the roller with the faces it drew. Until C12a the roller's browser
+         * threw it and wrote the message as its author, and the GM kept no record. Read off the
+         * packet the roller's browser would send (`drawnForPlayer`): what the GM sent back (the
+         * "got it", then the answer), the message's author, the record's roller, character, action
+         * and message, the guard's reading of the message back to the record, and the dice three
+         * ways - the record's, the message's and the answer's faces. Which faces fell is the GM's
+         * randomiser's (scripted in the harness, random at a table), so only their agreement is
+         * asked. The roller's half - its window, its playback, its card - is 40-flow's, on p1.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const F = await drawnForPlayer(player, theirs);
+        try {
+            const m = F.message, r = F.record, roll = m?.rolls?.[0] ?? null;
+            equal(stableJson([F.sent.map(x => x.action), m?.author?.id ?? null, r?.userId ?? null, r?.actorId ?? null, r?.actionKey ?? null,
+                r?.messageId === m?.id, D.drawnRecordOf(m)?.rollId === F.value?.rollId]),
+            stableJson([["bridge.ack", "bridge.done"], game.user.id, player.id, theirs.id, "search", true, true]),
+                "the GM did not answer the draw, or its message or record names the wrong author, roller, character, action or message (sent, author, roller, character, action, message, read back)");
+            const faces = (F.value?.faces ?? []).map(f => f.result);
+            equal(stableJson([r?.hope, r?.fear, r?.total, r?.dice?.flatMap(d => d.results.map(x => x.result))]),
+                stableJson([roll?.dHope?.total, roll?.dFear?.total, roll?.total, faces]),
+                "the record's dice are not the message's, or not the faces the roller was answered with (Hope, Fear, total, every face)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["the roll's Hope and Fear are written by the GM's user, once", async () => {
+        /*
+         * E08+E28 C12a, 04.10.2026; the plan's 3.3. The GM that draws a player's roll settles it on
+         * its own client - `dualityUpdate` and the costs, through one resource map - and the
+         * roller's browser commits nothing for it (action-rolls.mjs `commitResources`). Two draws,
+         * one the harness throws with Hope and one with Fear: the character's Hope written once
+         * by this GM where the record says Hope (or a critical), never otherwise, and Daggerheart's
+         * Fear moved once where it says Fear. At a table the faces are random and the two readings
+         * hold whichever they are. That the roller's browser adds no second write is read where
+         * the roller is, 40-flow on p1 (`commitResources` not skipped: two writes).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fearKey = `${CONFIG.DH.id}.${gameSettings.Resources.Fear}`;
+        const readings = [];
+        for (const faces of [{ hope: 9, fear: 4 }, { hope: 3, fear: 10 }]) {
+            // Room for the Hope a draw pays: a character at its maximum is written nothing. The
+            // snapshot puts the character's Hope back after the test.
+            await theirs.update({ "system.resources.hope.value": 0 });
+            const hopeBy = [];
+            let fearWrites = 0;
+            const watch = () => {
+                const onActor = Hooks.on("updateActor", (a, changes, opts, userId) => {
+                    if (a.id === theirs.id && foundry.utils.getProperty(changes, "system.resources.hope") !== undefined) hopeBy.push(userId);
+                });
+                const onSetting = Hooks.on("updateSetting", setting => { if (setting?.key === fearKey) fearWrites++; });
+                return () => { Hooks.off("updateActor", onActor); Hooks.off("updateSetting", onSetting); };
+            };
+            const F = await drawnForPlayer(player, theirs, { faces, watch });
+            try {
+                must(F.record, "the GM kept no record of the draw - this measured nothing");
+                const hoped = Boolean(F.record.withHope || F.record.isCritical);
+                readings.push([hopeBy.length === (hoped ? 1 : 0), hopeBy.every(id => id === game.user.id), fearWrites === (F.record.withFear ? 1 : 0)]);
+            } finally {
+                await F.putBack();
+            }
+        }
+        equal(stableJson(readings), stableJson([[true, true, true], [true, true, true]]),
+            "a drawn roll's Hope was written other than once by this GM where it rolled Hope, or its Fear other than once where it rolled Fear (per draw: Hope count, Hope's writer, Fear count)");
+    }],
+
+    ["the GM's message names nobody: speaker, title, source, whisper", async () => {
+        /*
+         * E08+E28 C12a, 04.10.2026; E06 C5b's rule for a roll the module threw, now for one the GM
+         * writes. The GM writes a drawn roll's message inside a claim of the roller's nonce, so the
+         * module's rule applies as it is created: the speaker is the private cards' own, Daggerheart's
+         * title and source are emptied, the roll goes to the GMs where rolls are private, and the
+         * author is the GM - so neither author nor whisper names the roller (the owner's 27.09 note;
+         * the whisper's other half, the roller left off it, is C13's to read). Read: the author, the
+         * speaker, the system's title and source where the message has them, the whisper, the
+         * module's flags, and the character's and the player's ids, names and uuid anywhere in the
+         * document.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { MODULE_ID } = await import("./config.mjs");
+        const { SETTINGS } = await import("./settings.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const F = await drawnForPlayer(player, theirs);
+        try {
+            const m = F.message;
+            must(m, "the GM wrote no message for the draw - this measured nothing");
+            const doc = JSON.stringify(m.toObject());
+            const named = [theirs.id, theirs.name, theirs.uuid, player.id, player.name].filter(term => doc.includes(term));
+            const privately = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+            equal(stableJson([m.author?.id ?? null, m.speaker?.actor ?? null, m.speaker?.alias ?? null, m.system?.title ?? "", m.system?.source?.actor ?? "",
+                privately ? [...(m.whisper ?? [])].sort() : null, Object.keys(m.flags?.[MODULE_ID] ?? {}).sort(), named]),
+            stableJson([game.user.id, null, game.i18n.localize("DRPG.Secret.speaker"), "", "", privately ? gmIds().sort() : null,
+                ["drawn", "rollId", "supersededRoll"], []]),
+                "the GM's message of a drawn roll names its roller or its character (author, speaker actor, alias, title, source, whisper, flags, names found)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a forged `roll.draw` for another's character is refused", async () => {
+        /*
+         * E08+E28 C12a, 04.10.2026; the plan's 3.3. The draw is asked by the roller's browser, and a
+         * console can ask it with any packet: another player's character (`owns`), a roll thrown
+         * already, or a nonce the roll does not carry (`guardDrawnRoll`). Each is refused with its
+         * code and leaves nothing: no message, no record. Read: the GM's answers, and the drawn
+         * messages and records before and after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { MODULE_ID } = await import("./config.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, `${player.name} plays every character - a draw for somebody else's cannot be asked here`);
+        const drawnNow = () => [game.messages.filter(m => m.getFlag(MODULE_ID, "drawn")).length, Object.keys(rollStore.entries()).length];
+        const before = drawnNow();
+        const forgeries = [
+            packet => ({ ...packet, actorId: other.id }),
+            packet => ({ ...packet, roll: { ...packet.roll, evaluated: true, total: 30 } }),
+            packet => ({ ...packet, nonce: "C12AFORGEDNONCE" })
+        ];
+        const answers = [];
+        for (const edit of forgeries) {
+            const F = await drawnForPlayer(player, theirs, { edit });
+            try {
+                answers.push([F.verdict, F.sent.map(x => [x.action, x.reason])]);
+            } finally {
+                await F.putBack();
+            }
+        }
+        equal(stableJson([answers, drawnNow()]), stableJson([[
+            [null, [["bridge.refused", "notYours"]]],
+            [null, [["bridge.refused", "badRequest"]]],
+            [null, [["bridge.refused", "badRequest"]]]
+        ], before]), "a forged draw was carried out, refused with another code, or left a message or a record (verdict and answers per forgery; drawn messages and records)");
     }],
 
     ["the GM's bookmark of a player's Search names the trace it placed", async () => {

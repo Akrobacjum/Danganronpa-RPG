@@ -139,6 +139,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     const planted = await gm.eval(`const T = await import("${REPO}/scripts/traps.mjs");
         return await T.plantItem("SCEN40PLANTPROJECT", ${JSON.stringify(tokensBefore.room)}, { sceneId: ${JSON.stringify(plantScene)}, name: "Scenario 40 planted kit" });`);
     const search0 = { gm: await count(gm), p2: await count(p2) };
+    // Aiko's Hope writes while the Search runs, on the GM - read in "the GM draws p1's Search" below.
+    await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        globalThis.__c12aHope = { before: a.system.resources.hope.value, max: a.system.resources.hope.max, by: [] };
+        globalThis.__c12aHopeHook = Hooks.on("updateActor", (actor, changes, opts, userId) => {
+            if (actor.id === "${ids.aiko}" && foundry.utils.getProperty(changes, "system.resources.hope") !== undefined) globalThis.__c12aHope.by.push(userId);
+        });
+        return true;`);
     const search = await p1.eval(`
         const actor = game.actors.get("${ids.aiko}");
         globalThis.__forceRoll = { hope: 9, fear: 5 };
@@ -216,6 +223,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         JSON.stringify(p2Flags) === JSON.stringify(["drpgMessage", "secret"]) && typeof gmTitle === "string" && /search/i.test(gmTitle),
         JSON.stringify({ p2Flags, gmTitle }));
     console.log("[qa] p1 notifications after Search:", JSON.stringify(search.notifs));
+
+    /* THE GM DREW p1's SEARCH (E08+E28 C12a, 04.10.2026; audit S16-05). p1's browser configured the
+       roll and sent it unevaluated; the GM threw it - the harness carries p1's scripted faces to the
+       GM's randomiser, as nothing does at a table - wrote its message, kept its record and settled
+       its Hope (roll-draw.mjs). Read on the GM: the newest drawn message, its author and record, and
+       Aiko's Hope writes while the Search ran; on p1: the dice it played as its own, not
+       synchronised, and the character it kept for the message. Until C12a p1 wrote the message as
+       its author, and its Hope went through the relay from p1's commit. */
+    phase("the GM draws p1's Search", { flow: "gm-rolls-total" });
+    const drawnSearch = await gm.eval(`const D = await import("${REPO}/scripts/roll-draw.mjs").catch(() => null);
+        Hooks.off("updateActor", globalThis.__c12aHopeHook);
+        const m = game.messages.contents.filter(x => x.getFlag("${MOD}", "drawn")).at(-1) ?? null;
+        const r = D?.rollRecord(m?.getFlag("${MOD}", "rollId") ?? null) ?? null;
+        const roll = m?.rolls?.[0] ?? null;
+        return { id: m?.id ?? null, author: m?.author?.id ?? null, gm: game.user.id, userId: r?.userId ?? null, actorId: r?.actorId ?? null,
+            actionKey: r?.actionKey ?? null, total: r?.total ?? null, faces: [r?.hope ?? null, r?.fear ?? null],
+            same: Boolean(r) && r.hope === roll?.dHope?.total && r.fear === roll?.dFear?.total && r.total === roll?.total,
+            hoped: Boolean(r?.withHope || r?.isCritical), hope: globalThis.__c12aHope };`);
+    const p1Drawn = await p1.eval(`const P = await import("${REPO}/scripts/private-rolls.mjs");
+        const m = game.messages.get(${JSON.stringify(drawnSearch.id)});
+        return { me: game.user.id, subject: P.keptRollSubject(m), shown: globalThis.__dsnShown.filter(s => s.user === game.user.id && !s.synchronize).map(s => s.total) };`);
+    check("gm: p1's Search was drawn on the GM - the GM wrote its message, its record names p1, Aiko and the Search, its dice are the message's",
+        drawnSearch.author === drawnSearch.gm && drawnSearch.userId === p1Drawn.me && drawnSearch.actorId === ids.aiko
+            && drawnSearch.actionKey === "search" && drawnSearch.same && JSON.stringify(drawnSearch.faces) === JSON.stringify([9, 5]),
+        JSON.stringify({ drawnSearch, p1: p1Drawn.me }));
+    const hopeOwed = drawnSearch.hoped && drawnSearch.hope?.before < drawnSearch.hope?.max ? 1 : 0;
+    check("gm: the drawn Search's Hope was written once, by the GM",
+        hopeOwed === 1 && drawnSearch.hope?.by?.length === 1 && drawnSearch.hope.by[0] === drawnSearch.gm,
+        JSON.stringify({ owed: hopeOwed, hope: drawnSearch.hope }));
+    check("p1: played the GM's dice as its own throw, and kept the roll's character",
+        p1Drawn.shown.includes(drawnSearch.total) && p1Drawn.subject === ids.aiko, JSON.stringify(p1Drawn));
 
     /* THE SEARCH, REROLLED FROM p1's BROWSER AND MADE ON THE GM (E08+E28 C4a). The new dice are a
        Hope result too low to find anything, so the GM takes back the item the Search put on
@@ -747,6 +785,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * roll's row is kept..." holds the order. What this one catches is the naming, end to end
      * (the Sabotage or its trace sent with no roll: red).
      */
+    /* E08+E28 C12a: p1's Work on Project was drawn on the GM as the Search was - its newest drawn
+       message the GM's, its record p1's, Aiko's and the project's. */
+    phase("the GM draws p1's Work on Project", { flow: "gm-rolls-total" });
+    const drawnWork = await gm.eval(`const D = await import("${REPO}/scripts/roll-draw.mjs").catch(() => null);
+        const m = game.messages.contents.filter(x => x.getFlag("${MOD}", "drawn")).at(-1) ?? null;
+        const r = D?.rollRecord(m?.getFlag("${MOD}", "rollId") ?? null) ?? null;
+        return { author: m?.author?.id ?? null, gm: game.user.id, userId: r?.userId ?? null, actorId: r?.actorId ?? null, actionKey: r?.actionKey ?? null };`);
+    check("gm: p1's Work on Project was drawn on the GM, its record p1's, Aiko's and the project's",
+        drawnWork.author === drawnWork.gm && drawnWork.userId === p1Drawn.me && drawnWork.actorId === ids.aiko && drawnWork.actionKey === "project",
+        JSON.stringify(drawnWork));
+
     phase("a player's Sabotage and its Reroll", { flow: "projects" });
     const sabTarget = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
         const M = await import("${REPO}/scripts/movement.mjs");

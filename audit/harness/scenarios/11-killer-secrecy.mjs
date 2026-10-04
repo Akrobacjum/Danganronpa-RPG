@@ -112,15 +112,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         JSON.stringify({ stage, held: incidentCards.length, naming: knownCard.map(card) }).slice(0, 1600));
     /* WHO WROTE IT (E06 C5b, 27.09.2026; the owner's answer Q2 (a)). Foundry records as a
        message's author the user whose browser created it, on the server, and every browser
-       holds that: p3 threw Chie's opening roll, so p3 is its author on p1's copy, whatever
-       the document says. No client can hide it; E28 throws a player's dice on the GM. The
-       roll is found by what it is - a roll the module threw, the only one of this window -
-       so the check is red for the author alone, and not for a roll that never came. */
+       holds that: p3 threw Chie's opening roll, so p3 was its author on p1's copy, whatever
+       the document said - known-leaks.json's `roll-author` until E08+E28 C12a (04.10.2026),
+       which draws a player's action roll on the primary GM, who writes its message
+       (roll-draw.mjs): its author is the GM. A plain check since. The roll is found by what
+       it is - a roll the module threw, the only one of this window - so the check is red for
+       the author alone, and not for a roll that never came. A statistic thrown from the sheet
+       is not drawn until C13, and none is thrown in this window. */
     const openingRolls = incidentCards.filter(c => c.claimed && c.rolls > 0);
     check("SECRECY p1 during incident: the killer's opening roll does not name the killer's player as its author",
         openingRolls.length > 0 && openingRolls.every(c => c.author !== p3.userId),
-        JSON.stringify({ stage, rolls: openingRolls.map(c => ({ author: c.author, speaker: c.speaker, whisper: c.w })) }),
-        { knownLeak: "roll-author", measured: reached && openingRolls.length > 0 });
+        JSON.stringify({ stage, rolls: openingRolls.map(c => ({ author: c.author, speaker: c.speaker, whisper: c.w })) }));
 
     // Drive to resolution + discovery + trial
     phase("discovery", { flow: "body-discovery" });

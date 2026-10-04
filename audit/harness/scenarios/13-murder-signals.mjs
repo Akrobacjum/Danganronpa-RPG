@@ -495,16 +495,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify(clue.windows) === JSON.stringify([clue.menu]) && Boolean(clue.id) && ruled.length === 1,
         JSON.stringify({ windows: clue.windows, id: clue.id, ruled: ruled.length }));
     const withDsn = { victim: await p1.eval(DICE_READ(clue)), bystander: await p2.eval(DICE_READ(clue)), killer: await p3.eval(DICE_READ(clue)) };
+    /* THE VICTIM'S OWN DICE (E08+E28 C12a, 04.10.2026). The victim's crisis roll is drawn by the GM
+       now (roll-draw.mjs), whose message the victim's Dice So Nice does not animate: the victim's
+       browser plays the GM's faces as its own throw, from the draw's answer (`played`, not
+       synchronised) - the plan's 3.4, its first line. Either is the victim seeing its own dice. */
+    const ownDice = (r, total) => r.animated || r.played.includes(total);
     check("dice: the victim's crisis roll is played on the killer's screen by the GM's relay, and its card tells the killer the action and the total",
         Boolean(clue.id) && clue.stage === "incident" && withDsn.killer.relayed && withDsn.killer.played.includes(clue.total)
-        && withDsn.killer.card && withDsn.killer.total && withDsn.victim.animated && !withDsn.victim.relayed,
+        && withDsn.killer.card && withDsn.killer.total && ownDice(withDsn.victim, clue.total) && !withDsn.victim.relayed,
         JSON.stringify({ clue, withDsn }), { flow: "private-rolls" });
     check("dice: the bystander is sent neither the roll's dice nor its card, and animates nothing though Dice So Nice's secret-roll hiding is off",
         Boolean(clue.id) && !withDsn.bystander.relayed && !withDsn.bystander.played.length && !withDsn.bystander.animated && !withDsn.bystander.card,
         JSON.stringify(withDsn.bystander), { flow: "private-rolls" });
+    /* Red from E08+E28 C12a until C13: the victim's dice are played from the GM's answer
+       (`showForRoll`), not waited for on the message (`waitFor3DAnimationByMessageID`, which
+       `__dsnAnimation` holds), so `fell` is never stamped and the order is not measured. */
     check("dice: the victim's roll reaches the killer while the victim's own dice still fall",
         Boolean(withDsn.killer.shownAt) && Boolean(withDsn.victim.fell) && withDsn.killer.shownAt < withDsn.victim.fell,
-        JSON.stringify({ killer: withDsn.killer.shownAt, fell: withDsn.victim.fell }), { flow: "private-rolls" });
+        JSON.stringify({ killer: withDsn.killer.shownAt, fell: withDsn.victim.fell }), { flow: "private-rolls",
+            measured: Boolean(withDsn.killer.shownAt) && withDsn.victim.played.includes(clue.total), expectedRed: { stage: "E28", why: "C13: a drawn roll's dice are played from the GM's answer, which __dsnAnimation does not hold" } });
 
     await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
         if (!M.isTheirTurn(game.actors.get("${ids.chie}"))) await M.passTurn();
@@ -524,7 +533,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         withDsn.victim.notified && !withDsn.victim.rung && noDsn.killer.notified && noDsn.killer.rung
         && [withDsn.killer, withDsn.bystander, noDsn.victim, noDsn.bystander].every(r => !r.notified && !r.rung),
         JSON.stringify({ withDsn: [withDsn.victim, withDsn.killer, withDsn.bystander].map(pip), noDsn: [noDsn.killer, noDsn.victim, noDsn.bystander].map(pip) }),
-        { flow: "private-rolls" });
+        // Red from E08+E28 C12a until C13: the GM writes a drawn roll's message, which its roller's browser
+        // does not read until C13 makes it readable there (`readableHere`), so it lights no pip on the roller's.
+        { flow: "private-rolls", measured: Boolean(clue.id && strike.id),
+            expectedRed: { stage: "E28", why: "C13: a drawn roll's message is not yet readable on its roller's browser" } });
 
     /* A CARD ANOTHER FILE POSTS FOR A ROLL OF THE FIGHT, FROM THE PLAYER'S OWN BROWSER (E06 fix
        r1-G3, 28.09.2026; review M2). A tool Chie holds breaks on a Despair on p3's browser
@@ -1184,7 +1196,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        victim throws a roll of the fight on p1, the way a crisis roll is thrown (as 72 throws
        Chie's), with Dice So Nice's secret-roll hiding off everywhere: the builder's browser and
        the bystander's are sent no `dice.show` and animate nothing - the incident's audience is
-       the victim alone, who threw it. */
+       the victim alone, who threw it. Since E08+E28 C12a the GM draws the roll, and the victim
+       plays its dice from the GM's answer (`played`) rather than animating the message. */
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
     const trapRoll = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         globalThis.__forceRoll = { hope: 8, fear: 3 };
@@ -1196,7 +1209,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const trapDice = { victim: await p1.eval(DICE_READ(trapRoll)), bystander: await p2.eval(DICE_READ(trapRoll)), builder: await p3.eval(DICE_READ(trapRoll)) };
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dsnHideSecret = true; return true;`);
     check("trap: the victim's roll of the fight reaches neither the builder's screen nor the bystander's, even with Dice So Nice's secret-roll hiding off",
-        Boolean(trapRoll.id) && trapRoll.stage === "incident" && trapDice.victim.animated
+        Boolean(trapRoll.id) && trapRoll.stage === "incident" && (trapDice.victim.animated || trapDice.victim.played.length > 0)
         && [trapDice.builder, trapDice.bystander].every(r => !r.relayed && !r.played.length && !r.animated),
         JSON.stringify({ trapRoll, trapDice }), { flow: "private-rolls" });
 

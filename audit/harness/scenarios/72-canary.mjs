@@ -418,6 +418,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return row ? { actionKey: row.actionKey, by: row.by } : null;`, { timeout: 60000 });
     check("gm: Chie's crisis roll is kept for a Reroll on the GMs, as p3 threw it", crisisMark?.actionKey === "crisis" && crisisMark.by === IDS.p3,
         JSON.stringify({ crisisMark }));
+    /* THE GM'S MESSAGE OF A DRAWN ROLL, IN A BYSTANDER'S BROWSER (E08+E28 C12a, 04.10.2026). Chie's
+       crisis roll above was thrown on p3's client and drawn by the GM (roll-draw.mjs): the GM wrote
+       its message, the record's id and `drawn` beside the claim's flag. p1 holds the document, as
+       every browser does: its author is the GM, its module flags are those three, and nothing in it
+       names Chie or p3, by id or by name. Who sees its dice is C13's. */
+    const drawnCopy = await p1.eval(`const m = game.messages.contents.filter(x => x.getFlag("${MOD}", "drawn")).at(-1) ?? null;
+        const doc = m ? JSON.stringify(m.toObject()) : "";
+        const terms = ["${IDS.chie}", "${IDS.p3}", game.actors.get("${IDS.chie}")?.name, game.users.get("${IDS.p3}")?.name].filter(Boolean);
+        return { id: m?.id ?? null, author: m?.author?.id ?? null, flags: Object.keys(m?.flags?.["${MOD}"] ?? {}).sort(), named: terms.filter(t => doc.includes(t)) };`);
+    check("p1: the GM's message of p3's drawn crisis roll is the GM's, holds three module flags, and names neither Chie nor p3",
+        Boolean(drawnCopy.id) && drawnCopy.author === IDS.gm && JSON.stringify(drawnCopy.flags) === JSON.stringify(["drawn", "rollId", "supersededRoll"])
+            && drawnCopy.named.length === 0, JSON.stringify(drawnCopy));
     /* A DEATH IN TWO PHASES (E05 C10, 26.09.2026; audit S06-11). Botan carries a Truth Bullet
        into the incident; the blow kills him for the GMs and for his own player (p2), and p1's
        browser reads him alive - no flag, no marker, his bullet still on the sheet - until the

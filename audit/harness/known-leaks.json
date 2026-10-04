@@ -3,18 +3,6 @@
   "schema": 1,
   "leaks": [
     {
-      "id": "roll-author",
-      "findings": ["S04-02", "S02-02"],
-      "class": "killer-identity",
-      "severity": "high",
-      "what": "A roll a player's browser throws is written by that player: Foundry records the author on the chat document, which every browser holds, so during an incident a bystander's browser holds the killer's opening roll with the killer's player as its author. Since E06 C5b (and its fixes r1-G1, which took the character's data, effects, experiences and statistic out of a roll's options, and r2-G2, which took out the Loaded Die's mark, the nonce its Call keeps on the character) the document names nothing else of whose roll it is - read in Daggerheart's source and measured on the harness's copy of that shape, not on a real message (LIVE-E06-02); E28 throws a player's dice on the GM (the owner's answer Q2 (a), 27.09.2026).",
-      "closes": "E28",
-      "detectedBy": [
-        {"scenario": "11-killer-secrecy", "check": "SECRECY p1 during incident: the killer's opening roll does not name the killer's player as its author"}
-      ],
-      "measuredAt": "E06 C5b on the C5b tree over f00840a, 27.09.2026 (11-killer-secrecy, e06run/c5ba1/11b.json): p1 held the killer's opening roll, a roll the module threw, with author USERP30000000000 (p3, Chie's player), speaker actor null and whisper [GM] - the author is all it says of whose roll it was"
-    },
-    {
       "id": "S17-31",
       "findings": ["S17-31"],
       "class": "killer-identity",

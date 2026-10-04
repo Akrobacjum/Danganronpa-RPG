@@ -2557,6 +2557,7 @@
         "trap.event": "Zgłoszenie dla pułapek",
         "roll.subject": "Zgłoszenie, czyj to był rzut",
         "roll.bookmark": "Co zrobił rzut, zapisane na Reroll",
+        "roll.draw": "Rzut do wykonania przez GM-a",
         "reroll.ask": "Reroll",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
@@ -3043,7 +3044,8 @@
     },
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM.",
-      "rewriteNotPutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); ta przeglądarka nie widziała tego rzutu, więc nie dało się przywrócić jego kości."
+      "rewriteNotPutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); ta przeglądarka nie widziała tego rzutu, więc nie dało się przywrócić jego kości.",
+      "notDrawnHere": "Daggerheart {version} buduje rzuty inaczej, niż zakłada ten moduł, więc rzuty graczy wykonują się w ich przeglądarkach, a nie u GM-a. Ta wiadomość pojawia się raz dla tej wersji."
     },
     "Messenger": {
       "launcherTooltip": "Komunikator",
@@ -4717,6 +4719,7 @@
         "rerollBookmarks": "Ostatni rzut każdej postaci, który cofnąłby Reroll, i to, co zrobili dla niego GM-owie",
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",
         "rerollJournal": "Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić",
+        "rolls": "Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała"
       },
       "row": {

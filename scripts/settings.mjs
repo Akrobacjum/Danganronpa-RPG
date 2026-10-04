@@ -357,6 +357,14 @@ export const SETTINGS = {
      */
     gmCleanupAttempts: "gmCleanupAttempts",
     /**
+     * THE ROLLS THE GM DREW (E08+E28 C12a, 1.2.67; audit S16-05): a GM store (gm-stores.mjs
+     * `rollStore`), a row per roll a player threw and the primary GM drew - its dice, its
+     * total, its roller and its character. Synced, not backed up; no player copy.
+     */
+    gmRolls: "gmRolls",
+    /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
+    rollDrawWarned: "rollDrawWarned",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -1358,6 +1366,23 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    // The rolls the GM drew (E08+E28 C12a): no `onChange` - shown nowhere, read by the guard
+    // that ties a drawn roll's message to its roller (bridge-guards.mjs `guardRollAuthor`).
+    game.settings.register(MODULE_ID, SETTINGS.gmRolls, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    /* The Daggerheart version this browser's GM was told its players' rolls are not drawn
+       by the GM on (E08+E28 C12a, roll-draw.mjs `announceRollDraw`): once per version, as
+       the relay warning above. */
+    game.settings.register(MODULE_ID, SETTINGS.rollDrawWarned, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     game.settings.register(MODULE_ID, SETTINGS.secretCards, {

@@ -5556,6 +5556,61 @@ const INVARIANTS = [
             isPrimaryGm({ leaving: game.user.id })]),
         JSON.stringify([false, true, false]),
             "the user named as leaving was still computed as the primary, or a player's leaving moved it (this user primary without itself, the primary without a player, isPrimaryGm without itself)");
+    }],
+
+    ["R217 - the GM's draw is on the build it was written for, and leaves any other build alone", async () => {
+        /*
+         * E08+E28 C12a, 04.10.2026; audit S16-05; the plan's 3.2 (its R216 - taken by fix r1-G5,
+         * so this is the next free number). A player's action roll is configured in their browser
+         * and drawn by the primary GM through a wrap of Daggerheart's `DualityRoll.build`
+         * (roll-draw.mjs), which runs `buildConfigure` and `buildEvaluate` itself and leaves out
+         * `buildPost`. On a build that does something else in between, the wrap would drop it
+         * silently - so the wrap is put only on the build it was read from (D1: Daggerheart 2.10.x
+         * loads, without a maximum), and any other is left alone and said to the GMs once per
+         * version. Read here: this world's class passes `reviewBuild` and is wrapped (the seam's
+         * state, the patch row's probe); and four classes that differ from it each in one place -
+         * the steps in another order, a configuration hook not by Daggerheart's template, no
+         * Duality hooks, no `fromData` - are refused, each with its own reason. Reads only: the
+         * fakes are never wrapped (`registerRollDraw` reads the world's class alone).
+         */
+        const { reviewBuild, rollDrawState } = await import("./roll-draw.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const live = game.system?.api?.dice?.DualityRoll;
+        must(typeof live === "function", "this world's Daggerheart has no DualityRoll to draw");
+        const row = PATCHES.find(p => p.target === "DualityRoll.build")?.probe?.() ?? null;
+        equal(JSON.stringify([reviewBuild(live), rollDrawState().state, row?.present, row?.ours]),
+            JSON.stringify([{ ok: true, why: "" }, "ok", true, true]),
+            "this world's build is not the reviewed one, or the seam is not on it (the review, the state, the patch row's present and ours)");
+        /* The fakes are classes, so `reviewBuild` reads their source as it reads Daggerheart's; each
+           standalone, as a class that extended the reviewed one would inherit what it lacks. */
+        const steps = {
+            buildEvaluate: async () => {}, buildPost: async () => {}, toMessage: async () => {}, dualityUpdate: async () => {},
+            fromData: data => data, getHooks: () => ["Duality"]
+        };
+        const reviewed = Object.assign(class R217Reviewed {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildEvaluate(config, message); await this.buildPost(config, message); return config; }
+            static async buildConfigure(config) { for (const hook of config.hooks) Hooks.call(`daggerheart.post${hook}RollConfiguration`, config); return {}; }
+        }, steps);
+        const reordered = Object.assign(class R217Reordered {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildPost(config, message); await this.buildEvaluate(config, message); return config; }
+            static async buildConfigure(config) { for (const hook of config.hooks) Hooks.call(`daggerheart.post${hook}RollConfiguration`, config); return {}; }
+        }, steps);
+        const untemplated = Object.assign(class R217Untemplated {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildEvaluate(config, message); await this.buildPost(config, message); return config; }
+            static async buildConfigure(config) { Hooks.call("daggerheart.postRollConfiguration", config); return {}; }
+        }, steps);
+        const hookless = Object.assign(class R217Hookless {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildEvaluate(config, message); await this.buildPost(config, message); return config; }
+            static async buildConfigure(config) { for (const hook of config.hooks) Hooks.call(`daggerheart.post${hook}RollConfiguration`, config); return {}; }
+        }, steps, { getHooks: () => [] });
+        const unbuilt = Object.assign(class R217Unbuilt {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildEvaluate(config, message); await this.buildPost(config, message); return config; }
+            static async buildConfigure(config) { for (const hook of config.hooks) Hooks.call(`daggerheart.post${hook}RollConfiguration`, config); return {}; }
+        }, steps, { fromData: undefined });
+        const verdicts = [reviewed, reordered, untemplated, hookless, unbuilt].map(cls => reviewBuild(cls));
+        equal(JSON.stringify(verdicts.map(v => v.ok)), JSON.stringify([true, false, false, false, false]),
+            "a build that differs from the reviewed one is wrapped, or the reviewed shape is refused (as read; order, template, hooks, fromData)");
+        equal(new Set(verdicts.slice(1).map(v => v.why)).size, 4, "two different departures were refused with one reason");
     }]
 ];
 

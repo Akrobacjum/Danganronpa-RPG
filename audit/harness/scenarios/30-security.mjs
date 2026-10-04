@@ -1396,6 +1396,34 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         if (S.rerollBookmarkStore) await S.rerollBookmarkStore.dropMany(["${ids.aiko}", "${ids.botan}"]);
         return true;`);
 
+    /*
+     * 7n. A roll for the GM to draw (E08+E28 C12a, 04.10.2026; the plan's 3.3). A player's action
+     * roll is thrown on the primary GM (`roll.draw`): the GM throws it for the sender's own
+     * character only (`owns`), and only a duality roll nobody has thrown, carrying the nonce the
+     * packet names (`guardDrawnRoll`). p1 asks a draw for Botan, p2's character, and one for
+     * Aiko with a roll already thrown to 30. Each is refused and logged, and the GM writes no
+     * message and keeps no record. 40-flow drives the legal draw.
+     */
+    phase("a roll for the GM to draw", { flow: "gm-rolls-total" });
+    const readDraws = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { drawn: game.messages.filter(m => m.getFlag("${MOD}", "drawn")).length, rows: Object.keys(S.rollStore?.entries() ?? {}).length };`;
+    const die = (cls, extra = {}) => ({ class: cls, number: 1, faces: 12, modifiers: [], results: [], evaluated: false, ...extra });
+    const unthrown = { class: "DualityRoll", formula: "1d12 + 1d12 + 0", evaluated: false, total: null,
+        terms: [die("HopeDie"), { class: "OperatorTerm", operator: "+", evaluated: true }, die("FearDie"),
+            { class: "OperatorTerm", operator: "+", evaluated: true }, { class: "NumericTerm", number: 0, evaluated: true }],
+        options: { drpgRollNonce: "SECDRAWNONCE", actionType: "action", roll: { type: "trait" } } };
+    const forgedDraw = await forge("roll.draw", { actorId: ids.botan, actionKey: "search", nonce: "SECDRAWNONCE", claimed: true,
+        loaded: null, costs: [], roll: unthrown }, readDraws);
+    check("SECURITY: a roll.draw for another player's character is refused for ownership, and the GM writes no message and keeps no record",
+        forgedDraw.unchanged && forgedDraw.forOwnership, JSON.stringify(forgedDraw));
+    const thrownAlready = { ...unthrown, evaluated: true, total: 30,
+        terms: [die("HopeDie", { results: [{ result: 12, active: true }], evaluated: true }), unthrown.terms[1],
+            die("FearDie", { results: [{ result: 12, active: true }], evaluated: true }), unthrown.terms[3], { class: "NumericTerm", number: 6, evaluated: true }] };
+    const forgedThrown = await forge("roll.draw", { actorId: ids.aiko, actionKey: "search", nonce: "SECDRAWNONCE", claimed: true,
+        loaded: null, costs: [], roll: thrownAlready }, readDraws);
+    check("SECURITY: a roll.draw carrying a roll already thrown is refused, and the GM writes no message and keeps no record",
+        forgedThrown.unchanged && forgedThrown.reasons.some(r => /that is not a duality roll nobody has thrown/.test(r)), JSON.stringify(forgedThrown));
+
     phase("a trace the GM's Reroll meets", { flow: "reroll" });
     /*
      * 7k. The trace a Reroll may no longer touch (E08+E28 fix r1-G3, 04.10.2026; the round-1

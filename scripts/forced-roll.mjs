@@ -84,7 +84,16 @@ export function registerForcedRolls() {
  * for exactly as long as this one roll is being evaluated.
  */
 function onConfigured(roll, config) {
-    const mark = config?.[LOADED_DIE];
+    loadDie(roll, config?.[LOADED_DIE]);
+}
+
+/**
+ * Load the first die `roll` throws, once per `mark`. The configuration hook's on this
+ * client; and the primary GM's for a player's roll it draws (roll-draw.mjs `drawOnGm`,
+ * E08+E28 C12a), where the roll the GM throws is not the one the roller's hook loaded - the
+ * roller's browser takes its own shadow off before it plays the GM's faces back.
+ */
+export function loadDie(roll, mark) {
     if (!mark || spent.has(mark)) return;
     if (typeof roll?.evaluate !== "function") {
         // A Daggerheart that stopped passing the roll. Loud rather than silent:

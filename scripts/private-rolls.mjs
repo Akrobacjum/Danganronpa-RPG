@@ -31,8 +31,10 @@
  * WHAT A ROLL STILL SAYS (E06 C13, 28.09.2026), written down so nobody has to find it
  * again: its author and its moment, which Foundry stamps on the server - a roll a
  * player's browser throws names that player, and only E28, which throws a player's
- * dice on the GM, takes that away (the owner's answer Q2 (a); known-leaks.json
- * `roll-author`, measured by 11-killer-secrecy); its formula, which carries the
+ * dice on the GM, takes that away (the owner's answer Q2 (a)): since E08+E28 C12a a
+ * player's action roll is drawn on the primary GM, who writes it (roll-draw.mjs), and
+ * 11-killer-secrecy reads the killer's opening roll written by the GM - known-leaks.json's
+ * `roll-author` until then; a statistic from the sheet until C13; its formula, which carries the
  * statistic's value; and, for a roll the module did not throw, Daggerheart's own card
  * and speaker. Who watches its dice fall is the section on the dice below
  * (`keepDiceToReaders`, `diceAudienceIds`). The GM handbook's section 1 tells the GM
@@ -43,7 +45,7 @@ import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
-import { judge, table, pick, as, knownSender, owns, guardRollAuthor, bridgeRequest } from "./bridge-guards.mjs";
+import { judge, table, pick, as, knownSender, owns, guardRollAuthor, guardDrawnRoll, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
 // and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
@@ -644,9 +646,16 @@ function rollNonceOf(message, data = null) {
  * @param {(nonce: string) => Promise<any>} fn  the call that produces the roll; it puts `nonce` on the roll's config under `ROLL_NONCE`.
  * @param {object} [opts]
  * @param {Actor|null} [opts.subject]  the character the roll is about, reported as its message is created (`reportClaimedRoll`).
+ * @param {string|null} [opts.actionKey]  the action the roll is for, kept on the claim for the GM's draw (roll-draw.mjs); never on the roll.
+ *
+ * The GM's draw of a player's roll (roll-draw.mjs `drawOnGm`, E08+E28 C12a) claims the
+ * message it writes with the roller's nonce, which the roll already carries (`nonce`), stamps
+ * the record's flags beside the claim's (`stamp`), keeps the roller out of the incident's dice
+ * relay - their dice are played from the draw's answer (`except`) - and hears the message
+ * created before Daggerheart's `toMessage` waits for Dice So Nice (`onCreated`).
  */
-export async function supersedingRoll(fn, { subject = null } = {}) {
-    const claim = { spent: false, subject, reported: false, nonce: foundry.utils.randomID() };
+export async function supersedingRoll(fn, { subject = null, actionKey = null, nonce = null, stamp = null, except = [], onCreated = null } = {}) {
+    const claim = { spent: false, subject, actionKey, reported: false, nonce: nonce ?? foundry.utils.randomID(), stamp, except, onCreated };
     rollClaims.push(claim);
     try {
         return await fn(claim.nonce);
@@ -667,8 +676,15 @@ function claimRollMessage(message, data) {
     if (!hasRoll) return false;
 
     claim.spent = true;
-    message.updateSource({ [`flags.${MODULE_ID}.${SUPERSEDED_FLAG}`]: true });
+    const stamp = Object.fromEntries(Object.entries(claim.stamp ?? {}).map(([key, value]) => [`flags.${MODULE_ID}.${key}`, value]));
+    message.updateSource({ [`flags.${MODULE_ID}.${SUPERSEDED_FLAG}`]: true, ...stamp });
     return true;
+}
+
+/** The open claim whose roll carries this nonce: what the GM's draw is told of it (roll-draw.mjs). Null when none. */
+export function rollClaimOf(nonce) {
+    const claim = typeof nonce === "string" && nonce ? rollClaims.find(c => c.nonce === nonce) : null;
+    return claim ? { subject: claim.subject, actionKey: claim.actionKey } : null;
 }
 
 /*
@@ -694,7 +710,8 @@ function reportClaimedRoll(message, options, userId) {
     const claim = nonce ? rollClaims.find(c => c.spent && !c.reported && c.nonce === nonce) : null;
     if (!claim) return;
     claim.reported = true;
-    if (claim.subject) reportRollSubject(message, claim.subject);
+    if (claim.subject) reportRollSubject(message, claim.subject, { except: claim.except });
+    if (typeof claim.onCreated === "function") claim.onCreated(message);
 }
 
 /**
@@ -996,8 +1013,12 @@ const SUBJECT_KEPT_MS = TIMING.rerollWindowMinutes * 60_000;
 /** message id -> the resolvers of `rollSubject` calls waiting for its report. */
 const subjectWaiters = new Map();
 
-/** Record a subject, forget what is too old or too many, and wake whoever waits for this one. */
-function keepSubject(messageId, actorId, userId) {
+/**
+ * Record a subject, forget what is too old or too many, and wake whoever waits for this one.
+ * Exported for the GM's draw (roll-draw.mjs, E08+E28 C12a): the roller's browser keeps the
+ * subject of the message the GM wrote for it, as it keeps one it threw, and asks nothing.
+ */
+export function keepSubject(messageId, actorId, userId) {
     const now = Date.now();
     rollSubjects.delete(messageId);
     rollSubjects.set(messageId, { actorId, userId, at: now });
@@ -1024,8 +1045,37 @@ export const ROLL_ACTIONS = table({
         run: keepRollSubject,
         answer: "none", quiet: true,
         claims: { messageId: guardRollAuthor }
+    },
+    /*
+     * A PLAYER'S ROLL, DRAWN BY THE PRIMARY GM (E08+E28 C12a, 04.10.2026; audit S16-05; the
+     * plan's 3.3). The roller's browser configured the roll - Daggerheart's own hooks and window
+     * - and sends it unevaluated (roll-draw.mjs `drawnBuild`); the GM throws it, writes its
+     * message, settles its Hope, Stress and Fear, records it (`rollStore`) and answers with the
+     * faces it drew. The roll is the sender's own character's (`owns`) and a duality roll
+     * nobody has thrown, carrying the claim's nonce (`guardDrawnRoll`). What the roll adds up
+     * to beyond its dice is observed from C12b on, not refused (D2's allowance for 1.2.67).
+     */
+    "roll.draw": {
+        label: "DRPG.Bridge.what.roll.draw",
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardDrawnRoll],
+        sanitize: pick({ actorId: as.id, actionKey: as.maybeText, nonce: as.id, claimed: as.bool, loaded: as.id, costs: as.raw, roll: as.raw }),
+        run: drawRollOnGm,
+        answer: "reply",
+        claims: {
+            roll: guardDrawnRoll,
+            nonce: guardDrawnRoll,
+            costs: "only what the sender's own character pays: drawOnGm (roll-draw.mjs) keeps up to eight enabled costs of a whole number from 1 to 12, each taken off that character",
+            loaded: "the Loaded Die is loaded on the GM only while that character's armed Calls hold this nonce (roll-draw.mjs drawOnGm)"
+        }
     }
 });
+
+/** The run of `roll.draw`: the GM's draw, with the fields its whitelist lets through. */
+async function drawRollOnGm(payload, sender, ctx) {
+    const { drawOnGm } = await import("./roll-draw.mjs");
+    return drawOnGm({ actorId: payload.actorId, actionKey: payload.actionKey, nonce: payload.nonce, claimed: payload.claimed,
+        loaded: payload.loaded, costs: payload.costs, roll: payload.roll }, sender);
+}
 
 /** The run of `roll.subject`: its guards tied the message to the sender and the character to them. */
 function keepRollSubject(payload, sender, ctx) {
@@ -1041,11 +1091,11 @@ function keepRollSubject(payload, sender, ctx) {
  * roll by it (`belongsTo`, reroll.mjs). A primary GM's own roll is recorded
  * without a packet.
  */
-export function reportRollSubject(message, actor) {
+export function reportRollSubject(message, actor, { except = [] } = {}) {
     const messageId = message?.id ?? message?._id ?? null;
     if (!messageId || !actor?.id || keptRollSubject(message) === actor.id) return;
     keepSubject(messageId, actor.id, game.user?.id ?? null);
-    if (isPrimaryGm()) return relayIncidentDice(message);
+    if (isPrimaryGm()) return relayIncidentDice(message, { except });
     const decl = ROLL_ACTIONS["roll.subject"];
     void bridgeRequest("roll.subject", { messageId, actorId: actor.id }, { settle: decl.answer, quiet: decl.quiet });
 }

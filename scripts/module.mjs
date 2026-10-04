@@ -73,6 +73,7 @@ import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerNoScrollingText } from "./no-scrolling-text.mjs";
 import { registerCriticalRule } from "./critical.mjs";
+import { registerRollDraw, announceRollDraw } from "./roll-draw.mjs";
 import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
@@ -267,6 +268,9 @@ Hooks.once("setup", () => {
      * both late enough to find the class and early enough to matter.
      */
     safely("the critical rule", registerCriticalRule);
+    // A player's roll, drawn by the GM (E08+E28 C12a, roll-draw.mjs): the same class, at the
+    // same moment, for the same reason.
+    safely("the GM's draw of a player's roll", registerRollDraw);
 });
 
 Hooks.once("ready", () => {
@@ -286,6 +290,9 @@ Hooks.once("ready", () => {
     // in the manifest, so this is the only thing that says so). Not awaited either.
     announceNewerSystem().catch(err =>
         error("Could not mention the newer Daggerheart", err));
+    // And a Daggerheart whose roll the GM's draw was not written for (E08+E28 C12a), once per version.
+    announceRollDraw().catch(err =>
+        error("Could not say that rolls are not drawn by the GM", err));
 
     // Before the migration, whose clauses read the GM-only stores and wait until
     // this client holds the other GMs' copies of them (E04, gm-stores.mjs): the
