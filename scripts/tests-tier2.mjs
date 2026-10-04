@@ -709,6 +709,32 @@ async function heldRollBookmark(player, actor, actionKey, context = {}) {
 }
 
 /**
+ * WHAT THE GM'S CLIENT SAID WHILE A TEST RAN (E08+E28 C15, 04.10.2026). A test that reads "logged
+ * on the GM" counts the lines `warn` and `error` (utils.mjs) write to the console from the watch
+ * on, not the rows of `sessionFailures()`: that log keeps the first 60 wordings and drops every
+ * new one after (`SESSION_LOG_CAP`), and a whole suite fills it. Measured on C15's first suite
+ * run: the 60th wording arrived just before "a trace's band is the GM's, whatever the packet
+ * names", which then counted none of its two lines, and "a bookmark note for another player's
+ * character is refused" none of its two refusals - the first had passed on its named run, the
+ * second on every suite before C15 (C14: its refusals were the log's 51st and 52nd wordings).
+ * `count(test)` is how many lines since the watch match `test` (a string or a RegExp); `stop()`
+ * puts the console back.
+ */
+function watchLog() {
+    const lines = [], kept = { warn: console.warn, error: console.error };
+    for (const level of Object.keys(kept)) {
+        console[level] = function (...args) {
+            lines.push(args.map(a => (a instanceof Error ? a.message : String(a))).join(" "));
+            return kept[level].apply(this, args);
+        };
+    }
+    return {
+        count: test => lines.filter(line => (typeof test === "string" ? line.includes(test) : test.test(line))).length,
+        stop: () => Object.assign(console, kept)
+    };
+}
+
+/**
  * THE GMS' RECORD OF A ROLL THE SUITE THREW ITSELF (E08+E28 C14, 04.10.2026). A resolution reads
  * its result from the record of the roll its packet names (bridge-guards.mjs `rollRefusal`), which
  * the GM keeps for a roll it drew (roll-draw.mjs `drawOnGm`). A test whose roll is a message of its
@@ -5036,14 +5062,18 @@ const SCENARIOS = [
          * it now: the player's roll is bookmarked, then their Search's trace is asked for as
          * the listener judges it - naming its roll, as the Search names it since fix r1-G1
          * (action-rolls.mjs `leaveSearchTrace`). Read: the bookmark's verdict, the placement's,
-         * the tokens the scene gained, and the row's trace, scene and roller.
+         * the tokens the scene gained, and the row's trace, scene and roller. Since E08+E28 C15 a
+         * Search's trace takes its band from the GMs' record of the roll it names, so the suite's
+         * roll is given one (`recordFor`), on 20 - the band the packet asks, "evident".
          */
         needs(world.atLeast("playerCharactersInRooms"), "a player's trace is placed where their character stands");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
         const { player, actor, where } = await playerInRoom();
         const F = await playerRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
         const scene = where.scene, made = [];
+        let R = null;
         try {
+            R = await recordFor(F.message, player, actor, "search", { total: 20 });
             const had = new Set(scene.tokens.map(t => t.id));
             const placed = await F.ask({ action: "remnant.place", requestId: "suite-e08c2-trace", rollId: F.message.id,
                 data: { sourceActor: actor.id, action: "search", type: "prep", visibility: "evident", sceneId: scene.id } });
@@ -5054,6 +5084,7 @@ const SCENARIOS = [
                 `the bookmark was refused, the trace not placed, or the GMs' row does not name it (verdict, placed, tokens made, trace, scene, roller): ${stableJson(F.row())}`);
         } finally {
             for (const id of made) await scene.tokens.get(id)?.delete();
+            await R?.putBack();
             await F.putBack();
         }
     }],
@@ -5573,6 +5604,194 @@ const SCENARIOS = [
                 if (foundBefore === null) await actor.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
                 else await actor.setFlag(MODULE_ID, V.VAULT_FLAGS.found, foundBefore);
             }
+        }
+    }],
+
+    ["a console's Steal that says 30 and a critical is refused without its rolls, and scored on the GMs' record of the two it names", async () => {
+        /*
+         * E08+E28 C15, 04.10.2026; audit S10-06; the plan's "a forged steal with total 30 is refused
+         * or scored on its record". A player's character and another stood alone in a room
+         * (`aloneTogether`), the other holding an item; `action.steal` judged as the bridge judges
+         * that player's packet saying 30 and a critical for both rolls and asking for that item:
+         * first naming no roll; then naming the hand's roll the GM drew on 2 and 1 for both of the
+         * Palm's rolls (the unseen one was not thrown as a hand's); then the hand's and an unseen
+         * roll the GM drew on 2 and 1. Read: the codes the first two were refused with and whether
+         * the item is still the victim's after each, and the refusals told, the item and the GM's log
+         * of the packet's unseen total after the third - the record's miss, which the second's
+         * refusal had not spent, and the unseen roll's record in the place of the packet's 30. Red at
+         * C14's runtime: the first packet takes the item.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const fixture = await aloneTogether(theirs, other);
+        const NAME = "Suite C15 pocket";
+        let item = null, hand = null, unseen = null;
+        const log = watchLog();
+        const unseenSaid = () => log.count(/"action\.steal" packet .* said unseenTotal 30; /);
+        try {
+            item = await grantItem(other, { name: NAME, category: "usable", tier: 1, override: true, quiet: true });
+            must(item, `${other.name} could not be handed an item - this would measure nothing`);
+            const told = [];
+            const ask = rolls => G.judge(BRIDGE_ACTIONS, { action: "action.steal", requestId: `C15${foundry.utils.randomID(8)}`,
+                thiefId: theirs.id, victimId: other.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true,
+                ...rolls }, player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            const still = () => other.items.has(item.id);
+            await ask({});
+            const unnamed = [told.at(-1) ?? null, still()];
+            hand = await drawnForPlayer(player, theirs, { actionKey: "steal", faces: { hope: 2, fear: 1 } });
+            unseen = await drawnForPlayer(player, theirs, { actionKey: "palm", faces: { hope: 2, fear: 1 } });
+            must(hand.record && unseen.record, `the GM kept no record of a roll it drew - this would measure nothing: ${stableJson([hand.value, unseen.value])}`);
+            must(!hand.record.isCritical && hand.record.total < ACTIONS.palm.threshold,
+                `the GM's hand (${hand.record.total}) beats the Steal's bar - this would measure nothing`);
+            await ask({ rollId: hand.message.id, unseenRollId: hand.message.id });
+            const mixed = [told.at(-1) ?? null, still()];
+            const saidBefore = unseenSaid();
+            await ask({ rollId: hand.message.id, unseenRollId: unseen.message.id });
+            await settle();
+            equal(stableJson([unnamed, mixed, [told.length, still(), unseenSaid() - saidBefore]]),
+                stableJson([["rollUnknown", true], ["rollOtherAction", true], [2, true, 1]]),
+                "the Steal was not refused without its rolls or with a roll of the wrong kind, or not scored on the records (code, still the victim's; refusals, still the victim's, the unseen total logged)");
+        } finally {
+            log.stop();
+            await hand?.putBack();
+            await unseen?.putBack();
+            for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            await fixture.back();
+        }
+    }],
+
+    ["a console's theft from a stash that says a Search found it is refused without that Search's roll, and read off the GMs' record of it", async () => {
+        /*
+         * E08+E28 C15, 04.10.2026; audit S10-06. `vault.steal` took `viaSearch` and `clumsy` on the
+         * sender's word: a packet saying a Search had paid for a concealed stash opened it, and one
+         * saying the hand was steady kept the owner from being told. A packet that says `viaSearch`
+         * names the Search's roll now, and both are read off the GMs' record of it (gm-bridge.mjs
+         * `searchTheftOf`). The room a player's character stands in holds a concealed stash of
+         * another character's with an item in it (region and item put back after); the theft judged
+         * as the bridge judges that player's packet saying `viaSearch` and a steady hand: naming no
+         * roll; naming a Search of theirs the record says came to 3; naming one the record says came
+         * to 20 with Despair. Read: the codes the first two were refused with and whether the item is
+         * still stashed after each; after the third, the refusals told, whether it is still stashed,
+         * whether the thief holds it, and whether a "stolen" whisper went to its owner - the record's
+         * fumble, not the packet's steady hand. Red at C14's runtime: the first packet takes it.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stash is in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const owner = game.actors.find(a => a.type === "character" && a.id !== actor.id);
+        must(owner, "the world has no second character to own the stash");
+        const region = V.regionsByName(where.scene).get(where.room);
+        must(region, `the room ${where.room} has no region to hide a stash in`);
+        const NAME = "Suite C15 stashed";
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const putBack = [], whispers = [];
+        const hook = Hooks.on("createChatMessage", message => whispers.push(message.id));
+        try {
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: true }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            const item = await INV.grantItem(owner, { name: NAME, category: "usable", tier: 1, override: true, quiet: true });
+            must(item, `${owner.name} could not be handed an item - this would measure nothing`);
+            await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: where.room });
+            must(V.stashItemsIn(owner, where.room).some(i => i.id === item.id), "the item is not in the stash - this would measure nothing");
+            const searched = [];
+            for (const total of [3, 20]) {
+                const { message } = await neutralRoll(actor);
+                must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+                putBack.push(async () => game.messages.get(message.id)?.delete());
+                const R = await recordFor(message, player, actor, "search", { total, withHope: false });
+                putBack.push(R.putBack);
+                await rollStore.patch(R.rollId, { withFear: true });
+                searched.push(message.id);
+            }
+            const told = [];
+            const ask = rollId => G.judge(BRIDGE_ACTIONS, { action: "vault.steal", requestId: `C15${foundry.utils.randomID(8)}`,
+                thiefId: actor.id, ownerId: owner.id, itemId: item.id, viaSearch: true, clumsy: false, ...(rollId ? { rollId } : {}) },
+            player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            const stashed = () => owner.items.has(item.id);
+            await ask(null);
+            const unnamed = [told.at(-1) ?? null, stashed()];
+            await ask(searched[0]);
+            const missed = [told.at(-1) ?? null, stashed()];
+            const from = whispers.length;
+            await ask(searched[1]);
+            await settle();
+            const stolen = whispers.slice(from).map(id => game.messages.get(id)).filter(m => m && cardFlag(m, "sfx") === "stolen").length;
+            equal(stableJson([unnamed, missed, [told.length, stashed(), actor.items.some(i => i.name === NAME), stolen]]),
+                stableJson([["rollUnknown", true], ["rollMissed", true], [2, false, true, 1]]),
+                "the theft was not refused without its Search's roll or on a miss, or not read off the record's find and fumble (code, stashed; code, stashed; refusals, stashed, the thief's, owner told)");
+        } finally {
+            Hooks.off("createChatMessage", hook);
+            for (const a of [owner, actor]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const back of putBack.reverse()) await back();
+            for (const id of whispers) await game.messages.get(id)?.delete();
+            await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+        }
+    }],
+
+    ["a trace's band is the GM's, whatever the packet names", async () => {
+        /*
+         * E08+E28 C15, 04.10.2026; audit S10-06; the plan's "a packet asking hidden for a Search that
+         * earned evident: placed evident, flagged". A player's trace of a Search, a Sabotage or a
+         * Dynamic action is placed at the band the GMs' record of its roll earns, with the action's
+         * own table (gm-bridge.mjs `traceBandOf`). A player's character in a room; two rolls of
+         * theirs given a record (`recordFor`): a Search on 20 ("evident" in its table), and a Dynamic
+         * action on 14 under a GM's ruling of the second difficulty (13-15, "evident"), kept on a
+         * card as `ruleSetDifficulty` keeps it (here on the card's own flags, which `cardFlag` reads
+         * first). Judged as the listener judges that player's packets: a Search's trace naming no
+         * roll; the Search's trace asking "hidden" and the Dynamic action's asking "subtle"; a
+         * discarded item's trace naming none and asking "subtle".
+         * Read: the code the first was refused with, the visibility each placed trace carries, and
+         * how many times the GM's console said a packet's visibility was not the record's (`watchLog`).
+         * Red at C14's runtime: the first is placed, and the two rolls' traces at the bands their
+         * packets ask.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "a player's trace is placed where their character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { remnantData } = await import("./remnants.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const F = await playerRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
+        const scene = where.scene, made = [], putBack = [];
+        const log = watchLog();
+        const said = () => log.count(/said data\.visibility (hidden|subtle); the GMs' record of its roll says evident/);
+        const place = async (action, visibility, rollId = null) => {
+            const had = new Set(scene.tokens.map(t => t.id));
+            await F.ask({ action: "remnant.place", requestId: `suite-c15-${action}-${made.length}`, ...(rollId ? { rollId } : {}),
+                data: { sourceActor: actor.id, action, type: "prep", visibility, sceneId: scene.id, subject: `Suite C15 ${action}` } });
+            const fresh = scene.tokens.filter(t => !had.has(t.id));
+            made.push(...fresh.map(t => t.id));
+            return fresh.length ? remnantData(fresh[0])?.visibility ?? "?" : F.sent.at(-1)?.[1] ?? null;
+        };
+        try {
+            putBack.push((await recordFor(F.message, player, actor, "search", { total: 20 })).putBack);
+            const { message } = await neutralRoll(actor);
+            must(message, `no second roll of ${actor.name} was thrown - this would measure nothing`);
+            putBack.push(async () => game.messages.get(message.id)?.delete());
+            putBack.push((await recordFor(message, player, actor, "dynamic", { total: 14 })).putBack);
+            const card = await ChatMessage.create({ content: "<p>Suite C15 ruling</p>", whisper: [game.user.id],
+                flags: { [MODULE_ID]: { ruling: { type: "dynamic", actorId: actor.id, tier: 1 } } } });
+            putBack.push(async () => game.messages.get(card.id)?.delete());
+            const before = said();
+            const placed = [await place("search", "hidden"), await place("search", "hidden", F.message.id),
+                await place("dynamic", "subtle", message.id), await place("discard", "subtle")];
+            equal(stableJson([placed, said() - before]), stableJson([["rollUnknown", "evident", "evident", "subtle"], 2]),
+                "a trace was placed without its roll, at the packet's band rather than the record's, or not logged (Search unnamed, Search, Dynamic, discard; packets logged)");
+        } finally {
+            log.stop();
+            for (const id of made) await scene.tokens.get(id)?.delete();
+            for (const back of putBack.reverse()) await back();
+            await F.putBack();
         }
     }],
 
@@ -6223,16 +6442,16 @@ const SCENARIOS = [
          * waits on is quiet), and no row moves.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "a refused note is sent by a player, and Foundry names only a connected one");
-        const U = await import("./utils.mjs");
         const S = await import("./gm-stores.mjs");
         const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
         const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => plays(u, a)));
         const theirs = game.actors.find(a => plays(player, a));
         const other = game.actors.find(a => a.type === "character" && !plays(player, a));
         must(other, `${player.name} plays every character - a note of somebody else's cannot be made here`);
-        const refusals = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "roll.bookmark"')).length;
         const F = await playerRollBookmark(player, theirs, "search");
         let gmRoll = null;
+        const log = watchLog();
+        const refusals = () => log.count('Refused a "roll.bookmark"');
         try {
             ({ message: gmRoll } = await neutralRoll(theirs, { faces: { hope: 9, fear: 4 } }));
             must(gmRoll, "no roll was thrown for the GM - this would measure nothing");
@@ -6246,6 +6465,7 @@ const SCENARIOS = [
                 stableJson([true, [null, null], 2, true, 0]),
                 "the player's own note was refused, a forged one was taken or told, or a row moved (own, forged, refusals logged, rows kept, packets sent)");
         } finally {
+            log.stop();
             await game.messages.get(gmRoll?.id ?? "")?.delete();
             await F.putBack();
         }

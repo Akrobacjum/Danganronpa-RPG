@@ -2524,7 +2524,8 @@
         "rollNotYours": "The roll it names is not your character's.",
         "rollOtherAction": "The roll it names was thrown for another action.",
         "rollUsed": "That roll has already been scored.",
-        "rollStale": "The roll it names is too old to be scored."
+        "rollStale": "The roll it names is too old to be scored.",
+        "rollMissed": "The roll it names did not earn that."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",

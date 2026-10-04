@@ -637,6 +637,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
 
     // B10: a trace the GM's client fails to place is answered as a failure, not as placed (E31 review), so the
     // item it stands for stays on the sheet: the token's creation throws on the GM, which placeRemnant catches.
+    // A discarded item's trace, which names no roll: a Search's names one since E08+E28 C15 (`traceBandOf`).
     phase("a trace that could not be placed", { flow: "trace-remnant" });
     await gm.eval(`const scene = canvas.scene;
         globalThis.__e31RealCreate = scene.createEmbeddedDocuments;
@@ -651,7 +652,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     try {
         const n10 = await noticeCount(p1);
         const placed = await p1.eval(`return await ${bridge}.requestRemnant({ sourceActor: "${IDS.aiko}", sourceName: "Aiko Hoshino",
-            visibility: "evident", type: "prep", action: "search", subject: "E31 unplaced", x: 1600, y: 400, sceneId: canvas.scene.id });`,
+            visibility: "evident", type: "prep", action: "discard", subject: "E31 unplaced", x: 1600, y: 400, sceneId: canvas.scene.id });`,
             { timeout: 30000 });
         await settle(1200);
         const b10 = { placed, thrown: await gm.eval(`return globalThis.__e31Thrown.trace ?? 0;`),

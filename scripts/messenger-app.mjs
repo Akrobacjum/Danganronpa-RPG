@@ -676,7 +676,9 @@ async function ruleApproveCallOrRefuseCall(action, data) {
 }
 
     // A Dynamic action: the difficulty editor is the old dialog, opened from
-    // the card by whichever GM picks it up; "Refuse" tells the player so.
+    // the card by whichever GM picks it up; "Refuse" tells the player so. The
+    // difficulty is kept in the card's meta, where the GM who places the action's
+    // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15).
 async function ruleSetDifficulty(action, data) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
@@ -685,7 +687,7 @@ async function ruleSetDifficulty(action, data) {
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");
     if (!answerDynamic(data.rid, data.asker, ruling)) return null;
-    return settled("DRPG.Bridge.settledAnswered");
+    return { ...settled("DRPG.Bridge.settledAnswered"), ruling: { type: "dynamic", actorId: data.by, tier: ruling.tier } };
 }
 
 async function ruleRefuseDynamic(action, data) {

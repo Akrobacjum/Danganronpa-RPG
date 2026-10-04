@@ -1006,6 +1006,65 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && stashGm.card?.kind === "rolled" && stashGm.card.rolled === 6 && stashGm.card.change === stashGm.used.change && stashGm.flags.length === 0,
         JSON.stringify({ stashSet, stashSearch, gm: stashGm }), { flow: "search-observe" });
 
+    // ---- 6f. a player's Plant, scored on the GMs' record of both its rolls ----------------------
+    /*
+     * BOTH OF A PALM'S ROLLS, END TO END (E08+E28 C15, 04.10.2026; audit S10-06). A Steal and a
+     * Plant are scored on the GMs' record of the two rolls the packet names (gm-bridge.mjs
+     * `palmRolls`): the hand's, thrown as "steal", and the unseen one, thrown as "palm"
+     * (action-rolls.mjs `performPalm`). A Palm that named one and not the other, or whose unseen
+     * roll was told as another action, would be refused at every table - which no console check
+     * sees, as each sends a packet of its own. The GM stands Botan where Aiko stands and hands
+     * Aiko a note; p1 plants it on Botan (the window answered with the Plant, Botan and the note),
+     * the unseen roll on 12 and 11 and the hand's on 9 and 5. Read on the GM: whose the note is,
+     * and what the newest of Aiko's drawn rolls of each action says it settled.
+     */
+    phase("a player's Palm", { flow: "give-take-stash" });
+    const palmSet = await gm.eval(`
+        const INV = await import("${REPO}/scripts/inventory.mjs");
+        const M = await import("${REPO}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
+        const at = canvas.scene.tokens.find(t => t.actorId === aiko.id), bt = canvas.scene.tokens.find(t => t.actorId === botan.id);
+        if (!at || !bt) return { err: "no token", rooms: [] };
+        globalThis.__c15Palm = { was: { x: bt.x, y: bt.y }, actions: game.drpg.actionsLeft(aiko) };
+        await bt.update({ x: at.x, y: at.y }, { teleport: true, movementAction: "displace", animate: false });
+        const item = await INV.grantItem(aiko, { name: "Scenario 40 palmed note", category: "usable", tier: 1, override: true, quiet: true });
+        if (game.drpg.actionsLeft(aiko) < 1) await game.drpg.setActions(aiko, 1);
+        return { item: item?.id ?? null, rooms: [M.locateActor(aiko)?.room ?? null, M.locateActor(botan)?.room ?? null] };`, { timeout: 30000 });
+    const palmed = await p1.eval(`
+        const M = await import("${REPO}/scripts/movement.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        for (let i = 0; i < 50 && !(actor.items.has(${JSON.stringify(palmSet.item ?? "")}) && M.othersInRoom(actor).some(a => a.id === "${ids.botan}")); i++) {
+            await new Promise(r => setTimeout(r, 100));
+        }
+        globalThis.__dialogAnswers.push(() => ({ value: "plant",
+            form: { querySelector: sel => ({ value: sel.includes("who") ? "${ids.botan}" : ${JSON.stringify(palmSet.item ?? "")} }) } }));
+        const faces = [{ hope: 12, fear: 11 }, { hope: 9, fear: 5 }];
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        actor.rollTrait = async function (key, options) { globalThis.__forceRoll = faces.shift(); return own.call(actor, key, options); };
+        let r = null, err = null;
+        try { r = await game.drpg.performAction(actor, "palm", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete actor.rollTrait; delete globalThis.__forceRoll; }
+        await new Promise(res => setTimeout(res, 800));
+        return { err, success: r?.success ?? null, seen: r?.seen ?? null, left: faces.length, dialogs: globalThis.__dialogLog.slice(-3).map(d => d.title) };`, { timeout: 90000 });
+    await settle(1200);
+    const palmGm = await gm.eval(`
+        const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const newest = key => Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.actionKey === key).sort((a, b) => b.at - a.at)[0] ?? null;
+        const botan = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}");
+        const notes = a => a.items.filter(i => i.name === "Scenario 40 palmed note");
+        const out = { botan: notes(botan).length, aiko: notes(aiko).length, hand: newest("steal")?.resolved ?? null, unseen: newest("palm")?.resolved ?? null };
+        for (const a of [botan, aiko]) for (const i of notes(a)) await i.delete();
+        const { was, actions } = globalThis.__c15Palm ?? {};
+        delete globalThis.__c15Palm;
+        const bt = canvas.scene.tokens.find(t => t.actorId === botan.id);
+        if (bt && was) await bt.update(was, { teleport: true, movementAction: "displace", animate: false });
+        if (typeof actions === "number" && game.drpg.actionsLeft(aiko) !== actions) await game.drpg.setActions(aiko, actions);
+        return out;`, { timeout: 30000 });
+    check("p1: a Plant names both of its rolls, and the GM settles each on its own record and plants the note",
+        !palmSet.err && Boolean(palmSet.rooms[0]) && palmSet.rooms[0] === palmSet.rooms[1] && !palmed.err && palmed.left === 0
+            && palmGm.botan === 1 && palmGm.aiko === 0 && JSON.stringify(palmGm.hand) === '["steal"]' && JSON.stringify(palmGm.unseen) === '["palm"]',
+        JSON.stringify({ palmSet, palmed, palmGm }), { flow: "give-take-stash" });
+
     // ---- 6g. a player's Observe and Analyze, each rerolled into a miss ---------------------------
     /*
      * THE RESULT IS THE RECORD'S, END TO END (E08+E28 C14, 04.10.2026; audit S10-06). An Observe's

@@ -157,7 +157,7 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "relay", "failed", "refused", "noGm", "noAnswer"
+    "rollMissed", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -296,7 +296,11 @@ export const REASON_PATTERNS = Object.freeze([
     ["rollNotYours", /^that roll is not the sender's character's$/],
     ["rollOtherAction", /^that roll was not thrown for that action$/],
     ["rollStale", /^that roll is too old to settle anything$/],
-    ["rollUsed", /^that roll has already settled that action$/]
+    ["rollUsed", /^that roll has already settled that action$/],
+    // E08+E28 C15: what a roll earned, read off the GMs' record of it (gm-bridge.mjs `searchTheftOf`, `traceBandOf`).
+    ["rollMissed", /^that roll did not find the stash$/],
+    ["rollMissed", /^that roll leaves no trace$/],
+    ["missing", /^no ruling of a GM's sets that roll's band$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -810,6 +814,7 @@ export async function guardRelayRoom(sender, payload, ctx) {
 export function table(declarations) {
     for (const decl of Object.values(declarations)) {
         for (const key of ["guards", "runGuards", "claims", "rolled"]) if (decl[key]) Object.freeze(decl[key]);
+        for (const rolled of rollsOf(decl)) Object.freeze(rolled);
         Object.freeze(decl);
     }
     return Object.freeze(declarations);
@@ -992,52 +997,111 @@ export function pick(spec) {
  * then refuses has spent the roll as it spent the dice; it is marked in this GM's memory
  * before anything is awaited, so two copies of one packet cannot both pass, and on the
  * record, which the other GMs hold too, for a GM who takes over.
+ *
+ * SEVERAL ROLLS, AND RESULTS THAT ARE NOT A TOTAL (E08+E28 C15, 04.10.2026; the plan's 3.5).
+ * `rolled` may be a list. A Palm throws two rolls and names both (`rollId`, `unseenRollId`):
+ * the second's result goes in the packet's `unseenTotal` and `unseenCritical` (`into`).
+ * A theft from a stash and a trace take no total at all, but what a roll earned - whether a
+ * Search found the stash and fumbled it, the band a trace is left at - so the declaration
+ * reads that off the record itself (`derive`, which answers the fields or why the roll
+ * earned nothing of it), and a packet that said otherwise is logged in the same way. Some
+ * packets of a declaration throw no roll: a stash opened from the drawer asks none of the
+ * Search (`when`: only a packet that says `viaSearch`), and a trace asks one only for an
+ * action whose roll leaves it (`kindAt`: the action the packet names, one of `kind`), so a
+ * discarded item's trace still names none. A trace and the roll's own action are two things
+ * one roll settles - a Sabotage freezes a project and leaves a trace - so a trace settles
+ * `trace` (`settles`), not its action. Every roll a packet names is judged before any is
+ * claimed: a Palm whose second roll is refused has not spent its first.
  * ========================================================================== */
 
-/** The fields of a run's copy a record's result replaces. */
-const ROLL_RESULT = Object.freeze(["total", "isCritical", "withHope"]);
+/** The packet fields a record's result goes in, unless a declaration's roll says otherwise (`into`). */
+const ROLL_INTO = Object.freeze({ total: "total", isCritical: "isCritical", withHope: "withHope" });
 const settledHere = new Set();
+
+/** A declaration's rolls: `rolled`, one or a list. */
+export function rollsOf(decl) {
+    return decl?.rolled ? [].concat(decl.rolled) : [];
+}
+
+/** A packet's value at a field or a dotted path (`data.sourceActor`). */
+function valueAt(payload, path) {
+    return String(path).split(".").reduce((value, key) => (value && typeof value === "object" ? value[key] : undefined), payload);
+}
+
+/** The action this packet's roll must have been thrown for, or null when the packet asks for no roll of this kind. */
+function rollKindOf(rolled, payload) {
+    if (rolled.when && valueAt(payload, rolled.when) !== true) return null;
+    if (!rolled.kindAt) return rolled.kind;
+    const named = valueAt(payload, rolled.kindAt);
+    return [].concat(rolled.kind).includes(named) ? named : null;
+}
 
 /** Why `record` cannot settle the declaration's action for this packet, or null. */
 export function rollRefusal(record, rolled, payload, sender, now = Date.now()) {
     if (!record) return "no roll the GM drew is named";
-    if (record.actorId !== payload?.[rolled.actor] || (record.userId !== sender?.id && !sender?.isGM)) return "that roll is not the sender's character's";
-    if (record.actionKey !== rolled.kind) return "that roll was not thrown for that action";
+    if (record.actorId !== valueAt(payload, rolled.actor) || (record.userId !== sender?.id && !sender?.isGM)) return "that roll is not the sender's character's";
+    const kind = rollKindOf(rolled, payload);
+    if (record.actionKey !== kind) return "that roll was not thrown for that action";
     if (!(now - (record.at ?? 0) <= TIMING.rerollWindowMinutes * 60_000)) return "that roll is too old to settle anything";
-    if (settledHere.has(`${record.rollId}:${rolled.kind}`) || (Array.isArray(record.resolved) && record.resolved.includes(rolled.kind))) {
+    const settles = rolled.settles ?? kind;
+    if (settledHere.has(`${record.rollId}:${settles}`) || (Array.isArray(record.resolved) && record.resolved.includes(settles))) {
         return "that roll has already settled that action";
     }
     return null;
 }
 
-/** The record the packet names, claimed for the declaration's action: `{ record }`, `{ record: null }` (its numbers stand), or `{ why }`. */
-async function rollOf(rolled, payload, sender) {
+/**
+ * The records the packet names, each judged and then all claimed: `{ rolls }` - the rolls
+ * whose results the run takes, none where the numbers stand - or `{ why }`.
+ */
+async function rollsFor(decl, payload, sender) {
+    const specs = rollsOf(decl);
+    if (!specs.length) return { rolls: [] };
     const { rollDrawState } = await import("./roll-draw.mjs");
-    if (rollDrawState().state !== "ok") return { record: null };
+    if (rollDrawState().state !== "ok") return { rolls: [] };
     const { rollStore } = await import("./gm-stores.mjs");
     await rollStore.whenHydrated();
-    const id = payload?.[rolled.field];
-    const record = typeof id === "string" && id
-        ? Object.values(rollStore.entries() ?? {}).find(row => row?.messageId === id) ?? null : null;
-    if (!record && sender?.isGM) return { record: null };
-    const why = rollRefusal(record, rolled, payload, sender);
-    if (why) return { why };
-    settledHere.add(`${record.rollId}:${rolled.kind}`);
-    await rollStore.patch(record.rollId, { resolved: [...(Array.isArray(record.resolved) ? record.resolved : []), rolled.kind] });
-    return { record };
+    const rolls = [];
+    for (const rolled of specs) {
+        const kind = rollKindOf(rolled, payload);
+        if (!kind) continue;
+        const id = payload?.[rolled.field];
+        const record = typeof id === "string" && id
+            ? Object.values(rollStore.entries() ?? {}).find(row => row?.messageId === id) ?? null : null;
+        if (!record && sender?.isGM) continue;
+        rolls.push({ rolled, record, settles: rolled.settles ?? kind,
+            earned: record && rolled.derive ? await rolled.derive(record, payload) : null });
+    }
+    // Nothing is awaited from the first question to the last mark (above).
+    for (const { rolled, record, earned } of rolls) {
+        const why = rollRefusal(record, rolled, payload, sender) ?? earned?.why ?? null;
+        if (why) return { why };
+    }
+    for (const { record, settles } of rolls) settledHere.add(`${record.rollId}:${settles}`);
+    for (const { record, settles } of rolls) {
+        const resolved = Array.isArray(rollStore.get(record.rollId)?.resolved) ? rollStore.get(record.rollId).resolved : [];
+        await rollStore.patch(record.rollId, { resolved: [...resolved, settles] });
+    }
+    return { rolls };
 }
 
-/** The run's copy with the record's result in the fields the declaration takes; a packet that said otherwise is logged. */
-function onRecord(clean, record, action, sender) {
-    for (const field of ROLL_RESULT) {
-        if (!Object.hasOwn(clean, field)) continue;
-        const kept = field === "total" ? Number(record[field]) || 0 : Boolean(record[field]);
-        if (clean[field] !== kept) {
-            warn(`The "${action}" packet from ${sender?.name ?? "?"} said ${field} ${clean[field]}; the GMs' record of its roll says ${kept}, which stands.`);
+/** The run's copy with each record's result in the fields its declaration takes; a packet that said otherwise is logged. */
+function onRecord(clean, rolls, action, sender) {
+    const out = { ...clean };
+    for (const { rolled, record, earned } of rolls) {
+        const kept = earned ? earned.fields ?? {} : Object.fromEntries(Object.entries(rolled.into ?? ROLL_INTO)
+            .filter(([, field]) => Object.hasOwn(clean, field))
+            .map(([from, field]) => [field, from === "total" ? Number(record[from]) || 0 : Boolean(record[from])]));
+        for (const [path, value] of Object.entries(kept)) {
+            const said = valueAt(out, path);
+            if (said !== undefined && said !== value) {
+                warn(`The "${action}" packet from ${sender?.name ?? "?"} said ${path} ${said}; the GMs' record of its roll says ${value}, which stands.`);
+            }
+            const [head, ...rest] = path.split(".");
+            out[head] = rest.length ? { ...(out[head] ?? {}), [rest.join(".")]: value } : value;
         }
-        clean[field] = kept;
     }
-    return clean;
+    return out;
 }
 
 /* ==========================================================================
@@ -1136,10 +1200,10 @@ export function judge(table, payload, senderId, { send = emitTo } = {}) {
                named in the whitelisted copy, so its field is one the declaration takes as an
                id (R218) and one R163 counts as read. */
             const clean = decl.sanitize(payload, sender);
-            const rolled = decl.rolled ? await rollOf(decl.rolled, clean, sender) : null;
-            if (rolled?.why) return refuse(action, rolled.why, ctx, send, decl.tell ?? reasonOf(rolled.why));
+            const rolled = decl.rolled ? await rollsFor(decl, clean, sender) : { rolls: [] };
+            if (rolled.why) return refuse(action, rolled.why, ctx, send, decl.tell ?? reasonOf(rolled.why));
             if (!early && decl.answer !== "none" && ctx.requestId) acknowledge();
-            const out = await decl.run(rolled?.record ? onRecord(clean, rolled.record, action, sender) : clean, sender, ctx, prepared);
+            const out = await decl.run(rolled.rolls.length ? onRecord(clean, rolled.rolls, action, sender) : clean, sender, ctx, prepared);
             if (out?.refused) return refuse(action, out.refused, ctx, send, decl.tell ?? reasonOf(out.refused));
             if (decl.answer === "reply" && !out?.later && ctx.requestId) answer(decl, ctx, out?.reply ?? null, send);
             return true;

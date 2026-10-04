@@ -5349,8 +5349,12 @@ const REGRESSIONS = [
         const G = await import("./bridge-guards.mjs");
         const problemsOf = (label, decl, lookup) => {
             const r = payloadReads(decl, lookup);
-            // The runner reads the roll a result comes from in the run's copy (E08+E28 C14, bridge-guards.mjs `judge`).
-            if (decl.rolled) r.fields = [...new Set([...r.fields, decl.rolled.field, decl.rolled.actor])];
+            // The runner reads the roll a result comes from in the run's copy (E08+E28 C14, bridge-guards.mjs `judge`):
+            // since C15 each of a list, and the fields a path, `when` and `kindAt` start from.
+            for (const rolled of G.rollsOf(decl)) {
+                r.fields = [...new Set([...r.fields, rolled.field,
+                    ...[rolled.actor, rolled.when, rolled.kindAt].filter(Boolean).map(path => path.split(".")[0])])];
+            }
             const listed = Object.keys(decl.sanitize?.fields ?? {}).sort();
             const out = [];
             if (r.unreadable.length) out.push(`${label}: its run reads the packet as ${r.unreadable.join(", ")}, which this cannot follow`);
@@ -5456,6 +5460,8 @@ const REGRESSIONS = [
             rerollOnGm: "refused", makeReroll: "refused", rerollRefusal: "why", replayRefusal: "returns",
             // E08+E28 C14: the roll a result is read from, asked by the runner after the guards.
             rollRefusal: "returns",
+            // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive`.
+            searchTheftOf: "why", traceBandOf: "why",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -6449,12 +6455,20 @@ const REGRESSIONS = [
          * name left there once its declaration moved is an exemption nobody needs). The reader is
          * run first on a fixture with five planted faults. Red before C14: Observe, Analyze and the
          * search for a hidden stash take a total and name no roll.
+         *
+         * C15 (04.10.2026) took a Palm's Steal and Plant, a theft from a stash and a trace off
+         * WAITING, and `rolled` became one roll or a list (bridge-guards.mjs `rollsOf`): each is read
+         * alike. Its `actor` may be a path into a field the declaration takes (a trace's
+         * `data.sourceActor`), judged by an `owns`-kind guard that covers the field; a `kind` may be a
+         * list, with `kindAt` the path that names which; `when` is a field taken as a flag; `into`
+         * names fields the declaration takes; a `derive` is a function. A Palm's hand is thrown as
+         * "steal", the Reroll's name for it (`THROWN_AS`). A sixth fixture is a list read clean.
          */
         const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
         const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
             "vault.steal": ["viaSearch", "clumsy"] };
-        const WAITING = ["action.plant", "action.steal", "vault.steal", "remnant.place", "project.progress", "project.sabotage",
-            "murder.openingResult", "murder.crisis", "murder.cleanup", "monocub.meddle"];
+        const WAITING = ["project.progress", "project.sabotage", "murder.openingResult", "murder.crisis", "murder.cleanup", "monocub.meddle"];
+        const THROWN_AS = { steal: "palm" };
         const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
             .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
         const problemsOf = (all, waiting) => {
@@ -6466,12 +6480,26 @@ const REGRESSIONS = [
                     if (taken.length && !waiting.includes(action)) problems.push(`${action}: takes ${taken.join(", ")} from the packet and names no roll`);
                     continue;
                 }
-                const { field, actor, kind } = decl.rolled;
-                if (kinds[field] !== "id") problems.push(`${action}: its roll is named in ${field}, which it does not take as an id`);
-                if (kinds[actor] !== "id" || !(decl.guards ?? []).some(guard => guard?.factory === "owns" && guard.covers?.includes(actor))) {
-                    problems.push(`${action}: the roll's character, ${actor}, is not an id an owns guard judges`);
+                for (const { field, actor, kind, kindAt, when, into, derive } of [].concat(decl.rolled)) {
+                    if (kinds[field] !== "id") problems.push(`${action}: its roll is named in ${field}, which it does not take as an id`);
+                    const [head, ...path] = String(actor).split(".");
+                    const judged = (decl.guards ?? []).some(guard => (guard?.factory === "owns" || (path.length && guard?.factory === "ownsActorAt"))
+                        && guard.covers?.includes(head));
+                    if ((path.length ? !kinds[head] : kinds[head] !== "id") || !judged) {
+                        problems.push(`${action}: the roll's character, ${actor}, is not an id an owns guard judges`);
+                    }
+                    for (const one of [].concat(kind)) {
+                        if (!Object.hasOwn(ACTIONS, THROWN_AS[one] ?? one)) problems.push(`${action}: its roll's action ${one} is not an action of config.mjs`);
+                    }
+                    if (Array.isArray(kind) !== Boolean(kindAt) || (kindAt && !kinds[String(kindAt).split(".")[0]])) {
+                        problems.push(`${action}: its roll's action is a list without a field that names which, or the other way round`);
+                    }
+                    if (when && kinds[when] !== "bool") problems.push(`${action}: its roll is asked when ${when} is set, which it does not take as a flag`);
+                    for (const target of Object.values(into ?? {})) {
+                        if (!kinds[target]) problems.push(`${action}: its roll's result goes in ${target}, which it does not take`);
+                    }
+                    if (derive !== undefined && typeof derive !== "function") problems.push(`${action}: what its roll earned is not read by a function`);
                 }
-                if (!Object.hasOwn(ACTIONS, kind)) problems.push(`${action}: its roll's action ${kind} is not an action of config.mjs`);
             }
             for (const action of waiting) {
                 if (!all[action] || all[action].rolled || !takes(action, all[action]).length) {
@@ -6488,7 +6516,11 @@ const REGRESSIONS = [
             "fixture.bare": { guards: [G.knownSender, owner], sanitize: G.pick({ actorId: G.as.id, isCritical: G.as.bool }) },
             "fixture.text": { guards: [G.knownSender], sanitize: G.pick({ actorId: G.as.id, total: G.as.num, rollId: G.as.text }),
                 rolled: { field: "rollId", actor: "actorId", kind: "noSuchAction" } },
-            "fixture.waits": { guards: [G.knownSender], sanitize: G.pick({ note: G.as.text }) }
+            "fixture.waits": { guards: [G.knownSender], sanitize: G.pick({ note: G.as.text }) },
+            "fixture.pair": { guards: [G.knownSender, owner], sanitize: G.pick({ actorId: G.as.id, total: G.as.num, unseenTotal: G.as.num,
+                rollId: G.as.id, unseenRollId: G.as.id }),
+            rolled: [{ field: "rollId", actor: "actorId", kind: "steal" },
+                { field: "unseenRollId", actor: "actorId", kind: "palm", into: { total: "unseenTotal" } }] }
         };
         equal(JSON.stringify(problemsOf(FIXTURE, ["fixture.waits"])), JSON.stringify([
             "fixture.bare: takes isCritical from the packet and names no roll",
@@ -6502,9 +6534,10 @@ const REGRESSIONS = [
         must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
         const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
-            + `${WAITING.length} wait for C15-C17`);
-        equal(JSON.stringify(["analyze.resolve", "observe.resolve", "vault.findStash"].filter(action => !rolled.includes(action))), "[]",
-            "Observe, Analyze or the search for a hidden stash names no roll its result is read from");
+            + `${WAITING.length} wait for C16-C17`);
+        equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "observe.resolve", "remnant.place", "vault.findStash", "vault.steal"]
+            .filter(action => !rolled.includes(action))), "[]",
+            "Observe, Analyze, the search for a hidden stash, a Palm, a theft from a stash or a trace names no roll its result is read from");
         const problems = problemsOf(all, WAITING);
         ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
     }]

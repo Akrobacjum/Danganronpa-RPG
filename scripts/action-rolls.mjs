@@ -50,8 +50,8 @@ import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
-/** What a readied Tool takes off a threshold. 0 for bare hands. */
-function toolRelief(tool, tierOf) {
+/** What a readied Tool takes off a threshold. 0 for bare hands. Exported for the GM's band of a Sabotage's trace (gm-bridge.mjs `traceBandOf`). */
+export function toolRelief(tool, tierOf) {
     return TOOL_IN_HAND.tierReducesThreshold && tool ? tierOf(tool) : 0;
 }
 
@@ -1998,6 +1998,8 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
     // concealment worth nothing at all. See `stealFromVault`.
     const res = await requestVaultSteal({
         thiefId: actor.id, ownerId: stashOwner.id, itemId: taken.id, viaSearch: true,
+        // The Search's roll: the GM reads whether it found the stash, and fumbled it, off its record (E08+E28 C15).
+        rollId: rollInHand(actor)?.messageId ?? null,
         // WAS THE HAND STEADY. The catalogue has said since E5 that `stolen`
         // is "heard by the victim, and only when the thief was clumsy enough
         // to be noticed", and there was no clumsiness in the code to read.
@@ -3280,9 +3282,7 @@ async function performSabotage(actor, def, options, preset = null) {
     // `penalty` stays on the score and the relief stays on the bands: one is a
     // modifier the roll earned, the other is a change to what it has to beat.
     const score = roll.total + penalty;
-    const hit = roll.isCritical
-        ? def.critical
-        : resolveThreshold(score, easedBy(def.thresholds, relief));
+    const hit = sabotageHit(roll, { penalty, relief }, def);
     const success = Boolean(hit);
 
     // A successful sabotage freezes the project and spawns its repair. The
@@ -3450,6 +3450,15 @@ export function sabotageWatchedLine(actor, room, project) {
         room: foundry.utils.escapeHTML(room ?? "-"),
         ...(unnamed ? {} : { project: foundry.utils.escapeHTML(project.name) })
     });
+}
+
+/**
+ * The band of the Sabotage table a roll reaches, or null: `penalty` on its total (a concealment
+ * thrown with Despair), the readied tool's `relief` off the bands. The one reading `performSabotage`
+ * and the GM's band of the Sabotage's trace share (gm-bridge.mjs `traceBandOf`, E08+E28 C15).
+ */
+export function sabotageHit(roll, { penalty = 0, relief = 0 } = {}, def = ACTIONS.sabotage) {
+    return roll?.isCritical ? def.critical : resolveThreshold((Number(roll?.total) || 0) + penalty, easedBy(def.thresholds, relief));
 }
 
     // Guide's Sabotage table, by the repair project it demands:
@@ -3999,7 +4008,7 @@ async function choosePalm(actor, def, targets, mine) {
  * branch below is "and what does a critical do here", and the answer is
  * "nothing, on purpose".
  */
-async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success }) {
+async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls }) {
     const { requestPlant } = await import("./gm-bridge.mjs");
     const res = await requestPlant({
         plannerId: actor.id,
@@ -4008,7 +4017,8 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
         total: hand.total,
         isCritical: Boolean(hand.isCritical),
         unseenTotal: shadow.total,
-        unseenCritical: Boolean(shadow.isCritical)
+        unseenCritical: Boolean(shadow.isCritical),
+        ...rolls
     });
 
     await noteRollContext(actor, {
@@ -4096,8 +4106,15 @@ async function performPalm(actor, def, options) {
     if (cost > 0 && !paid) return null;
 
     const unseen = def.unseen;
+    /*
+     * TOLD AS THE PALM'S OWN (E08+E28 C15, 04.10.2026; audit S10-06). The GM scores both rolls on
+     * its record of them (gm-bridge.mjs `action.steal`, `action.plant`), and holds each record to
+     * the action it was thrown for. The hand's is told as "steal", as it always was (the GMs'
+     * bookmark renames it "palm" by its context); this one, which told the GM no action until C15,
+     * is told as the action's own key. A supporting roll all the same: nothing remembers it (`remember: false`).
+     */
     const shadow = await rollTrait(actor, unseen.trait, {
-        remember: false, title: game.i18n.localize("DRPG.Steal.unseenRoll"),
+        remember: false, actionKey: "palm", title: game.i18n.localize("DRPG.Steal.unseenRoll"),
         dc: planting ? (def.plant?.unseen ?? unseen.threshold) : unseen.threshold
     });
     if (!shadow) return abort(actor, paid);
@@ -4126,7 +4143,9 @@ async function performPalm(actor, def, options) {
     const seen = !(shadow.isCritical || shadow.total >= unseenBar);
     const success = hand.isCritical || hand.total >= bar;
 
-    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success });
+    // The two rolls the GM scores, by their messages: the hand's is the one this browser keeps (`rollInHand`).
+    const rolls = { rollId: rollInHand(actor)?.messageId ?? null, unseenRollId: shadow.raw?.message?.id ?? shadow.raw?.message?._id ?? null };
+    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls });
 
     const chosenId = await chooseStolen(victim, hand, success);
 
@@ -4138,7 +4157,8 @@ async function performPalm(actor, def, options) {
         total: hand.total,
         isCritical: Boolean(hand.isCritical),
         unseenTotal: shadow.total,
-        unseenCritical: Boolean(shadow.isCritical)
+        unseenCritical: Boolean(shadow.isCritical),
+        ...rolls
     });
 
     // What Reroll would have to unpick, and the honest answer is that it cannot

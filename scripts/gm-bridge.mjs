@@ -14,7 +14,7 @@
 
 import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
-    LEVEL_UP, LEVEL_UP_OPTIONS
+    LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS, SABOTAGE_CONCEAL
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, error, cardHead, esc } from "./utils.mjs";
 import {
@@ -466,6 +466,22 @@ async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     if (out?.refused) return { refused: out.refused };
 }
 
+/*
+ * A PALM'S TWO ROLLS, EACH THE GMS' RECORD (E08+E28 C15, 04.10.2026; audit S10-06). A Steal and a
+ * Plant were scored on the packet's two totals - the hand's against the action's bar, the unseen
+ * one against whether anybody watched (`stealFromPerson`, `plantOnPerson`). The packet names both
+ * rolls now: the hand's (`rollId`, thrown as "steal" for a Steal and a Plant alike, as it always
+ * was) and the unseen one (`unseenRollId`, thrown as "palm" since C15, action-rolls.mjs
+ * `performPalm`), whose result goes in `unseenTotal` and `unseenCritical`.
+ * One hand's roll settles one Steal or one Plant.
+ */
+function palmRolls(actor) {
+    return [
+        { field: "rollId", actor, kind: "steal" },
+        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+    ];
+}
+
     // And into them. Same guards as the theft, mirrored - the sender has to own
     // the character whose pocket the item is leaving.
 async function handlePlant(payload, sender, ctx) {
@@ -517,17 +533,36 @@ async function handleVaultSteal(payload, sender, ctx) {
     await stealFromVault({
         thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
         // Set only by the Search action, which pays for the concealment it is
-        // beating. See the note in `stealFromVault`.
+        // beating. See the note in `stealFromVault`. Since E08+E28 C15 a packet
+        // that says so names the Search's roll, and this is the GMs' record of it
+        // (`searchTheftOf`).
         viaSearch: payload.viaSearch,
-        // Trusted from the sender, and it is worth saying why when nothing
-        // else in this handler is. A client that lied would only ever lie
-        // one way - claiming a steady hand - and the cost of believing it is
-        // that the victim is not told. That is exactly the state this branch
-        // shipped in for four updates, so a forged `false` buys a cheat
-        // nothing it did not already have, while re-rolling the dice here to
-        // check would be a second roll for one action.
+        // Whether the Search fumbled it, read off the same record: the sender's
+        // word until C15, which a client could only ever bend one way - a steady
+        // hand, and the victim not told. On a GM whose Daggerheart is not the build
+        // the draw was written for nobody keeps a record, and it is the sender's
+        // word again (bridge-guards.mjs, "TWO PACKETS PASS WITH NO RECORD").
         clumsy: payload.clumsy
     });
+}
+
+/*
+ * WHAT A SEARCH EARNED AT A STASH, ON THE GMS' RECORD (E08+E28 C15, 04.10.2026; audit S10-06).
+ * `viaSearch` and `clumsy` were the sender's word: that a Search had paid for a concealed stash,
+ * and that its hand was steady. A packet that says `viaSearch` now names the Search's roll, and
+ * both are read off the GMs' record of it: the Search found the stash when its total, with the
+ * hidden stash's step the GM drew with the dice (`used.stash`, roll-draw.mjs `drawOnGm`), reaches
+ * a tier of the Search's table, or the roll is a critical - action-rolls.mjs `searchTier`, as
+ * `performSearch` reads it before it opens the stash (`searchStash`); it fumbled on Despair with no
+ * critical, as `searchStash` says. A packet that does not say `viaSearch` asks no roll: it is the
+ * drawer's free route, which `stealFromVault` holds to a stash that is not concealed or was found,
+ * and its `clumsy` can only tell the stash's owner on the sender.
+ */
+async function searchTheftOf(record) {
+    const { searchTier } = await import("./action-rolls.mjs");
+    const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
+    if (!hit && !record.isCritical) return { why: "that roll did not find the stash" };
+    return { fields: { viaSearch: true, clumsy: Boolean(record.withFear) && !record.isCritical } };
 }
 
     // Stage 4 thrown on the participant's own client. Same guard as a crisis
@@ -890,6 +925,65 @@ async function worksOwnMurder(projectId, actor, action) {
     if (!isIndirectMurder(projectId)) return false;
     const { killerId, by } = secretsOf(projectId);
     return killerId === actor.id || by === actor.id;
+}
+
+/*
+ * A TRACE'S BAND IS THE GM'S (E08+E28 C15, 04.10.2026; audit S10-06; the plan's 3.5). A player's
+ * Search, Sabotage or Dynamic action leaves a trace whose visibility its roll decides, and the
+ * packet said which: a console could leave every trace hidden. The packet names that roll now
+ * (`rollId`, as it has since fix r1-G1 for the GMs' row), and the band is read off the GMs' record
+ * of it with the action's own table, as the roller's browser reads it:
+ *   - a Search: the tier its total reaches with the hidden stash's step the GM drew, or the
+ *     critical's band (action-rolls.mjs `searchTier`, `leaveSearchTrace`);
+ *   - a Sabotage: the band its total reaches (`sabotageHit`), with the readied tool's relief as
+ *     this GM reads the character's sheet, and the concealment's penalty the roller claimed for
+ *     that roll (the GMs' bookmark, `ROLL_CLAIMS.sabotage`) held to what a concealment thrown with
+ *     Despair takes, `SABOTAGE_CONCEAL.despairPenalty` to 0 - the concealment's own roll names no
+ *     action, so its Despair is not on a record yet; a miss leaves the table's `failureRemnant`;
+ *   - a Dynamic action: the difficulty a GM set on its card (`dynamicRulingOf`); a roll under it
+ *     leaves no trace (`performDynamic`), and the roller's `bandIndex` is not read.
+ * A roll that leaves no trace is refused, and a packet whose visibility differs is placed at the
+ * GM's band and logged (bridge-guards.mjs `onRecord`).
+ */
+async function traceBandOf(record) {
+    let band = null;
+    if (record.actionKey === "search") {
+        const { searchTier } = await import("./action-rolls.mjs");
+        const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
+        band = record.isCritical ? ACTIONS.search.critical?.remnant : hit?.remnant;
+    } else if (record.actionKey === "sabotage") {
+        const { sabotageHit, toolRelief } = await import("./action-rolls.mjs");
+        const { equippedFor, tierOf } = await import("./use-items.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const row = rerollBookmarkStore.get(record.actorId);
+        const claimed = row?.messageId === record.messageId ? Number(row.claims?.penalty) || 0 : 0;
+        const penalty = Math.max(SABOTAGE_CONCEAL.despairPenalty, Math.min(0, claimed));
+        const actor = game.actors.get(record.actorId);
+        const hit = sabotageHit(record, { penalty, relief: actor ? toolRelief(equippedFor(actor, "tool"), tierOf) : 0 });
+        band = hit ? hit.remnant : ACTIONS.sabotage.failureRemnant;
+    } else if (record.actionKey === "dynamic") {
+        const ruled = DYNAMIC_THRESHOLDS[dynamicRulingOf(record)?.tier];
+        if (!ruled) return { why: "no ruling of a GM's sets that roll's band" };
+        band = record.isCritical || (Number(record.total) || 0) >= ruled.range[0] ? ruled.remnant : null;
+    }
+    return band ? { fields: { "data.visibility": band } } : { why: "that roll leaves no trace" };
+}
+
+/**
+ * The difficulty a GM set on a Dynamic action's card for this roll's character: the newest ruling
+ * kept in a card's meta (messenger-app.mjs `ruleSetDifficulty`, `settleCall`) within a Reroll's
+ * reach of the roll, as a GM's pick of a statistic is found (roll-draw.mjs `gmPickOf`), or null.
+ */
+function dynamicRulingOf(record) {
+    const since = (record.at ?? 0) - TIMING.rerollWindowMinutes * 60_000;
+    const messages = game.messages?.contents ?? [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (typeof message.timestamp === "number" && message.timestamp < since) break;
+        const ruling = cardFlag(message, "ruling");
+        if (ruling?.type === "dynamic" && ruling.actorId === record.actorId) return ruling;
+    }
+    return null;
 }
 
 async function handleTieTrace(payload, sender, ctx) {
@@ -1266,12 +1360,16 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.action.plant",
         guards: [knownSender, owns("plannerId", "sender does not own the character planting")],
         sanitize: pick({ plannerId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
-            unseenTotal: as.num, unseenCritical: as.bool }),
+            unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handlePlant,
         answer: "ack",
+        // Both of the Palm's rolls, each on the GMs' record of it (E08+E28 C15; `palmRolls`).
+        rolled: palmRolls("plannerId"),
         claims: {
             victimId: "judged by plantOnPerson (vault.mjs): a living victim in the planter's room",
-            itemId: "judged by plantOnPerson (vault.mjs): an item in the planter's own hands"
+            itemId: "judged by plantOnPerson (vault.mjs): an item in the planter's own hands",
+            rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm",
+            unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm"
         }
     },
     [ACTION_FIND_STASH]: {
@@ -1288,23 +1386,29 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.action.steal",
         guards: [knownSender, owns("thiefId", "sender does not own the character stealing")],
         sanitize: pick({ thiefId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
-            unseenTotal: as.num, unseenCritical: as.bool }),
+            unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handleSteal,
         answer: "ack",
+        rolled: palmRolls("thiefId"),
         claims: {
             victimId: "judged by stealFromPerson (vault.mjs): a living victim in the thief's room",
-            itemId: "honoured by stealFromPerson (vault.mjs) only on a critical, and only if it is in the victim's pockets"
+            itemId: "honoured by stealFromPerson (vault.mjs) only on a critical, and only if it is in the victim's pockets",
+            rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm",
+            unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm"
         }
     },
     [ACTION_VAULT_STEAL]: {
         label: "DRPG.Bridge.what.vault.steal",
         guards: [knownSender, owns("thiefId", "sender does not own the character searching")],
-        sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id, viaSearch: as.bool, clumsy: as.bool }),
+        sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id, viaSearch: as.bool, clumsy: as.bool, rollId: as.id }),
         run: handleVaultSteal,
         answer: "ack",
+        // A packet that says a Search paid for it names that Search's roll (E08+E28 C15; `searchTheftOf`).
+        rolled: { field: "rollId", actor: "thiefId", kind: "search", when: "viaSearch", derive: searchTheftOf },
         claims: {
             ownerId: "judged by stealFromVault (vault.mjs): the owner of a stash the thief can reach",
-            itemId: "judged by stealFromVault (vault.mjs): an item that owner has stashed"
+            itemId: "judged by stealFromVault (vault.mjs): an item that owner has stashed",
+            rollId: "the Search's roll whether it found the stash, and fumbled it, is read from (searchTheftOf): one the GM drew for the thief's Search"
         }
     },
     [ACTION_OPENING_RESULT]: {
@@ -1465,8 +1569,12 @@ export const BRIDGE_ACTIONS = table({
         // Answered once placed (E31), and as failed when it could not be (E31 review):
         // the item a planted trace stands for leaves the sheet only when it was.
         answer: "reply",
-        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs); a GM's is placed as written",
-            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an action that owns a trace" }
+        /* The band a Search's, a Sabotage's or a Dynamic action's trace is left at is the GM's,
+           read off its record of the roll (E08+E28 C15; `traceBandOf`); another action's trace
+           names no roll. One roll leaves one trace. */
+        rolled: { field: "rollId", actor: "data.sourceActor", kind: TRACE_OF_ROLL, kindAt: "data.action", settles: "trace", derive: traceBandOf },
+        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf); a GM's is placed as written",
+            rollId: "the roll a Search's, Sabotage's or Dynamic action's trace takes its band from (traceBandOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an action that owns a trace" }
     },
     [ACTION_TIE_TRACE]: {
         label: "DRPG.Bridge.what.remnant.tieForItem",
@@ -2309,10 +2417,12 @@ export function requestMeddleResolve({ actorId, targetId, help, total, isCritica
  * Pull one item out of somebody else's stash. GM-only on both ends.
  *
  * `viaSearch` marks the route that has already paid for a concealed stash with
- * an action, a search token and a penalised roll - see `stealFromVault`.
+ * an action, a search token and a penalised roll - see `stealFromVault`. A
+ * player's names that Search's roll (`rollId`), which the GM reads `viaSearch`
+ * and `clumsy` off (`searchTheftOf`, E08+E28 C15).
  */
-export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false }) {
-    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId, viaSearch, clumsy }, {
+export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false, rollId = null }) {
+    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId, viaSearch, clumsy, rollId }, {
         local: () => import("./vault.mjs").then(m => m.stealFromVault({ thiefId, ownerId, itemId, viaSearch, clumsy }))
     });
 }
@@ -2320,15 +2430,17 @@ export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false,
 /**
  * Go through somebody's pockets. GM-only on both ends, like its sibling above.
  *
- * The two totals travel and the verdicts are made on the other side - see
- * `stealFromPerson`. `itemId` is a request rather than an instruction: it is
- * honoured only on a critical, and only if it is really in the victim's pockets.
+ * The two rolls are named and the verdicts are made on the other side - see
+ * `stealFromPerson` - on the GMs' record of each (`palmRolls`, E08+E28 C15);
+ * the two totals travel for the GM's log. `itemId` is a request rather than an
+ * instruction: it is honoured only on a critical, and only if it is really in
+ * the victim's pockets.
  */
 export function requestSteal({
     thiefId, victimId, itemId = null,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
 }) {
-    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical }, {
+    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
         local: () => import("./vault.mjs").then(m => m.stealFromPerson({
             thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
         }))
@@ -2337,8 +2449,8 @@ export function requestSteal({
 
 /**
  * Leave something in somebody's pocket. The mirror of `requestSteal`, and the
- * same division of labour: the two totals travel, both verdicts are made on the
- * other side against `ACTIONS.palm`.
+ * same division of labour: the two rolls are named, both verdicts are made on
+ * the other side against `ACTIONS.palm`.
  *
  * `itemId` is not a request here but a statement - it came out of the planter's
  * own pockets and there is nothing secret about it. The GM side still checks it
@@ -2346,9 +2458,9 @@ export function requestSteal({
  */
 export function requestPlant({
     plannerId, victimId, itemId,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
 }) {
-    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical }, {
+    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
         local: () => import("./vault.mjs").then(m => m.plantOnPerson({
             plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
         }))
@@ -2575,7 +2687,9 @@ export async function callGm(actor, {
  * @param {object} [ruling]      What was ruled, kept in a private card's meta beside
  *   `settled` (E32+E07 C11b): the statistic a GM picked, `{ type: "trait", actorId,
  *   kind, key, variant, trait }` - the record a check of the roll against the pick
- *   reads (E28/E29). Its readers are the card's: on a veiled thread card the
+ *   reads (E28/E29); and the difficulty a GM set for a Dynamic action, `{ type:
+ *   "dynamic", actorId, tier }`, which the band of its trace is read from
+ *   (`dynamicRulingOf`, E08+E28 C15). Its readers are the card's: on a veiled thread card the
  *   thread's player and the GMs. A player's own meta may not carry it (secret.mjs
  *   `GM_META`). Never written on a document.
  */

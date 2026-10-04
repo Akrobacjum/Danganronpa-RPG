@@ -1098,6 +1098,44 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             && stashOnRecord.found === false && !stashOnRecord.reasons.length && stashOnRecord.said.length > 0,
         JSON.stringify({ consoleStash, stashNoRoll, stashRoll, stashOnRecord }), { flow: "give-take-stash" });
 
+    /*
+     * A CONSOLE'S STEAL (E08+E28 C15, 04.10.2026; audit S10-06). A Palm was scored on the two
+     * totals its packet carried, and a critical hand lets the thief pick the item. Both are the
+     * GMs' record of the rolls the packet names now (gm-bridge.mjs `palmRolls`). Botan holds an
+     * item; from p1's browser a Steal of it by Aiko saying 30 and a critical for both rolls, first
+     * naming no roll - refused, Botan keeps it - then naming a hand's roll and an unseen roll of
+     * Aiko's the GM drew on 2 and 1: no refusal, the GM's log says the packet's numbers were not
+     * the record's, and Botan keeps it - the record's miss. Red at C14's runtime: the first takes it.
+     */
+    phase("a console's Steal", { flow: "give-take-stash" });
+    const consoleSteal = await gm.eval(`
+        const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const item = await INV.grantItem(game.actors.get("${ids.botan}"), { name: "SEC pocket", category: "usable", tier: 1, override: true, quiet: true });
+        return { itemId: item?.id ?? null, rooms: ["${ids.aiko}", "${ids.botan}"].map(id => M.locateActor(game.actors.get(id))?.room ?? null),
+            bar: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.palm.threshold };`, { timeout: 30000 });
+    await settle(600);
+    const pocket = `return game.actors.get("${ids.botan}").items.has(${JSON.stringify(consoleSteal.itemId ?? "")});`;
+    const stealFields = { thiefId: ids.aiko, victimId: ids.botan, itemId: consoleSteal.itemId, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
+    await clearFailures();
+    await sendAs(p1, "action.steal", stealFields);
+    await settle(1200);
+    const stealNoRoll = { kept: await gm.eval(pocket), reasons: await refusedFor("action.steal") };
+    const handRoll = await drawnRoll(p1, ids.aiko, "steal", "hand", { hope: 2, fear: 1 });
+    const unseenRoll = await drawnRoll(p1, ids.aiko, "palm", "shadow", { hope: 2, fear: 1 });
+    await clearFailures();
+    await sendAs(p1, "action.steal", { ...stealFields, rollId: handRoll.messageId, unseenRollId: unseenRoll.messageId });
+    await settle(1500);
+    const stealOnRecord = { kept: await gm.eval(pocket), reasons: await refusedFor("action.steal"), said: await recordSaid() };
+    await gm.eval(`for (const id of ["${ids.botan}", "${ids.aiko}"]) for (const i of game.actors.get(id).items.filter(i => i.name === "SEC pocket")) await i.delete();
+        return true;`, { timeout: 30000 });
+    check("SECURITY: a console's Steal saying 30 and a critical is refused without its rolls, and scored on the GMs' record of the two it names - a miss",
+        Boolean(consoleSteal.itemId) && Boolean(consoleSteal.rooms[0]) && consoleSteal.rooms[0] === consoleSteal.rooms[1]
+            && stealNoRoll.kept === true && stealNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(handRoll.messageId) && Boolean(unseenRoll.messageId) && handRoll.total < consoleSteal.bar
+            && stealOnRecord.kept === true && !stealOnRecord.reasons.length && stealOnRecord.said.length > 0,
+        JSON.stringify({ consoleSteal, stealNoRoll, handRoll, unseenRoll, stealOnRecord }), { flow: "give-take-stash" });
+
     // 7d. despair.adjust from a player, with no Reroll behind it and with a rewrite of a roll (a receipt until E08+E28 C8).
     phase("Despair corrections", { flow: "despair" });
     const readPool = `return { pool: game.drpg.getDespair(game.user.id) };`;
@@ -1127,12 +1165,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("control: a send-back to where the token stood a moment ago puts it there",
         back.x === start.x && back.y === start.y, JSON.stringify({ start, back }));
 
-    // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM.
+    // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM. A discarded
+    //     item's trace: a Search's names its roll since E08+E28 C15, and is measured below.
     phase("a player's traces", { flow: "trace-remnant" });
     await p1.eval(`game.socket.emit("${SOCKET}", { action: "remnant.place", userId: game.user.id, requestId: "forge-trace",
         data: { sourceActor: "${ids.aiko}", sourceName: "Botan Kage", room: "Storage", pointsAt: "${ids.chie}",
             type: "tamper", visibility: "evident", x: 2300, y: 1300, sceneId: canvas.scene.id, reinforced: true,
-            tiedToCrime: false, faint: true, action: "search", note: "planted", subject: "SEC knife" } }, ${toGms}); return true;`);
+            tiedToCrime: false, faint: true, action: "discard", note: "planted", subject: "SEC knife" } }, ${toGms}); return true;`);
     await settle(1500);
     const planted = await gm.eval(`
         const R = await import("${repoUrl}/scripts/remnants.mjs");
@@ -1142,11 +1181,44 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a player's trace is written with their own name, their own room, pointing at nobody, as Preparation",
         planted && planted.sourceName === "Aiko Hoshino" && planted.room === "Cafeteria" && planted.pointsAt === null
         && planted.type === "prep" && planted.reinforced === false, JSON.stringify(planted));
-    const badBand = await forge("remnant.place", { data: { sourceActor: ids.aiko, visibility: "x", action: "search", subject: "SEC bad band" } },
+    const badBand = await forge("remnant.place", { data: { sourceActor: ids.aiko, visibility: "x", action: "discard", subject: "SEC bad band" } },
         `const R = await import("${repoUrl}/scripts/remnants.mjs");
         return { n: canvas.scene.tokens.contents.map(t => R.remnantData(t)).filter(d => d?.subject === "SEC bad band").length };`);
     check("SECURITY: a trace with a visibility that does not exist is refused",
         badBand.after.n === 0 && badBand.reasons.some(r => /not a visibility/.test(r)), JSON.stringify(badBand));
+
+    /*
+     * A TRACE'S BAND IS THE GM'S (E08+E28 C15, 04.10.2026; audit S10-06). A Search's trace was
+     * placed at the visibility its packet named, so a console could leave every trace of its
+     * Searches hidden. It names its roll now and is placed at the band the GMs' record of that
+     * roll earns (gm-bridge.mjs `traceBandOf`). From p1's browser, a Search's trace asking
+     * "hidden": first naming no roll - refused, nothing placed - then naming a Search roll of
+     * Aiko's the GM drew on 12 and 11 (18 or more: "evident" in the Search's table). Read on the
+     * GM: the visibility of each trace placed, the refusals and the GM's log of the packet's band.
+     * Red at C14's runtime: both are placed hidden.
+     */
+    const bandOf = subject => `const R = await import("${repoUrl}/scripts/remnants.mjs");
+        return canvas.scene.tokens.contents.map(t => R.remnantData(t)).filter(d => d?.subject === "${subject}").map(d => d.visibility);`;
+    const hiddenTrace = subject => ({ data: { sourceActor: ids.aiko, visibility: "hidden", action: "search", type: "prep", subject } });
+    await clearFailures();
+    await sendAs(p1, "remnant.place", hiddenTrace("SEC band unnamed"));
+    await settle(1200);
+    const bandNoRoll = { placed: await gm.eval(bandOf("SEC band unnamed")), reasons: await refusedFor("remnant.place") };
+    const bandRoll = await drawnRoll(p1, ids.aiko, "search", "eye", { hope: 12, fear: 11 });
+    await clearFailures();
+    await sendAs(p1, "remnant.place", { ...hiddenTrace("SEC band named"), rollId: bandRoll.messageId });
+    await settle(1500);
+    const bandOnRecord = { placed: await gm.eval(bandOf("SEC band named")), reasons: await refusedFor("remnant.place"),
+        said: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+            .filter(e => String(e.message).includes("said data.visibility hidden")).length;`) };
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        for (const t of canvas.scene.tokens.contents.filter(t => /^SEC band /.test(R.remnantData(t)?.subject ?? ""))) await t.delete();
+        return true;`, { timeout: 30000 });
+    check("SECURITY: a console's Search trace asking hidden is refused without its roll, and placed at the band the GMs' record of the roll it names earns",
+        bandNoRoll.placed.length === 0 && bandNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(bandRoll.messageId) && bandRoll.total >= 18 && JSON.stringify(bandOnRecord.placed) === '["evident"]'
+            && !bandOnRecord.reasons.length && bandOnRecord.said > 0,
+        JSON.stringify({ bandNoRoll, bandRoll, bandOnRecord }), { flow: "trace-remnant" });
 
     /*
      * 7j. remnant.edit: until E08+E28 C8 a Reroll receipt paid for one re-rating of one
