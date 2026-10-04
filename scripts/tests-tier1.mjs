@@ -5222,8 +5222,8 @@ const INVARIANTS = [
          * character in its message (private-rolls.mjs `neutralRollOf`), and a Reroll rebuilds the
          * formula from the roll's options - so reroll.mjs `rollAsThrown` puts back what the
          * rebuild reads: the character's data from the actor, the statistic and the experiences
-         * from the bookmark of the roll's own browser. A made-up roll class stands in for
-         * Daggerheart's, which the harness does not have: a neutral roll comes back rebuilt with
+         * from the GMs' bookmark (the roll's own browser's until E08+E28 C4a). A made-up roll
+         * class stands in for Daggerheart's, which the harness does not have: a neutral roll comes back rebuilt with
          * the sheet, the statistic in Daggerheart's key and the experiences, its own options
          * untouched; a roll the module did not throw comes back as it was; one the bookmark does
          * not name is refused. Then what the Reroll writes into the message (`rerolledSource`),

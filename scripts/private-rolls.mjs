@@ -805,8 +805,8 @@ export function neutralRollSource(data, { alias = game.i18n.localize("DRPG.Secre
  * dhRoll.mjs `bonusEffectBuilder` (:344-360), which rebuilds `bonusEffects`
  * from them. Nothing of the character is needed again but by a Reroll, which
  * rebuilds the formula: it takes the character's data from the actor and the
- * statistic and experiences from the roller's bookmark (reroll.mjs
- * `rollAsThrown`). A modifier keeps its value and loses its label - the
+ * statistic and experiences from the GMs' bookmark or, for a roll the GM drew,
+ * its record (reroll.mjs `rollAsThrown`). A modifier keeps its value and loses its label - the
  * formula is summed from the values (dhRoll.mjs `addModifiers`).
  *
  * Read in the source, not measured on a real message (LIVE-E06-02); the
@@ -1000,7 +1000,7 @@ export function oldRollReaders(message) {
  * --------------------------------------------------------------------------
  * Three readers on the primary GM find the character a roll is about on its
  * message: the Despair award (despair-award.mjs `resolveActor`), the Reroll
- * receipts (reroll-receipts.mjs `actorIdsOf`, which since E08+E28 C8 names the
+ * keeper (reroll-receipts.mjs `actorIdsOf`, which since E08+E28 C8 names the
  * roll in the GMs' warning of a rewrite put back) and the diagnostics - by the
  * speaker and by Daggerheart's `system.source.actor`. Both name the roller's
  * character to every browser that holds the message, and since E06 C5b both
@@ -1014,8 +1014,10 @@ export function oldRollReaders(message) {
  *
  * In memory, as the primary's first throws are (reroll-receipts.mjs): a GM who reloads forgets what was
  * reported before, and such a message is read as an unclaimed one is - its
- * speaker, its source, then its author's one living character. E28 moves the
- * record into the GM's store behind the same function.
+ * speaker, its source, then its author's one living character. E28 kept it so:
+ * a roll the GM draws has its subject kept by that GM as it writes the message
+ * (roll-draw.mjs, `keepSubject`), in memory too; the GMs' store of drawn rolls
+ * (`rolls`) names the character as well, and this function does not read it.
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -1120,8 +1122,9 @@ function keepRollSubject(payload, sender, ctx) {
  * Tell the primary GM which character a roll the module threw is about - as
  * its message is created (`reportClaimedRoll`), and again from `throwDice`
  * (action-rolls.mjs) once the roll has returned, which says nothing when the
- * first did. Kept on this client as well: the roller's own Reroll finds its
- * roll by it (`belongsTo`, reroll.mjs). A primary GM's own roll is recorded
+ * first did. Kept on this client as well (`keptRollSubject`), where the roll's
+ * dice audience reads it; the roller's own Reroll found its roll by it
+ * (reroll.mjs `belongsTo`) until E08+E28 C4a. A primary GM's own roll is recorded
  * without a packet; one it drew for a player (`by`, the roller) has its dice shown
  * as theirs (`relayDrawnDice`, E08+E28 C13).
  */
@@ -1456,7 +1459,7 @@ function onRollsRewritten(message, changes, options, userId) {
 /**
  * A REROLL'S DICE, FROM THE GM THAT MADE IT (E08+E28 C4a, 03.10.2026; the owner's rule of
  * 27.09: the roller sees the roll as their own). The roller's own browser threw them to
- * the roll's readers until this commit (reroll.mjs's `showRerolledDice`, a synchronised
+ * the roll's readers until C4a (reroll.mjs's `showRerolledDice`, a synchronised
  * throw Dice So Nice sent to every client and filtered as it arrived); the GM rewrites the
  * message now, and Dice So Nice animates no update. So the GM sends `dice.show { id, by,
  * rewrite }` to the readers of `diceAudienceIds` and the roller (`by`, the user whose

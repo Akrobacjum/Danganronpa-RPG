@@ -206,26 +206,54 @@ the fog socket, and Daggerheart's own GM relay (`relay-guard.mjs`). The
 judgement uses who Foundry says sent it (`senderOf(senderId)`), what that user
 owns (`ownsActor`, `canSee`, `testUserPermission`), and what the world says now:
 the room the character stands in, the incident's stage and turn, the pair a
-sabotage wrote, the account an Observe key was minted for, and a Reroll receipt
-(`reroll-receipts.mjs`) for anything taken back. Packet fields are claims. A
-refusal changes nothing and is logged on the GM. Since E31 (1.2.62) every
-refusal of a table action is also told to the asker, with a reason code from a
-closed list (`REASONS`, `bridge-guards.mjs`) that the player's client says in
-the player's own language; four are not shown to the player, because nobody is
-waiting on them: a trap report, the Level Up catch-up, a Search's look for a
-planted item and a plant handed back. Daggerheart's relay keeps its own table
-and log line, and tells the player with the code `relay`.
+sabotage wrote, the account an Observe key was minted for, and, since E28
+(1.2.67), the GMs' record of the roll a packet names (`rolled`, the store
+`rolls`). Nothing is taken back on a player's word: a player's packet that
+carries an undo is refused (`guardUndoIsTheGms`, E08), because the Reroll is
+made on the GM. Packet fields are claims. A refusal changes nothing and is
+logged on the GM. Since E31 (1.2.62) every refusal of a table action is also
+told to the asker, with a reason code from a closed list (`REASONS`,
+`bridge-guards.mjs`) that the player's client says in the player's own language;
+four are not shown to the player, because nobody is waiting on them: a trap
+report, the Level Up catch-up, a Search's look for a planted item and a plant
+handed back. Daggerheart's relay keeps its own table and log line, and tells the
+player with the code `relay`.
 
-**Layer two (E28, E29).** The numbers - totals, dice, Hope paid - are checked
-against the roll message the GM can see. Until then a player with a console can
-still lie about their own roll, and move - within each resource's bounds - their
-own character's Hope, Stress and Health, the resources of any actor that is not
-a student (companions included), Fear one step at a time, and the countdowns the
-rules tick or the GM gave them; `relay-guard.mjs` lists the rest. A Reroll
-receipt proves only that the player rewrote the rolls of their
-own character's chat card a few minutes ago - which a Reroll does, and so does
-Daggerheart's own dice reroll, and so can a console. Not that a Reroll was paid
-for, nor that one happened.
+**Layer two (E28, 1.2.67; E29).** The numbers - totals, dice, Hope paid - are
+checked against the roll the GM holds. Since E28 a player's action roll and a
+statistic clicked on the sheet, thrown while a GM is connected, are drawn on the
+primary GM's browser (`roll-draw.mjs`): the dice are the GM's, the resolutions
+the GM runs read their result off the GMs' record of the roll (the store
+`rolls`), and only the GM's own Reroll takes a result back. So a player can no
+longer lie about the dice of those rolls. What a roll adds to its dice - the
+statistic, the experiences, the bonus, the advantage dice - is still configured
+in the roller's browser: one outside the GM's record is flagged
+(`game.drpg.rollFlags()`, a whisper to the GMs), not refused, until E29.
+
+What stays open: a roll thrown with no GM connected (an action waits; any other
+roll is stamped and moves nothing until a GM grants it, on the dice the player's
+browser reports); every roll on a Daggerheart build the draw was not written for
+(thrown in the player's browser, the GM told once per version); Daggerheart's
+own item rolls, its damage rolls and the rest of its rolls, none of them drawn;
+a player's own character's Hope, Stress and Health within each resource's bounds
+(owner permission and the relay's own-character rule), the resources of any
+actor that is not a student (companions included), Fear one step at a time, and
+the countdowns the rules tick or the GM gave them - all through the relay, which
+no module roll needs any more and which E29 may refuse; `relay-guard.mjs` lists
+the rest. And three readings still made on the roller's browser: the Search's
+item, drawn and granted on the roller's own sheet (its tier from a drawn total,
+the grant still the player's); a concealment roll's reading; and Listen's lines,
+since every browser holds the tokens.
+
+The Reroll is the GM's own transaction (E08): asked of the primary GM, paid,
+thrown, taken back and replayed there, its steps written in the GMs' journal
+(`rerollJournal`) as it goes, so that a reload half way is undone or, past the
+point where it can be, handed to the GMs to settle. A player's own rewrite of a
+roll's dice - Daggerheart's own rerolls (their chat-menu entries are taken off a
+player's menu) or a console - is put back by the primary GM, which keeps each
+roll's first dice (`reroll-receipts.mjs`, which wrote the receipts this
+paragraph described until E08 and keeps only the dice now); a roll thrown before
+that GM loaded is only told.
 
 Daggerheart's relay writes on the GM's client, so every hook there sees the GM
 as the author. That is why `relay-guard.mjs` passes only the shapes Daggerheart
@@ -253,7 +281,9 @@ steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
    asked: `knownSender` (or `gmOnly`) first; for every id the run receives
    (sanitized `as.id`, as a field named `...Id` must be), a guard that names
    it (`owns`, `ownsActorAt`, `canSeeProject`, `gmOnly`) or a `claims` line
-   saying who judges it; a guard that spends a Reroll receipt last.
+   saying who judges it. A run that scores a roll names it in `rolled`
+   (`{ field, actor, kind }`): the runner hands it the result off the GMs'
+   record of that roll, not the packet's (`rollRefusal`, E28).
    `sanitize: pick({...})` lists exactly what the run reads (R163). A
    check that must not wait between itself and the write goes in `prepare`
    (imports) or in the run. `answer` is `"reply"` when the asker says or

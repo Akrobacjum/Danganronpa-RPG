@@ -312,8 +312,8 @@ number is not reused for a scenario.
   queued request is acknowledged as it arrives), a GM who leaves mid-request
   and a planted item that arrives after its five seconds
   (taken back while the GM's client accepts it, `TIMING.plantWindowMs`) are
-  LIVE-E31-02, -03 and -04. A Reroll's receipt is made by rewriting the rolls of
-  the player's own roll message, not by `Roll#reroll` (LIVE-E31-01); windows
+  LIVE-E31-02, -03 and -04. A Reroll is made on the GM over the harness's own
+  roll, not Daggerheart's `Roll#reroll` (LIVE-E31-01, LIVE-E08-01); windows
   close at once, so what `handOff` saves under reduced motion is not measured
   (LIVE-E31-05); and a refusal is read in Polish by a client whose language was
   switched mid-run, not by a Polish player at a table (LIVE-E31-06).

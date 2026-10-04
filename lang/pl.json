@@ -2583,7 +2583,7 @@
         "hopeBarred": "Teraz nie możesz użyć Hope Call.",
         "notEnoughHope": "Płacąca postać nie ma dość Hope.",
         "noReroll": "Cofnąć to może tylko Reroll rzutu tej postaci z ostatnich kilku minut.",
-        "undoIsTheGms": "Cofnięcie wyniku należy do GM: o Reroll prosi się GM, który sam cofa pierwszy wynik.",
+        "undoIsTheGms": "Cofnięcie wyniku należy do GM-a: o Reroll prosi się GM-a, który sam cofa pierwszy wynik.",
         "traceOutOfReach": "Reroll nie sięga już tego śladu.",
         "notInIncident": "Twoja postać nie bierze udziału w toczącym się incydencie.",
         "notYourTurn": "To nie twoja tura.",
@@ -2608,8 +2608,8 @@
         "noAnswer": "Klient GM-a nie odpowiedział na czas.",
         "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony.",
         "keysNotOpen": "Przeglądarka GM-a jeszcze nie otworzyła kluczy odpowiedzi. GM został powiadomiony.",
-        "rollUnknown": "Klient GM-a nie ma Twojego rzutu, na podstawie którego mógłby to rozliczyć.",
-        "rollNotYours": "Wskazany rzut nie należy do Twojej postaci.",
+        "rollUnknown": "Klient GM-a nie ma twojego rzutu, na podstawie którego mógłby to rozliczyć.",
+        "rollNotYours": "Wskazany rzut nie należy do twojej postaci.",
         "rollOtherAction": "Wskazany rzut był rzucony dla innej akcji.",
         "rollUsed": "Ten rzut został już rozliczony.",
         "rollStale": "Wskazany rzut jest za stary, by go rozliczyć.",
@@ -3050,7 +3050,7 @@
       "rulingVoid": "Przerzut: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie."
     },
     "Rolls": {
-      "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM.",
+      "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",
       "rewriteNotPutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); ta przeglądarka nie widziała tego rzutu, więc nie dało się przywrócić jego kości.",
       "notDrawnHere": "Daggerheart {version} buduje rzuty inaczej, niż zakłada ten moduł, więc rzuty graczy wykonują się w ich przeglądarkach, a nie u GM-a. Ta wiadomość pojawia się raz dla tej wersji.",
       "unexpected": "GM wylosował rzut postaci {name}, a w rzucie było coś, czego GM się nie spodziewał: {list}. Rzut zostaje taki, jak go wylosowano; game.drpg.rollFlags() go wymienia.",

@@ -58,7 +58,7 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die (both d
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you. That is where Monokuma's money comes from - your bad luck and your risks.
 - A **critical** earns 2 Hope and nothing else (it does not clear Sanity here, unlike plain Daggerheart).
 
-The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose.
+The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose. While a GM is connected, the dice of an action roll and of a statistic you click on your sheet are thrown by the GM's browser: they fall on your screen, in your colours, as your throw, and you read the result as before. What the window adds to the dice is compared with what the GM expected.
 
 **With no GM connected** an action waits: pressing it tells you that an action roll waits for a GM, and nothing is paid. Any other roll - a statistic from your sheet, a reaction - is still thrown, and its card says that it was thrown with no GM connected and that the GM will see it. It moves no Hope, Sanity or Despair until a GM, back at the table, grants it.
 
@@ -343,7 +343,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
 | **Loaded Die** | 6 | On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. |
 
-A Call that affects a roll waits on your next roll and is spent the moment you throw. Sprint and Burst bank instead and last until the time of day ends.
+A Call that affects a roll waits on your next roll and is spent the moment you throw. One armed on you after your roll window opened is not part of that roll: the window says so, and it waits for your next one. Sprint and Burst bank instead and last until the time of day ends.
 
 > [!IMPORTANT]
 > Nobody can spend Hope Calls during an Eclipse, while Silenced by Monokuma, or while the overflow's Silence darkens the time of day.

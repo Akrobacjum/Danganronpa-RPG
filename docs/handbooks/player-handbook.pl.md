@@ -58,7 +58,7 @@ Każda akcja to rzut dwoistości z Daggerheart: kość Hope i kość Despair (ob
 - Rzut **z Despair** zasila pulę Despair Monokumy, który cię pilnuje. Stąd bierze się jego waluta - z twojego pecha i twojego ryzyka.
 - **Krytyk** daje 2 Hope i nic więcej (nie oczyszcza tu Sanity, inaczej niż w czystym Daggerheart).
 
-Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GMa. Ruszasz tylko to, co akcja pozwala ci wybrać.
+Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GMa. Ruszasz tylko to, co akcja pozwala ci wybrać. Gdy połączony jest GM, kości rzutu akcji i statystyki klikniętej na arkuszu rzuca przeglądarka GMa: spadają na twoim ekranie, w twoich kolorach, jako twój rzut, a wynik czytasz jak dotąd. To, co okno dodaje do kości, jest porównywane z tym, czego spodziewał się GM.
 
 **Gdy nie jest połączony żaden GM**, akcja czeka: po jej wciśnięciu dowiadujesz się, że rzut akcji czeka na GMa, i nic nie płacisz. Każdy inny rzut - statystyka z arkusza, reakcja - nadal się wykonuje, a jego karta mówi, że rzucono go bez połączonego GMa i że GM go zobaczy. Nie rusza Hope, Sanity ani Despair, dopóki GM, gdy wróci do stołu, go nie przyzna.
 
@@ -343,7 +343,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
 | **Loaded Die** | 6 | Przy następnym rzucie jedna kość jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. |
 
-Call wpływający na rzut czeka na twój następny rzut i jest zużyty w chwili rzutu. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
+Call wpływający na rzut czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 
 > [!IMPORTANT]
 > Nikt nie wydaje Hope Calli podczas Eclipse, gdy Monokuma go uciszył (Silence) ani gdy Silence z overflow zaciemnia porę dnia.

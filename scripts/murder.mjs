@@ -435,10 +435,11 @@ function castStamps() {
  * every holder was sent the record whole but for the swing memo (Stage 6's business on
  * the GM's side), and more of it was not every holder's to keep:
  *   - `lastCrisis`, the Reroll receipt, with a snapshot of the incident in it. Only a GM
- *     judges an undo (`crisisUndoRefusal`, asked by bridge-guards.mjs on the GM's
- *     browser), so every copy holds it null - and since fix r2-G2 (the round-2 review's
- *     S2-m3) its stamp is a withheld field's (`castPacket`): it was the time of the
- *     fight's last action, sent to a trap's builder let in at Stage 6.
+ *     judges an undo (`crisisUndoRefusal`, asked by the GM's own Reroll, reroll.mjs
+ *     `replayRefusal`, since E08+E28 C4a), so every copy holds it null - and since
+ *     fix r2-G2 (the round-2 review's S2-m3) its stamp is a withheld field's
+ *     (`castPacket`): it was the time of the fight's last action, sent to a trap's
+ *     builder let in at Stage 6.
  *   - In a trap, the builder. A holder who is not on the killers' side (`killerIds`) -
  *     the victim, a third who did not throw in with them - holds `killerId` and
  *     `killerTurnId` null: the trap's victim reads their incident from their copy
@@ -2721,8 +2722,10 @@ export function crisisKilled(receipt) {
  * owner's answer (A) of 28.09). The undo puts back resources and the incident's
  * state, never a death (`killCharacter`, chapter.mjs): a Reroll of the Finishing blow
  * that killed replayed a miss over a dead victim - the grid's XI05, red on I8 since
- * C1. The death stands and the Reroll is refused, here whatever asked for it, and a
- * player's packet already at the bridge's guard (`crisisUndoRefusal`). The receipt's
+ * C1. The death stands and the Reroll is refused, here whatever asked for it, and
+ * before anything is paid by the GM's Reroll (reroll.mjs `replayRefusal`, which asks
+ * `crisisUndoRefusal`; a player's undo packet is refused for being one since E08+E28
+ * C8). The receipt's
  * `killed` is written by the action's own `finishIncident` and `checkVictimSpent`, so
  * a death from the Students list or the GM's close is not the action's.
  */
