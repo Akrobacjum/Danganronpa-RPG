@@ -165,7 +165,16 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         return { key: r?.key ?? null, ok: r?.ok ?? false };`, { timeout: 60000 });
     const bulletsOf = `return game.actors.get("${IDS.aiko}").items.filter(i => i.getFlag("${MOD}", "isTruthBullet")).map(i => i.id);`;
     const bullets0 = await gm.eval(bulletsOf);
-    await p1.eval(`${bridge}.requestObserveResolve({ actorId: "${IDS.aiko}", key: "${observed.key}", total: 30, isCritical: false }); return true;`);
+    /* The first find names an Observe roll of Aiko's the GM drew (E08+E28 C14: a result is the GMs'
+       record of the roll a packet names, bridge-guards.mjs `rollRefusal`); the faces beat the trace. */
+    const observeRoll = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 12, fear: 11 };
+        let out = null;
+        try { out = await A.rollTrait(game.actors.get("${IDS.aiko}"), "eye", { actionKey: "observe", remember: false }); }
+        finally { delete globalThis.__forceRoll; }
+        return out?.raw?.[A.DRAWN_ROLL]?.messageId ?? null;`, { timeout: 60000 });
+    await p1.eval(`${bridge}.requestObserveResolve({ actorId: "${IDS.aiko}", key: "${observed.key}", total: 30, isCritical: false,
+        rollId: ${JSON.stringify(observeRoll)} }); return true;`);
     await settle(1500);
     const bullets1 = await gm.eval(bulletsOf);
     const found = bullets1.filter(id => !bullets0.includes(id));
@@ -175,7 +184,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         total: 30, isCritical: false, undo: true });`, { timeout: 30000 });
     await settle(1500);
     const bullets2 = await gm.eval(bulletsOf);
-    const a3 = { observed, found, counts: [bullets0.length, bullets1.length, bullets2.length], answer: a3answer,
+    const a3 = { observed, observeRoll, found, counts: [bullets0.length, bullets1.length, bullets2.length], answer: a3answer,
         logged: await refusalsLogged(gm, "observe.resolve"), told: await refusedSince(p1, mark) };
     check("A3: a player's Observe taken back is refused as the GM's own undo, told, and the first find stays",
         observed.ok === true && found.length === 1 && bullets2.length === bullets1.length && bullets2.includes(found[0])

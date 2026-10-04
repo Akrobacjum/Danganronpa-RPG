@@ -2519,7 +2519,12 @@
         "noGm": "No GM is connected.",
         "noAnswer": "The GM's client did not answer in time.",
         "answerKeyMissing": "The GM's browser does not hold this bullet's answer key. The GM has been told.",
-        "keysNotOpen": "The GM's browser has not opened the answer keys yet. The GM has been told."
+        "keysNotOpen": "The GM's browser has not opened the answer keys yet. The GM has been told.",
+        "rollUnknown": "The GM's client holds no roll of yours that it could be scored on.",
+        "rollNotYours": "The roll it names is not your character's.",
+        "rollOtherAction": "The roll it names was thrown for another action.",
+        "rollUsed": "That roll has already been scored.",
+        "rollStale": "The roll it names is too old to be scored."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",

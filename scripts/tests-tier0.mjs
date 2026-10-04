@@ -5349,6 +5349,8 @@ const REGRESSIONS = [
         const G = await import("./bridge-guards.mjs");
         const problemsOf = (label, decl, lookup) => {
             const r = payloadReads(decl, lookup);
+            // The runner reads the roll a result comes from in the run's copy (E08+E28 C14, bridge-guards.mjs `judge`).
+            if (decl.rolled) r.fields = [...new Set([...r.fields, decl.rolled.field, decl.rolled.actor])];
             const listed = Object.keys(decl.sanitize?.fields ?? {}).sort();
             const out = [];
             if (r.unreadable.length) out.push(`${label}: its run reads the packet as ${r.unreadable.join(", ")}, which this cannot follow`);
@@ -5452,6 +5454,8 @@ const REGRESSIONS = [
             answerKeysRefusal: "returns", shareBullet: "refused", applyRecordedMove: "refused",
             // E08+E28 C4a: the Reroll the GM makes, and the checks it asks before the payment.
             rerollOnGm: "refused", makeReroll: "refused", rerollRefusal: "why", replayRefusal: "returns",
+            // E08+E28 C14: the roll a result is read from, asked by the runner after the guards.
+            rollRefusal: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -6429,6 +6433,80 @@ const REGRESSIONS = [
         const nowhere = [...new Set([...bridge.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]))]
             .flatMap(name => withGuards(both, topLevelFunction(bridge, name)).missing.map(g => `${name} asks ${g}`));
         ok(!nowhere.length, `these functions ask a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${nowhere.join(", ")}`);
+    }],
+
+    ["R218 - no declaration takes a roll's result from the packet", async () => {
+        /*
+         * E08+E28 C14, 04.10.2026; audit S10-06; the plan's 3.5 (its R217, which C12a took, so this
+         * is the next free number). A run that scores a roll read the packet's `total`, `isCritical`
+         * and `withHope`, and a packet can say anything. A declaration that takes a result says
+         * where its roll is named now (`rolled`), and the runner hands the run the GMs' record of
+         * that roll instead (bridge-guards.mjs `rollRefusal`). Read live: every declaration of the
+         * bridge's tables that takes a result - a field of RESULT, or one a roll decides in that
+         * declaration (DERIVED) - declares `rolled`, takes its `field` and `actor` as ids, has its
+         * `actor` judged by an `owns` guard, and names an action of config.mjs as its `kind`; or it
+         * is on WAITING, the declarations C15-C17 move, each of which must still take a result (a
+         * name left there once its declaration moved is an exemption nobody needs). The reader is
+         * run first on a fixture with five planted faults. Red before C14: Observe, Analyze and the
+         * search for a hidden stash take a total and name no roll.
+         */
+        const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
+        const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
+            "vault.steal": ["viaSearch", "clumsy"] };
+        const WAITING = ["action.plant", "action.steal", "vault.steal", "remnant.place", "project.progress", "project.sabotage",
+            "murder.openingResult", "murder.crisis", "murder.cleanup", "monocub.meddle"];
+        const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
+            .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
+        const problemsOf = (all, waiting) => {
+            const problems = [];
+            for (const [action, decl] of Object.entries(all)) {
+                const kinds = decl.sanitize?.fields ?? {};
+                if (!decl.rolled) {
+                    const taken = takes(action, decl);
+                    if (taken.length && !waiting.includes(action)) problems.push(`${action}: takes ${taken.join(", ")} from the packet and names no roll`);
+                    continue;
+                }
+                const { field, actor, kind } = decl.rolled;
+                if (kinds[field] !== "id") problems.push(`${action}: its roll is named in ${field}, which it does not take as an id`);
+                if (kinds[actor] !== "id" || !(decl.guards ?? []).some(guard => guard?.factory === "owns" && guard.covers?.includes(actor))) {
+                    problems.push(`${action}: the roll's character, ${actor}, is not an id an owns guard judges`);
+                }
+                if (!Object.hasOwn(ACTIONS, kind)) problems.push(`${action}: its roll's action ${kind} is not an action of config.mjs`);
+            }
+            for (const action of waiting) {
+                if (!all[action] || all[action].rolled || !takes(action, all[action]).length) {
+                    problems.push(`${action}: waits for a later commit and takes no result from the packet - take it off the list`);
+                }
+            }
+            return problems;
+        };
+        const G = await import("./bridge-guards.mjs");
+        const owner = G.owns("actorId", "not theirs");
+        const FIXTURE = {
+            "fixture.fine": { guards: [G.knownSender, owner], sanitize: G.pick({ actorId: G.as.id, total: G.as.num, rollId: G.as.id }),
+                rolled: { field: "rollId", actor: "actorId", kind: "observe" } },
+            "fixture.bare": { guards: [G.knownSender, owner], sanitize: G.pick({ actorId: G.as.id, isCritical: G.as.bool }) },
+            "fixture.text": { guards: [G.knownSender], sanitize: G.pick({ actorId: G.as.id, total: G.as.num, rollId: G.as.text }),
+                rolled: { field: "rollId", actor: "actorId", kind: "noSuchAction" } },
+            "fixture.waits": { guards: [G.knownSender], sanitize: G.pick({ note: G.as.text }) }
+        };
+        equal(JSON.stringify(problemsOf(FIXTURE, ["fixture.waits"])), JSON.stringify([
+            "fixture.bare: takes isCritical from the packet and names no roll",
+            "fixture.text: its roll is named in rollId, which it does not take as an id",
+            "fixture.text: the roll's character, actorId, is not an id an owns guard judges",
+            "fixture.text: its roll's action noSuchAction is not an action of config.mjs",
+            "fixture.waits: waits for a later commit and takes no result from the packet - take it off the list"
+        ]), "the reader does not find exactly the five faults planted for it - it would misread the module's tables too");
+
+        const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
+        must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
+        const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
+        log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
+            + `${WAITING.length} wait for C15-C17`);
+        equal(JSON.stringify(["analyze.resolve", "observe.resolve", "vault.findStash"].filter(action => !rolled.includes(action))), "[]",
+            "Observe, Analyze or the search for a hidden stash names no roll its result is read from");
+        const problems = problemsOf(all, WAITING);
+        ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
     }]
 ];
 

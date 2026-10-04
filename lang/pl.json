@@ -2607,7 +2607,12 @@
         "noGm": "Żaden GM nie jest połączony.",
         "noAnswer": "Klient GM-a nie odpowiedział na czas.",
         "answerKeyMissing": "Przeglądarka GM-a nie ma klucza odpowiedzi do tego bulletu. GM został powiadomiony.",
-        "keysNotOpen": "Przeglądarka GM-a jeszcze nie otworzyła kluczy odpowiedzi. GM został powiadomiony."
+        "keysNotOpen": "Przeglądarka GM-a jeszcze nie otworzyła kluczy odpowiedzi. GM został powiadomiony.",
+        "rollUnknown": "Klient GM-a nie ma Twojego rzutu, na podstawie którego mógłby to rozliczyć.",
+        "rollNotYours": "Wskazany rzut nie należy do Twojej postaci.",
+        "rollOtherAction": "Wskazany rzut był rzucony dla innej akcji.",
+        "rollUsed": "Ten rzut został już rozliczony.",
+        "rollStale": "Wskazany rzut jest za stary, by go rozliczyć."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",

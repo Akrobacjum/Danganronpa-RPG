@@ -1006,6 +1006,92 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && stashGm.card?.kind === "rolled" && stashGm.card.rolled === 6 && stashGm.card.change === stashGm.used.change && stashGm.flags.length === 0,
         JSON.stringify({ stashSet, stashSearch, gm: stashGm }), { flow: "search-observe" });
 
+    // ---- 6g. a player's Observe and Analyze, each rerolled into a miss ---------------------------
+    /*
+     * THE RESULT IS THE RECORD'S, END TO END (E08+E28 C14, 04.10.2026; audit S10-06). An Observe's
+     * and an Analyze's packets name their roll, and the GM scores its record of that roll
+     * (bridge-guards.mjs `rollRefusal`). Fix r1-G2's mutants that took a resolve's `rollId` out
+     * survived this scenario, because nothing here threw a player's Observe or Analyze and
+     * rerolled it. p1 observes Aiko's room on 12 and 11 with a trace placed where she stands (a
+     * sweep, which the GM scores with nobody asked), and rerolls into 2 and 1 (`REROLL_ARM`); then
+     * analyses a fresh bullet of Aiko's on 12 and 11, and rerolls into 2 and 1. Both Rerolls land on
+     * a Hope result, as the Work's does: measured 04.10 on A1's tree, into 1 and 2 (a Fear result)
+     * the Hope paid read 4 on both, into 2 and 1 it reads 3. Read on the GM: the
+     * bullet the Observe found and whether the Reroll took it back; the analysed bullet before and
+     * after the Reroll (analysed; then wound back and locked for the chapter); each row's action
+     * and fact, and the Hope each Reroll was paid.
+     */
+    phase("a player's Observe and its Reroll", { flow: "search-observe" });
+    const truthBullets = `game.actors.get("${ids.aiko}").items.filter(i => i.getFlag("${MOD}", "isTruthBullet")).map(i => i.id)`;
+    const obsSet = await gm.eval(`const R = await import("${REPO}/scripts/remnants.mjs");
+        const M = await import("${REPO}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const where = M.locateActor(aiko);
+        await game.drpg.setActions(aiko, game.drpg.actionsMax(aiko));
+        const trace = where?.tokenDoc ? await R.placeRemnant({ type: "prep", visibility: "obvious", scene: where.scene,
+            x: where.tokenDoc.x, y: where.tokenDoc.y, note: "scenario 40 - the trace a rerolled Observe finds" }) : null;
+        return { trace: trace?.id ?? null, room: where?.room ?? null, bullets: ${truthBullets} };`, { timeout: 30000 });
+    const observedP1 = await p1.eval(`const actor = game.actors.get("${ids.aiko}");
+        globalThis.__forceRoll = { hope: 12, fear: 11 };
+        let err = null;
+        try { await game.drpg.performAction(actor, "observe", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 1500));
+        return { err };`, { timeout: 120000 });
+    await settle(800);
+    const obsFound = await gm.eval(`return ${truthBullets}.filter(id => !${JSON.stringify(obsSet.bullets)}.includes(id));`);
+    const obsArm = await gm.eval(REROLL_ARM({ hope: 12, fear: 11 }, { hope: 2, fear: 1 }), { timeout: 30000 });
+    const obsAsk = await p1.eval(REROLL_ASK, { timeout: 90000 });
+    await settle(800);
+    const obsReroll = await gm.eval(REROLL_READ, { timeout: 30000 });
+    const obsAfter = await gm.eval(`const R = await import("${REPO}/scripts/remnants.mjs");
+        const B = await import("${REPO}/scripts/truth-bullets.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const left = ${truthBullets}.filter(id => !${JSON.stringify(obsSet.bullets)}.includes(id));
+        for (const id of left) { const i = aiko.items.get(id); const uuid = i.uuid; await i.delete(); await B.dropSecret?.(uuid); }
+        const token = canvas.scene.tokens.get(${JSON.stringify(obsSet.trace ?? "")});
+        if (token) { await R.dropRemnantSecret(token); await canvas.scene.deleteEmbeddedDocuments("Token", [token.id]); }
+        return { left };`, { timeout: 30000 });
+    check("p1: an Observe scored on the GMs' record of its roll finds the trace, and its Reroll into a miss, made on the GM, takes the bullet back",
+        Boolean(obsSet.trace) && !observedP1.err && obsFound.length === 1 && obsArm.row?.actionKey === "observe" && obsArm.row?.by === IDS.p1
+            && Boolean(obsArm.row?.facts?.observeKey) && obsAsk.made === true && obsReroll.paid === 3 && obsAfter.left.length === 0 && !obsReroll.journal,
+        JSON.stringify({ obsAfter, paid: obsReroll.paid, made: obsAsk.made, journal: obsReroll.journal, obsFound, obsSet, observedP1, arm: obsArm.row }),
+        { flow: "reroll" });
+
+    phase("a player's Analyze and its Reroll", { flow: "analyze" });
+    const anaSet = await gm.eval(`const B = await import("${REPO}/scripts/truth-bullets.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        await game.drpg.setActions(aiko, game.drpg.actionsMax(aiko));
+        const b = await B.createTruthBullet(aiko, { name: "Scenario 40 analysed bullet", realType: "neutral", visibility: "obvious" });
+        return { id: b?.id ?? null, chapter: (await import("${REPO}/scripts/clock.mjs")).getClock().chapter };`, { timeout: 30000 });
+    await settle(600);
+    const anaState = `const i = game.actors.get("${ids.aiko}").items.get(${JSON.stringify(anaSet.id ?? "")});
+        return { analyzed: i?.getFlag("${MOD}", "analyzed") ?? false, locked: i?.getFlag("${MOD}", "lockedChapter") ?? null };`;
+    const analysedP1 = await p1.eval(`const actor = game.actors.get("${ids.aiko}");
+        globalThis.__forceRoll = { hope: 12, fear: 11 };
+        let err = null;
+        try { await game.drpg.performAction(actor, "analyze", { bulletId: ${JSON.stringify(anaSet.id ?? "")} }); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 1500));
+        return { err };`, { timeout: 120000 });
+    await settle(800);
+    const anaBefore = await gm.eval(anaState);
+    const anaArm = await gm.eval(REROLL_ARM({ hope: 12, fear: 11 }, { hope: 2, fear: 1 }), { timeout: 30000 });
+    const anaAsk = await p1.eval(REROLL_ASK, { timeout: 90000 });
+    await settle(800);
+    const anaReroll = await gm.eval(REROLL_READ, { timeout: 30000 });
+    const anaAfter = await gm.eval(anaState);
+    await gm.eval(`const B = await import("${REPO}/scripts/truth-bullets.mjs");
+        const i = game.actors.get("${ids.aiko}").items.get(${JSON.stringify(anaSet.id ?? "")});
+        if (i) { const uuid = i.uuid; await i.delete(); await B.dropSecret?.(uuid); }
+        return true;`, { timeout: 30000 });
+    check("p1: an Analyze scored on the GMs' record of its roll identifies the bullet, and its Reroll into a miss, made on the GM, winds it back and locks it for the chapter",
+        Boolean(anaSet.id) && !analysedP1.err && anaBefore.analyzed === true && anaArm.row?.actionKey === "analyze" && anaArm.row?.by === IDS.p1
+            && anaArm.row?.facts?.bulletId === anaSet.id && anaAsk.made === true && anaReroll.paid === 3
+            && anaAfter.analyzed === false && anaAfter.locked === anaSet.chapter && !anaReroll.journal,
+        JSON.stringify({ anaAfter, paid: anaReroll.paid, made: anaAsk.made, journal: anaReroll.journal, anaBefore, anaSet, analysedP1, arm: anaArm.row }),
+        { flow: "analyze" });
+
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");
     for (const c of [gm, ...players]) {

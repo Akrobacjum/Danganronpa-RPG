@@ -1218,7 +1218,11 @@ export const BRIDGE_ACTIONS = table({
         // that the GM has it - "The GM is judging what you found", and a Reroll's
         // "goes back to the GM" (E31 review).
         answer: "ack",
-        claims: { rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Observe" }
+        /* The total and the critical are the GMs' record of the roll `rollId` names, not the
+           packet's (E08+E28 C14; bridge-guards.mjs `rollRefusal`): an Observe's roll, of this
+           character, the sender's, settling one Observe. */
+        rolled: { field: "rollId", actor: "actorId", kind: "observe" },
+        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Observe" }
     },
     [ACTION_ANALYZE_RESOLVE]: {
         label: "DRPG.Bridge.what.analyze.resolve",
@@ -1226,8 +1230,9 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleAnalyzeResolve,
         answer: "reply",
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze" },
         claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world",
-            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze" }
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze" }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
@@ -1272,9 +1277,12 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_FIND_STASH]: {
         label: "DRPG.Bridge.what.vault.findStash",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool }),
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleFindStash,
-        answer: "ack"
+        answer: "ack",
+        // An Analyze's roll: a search for a hidden stash is one of the Analyze's three roads (E08+E28 C14).
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze" },
+        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the sender's character's Analyze" }
     },
     [ACTION_STEAL]: {
         label: "DRPG.Bridge.what.action.steal",
@@ -2351,12 +2359,13 @@ export function requestPlant({
  * Hand a Locate-a-hidden-stash roll to the GM to be scored.
  *
  * Like Observe: the answer is the whisper the finder gets, and the write it may
- * cause is a flag on their own sheet. The number travels; the threshold, the
- * room and which stash it opens are all decided on the far side - see
- * `resolveStashSearch`.
+ * cause is a flag on their own sheet. The number travels for the GM's log
+ * only: the GM scores the roll `rollId` names, as its record of it says (E08+E28
+ * C14), and the threshold, the room and which stash it opens are all decided on
+ * the far side - see `resolveStashSearch`.
  */
-export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
-    return ask(ACTION_FIND_STASH, { actorId, total, isCritical }, {
+export function requestStashSearch({ actorId, total = 0, isCritical = false, rollId = null }) {
+    return ask(ACTION_FIND_STASH, { actorId, total, isCritical, rollId }, {
         local: () => import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical }))
     });
 }

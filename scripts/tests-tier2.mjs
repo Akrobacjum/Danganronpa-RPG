@@ -709,6 +709,21 @@ async function heldRollBookmark(player, actor, actionKey, context = {}) {
 }
 
 /**
+ * THE GMS' RECORD OF A ROLL THE SUITE THREW ITSELF (E08+E28 C14, 04.10.2026). A resolution reads
+ * its result from the record of the roll its packet names (bridge-guards.mjs `rollRefusal`), which
+ * the GM keeps for a roll it drew (roll-draw.mjs `drawOnGm`). A test whose roll is a message of its
+ * own (`heldRollBookmark`) gives that message a record with the fields the runner reads, as
+ * `drawOnGm` writes them; `putBack` drops it.
+ */
+async function recordFor(message, player, actor, actionKey, { total, isCritical = false, withHope = true } = {}) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    const rollId = foundry.utils.randomID();
+    await rollStore.patch(rollId, { rollId, actorId: actor.id, userId: player.id, actionKey, messageId: message.id,
+        total, isCritical, withHope, at: Date.now() });
+    return { rollId, putBack: async () => { if (rollStore.has(rollId)) await rollStore.drop(rollId); } };
+}
+
+/**
  * A ROLL THE GM CAN THROW AGAIN (E08+E28 C4a, 03.10.2026). The harness's roll message holds
  * plain JSON, with no `Roll#reroll`, and the Reroll on the GM rebuilds the roll by its own
  * class (reroll.mjs `rollAsThrown`) and throws that again. So `message.rolls` reads, on this
@@ -5206,6 +5221,8 @@ const SCENARIOS = [
          * its Analyze roll is thrown with the row held back (`heldRollBookmark`), the Analyze judged
          * meanwhile as the listener judges it, then the row let go. Read: the verdicts, whether the
          * row existed when the Analyze was scored (it must not), and the row's action and bullet.
+         * Since C14 the packet's roll needs the GMs' record of it (bridge-guards.mjs `rollRefusal`),
+         * which a roll the suite threw is given (`recordFor`).
          */
         needs(world.atLeast("playerCharactersInRooms"), "the analyst is a player's character");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -5213,11 +5230,12 @@ const SCENARIOS = [
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
         const bullets = await import("./truth-bullets.mjs");
         const { player, actor } = await playerInRoom();
-        let H = null, bullet = null;
+        let H = null, bullet = null, R = null;
         try {
             bullet = await bullets.createTruthBullet(actor, { name: "SUITE fix r1-G2 an analysed bullet", realType: "neutral", visibility: "obvious" });
             must(bullet?.id, "the bullet was not made - this would measure nothing");
             H = await heldRollBookmark(player, actor, "analyze", { bulletId: bullet.id });
+            R = await recordFor(H.message, player, actor, "analyze", { total: 40 });
             const read = await G.judge(BRIDGE_ACTIONS, { action: "analyze.resolve", requestId: "suite-r1g2-analyze", actorId: actor.id,
                 itemId: bullet.id, total: 40, isCritical: false, rollId: H.message.id }, player.id, { send: () => {} });
             const rowFirst = H.kept();
@@ -5228,6 +5246,7 @@ const SCENARIOS = [
                 `the Analyze's bullet is not on its roll's row (bookmark, analyze, row kept first, row's message, action, bullet): ${stableJson(row)}`);
         } finally {
             await H?.putBack();
+            await R?.putBack();
             if (bullet) {
                 const uuid = bullet.uuid;
                 await actor.items.get(bullet.id)?.delete();
@@ -5323,6 +5342,236 @@ const SCENARIOS = [
             if (trace) {
                 await remnants.dropRemnantSecret(trace);
                 if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+    }],
+
+    ["a resolution reads its roll's result from the GMs' record, and refuses a roll that is unnamed, not the sender's, of another action, too old or settled", async () => {
+        /*
+         * E08+E28 C14, 04.10.2026; audit S10-06; the plan's 3.5. The runner (bridge-guards.mjs
+         * `judge`) asks a declaration's `rolled` once its guards have passed: the GMs' record of the
+         * roll the packet names, whose total, critical and Hope the run receives in place of the
+         * packet's. A table of the suite's own - two declarations alike but for the action their
+         * roll was thrown for, each run keeping what it was handed - and a player's Search roll the
+         * GM drew on 2 and 1 (`drawnForPlayer`). Judged as from the player: a packet saying 30, a
+         * critical and Hope, naming that roll; the same again; the Observe's declaration naming it;
+         * a packet naming none; the record made another character's, then older than a Reroll
+         * reaches (each put back); and the GM's own packet naming none, whose numbers stand. Read:
+         * what each run was handed, else the code its refusal was told with. Red at C13's runtime:
+         * nothing asks for a roll, and every packet runs on its own numbers.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "the world has no character this player does not play");
+        const seen = [];
+        const declared = kind => ({ label: `DRPG.Bridge.what.suite.${kind}`, guards: [G.knownSender, G.owns("actorId", "sender does not own that character")],
+            sanitize: G.pick({ actorId: G.as.id, total: G.as.num, isCritical: G.as.bool, withHope: G.as.bool, rollId: G.as.id }),
+            run: async payload => { seen.push(payload); }, answer: "ack", rolled: { field: "rollId", actor: "actorId", kind } });
+        const T = G.table({ "suite.search": declared("search"), "suite.observe": declared("observe") });
+        const D = await drawnForPlayer(player, theirs, { actionKey: "search", faces: { hope: 2, fear: 1 } });
+        try {
+            must(D.record && D.message, `the GM kept no record of the roll it drew - this would measure nothing: ${stableJson(D.value)}`);
+            must(D.record.total !== 30 && D.record.isCritical === false, `the GM's roll reads as the packet does (${D.record.total}) - this would measure nothing`);
+            const told = [];
+            const ask = async (action, extra = {}, from = player.id) => {
+                const before = seen.length;
+                await G.judge(T, { action, requestId: `C14${foundry.utils.randomID(8)}`, actorId: theirs.id, total: 30, isCritical: true,
+                    withHope: true, rollId: D.message.id, ...extra }, from,
+                { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                return seen.length > before ? seen.at(-1) : told.at(-1) ?? null;
+            };
+            const first = await ask("suite.search");
+            const again = await ask("suite.search");
+            const otherAction = await ask("suite.observe");
+            const unnamed = await ask("suite.search", { rollId: null });
+            const at = rollStore.get(D.record.rollId)?.at;
+            await rollStore.patch(D.record.rollId, { actorId: other.id });
+            const notTheirs = await ask("suite.search");
+            await rollStore.patch(D.record.rollId, { actorId: theirs.id, at: Date.now() - TIMING.rerollWindowMinutes * 60_000 - 1000 });
+            const stale = await ask("suite.search");
+            await rollStore.patch(D.record.rollId, { at });
+            const gms = await ask("suite.search", { rollId: null }, game.user.id);
+            equal(stableJson([first, again, otherAction, unnamed, notTheirs, stale, gms]), stableJson([
+                { actorId: theirs.id, total: D.record.total, isCritical: false, withHope: Boolean(D.record.withHope), rollId: D.message.id },
+                "rollUsed", "rollOtherAction", "rollUnknown", "rollNotYours", "rollStale",
+                { actorId: theirs.id, total: 30, isCritical: true, withHope: true, rollId: null }
+            ]), "the run is not handed the record's result, or a roll is not refused with its code (first, again, Observe's, none named, "
+                + "another character's, too old, the GM's own)");
+        } finally {
+            await D.putBack();
+        }
+    }],
+
+    ["a console's Analyze that says 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names", async () => {
+        /*
+         * E08+E28 C14, 04.10.2026; audit S10-06, the stage's own example: a packet saying 30 and a
+         * critical for any bullet its sender held was answered with the bullet's real type, with no
+         * roll behind it. A fresh neutral bullet in the obvious band on a player's character;
+         * `analyze.resolve` judged as the bridge judges that player's packet, first naming no roll,
+         * then naming that character's Analyze roll the GM drew on 2 and 1, below the bullet's
+         * difficulty. Read: the code the first was refused with and the bullet after it (untouched),
+         * then the refusals told and the bullet after the second - locked for the chapter and not
+         * analysed, the record's miss rather than the packet's 30. Red at C13's runtime: the first
+         * packet analyses the bullet.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { analyzeDc } = await import("./config.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { player, theirs: actor } = playerAndCharacters();
+        let bullet = null, D = null;
+        try {
+            bullet = await bullets.createTruthBullet(actor, { name: "SUITE C14 a console's Analyze", realType: "neutral", visibility: "obvious" });
+            must(bullet?.id, "the bullet was not made - this would measure nothing");
+            const told = [];
+            const ask = rollId => G.judge(BRIDGE_ACTIONS, { action: "analyze.resolve", requestId: `C14${foundry.utils.randomID(8)}`,
+                actorId: actor.id, itemId: bullet.id, total: 30, isCritical: true, rollId }, player.id,
+            { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            const state = () => {
+                const item = actor.items.get(bullet.id);
+                return [item?.getFlag(MODULE_ID, "analyzed") ?? false, item?.getFlag(MODULE_ID, "lockedChapter") ?? null];
+            };
+            await ask(null);
+            const unnamed = [told.at(-1) ?? null, ...state()];
+            D = await drawnForPlayer(player, actor, { actionKey: "analyze", faces: { hope: 2, fear: 1 } });
+            must(D.record && D.message, `the GM kept no record of the roll it drew - this would measure nothing: ${stableJson(D.value)}`);
+            must(!D.record.isCritical && D.record.total < analyzeDc("obvious", "neutral"),
+                `the GM's roll (${D.record.total}) beats the bullet's difficulty - this would measure nothing`);
+            await ask(D.message.id);
+            await settle();
+            equal(stableJson([unnamed, [told.length, ...state()]]), stableJson([["rollUnknown", false, null], [1, false, getClock().chapter]]),
+                "the Analyze was not refused without its roll, or not scored on the record's miss (code, analysed, locked; refusals, analysed, locked)");
+        } finally {
+            await D?.putBack();
+            if (bullet) {
+                const uuid = bullet.uuid;
+                await actor.items.get(bullet.id)?.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+        }
+    }],
+
+    ["a console's Observe that says 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names", async () => {
+        /*
+         * E08+E28 C14, 04.10.2026; audit S10-06. A trace where a player's character stands and an
+         * Observe aimed at it (as fix r1-G2's Observe test makes them); `observe.resolve` judged as
+         * the bridge judges that player's packet saying 30 and a critical, first naming no roll,
+         * then naming that character's Observe roll the GM drew on 2 and 1. Read: the code the first
+         * was refused with and the bullets the character gained after it (none), then the refusals
+         * told, the bullets gained and the Sanity marked after the second - the record's miss, which
+         * marks one, rather than the packet's critical, which finds the trace. Red at C13's runtime:
+         * the first packet finds it.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { OBSERVE_FAIL_STRESS } = await import("./config.mjs");
+        const observe = await import("./observe.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const had = new Set(actor.items.map(i => i.id));
+        const gained = () => actor.items.filter(i => !had.has(i.id)).length;
+        const stress = () => Number(actor.system?.resources?.stress?.value) || 0;
+        const Dlg = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(Dlg, "wait");
+        Dlg.wait = () => Promise.resolve(null);
+        let trace = null, D = null;
+        try {
+            must(stress() + OBSERVE_FAIL_STRESS <= (Number(actor.system?.resources?.stress?.max) || 0),
+                "the character's Sanity is full, so a miss would mark nothing - this would measure nothing");
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                x: where.tokenDoc.x, y: where.tokenDoc.y, note: "test fixture - the trace a console's Observe resolves" });
+            must(trace, "the trace was not placed");
+            const target = await observe.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            must(target?.ok, `the Observe found nothing to aim at where its trace lies: ${stableJson(target)}`);
+            const told = [];
+            const ask = rollId => G.judge(BRIDGE_ACTIONS, { action: "observe.resolve", requestId: `C14${foundry.utils.randomID(8)}`,
+                actorId: actor.id, key: target.key, total: 30, isCritical: true, rollId }, player.id,
+            { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await ask(null);
+            await settle();
+            const unnamed = [told.at(-1) ?? null, gained()];
+            D = await drawnForPlayer(player, actor, { actionKey: "observe", faces: { hope: 2, fear: 1 } });
+            must(D.record && D.message && !D.record.isCritical, `the GM kept no record of a plain roll - this would measure nothing: ${stableJson(D.value)}`);
+            const before = stress();
+            await ask(D.message.id);
+            await settle();
+            equal(stableJson([unnamed, [told.length, gained(), stress() - before]]), stableJson([["rollUnknown", 0], [1, 0, OBSERVE_FAIL_STRESS]]),
+                "the Observe was not refused without its roll, or not scored on the record's miss (code, bullets; refusals, bullets, Sanity marked)");
+        } finally {
+            if (own) Object.defineProperty(Dlg, "wait", own);
+            else delete Dlg.wait;
+            await D?.putBack();
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+            if (trace) {
+                await remnants.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+        }
+    }],
+
+    ["a console's search for a hidden stash that says 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names", async () => {
+        /*
+         * E08+E28 C14, 04.10.2026; audit S10-06. The room a player's character stands in holds a
+         * concealed stash of another character's (its region's flags, as 40-flow's hidden stash
+         * sets them, put back after); `vault.findStash` judged as the bridge judges that player's
+         * packet saying 30 and a critical, first naming no roll, then naming that character's
+         * Analyze roll the GM drew on 2 and 1, below the threshold. Read: the code the first was
+         * refused with and whether the stash was found after it (no), then the refusals told and
+         * whether it was found after the second - the record's miss rather than the packet's
+         * critical. Red at C13's runtime: the first packet finds it.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the stash is in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const V = await import("./vault.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const owner = game.actors.find(a => a.type === "character" && a.id !== actor.id);
+        must(owner, "the world has no second character to own the stash");
+        const region = V.regionsByName(where.scene).get(where.room);
+        must(region, `the room ${where.room} has no region to hide a stash in`);
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k)));
+        const foundBefore = foundry.utils.deepClone(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null);
+        const found = () => V.hasFoundStash(actor, where.room, owner.id, where.scene);
+        let D = null;
+        try {
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: owner.id, concealed: true }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            must(!found(), "the character has found that stash already - this would measure nothing");
+            const told = [];
+            const ask = rollId => G.judge(BRIDGE_ACTIONS, { action: "vault.findStash", requestId: `C14${foundry.utils.randomID(8)}`,
+                actorId: actor.id, total: 30, isCritical: true, rollId }, player.id,
+            { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await ask(null);
+            const unnamed = [told.at(-1) ?? null, found()];
+            D = await drawnForPlayer(player, actor, { actionKey: "analyze", faces: { hope: 2, fear: 1 } });
+            must(D.record && D.message, `the GM kept no record of the roll it drew - this would measure nothing: ${stableJson(D.value)}`);
+            must(!D.record.isCritical && D.record.total < (ACTIONS.analyze?.stashThreshold ?? 16),
+                `the GM's roll (${D.record.total}) beats the threshold - this would measure nothing`);
+            await ask(D.message.id);
+            await settle();
+            equal(stableJson([unnamed, [told.length, found()]]), stableJson([["rollUnknown", false], [1, false]]),
+                "the search was not refused without its roll, or not scored on the record's miss (code, found; refusals, found)");
+        } finally {
+            await D?.putBack();
+            await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            if (JSON.stringify(actor.getFlag(MODULE_ID, V.VAULT_FLAGS.found) ?? null) !== JSON.stringify(foundBefore)) {
+                if (foundBefore === null) await actor.unsetFlag(MODULE_ID, V.VAULT_FLAGS.found);
+                else await actor.setFlag(MODULE_ID, V.VAULT_FLAGS.found, foundBefore);
             }
         }
     }],

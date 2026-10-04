@@ -156,7 +156,8 @@ export const REASONS = Object.freeze([
     "notEnoughHope", "noReroll", "undoIsTheGms", "traceOutOfReach", "notInIncident", "notYourTurn",
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
-    "answerKeyMissing", "keysNotOpen", "relay", "failed", "refused", "noGm", "noAnswer"
+    "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
+    "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -289,7 +290,13 @@ export const REASON_PATTERNS = Object.freeze([
     ["notYours", /^sender did not write that roll message$/],
     ["cannotNow", /^that roll message is too old to report$/],
     // E08+E28 C12a: a roll sent for the GM to draw that is not one (guardDrawnRoll).
-    ["badRequest", /^that is not a duality roll nobody has thrown$/]
+    ["badRequest", /^that is not a duality roll nobody has thrown$/],
+    // E08+E28 C14: a result taken from the GMs' record of its roll (rollRefusal).
+    ["rollUnknown", /^no roll the GM drew is named$/],
+    ["rollNotYours", /^that roll is not the sender's character's$/],
+    ["rollOtherAction", /^that roll was not thrown for that action$/],
+    ["rollStale", /^that roll is too old to settle anything$/],
+    ["rollUsed", /^that roll has already settled that action$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -802,7 +809,7 @@ export async function guardRelayRoom(sender, payload, ctx) {
 /** A table of declarations, frozen with every declaration and guard list in it: nothing edits one at run time. */
 export function table(declarations) {
     for (const decl of Object.values(declarations)) {
-        for (const key of ["guards", "runGuards", "claims"]) if (decl[key]) Object.freeze(decl[key]);
+        for (const key of ["guards", "runGuards", "claims", "rolled"]) if (decl[key]) Object.freeze(decl[key]);
         Object.freeze(decl);
     }
     return Object.freeze(declarations);
@@ -958,14 +965,91 @@ export function pick(spec) {
 }
 
 /* ==========================================================================
+ * A RESULT IS THE GM'S RECORD OF ITS ROLL (E08+E28 C14, 04.10.2026; audit S10-06; the plan's 3.5)
+ * --------------------------------------------------------------------------
+ * An Observe, an Analyze and a search for a hidden stash were scored on the GM's client
+ * against the `total` and `isCritical` their packet carried - numbers the GM had nothing to
+ * hold against. Since C12a the GM draws a player's roll and keeps its record (roll-draw.mjs `drawOnGm`,
+ * `rollStore`). So a declaration that takes a roll's result says where its roll is named
+ * (`rolled`): the field that names the roll's message (`field` - the one the resolver's
+ * fact already went by, action-rolls.mjs `noteFactOfRoll`), the field that names the
+ * character (`actor`), and the action the roll was thrown for (`kind`, the record's
+ * `actionKey`). The runner asks `rollRefusal` once the guards have passed: the record
+ * exists, it is that character's and the sender's (a GM may name a player's), it was
+ * thrown for that action, a Reroll could still reach it (`TIMING.rerollWindowMinutes`,
+ * past which the record is swept anyway), and it has not settled that action before. The
+ * run then reads the record's `total`, `isCritical` and `withHope` in place of the
+ * packet's (`onRecord`); a packet number that differs is logged here and never used.
+ *
+ * TWO PACKETS PASS WITH NO RECORD, AND THEIR NUMBERS STAND: a GM's that names none - a
+ * GM's roll is its own and never drawn (roll-draw.mjs `drawsHere`) - and any packet on a
+ * GM whose Daggerheart is not the build the draw was written for (`rollDrawState`, D1's
+ * fallback), where every roll is thrown in the player's browser, as in 1.2.66, and nobody
+ * keeps a record.
+ *
+ * SETTLED ONCE PER ACTION. An Analyze's roll settles one Analyze, of a bullet or of a
+ * hidden stash (both are `analyze`). The claim is made here before the run, so a run that
+ * then refuses has spent the roll as it spent the dice; it is marked in this GM's memory
+ * before anything is awaited, so two copies of one packet cannot both pass, and on the
+ * record, which the other GMs hold too, for a GM who takes over.
+ * ========================================================================== */
+
+/** The fields of a run's copy a record's result replaces. */
+const ROLL_RESULT = Object.freeze(["total", "isCritical", "withHope"]);
+const settledHere = new Set();
+
+/** Why `record` cannot settle the declaration's action for this packet, or null. */
+export function rollRefusal(record, rolled, payload, sender, now = Date.now()) {
+    if (!record) return "no roll the GM drew is named";
+    if (record.actorId !== payload?.[rolled.actor] || (record.userId !== sender?.id && !sender?.isGM)) return "that roll is not the sender's character's";
+    if (record.actionKey !== rolled.kind) return "that roll was not thrown for that action";
+    if (!(now - (record.at ?? 0) <= TIMING.rerollWindowMinutes * 60_000)) return "that roll is too old to settle anything";
+    if (settledHere.has(`${record.rollId}:${rolled.kind}`) || (Array.isArray(record.resolved) && record.resolved.includes(rolled.kind))) {
+        return "that roll has already settled that action";
+    }
+    return null;
+}
+
+/** The record the packet names, claimed for the declaration's action: `{ record }`, `{ record: null }` (its numbers stand), or `{ why }`. */
+async function rollOf(rolled, payload, sender) {
+    const { rollDrawState } = await import("./roll-draw.mjs");
+    if (rollDrawState().state !== "ok") return { record: null };
+    const { rollStore } = await import("./gm-stores.mjs");
+    await rollStore.whenHydrated();
+    const id = payload?.[rolled.field];
+    const record = typeof id === "string" && id
+        ? Object.values(rollStore.entries() ?? {}).find(row => row?.messageId === id) ?? null : null;
+    if (!record && sender?.isGM) return { record: null };
+    const why = rollRefusal(record, rolled, payload, sender);
+    if (why) return { why };
+    settledHere.add(`${record.rollId}:${rolled.kind}`);
+    await rollStore.patch(record.rollId, { resolved: [...(Array.isArray(record.resolved) ? record.resolved : []), rolled.kind] });
+    return { record };
+}
+
+/** The run's copy with the record's result in the fields the declaration takes; a packet that said otherwise is logged. */
+function onRecord(clean, record, action, sender) {
+    for (const field of ROLL_RESULT) {
+        if (!Object.hasOwn(clean, field)) continue;
+        const kept = field === "total" ? Number(record[field]) || 0 : Boolean(record[field]);
+        if (clean[field] !== kept) {
+            warn(`The "${action}" packet from ${sender?.name ?? "?"} said ${field} ${clean[field]}; the GMs' record of its roll says ${kept}, which stands.`);
+        }
+        clean[field] = kept;
+    }
+    return clean;
+}
+
+/* ==========================================================================
  * THE RUNNER (E31)
  * --------------------------------------------------------------------------
  * One function carries out every declaration of the three tables, so the order
  * a request is judged in is written once: what the declaration prepares (an
  * import, a one-time read that must come before the guards, as it did in the
  * handlers - see `prepare` in gm-bridge.mjs), then who sent it, then its guards
- * in the order listed, and only when every one has passed, the acknowledgement,
- * the whitelisted copy of the packet, and the run.
+ * in the order listed, then the whitelisted copy of the packet and the roll a
+ * result is read from, named in that copy (`rolled`, since E08+E28 C14), and
+ * only when every one has passed, the acknowledgement and the run.
  *
  * THE ACKNOWLEDGEMENT MOVED AFTER THE GUARDS. It used to leave before the
  * handler was even looked up, so a refused request was acknowledged first, and
@@ -1048,8 +1132,14 @@ export function judge(table, payload, senderId, { send = emitTo } = {}) {
             const sender = senderOf(senderId);
             const why = await firstRefusal(sender, payload, ctx, ...decl.guards);
             if (why) return refuse(action, why, ctx, send, decl.tell ?? reasonOf(why));
+            /* A result is the record's, not the packet's (E08+E28 C14, above). The roll is
+               named in the whitelisted copy, so its field is one the declaration takes as an
+               id (R218) and one R163 counts as read. */
+            const clean = decl.sanitize(payload, sender);
+            const rolled = decl.rolled ? await rollOf(decl.rolled, clean, sender) : null;
+            if (rolled?.why) return refuse(action, rolled.why, ctx, send, decl.tell ?? reasonOf(rolled.why));
             if (!early && decl.answer !== "none" && ctx.requestId) acknowledge();
-            const out = await decl.run(decl.sanitize(payload, sender), sender, ctx, prepared);
+            const out = await decl.run(rolled?.record ? onRecord(clean, rolled.record, action, sender) : clean, sender, ctx, prepared);
             if (out?.refused) return refuse(action, out.refused, ctx, send, decl.tell ?? reasonOf(out.refused));
             if (decl.answer === "reply" && !out?.later && ctx.requestId) answer(decl, ctx, out?.reply ?? null, send);
             return true;

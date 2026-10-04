@@ -105,6 +105,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             forOwnership: reasons.some(r => /sender does not own/.test(r))
         };
     };
+    /* A ROLL OF THE PLAYER'S OWN, DRAWN BY THE GM (E08+E28 C14, 04.10.2026). An Observe, an Analyze
+       and a search for a hidden stash are scored on the GMs' record of the roll their packet names
+       (bridge-guards.mjs `rollRefusal`), so a packet of this scenario's names one: `client` throws
+       `actorId`'s statistic for `actionKey` on `faces`, the GM draws it, and the message the GM wrote
+       for it is read off the roll (action-rolls.mjs `DRAWN_ROLL`) - null when it was not drawn. */
+    const drawnRoll = (client, actorId, actionKey, trait, faces) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = ${JSON.stringify(faces)};
+        let out = null, err = null;
+        try { out = await A.rollTrait(game.actors.get("${actorId}"), "${trait}", { actionKey: "${actionKey}", remember: false }); }
+        catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { delete globalThis.__forceRoll; }
+        return { messageId: out?.raw?.[A.DRAWN_ROLL]?.messageId ?? null, total: out?.total ?? null, err };`, { timeout: 60000 });
 
     // 4a. handover.item: p1 gives Botan's wrench to Aiko.
     const readHandover = `const b = game.actors.get("${ids.botan}"), a = game.actors.get("${ids.aiko}");
@@ -657,10 +669,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         try { await game.actors.get("${ids.aiko}").update({ name: '<img src=x onerror="window.__pwned=3">Aiko' }); return true; }
         catch (err) { return err.message; }`);
     await settle(600);
+    // The resolve names a roll of Aiko's the GM drew, or it is refused before the note is written (E08+E28 C14).
+    const lostRoll = await drawnRoll(p1, ids.aiko, "observe", "eye", { hope: 4, fear: 3 });
     const beforeLost = await gm.eval(`return game.messages.size;`);
     await p1.eval(`
         game.socket.emit("${SOCKET}", { action: "observe.resolve", requestId: "lost-${Date.now()}", userId: game.user.id,
-            actorId: "${ids.aiko}", key: "no-such-key", total: 7 },
+            actorId: "${ids.aiko}", key: "no-such-key", total: 7, rollId: ${JSON.stringify(lostRoll.messageId)} },
             { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
         return true;`);
     await settle(1500);
@@ -675,7 +689,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     `);
     await gm.eval(`await game.actors.get("${ids.aiko}").update({ name: ${JSON.stringify(nameBefore)} }); return true;`);
     check("XSS: a renamed character's name reaches the GM's own Observe note as text",
-        renamed === true && lostCard.renamed && lostCard.cards > 0 && !lostCard.handler, JSON.stringify({ renamed, ...lostCard }));
+        renamed === true && Boolean(lostRoll.messageId) && lostCard.renamed && lostCard.cards > 0 && !lostCard.handler,
+        JSON.stringify({ renamed, lostRoll, ...lostCard }));
 
     /* ONE BROWSER, SEVERAL WORLDS (E02 review). The store of private cards is a client
        setting: one entry in the browser for every world it opens. The start-up tidy
@@ -939,18 +954,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
 
     const readBullets = `return { botan: game.actors.get("${ids.botan}").items.filter(i => i.getFlag("${MOD}", "isTruthBullet")).length,
         botanStress: game.actors.get("${ids.botan}").system.resources.stress.value };`;
-    const stolenKey = await forge("observe.resolve", { actorId: ids.aiko, key: observed.key, total: 0 }, readBullets);
+    /* Since E08+E28 C14 each resolve below names an Observe roll of its own character's that the GM
+       drew (`drawnRoll`), so what is refused is the key, not a missing roll; the roll's own checks
+       follow the forged undo. */
+    const stolenRoll = await drawnRoll(p1, ids.aiko, "observe", "eye", { hope: 12, fear: 11 });
+    const stolenKey = await forge("observe.resolve", { actorId: ids.aiko, key: observed.key, total: 0, rollId: stolenRoll.messageId }, readBullets);
     check("SECURITY: an Observe resolved with another character's key changes nothing and is refused",
-        observed.ok && stolenKey.unchanged && stolenKey.reasons.some(r => /another character/.test(r)), JSON.stringify({ observed, stolenKey }));
+        observed.ok && Boolean(stolenRoll.messageId) && stolenKey.unchanged && stolenKey.reasons.some(r => /another character/.test(r)),
+        JSON.stringify({ observed, stolenRoll, stolenKey }));
+    const ownRoll = await drawnRoll(p2, ids.botan, "observe", "eye", { hope: 12, fear: 11 });
     await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false }); return true;`);
+        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false, rollId: ${JSON.stringify(ownRoll.messageId)} }); return true;`);
     await settle(1500);
     const found = await gm.eval(readBullets);
     check("control: Botan's own player resolving Botan's key does find the trace",
-        found.botan === stolenKey.after.botan + 1, JSON.stringify({ before: stolenKey.after, after: found }));
+        found.botan === stolenKey.after.botan + 1, JSON.stringify({ before: stolenKey.after, after: found, ownRoll }));
+    const twiceRoll = await drawnRoll(p2, ids.botan, "observe", "eye", { hope: 12, fear: 11 });
     await clearFailures();
     await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false }); return true;`);
+        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false, rollId: ${JSON.stringify(twiceRoll.messageId)} }); return true;`);
     await settle(1200);
     const twice = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve") };
     check("SECURITY: the same Observe key resolves once",
@@ -967,6 +989,114 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a forged Observe undo is refused as the GM's own undo, and the bullet it found stays",
         forgedUndo.after.botan === found.botan && forgedUndo.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)),
         JSON.stringify(forgedUndo));
+
+    /*
+     * A CONSOLE'S TOTALS (E08+E28 C14, 04.10.2026; audit S10-06). The GM scored an Observe, an
+     * Analyze and a search for a hidden stash on the `total` and `isCritical` the packet carried,
+     * so a console could send 30 and a critical and be answered with a find, a bullet's real type
+     * or somebody's stash. Each is scored now on the GMs' record of the roll the packet names
+     * (bridge-guards.mjs `rollRefusal`). For each, a packet saying 30 and a critical from the
+     * player's own browser, first naming no roll - refused, nothing changes - then naming a roll of
+     * that character's for that action the GM drew on 2 and 1: no refusal, the GM's log says the
+     * packet's numbers were not the record's, and the result is the record's miss. Red at C13's
+     * runtime: the first packet finds, analyses or opens.
+     */
+    const sendAs = (client, action, fields) => client.eval(`game.socket.emit("${SOCKET}", { action: "${action}", userId: game.user.id,
+        requestId: "console-${action}-" + Date.now(), ...${JSON.stringify(fields)} }, ${toGms}); return true;`);
+    const recordSaid = () => gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => String(e.message).includes("the GMs' record of its roll says")).map(e => e.message);`);
+    const consoleObserve = await gm.eval(`
+        const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.placeRemnant({ x: 1400, y: 400, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.chie}", sourceName: "Chie Mori", room: "Cafeteria", subject: "SEC cup again" });
+        const O = await import("${repoUrl}/scripts/observe.mjs");
+        const r = await O.chooseObserveTarget({ actorId: "${ids.botan}", declaration: "general", userId: "${p2.userId}" });
+        return { key: r?.key ?? null, ok: r?.ok ?? false };`, { timeout: 60000 });
+    await clearFailures();
+    await sendAs(p2, "observe.resolve", { actorId: ids.botan, key: consoleObserve.key, total: 30, isCritical: true });
+    await settle(1200);
+    const observeNoRoll = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve") };
+    const observeRoll = await drawnRoll(p2, ids.botan, "observe", "eye", { hope: 2, fear: 1 });
+    await clearFailures();
+    await sendAs(p2, "observe.resolve", { actorId: ids.botan, key: consoleObserve.key, total: 30, isCritical: true, rollId: observeRoll.messageId });
+    await settle(1500);
+    const observeOnRecord = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve"), said: await recordSaid() };
+    check("SECURITY: a console's Observe saying 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names - a miss",
+        consoleObserve.ok && observeNoRoll.after.botan === found.botan && observeNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(observeRoll.messageId) && observeOnRecord.after.botan === found.botan && !observeOnRecord.reasons.length
+            && observeOnRecord.said.length > 0,
+        JSON.stringify({ consoleObserve, observeNoRoll, observeRoll, observeOnRecord }));
+
+    phase("a console's Analyze", { flow: "analyze" });
+    const consoleBullet = await gm.eval(`const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const C = await import("${repoUrl}/scripts/config.mjs");
+        const b = await B.createTruthBullet(game.actors.get("${ids.aiko}"), { name: "SEC a console's Analyze", realType: "neutral", visibility: "obvious" });
+        return { id: b?.id ?? null, dc: C.analyzeDc("obvious", "neutral") };`, { timeout: 30000 });
+    await settle(600);
+    const bulletState = `const i = game.actors.get("${ids.aiko}").items.get("${consoleBullet.id}");
+        return { analyzed: i?.getFlag("${MOD}", "analyzed") ?? false, locked: i?.getFlag("${MOD}", "lockedChapter") ?? null,
+            chapter: (await import("${repoUrl}/scripts/clock.mjs")).getClock().chapter };`;
+    await clearFailures();
+    await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true });
+    await settle(1200);
+    const analyzeNoRoll = { state: await gm.eval(bulletState), reasons: await refusedFor("analyze.resolve") };
+    const analyzeRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 2, fear: 1 });
+    await clearFailures();
+    await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true, rollId: analyzeRoll.messageId });
+    await settle(1500);
+    const analyzeOnRecord = { state: await gm.eval(bulletState), reasons: await refusedFor("analyze.resolve"), said: await recordSaid() };
+    await gm.eval(`const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const i = game.actors.get("${ids.aiko}").items.get("${consoleBullet.id}");
+        if (i) { const uuid = i.uuid; await i.delete(); await B.dropSecret?.(uuid); }
+        return true;`, { timeout: 30000 });
+    check("SECURITY: a console's Analyze saying 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names - locked, not analysed",
+        Boolean(consoleBullet.id) && !analyzeNoRoll.state.analyzed && analyzeNoRoll.state.locked === null
+            && analyzeNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(analyzeRoll.messageId) && analyzeRoll.total < consoleBullet.dc
+            && !analyzeOnRecord.state.analyzed && analyzeOnRecord.state.locked === analyzeOnRecord.state.chapter
+            && !analyzeOnRecord.reasons.length && analyzeOnRecord.said.length > 0,
+        JSON.stringify({ consoleBullet, analyzeNoRoll, analyzeRoll, analyzeOnRecord }), { flow: "analyze" });
+
+    phase("a console's search for a hidden stash", { flow: "give-take-stash" });
+    const consoleStash = await gm.eval(`
+        const V = await import("${repoUrl}/scripts/vault.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const room = M.roomOfActor(aiko);
+        const region = room ? V.regionsByName().get(room) : null;
+        if (!region) return { room, err: "no region" };
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        globalThis.__c14Stash = { room, keys, before: keys.map(k => foundry.utils.deepClone(region.getFlag("${MOD}", k))),
+            found: foundry.utils.deepClone(aiko.getFlag("${MOD}", V.VAULT_FLAGS.found) ?? null) };
+        await region.update({ ["flags.${MOD}." + V.VAULT_FLAGS.stashes]: [{ actorId: "${ids.daichi}", concealed: true }],
+            ["flags.${MOD}." + V.VAULT_FLAGS.hinders]: [], ["flags.${MOD}." + V.VAULT_FLAGS.favours]: [] });
+        return { room, threshold: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.analyze?.stashThreshold ?? 16 };`, { timeout: 30000 });
+    const stashFound = `const V = await import("${repoUrl}/scripts/vault.mjs");
+        return V.hasFoundStash(game.actors.get("${ids.aiko}"), ${JSON.stringify(consoleStash.room ?? "")}, "${ids.daichi}");`;
+    await clearFailures();
+    await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true });
+    await settle(1200);
+    const stashNoRoll = { found: await gm.eval(stashFound), reasons: await refusedFor("vault.findStash") };
+    const stashRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 2, fear: 1 });
+    await clearFailures();
+    await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true, rollId: stashRoll.messageId });
+    await settle(1500);
+    const stashOnRecord = { found: await gm.eval(stashFound), reasons: await refusedFor("vault.findStash"), said: await recordSaid() };
+    await gm.eval(`const V = await import("${repoUrl}/scripts/vault.mjs");
+        const { forcedDeletion } = await import("${repoUrl}/scripts/utils.mjs");
+        const { room, keys, before, found } = globalThis.__c14Stash ?? {};
+        delete globalThis.__c14Stash;
+        const region = room ? V.regionsByName().get(room) : null;
+        if (region) await region.update(Object.fromEntries(keys.map((k, i) => ["flags.${MOD}." + k, before[i] === undefined ? forcedDeletion() : before[i]])));
+        const aiko = game.actors.get("${ids.aiko}");
+        if (found === null) await aiko.unsetFlag("${MOD}", V.VAULT_FLAGS.found);
+        else await aiko.setFlag("${MOD}", V.VAULT_FLAGS.found, found);
+        return true;`, { timeout: 30000 });
+    check("SECURITY: a console's search for a hidden stash saying 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names - not found",
+        !consoleStash.err && stashNoRoll.found === false && stashNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(stashRoll.messageId) && stashRoll.total < consoleStash.threshold
+            && stashOnRecord.found === false && !stashOnRecord.reasons.length && stashOnRecord.said.length > 0,
+        JSON.stringify({ consoleStash, stashNoRoll, stashRoll, stashOnRecord }), { flow: "give-take-stash" });
 
     // 7d. despair.adjust from a player, with no Reroll behind it and with a rewrite of a roll (a receipt until E08+E28 C8).
     phase("Despair corrections", { flow: "despair" });

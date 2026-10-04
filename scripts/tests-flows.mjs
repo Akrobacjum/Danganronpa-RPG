@@ -64,8 +64,10 @@
 export const FLOWS = Object.freeze([
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
         entry: { bridge: ["dynamic.difficulty"], api: ["performAction"] }, scenarios: ["40-flow"], status: "partial", stage: "E39" },
+    // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
+    // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
-        entry: { bridge: ["analyze.resolve"] }, scenarios: [], status: "planned", stage: "E39" },
+        entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
         entry: { api: ["discoverBody"] }, scenarios: ["10-murder"], status: "covered", stage: "<=1.2.50" },
     { id: "call-arm", what: "A Call armed on a character: paid on the caller's side, armed by the GM",

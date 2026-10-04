@@ -4901,7 +4901,9 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
     const res = await requestStashSearch({
         actorId: actor.id,
         total: roll.total,
-        isCritical: Boolean(roll.isCritical)
+        isCritical: Boolean(roll.isCritical),
+        // The roll the GM scores the search on, from its own record of it (E08+E28 C14).
+        rollId: rollInHand(actor)?.messageId ?? null
     });
 
     // NOT `gmRuled`. A Reroll can genuinely replay this - the outcome follows
