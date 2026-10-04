@@ -7,7 +7,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 
-export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO, canary, IDS }) {
+export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO, canary, IDS, socketTraffic }) {
     const players = [p1, p2, p3];
     const ids = await gm.eval(`return {
         aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id,
@@ -870,6 +870,53 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && Boolean(sabArm.row?.facts?.remnantId)
             && sabAsk.made === true && sabReroll.paid === 3 && !sabAfter.frozen && sabAfter.repairs.length === 0 && !sabReroll.journal,
         JSON.stringify({ sabTarget, sabotaged, arm: sabArm.row, sabBefore, sabAfter, made: sabAsk.made, paid: sabReroll.paid, journal: sabReroll.journal }),
+        { flow: "reroll" });
+
+    // ---- 6c''. a player's Sabotage that missed, rerolled into a success ---------------------------
+    /*
+     * A MISS NAMES ITS TARGET TO THE GMS (E08+E28 C16, 04.10.2026; the orchestrator's decision on
+     * round 1's fix G1). Since fix r1-G1 the GM learns a player's Sabotage's target from its packet
+     * alone, and a miss sent none, so its Reroll into a success froze nothing - until then the
+     * roller's bookmark had carried the target of any Sabotage. A miss is sent now as a repair of 0
+     * (action-rolls.mjs `performSabotage`), which freezes nothing and writes the target on the roll's
+     * row (gm-bridge.mjs `handleSabotage`). p1 sabotages a project in Aiko's room on forced dice that
+     * miss (3 and 2), and rerolls into 9 and 5. Read on the GM: the row's facts and the freeze before
+     * and after the Reroll; and where each Sabotage packet p1 sent went - to the GMs, and nobody else.
+     */
+    phase("a player's Sabotage that missed and its Reroll", { flow: "projects" });
+    const missTarget = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        const M = await import("${REPO}/scripts/movement.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        await game.drpg.setActions(actor, game.drpg.actionsMax(actor));
+        return (await P.createProject({ name: "QA sabotage that missed", target: 6, room: M.roomOfActor(actor), trait: "eye" }))?.id ?? null;`, { timeout: 30000 });
+    await settle(600);
+    const sentFrom = socketTraffic.length;
+    const missed = await p1.eval(`globalThis.__forceRoll = { hope: 3, fear: 2 };
+        const actor = game.actors.get("${ids.aiko}"); let r = null, err = null;
+        try { r = await game.drpg.performAction(actor, "sabotage", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete globalThis.__forceRoll; }
+        return { err, success: r?.success ?? null, applied: r?.applied ?? null };`, { timeout: 120000 });
+    await settle(1500);
+    const missFreezeOf = `const P = await import("${REPO}/scripts/projects.mjs");
+        return { frozen: P.isFrozen("${missTarget}"), repairs: P.allProjects().filter(p => P.repairs(p.id) === "${missTarget}").map(p => p.id) };`;
+    const missArm = await gm.eval(REROLL_ARM({ hope: 3, fear: 2 }, { hope: 9, fear: 5 }), { timeout: 30000 });
+    const missBefore = await gm.eval(missFreezeOf);
+    const missAsk = await p1.eval(REROLL_ASK, { timeout: 90000 });
+    await settle(600);
+    const missReroll = await gm.eval(REROLL_READ, { timeout: 30000 });
+    const missAfter = await gm.eval(missFreezeOf);
+    const gmIds = await gm.eval(`return game.users.filter(u => u.isGM).map(u => u.id);`);
+    const sentTo = socketTraffic.slice(sentFrom).filter(t => t.from === "p1" && t.action === "project.sabotage").map(t => t.to);
+    await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");
+        for (const id of [...P.allProjects().filter(p => P.repairs(p.id) === "${missTarget}").map(p => p.id), "${missTarget}"]) await P.deleteProject(id).catch(() => {});
+        return true;`, { timeout: 30000 });
+    check("p1: a Sabotage that missed freezes nothing and names its target on its roll's row, sent to the GMs alone, and its Reroll into a success freezes it once",
+        Boolean(missTarget) && !missed.err && missed.success === false && missArm.row?.actionKey === "sabotage"
+            && missArm.row?.facts?.targetProjectId === missTarget && !missArm.row?.facts?.repairId
+            && !missBefore.frozen && missBefore.repairs.length === 0
+            && sentTo.length >= 1 && sentTo.every(to => Array.isArray(to) && to.length > 0 && to.every(id => gmIds.includes(id)))
+            && missAsk.made === true && missReroll.paid === 3 && missAfter.frozen && missAfter.repairs.length === 1 && !missReroll.journal,
+        JSON.stringify({ missTarget, missed, arm: missArm.row, missBefore, missAfter, sentTo, gmIds, made: missAsk.made, paid: missReroll.paid, journal: missReroll.journal }),
         { flow: "reroll" });
 
     // ---- 6d. an indirect murder's work: the cover window closed ---------------------------------

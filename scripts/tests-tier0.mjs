@@ -5350,9 +5350,12 @@ const REGRESSIONS = [
         const problemsOf = (label, decl, lookup) => {
             const r = payloadReads(decl, lookup);
             // The runner reads the roll a result comes from in the run's copy (E08+E28 C14, bridge-guards.mjs `judge`):
-            // since C15 each of a list, and the fields a path, `when` and `kindAt` start from.
+            // since C15 each of a list, and the fields a path, `when` and `kindAt` start from; since C16 what a
+            // `derive` reads of the copy it is handed (gm-bridge.mjs `progressOf`), read as a run's reads are.
             for (const rolled of G.rollsOf(decl)) {
-                r.fields = [...new Set([...r.fields, rolled.field,
+                const derived = rolled.derive ? payloadReads({ run: rolled.derive }, lookup) : { fields: [], unreadable: [] };
+                r.unreadable.push(...derived.unreadable);
+                r.fields = [...new Set([...r.fields, rolled.field, ...derived.fields,
                     ...[rolled.actor, rolled.when, rolled.kindAt].filter(Boolean).map(path => path.split(".")[0])])];
             }
             const listed = Object.keys(decl.sanitize?.fields ?? {}).sort();
@@ -5460,8 +5463,8 @@ const REGRESSIONS = [
             rerollOnGm: "refused", makeReroll: "refused", rerollRefusal: "why", replayRefusal: "returns",
             // E08+E28 C14: the roll a result is read from, asked by the runner after the guards.
             rollRefusal: "returns",
-            // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive`.
-            searchTheftOf: "why", traceBandOf: "why",
+            // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive` (C16: a Work on a Project's).
+            searchTheftOf: "why", traceBandOf: "why", progressOf: "why",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -6463,11 +6466,15 @@ const REGRESSIONS = [
          * list, with `kindAt` the path that names which; `when` is a field taken as a flag; `into`
          * names fields the declaration takes; a `derive` is a function. A Palm's hand is thrown as
          * "steal", the Reroll's name for it (`THROWN_AS`). A sixth fixture is a list read clean.
+         *
+         * C16 (04.10.2026) took a project's progress and its Sabotage off WAITING. Progress that
+         * names no roll is a Call's, so its `when` is the roll's own field - an id, not a flag -
+         * and its guards bound what such a packet takes (bridge-guards.mjs `guardCallProgress`).
          */
         const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
         const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
             "vault.steal": ["viaSearch", "clumsy"] };
-        const WAITING = ["project.progress", "project.sabotage", "murder.openingResult", "murder.crisis", "murder.cleanup", "monocub.meddle"];
+        const WAITING = ["murder.openingResult", "murder.crisis", "murder.cleanup", "monocub.meddle"];
         const THROWN_AS = { steal: "palm" };
         const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
             .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
@@ -6494,7 +6501,7 @@ const REGRESSIONS = [
                     if (Array.isArray(kind) !== Boolean(kindAt) || (kindAt && !kinds[String(kindAt).split(".")[0]])) {
                         problems.push(`${action}: its roll's action is a list without a field that names which, or the other way round`);
                     }
-                    if (when && kinds[when] !== "bool") problems.push(`${action}: its roll is asked when ${when} is set, which it does not take as a flag`);
+                    if (when && kinds[when] !== "bool" && when !== field) problems.push(`${action}: its roll is asked when ${when} is set, which it does not take as a flag`);
                     for (const target of Object.values(into ?? {})) {
                         if (!kinds[target]) problems.push(`${action}: its roll's result goes in ${target}, which it does not take`);
                     }
@@ -6534,10 +6541,10 @@ const REGRESSIONS = [
         must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
         const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
-            + `${WAITING.length} wait for C16-C17`);
-        equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "observe.resolve", "remnant.place", "vault.findStash", "vault.steal"]
-            .filter(action => !rolled.includes(action))), "[]",
-            "Observe, Analyze, the search for a hidden stash, a Palm, a theft from a stash or a trace names no roll its result is read from");
+            + `${WAITING.length} wait for C17`);
+        equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "observe.resolve", "project.progress", "project.sabotage",
+            "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
+            "Observe, Analyze, the search for a hidden stash, a Palm, a project's progress or Sabotage, a theft from a stash or a trace names no roll its result is read from");
         const problems = problemsOf(all, WAITING);
         ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
     }]

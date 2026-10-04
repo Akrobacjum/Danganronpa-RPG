@@ -2613,7 +2613,8 @@
         "rollOtherAction": "Wskazany rzut był rzucony dla innej akcji.",
         "rollUsed": "Ten rzut został już rozliczony.",
         "rollStale": "Wskazany rzut jest za stary, by go rozliczyć.",
-        "rollMissed": "Wskazany rzut tego nie przyniósł."
+        "rollMissed": "Wskazany rzut tego nie przyniósł.",
+        "projectFrozen": "Ten projekt jest zamrożony sabotażem, dopóki nie skończy się jego naprawa."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",

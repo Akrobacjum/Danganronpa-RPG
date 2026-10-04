@@ -157,7 +157,7 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "rollMissed", "relay", "failed", "refused", "noGm", "noAnswer"
+    "rollMissed", "projectFrozen", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -300,6 +300,9 @@ export const REASON_PATTERNS = Object.freeze([
     // E08+E28 C15: what a roll earned, read off the GMs' record of it (gm-bridge.mjs `searchTheftOf`, `traceBandOf`).
     ["rollMissed", /^that roll did not find the stash$/],
     ["rollMissed", /^that roll leaves no trace$/],
+    // E08+E28 C16: a Work on a Project's roll that earned nothing (gm-bridge.mjs `progressOf`), and a frozen project (guardProjectFrozen).
+    ["rollMissed", /^that roll earned no progress$/],
+    ["projectFrozen", /^that project is frozen until its repair is finished$/],
     ["missing", /^no ruling of a GM's sets that roll's band$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
@@ -506,6 +509,39 @@ export async function guardShareSecret(sender, payload, ctx) {
 export function guardShareGuest(sender, payload, ctx) {
     const guest = game.users.get(payload.targetUserId ?? "");
     return !guest || guest.isGM ? "the project can only be shared with a player" : null;
+}
+
+/*
+ * PROGRESS A PLAYER ADDS (E08+E28 C16, 04.10.2026; audit S10-08; the plan's 3.5). A Work on a
+ * Project names its roll, and what the roll earned is read off the GMs' record of it (gm-bridge.mjs
+ * `progressOf`). A packet that names no roll is a Call's (call-effects.mjs `progressEffect`), so it
+ * adds at most what the largest Call of the two tables adds, read from them: until now any packet
+ * was held to a Despair pool's 12. A frozen project is refused, where it was answered "did not
+ * move": the picker never offers one (projects.mjs `projectsListedIn`), and a refusal spends no
+ * roll. A roll's progress is added by a character standing in the project's room when it has one,
+ * as the picker lists them, read on the scene documents (`locateActor`): `roomOfActor` sees only
+ * the scene this GM is looking at. A Call is not asked where it stands.
+ */
+const mostCallProgress = () => Math.max(0, ...[...Object.values(HOPE_CALLS), ...Object.values(DESPAIR_CALLS)]
+    .map(call => Math.abs(Number(call?.progress) || 0)));
+
+export function guardCallProgress(sender, payload, ctx) {
+    if (sender.isGM || payload?.rollId) return null;
+    return Math.abs(Math.trunc(Number(payload?.amount))) <= mostCallProgress() ? null : `amount ${payload?.amount} is out of range`;
+}
+
+export async function guardProjectFrozen(sender, payload, ctx) {
+    const { isFrozen } = await import("./projects.mjs");
+    return isFrozen(payload.countdownId) ? "that project is frozen until its repair is finished" : null;
+}
+
+export async function guardProjectRoom(sender, payload, ctx) {
+    if (sender.isGM || !payload?.rollId) return null;
+    const { roomOf } = await import("./projects.mjs");
+    const room = roomOf(payload.countdownId);
+    if (!room) return null;
+    const { locateActor } = await import("./movement.mjs");
+    return locateActor(game.actors.get(payload.actorId ?? ""))?.room === room ? null : "the character is not in that room";
 }
 
 /*
@@ -1012,6 +1048,13 @@ export function pick(spec) {
  * one roll settles - a Sabotage freezes a project and leaves a trace - so a trace settles
  * `trace` (`settles`), not its action. Every roll a packet names is judged before any is
  * claimed: a Palm whose second roll is refused has not spent its first.
+ *
+ * A DERIVE READS THE PACKET TOO (E08+E28 C16, 04.10.2026). A project's progress and a
+ * Sabotage's repair are what the roll earned with what only the roller's browser saw - a
+ * concealment's bonus or penalty, the tool readied - so `derive` is handed the run's copy
+ * as well, and holds each of those to what the rules allow (gm-bridge.mjs `progressOf`,
+ * `repairOf`). `when` may name the roll's own field: progress that names no roll is a
+ * Call's, which the declaration's guards bound instead (`guardCallProgress`).
  * ========================================================================== */
 
 /** The packet fields a record's result goes in, unless a declaration's roll says otherwise (`into`). */
@@ -1030,7 +1073,7 @@ function valueAt(payload, path) {
 
 /** The action this packet's roll must have been thrown for, or null when the packet asks for no roll of this kind. */
 function rollKindOf(rolled, payload) {
-    if (rolled.when && valueAt(payload, rolled.when) !== true) return null;
+    if (rolled.when && !valueAt(payload, rolled.when)) return null;
     if (!rolled.kindAt) return rolled.kind;
     const named = valueAt(payload, rolled.kindAt);
     return [].concat(rolled.kind).includes(named) ? named : null;

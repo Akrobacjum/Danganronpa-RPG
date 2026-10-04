@@ -83,6 +83,15 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     const forgeFromP1 = (action, requestId, fields) => p1.eval(`game.socket.emit("${SOCKET}",
         { action: "${action}", userId: "${IDS.p2}", requestId: "${requestId}", ...${JSON.stringify(fields)} }, ${toGms}); return true;`);
     const progressOf = id => `return { current: ${projects}.allProjects().find(p => p.id === "${id}")?.current ?? null };`;
+    /* A PLAYER'S SABOTAGE NAMES ITS ROLL (E08+E28 C16, 04.10.2026): the GM makes the repair the GMs' record
+       of that roll earned (gm-bridge.mjs `repairOf`). Code that throws a Sabotage of `actorId`'s the GM
+       draws, on faces that earn a repair, and leaves the message it wrote in `rollId`. */
+    const sabotageRoll = actorId => `const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 9, fear: 5 };
+        let thrown = null;
+        try { thrown = await A.rollTrait(game.actors.get("${actorId}"), "eye", { actionKey: "sabotage", remember: false }); }
+        finally { delete globalThis.__forceRoll; }
+        const rollId = thrown?.raw?.[A.DRAWN_ROLL]?.messageId ?? null;`;
     const pool = `return game.drpg.getDespair("${IDS.gm}");`;
 
     /* ----------------------------------------------------------------- A. setup */
@@ -128,7 +137,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
 
     // reroll.mjs:624-636 until C4a - the old sabotage taken back and a new one made, back to back.
     phase("a Reroll's sabotage", { flow: "projects" });
-    const firstRepair = await p2.eval(`const r = await ${projects}.sabotageProject("${proj.one}", 3); return r?.repair?.id ?? null;`, { timeout: 60000 });
+    const firstRepair = await p2.eval(`${sabotageRoll(IDS.botan)}
+        const r = await ${projects}.sabotageProject("${proj.one}", 3, { rollId, actorId: "${IDS.botan}" }); return r?.repair?.id ?? null;`, { timeout: 60000 });
     await settle(800);
     await clearFailures(gm);
     mark = await refusedCount(p2);
@@ -520,8 +530,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     try {
         await clearFailures(gm);
         const n = await noticeCount(p1);
-        const answered = await p1.eval(`const t0 = Date.now();
-            const answer = await Promise.race([${bridge}.requestSabotage("${target}", 3),
+        const answered = await p1.eval(`${sabotageRoll(IDS.aiko)}
+            const t0 = Date.now();
+            const answer = await Promise.race([${bridge}.requestSabotage("${target}", 3, { rollId, actorId: "${IDS.aiko}" }),
                 new Promise(resolve => setTimeout(() => resolve("still waiting"), 10000))]);
             return { answer, ms: Date.now() - t0 };`, { timeout: 30000 });
         await settle(800);

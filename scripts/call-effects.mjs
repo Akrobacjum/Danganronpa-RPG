@@ -908,7 +908,8 @@ async function progressEffect(actor, call, choice, done) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
         throw new Error(`project ${choice.project} no longer exists`);
     } else {
-        const applied = await addProgress(choice.project, call.progress);
+        // Who pays, as the bridge asks it of a player's (E08+E28 C16: gm-bridge.mjs `project.progress`).
+        const applied = await addProgress(choice.project, call.progress, { actorId: actor?.id ?? null });
         if (!applied) throw new Error(`addProgress refused ${choice.project}`);
 
         // A GM's write says outright whether the bar moved. A player's

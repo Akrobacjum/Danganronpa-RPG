@@ -21,7 +21,8 @@ import {
     firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardShareSecret,
     guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
-    guardArmBuyerHope, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
+    guardArmBuyerHope, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
+    guardProjectRoom, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
@@ -794,19 +795,21 @@ async function handleProgress(payload, sender, ctx) {
     const { asker } = ctx;
     // Sight of the project and the size of the step are the declaration's
     // guards now; progress taken back is the GM's own Reroll's - see `guardUndoIsTheGms`.
+    // A Work on a Project's amount is what its roll earned, on the GMs' record (`progressOf`).
     const amount = Math.trunc(payload.amount);
     const { addProgress } = await import("./projects.mjs");
     const rolls = await import("./action-rolls.mjs");
     // The roll this progress is for, as the request arrives (E08+E28 C2): see `noteProgressFact`.
-    const kept = amount > 0 && payload.messageId ? await rolls.rollOfSenderNaming(sender.id, "project", payload.messageId) : null;
-    const roll = kept?.messageId === payload.messageId ? kept : null;
+    const kept = amount > 0 && payload.rollId ? await rolls.rollOfSenderNaming(sender.id, "project", payload.rollId) : null;
+    const roll = kept?.messageId === payload.rollId ? kept : null;
     // Who asked, so a finished project can fall back to them when nobody
     // recorded who proposed it.
     const result = await addProgress(payload.countdownId, amount, { by: asker });
     debug(`Applied ${amount} progress to ${payload.countdownId} on behalf of a player.`, result);
     // Null: the project is not there any more - nothing was added, and the asker
     // is told so once, by the refusal (E31 review). A project that did not move
-    // (frozen, already full) is an answer, whispered below.
+    // (already full) is an answer, whispered below; a frozen one is refused
+    // before this since E08+E28 C16 (`guardProjectFrozen`).
     if (!result) return { refused: "nothing was carried out: addProgress found no such project" };
     await noteProgressFact(rolls, roll, payload.countdownId, result);
 
@@ -839,7 +842,7 @@ async function handleProgress(payload, sender, ctx) {
  * names no character; a Work on a Project names its roll's message, and it is written only
  * when that is the sender's newest kept Work on a Project (`rollOfSender`). A Call's progress
  * names no roll, and a Reroll's taking back (a negative amount) writes none. What moved, from
- * the project's own answer: a frozen or full project adds 0.
+ * the project's own answer: a full project adds 0 (a frozen one is refused before, `guardProjectFrozen`).
  */
 async function noteProgressFact(rolls, roll, projectId, result) {
     if (!roll) return;
@@ -917,7 +920,8 @@ async function handleRemnant(payload, sender, ctx) {
  * above drops every packet's `tiedToCrime` - so since E03 a trap built from a player's browser left
  * untied traces, which the chapter's end sweeps. Judged here on the GMs' record, not on the packet:
  * the project it names is an indirect murder, and the sender's character is its killer or the one
- * who proposed it. A Sabotage's trace is not judged: nothing the GMs keep records a failed one.
+ * who proposed it. A Sabotage's trace is not judged: until E08+E28 C16 nothing the GMs kept recorded a
+ * failed one's target, and the roll's row that does now is not read here.
  */
 async function worksOwnMurder(projectId, actor, action) {
     if (action !== "project" || typeof projectId !== "string" || !projectId || !actor) return false;
@@ -986,6 +990,55 @@ function dynamicRulingOf(record) {
     return null;
 }
 
+/*
+ * WHAT A PROJECT'S ROLL EARNED IS THE GM'S (E08+E28 C16, 04.10.2026; audit S10-08, S10-06; the plan's
+ * 3.5). Progress and a Sabotage's repair were the packet's numbers, held only to a range: a console
+ * that named a roll of 7 added 12. The packet names its roll now, and the GM reads what it earned
+ * off its record with the action's own table, as the roller's browser reads it (action-rolls.mjs
+ * `projectProgress`, `sabotageHit`, `sabotageRepairScale`). What only the roller saw rides on the
+ * packet and is held to what the rules allow: an indirect murder's concealment adds at most
+ * `PROJECT_BONUS_MOST`, and to nothing else; a Sabotage's concealment takes off at most what one
+ * thrown with Despair takes; the readied tool's relief is at most the GM's reading of the sheet
+ * (`reliefHeld`). Read off the packet, not the GMs' bookmark of the roll, because the packet can
+ * arrive first (fix r1-G1 measured it so). A Work whose roll earned nothing is refused; a
+ * Sabotage's miss is a repair of 0, which freezes nothing (`handleSabotage`).
+ */
+async function progressOf(record, payload) {
+    const { projectProgress, PROJECT_BONUS_MOST } = await import("./action-rolls.mjs");
+    const { isIndirectMurder } = await import("./projects.mjs");
+    const bonus = isIndirectMurder(payload.countdownId) ? heldTo(payload.bonus, 0, PROJECT_BONUS_MOST) : 0;
+    const { progress } = projectProgress(record, { relief: await reliefHeld(record, payload.relief), bonus });
+    return progress > 0 ? { fields: { amount: progress } } : { why: "that roll earned no progress" };
+}
+
+async function repairOf(record, payload) {
+    const { sabotageHit, sabotageRepairScale } = await import("./action-rolls.mjs");
+    const penalty = heldTo(payload.penalty, SABOTAGE_CONCEAL.despairPenalty, 0);
+    const relief = await reliefHeld(record, payload.relief);
+    const hit = sabotageHit(record, { penalty, relief });
+    return { fields: { difficulty: hit ? sabotageRepairScale(record, (Number(record.total) || 0) + penalty, relief) : 0 } };
+}
+
+/** A whole number the roller claims, held to [low, high]. */
+function heldTo(claimed, low, high) {
+    return Math.max(low, Math.min(high, Math.trunc(Number(claimed) || 0)));
+}
+
+/**
+ * The readied tool's relief a roller claims for a project's roll, held to the tool this GM sees in
+ * the character's hand - or, for a roll a Despair wears a tool on (use-items.mjs `breakOnDespair`,
+ * which runs before the packet leaves), to the best tool the character carries, broken or not.
+ */
+async function reliefHeld(record, claimed) {
+    const { toolRelief } = await import("./action-rolls.mjs");
+    const { equippedFor, tierOf } = await import("./use-items.mjs");
+    const { carriedFor } = await import("./inventory.mjs");
+    const actor = game.actors.get(record.actorId ?? "");
+    if (!actor) return 0;
+    const tools = record.withFear && !record.isCritical ? carriedFor(actor, "tool") : [equippedFor(actor, "tool")].filter(Boolean);
+    return heldTo(claimed, 0, Math.max(0, ...tools.map(tool => toolRelief(tool, tierOf))));
+}
+
 async function handleTieTrace(payload, sender, ctx) {
     // Only the one holding the object, and only in the fight - see `guardTieTraceHolder`.
     const { tieTraceForItem } = await import("./remnants.mjs");
@@ -1030,19 +1083,26 @@ async function handleRemnantEdit(payload, sender, ctx) {
 async function handleSabotage(payload, sender, ctx) {
     const { sabotageProject } = await import("./projects.mjs");
     const rolls = await import("./action-rolls.mjs");
+    /* The repair is what the roll earned, on the GMs' record (`repairOf`); 0 is a miss, which
+       freezes nothing and names its target for the GM's Reroll of it (E08+E28 C16; the
+       orchestrator's decision of 04.10.2026): until fix r1-G1 the roller's bookmark kept the
+       target of any Sabotage, and since then the GM learns it only from this packet, so a miss
+       rerolled into a success froze nothing. */
+    const difficulty = Math.trunc(payload.difficulty);
     // Who asked, so that only their own Reroll can take it back (E03).
-    const result = await sabotageProject(payload.targetId, Math.trunc(payload.difficulty),
-        { saboteur: sender.isGM ? null : sender.id });
+    const result = difficulty > 0 ? await sabotageProject(payload.targetId, difficulty,
+        { saboteur: sender.isGM ? null : sender.id }) : null;
     /* Which project it froze and the repair it made, for the Reroll's undo on a GM (C4a), on the
        row of the roll the packet names (fix r1-G1; the review's B1). The sender's newest Sabotage
        row, read as the packet arrived, was the previous Sabotage's or none: `roll.bookmark`'s run
        ended after this one in 5 of 5 of the review's runs at f941051 (2 of 3 of its 97 at d20fadb),
        and the Reroll into a miss left the project frozen. The fact now waits for its row (`noteFactOfRoll`); a packet naming no roll
        writes none. */
-    if (result && payload.rollId) {
+    if ((result || !difficulty) && payload.rollId) {
         await rolls.noteFactOfRoll(payload.rollId, { by: sender.id, actions: ["sabotage"] },
-            { targetProjectId: payload.targetId, repairId: result.repair?.id ?? null });
+            { targetProjectId: payload.targetId, repairId: result?.repair?.id ?? null });
     }
+    if (!difficulty) return { reply: null };
 
     // Tell the asker what actually happened - not just that the request
     // arrived. Without this a player's own sabotage always reported success
@@ -1528,15 +1588,24 @@ export const BRIDGE_ACTIONS = table({
              * the sender Foundry names, never to the payload's claim.
              */
             canSeeProject("countdownId", "sender may not see that project"),
+            // The character whose roll or Call it is (E08+E28 C16): a roll is read as theirs, and they stand in the room.
+            owns("actorId", "sender does not own that character"),
             // Progress comes from an action or a Call, so it is small by definition.
             // A payload asking for +999 is not the rules asking.
             inRange("amount", n => Number.isFinite(n) && n !== 0 && Math.abs(n) <= STARTING.despairMax,
-                sent => `amount ${sent} is out of range`)
+                sent => `amount ${sent} is out of range`),
+            // A Call's names no roll; a frozen project, and a roll's from another room (S10-08) - see `guardCallProgress`.
+            guardCallProgress, guardProjectFrozen, guardProjectRoom
         ],
-        sanitize: pick({ countdownId: as.id, amount: as.num, messageId: as.id }),
+        sanitize: pick({ countdownId: as.id, amount: as.num, actorId: as.id, rollId: as.id, relief: as.num, bonus: as.num }),
         run: handleProgress,
         answer: "reply", queue: "project",
-        claims: { messageId: "compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact" }
+        /* A Work on a Project's amount is what its roll earned on the GMs' record (E08+E28 C16; `progressOf`);
+           a Call's names no roll (`when`), and its guards bound it. */
+        rolled: { field: "rollId", actor: "actorId", kind: "project", when: "rollId", derive: progressOf },
+        claims: { rollId: "the roll whose record the amount is read from (progressOf), and compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact",
+            relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (reliefHeld)",
+            bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] and to an indirect murder's progress" }
     },
     [ACTION_SHARE]: {
         label: "DRPG.Bridge.what.project.share",
@@ -1612,18 +1681,24 @@ export const BRIDGE_ACTIONS = table({
             // frozen from a console, including a secret one whose existence the
             // sender had no way to learn honestly.
             canSeeProject("targetId", "sender cannot see that project"),
+            // The saboteur, whose roll it is (E08+E28 C16).
+            owns("actorId", "sender does not own that character"),
             // `difficulty` becomes the repair project's progress target, so it is
             // how much work the freeze costs its owner to undo. It arrived unread: a
             // payload asking for a target of 9999 froze a project for the rest of
             // the season. The ceiling is the hardest scale the rules define, read
-            // from the table rather than written out here.
-            inRange("difficulty", n => Number.isFinite(n) && n >= 1 && n <= hardestRepair(),
-                sent => `difficulty ${sent} is out of range (1-${hardestRepair()})`)
+            // from the table rather than written out here. Since E08+E28 C16 it is
+            // what the roll earned on the GMs' record (`repairOf`), and 0 is a miss.
+            inRange("difficulty", n => Number.isFinite(n) && n >= 0 && n <= hardestRepair(),
+                sent => `difficulty ${sent} is out of range (0-${hardestRepair()})`)
         ],
-        sanitize: pick({ targetId: as.id, difficulty: as.num, rollId: as.id }),
+        sanitize: pick({ targetId: as.id, difficulty: as.num, actorId: as.id, rollId: as.id, penalty: as.num, relief: as.num }),
         run: handleSabotage,
         answer: "reply", resend: true, queue: "project",
-        claims: { rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own Sabotage row of that message" }
+        rolled: { field: "rollId", actor: "actorId", kind: "sabotage", derive: repairOf },
+        claims: { rollId: "the roll whose record the repair is read from (repairOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own Sabotage row of that message",
+            penalty: "the roller's word for its concealment, held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0]",
+            relief: "the roller's word for its readied tool, held by repairOf to the tools the GM sees on the character (reliefHeld)" }
     },
     [ACTION_UNSABOTAGE]: {
         label: "DRPG.Bridge.what.project.unsabotage",
@@ -1899,8 +1974,9 @@ export function sendDespairToPrimary(targetUserId, delta) {
  * arrived, and the answer - two world writes and a repair project - may take
  * longer than that on a slow client.
  */
-export function requestSabotage(targetId, difficulty, { rollId = null, timeoutMs = TIMING.rulingMs } = {}) {
-    return ask(ACTION_SABOTAGE, { targetId, difficulty, rollId }, { timeoutMs });
+export function requestSabotage(targetId, difficulty, { rollId = null, actorId = null, penalty = 0, relief = 0, quiet = false,
+    timeoutMs = TIMING.rulingMs } = {}) {
+    return ask(ACTION_SABOTAGE, { targetId, difficulty, actorId, rollId, penalty, relief }, { timeoutMs, quiet });
 }
 
 /**
@@ -2487,8 +2563,8 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false, rol
  * whispered back by the GM's client; the request knows that it was carried out
  * (E31 review), not what it changed.
  */
-export function requestProjectProgress(countdownId, amount, actorId = null, messageId = null) {
-    return ask(ACTION_PROGRESS, { countdownId, amount, actorId, messageId });
+export function requestProjectProgress(countdownId, amount, { actorId = null, rollId = null, relief = 0, bonus = 0 } = {}) {
+    return ask(ACTION_PROGRESS, { countdownId, amount, actorId, rollId, relief, bonus });
 }
 
 /**

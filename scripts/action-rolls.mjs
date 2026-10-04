@@ -2921,18 +2921,15 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     await breakOnDespair(actor, tool, roll);
 
-    // The critical branch is left alone: it never consulted a threshold.
-    const hit = roll.isCritical
-        ? def.critical
-        : resolveThreshold(roll.total, easedBy(def.thresholds, relief));
-    const thresholdProgress = hit?.progress ?? 0;
-    // The bonus only rides on top of progress that was actually earned.
-    const earnedBonus = thresholdProgress ? bonus : 0;
-    const progress = thresholdProgress + earnedBonus;
+    const { hit, progress, bonus: earnedBonus } = projectProgress(roll, { relief, bonus }, def);
 
     let applied = null;
-    // Named for this roll (E08+E28 C2): the GMs' bookmark keeps what it added, and a Call's progress names none.
-    if (progress > 0) applied = await addProgress(project.id, progress, { messageId: rollInHand(actor)?.messageId ?? null });
+    /* Named for this roll (E08+E28 C2): the GMs' bookmark keeps what it added, and a Call's progress names none.
+       Since C16 the GM adds what the roll earned on its record, with what only this browser saw - the tool's
+       relief and the concealment's bonus - held to what the rules allow (gm-bridge.mjs `progressOf`). */
+    if (progress > 0) {
+        applied = await addProgress(project.id, progress, { actorId: actor.id, rollId: rollInHand(actor)?.messageId ?? null, relief, bonus });
+    }
 
     // Reroll needs to know what this roll gave the project, so it can take the
     // same amount back before applying the new result.
@@ -2985,6 +2982,23 @@ async function workOnProject(actor, def, options, chosen = null) {
     return outcome;
 }
 
+/**
+ * What a Work on a Project's roll earns: the band its total reaches with the readied tool's
+ * `relief` off the bands (a critical reads none), and an indirect murder's concealment `bonus`
+ * on top of progress actually earned - `bonus` in the answer is the part that rode. The one
+ * reading `workOnProject` and the GM's (gm-bridge.mjs `progressOf`, E08+E28 C16) share.
+ */
+export function projectProgress(roll, { relief = 0, bonus = 0 } = {}, def = ACTIONS.project) {
+    const hit = roll?.isCritical ? def.critical : resolveThreshold(Number(roll?.total) || 0, easedBy(def.thresholds, relief));
+    const earned = hit?.progress ?? 0;
+    return { hit, progress: earned ? earned + bonus : 0, bonus: earned ? bonus : 0 };
+}
+
+/** A concealment of intent made with Despair adds this much (the guide); working alone adds `aloneBonus`. */
+const CONCEALED_WITH_DESPAIR = 1;
+/** The most a concealment adds to a Work's progress: the two never both apply (gm-bridge.mjs `progressOf`). */
+export const PROJECT_BONUS_MOST = Math.max(INDIRECT_MURDER.concealIntent.aloneBonus ?? 0, CONCEALED_WITH_DESPAIR);
+
 // Guide: with someone else in the room, the killer must hide their intent
 // first; alone, the project simply gains +1 progress.
 async function concealProjectIntent(actor, { indirect, witnesses, paid, lines }) {
@@ -3005,7 +3019,7 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
                         : INDIRECT_MURDER.concealIntent.success)
                    : INDIRECT_MURDER.concealIntent.failure
             }</p>`);
-            if (ok && conceal.withFear) bonus += 1;
+            if (ok && conceal.withFear) bonus += CONCEALED_WITH_DESPAIR;
         } else {
             bonus += INDIRECT_MURDER.concealIntent.aloneBonus;
             lines.push(`<p><em>${game.i18n.localize("DRPG.Project.aloneBonus")}</em></p>`);
@@ -3296,10 +3310,16 @@ async function performSabotage(actor, def, options, preset = null) {
     // project and immediately trying to keep working on it could win the race:
     // the roll called it frozen before the world setting agreed.
     let repair = null;
+    /* Named, so the GM writes the freeze on this roll's row and no other (fix r1-G1); since E08+E28 C16 the
+       GM makes the repair the roll earned on its record, with this browser's concealment and tool held to
+       the rules (gm-bridge.mjs `repairOf`). A player's miss is sent too, as a repair of 0: it freezes
+       nothing and tells the GMs alone its target, for a Reroll of it that succeeds (the orchestrator's
+       decision of 04.10.2026). A GM's own row keeps its target from `noteRollContext` below. */
+    const named = { rollId: rollInHand(actor)?.messageId ?? null, actorId: actor.id, penalty, relief };
     if (success) {
-        const difficulty = sabotageRepairScale(roll, score, relief);
-        // Named, so the GM writes the freeze on this roll's row and no other (fix r1-G1).
-        repair = await sabotageProject(project.id, difficulty, { rollId: rollInHand(actor)?.messageId ?? null });
+        repair = await sabotageProject(project.id, sabotageRepairScale(roll, score, relief), named);
+    } else if (!game.user.isGM) {
+        await sabotageProject(project.id, 0, named);
     }
     // The dice succeeded but nobody was there (or ready in time) to actually
     // write the freeze - say so rather than claiming a state that never
@@ -3465,7 +3485,7 @@ export function sabotageHit(roll, { penalty = 0, relief = 0 } = {}, def = ACTION
     //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
     // The 12 band was creating a 4-progress "everyday" repair, one scale
     // step harder than the guide asks for.
-function sabotageRepairScale(roll, score, relief) {
+export function sabotageRepairScale(roll, score, relief) {
     return roll.isCritical
         ? PROJECT_SCALE.desperate.progress
         // This 18 is the same band `easedBy` just lowered, read a second
