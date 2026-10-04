@@ -2209,9 +2209,19 @@ export function requestRollBookmark(payload) {
  * Ask the GM to make this character's Reroll (E08+E28 C4a): it pays, throws, replays and
  * settles, and answers `{ lines }` - or, on a GM's own client, `{ refused, say }` where a
  * player's request is refused by the bridge.
+ *
+ * AN ANSWER PAST THE CLOCK STILL COUNTS (E08+E28 fix r1-G5, 04.10.2026; the round-1 review's
+ * m1). The run can wait on the GM as long as the GM takes - an Observe's replay that opens
+ * `describeFind`, a critical crisis replay with no first pick opening the pick window - and the
+ * answer's clock is `TIMING.rulingMs`. Past it the asker read "not carried out" while the Reroll
+ * was being made and paid, and its card was never posted. So the ask is quiet and the caller
+ * says each outcome (calls.mjs `askReroll`): an answer after the clock goes to `late`, a refusal
+ * after it to `lateRefused`, for as long as a Reroll's roll can be reached at all
+ * (`TIMING.rerollWindowMinutes`, an outer bound chosen, not a time measured).
  */
-export function requestReroll(actorId) {
+export function requestReroll(actorId, { late = null, lateRefused = null } = {}) {
     return ask(ACTION_REROLL, { actorId }, {
+        quiet: true, late, lateRefused, lateMs: TIMING.rerollWindowMinutes * 60_000,
         local: () => import("./reroll.mjs").then(m => m.rerollOnGm(game.actors.get(actorId ?? ""), game.user))
     });
 }

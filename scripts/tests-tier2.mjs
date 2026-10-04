@@ -2634,6 +2634,144 @@ const SCENARIOS = [
         }
     }],
 
+    ["the Reroll's journal is written before each Hope write, and a row in it holds the character", async () => {
+        /*
+         * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m4, S7 and m2. A Reroll on this GM,
+         * with the journal's store wrapped as a reload would leave it:
+         *   paying     the store's first write of the Reroll throws after it lands (a reload
+         *              before the payment): the row it leaves, the Hope against the start, then
+         *              what the primary's pass answers, the Hope again, whether the bookmark
+         *              stands and the GMs' "check the Hope" line was said. Until the fix the row
+         *              said `paid` and the pass gave back 3 Hope never paid.
+         *   fresh      the first write lands and the character's Hope drops to 1 meanwhile:
+         *              whether it was refused, the Hope, the row left. Until the fix it paid
+         *              `held - cost` read before, and the Hope came out 2.
+         *   givingBack a Reroll cut at `paid` (the suite's hook), recovered twice with the
+         *              store's first drop skipped (a reload before it): the two answers and the
+         *              Hope against the start. Until the fix the row stayed at `paid` and the
+         *              second pass gave the 3 Hope back again.
+         *   held       a row of the character written by another connected user: whether the
+         *              Reroll was refused as one being made, the Hope, the row's phase.
+         *   orphan     a row of a GM who does not exist: whether the pass a Reroll runs first
+         *              gave it back (the player's line said) and the Reroll was then made.
+         *   mine       a Reroll on this GM cut at `paid`, then the next one: the same, for a row
+         *              this client left (not read as in hand because the next one is asked).
+         */
+        const [who] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { rerollBookmarkStore, rerollJournalStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, and the journal is the primary's to read - this would measure nothing");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "another connected user, whose row reads as a Reroll in hand");
+        const other = game.users.find(u => u.active && u.id !== game.user.id) ?? null;
+        must(other, "no other connected user, though the world counts one - this would measure nothing");
+        const text = html => { const box = document.createElement("div"); box.innerHTML = String(html ?? ""); return box.textContent.replace(/\s+/g, " ").trim(); };
+        const line = (key, data) => game.i18n.format(key, data).replace(/\s+/g, " ").trim();
+        const { patch, drop } = rerollJournalStore;
+        const hope = () => who.system.resources.hope.value;
+        const messages = [];
+        const saidSince = async (from, wanted) => {
+            const said = (await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 2000)))).map(text);
+            return said.some(t => t.includes(wanted));
+        };
+        const fresh = async faces => {
+            const message = await thrownFresh(who, faces, () => null, { remember: true });
+            messages.push(message.id);
+            must(rerollBookmarkStore.get(who.id)?.messageId === message.id, "the roll to take back is not the one the GMs keep - this would measure nothing");
+            return message;
+        };
+        try {
+            must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+            const readings = await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                const out = {};
+                const first = { hope: 9, fear: 4 }, next = { hope: 10, fear: 3 };
+
+                let message = await fresh(first);
+                await who.update({ "system.resources.hope.value": 3 });
+                let start = hope();
+                let once = true;
+                rerollJournalStore.patch = async (...args) => {
+                    const done = await patch.apply(rerollJournalStore, args);
+                    if (once && args[0] === who.id) { once = false; throw new Error("suite: a reload before the payment"); }
+                    return done;
+                };
+                let thrown = null;
+                try { await rerollAgain(who, message, first, next); } catch (err) { thrown = err; }
+                rerollJournalStore.patch = patch;
+                const left = [Boolean(thrown), rerollJournalStore.get(who.id)?.phase ?? null, hope() - start];
+                let from = new Set(game.messages.map(m => m.id));
+                const handled = await R.recoverRerollJournal();
+                await settle();
+                out.paying = [...left, stableJson(handled), hope() - start, rerollJournalStore.has(who.id), rerollBookmarkStore.get(who.id)?.messageId === message.id,
+                    await saidSince(from, line("DRPG.Reroll.interruptedPaying", { name: who.name, cost: 3 }))];
+
+                message = await fresh(first);
+                await who.update({ "system.resources.hope.value": 3 });
+                once = true;
+                rerollJournalStore.patch = async (...args) => {
+                    const done = await patch.apply(rerollJournalStore, args);
+                    if (once && args[0] === who.id) { once = false; await who.update({ "system.resources.hope.value": 1 }); }
+                    return done;
+                };
+                const refused = await rerollAgain(who, message, first, next);
+                rerollJournalStore.patch = patch;
+                out.fresh = [Boolean(refused.out?.refused), hope(), rerollJournalStore.has(who.id)];
+
+                message = await fresh(first);
+                await who.update({ "system.resources.hope.value": 3 });
+                const cut = await rerollAgain(who, message, first, next, { cut: "paid" });
+                let skip = true;
+                rerollJournalStore.drop = async (...args) => {
+                    if (skip && args[0] === who.id) { skip = false; return; }
+                    return drop.apply(rerollJournalStore, args);
+                };
+                const once1 = await R.recoverRerollJournal();
+                rerollJournalStore.drop = drop;
+                const phase = rerollJournalStore.get(who.id)?.phase ?? null;
+                const once2 = await R.recoverRerollJournal();
+                await settle();
+                out.givingBack = [stableJson(once1), phase, stableJson(once2), hope() - cut.hope, rerollJournalStore.has(who.id)];
+
+                message = await fresh(first);
+                await who.update({ "system.resources.hope.value": 3 });
+                await patch.call(rerollJournalStore, who.id, { phase: "replaying", hope: 3, messageId: message.id, at: Date.now(), gm: other.id });
+                const held = await rerollAgain(who, message, first, next);
+                out.held = [held.out?.refused ?? null, hope() - held.hope, rerollJournalStore.get(who.id)?.phase ?? null];
+                await drop.call(rerollJournalStore, who.id);
+
+                message = await fresh(first);
+                await who.update({ "system.resources.hope.value": 2 });
+                await patch.call(rerollJournalStore, who.id, { phase: "paid", hope: 3, messageId: message.id, firstRolls: message.toObject().rolls, at: Date.now(), gm: "suiteNoSuchGm001" });
+                from = new Set(game.messages.map(m => m.id));
+                const made = await rerollAgain(who, message, first, next);
+                out.orphan = [Array.isArray(made.out?.lines), await saidSince(from, line("DRPG.Reroll.interrupted", { name: who.name })), rerollJournalStore.has(who.id)];
+
+                message = await fresh(first);
+                await who.update({ "system.resources.hope.value": 3 });
+                await rerollAgain(who, message, first, next, { cut: "paid" });
+                from = new Set(game.messages.map(m => m.id));
+                const again = await rerollAgain(who, message, first, next);
+                out.mine = [Array.isArray(again.out?.lines), await saidSince(from, line("DRPG.Reroll.interrupted", { name: who.name })), rerollJournalStore.has(who.id)];
+                return out;
+            });
+            equal(stableJson(readings), stableJson({
+                paying: [true, "paying", 0, stableJson([[who.id, "told"]]), 0, false, true, true],
+                fresh: [true, 1, false],
+                givingBack: [stableJson([[who.id, "givenBack"]]), "givingBack", stableJson([[who.id, "told"]]), 0, false],
+                held: ["a Reroll of that character is already being made", 0, "replaying"],
+                orphan: [true, true, false],
+                mine: [true, true, false]
+            }), "a Reroll's journal let a reload be given back what was never paid, paid on an old Hope, gave back twice, or let a second Reroll past a row of the character (per case: see the comment)");
+        } finally {
+            rerollJournalStore.patch = patch;
+            rerollJournalStore.drop = drop;
+            if (rerollJournalStore.has(who.id)) await drop.call(rerollJournalStore, who.id);
+            for (const id of messages) await game.messages.get(id)?.delete();
+        }
+    }],
+
     ["after a Reroll the old card reads as replaced", async () => {
         /*
          * E08+E28 C5, 03.10.2026; audit S02-21; the plan's 2.7. A Reroll rewrote the roll's message

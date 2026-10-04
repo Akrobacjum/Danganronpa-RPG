@@ -5498,6 +5498,64 @@ const INVARIANTS = [
             [pick("body", false), pick("leg", true), pick("body", false), pick("hand", true), null, null, pick("body", true), null],
             [["gms", "weaponAttack"], ["here", "weaponAttack"]]
         ]), "a roll did not take its one trait, or several did not go to a GM, or Resolve was asked, or an answer off the list was rolled (answers, who was asked)");
+    }],
+    ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
+        /*
+         * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m1 and m3.
+         * m1: `reroll.ask` waits `TIMING.rulingMs` while its run can wait on a GM's dialog as
+         * long as the GM takes; past the clock the asker read "not carried out" while the
+         * Reroll was made and paid, and no card came. Driven with R165's fakes: a request with a
+         * `lateRefused` hears a refusal after its clock, once, with its code, and one without it
+         * hears nothing (as before); and read in the source: `requestReroll` asks quietly with a
+         * `late`, a `lateRefused` and a `lateMs`, and `askReroll` says `DRPG.Reroll.stillMaking`
+         * for the clock, not the bridge's "not carried out". A player's browser answered after
+         * 180 s is not driven here: no scenario waits that long.
+         * m3: the recovery on `userConnected(gm, false)` asked `isPrimaryGm()`, which reads
+         * `active`. Read: `primaryGmId({ leaving })` without this GM (null where it is the only
+         * GM), with a player named (this GM), and the recovery's pass asking with `leaving`.
+         * Which of the hook and the flag comes first on v14 is not measured: one GM here.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const { primaryGmId, isPrimaryGm } = await import("./utils.mjs");
+        const make = () => {
+            const sent = [], said = [];
+            const waiter = createWaiter({
+                emit: packet => sent.push(packet), gmIds: () => ["R216GM"], me: () => ({ id: "R216ME", isGM: false, isPrimary: false }),
+                notify: (action, reason) => said.push(`${action} ${reason}`), fromGm: id => id === "R216GM", report: () => {}
+            });
+            const reply = (action, extra = {}) => waiter.onReply({ action, userId: "R216ME", requestId: sent.at(-1)?.requestId, ...extra }, "R216GM");
+            return { waiter, said, reply };
+        };
+        const heard = [];
+        let w = make();
+        let asked = w.waiter.request("r216.late", {}, { ackMs: 1000, timeoutMs: 40, lateMs: 400, settle: "reply", quiet: true,
+            lateRefused: reason => heard.push(reason) });
+        const timedOut = await asked;
+        await wait(80);
+        w.reply("bridge.refused", { what: "r216.late", reason: "busy" });
+        w.reply("bridge.refused", { what: "r216.late", reason: "made up" });
+        const quietOld = [...w.said];
+        w = make();
+        asked = w.waiter.request("r216.old", {}, { ackMs: 1000, timeoutMs: 40, lateMs: 400, settle: "reply", quiet: true });
+        await asked;
+        await wait(80);
+        w.reply("bridge.refused", { what: "r216.old", reason: "busy" });
+        equal(JSON.stringify([timedOut, heard, quietOld, w.said]), JSON.stringify([{ ok: false, reason: "noAnswer" }, ["busy", "refused"], [], []]),
+            "a refusal after the clock did not go to `lateRefused` with its code (an unknown one as `refused`), or a request without one heard it (the clock's answer, heard, said)");
+
+        const sources = new Map(await otherSources());
+        const body = (file, fn) => fnSource(stripComments(sources.get(file) ?? ""), fn);
+        const ask = body("gm-bridge.mjs", "requestReroll"), caller = body("calls.mjs", "askReroll"), pass = body("reroll.mjs", "recoverRerollJournal");
+        equal(JSON.stringify([/quiet:\s*true/.test(ask), /\blate\b/.test(ask), /\blateRefused\b/.test(ask), /\blateMs:/.test(ask),
+            /DRPG\.Reroll\.stillMaking/.test(caller) && /"noAnswer"/.test(caller), /isPrimaryGm\(\{\s*leaving:\s*gone\s*\}\)/.test(pass)]),
+        JSON.stringify([true, true, true, true, true, true]),
+            "the Reroll's ask does not hear a late answer, or its clock says it was not carried out, or the recovery counts the GM leaving (quiet, late, lateRefused, lateMs, the clock's line, the pass)");
+
+        const player = game.users.find(u => !u.isGM) ?? null;
+        equal(JSON.stringify([primaryGmId({ leaving: game.user.id }) === game.user.id, (player ? primaryGmId({ leaving: player.id }) : primaryGmId()) === primaryGmId(),
+            isPrimaryGm({ leaving: game.user.id })]),
+        JSON.stringify([false, true, false]),
+            "the user named as leaving was still computed as the primary, or a player's leaving moved it (this user primary without itself, the primary without a player, isPrimaryGm without itself)");
     }]
 ];
 

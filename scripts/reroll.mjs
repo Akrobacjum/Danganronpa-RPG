@@ -273,6 +273,13 @@ function advantageDice(roll) {
 
 /** The characters whose Reroll this client is making now: a second while one runs is refused. */
 const making = new Set();
+/**
+ * The characters whose journal row this client's Reroll in hand has written. A row of this
+ * client's is an orphan unless it is one of these (`orphaned`): not `making`, which holds the
+ * character from the ask on, so the recovery pass a new Reroll runs first (`rerollRefusal`)
+ * would have read a leftover row of the same character as in hand and refused for it.
+ */
+const journalling = new Set();
 
 /**
  * The GMs' row as the replays read a bookmark: the roller's claims, with the GM's facts
@@ -368,6 +375,19 @@ const REPLAY_SAYS = Object.freeze({
  * told what a player would be - or `{ row, message, held }`.
  */
 async function rerollRefusal(actor, sender, cost) {
+    /* ONE REROLL OF A CHARACTER AT A TIME, ON EVERY GM (E08+E28 fix r1-G5, 04.10.2026; the
+       round-1 review's m2). `making` is this client's alone: an assistant GM's own Reroll runs
+       on its client (gm-bridge.mjs `requestReroll`'s `local`) while a player's runs on the
+       primary, and each paid 3 and took the action back. A journal row of the character is a
+       Reroll somebody is making, or one cut short; the primary settles the cut ones first
+       (`recoverRerollJournal`, which answers nothing on another GM), so what is left is in hand
+       somewhere and this one is refused, nothing paid. Until this fix a cut row nobody had
+       recovered yet was overwritten by the next Reroll's row and never given back or told.
+       Two GMs asking in the same moment can both pass before either row arrives; that window
+       is the store's sync, not measured. */
+    await rerollJournalStore.whenHydrated();
+    await recoverRerollJournal();
+    if (rerollJournalStore.has(actor.id)) return { why: "a Reroll of that character is already being made", say: "DRPG.Reroll.busy" };
     await rerollBookmarkStore.whenHydrated();
     const row = rerollBookmarkStore.get(actor.id) ?? null;
     if (!row?.messageId) return { why: "the GMs keep no roll of that character to reroll", say: "DRPG.Reroll.nothingToReroll" };
@@ -393,7 +413,7 @@ async function rerollRefusal(actor, sender, cost) {
     // Last, and still before the payment: a roll this client cannot throw again (a roll of another
     // system's, or the harness's plain record) would only be paid for and given back.
     if (typeof message.rolls[0].reroll !== "function") return { why: "that message holds no roll to throw again", say: "DRPG.Reroll.notARoll" };
-    return { row, message, held };
+    return { row, message };
 }
 
 /**
@@ -412,6 +432,7 @@ export async function rerollOnGm(actor, sender) {
         return await makeReroll(actor, sender);
     } finally {
         making.delete(actor.id);
+        journalling.delete(actor.id);
     }
 }
 
@@ -419,7 +440,7 @@ async function makeReroll(actor, sender) {
     const cost = HOPE_CALLS.reroll.cost;
     const checked = await rerollRefusal(actor, sender, cost);
     if (checked.why) return { refused: checked.why, say: checked.say ?? null, said: checked.said ?? null };
-    const { row, message, held } = checked;
+    const { row, message } = checked;
     const bookmark = replayBookmark(row);
     const original = message.rolls[0];
     const before = dualityOfRoll(original);
@@ -427,12 +448,29 @@ async function makeReroll(actor, sender) {
     const firstRolls = foundry.utils.deepClone(message.toObject().rolls ?? []);
     const journal = fields => rerollJournalStore.patch(actor.id, fields);
 
-    await rerollJournalStore.whenHydrated();
+    /*
+     * THE JOURNAL SAYS `paying` BEFORE THE PAYMENT, `paid` AFTER IT (E08+E28 fix r1-G5,
+     * 04.10.2026; the round-1 review's m4). It said `paid` first and paid next, so a reload
+     * between the two was given back 3 Hope it never paid; and it paid `held - cost`, `held`
+     * read in `rerollRefusal` before the replay's checks and two store writes, so a Hope
+     * change landing in between was overwritten. The Hope is read again here, with no await
+     * between the read and the write, and a character who no longer holds the cost is refused
+     * with nothing paid. A row cut at `paying` is told, not given back (`recoverOne`): whether
+     * the write landed cannot be read back out of the world.
+     */
+    const { hopeHeld } = await import("./calls.mjs");
+    journalling.add(actor.id);
     // `gm` is the client making it, `first` and `action` what a GM told of a Reroll cut short
     // is told (`recoverRerollJournal`).
-    await journal({ phase: "paid", hope: cost, messageId: message.id, firstRolls, at: Date.now(), by: sender?.id ?? null,
+    await journal({ phase: "paying", hope: cost, messageId: message.id, firstRolls, at: Date.now(), by: sender?.id ?? null,
         gm: game.user.id, first: before.total ?? null, action: row.actionKey ?? null });
+    const held = hopeHeld(actor);
+    if (held < cost) {
+        await rerollJournalStore.drop(actor.id);
+        return { refused: `the buyer holds ${held} Hope, the Call costs ${cost}`, said: game.i18n.format("DRPG.Calls.notEnoughHope", { call: HOPE_CALLS.reroll.label, cost, held }) };
+    }
     await automatedUpdate(actor, { "system.resources.hope.value": held - cost });
+    await journal({ phase: "paid" });
     if (cutHere("paid")) return { cut: "paid" };
 
     const done = [];
@@ -554,6 +592,10 @@ async function markReplacedCard(row, before, after) {
  * table has not run it.
  */
 async function giveBack(actor, message, firstRolls, cost) {
+    // The journal says so first (E08+E28 fix r1-G5; the round-1 review's S7): a reload between
+    // the Hope and the drop below left the row at `paid` or `rolled`, and the next primary gave
+    // the 3 Hope back a second time. A row at `givingBack` is told, never given again (`recoverOne`).
+    if (rerollJournalStore.has(actor.id)) await rerollJournalStore.patch(actor.id, { phase: "givingBack" });
     await putFirstRollBack(message, firstRolls);
     try {
         const { hopeHeld } = await import("./calls.mjs");
@@ -589,6 +631,14 @@ async function putFirstRollBack(message, firstRolls) {
  * primary reads it as its stores open - its own reload, and every load - and when a GM
  * leaves, which is how a new primary comes to read it.
  *
+ *   paying,       the Hope was being paid, or a Reroll that did not stand was being given
+ *   givingBack    back (fix r1-G5, the round-1 review's m4 and S7): whether that write
+ *                 landed cannot be read back out of the world, so nothing is paid or given
+ *                 again. The first rolls go back on the card (the same write a second time
+ *                 changes nothing), the GMs are told to check the Hope
+ *                 (`DRPG.Reroll.interruptedPaying`, `interruptedGivingBack`), the player that
+ *                 the first roll stands and the GM checks the Hope, and the GMs' bookmark
+ *                 stays: the first roll can be rerolled again.
  *   paid, rolled  nothing of the action was touched yet: the first rolls go back on the
  *                 card, the Hope paid comes back as +3 on the Hope held now (`giveBack`),
  *                 and the player and the GMs are told (`DRPG.Reroll.interrupted`).
@@ -602,8 +652,16 @@ async function putFirstRollBack(message, firstRolls) {
  * NOT ON `drpgPrimaryReady`, which the plan named: that hook fires on the OTHER clients
  * when the primary's GM_READY arrives (gm-bridge.mjs `onGmReady`), never on the primary
  * itself, and the primary is the one that must read the journal. A row is left alone
- * while the GM client it names is connected (on that client itself, while it is making
- * it): another GM's Reroll still running reads, from here, exactly as one cut short.
+ * while the GM client it names is connected (on that client itself, while its Reroll in
+ * hand has written it): another GM's Reroll still running reads, from here, exactly as one
+ * cut short.
+ *
+ * A GM WHO LEAVES IS NOT COUNTED AS THE PRIMARY (fix r1-G5, 04.10.2026; the round-1 review's
+ * m3). The pass on `userConnected(gm, false)` asked `isPrimaryGm()`, which reads `active`; if
+ * Foundry calls the hook before the leaving user's flag flips, the GM who stays still
+ * computed the one leaving as the primary and recovered nothing until its next load. The
+ * pass now asks without the GM it was told is gone (`isPrimaryGm({ leaving })`, utils.mjs).
+ * Which of the two comes first on v14 is not measured: the harness has one GM.
  * ========================================================================== */
 
 /** Suite only: the phase after which the next Reroll made on this client stops, as a reload there would leave it. */
@@ -619,7 +677,7 @@ function cutHere(phase) {
 
 /** A row nobody is making any more: this client's and not in hand, or a GM's who is gone. */
 function orphaned(actorId, row, gone) {
-    if (row?.gm === game.user.id) return !making.has(actorId);
+    if (row?.gm === game.user.id) return !journalling.has(actorId);
     if (gone && row?.gm === gone) return true;
     return !game.users.get(row?.gm ?? "")?.active;
 }
@@ -634,7 +692,7 @@ let recovering = Promise.resolve();
  */
 export function recoverRerollJournal({ gone = null } = {}) {
     const run = async () => {
-        if (!isPrimaryGm()) return [];
+        if (!isPrimaryGm({ leaving: gone })) return [];
         await rerollJournalStore.whenHydrated();
         const done = [];
         for (const [actorId, row] of Object.entries(rerollJournalStore.entries())) {
@@ -659,6 +717,17 @@ async function recoverOne(actorId, row) {
         return "dropped";
     }
     const name = esc(actor.name);
+    if (row.phase === "paying" || row.phase === "givingBack") {
+        await putFirstRollBack(message, row.firstRolls ?? []);
+        const key = row.phase === "paying" ? "DRPG.Reroll.interruptedPaying" : "DRPG.Reroll.interruptedGivingBack";
+        await whisperToGms(`<h3>${esc(game.i18n.localize("DRPG.Reroll.title"))}</h3><p>${game.i18n.format(key, {
+            name, cost: Number(row.hope) || HOPE_CALLS.reroll.cost
+        })}</p>`);
+        if (ownerOf(actor)) await whisperToOwnerOnly(actor, `<p>${game.i18n.format("DRPG.Reroll.interruptedHope", { name })}</p>`);
+        await rerollJournalStore.drop(actorId);
+        log(`${actor.name}'s Reroll, cut short at "${row.phase}", is told to the GMs; its Hope is theirs to check.`);
+        return "told";
+    }
     if (row.phase === "paid" || row.phase === "rolled") {
         await giveBack(actor, message, row.firstRolls ?? [], Number(row.hope) || HOPE_CALLS.reroll.cost);
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Reroll.interrupted", { name })}</p>`);
