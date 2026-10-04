@@ -41,7 +41,7 @@ import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor,
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
-import { supersedingRoll, reportRollSubject, isClaimedRoll } from "./private-rolls.mjs";
+import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
 import { rerollBookmarkStore } from "./gm-stores.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
 // does not import this file.
@@ -696,9 +696,11 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // The system's own card for this roll is claimed as it is created and
     // never rendered: this module reports the same roll in its own card,
     // with the same two faces and the same total. See `supersedingRoll` in
-    // private-rolls.mjs - and note the claim covers only THIS call, so a
-    // trait rolled straight off the sheet keeps Daggerheart's card.
-    const result = await supersedingRoll(() => actor.rollTrait(dhTrait, {
+    // private-rolls.mjs - and note the claim covers only THIS roll, so a
+    // trait rolled straight off the sheet keeps Daggerheart's card, even
+    // while this roll's window is open: the claim takes the message whose
+    // roll carries its nonce (`ROLL_NONCE`, E08+E28 C11), not the first one.
+    const result = await supersedingRoll(nonce => actor.rollTrait(dhTrait, {
         event: { shiftKey: false, altKey: false, ctrlKey: false },
         /*
          * ALWAYS OPEN THE WINDOW - except for the regression suite, which
@@ -733,6 +735,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
          * the chat card. See roll-dialog.mjs and despair-award.mjs.
          */
         [DRPG_ACTION_ROLL]: true,
+        // The claim's own mark, so the claim takes this roll's message and no other.
+        [ROLL_NONCE]: nonce,
         // The roll the Loaded Die was bought for, marked on the roll itself -
         // see `LOADED_DIE` in forced-roll.mjs.
         ...(free ? { [LOADED_DIE]: armed?.nonce ?? foundry.utils.randomID() } : {}),

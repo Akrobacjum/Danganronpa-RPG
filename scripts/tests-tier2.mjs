@@ -4899,6 +4899,61 @@ const SCENARIOS = [
             "the roll's character was not kept as its dice began to fall - its report waited for the animation");
     }],
 
+    ["a statistic from the sheet thrown while a Work on Project window is open keeps its card", async () => {
+        /*
+         * E08+E28 C11, 04.10.2026; audit S02-45. A module roll's claim took the first roll message
+         * created while it was open, so a statistic a player clicked on the sheet while a Work on
+         * Project window stood open had its card stamped, hidden and emptied, and the project's own
+         * roll kept Daggerheart's card. Two rolls in flight on this browser: the project's, through
+         * the module's `rollTrait` (action-rolls.mjs; `remember: false`, so no bookmark is written),
+         * whose window the character's `rollTrait` stands in for and holds open; and, while it is
+         * held, a statistic thrown as the sheet throws it, by the character's own `rollTrait`. Then
+         * the window is let go. Read: whether each message is claimed (`isClaimedRoll`), whether the
+         * sheet's card still speaks for the character, and the nonce each roll carries
+         * (`ROLL_NONCE`): the project's a string, the sheet's none. Until C11 the sheet's roll took
+         * the claim and the project's was left unclaimed.
+         */
+        const [actor] = cast(1);
+        const P = await import("./private-rolls.mjs");
+        const { rollTrait } = await import("./action-rolls.mjs");
+        const thrown = actor.rollTrait;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let held = false, letGo = null;
+        const shut = new Promise(resolve => { letGo = resolve; });
+        let sheet = null, project = null;
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 4 };
+            actor.rollTrait = async (dh, config) => {
+                held = true;
+                await shut;
+                return thrown.call(actor, dh, config);
+            };
+            const pending = rollTrait(actor, "body", { remember: false, actionKey: "project", title: game.i18n.localize("DRPG.Roll.project") });
+            must(await until(() => held), "the project's roll never reached its window");
+            sheet = (await thrown.call(actor, "agility", {}))?.message ?? null;
+            letGo();
+            project = (await pending)?.raw?.message ?? null;
+            must(sheet && project, "a roll was not thrown - this would measure nothing");
+            const nonce = m => game.messages.get(m.id)?.rolls?.[0]?.options?.[P.ROLL_NONCE] ?? null;
+            const sheetNow = game.messages.get(sheet.id);
+            equal(stableJson([P.isClaimedRoll(sheetNow), sheetNow?.speaker?.actor === actor.id, nonce(sheet),
+                P.isClaimedRoll(game.messages.get(project.id)), typeof nonce(project)]),
+            stableJson([false, true, null, true, "string"]),
+            "the sheet's roll was claimed or emptied, or the project's roll was not claimed by its own nonce (sheet claimed, speaks, nonce; project claimed, nonce)");
+        } finally {
+            letGo();
+            delete actor.rollTrait;
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await settle();
+            await game.messages.get(sheet?.id)?.delete();
+            await game.messages.get(project?.id)?.delete();
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+        }
+    }],
+
     ["after a crisis action no message names a participant", async () => {
         /*
          * E06 C5b, 27.09.2026; the stage's doneWhen. A direct murder is opened between two students

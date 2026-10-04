@@ -588,8 +588,41 @@ const SUPERSEDED_FLAG = "supersededRoll";
  * BACKGROUNDED tab - the roll then hangs after its message exists - so this is
  * the ordinary case, not an exotic one. Marking the claim spent at the moment
  * it stamps means a hang can cost the roll it belongs to and nothing after it.
+ *
+ * AND EACH CLAIM IS ITS OWN ROLL'S (E08+E28 C11, 04.10.2026; audit S02-45). A
+ * claim took the first roll message created while it was open, whoever's roll
+ * it was. A module roll's window stays open as long as its player looks at it,
+ * and a statistic clicked on the sheet meanwhile - a reaction the GM asked for -
+ * created its message first: that card was stamped and hidden, emptied of its
+ * character, and the module's own roll kept Daggerheart's card with the
+ * character's name on it. Tier 2 "a statistic from the sheet thrown while a Work
+ * on Project window is open keeps its card" measures it in the harness, and
+ * 12-social on a player's browser. So each claim mints a nonce, the roll
+ * carries it on its config (`ROLL_NONCE`), and only the message whose first
+ * roll's options carry it is claimed.
  */
 let rollClaims = [];
+
+/**
+ * The key a claim's nonce rides under on the roll's config, which Daggerheart
+ * makes the roll's options (dhRoll.mjs:45-47 `createRollInstance`, and the
+ * message keeps them through `Roll#toJSON`; read in 2.10.5, not measured at a
+ * table). Random, minted per roll and kept nowhere but the open claim on the
+ * roller's browser, so the copy every browser holds on the message links the
+ * roll to nothing: `neutralRollOf` leaves it, and `reportClaimedRoll` reads it
+ * there once the roll has been emptied.
+ */
+export const ROLL_NONCE = "drpgRollNonce";
+
+/** The nonce a roll message's first roll carries (`ROLL_NONCE`), or null. `data` is the creation data, read where the document has no rolls. */
+function rollNonceOf(message, data = null) {
+    let roll = message?.rolls?.[0] ?? data?.rolls?.[0] ?? null;
+    if (typeof roll === "string") {
+        try { roll = JSON.parse(roll); } catch { return null; }
+    }
+    const nonce = roll?.options?.[ROLL_NONCE];
+    return typeof nonce === "string" && nonce ? nonce : null;
+}
 
 /**
  * Run something that posts a system roll card this module replaces with its own.
@@ -604,23 +637,24 @@ let rollClaims = [];
  * trait roll from the sheet has no module card to replace it and keeps its own,
  * which is the whole reason this is a claim and not a blanket rule.
  *
- * @param {() => Promise<any>} fn  the call that produces the roll.
+ * @param {(nonce: string) => Promise<any>} fn  the call that produces the roll; it puts `nonce` on the roll's config under `ROLL_NONCE`.
  * @param {object} [opts]
  * @param {Actor|null} [opts.subject]  the character the roll is about, reported as its message is created (`reportClaimedRoll`).
  */
 export async function supersedingRoll(fn, { subject = null } = {}) {
-    const claim = { spent: false, subject, reported: false };
+    const claim = { spent: false, subject, reported: false, nonce: foundry.utils.randomID() };
     rollClaims.push(claim);
     try {
-        return await fn();
+        return await fn(claim.nonce);
     } finally {
         rollClaims = rollClaims.filter(c => c !== claim);
     }
 }
 
-/** Stamp a roll message created inside a claim, and say whether it was. See `supersedingRoll`. */
+/** Stamp a roll message created inside its own claim, and say whether it was. See `supersedingRoll`. */
 function claimRollMessage(message, data) {
-    const claim = rollClaims.find(c => !c.spent);
+    const nonce = rollClaims.length ? rollNonceOf(message, data) : null;
+    const claim = nonce ? rollClaims.find(c => !c.spent && c.nonce === nonce) : null;
     if (!claim) return false;
 
     const hasRoll = (message.rolls?.length ?? 0) > 0
@@ -643,15 +677,17 @@ function claimRollMessage(message, data) {
  * author's one living character, so a GM's roll for a student, or a player's who plays two,
  * lost its award whenever the animation ran longer. The claim carries its character, and the
  * roller reports it from its own `createChatMessage`, before Daggerheart waits for anything;
- * the incident's dice (`relayIncidentDice`) leave with it. Claims are spent in the order their
- * messages are created, one message each, so the first spent claim not yet reported is this
- * message's. Measured with the harness's Dice So Nice holding the animation (`__dsnAnimation`):
- * tier 2 "a roll's character is kept before its dice have landed", and 13's "the victim's roll
- * reaches the killer while the victim's own dice still fall".
+ * the incident's dice (`relayIncidentDice`) leave with it. Measured with the harness's Dice So
+ * Nice holding the animation (`__dsnAnimation`): tier 2 "a roll's character is kept before its
+ * dice have landed", and 13's "the victim's roll reaches the killer while the victim's own dice
+ * still fall". The claim is found by the roll's nonce (`ROLL_NONCE`, E08+E28 C11), as it was
+ * spent: until C11 it was the first spent claim not yet reported, which held only while
+ * messages were created in the order their claims were spent.
  */
 function reportClaimedRoll(message, options, userId) {
     if ((userId ?? message?.author?.id) !== game.user?.id || !isClaimedRoll(message)) return;
-    const claim = rollClaims.find(c => c.spent && !c.reported);
+    const nonce = rollNonceOf(message);
+    const claim = nonce ? rollClaims.find(c => c.spent && !c.reported && c.nonce === nonce) : null;
     if (!claim) return;
     claim.reported = true;
     if (claim.subject) reportRollSubject(message, claim.subject);
@@ -713,7 +749,10 @@ export function neutralRollSource(data, { alias = game.i18n.localize("DRPG.Secre
  * forced-roll.mjs reads it off the config as the dice are thrown, before the
  * message exists, and nothing reads it off a message (grep, 28.09.2026); the
  * harness's roll carries the config's other keys since the same fix, so a mark
- * like it shows. `data` stays as an empty object, not absent - d20Roll.mjs
+ * like it shows. The claim's nonce (`ROLL_NONCE`, E08+E28 C11) stays: it is
+ * minted for the one roll and kept nowhere else, so it names nobody, and the
+ * roller's browser reads it off the emptied message (`reportClaimedRoll`).
+ * `data` stays as an empty object, not absent - d20Roll.mjs
  * `configureModifiers` (:103) reads `options.data.system` as the constructor
  * runs; `effects` and `experiences` are read with `?.` there and in
  * dhRoll.mjs `bonusEffectBuilder` (:344-360), which rebuilds `bonusEffects`

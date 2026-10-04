@@ -67,6 +67,41 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     check("DICE: with Dice So Nice's secret-roll hiding off, Aiko's roll animates for Aiko and the GM and not on p2's screen",
         Boolean(rollRes.id) && animated.gm === true && animated.p1 === true && animated.p2 === false, JSON.stringify(animated));
 
+    /* A ROLL'S CLAIM IS ITS OWN (E08+E28 C11, 04.10.2026; audit S02-45). The module claims the
+       card of a roll it throws as the card is created, and until C11 it claimed the first roll
+       card p1's browser created while its roll was in flight - so a statistic Aiko clicked on
+       her sheet while a Work on Project window stood open lost its card, and the project's roll
+       kept Daggerheart's. The window is held by Aiko's `rollTrait` standing in for it, the sheet
+       roll thrown meanwhile, then the window let go; both cards read as the GM's browser holds
+       them: the sheet's unclaimed and speaking for Aiko, the project's claimed and emptied. */
+    const twoRolls = await p1.eval(`
+        const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        const thrown = actor.rollTrait;
+        let held = false, letGo = null;
+        const shut = new Promise(resolve => { letGo = resolve; });
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        actor.rollTrait = async (dh, config) => { held = true; await shut; return thrown.call(actor, dh, config); };
+        try {
+            const pending = A.rollTrait(actor, "body", { remember: false, actionKey: "project", title: game.i18n.localize("DRPG.Roll.project") });
+            const end = Date.now() + 6000;
+            while (!held && Date.now() < end) await new Promise(r => setTimeout(r, 50));
+            const sheet = held ? (await thrown.call(actor, "agility", {}))?.message?.id ?? null : null;
+            letGo();
+            const project = (await pending)?.raw?.message?.id ?? null;
+            return { held, sheet, project };
+        } finally { letGo(); delete actor.rollTrait; }
+    `, { timeout: 60000 });
+    await settle(400);
+    const twoOnGm = await gm.eval(`
+        const read = id => { const m = game.messages.get(id); return m ? { claimed: Boolean(m.getFlag("${MOD}", "supersededRoll")), actor: m.speaker?.actor ?? null } : null; };
+        return { sheet: read(${JSON.stringify(twoRolls.sheet)}), project: read(${JSON.stringify(twoRolls.project)}) };
+    `);
+    check("PRIVACY: a statistic Aiko throws off her sheet while a Work on Project window is open keeps its card, and the project's roll is the one claimed (S02-45)",
+        twoRolls.held === true && twoOnGm.sheet?.claimed === false && twoOnGm.sheet.actor === ids.aiko
+            && twoOnGm.project?.claimed === true && twoOnGm.project.actor === null,
+        JSON.stringify({ twoRolls, twoOnGm }));
+
     // --- inventory carry limit (Gear = 2 shared slots) ---
     phase("inventory");
     const inv = await gm.eval(`
