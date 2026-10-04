@@ -169,6 +169,78 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         Boolean(reroll.id) && reroll.first === true && reroll.replay?.removed === true && reroll.replay.gone === false
             && reroll.made.length === 2 && reroll.made.every(id => id === reroll.id) && reroll.standing.length === 0 && rerollOnP1 === false,
         JSON.stringify({ reroll, rerollOnP1 }), { flow: "murder-incident" });
+    /* A PLAYER'S CLEAN-UP ON THE GMS' RECORD, AND ITS REROLL (E08+E28 C17, 04.10.2026; audit S10-06;
+       the plan's 3.5 and 3.6). Stage 6 is scored on the GMs' record of the roll its packet names,
+       and no scenario took a player's clean-up through a Reroll end to end: fix r1-G2's mutant that
+       dropped the clean-up's `rollId` passed every one. Chie's player (p3) has their module socket
+       handed back here - the opening's race this scenario puts it aside for is over - and asks for
+       its copy of the cast, which it missed meanwhile, as a browser asks when the primary GM's world
+       has loaded (`drpgPrimaryReady`, murder.mjs `askForCast`); then Chie erases a
+       trace laid at Chie's feet, thrown on p3's browser on an 11 and a 2 and drawn by the GM; then
+       asks its Reroll from p3's browser, which the GM makes. The harness's roll message has no
+       `Roll#reroll`, so on the GM it reads as one of the scenario's, thrown again on a 9 and a 4.
+       Read on the GM after each: whether the trace stands, and the record of the roll - its total,
+       what it settled, its versions' totals. The replay puts the trace back and erases it again; the
+       record takes the Reroll's 13 and keeps the draw as its first version. Chie's Sanity and Hope
+       are put back. */
+    const sixCast = await p3.eval(`(game.socket._handlers.get("module.${MOD}") ?? []).push(...(globalThis.__mutedSocket ?? [])); globalThis.__mutedSocket = [];
+        const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
+        Hooks.callAll("drpgPrimaryReady", "${gm.userId}");
+        const end = Date.now() + 6000;
+        while (Cl.cleanupBlocker(game.actors.get("${ids.chie}")) !== null && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return Cl.cleanupBlocker(game.actors.get("${ids.chie}"));`, { timeout: 30000 });
+    const sixSet = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const chie = game.actors.get("${ids.chie}"), floor = canvas.scene, at = floor.tokens.find(t => t.actorId === chie.id);
+        const was = { stress: chie.system.resources.stress.value, hope: chie.system.resources.hope.value };
+        await chie.update({ "system.resources.stress.value": 0 });
+        await automatedUpdate(chie, { "system.resources.hope.value": Math.max(3, was.hope) });
+        const trace = await R.placeRemnant({ type: "incident", visibility: "evident", x: at.x, y: at.y, scene: floor, note: "E08 C17 10 a trace Chie's player scrubs" });
+        return { was, id: trace?.id ?? null, scene: floor.id };`, { timeout: 60000 });
+    const sixThrown = await p3.eval(`const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
+        const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 11, fear: 2 };
+        const told = globalThis.__notifications.length;
+        try { const r = await Cl.attemptCleanup(game.actors.get("${ids.chie}"), ${JSON.stringify(sixSet.id ?? "none")});
+            return { rolled: Boolean(r?.roll), messageId: A.rollInHand(game.actors.get("${ids.chie}"))?.messageId ?? null,
+                notes: globalThis.__notifications.slice(told).map(n => n.level + ":" + n.msg) }; }
+        finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    await settle(1200);
+    const SIX_READ = `const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(sixThrown.messageId ?? "none")}));
+        return { stands: Boolean(game.scenes.get(${JSON.stringify(sixSet.scene)})?.tokens.get(${JSON.stringify(sixSet.id ?? "none")})),
+            record: r ? { total: r.total, resolved: r.resolved ?? [], versions: (r.versions ?? []).map(v => v.total) } : null };`;
+    const sixFirst = await gm.eval(SIX_READ);
+    await gm.eval(`const m = game.messages.get(${JSON.stringify(sixThrown.messageId ?? "none")});
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 11, fear: 2 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 9, fear: 4 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        return true;`, { timeout: 60000 });
+    const sixAsked = await p3.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+        return Boolean(await C.spendHopeCall(game.actors.get("${ids.chie}"), "reroll"));`, { timeout: 60000 });
+    await settle(1500);
+    const sixAfter = await gm.eval(SIX_READ);
+    await gm.eval(`const m = game.messages.get(${JSON.stringify(sixThrown.messageId ?? "none")}); if (m) delete m.rolls;
+        const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const chie = game.actors.get("${ids.chie}");
+        const t = game.scenes.get(${JSON.stringify(sixSet.scene)})?.tokens.get(${JSON.stringify(sixSet.id ?? "none")});
+        if (t) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
+        await chie.update({ "system.resources.stress.value": ${Number(sixSet.was?.stress) || 0} });
+        await automatedUpdate(chie, { "system.resources.hope.value": ${Number(sixSet.was?.hope) || 0} });
+        return true;`, { timeout: 60000 });
+    check("p3: Chie's Stage 6 erase, thrown on her player's browser, is scored on the GMs' record of its roll, and its Reroll erases again and keeps the draw as the record's first version",
+        sixCast === null && Boolean(sixSet.id) && sixThrown.rolled === true && Boolean(sixThrown.messageId) && sixFirst.stands === false
+            && JSON.stringify(sixFirst.record?.resolved ?? null) === JSON.stringify(["cleanup"]) && sixFirst.record.versions.length === 0
+            && sixAsked === true && sixAfter.stands === false && sixAfter.record?.total === 13
+            && JSON.stringify(sixAfter.record.versions) === JSON.stringify([sixFirst.record.total]),
+        JSON.stringify({ sixCast, sixSet, sixThrown, sixFirst, sixAsked, sixAfter }), { flow: "murder-incident" });
     const found = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const C = await import("${repoUrl}/scripts/chapter.mjs");
         const daichi = game.actors.get("${ids.daichi}"), botan = game.actors.get("${ids.botan}");

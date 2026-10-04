@@ -22,6 +22,15 @@
  * roll into a GM-and-roller whisper regardless of how the roll was built, so
  * this one is private for free.
  *
+ * THROWN BY THE GM (E08+E28 C17, 04.10.2026; audit S10-06). The Monocub's browser
+ * threw the 2d12 and sent the GM its total and its critical, which the GM scored as
+ * said. A plain `Roll` is not one the GM's draw takes (roll-draw.mjs reads a duality
+ * roll's build), so the GM throws this one itself where it scores it (`meddleOnGm`),
+ * and answers the roll; the Monocub's browser posts the card from it as it posted its
+ * own - its message, its readers, its dice on its screen - so the roll still reads
+ * as the Monocub's. The card is posted once the GM has whispered the outcome, where it
+ * used to be posted before the GM was asked.
+ *
  * MEDDLE'S EFFECT. Reuses the Call machinery Support and Obstacle already use
  * (`armCall` in call-effects.mjs) rather than inventing a second one. That
  * also means "help a crisis action" costs nothing extra: an incident roll
@@ -202,7 +211,7 @@ async function postMeddleRoll(actor, roll, total, isCritical, help) {
     });
 }
 
-/** A flat 2d12: Daggerheart's own duality math with no trait behind it. */
+/** A flat 2d12: Daggerheart's own duality math with no trait behind it. Thrown on the GM (`meddleOnGm`). */
 async function rollFlat() {
     const roll = new Roll("2d12");
     await roll.evaluate();
@@ -270,13 +279,32 @@ export async function performMeddle(actor, targetId, help) {
     if (!await spendAction(actor, def.cost)) return null;
     await automatedUpdate(actor, { "system.resources.hope.value": hope - def.hopeCost });
 
-    const { roll, total, isCritical } = await rollFlat();
-    await postMeddleRoll(actor, roll, total, isCritical, help);
-
+    // The GM throws the dice and scores them (`meddleOnGm`); its answer is the roll, which the
+    // card shows here as this Monocub's. Not answered (refused, no GM, a roll that is not one):
+    // nothing to show, and the GM has said why where it refused.
     const { requestMeddleResolve } = await import("./gm-bridge.mjs");
-    await requestMeddleResolve({ actorId: actor.id, targetId, help, total, isCritical });
-
+    const res = await requestMeddleResolve({ actorId: actor.id, targetId, help });
+    const thrown = res.ok ? res.value : null;
+    if (!thrown?.roll) return null;
+    const roll = Roll.fromData(thrown.roll);
+    const total = Number(thrown.total) || 0;
+    const isCritical = thrown.isCritical === true;
+    await postMeddleRoll(actor, roll, total, isCritical, help);
     return { roll, total, isCritical };
+}
+
+/**
+ * A Meddle's dice, thrown and scored on this GM (E08+E28 C17): the flat 2d12 `rollFlat` throws,
+ * applied by `resolveMeddle`, answered as the roll (its JSON), the total and the critical, for
+ * the Monocub's card. Thrown before `resolveMeddle` asks its questions, as dice are thrown at a
+ * table before the GM rules; a Meddle it refuses is answered all the same, and the Monocub has
+ * been told it was refused. GM-side.
+ */
+export async function meddleOnGm({ actorId, targetId, help } = {}) {
+    if (!game.user.isGM) return null;
+    const { roll, total, isCritical } = await rollFlat();
+    await resolveMeddle({ actorId, targetId, help, total, isCritical });
+    return { roll: roll.toJSON(), total, isCritical };
 }
 
 /** Who to Meddle with, and Help or Hinder. The player's own picker. */

@@ -17,7 +17,8 @@
  * statistic from the sheet (`sheetRollOf`), whose message keeps Daggerheart's card and is
  * read on the roller's browser alone (private-rolls.mjs `readableHere`). Daggerheart's own
  * item rolls (their source names an item or an action) and a Monocub's Meddle (a plain
- * `Roll`, monocub.mjs) are not drawn; a GM's own roll is its own; with no GM the roll is
+ * `Roll`, which the GM throws itself since C17, monocub.mjs `meddleOnGm`) are not drawn; a GM's
+ * own roll is its own; with no GM the roll is
  * thrown here, as in 1.2.66, until C18 makes an action wait. What the roll adds up to beyond its dice - the
  * statistic, the experiences, the advantage - is the roller's configuration, which
  * the GM holds against what it expects (C12b, "WHAT THE GM EXPECTS" below); the dice
@@ -780,4 +781,32 @@ export function drawnRecordOf(message) {
     if (!message?.getFlag?.(MODULE_ID, "drawn")) return null;
     const row = rollRecord(message.getFlag(MODULE_ID, "rollId"));
     return row && row.messageId === message.id ? row : null;
+}
+
+/*
+ * A REROLL WRITES THE RECORD'S NEXT VERSION (E08+E28 C17, 04.10.2026; the plan's 3.6). The
+ * Reroll is made on a GM (reroll.mjs `makeReroll`) and rewrites the roll's message in place:
+ * the message keeps its id and the record its key, and until C17 the record kept the dice of
+ * the draw while the message showed the Reroll's. Once a Reroll stands, the record takes the
+ * new roll's dice, total and duality, and what it held goes on its `versions`, oldest first:
+ * the draw itself stays `versions[0]` for as long as the record lives (D2), each later
+ * Reroll's roll after it, each with the time it was thrown. A packet that names the roll from
+ * then on - a theft from the stash a rerolled Search found - is read on the roll that stands.
+ * The record's `at` stays the draw's: the Reroll's reach is counted from the first throw. A
+ * roll the GM did not draw has no record, and nothing is written; answers whether one was.
+ */
+const VERSIONED = Object.freeze(["dice", "total", "hope", "fear", "isCritical", "withHope", "withFear"]);
+
+export async function keepRerolledVersion(message, roll) {
+    const record = drawnRecordOf(message);
+    if (!record || !roll) return false;
+    const previous = Object.fromEntries(VERSIONED.map(field => [field, foundry.utils.deepClone(record[field] ?? null)]));
+    previous.at = record.rerolledAt ?? record.at ?? null;
+    await rollStore.patch(record.rollId, {
+        dice: Array.isArray(roll.dice) ? roll.dice.map(die => ({ faces: die.faces, results: die.results.map(r => ({ result: r.result, active: r.active !== false })) })) : [],
+        total: roll.total, hope: roll.dHope?.total ?? null, fear: roll.dFear?.total ?? null,
+        isCritical: Boolean(roll.isCritical), withHope: Boolean(roll.withHope), withFear: Boolean(roll.withFear),
+        versions: [...(Array.isArray(record.versions) ? record.versions : []), previous], rerolledAt: Date.now()
+    });
+    return true;
 }

@@ -204,11 +204,42 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ ...blow, later: blowLater }));
     check("SECURITY: the GM refused the forged murder.crisis for ownership, and told p1",
         blow.forOwnership && blow.told.some(t => t.what === "murder.crisis"), JSON.stringify({ reasons: blow.reasons, told: blow.told }));
-    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: 99, isCritical: false, withHope: true }); return true;`);
+    /* SCORED ON THE RECORD (E08+E28 C17, 04.10.2026; audit S10-06). The same blow from Botan's own
+       player was the control, and killed on the 99 its packet said. A crisis action is scored on
+       the GMs' record of the roll its packet names now (bridge-guards.mjs `rollRefusal`), and one
+       that names none is refused (`guardCrisisRoll`). At Botan's turn his player sends the blow
+       saying 99 and naming no roll - refused, nobody dies; then saying 99 and naming Botan's
+       crisis roll the GM drew on 2 and 1 - not refused, scored on the record, nobody dies, and the
+       GM's console says the packet's 99 lost. At Botan's turn again, the control: the blow saying
+       0 and naming a roll the GM drew on 6 and 6, a critical, which kills. Red at C16's runtime:
+       the first blow kills. */
+    const crisisSaid = () => gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        return { reasons: U.sessionFailures().filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message),
+            said: U.sessionFailures().filter(e => e.message.includes("said total 99; the GMs' record of its roll says")).map(e => e.message) };`);
+    const blowFrom = (total, rollId) => p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: ${total}, isCritical: false, withHope: true, rollId: ${JSON.stringify(rollId)} });`,
+        { timeout: 60000 });
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const unnamed = { answer: await blowFrom(99, null) };
+    await settle(1200);
+    Object.assign(unnamed, await gm.eval(readCrisis), await crisisSaid());
+    const lowRoll = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 2, fear: 1 });
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const onRecord = { answer: await blowFrom(99, lowRoll.messageId) };
+    await settle(2200);
+    Object.assign(onRecord, await gm.eval(readCrisis), await crisisSaid());
+    check("SECURITY: a finishing blow from Botan's own player saying 99 is refused without its roll, and scored on the GMs' record of the roll it names - nobody dies",
+        unnamed.answer?.ok === false && unnamed.answer?.reason === "rollUnknown" && unnamed.dead === false
+            && Boolean(lowRoll.messageId) && onRecord.answer?.ok === true && onRecord.dead === false && !onRecord.reasons.length && onRecord.said.length > 0,
+        JSON.stringify({ unnamed, lowRoll, onRecord }), { flow: "murder-incident" });
+    await toSide("killer");
+    await settle(500);
+    const critRoll = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 6, fear: 6 });
+    const critAnswer = await blowFrom(0, critRoll.messageId);
     await settle(2200);
     const blowOk = await gm.eval(readCrisis);
-    check("control: the same finishing blow from Botan's own player does kill", blowOk.dead === true, JSON.stringify(blowOk));
+    check("control: a finishing blow from Botan's own player saying 0, naming a critical the GM drew, does kill",
+        Boolean(critRoll.messageId) && critAnswer?.ok === true && blowOk.dead === true, JSON.stringify({ critRoll, critAnswer, blowOk }), { flow: "murder-incident" });
 
     /* A BLOW THAT KILLED IS NOT TAKEN BACK (E32+E07 C8b, 28.09.2026; AUDIT-1.2.42 section 9,
        the owner's answer (A)). Botan's own player sends the undo of the blow that just killed -

@@ -579,6 +579,17 @@ async function makeReroll(actor, sender) {
     }
 
     await markReplacedCard(row, before, after);
+    /* THE GMS' RECORD OF A DRAWN ROLL TAKES THE REROLL AS ITS NEXT VERSION (E08+E28 C17; the
+       plan's 3.6; roll-draw.mjs `keepRerolledVersion`), once the Reroll stands: one that is given
+       back has put the first rolls back, and the record never left them. A Reroll cut short in
+       its replay (`recoverRerollJournal`, `replaying`) leaves the record on the first roll while
+       the message holds the new one - the GMs are told to settle that one by hand. */
+    try {
+        const { keepRerolledVersion } = await import("./roll-draw.mjs");
+        await keepRerolledVersion(message, rerolled);
+    } catch (err) {
+        error("Could not write the Reroll's roll on the GMs' record of the roll", err);
+    }
     try {
         await keepRerolledRow(actor, row, patch, after, message);
     } catch (err) {

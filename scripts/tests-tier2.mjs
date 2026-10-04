@@ -575,8 +575,10 @@ async function neutralRoll(who, { remember = false, faces = null, title = null, 
  * any other packet of theirs against a table (the bridge's unless named); `sent` keeps what the
  * runner would have sent back, `row` reads the character's row, and `putBack` deletes the
  * message and drops the row. The packet crossing the socket is 33-bridge-paths' and 30-security's.
+ * `record` (E08+E28 C17) gives the roll the GMs' record of it as `player`'s (`recordFor`), with
+ * those numbers: a crisis action's packet is scored on it, and `putBack` drops it.
  */
-async function playerRollBookmark(player, actor, actionKey, context = {}) {
+async function playerRollBookmark(player, actor, actionKey, context = {}, { record = null } = {}) {
     const G = await import("./bridge-guards.mjs");
     const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
     const S = await import("./gm-stores.mjs");
@@ -587,9 +589,11 @@ async function playerRollBookmark(player, actor, actionKey, context = {}) {
     const ask = (packet, { from = player.id, table = BRIDGE_ACTIONS } = {}) => G.judge(table, packet, from,
         { send: (to, reply) => sent.push([reply?.action ?? null, reply?.reason ?? null]) });
     const verdict = await ask({ action: "roll.bookmark", actorId: actor.id, messageId: message.id, actionKey, trait: "eye", experiences: [], context });
+    const kept = record ? await recordFor(message, player, actor, actionKey, record) : null;
     return { message, verdict, sent, ask,
         row: () => S.rerollBookmarkStore?.get(actor.id) ?? null,
         putBack: async () => {
+            await kept?.putBack();
             await game.messages.get(message.id)?.delete();
             if (S.rerollBookmarkStore?.has(actor.id)) await S.rerollBookmarkStore.drop(actor.id);
         } };
@@ -671,7 +675,7 @@ function playerAndCharacters() {
  * hold itself. `kept` is whether the row of this roll exists now (read before `letGo`, it must not,
  * or the test measured nothing); `letGo` releases the run and answers its verdict.
  */
-async function heldRollBookmark(player, actor, actionKey, context = {}) {
+async function heldRollBookmark(player, actor, actionKey, context = {}, { record = null } = {}) {
     const G = await import("./bridge-guards.mjs");
     const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
     const { rerollBookmarkStore: store } = await import("./gm-stores.mjs");
@@ -696,6 +700,8 @@ async function heldRollBookmark(player, actor, actionKey, context = {}) {
     await until(() => held);
     if (!held) unhold();
     must(held, "the roll's bookmark never reached the store - this would measure nothing");
+    // The GMs' record of the roll, as `playerRollBookmark`'s `record` (E08+E28 C17).
+    const kept = record ? await recordFor(message, player, actor, actionKey, record) : null;
     return { message,
         kept: () => store.get(actor.id)?.messageId === message.id,
         row: () => store.get(actor.id) ?? null,
@@ -703,6 +709,7 @@ async function heldRollBookmark(player, actor, actionKey, context = {}) {
         putBack: async () => {
             unhold();
             await run.catch(() => {});
+            await kept?.putBack();
             await game.messages.get(message.id)?.delete();
             if (store.has(actor.id)) await store.drop(actor.id);
         } };
@@ -1000,7 +1007,7 @@ async function useItemRerolled(next, { tier = 1 } = {}) {
         const [pack] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C6b pack", type: "loot", system: { quantity: 2 },
             flags: { [MODULE_ID]: { [ITEM_FLAGS.category]: "usable", [ITEM_FLAGS.tier]: tier, ...(tier === 3 ? {} : { [ITEM_FLAGS.kind]: "healing" }) } } }]);
         await killer.update({ "system.resources.hitPoints.value": tier === 3 ? 3 : 2 });
-        F = await playerRollBookmark(player, killer, "crisis");
+        F = await playerRollBookmark(player, killer, "crisis", {}, { record: { total: 20 } });
         const before = { hp: tier === 3 ? 3 : 2, stress: killer.system.resources.stress.value, qty: 2 };
         if (tier === 3) {
             before.hope = max - 2;
@@ -2213,9 +2220,14 @@ const SCENARIOS = [
             player.id, { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null, packet?.value ?? null]) });
         const logged = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "murder.crisis"')
             && String(e.message).includes("an undo is the GM's own Reroll's")).length;
+        let roll = null, kept = null;
         try {
             await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
-            await ask("suite-c8b-blow", { total: 99, isCritical: false, withHope: true });
+            // The blow names its roll, which the GMs' record says came to 99 (E08+E28 C17).
+            ({ message: roll } = await neutralRoll(killer));
+            must(roll, `no roll of ${killer.name} was thrown - this would measure nothing`);
+            kept = await recordFor(roll, player, killer, "crisis", { total: 99 });
+            await ask("suite-c8b-blow", { total: 99, isCritical: false, withHope: true, rollId: roll.id });
             await settle();
             const blow = sent.splice(0);
             must(isDeadForGm(victim) && M.murderState()?.stage === "resolution", `the player's blow did not kill: ${stableJson([blow, M.murderState()?.stage])}`);
@@ -2231,6 +2243,8 @@ const SCENARIOS = [
             stableJson([[["bridge.ack", null, null], ["bridge.done", null, { lethal: true }]], [["bridge.refused", "undoIsTheGms", null]], 1, null, true, "resolution", true]),
             "the undo of the blow that killed was let through, refused for another reason, or moved something (the blow's packets, the undo's, the GM's log, the GM's own undo, victim dead, stage, receipt kept)");
         } finally {
+            await kept?.putBack();
+            if (roll) await game.messages.get(roll.id)?.delete();
             await putBack();
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
         }
@@ -5283,7 +5297,7 @@ const SCENARIOS = [
         const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
         let H = null;
         try {
-            H = await heldRollBookmark(player, killer, "crisis");
+            H = await heldRollBookmark(player, killer, "crisis", {}, { record: { total: 24, isCritical: true } });
             const struck = await G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId: "suite-r1g2-strike", actorId: killer.id,
                 key: "strike", total: 24, isCritical: true, withHope: true, choice: "stress", rollId: H.message.id }, player.id, { send: () => {} });
             const rowFirst = H.kept();
@@ -5989,6 +6003,290 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Finishing blow with a forged total 99 is scored on its record", async () => {
+        /*
+         * E08+E28 C17, 04.10.2026; audit S10-06; the plan's 3.5. A crisis action was scored on the
+         * GM's client against the total, the critical and the duality its packet carried. It is
+         * read off the GMs' record of the roll its packet names now (bridge-guards.mjs
+         * `rollRefusal`), as an Observe's is since C14. At the killer's turn (`swingFixture`), the
+         * victim one Health from the end, the killer's player sends a Finishing blow saying 99,
+         * naming a roll the record says came to 3; then, the turn back, the same blow naming that
+         * roll again; then one saying 0, naming a roll the record says came to 99. Read: the codes
+         * each was refused with, whether the victim was dead after each, and the GM's line saying
+         * the packet's 99 lost to 3. Red at C16's runtime: the first blow kills.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { M, killer, victim, putBack } = await swingFixture();
+        const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+        const backs = [];
+        const rolled = async (total) => {
+            const { message } = await neutralRoll(killer);
+            must(message, `no roll of ${killer.name} was thrown - this would measure nothing`);
+            backs.push(async () => game.messages.get(message.id)?.delete());
+            backs.push((await recordFor(message, player, killer, "crisis", { total })).putBack);
+            return message;
+        };
+        const blow = async (requestId, total, rollId) => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId, actorId: killer.id, key: "finishingBlow", total, isCritical: false,
+                withHope: true, rollId }, player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await settle();
+            return [told, isDeadForGm(victim)];
+        };
+        const watch = watchLog();
+        try {
+            await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
+            const three = await rolled(3);
+            const forged = await blow("suite-c17-forged", 99, three.id);
+            const logged = watch.count("said total 99; the GMs' record of its roll says 3,");
+            for (let i = 0; i < 4 && M.murderState()?.stage === "incident" && !M.isTheirTurn(killer); i++) await M.passTurn();
+            const again = await blow("suite-c17-again", 99, three.id);
+            const ninetyNine = await rolled(99);
+            const landed = await blow("suite-c17-record", 0, ninetyNine.id);
+            equal(stableJson([forged, logged, again, landed, M.murderState()?.stage ?? null]),
+                stableJson([[[], false], 1, [["rollUsed"], false], [[], true], "resolution"]),
+                "a Finishing blow was scored on its packet's total, or a roll settled two, or the record's 99 did not kill (codes and dead after the forged 99, the GM's line, the same roll again, the record's 99; stage)");
+        } finally {
+            watch.stop();
+            for (const back of backs.reverse()) await back();
+            await putBack();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["a player's crisis action that names no roll is refused, unless it throws none", async () => {
+        /*
+         * E08+E28 C17, 04.10.2026; audit S10-06. Two packets of a crisis action throw no dice and
+         * name no roll: a third party's decision and a free take a critical Self-defence bought.
+         * Every other one has to name its roll (bridge-guards.mjs `guardCrisisRoll`), and what
+         * passes with none is scored on no dice (gm-bridge.mjs `handleCrisis`). At the killer's
+         * turn (`swingFixture`), the victim one Health from the end, the killer's player sends a
+         * Finishing blow saying 99 and naming no roll; then the same claiming a free take, which
+         * nobody granted the killer. Read: the codes, whether the victim died, and the action the
+         * incident's receipt names. Red at C16's runtime: the first blow kills.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { M, killer, victim, putBack } = await swingFixture();
+        const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
+        const blow = async (requestId, fields) => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId, actorId: killer.id, key: "finishingBlow", total: 99, isCritical: true,
+                withHope: true, ...fields }, player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await settle();
+            return [told, isDeadForGm(victim)];
+        };
+        try {
+            await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
+            must(!M.freeResolutionFor(M.sideOf(killer)), "the killer holds a free take - the second packet would measure the grant, not the dice");
+            const named = await blow("suite-c17-unnamed", {});
+            const free = await blow("suite-c17-free", { free: true });
+            equal(stableJson([named, free, M.murderState()?.lastCrisis?.key ?? null]),
+                stableJson([[["rollUnknown"], false], [[], false], "finishingBlow"]),
+                "a blow naming no roll was scored, or a free take nobody granted was scored on its packet's dice (codes and dead after each, the receipt's action)");
+        } finally {
+            await putBack();
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+        }
+    }],
+
+    ["an opening roll is scored on its record", async () => {
+        /*
+         * E08+E28 C17, 04.10.2026; audit S10-06. The opening a participant throws on their own
+         * browser reached the GM as a total, a critical and a duality (`murder.openingResult`),
+         * and the GM opened the incident on them. A player's packet names the roll now, the
+         * message the GM wrote for it (murder.mjs `throwOpeningRoll`), and is scored on its
+         * record. A direct murder between two students with players, its invitation swallowed
+         * (`heldInvitations`) so the killer's own browser throws nothing; the killer's player
+         * sends a 1 naming a Search's roll, then a 1 naming an opening's roll the record says came
+         * to 24. Read: the codes, the stage after each, and the GM's line saying the packet's 1
+         * lost to 24. Red at C16's runtime: the first 1 is scored, and the opening fails.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(owner);
+        const player = owner(killer);
+        const backs = [];
+        const rolled = async (actionKey, total) => {
+            const { message } = await neutralRoll(killer);
+            must(message, `no roll of ${killer.name} was thrown - this would measure nothing`);
+            backs.push(async () => game.messages.get(message.id)?.delete());
+            backs.push((await recordFor(message, player, killer, actionKey, { total })).putBack);
+            return message;
+        };
+        const send = async (requestId, rollId) => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "murder.openingResult", requestId, actorId: killer.id, side: "killer", total: 1, isCritical: false,
+                withHope: false, rollId }, player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            await settle();
+            return [told, M.murderState()?.stage ?? null];
+        };
+        const watch = watchLog();
+        try {
+            await heldInvitations(() => M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" }));
+            must(M.murderState()?.stage === "openingRoll", `the incident is not waiting on its opening: ${stableJson(M.murderState()?.stage ?? null)}`);
+            const search = await rolled("search", 24);
+            const other = await send("suite-c17-other", search.id);
+            const opening = await rolled("murderOpening", 24);
+            const scored = await send("suite-c17-opening", opening.id);
+            equal(stableJson([other, scored, watch.count("said total 1; the GMs' record of its roll says 24,")]),
+                stableJson([[["rollOtherAction"], "openingRoll"], [[], "incident"], 1]),
+                "an opening was scored on another action's roll, or on its packet's total (code and stage after a Search's roll, after the opening's; the GM's line)");
+        } finally {
+            watch.stop();
+            for (const back of backs.reverse()) await back();
+        }
+    }],
+
+    ["Stage 6's clean-ups each name a clean-up's roll", async () => {
+        /*
+         * E08+E28 C17, 04.10.2026; audit S10-06. Stage 6's four actions - the two that aim at a
+         * trace and the two that roll against a flat threshold - were scored on the packet's total.
+         * Each names its roll now and is read off its record (`murder.cleanup`'s `rolled`), so a
+         * packet naming none, or a roll of another action, is refused before any of Stage 6's own
+         * questions is asked. A player's own character: a misleading trail naming no roll, and an
+         * erase naming a Search's roll. Read: the two codes. Red at C16's runtime: neither is refused
+         * for its roll.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { player, theirs: actor } = playerAndCharacters();
+        const { message } = await neutralRoll(actor);
+        must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+        const kept = await recordFor(message, player, actor, "search", { total: 30 });
+        const send = async (requestId, fields) => {
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "murder.cleanup", requestId, actorId: actor.id, total: 30, isCritical: false, withHope: true, ...fields },
+                player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            return told;
+        };
+        try {
+            const trail = await send("suite-c17-trail", { key: "misleadingTrail" });
+            const erase = await send("suite-c17-erase", { key: "eraseTrace", tokenId: "SUITEC17NOTOKEN0", rollId: message.id });
+            equal(stableJson([trail, erase]), stableJson([["rollUnknown"], ["rollOtherAction"]]),
+                "a clean-up naming no roll, or another action's, was not refused for its roll (misleading trail, erase)");
+        } finally {
+            await kept.putBack();
+            await game.messages.get(message.id)?.delete();
+        }
+    }],
+
+    ["a Meddle is thrown on the GM, whatever its packet says", async () => {
+        /*
+         * E08+E28 C17, 04.10.2026; audit S10-06. A Monocub's browser threw the Meddle's flat 2d12
+         * and sent the GM its total and its critical, which the GM armed on the target as said. The
+         * GM throws the dice itself now (monocub.mjs `meddleOnGm`) and answers the roll, which the
+         * Monocub's card shows; the packet carries no result. A Monocub and its target, each with a
+         * player, alone in a room; the Monocub's player sends a Hinder saying a critical 99, and
+         * the GM's dice are scripted to a 1 and a 2 (`CONFIG.Dice.randomUniform`, as a die maps it).
+         * Read: the codes, the answer's total and critical and its roll's total, whether a
+         * Confusion was armed on the target, and the actions it lost - a critical Hinder arms
+         * nothing and wastes one (`resolveMeddle`), so a Confusion alone could not see the packet's
+         * critical read (A2 of C17, 04.10.2026: the mutant scoring the packet's critical 99
+         * survived on the Confusion alone). Red at C16's runtime: the critical wastes an action, and
+         * the answer holds no roll.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and its target, each with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub, target] = livingStudents().filter(player);
+        const { back } = await aloneTogether(cub, target);
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const armedBefore = pendingCalls(target).filter(entry => entry.key === "meddle").length;
+        const actionsWere = target.system.resources.actions.value;
+        const real = CONFIG.Dice.randomUniform;
+        const script = [1, 2].map(face => 1 - (face - 0.5) / 12);
+        const told = [];
+        let answer = null, armed = null, wasted = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            // An action to lose: a waste on a sheet with none left changes nothing (`wasteAction`).
+            await target.update({ "system.resources.actions.value": Math.max(1, actionsWere ?? 0) });
+            await settle();
+            CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.meddle", requestId: "suite-c17-meddle", actorId: cub.id, targetId: target.id, help: false,
+                total: 99, isCritical: true }, player(cub).id, { send: (to, reply) => {
+                if (reply?.action === "bridge.refused") told.push(reply.reason);
+                if (reply?.action === "bridge.done") answer = reply.value ?? null;
+            } });
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            armed = pendingCalls(target).filter(entry => entry.key === "meddle").length - armedBefore;
+            wasted = Math.max(1, actionsWere ?? 0) - target.system.resources.actions.value;
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            await target.update({ "system.resources.actions.value": actionsWere });
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            await back();
+        }
+        equal(stableJson([told, answer?.total ?? null, answer?.isCritical ?? null, (answer?.roll ? Roll.fromData(answer.roll).total : null), armed, wasted]),
+            stableJson([[], 3, false, 3, 0, 0]),
+            "the Meddle was scored on its packet, or the GM's answer did not carry the roll it threw (codes, the answer's total and critical, its roll's total, Confusions armed, the target's actions lost)");
+    }],
+
+    ["a Reroll keeps the first version on the record", async () => {
+        /*
+         * E08+E28 C17, 04.10.2026; the plan's 3.6. The Reroll is made on a GM and rewrites the roll's
+         * message in place, and the GMs' record of a drawn roll kept the draw's dice and total while
+         * the message showed the Reroll's. It takes the Reroll's now, and keeps what it held on its
+         * `versions`, the draw first (roll-draw.mjs `keepRerolledVersion`). A student's roll, kept
+         * on the GMs' bookmark (`thrownFresh`), made a drawn one by its flags and a record of 13 on
+         * a 9 and a 4; a Reroll that cannot be thrown (given back), then two that stand - into a 2
+         * and a 10, then a 7 and a 7. Read: whether the first was refused and left the record as it
+         * was, and after each that stood whether it did, the record's total, its duality and the
+         * totals of its versions, and the first version's Hope die. Red at C16's runtime: the
+         * record keeps 13 and no versions.
+         */
+        const [who] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { rollStore, rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const first = { hope: 9, fear: 4 };
+        let message = null, kept = null;
+        try {
+            message = await thrownFresh(who, first, () => null, { remember: true });
+            must(rerollBookmarkStore.get(who.id)?.messageId === message.id, "the roll to take back is not the one the GMs keep - this would measure nothing");
+            kept = await recordFor(message, game.user, who, null, { total: 13 });
+            await rollStore.patch(kept.rollId, { trait: "eye", experiences: [], dice: [], hope: 9, fear: 4, withFear: false, versions: [] });
+            await message.update({ [`flags.${MODULE_ID}.drawn`]: true, [`flags.${MODULE_ID}.rollId`]: kept.rollId });
+            const drew = stableJson(rollStore.get(kept.rollId));
+            await who.update({ "system.resources.hope.value": 3 });
+            const stand = rerollableRoll(message, { first, next: { hope: 2, fear: 10 }, onReroll: () => { throw new Error("SUITE C17 a Reroll that cannot be thrown"); } });
+            let refused;
+            try { refused = await R.rerollOnGm(who, game.user); } finally { stand.putBack(); }
+            await settle();
+            const untouched = stableJson(rollStore.get(kept.rollId)) === drew;
+            const read = out => { const row = rollStore.get(kept.rollId) ?? {};
+                return [Array.isArray(out?.lines), row.total ?? null, [row.withHope, row.withFear, row.isCritical], (row.versions ?? []).map(v => v.total)]; };
+            await who.update({ "system.resources.hope.value": 3 });
+            const once = read((await rerollAgain(who, message, first, { hope: 2, fear: 10 })).out);
+            await who.update({ "system.resources.hope.value": 3 });
+            const twice = read((await rerollAgain(who, message, { hope: 2, fear: 10 }, { hope: 7, fear: 7 })).out);
+            equal(stableJson([Boolean(refused?.refused), untouched, once, twice, rollStore.get(kept.rollId)?.versions?.[0]?.hope ?? null]),
+                stableJson([true, true, [true, 12, [false, true, false], [13]], [true, 14, [false, false, true], [13, 12]], 9]),
+                "a Reroll given back moved the record, or one that stood did not write its roll on it, or lost the draw's version (given back, record unmoved; each: stood, total, duality, versions' totals; the first version's Hope die)");
+        } finally {
+            await kept?.putBack();
+            if (message) await game.messages.get(message.id)?.delete();
+        }
+    }],
+
     ["a Reroll of a crisis roll whose row holds no crisis action is refused before the Hope is paid", async () => {
         /*
          * E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1. A crisis row without its fact - an
@@ -6524,7 +6822,7 @@ const SCENARIOS = [
         let F = null;
         try {
             const [item] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C2 bandage", type: "loot", system: { quantity: 2 } }]);
-            F = await playerRollBookmark(player, killer, "crisis");
+            F = await playerRollBookmark(player, killer, "crisis", {}, { record: { total: 20 } });
             const used = await F.ask({ action: "murder.crisis", requestId: "suite-e08c2-use", actorId: killer.id, key: "useItem",
                 total: 20, isCritical: false, withHope: true, usedItemId: item.id, before: { hp: 5, stress: "2", qty: 2, extra: 9 }, rollId: F.message.id });
             const facts = F.row()?.facts ?? {};
@@ -6556,7 +6854,7 @@ const SCENARIOS = [
         const marks = () => [victim.system.resources.hitPoints.value, victim.system.resources.stress.value];
         let F = null;
         try {
-            F = await playerRollBookmark(player, killer, "crisis");
+            F = await playerRollBookmark(player, killer, "crisis", {}, { record: { total: 24, isCritical: true } });
             const before = marks();
             const struck = await F.ask({ action: "murder.crisis", requestId: "suite-e08c6b-strike", actorId: killer.id, key: "strike",
                 total: 24, isCritical: true, withHope: true, choice: "stress", rollId: F.message.id });

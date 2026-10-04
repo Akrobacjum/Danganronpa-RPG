@@ -2099,11 +2099,14 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     await breakOnDespair(actor, tool, roll);
 
     const { requestCleanup } = await import("./gm-bridge.mjs");
+    const { rollInHand } = await import("./action-rolls.mjs");
     await requestCleanup({
         actorId: actor.id,
         tokenId: null,
         key,
         targetId,
+        // The roll the GM scores it on, as the two that aim at a trace name theirs (E08+E28 C17).
+        rollId: rollInHand(actor)?.messageId ?? null,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope),

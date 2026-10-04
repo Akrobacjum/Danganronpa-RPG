@@ -697,15 +697,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
         const hope = aiko.system.resources.hope.value;
         await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, hope) });
+        const drawn = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(m);
         return { messageId: m?.id ?? null, usedItemId: row?.facts?.usedItemId ?? null, before: row?.facts?.before ?? null, hope, hp: aiko.system.resources.hitPoints.value,
-            qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0) };`, { timeout: 60000 });
+            qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0), drawn: drawn ? { total: drawn.total, versions: (drawn.versions ?? []).length } : null };`, { timeout: 60000 });
     const reusedAsked = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
         return Boolean(await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll"));`, { timeout: 60000 });
     await settle(1200);
     const KIT_READ = `const aiko = game.actors.get("${ids.aiko}"), kit = aiko.items.get("${handed.kit}");
         return { hp: aiko.system.resources.hitPoints.value, qty: Number(kit?.system?.quantity ?? 0), broken: kit?.getFlag("${MOD}", "broken") === true };`;
     const reused = { p1: await p1.eval(KIT_READ), gm: await gm.eval(KIT_READ),
-        receipt: await gm.eval(`return (await import("${repoUrl}/scripts/murder.mjs")).murderState()?.lastCrisis?.usedItemId ?? null;`) };
+        receipt: await gm.eval(`return (await import("${repoUrl}/scripts/murder.mjs")).murderState()?.lastCrisis?.usedItemId ?? null;`),
+        drawn: await gm.eval(`const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(reuse.messageId)}));
+            return r ? { total: r.total, withHope: r.withHope, versions: (r.versions ?? []).map(v => v.total) } : null;`) };
     await gm.eval(`const m = game.messages.get(${JSON.stringify(reuse.messageId)}); if (m) delete m.rolls;
         const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
         await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(reuse.hope) || 0}, "system.resources.hitPoints.value": ${Number(handed.hpWas) || 0} });
@@ -714,6 +717,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         reusedAsked === true && Boolean(reuse.messageId) && reuse.usedItemId === handed.kit && reuse.qty === 1
         && [reused.gm, reused.p1].every(r => r.hp === reuse.hp + 1 && r.qty === 2 && r.broken === false) && reused.receipt === null,
         JSON.stringify({ handed, reuse, reusedAsked, reused }), { flow: "reroll" });
+    /* THE REROLL ON THE GMS' RECORD (E08+E28 C17, 04.10.2026; the plan's 3.6). Aiko's Use an item
+       was drawn by the GM, whose record kept the draw's total while the Reroll rewrote the message:
+       it takes the Reroll's 4 and 2 now, and keeps the draw as its first version (roll-draw.mjs
+       `keepRerolledVersion`). Read on the GM before and after the Reroll above. Red at C16's runtime:
+       the record keeps the draw's total and no version. */
+    check("reroll: the GMs' record of the victim's drawn Use an item holds the Reroll's 6 and keeps the draw as its first version",
+        reusedAsked === true && reuse.drawn?.versions === 0 && Number.isFinite(reuse.drawn?.total) && reused.drawn?.total === 6 && reused.drawn.withHope === true
+            && JSON.stringify(reused.drawn.versions) === JSON.stringify([reuse.drawn.total]),
+        JSON.stringify({ before: reuse.drawn, after: reused.drawn }), { flow: "reroll" });
     await gm.eval(`for (const [a, i] of [["${ids.aiko}", "${handed.kit}"], ["${ids.botan}", "${handed.drink}"], ["${ids.botan}", "${handed.tool}"]]) await game.actors.get(a).items.get(i)?.delete();
         await game.actors.get("${ids.chie}").unsetFlag("${MOD}", "pendingCall"); return true;`, { timeout: 60000 });
     check("fight: the victim's Use an item and a Support bought for the killer are carded veiled - their words to their player alone, and no browser holds a document of theirs, or of the rest the action brought, naming a student or a player",

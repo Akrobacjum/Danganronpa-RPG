@@ -97,8 +97,10 @@ export const FLOWS = Object.freeze([
     // E08+E28 C12a (04.10.2026): a player's action roll is drawn on the primary GM (`roll.draw`,
     // roll-draw.mjs). 40-flow draws a Search and a Project on p1's browser and reads the GM's message
     // and record; 30-security sends a forged draw. Partial: the resolutions read the record from C14 on.
+    // Covered from C17 (04.10.2026): every resolution that takes a roll's result reads it off the record (R218's
+    // list is empty), and 30 and 40 drive a player's drawn roll and a console's packet that names one.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
-        entry: { bridge: ["roll.draw"] }, scenarios: ["40-flow", "30-security"], status: "partial", stage: "E28" },
+        entry: { bridge: ["roll.draw"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "1.2.67" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
         entry: { bridge: ["call.approve"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
@@ -109,14 +111,17 @@ export const FLOWS = Object.freeze([
         entry: { sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
     // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
     // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
-    // not the Monocub's own ask.
+    // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice (monocub.mjs `meddleOnGm`); tier 2
+    // judges a Monocub's packet, and no scenario drives the Monocub's ask yet.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
         entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow"], status: "partial", stage: "E45" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening
     // on the GM's browser (grep of the scenarios that day). Still partial, moved to E33, which tests the incident
-    // again after E28.
+    // again after E28. E08+E28 C17 (04.10.2026): the opening, the crisis actions and Stage 6 are scored on the GMs' record
+    // of the roll they name; 30 sends Botan's player's finishing blow on its record, 10 Chie's player's clean-up and its
+    // Reroll, and a player's opening is judged in tier 2 alone.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case"], suite: ["tests-grid.mjs"],

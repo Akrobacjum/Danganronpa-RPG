@@ -6234,7 +6234,11 @@ export async function throwOpeningRoll(side, actorId, trait = null) {
         side,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
-        withHope: Boolean(roll.withHope)
+        withHope: Boolean(roll.withHope),
+        // The message the GM wrote for the roll it drew, whose record it scores the opening on
+        // (E08+E28 C17). Not remembered for a Reroll, so read off the roll itself, as a Palm's
+        // unseen roll is (action-rolls.mjs `performPalm`).
+        rollId: roll.raw?.message?.id ?? roll.raw?.message?._id ?? null
     });
     // Read here and not handed on (E31): a GM's own client answers what it
     // resolved, a player's that the GM has it.

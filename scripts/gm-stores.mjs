@@ -870,10 +870,12 @@ export const cleanupAttemptStore = defineGmStore({
  * `claimed`, `formula`, `trait` and `experiences` (as the roll was thrown with them, which a
  * Reroll rebuilds it from), `dice` (`faces` and each result), `total`, `hope`, `fear`, `isCritical`,
  * `withHope`, `withFear`, `modifiers`, then `expected`, `flags` and `used` (C12b: what the GM
- * expected, what differed, the Calls it spent, the stash's step it drew, the Loaded Die), and
- * `versions` for the resolutions that read it, and `at`. Written by the primary GM as it draws
- * a player's roll (roll-draw.mjs `drawOnGm`), and read by the guard that ties a drawn message to
- * its roller (bridge-guards.mjs `guardRollAuthor`). Synced between the GMs and not backed up: a
+ * expected, what differed, the Calls it spent, the stash's step it drew, the Loaded Die),
+ * `resolved` (the actions it has settled, C14), `versions` (the dice and numbers each Reroll
+ * replaced, the draw's first, and `rerolledAt`, C17: roll-draw.mjs `keepRerolledVersion`), and
+ * `at`. Written by the primary GM as it draws a player's roll (roll-draw.mjs `drawOnGm`), and by
+ * the GM a Reroll of it is made on; read by the guard that ties a drawn message to its roller
+ * (bridge-guards.mjs `guardRollAuthor`) and by the resolutions that take its result (`rollRefusal`). Synced between the GMs and not backed up: a
  * row is worth a roll's resolution and its Reroll, minutes long, and is swept past
  * `TIMING.rerollWindowMinutes` as the next is written. Cut by the reset's "actions" group,
  * beside the bookmark. Its `exists` answers no for every key: a row's key is a roll, which is no

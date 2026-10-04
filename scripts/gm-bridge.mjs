@@ -18,7 +18,7 @@ import {
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, error, cardHead, esc } from "./utils.mjs";
 import {
-    firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardShareSecret,
+    firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll, guardShareSecret,
     guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
@@ -226,9 +226,12 @@ export function cancelOpeningRoll({ userId }) {
     return true;
 }
 
-/** Send a thrown opening roll to the GM, who owns Stage 4's state. */
-export function requestOpeningResult({ actorId, side, total, isCritical, withHope }) {
-    return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope }, {
+/**
+ * Send a thrown opening roll to the GM, who owns Stage 4's state. A player's names its roll
+ * (`rollId`, the message the GM wrote for it), whose record the GM scores it on (E08+E28 C17).
+ */
+export function requestOpeningResult({ actorId, side, total, isCritical, withHope, rollId = null }) {
+    return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope, rollId }, {
         local: () => import("./murder.mjs").then(m => m.resolveOpening({ actorId, side, total, isCritical, withHope }))
     });
 }
@@ -588,12 +591,16 @@ async function handleOpeningResult(payload, sender, ctx) {
 async function handleCrisis(payload, sender, ctx, prepared) {
     const { resolveCrisisAction, freeResolutionFor, sideOf } = prepared;
     const actor = game.actors.get(payload.actorId);
+    // A player's packet that names no roll threw none (`guardCrisisRoll`): a decision or a free
+    // take, scored on no dice - a total of 0, no critical, with Hope - as its asker sends it,
+    // whatever this one says (E08+E28 C17). One that names its roll carries the GMs' record of it.
+    const unrolled = !sender.isGM && !payload.rollId;
     const result = await resolveCrisisAction({
         actorId: payload.actorId,
         key: payload.key,
-        total: payload.total,
-        isCritical: payload.isCritical,
-        withHope: payload.withHope,
+        total: unrolled ? 0 : payload.total,
+        isCritical: unrolled ? false : payload.isCritical,
+        withHope: unrolled ? true : payload.withHope,
         // A Reroll replacing this actor's own last crisis action: a GM's packet
         // alone carries it (`as.gmFlag`, E08+E28 C8).
         undo: payload.undo,
@@ -754,16 +761,11 @@ async function handleCleanup(payload, sender, ctx, prepared) {
 
     // A Meddle writes to the TARGET's sheet, not the Monocub's own - arming a
     // Call is exactly the write a player has no permission to make on somebody
-    // else's actor.
+    // else's actor. Its dice are thrown here since E08+E28 C17 (`meddleOnGm`),
+    // and the roll goes back for the Monocub's card.
 async function handleMeddle(payload, sender, ctx) {
-    const { resolveMeddle } = await import("./monocub.mjs");
-    await resolveMeddle({
-        actorId: payload.actorId,
-        targetId: payload.targetId,
-        help: payload.help,
-        total: payload.total,
-        isCritical: payload.isCritical
-    });
+    const { meddleOnGm } = await import("./monocub.mjs");
+    return { reply: await meddleOnGm({ actorId: payload.actorId, targetId: payload.targetId, help: payload.help }) };
 }
 
 /*
@@ -1474,14 +1476,17 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_OPENING_RESULT]: {
         label: "DRPG.Bridge.what.murder.openingResult",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, side: as.raw, total: as.num, isCritical: as.bool, withHope: as.bool }),
+        sanitize: pick({ actorId: as.id, side: as.raw, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
         run: handleOpeningResult,
         answer: "ack",
-        claims: { side: "compared by resolveOpening (murder.mjs) with the side the incident's own state gives that character" }
+        // The opening's roll, on the GMs' record of it (E08+E28 C17; bridge-guards.mjs `rollRefusal`).
+        rolled: { field: "rollId", actor: "actorId", kind: "murderOpening" },
+        claims: { side: "compared by resolveOpening (murder.mjs) with the side the incident's own state gives that character",
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for that character's opening" }
     },
     [ACTION_CRISIS]: {
         label: "DRPG.Bridge.what.murder.crisis",
-        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character"), guardCrisisAction],
+        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character"), guardCrisisAction, guardCrisisRoll],
         // murder.mjs before the guards, as the handler imported it (the plan's W2).
         prepare: () => import("./murder.mjs"),
         sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, undo: as.gmFlag,
@@ -1490,11 +1495,15 @@ export const BRIDGE_ACTIONS = table({
         // Answered once applied, which can wait on the GM: two killers' victim
         // running out is asked of them (`checkVictimSpent`, murder.mjs).
         answer: "reply",
+        /* A crisis action's roll, on the GMs' record of it (E08+E28 C17). A packet that names
+           none threw none - a third party's decision, a free take - and `guardCrisisRoll`
+           refuses any other; the run scores it on no dice. */
+        rolled: { field: "rollId", actor: "actorId", kind: "crisis", when: "rollId" },
         claims: {
             usedItemId: "narrowed in the run to an item the acting character holds, else null",
             swungId: "narrowed in the run to an item the acting character holds, else null",
             before: "numbers or null by resourcesBefore (murder.mjs): a claim about the sender's own character, kept on the GMs' bookmark",
-            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a crisis action"
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a crisis action"
         }
     },
     [ACTION_PARK_MURDER]: {
@@ -1523,21 +1532,25 @@ export const BRIDGE_ACTIONS = table({
             rollId: as.id }),
         run: handleCleanup,
         answer: "reply",
+        // Each of Stage 6's actions throws a clean-up's roll, read off the GMs' record of it (E08+E28 C17).
+        rolled: { field: "rollId", actor: "actorId", kind: "cleanup" },
         claims: {
             tokenId: "resolveCleanup (cleanup.mjs) finds the trace in the cleaner's room and judges it, or refuses",
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
             price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
             change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
-            rollId: "written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a clean-up"
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a clean-up"
         }
     },
     [ACTION_MEDDLE]: {
         label: "DRPG.Bridge.what.monocub.meddle",
         guards: [knownSender, owns("actorId", "sender does not own that Monocub")],
-        sanitize: pick({ actorId: as.id, targetId: as.id, help: as.bool, total: as.num, isCritical: as.bool }),
+        // No total and no critical: the GM throws the Meddle's dice itself (E08+E28 C17; monocub.mjs `meddleOnGm`).
+        sanitize: pick({ actorId: as.id, targetId: as.id, help: as.bool }),
         run: handleMeddle,
-        answer: "ack",
+        // The roll it threw goes back, for the Monocub's card.
+        answer: "reply",
         claims: { targetId: "judged by resolveMeddle (monocub.mjs): a living student in the Monocub's room" }
     },
     [ACTION_HOPE_CALL]: {
@@ -2482,10 +2495,10 @@ export function requestBetrayal({ actorId, note = "" }) {
     });
 }
 
-/** Hand a thrown Meddle to the GM to be scored and applied to the target. */
-export function requestMeddleResolve({ actorId, targetId, help, total, isCritical }) {
-    return ask(ACTION_MEDDLE, { actorId, targetId, help, total, isCritical }, {
-        local: () => import("./monocub.mjs").then(m => m.resolveMeddle({ actorId, targetId, help, total, isCritical }))
+/** Ask the GM to throw a paid Meddle and apply it to the target; answers the roll it threw (E08+E28 C17). */
+export function requestMeddleResolve({ actorId, targetId, help }) {
+    return ask(ACTION_MEDDLE, { actorId, targetId, help }, {
+        local: () => import("./monocub.mjs").then(m => m.meddleOnGm({ actorId, targetId, help }))
     });
 }
 

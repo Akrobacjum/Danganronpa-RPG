@@ -29,7 +29,7 @@
  * answer (`bridgeRequest`) and the one message when there is none.
  */
 
-import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING } from "./config.mjs";
+import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, TIMING, CRISIS_ACTIONS } from "./config.mjs";
 import { activeGmIds, isPrimaryGm, debug, warn, error, pause } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -441,6 +441,21 @@ export async function guardCrisisAction(sender, payload, ctx) {
     const { crisisRefusal } = await import("./murder.mjs");
     const actor = game.actors.get(payload.actorId);
     return crisisRefusal(actor, payload.key)?.why ?? null;
+}
+
+/*
+ * A CRISIS ACTION THAT NAMES NO ROLL THREW NONE (E08+E28 C17, 04.10.2026; audit S10-06; the
+ * plan's 3.5). A crisis action is scored on the GMs' record of the roll its packet names
+ * (`rolled`), and two kinds of packet throw no dice and name none: a decision of the third
+ * party's (`noRoll`) and a free take a critical Self-defence bought (`free`, a resolution
+ * action's, which the run checks against the incident). Every other one a player sends has
+ * to name its roll, or it is refused here as one naming no roll the GM drew; what passes with
+ * none is scored on no dice (gm-bridge.mjs `handleCrisis`), as its asker sends it.
+ */
+export function guardCrisisRoll(sender, payload, ctx) {
+    if (sender.isGM || payload?.rollId) return null;
+    const def = Object.hasOwn(CRISIS_ACTIONS, payload?.key ?? "") ? CRISIS_ACTIONS[payload.key] : null;
+    return def?.noRoll || (payload?.free && def?.kind === "resolution") ? null : "no roll the GM drew is named";
 }
 
 /*
@@ -1055,6 +1070,11 @@ export function pick(spec) {
  * as well, and holds each of those to what the rules allow (gm-bridge.mjs `progressOf`,
  * `repairOf`). `when` may name the roll's own field: progress that names no roll is a
  * Call's, which the declaration's guards bound instead (`guardCallProgress`).
+ *
+ * THE INCIDENT'S ROLLS (E08+E28 C17, 04.10.2026). An opening, a crisis action and every one of
+ * Stage 6's actions are read off the record of the roll they name, as the rest are; a crisis
+ * packet that names none threw none (`guardCrisisRoll`). A Meddle names no roll: the GM throws
+ * its dice itself (monocub.mjs `meddleOnGm`), and its packet carries no result to read.
  * ========================================================================== */
 
 /** The packet fields a record's result goes in, unless a declaration's roll says otherwise (`into`). */

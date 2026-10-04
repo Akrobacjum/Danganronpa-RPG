@@ -5,7 +5,7 @@
  * tests.mjs; the tools are in tests-kit.mjs.
  */
 
-import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL } from "./config.mjs";
+import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
@@ -6470,12 +6470,22 @@ const REGRESSIONS = [
          * C16 (04.10.2026) took a project's progress and its Sabotage off WAITING. Progress that
          * names no roll is a Call's, so its `when` is the roll's own field - an id, not a flag -
          * and its guards bound what such a packet takes (bridge-guards.mjs `guardCallProgress`).
+         *
+         * C17 (04.10.2026) took the last four off WAITING, which is empty now and stays a list so a
+         * declaration put back on it is read as the exemption it would be. An opening, a crisis
+         * action and Stage 6 name their roll; their actions are the incident's tables of config.mjs,
+         * not ACTIONS (`TABLES`: the record's `actionKey` names the table, as the roll is thrown for
+         * it). A crisis packet that names no roll threw none, so its `when` is the roll's own field,
+         * and its guards refuse the rest (bridge-guards.mjs `guardCrisisRoll`). A Meddle takes no
+         * result from its packet at all: the GM throws its dice (monocub.mjs `meddleOnGm`), which the
+         * reader finds as a declaration that takes nothing it has to name a roll for.
          */
         const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
         const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
             "vault.steal": ["viaSearch", "clumsy"] };
-        const WAITING = ["murder.openingResult", "murder.crisis", "murder.cleanup", "monocub.meddle"];
+        const WAITING = [];
         const THROWN_AS = { steal: "palm" };
+        const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING };
         const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
             .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
         const problemsOf = (all, waiting) => {
@@ -6496,7 +6506,9 @@ const REGRESSIONS = [
                         problems.push(`${action}: the roll's character, ${actor}, is not an id an owns guard judges`);
                     }
                     for (const one of [].concat(kind)) {
-                        if (!Object.hasOwn(ACTIONS, THROWN_AS[one] ?? one)) problems.push(`${action}: its roll's action ${one} is not an action of config.mjs`);
+                        if (!Object.hasOwn(ACTIONS, THROWN_AS[one] ?? one) && !(Object.hasOwn(TABLES, one) && TABLES[one])) {
+                            problems.push(`${action}: its roll's action ${one} is not an action of config.mjs`);
+                        }
                     }
                     if (Array.isArray(kind) !== Boolean(kindAt) || (kindAt && !kinds[String(kindAt).split(".")[0]])) {
                         problems.push(`${action}: its roll's action is a list without a field that names which, or the other way round`);
@@ -6541,10 +6553,12 @@ const REGRESSIONS = [
         must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
         const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
-            + `${WAITING.length} wait for C17`);
-        equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "observe.resolve", "project.progress", "project.sabotage",
-            "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
-            "Observe, Analyze, the search for a hidden stash, a Palm, a project's progress or Sabotage, a theft from a stash or a trace names no roll its result is read from");
+            + `${WAITING.length} wait for a later commit; monocub.meddle takes ${JSON.stringify(takes("monocub.meddle", all["monocub.meddle"] ?? {}))} from its packet`);
+        equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
+            "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
+            "Observe, Analyze, the search for a hidden stash, a Palm, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
+        equal(JSON.stringify([Boolean(all["monocub.meddle"]?.sanitize), takes("monocub.meddle", all["monocub.meddle"] ?? {})]), JSON.stringify([true, []]),
+            "monocub.meddle is no declaration of the bridge's, or a Meddle's packet carries a result the GM would read");
         const problems = problemsOf(all, WAITING);
         ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
     }]
