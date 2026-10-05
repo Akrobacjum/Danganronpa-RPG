@@ -383,6 +383,21 @@ async function auditFromScratch(student) {
 }
 
 /**
+ * A student's actions able to reach `n` for one test (E29 fix r1-G9): its maximum raised to `n` by
+ * the GM when it is lower; tier 2's restore puts the maximum back, as it does the actions. Scenario
+ * 01 runs tier 2 after a Class Trial and back, and the clock's reset leaves every student at the
+ * rules' starting maximum of 2 (`STARTING.actions`, actions.mjs `resetAllActions`), so C5's three
+ * tests that raise actions to 3 met 2 there and failed on their own precondition - in the whole
+ * suite only: alone, in a fresh world, the seed's 3 was there (k1, 05.10.2026, e29run/k1rerun:
+ * 3/1/0 each after that round trip, 4/0/0 without it; with this, 4/0/0 each after it,
+ * e29run/r1g9probe).
+ */
+async function actionsReach(student, n) {
+    const MAX = "system.resources.actions.max";
+    if (!(Number(foundry.utils.getProperty(student._source, MAX)) >= n)) await student.update({ [MAX]: n });
+}
+
+/**
  * Two students stood alone together in a room nobody else is in, for the lights of an
  * Eclipse to judge (E05 C3): both tokens teleported to its centre and read back - a
  * fixture that did not take would measure a refusal instead. `back()` puts them where
@@ -24450,7 +24465,9 @@ const SCENARIOS = [
            both, named `rest`; the action's spend stays its own write, named `spend`. A Short
            Rest with Meal, its window answered here and the room waived (the room is not what is
            measured). Red before C1: three writes - the spend, the Sanity, the stamp - none
-           naming a reason. */
+           naming a reason. Since E29 fix r1-G7 a GM's write names no reason (nothing judges it:
+           resource-guard.mjs `stampOf`), so on this GM the two writes go unnamed; a player's Rest
+           named `rest` beside its `spend` is read on p1's browser (40-flow). */
         const [student] = cast(1);
         const { takeRest } = await import("./rest.mjs");
         const D = foundry.applications.api.DialogV2;
@@ -24475,9 +24492,43 @@ const SCENARIOS = [
             else delete D.wait;
         }
         equal(stableJson([Boolean(rest), student.system.resources.stress.value, writes]), stableJson([true, 1, [
-            { paths: ["system.resources.actions.value"], stamp: { reason: "spend", ref: null } },
-            { paths: [`flags.${MODULE_ID}.${FLAGS.restsTaken}.short`, "system.resources.stress.value"], stamp: { reason: "rest", ref: null } }
-        ]]), "a Short Rest's Sanity and its stamp are not one write named rest, beside the action's spend");
+            { paths: ["system.resources.actions.value"], stamp: null },
+            { paths: [`flags.${MODULE_ID}.${FLAGS.restsTaken}.short`, "system.resources.stress.value"], stamp: null }
+        ]]), "a Short Rest's Sanity and its stamp are not one write beside the action's spend, or a GM's write named its reason");
+    }],
+
+    ["a GM's module write names no reason but the audit's own", async () => {
+        /* E29 fix r1-G7, 05.10.2026; the round-1 security review's M2. A write's options reach every
+           browser that holds the document, and the GMs' audit reads a reason only off a player's
+           write (sheet-audit.mjs), so a GM's write names none - but the audit's own put-back and
+           Undo, which the audit tells apart from every other GM's write (resource-guard.mjs
+           `stampOf`). Every reason of the closed list through each of the three roads, on this GM,
+           handed to a stand-in document that keeps the options it is given and writes nothing: the
+           module's marker on all sixty, `HOPE_REFUND` on the three refunds, a reason and its `ref`
+           on the audit's six alone. The roads are called by other names so that R220, which reads
+           every call of a road in the suite for a literal reason, does not read this loop over the
+           whole list as a write that names none. Red before the fix (C8's runtime, 05.10): every
+           one named its reason, as C1's `stampOf` stamped it.
+           What a player's write names is read on a player's browser (13-murder-signals), and what a
+           bystander's browser reads of the incident's writes in 10-murder. */
+        const { trustedWrite: write, trustedCreate: create, trustedDelete: drop, WRITE_REASONS, WRITE_STAMP, HOPE_REFUND } =
+            await import("./resource-guard.mjs");
+        const sent = [];
+        const stand = {
+            update: async (changes, options) => sent.push(["write", options]),
+            createEmbeddedDocuments: async (name, data, options) => sent.push(["create", options]),
+            delete: async options => sent.push(["delete", options])
+        };
+        for (const reason of WRITE_REASONS) {
+            await write(stand, {}, { reason, ref: "SUITEref" });
+            await create(stand, [], { reason, ref: "SUITEref" });
+            await drop(stand, { reason, ref: "SUITEref" });
+        }
+        const named = sent.filter(([, options]) => WRITE_STAMP in options).map(([road, options]) => [road, options[WRITE_STAMP]]);
+        equal(stableJson([sent.length, sent.every(([, options]) => options.drpgAutomated === true),
+            sent.filter(([, options]) => options[HOPE_REFUND] === true).length, named]),
+            stableJson([60, true, 3, ["auditPutBack", "auditUndo"].flatMap(reason => ["write", "create", "delete"].map(road => [road, { reason, ref: "SUITEref" }]))]),
+            `a GM's module write named a reason nothing judges, or the audit's own went without one: ${stableJson(named)}`);
     }],
 
     ["a GM still sets a student up", async () => {
@@ -24879,6 +24930,7 @@ const SCENARIOS = [
         const { sheetWriteStore } = await import("./gm-stores.mjs");
         const { contentOf } = await import("./secret.mjs");
         const ACT = "system.resources.actions.value", acts = () => foundry.utils.getProperty(student._source, ACT);
+        await actionsReach(student, 3);
         must(Number(student.system.resources?.actions?.max) >= 3, "the student's actions cannot reach 3 - the write would be clamped and measure nothing");
         const from = Date.now();
         await student.update({ [ACT]: 1 });
@@ -24938,6 +24990,7 @@ const SCENARIOS = [
         const { sheetWriteStore } = await import("./gm-stores.mjs");
         const { cardFlag } = await import("./secret.mjs");
         const ACT = "system.resources.actions.value", HP = "system.resources.hitPoints.value", GRANT = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        await actionsReach(student, 3);
         const r = student.system.resources;
         must(Number(r?.actions?.max) >= 3 && Number(r?.hitPoints?.max) >= 2, "the student's actions cannot reach 3 or it cannot hold two Health marks");
         const lock = getSetting(SETTINGS.lockPlayerResources), from = Date.now();
@@ -24970,6 +25023,7 @@ const SCENARIOS = [
         const { sheetAuditIdle, decideWrite } = await import("./sheet-audit.mjs");
         const { sheetWriteStore } = await import("./gm-stores.mjs");
         const ACT = "system.resources.actions.value", acts = () => foundry.utils.getProperty(student._source, ACT);
+        await actionsReach(student, 3);
         must(Number(student.system.resources?.actions?.max) >= 3, "the student's actions cannot reach 3 - the write would be clamped and measure nothing");
         const from = Date.now();
         await student.update({ [ACT]: 1 });
@@ -26004,6 +26058,127 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([["drawn", 1, 1, null], ["drawn", 1, 1, true]]),
             "a drawn roll's Hope was added to a forged one, or a forged Hope heard while it was written was put back over it "
                 + "(per draw: drawn, the sheet's Hope and the mark's over the GMs' value before it, the forged Hope heard)");
+    }],
+
+    /*
+     * E29 FIX R1-G8 (05.10.2026; round 1's m1, m6, m8): an Undo writes an object back whole, a card
+     * whose row was swept says it can no longer be decided, and a Search that ended without a draw
+     * names no find.
+     */
+    ["Undo of a flagged Rest stamp writes the stamp back whole: a kind added since does not stay", async () => {
+        /* Round 1's m1, the review's probe (probe 92, phase E) as a test: the mark holds `{short}`, the
+           document `{short, long}`, and a flagged row of that change; Undo answers the field undone, and
+           the stamp must read `{short}` again. At HEAD the before-value was written plainly, Foundry
+           merged it, and the stamp kept `long` under a row and a card that said "undone". */
+        const [student] = cast(1);
+        const { decideWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const path = `flags.${MODULE_ID}.restsTaken`, short = { short: "d1:morning" }, both = { short: "d1:morning", long: "s1" };
+        const rowId = foundry.utils.randomID();
+        let read = null;
+        try {
+            await student.update({ [path]: replaced(short) });
+            await sheetAuditIdle();
+            await student.update({ [path]: both }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(stableJson(student.getFlag(MODULE_ID, "restsTaken")) === stableJson(both), "the stamp did not take the second kind - the Undo below would measure nothing");
+            await sheetWriteStore.patch(rowId, { actorId: student.id, itemId: null, userId: null, reason: null, ref: null,
+                change: { [path]: [short, both] }, covered: null, verdict: "flagged", messageId: null, decided: null, at: Date.now(), away: true, n: 0 });
+            const decided = await decideWrite(rowId, false);
+            await sheetAuditIdle();
+            read = [decided?.undone ?? null, student.getFlag(MODULE_ID, "restsTaken") ?? null];
+        } finally {
+            if (sheetWriteStore.has(rowId)) await sheetWriteStore.drop(rowId);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[path], short]),
+            "Undo of a flagged Rest stamp did not answer it undone, or left the kind added since in the stamp (undone, the stamp after)");
+    }],
+
+    ["a flagged card whose row was swept draws no buttons and says it can no longer be decided; a young card without its row keeps them", async () => {
+        /* Round 1's m8. A row is kept a day (sheet-audit.mjs `keepRows`); a card whose rows are gone decided
+           nothing, yet kept its buttons on every render. Three cards of the suite's own, each naming a row no
+           store holds, drawn as the chat log draws them: a flagged one a day and a minute old, the same one
+           fresh (its row may still be on its way - it is posted before the row is written), and a card of
+           the changes made with no GM watching a day and a minute old - each read once the hook's listeners
+           have all run, secret.mjs's swap of the card's words among them. At HEAD every one kept its buttons. */
+        const [student] = cast(1);
+        const { whisperToGms } = await import("./utils.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const gone = foundry.utils.randomID(), day = 24 * 60 * 60_000;
+        must(!sheetWriteStore.has(gone), "the store holds the row the cards name as gone");
+        const card = `<div class="drpg-audit-card"><ul></ul><div class="drpg-audit-actions"><button type="button" data-drpg-audit="undo">Undo</button>`
+            + `<button type="button" data-drpg-audit="keep">Keep</button></div></div>`;
+        const made = [];
+        const drawn = async (flags, age) => {
+            const message = await whisperToGms(card, { flags: { [MODULE_ID]: flags } });
+            must(message, "no card was posted - this would measure nothing");
+            made.push(message.id);
+            message.updateSource({ timestamp: Date.now() - age });
+            const li = document.createElement("li");
+            li.innerHTML = `<div class="message-content">${card}</div>`;
+            Hooks.callAll("renderChatMessageHTML", message, li);
+            await wait(0);
+            return [li.querySelectorAll("[data-drpg-audit]").length, li.querySelector(".drpg-audit-expired")?.textContent ?? null];
+        };
+        let read = null;
+        try {
+            read = [await drawn({ sheetAudit: student.id, sheetFlagged: gone }, day + 60_000), await drawn({ sheetAudit: student.id, sheetFlagged: gone }, 0),
+                await drawn({ sheetAway: [gone] }, day + 60_000)];
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+        }
+        const said = game.i18n.localize("DRPG.Audit.expired");
+        equal(stableJson(read), stableJson([[0, said], [2, null], [0, said]]),
+            "a card whose row was swept kept its buttons or said nothing, or a young card without its row lost them (per card: buttons, the line)");
+    }],
+
+    ["a Search asked of the GM or taken from a stash names no find, and a stash's theft on a record a find stood on is refused", async () => {
+        /* Round 1's m6. A Search drawn for the player's packet with the goal "something specific" keeps
+           that goal on the GMs' record (roll-draw.mjs `CONTEXT_SENT`), and a tier-1 item named after it is
+           flagged; so is one named after a record a stash's theft settled ("search" in its `resolved`, as
+           bridge-guards.mjs `rollsFor` writes it); and the vault steal's reading of a record a find stood on
+           refuses the theft (gm-bridge.mjs `searchTheftOf`), where the same reading of a fresh record takes
+           it. At HEAD the record kept no goal, both items stood, and the theft was taken. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { searchTier } = await import("./action-rolls.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const theft = BRIDGE_ACTIONS["vault.steal"]?.rolled?.derive;
+        must(typeof theft === "function", "the vault steal reads no Search's record - this would measure nothing");
+        must(searchTier({ total: 13 }).tier === 1 && searchTier({ total: 13 }).hit, "the Search's table gives no tier-1 hit at 13 any more - the totals below measure nothing");
+        const made = [], backs = [];
+        let read = null;
+        try {
+            const F = await drawnForPlayer(player, theirs, { faces: { hope: 12, fear: 11 },
+                edit: packet => ({ ...packet, context: { ...(packet.context ?? {}), category: "tool", goal: "specific" } }) });
+            backs.push(F.putBack);
+            must(F.record && (searchTier(F.record).hit || F.record.isCritical), "the GM drew no Search that hit - this would measure nothing");
+            const stash = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
+            const found = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
+            const fresh = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
+            backs.push(stash.putBack, found.putBack, fresh.putBack);
+            await rollStore.patch(stash.rollId, { resolved: ["search"] });
+            const find = async (name, rollId) => {
+                const out = await asPlayerItemWrite("createItem", theirs, moduleItemData(name), player, { reason: "searchFind", ref: rollId });
+                made.push(out.item);
+                return out.verdict;
+            };
+            const verdicts = [await find("E29 G8 a find on a specific Search", F.record.rollId), await find("E29 G8 a find on a stash's Search", stash.rollId),
+                await find("E29 G8 a find", found.rollId)];
+            await sheetAuditIdle();
+            read = [F.record.goal ?? null, ...verdicts, (await theft(rollStore.get(found.rollId)))?.why ?? null, (await theft(rollStore.get(fresh.rollId)))?.why ?? null];
+        } finally {
+            await sheetAuditIdle();
+            for (const item of made) if (theirs.items.get(item.id)) await item.delete();
+            await sheetAuditIdle();
+            for (const back of backs) await back();
+        }
+        equal(stableJson(read), stableJson(["specific", "flagged", "flagged", "stands", "that roll has already settled that action", null]),
+            "a Search's record kept no goal, or a find on a specific Search or on a stash's stood, or a find on a fresh record did not, or a theft on a "
+                + "record a find stood on was taken, or one on a fresh record refused (the goal, the three verdicts, the two thefts' refusals)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

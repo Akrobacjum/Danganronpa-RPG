@@ -2533,7 +2533,7 @@
         "notPaid": "The GM's client saw no action paid for that roll. Take the action again.",
         "rollThrown": "That action's roll has been thrown already.",
         "callNotPaid": "The GM's client saw no Hope paid for that Call.",
-        "sheetPutBack": "The GM's client put that change to your sheet back: only the GM changes it."
+        "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
@@ -2946,7 +2946,7 @@
     },
     "Audit": {
       "putBack": "{player} changed {name}'s sheet by hand; the GM's client put it back:",
-      "listTitle": "Writes on a student's sheet the GMs put back or listed: {n}",
+      "listTitle": "Writes on a student's sheet the GMs put back, flagged or listed: {n}",
       "field": {
         "traits": "Statistics",
         "experience": "Experiences",
@@ -2975,6 +2975,7 @@
       "undone": "{gm} undid it.",
       "kept": "{gm} kept it.",
       "changedSince": "{gm} chose Undo, but {fields} changed again since; that was not written over.",
+      "expired": "This can no longer be decided: the GMs keep the record of a flagged change for a day, and this one's is gone.",
       "awayTitle": "Sheet changes made while no GM was watching",
       "awayPutBack": "Put back at once, as it would have been with a GM watching:",
       "awayLine": "{name} - {field} ({path}): {before} -> {after}",
@@ -3573,7 +3574,7 @@
         "rolls": "The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them",
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
         "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
-        "sheetWrites": "The writes on a student's sheet the GMs put back or listed, kept a day"
+        "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day"
       },
       "row": {
         "traces": {

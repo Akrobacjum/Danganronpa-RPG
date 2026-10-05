@@ -20,6 +20,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         botan: game.actors.getName("Botan Kage").id
     };`);
 
+    /* What p1's own hooks receive of every write on Chie and Daichi and on their items, from the
+       opening to the body's discovery (E29 fix r1-G7: read after the discovery, below). */
+    await p1.eval(`const watched = new Set(["${ids.chie}", "${ids.daichi}"]), seen = globalThis.__g7Seen = [];
+        const row = (kind, actor, options, userId) => ({ kind, actor: actor?.id ?? null, user: userId ?? null,
+            module: options?.drpgAutomated === true, stamp: options?.drpgWrite ?? null });
+        globalThis.__g7Hooks = [
+            ["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (watched.has(d.id)) seen.push(row("updateActor", d, o, u)); })],
+            ["updateItem", Hooks.on("updateItem", (d, c, o, u) => { if (watched.has(d.parent?.id)) seen.push(row("updateItem", d.parent, o, u)); })],
+            ["createItem", Hooks.on("createItem", (d, o, u) => { if (watched.has(d.parent?.id)) seen.push(row("createItem", d.parent, o, u)); })],
+            ["deleteItem", Hooks.on("deleteItem", (d, o, u) => { if (watched.has(d.parent?.id)) seen.push(row("deleteItem", d.parent, o, u)); })]];
+        return true;`);
+
     // -- 1. opening the murder ------------------------------------------------
     phase("opening", { flow: "murder-incident" });
     const open = await gm.eval(`
@@ -276,6 +288,38 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return out;`);
     check("gm: the discovery breaks the gloves the killer scrubbed with and put away, and takes their row",
         gloves.placed && gloves.written && glovesAfter.broken === true && glovesAfter.row === false, JSON.stringify({ gloves, glovesAfter }));
+
+    /*
+     * WHAT A BYSTANDER'S BROWSER READS OF THE INCIDENT'S WRITES (E29 fix r1-G7, 05.10.2026; the
+     * round-1 security review's M2). p1 plays Aiko, who is in no part of the incident; its hooks
+     * kept every write on Chie and Daichi from the opening on (above) with the options they
+     * arrived with - the harness forwards them, and whether a real Foundry does is LIVE-E29-01.
+     * The module's writes the GM made - on Chie's sheet through the clean-up, its Reroll and the
+     * Stage 6 erase, on the gloves the discovery broke, and whatever the blow wrote on Daichi -
+     * name no reason: nothing judges a GM's write, and only the GMs' audit's own put-back and Undo
+     * would name theirs. Chie's player's writes from her own browser (the Stage 6 erase) name only
+     * a reason the GMs' audit reads off a player's write (resource-guard.mjs `stampOf`). What is
+     * required to have been seen is what lands on every run: nine such writes on Chie's sheet and
+     * one on her gloves, measured 05.10 on three runs. The blow's writes on Daichi do not land on
+     * every run - none on three of six runs of this file that day, some on the other three - so
+     * they are read where they land and not required. Red before the fix (C8's runtime, 05.10):
+     * p1 read `concealment` four times and `reroll` three times on Chie's sheet, `incident` on her
+     * gloves, and on that run `incident` three times on Daichi's.
+     */
+    const heard = await p1.eval(`for (const [name, id] of globalThis.__g7Hooks ?? []) Hooks.off(name, id);
+        const seen = globalThis.__g7Seen ?? []; delete globalThis.__g7Seen; delete globalThis.__g7Hooks; return seen;`);
+    {
+        const JUDGED = ["spend", "refund", "price", "call", "rest", "itemUse", "stash", "retrieve", "discard", "searchFind"];
+        const byGm = heard.filter(w => w.user === gm.userId), byPlayers = heard.filter(w => w.user !== gm.userId);
+        const gmNamed = byGm.filter(w => w.stamp !== null && !["auditPutBack", "auditUndo"].includes(w.stamp?.reason));
+        const playersNamed = byPlayers.filter(w => w.stamp !== null && !JUDGED.includes(w.stamp?.reason));
+        const moduleWrites = (actor, kind) => byGm.filter(w => w.module && w.actor === actor && w.kind === kind).length;
+        check("p1, a bystander: the incident's and the clean-up's writes the GM made on Chie and Daichi name no reason, and her player's name only one the GMs' audit reads",
+            moduleWrites(ids.chie, "updateActor") > 0 && moduleWrites(ids.chie, "updateItem") > 0 && gmNamed.length === 0 && playersNamed.length === 0,
+            JSON.stringify({ chie: [moduleWrites(ids.chie, "updateActor"), moduleWrites(ids.chie, "updateItem")], daichi: moduleWrites(ids.daichi, "updateActor"),
+                players: byPlayers.length, gmNamed, playersNamed }).slice(0, 1500),
+            { flow: "murder-incident" });
+    }
 
     // -- 5. traces: place a Remnant, observe it into a Truth Bullet ----------
     phase("traces", { flow: "trace-remnant" });

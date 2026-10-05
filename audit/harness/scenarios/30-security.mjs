@@ -2174,10 +2174,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     /*
      * A CONSOLE'S HOPE (E29 C4, 05.10.2026; audit S02-41; the plan's 2.4, 2.5, 2.7). Aiko's Hope at 2, p1's
      * console raises it to 6 by hand; then asks Daggerheart's relay for 6 with no roll behind it; then raises it
-     * to 6 again and buys Resolve (3 Hope) at once, by the sheet's own road. Expected: the first put back on
+     * to 6 again and asks the GM for a Resolve (3 Hope) at once; then writes the forged 6 and a Call's payment
+     * (6 -> 3, stamped `call`) back to back, before the GMs have judged either. Expected: the first put back on
      * every client, told to p1 once and whispered to the GMs once; the relay's refused (code `relay`) with
-     * nothing written; the third ends at 0 on every client - a put-back is a delta, so the Call is paid out
-     * of the Hope Aiko really had, not out of the forged four. Before C4 all three stood (6, 6, 3).
+     * nothing written; the Resolve refused and nothing paid (2); the last ends at 0 on every client - a
+     * put-back is a delta, so the payment comes out of the Hope Aiko really had, not out of the forged four.
+     * Before C4 the first two stood (6, 6) and a Resolve bought at once left 3; nothing judged a crossing then,
+     * so by reading it ended at 3 too.
      */
     phase("a console's Hope", { flow: "sheet-audit" });
     const readHope = `return game.actors.get("${ids.aiko}").system.resources.hope.value;`;
@@ -2205,16 +2208,27 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
                 uuid: game.actors.get("${ids.aiko}").uuid, data: { "system.resources.hope.value": 6 } } }); return true;`);
         await settle(1500);
         const relayed = { after: await gm.eval(readHope), told: await p1.eval(`return globalThis.__hopeTold.slice();`) };
-        const bought = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+        const bought = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
             const a = game.actors.get("${ids.aiko}");
             globalThis.__hopeTold.length = 0;
-            await a.update({ "system.resources.hope.value": 6 });
-            return Boolean(await C.spendHopeCall(a, "determination"));`, { timeout: 30000 });
+            const forged = a.update({ "system.resources.hope.value": 6 });
+            const res = await B.requestArmCall(a.id, { key: "determination", kind: "hope", grants: "trait", amount: null, from: a.id, nonce: "SECFORGEDRESOLVE" });
+            await forged;
+            return Boolean(res?.ok && res.value);`, { timeout: 30000 });
         await untilHope(2);
         await settle(1200);
         const spent = { bought, after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readHope))),
+            armed: await gm.eval(`const f = game.actors.get("${ids.aiko}").getFlag("${MOD}", "pendingCall");
+                return (Array.isArray(f) ? f : f ? [f] : []).some(c => c?.nonce === "SECFORGEDRESOLVE");`),
             told: await p1.eval(`return globalThis.__hopeTold.slice();`) };
-        consoleHope = { raised, relayed, spent };
+        await p1.eval(`const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+            const a = game.actors.get("${ids.aiko}");
+            await Promise.all([a.update({ "system.resources.hope.value": 6 }), trustedWrite(a, { "system.resources.hope.value": 3 }, { reason: "call" })]);
+            return true;`);
+        await untilHope(0);
+        await settle(1200);
+        const crossed = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readHope))) };
+        consoleHope = { raised, relayed, spent, crossed };
     } finally {
         await gm.eval(`const a = game.actors.get("${ids.aiko}");
             await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
@@ -2230,13 +2244,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         Boolean(consoleHope) && consoleHope.relayed.after === 2 && consoleHope.relayed.told.includes("relay"),
         JSON.stringify(consoleHope?.relayed ?? null), { flow: "sheet-audit" });
     /* E29 C8 (05.10.2026): the Resolve is bought on the GM now, which asks the Hope it holds once the audit has judged the
-       forged write (gm-bridge.mjs `call.arm`'s `prepare`): 2 of 3, refused, nothing paid. Until C8 p1's browser paid it out
-       of its own 6 and the audit's put-back by a delta left 0 - or, when the put-back landed before the Call read the Hope,
-       p1's browser refused it with 2, and C4's check came out red (1 run of 2 at C7, 05.10.2026). Either road now refuses
-       it - p1's browser when the put-back is there first, the GM otherwise (`told` says which) - and pays nothing. */
+       forged write (gm-bridge.mjs `call.arm`'s `prepare`): 2 of 3, refused, nothing paid. ASKED OF THE GM, NOT OF THE SHEET
+       (E29 fix r1-G9; the round-1 review's cor m5). Until the fix this step bought the Resolve by the sheet's own road
+       (`spendHopeCall`), which reads p1's own Hope first: when the audit's put-back reached p1 before that reading, p1's
+       browser refused it and the GM was never asked - a race, red 5 times under C4's reading (0, the C4-era payment by a
+       delta) and since C8 green on either road (G7's and G8's runs), so which road it measured was chance. The console asks the GM itself now,
+       as a console can, in the same breath as the forged write, and the GM's reading is the one measured. The payment by a delta that C4's check meant is the
+       crossing below: the forged 6 and the payment sent from one call, so both land before the audit's first put-back
+       (e29run/r1g9probe: 0 on every client in 10 runs of 10; the GM's hooks, read in 5 of them: p1's 6, p1's 3, the
+       put-back to 2, then the payment's correction to 0). */
     check("SECURITY: a forged Hope spent at once on a 3-Hope Call is refused - nothing paid, 2 on every client",
-        Boolean(consoleHope) && consoleHope.spent.bought === false && consoleHope.spent.after.every(n => n === 2),
+        Boolean(consoleHope) && consoleHope.spent.bought === false && consoleHope.spent.armed === false && consoleHope.spent.after.every(n => n === 2),
         JSON.stringify(consoleHope?.spent ?? null), { flow: "sheet-audit" });
+    check("SECURITY: a forged Hope and a Call's payment written back to back from a console - the rise put back by its delta, the payment kept: 0 on every client",
+        Boolean(consoleHope) && consoleHope.crossed.after.every(n => n === 0),
+        JSON.stringify(consoleHope?.crossed ?? null), { flow: "sheet-audit" });
 
     /*
      * A CONSOLE'S HEALTH AND ACTIONS (E29 C5, 05.10.2026; audit S02-41; the plan's 2.4, 2.8). Aiko at two
