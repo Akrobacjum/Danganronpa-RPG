@@ -517,11 +517,22 @@ const STEPS = {
         const { positionIn } = await import("./movement.mjs");
         const actor = run.who[who], m = run.model;
         const before = run.M.murderState();
+        /* A CROWD WAITS FOR THE CLOSE (05.10.2026, the 1.2.67 release's npm test). TP12 failed
+           once in a whole suite, "the stage is incident, the model's null", while the GM's
+           console logged the crowd's close all the same ("made a fourth", "Murder closed
+           (crowded)", written once the state is wiped), so it landed after the check: the close
+           is a card and then the whole of closeIncident, and late in a suite it outran 1500 ms
+           (by how much was not logged). TP12 alone settles in 99 ms, TP10's
+           newcomer in 55 ms (a probe of every TP case that day), and in the next whole suite
+           TP12's crowd settled in 95 ms; it passed in 43 of the 44 results files of the E08+E28
+           runs that hold it. The longer wait is only where a close is due:
+           a third who walks back in (TP08) changes nothing and waits the whole bound. */
+        const crowding = Boolean(m.thirdId) && !m.departed.includes(actor.id);
         await placeIn(run, actor, run.room, positionIn);
         await until(() => {
             const now = run.M.murderState();
             return !now || now.thirdId !== before?.thirdId;
-        }, 1500);
+        }, crowding ? 4000 : 1500);
         if (m.departed.includes(actor.id)) {
             if (run.M.murderState()?.thirdId === actor.id) run.violate("I13", `${actor.name} left the incident and walked back into it`);
             return;

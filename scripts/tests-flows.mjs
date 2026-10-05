@@ -147,8 +147,11 @@ export const FLOWS = Object.freeze([
     // E08+E28 C5: `roll.bookmark` names the roll's card, and 40-flow reads p1's Search card a Reroll replaced, marked on p1.
     // E08+E28 C8: a player's rewrite of a roll's dice is put back by the primary (reroll-receipts.mjs, a hook, no
     // bridge action); 30 and 33 rewrite one from a player's browser and read it put back.
+    // Covered at the 1.2.67 release (05.10.2026): both actions are sent from a player's browser in a ci scenario -
+    // roll.bookmark in 30 and 33 (33's phase "a roll's bookmark"), reroll.ask in 40-flow (p1's REROLL_ASK, from
+    // its phase "a Reroll" on) and 30 (grep of the scenarios that day).
     { id: "reroll", what: "The Reroll: the GMs keep each character's last roll and what its action did, the roller reports what only its browser saw, and the GM makes the Reroll it is asked for",
-        entry: { bridge: ["roll.bookmark", "reroll.ask"] }, scenarios: ["13-murder-signals", "20-crit-hope", "30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E08" },
+        entry: { bridge: ["roll.bookmark", "reroll.ask"] }, scenarios: ["13-murder-signals", "20-crit-hope", "30-security", "33-bridge-paths", "40-flow"], status: "covered", stage: "1.2.67" },
     { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected or when no card lands in time (fix r2-G3)",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",
