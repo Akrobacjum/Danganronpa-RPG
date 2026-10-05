@@ -2017,6 +2017,55 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         && Boolean(heard.card) && heard.card.includes("Botan Kage"), JSON.stringify({ rooms, listened, armed, heard }));
 
     /*
+     * 7o. A CONSOLE'S STARTING SHEET (E29 C2, 05.10.2026; audit S03-45, its code part). Setting
+     * a student up writes the maxima, Health, Sanity and Hope and stamps the season's baseline;
+     * putting a sheet back to that baseline writes the traits and the advance counter. Both are on
+     * a player's console - `game.drpg.initCharacter`, and an import - and only the sheet's wand
+     * and the season reset in front of them were a GM's. The GM gives Aiko a sheet each call would
+     * change (Hope 4, Health 1 marked, two advances, a baseline whose agility is -1), p1 calls both
+     * on her, and nothing moves on the GM or on p1, and p1 is told twice. What she held is put back
+     * whatever the check says. Red at 025bf9e: both calls answered and wrote.
+     */
+    phase("a console's starting sheet");
+    const readStart = `const a = game.actors.get("${ids.aiko}"); const r = a.system.resources;
+        return { hp: [r.hitPoints.value, r.hitPoints.max], stress: [r.stress.value, r.stress.max], hope: r.hope.value,
+            agility: a.system.traits.agility.value, advances: a.getFlag("${MOD}", "advances") ?? null,
+            baseline: a.getFlag("${MOD}", "sheetAtStart") ?? null };`;
+    const startWas = await gm.eval(`const a = game.actors.get("${ids.aiko}"); const r = a.system.resources;
+        const was = { hope: r.hope.value, hp: r.hitPoints.value, hpMax: r.hitPoints.max, stressMax: r.stress.max,
+            agility: a.system.traits.agility.value, advances: a.getFlag("${MOD}", "advances"), sheetAtStart: a.getFlag("${MOD}", "sheetAtStart") };
+        await a.update({ "system.resources.hope.value": 4, "system.resources.hitPoints.value": 1, "flags.${MOD}.advances": 2,
+            "flags.${MOD}.sheetAtStart": { traits: { agility: -1 }, experiences: {}, at: 1 } });
+        return was;`);
+    let startSheet = null;
+    try {
+        const startBefore = await gm.eval(readStart);
+        await p1.eval(`const a = game.actors.get("${ids.aiko}"); const end = Date.now() + 6000;
+            while (a.getFlag("${MOD}", "advances") !== 2 && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return true;`);
+        const called = await p1.eval(`const a = game.actors.get("${ids.aiko}"); const C = await import("${repoUrl}/scripts/character.mjs");
+            const from = globalThis.__notifications.length;
+            const init = await game.drpg.initCharacter(a);
+            const restore = await C.restoreStartingSheet(a);
+            const told = globalThis.__notifications.slice(from).filter(n => n.msg === game.i18n.localize("DRPG.Panel.gmOnly")).length;
+            return { init: init === null, restore: restore === null, told };`);
+        await settle(1000);
+        startSheet = { startBefore, called, after: await Promise.all([gm, p1].map(c => c.eval(readStart))) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"); const was = ${JSON.stringify(startWas ?? {})};
+            await a.update({ "system.resources.hope.value": was.hope, "system.resources.hitPoints.value": was.hp,
+                "system.resources.hitPoints.max": was.hpMax, "system.resources.stress.max": was.stressMax, "system.traits.agility.value": was.agility });
+            for (const key of ["advances", "sheetAtStart"]) {
+                await a.unsetFlag("${MOD}", key);
+                if (was[key] !== undefined && was[key] !== null) await a.setFlag("${MOD}", key, was[key]);
+            }
+            return true;`);
+    }
+    check("SECURITY: a player's console sets nobody up and puts no sheet back - initCharacter and restoreStartingSheet refuse on the caller's browser, write nothing, and say so",
+        Boolean(startSheet) && startSheet.called.init && startSheet.called.restore && startSheet.called.told === 2
+            && startSheet.after.every(seen => JSON.stringify(seen) === JSON.stringify(startSheet.startBefore)),
+        JSON.stringify(startSheet));
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

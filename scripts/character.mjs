@@ -50,6 +50,18 @@ export function needsStartingResources(actor) {
 export async function initCharacter(actor, {
     resetValues = true, startingItem = null, quiet = false
 } = {}) {
+    /* A GM'S, BEFORE ANY WRITE (E29 C2, 05.10.2026; audit S03-45). This writes the maxima,
+       Health, Sanity and Hope, grants the opening item and stamps the season's baseline, and it
+       is on `game.drpg` - the sheet's wand is drawn only for a GM, but the function behind it
+       answered any console that called it on a character it owns. The same gate as
+       `applyAdvancement`: with it, every road that writes a student's traits or Health and
+       Sanity maxima is a GM's (this, `restoreStartingSheet` and `applyAdvancement` are the
+       only module code that writes those paths - grepped 05.10.2026). R221 reads that the gate
+       comes before the first write here and in `restoreStartingSheet`. */
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
     if (!actor || actor.type !== "character") {
         ui.notifications.warn(game.i18n.localize("DRPG.Character.notACharacter"));
         return null;
@@ -68,12 +80,10 @@ export async function initCharacter(actor, {
         update["system.resources.hope.value"] = STARTING.hope;
     }
 
-    // Through the automation channel, not a bare update. Health and Sanity became
-    // GM-only in 1.0.1, and this writes both - so a plain `update()` from a
-    // player pressing the set-up wand on their own sheet would be stripped by
-    // the guard and the character would come out with the maxima set and the
-    // values untouched. Setting a character up IS automation; it just happens to
-    // be the kind a human presses a button for.
+    // Through the one road, named `setup` (E29 C1). Until E29 C2 this comment said the
+    // road was there for a player pressing the wand on their own sheet, whose plain
+    // `update()` the resource guard would have half-stripped; the wand was a GM's even
+    // then, and the gate above makes the whole function one, where the guard stands aside.
     const { trustedWrite } = await import("./resource-guard.mjs");
     await trustedWrite(actor, update, { reason: "setup" });
 
@@ -156,6 +166,11 @@ async function stampStartingSheet(actor) {
  * silent guess: the caller is told nothing was restored and says so in the log.
  */
 export async function restoreStartingSheet(actor) {
+    // A GM's, before any write - the advance counter below is the first (E29 C2; see `initCharacter`).
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
     if (!actor || actor.type !== "character") return null;
 
     const snapshot = actor.getFlag(MODULE_ID, FLAGS.sheetAtStart);
@@ -173,9 +188,8 @@ export async function restoreStartingSheet(actor) {
     }
 
     if (Object.keys(update).length) {
-        // `system.traits` is guarded against hand-editing, so a plain update
-        // would have the trait writes stripped and the rest go through - the
-        // same half-application `applyAdvancement` guards against.
+        // The one road, named `setup`. Not for the resource guard: it strips a
+        // player's trait writes on the player's own browser, and this runs on a GM's.
         const { trustedWrite } = await import("./resource-guard.mjs");
         await trustedWrite(actor, update, { reason: "setup" });
     }

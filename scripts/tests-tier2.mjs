@@ -7,7 +7,7 @@
  * tests.mjs calls both. Never run it in a world somebody is playing in.
  */
 
-import { MODULE_ID, EQUIPPABLE, SFX_EVENTS, FLAGS, PRICE_CHAINS, CRITICAL } from "./config.mjs";
+import { MODULE_ID, EQUIPPABLE, SFX_EVENTS, FLAGS, PRICE_CHAINS, CRITICAL, STARTING } from "./config.mjs";
 import { SETTINGS, getSetting, BREAKPOINTS, narrowScreen, shortScreen, seasonEpoch } from "./settings.mjs";
 import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { getClock, setClock } from "./clock.mjs";
@@ -23983,6 +23983,42 @@ const SCENARIOS = [
             { paths: ["system.resources.actions.value"], stamp: { reason: "spend", ref: null } },
             { paths: [`flags.${MODULE_ID}.${FLAGS.restsTaken}.short`, "system.resources.stress.value"], stamp: { reason: "rest", ref: null } }
         ]]), "a Short Rest's Sanity and its stamp are not one write named rest, beside the action's spend");
+    }],
+
+    ["a GM still sets a student up", async () => {
+        /* E29 C2, 05.10.2026; audit S03-45. `initCharacter` and `restoreStartingSheet` refuse a
+           player's browser now (R221; 30-security drives p1's console). This is the other side of
+           that gate: the season reset's path on a GM is the one it was - the sheet put back to the
+           spread it was stamped with and the advances cleared, then the starting resources written
+           and the spread stamped again. Green before C2 as well: it is here so the gate cannot
+           stop the GM it is for. The traits, experiences and maxima are not in tier 2's snapshot
+           (values and the module's flags are), so they are put back here. */
+        const [student] = cast(1);
+        const { initCharacter, restoreStartingSheet } = await import("./character.mjs");
+        const [trait] = Object.keys(student.system.traits ?? {});
+        must(trait, "the student has no traits to put back");
+        const res = () => student.system.resources;
+        const was = { "system.resources.hitPoints.max": res().hitPoints.max, "system.resources.stress.max": res().stress.max };
+        for (const [key, t] of Object.entries(student.system.traits)) was[`system.traits.${key}.value`] = t?.value ?? 0;
+        for (const [id, e] of Object.entries(student.system.experiences ?? {})) was[`system.experiences.${id}.value`] = e?.value ?? 0;
+        let read = null;
+        try {
+            await student.update({ [`system.traits.${trait}.value`]: 3, "system.resources.hitPoints.max": STARTING.hp - 1,
+                "system.resources.hitPoints.value": 1, "system.resources.hope.value": STARTING.hope + 2,
+                [`flags.${MODULE_ID}.${FLAGS.advances}`]: 2,
+                [`flags.${MODULE_ID}.${FLAGS.sheetAtStart}`]: { traits: { [trait]: -1 }, experiences: {}, at: 1 } });
+            const restored = await restoreStartingSheet(student);
+            const set = await initCharacter(student, { quiet: true });
+            const stamp = student.getFlag(MODULE_ID, FLAGS.sheetAtStart);
+            read = [restored, set === student, student.system.traits[trait].value, student.getFlag(MODULE_ID, FLAGS.advances),
+                res().hitPoints.max, res().stress.max, res().hitPoints.value, res().stress.value, res().hope.value,
+                stamp?.traits?.[trait] ?? null, (stamp?.at ?? 0) > 1];
+        } finally {
+            await student.update(was);
+        }
+        equal(stableJson(read), stableJson([{ restored: true, advances: 2 }, true, -1, 0,
+            STARTING.hp, STARTING.stress, 0, 0, STARTING.hope, -1, true]),
+            "a GM's season reset no longer puts the stamped spread back, clears the advances, writes the starting resources or stamps the spread again");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

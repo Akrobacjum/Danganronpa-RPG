@@ -6658,6 +6658,61 @@ const REGRESSIONS = [
         must(read.roads + read.calls > 30, `the reader found ${read.roads} road(s) and ${read.calls} call(s) of a forwarder - it would measure nothing`);
         log(`R220: ${read.roads} road(s), ${read.calls} call(s) of a forwarder and ${read.writes} other write(s) read; ${problems.length} problem(s)`);
         ok(!problems.length, `${problems.length} module write(s) without a reason of the list: ${problems.slice(0, 12).join("; ")}`);
+    }],
+
+    ["R221 - the starting sheet is written only on a GM's browser", async () => {
+        /*
+         * E29 C2, 05.10.2026; audit S03-45 (its code part). `initCharacter` writes a student's
+         * maxima, Health, Sanity and Hope and stamps the season's baseline; `restoreStartingSheet`
+         * writes the traits, the experiences and the advance counter. Both are reachable from a
+         * console (`game.drpg.initCharacter`, or an import), and until C2 neither asked who was
+         * calling - the sheet's wand and the season reset in front of them are a GM's, the
+         * functions were not. Now every function of character.mjs that writes is either exported
+         * and refuses a player's browser before its first write (the gate `applyAdvancement` has,
+         * R79), or private and called only from such a one - `stampStartingSheet`, from
+         * `initCharacter` after its gate. Red at 025bf9e: both exported writers ungated.
+         */
+        const GATE = /if \(!game\.user\.isGM\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Panel\.gmOnly"\)\);\s*return null;\s*\}/;
+        const WRITE = /(?<!function )\b(?:trustedWrite|trustedCreate|trustedDelete|grantItem|stampStartingSheet)\(|\.(?:update|setFlag|unsetFlag|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments|delete)\(/;
+        const read = src => {
+            const fns = [...src.matchAll(/^(export )?(?:async )?function (\w+)\(/gm)]
+                .map(m => ({ name: m[2], exported: Boolean(m[1]), body: fnSource(src, m[2]) }));
+            // The gate stands in `fn` before the first match of `what`.
+            const gatedBefore = (fn, what) => { const gate = fn.body.search(GATE); return gate >= 0 && gate < fn.body.search(what); };
+            const writers = fns.filter(fn => fn.body.search(WRITE) >= 0);
+            const problems = [];
+            for (const fn of writers) {
+                if (fn.exported) {
+                    if (!gatedBefore(fn, WRITE)) problems.push(fn.name);
+                    continue;
+                }
+                const call = new RegExp(`(?<!function )\\b${fn.name}\\(`);
+                const callers = fns.filter(other => other !== fn && call.test(other.body));
+                if (!callers.length || callers.some(c => !c.exported || !gatedBefore(c, call))) problems.push(fn.name);
+            }
+            return { writers: writers.map(fn => fn.name), problems };
+        };
+
+        // The reader over a planted file: a gate after the write, no gate, a private writer reached
+        // from an ungated export, and one of each shape that is right.
+        const PLANTED = [
+            "export async function late(a) { await a.update({ x: 1 }); if (!game.user.isGM) { ui.notifications.warn(game.i18n.localize(\"DRPG.Panel.gmOnly\")); return null; } }",
+            "export async function bare(a) { await a.setFlag(\"m\", \"k\", 0); }",
+            "async function hidden(a) { await trustedWrite(a, {}, { reason: \"setup\" }); }",
+            "export function leak(a) { return hidden(a); }",
+            "export async function right(a) { if (!game.user.isGM) {\n ui.notifications.warn(game.i18n.localize(\"DRPG.Panel.gmOnly\"));\n return null;\n }\n await helper(a); await a.update({}); }",
+            "async function helper(a) { await a.unsetFlag(\"m\", \"k\"); }",
+            "export function reads(a) { return a.system.traits; }"
+        ].join("\n");
+        equal(JSON.stringify(read(PLANTED)), JSON.stringify({ writers: ["late", "bare", "hidden", "right", "helper"], problems: ["late", "bare", "hidden"] }),
+            "the reader does not see the planted writers as they are - a gate after the write, none, a private writer behind an ungated export");
+
+        const sources = new Map(await otherSources());
+        const found = read(stripComments(sources.get("character.mjs") ?? ""));
+        ok(["initCharacter", "restoreStartingSheet", "stampStartingSheet"].every(name => found.writers.includes(name)),
+            `the reader found ${JSON.stringify(found.writers)} writing in character.mjs - it would measure nothing`);
+        equal(JSON.stringify(found.problems), "[]",
+            "a function of character.mjs writes a student's starting sheet on a player's browser - no GM gate before its first write, or a private writer reached from one without");
     }]
 ];
 

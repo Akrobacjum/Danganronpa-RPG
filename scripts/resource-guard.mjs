@@ -19,6 +19,14 @@
  * Automation marks its own writes with a flag in the update options, which is
  * how a legitimate change is told apart from someone poking the sheet.
  *
+ * A COURTESY, ON THE WRITER'S OWN BROWSER (E29 C2, 05.10.2026; audit S03-45). Both
+ * hooks below run where the write is made and stand aside for anything carrying that
+ * flag: they keep an honest sheet honest, and are not a check.
+ * The module's roads that write a student's traits or Health and Sanity maxima are a
+ * GM's for that reason - `applyAdvancement`, `initCharacter` and `restoreStartingSheet`
+ * refuse any other browser before their first write (R79, R221) - and the trust model
+ * in CLAUDE.md says what a player's own browser can still move on its own character.
+ *
  * ONE ROAD, AND A REASON ON IT (E29 C1, 05.10.2026; audit S17-12). Every write
  * this module makes on a student's resources, and every write of a module
  * item's protected flags, goes through `trustedWrite`, `trustedCreate` or

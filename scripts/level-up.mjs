@@ -617,9 +617,15 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     }
 
     try {
-        // Marked as automation: `system.traits` is guarded against hand-editing,
-        // so a plain update would have the trait rise silently stripped while the
-        // Health and Sanity rises went through - a half-applied advancement.
+        // The one road, named `levelUp`. Until E29 C2 this said the road kept the
+        // resource guard from stripping the trait rise and leaving a half-applied
+        // advancement - true of a player's browser, but the gate above makes this a
+        // GM's, where the guard stands aside (audit S03-45: "guarded against
+        // hand-editing" overstated it). That guard runs on the writer's own browser and
+        // is a courtesy; what keeps the module's own roads off a student's traits and
+        // Health and Sanity maxima on a player's console is that each road writing
+        // them - this one, `initCharacter` and `restoreStartingSheet` - is a GM's
+        // (R79, R221).
         const { trustedWrite } = await import("./resource-guard.mjs");
         const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
         update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;
