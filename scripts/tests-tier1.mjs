@@ -5696,7 +5696,7 @@ const LITERAL_KEYS = [
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
     // sheet-audit.mjs names a field put back by its kind (E29 C3), and bridge-guards.mjs `requestLabel` the same.
-    ...["traits", "experience", "max", "rules", "bonuses", "flag", "effect"].map(kind => `DRPG.Audit.field.${kind}`)
+    ...["traits", "experience", "max", "rules", "bonuses", "flag", "effect", "hope"].map(kind => `DRPG.Audit.field.${kind}`)
 ];
 
 export { INVARIANTS };

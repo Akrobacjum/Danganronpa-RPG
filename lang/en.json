@@ -2953,8 +2953,10 @@
         "rules": "Roll rules",
         "bonuses": "Bonuses",
         "flag": "The module's records",
-        "effect": "An effect"
-      }
+        "effect": "An effect",
+        "hope": "Hope"
+      },
+      "credit": "Given back from what was paid before: {what}"
     },
     "Rolls": {
       "rewritePutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",

@@ -2136,6 +2136,66 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify(consoleSheet?.effect ?? null), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S HOPE (E29 C4, 05.10.2026; audit S02-41; the plan's 2.4, 2.5, 2.7). Aiko's Hope at 2, p1's
+     * console raises it to 6 by hand; then asks Daggerheart's relay for 6 with no roll behind it; then raises it
+     * to 6 again and buys Resolve (3 Hope) at once, by the sheet's own road. Expected: the first put back on
+     * every client, told to p1 once and whispered to the GMs once; the relay's refused (code `relay`) with
+     * nothing written; the third ends at 0 on every client - a put-back is a delta, so the Call is paid out
+     * of the Hope Aiko really had, not out of the forged four. Before C4 all three stood (6, 6, 3).
+     */
+    phase("a console's Hope", { flow: "sheet-audit" });
+    const readHope = `return game.actors.get("${ids.aiko}").system.resources.hope.value;`;
+    const hopeWas = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
+        await a.update({ "system.resources.hope.value": 2 }); return was;`);
+    const untilHope = n => gm.eval(`const end = Date.now() + 6000; const read = () => { ${readHope} };
+        while (read() !== ${n} && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return read();`);
+    let consoleHope = null;
+    try {
+        await settle(400);
+        const whispersFrom = await gm.eval(whispered);
+        await p1.eval(`globalThis.__hopeTold = [];
+            if (!globalThis.__hopeToldHook) {
+                globalThis.__hopeToldHook = true;
+                game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused") globalThis.__hopeTold.push(payload.reason); });
+            }
+            await game.actors.get("${ids.aiko}").update({ "system.resources.hope.value": 6 }); return true;`);
+        await untilHope(2);
+        await settle(800);
+        const raised = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readHope))),
+            told: await p1.eval(`return globalThis.__hopeTold.slice();`), whispers: (await gm.eval(whispered)) - whispersFrom };
+        await p1.eval(`globalThis.__hopeTold.length = 0;
+            game.socket.emit("system.daggerheart", { action: "DhGMUpdate", data: { action: "DhGMUpdateDocument",
+                uuid: game.actors.get("${ids.aiko}").uuid, data: { "system.resources.hope.value": 6 } } }); return true;`);
+        await settle(1500);
+        const relayed = { after: await gm.eval(readHope), told: await p1.eval(`return globalThis.__hopeTold.slice();`) };
+        const bought = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+            const a = game.actors.get("${ids.aiko}");
+            await a.update({ "system.resources.hope.value": 6 });
+            return Boolean(await C.spendHopeCall(a, "determination"));`, { timeout: 30000 });
+        await untilHope(0);
+        await settle(1200);
+        const spent = { bought, after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readHope))) };
+        consoleHope = { raised, relayed, spent };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hope.value": ${hopeWas.hope} });
+            const calls = ${JSON.stringify(hopeWas.calls)};
+            if (calls === null) await a.unsetFlag("${MOD}", "pendingCall"); else await a.setFlag("${MOD}", "pendingCall", calls);
+            return true;`);
+    }
+    check("SECURITY: a player's console raising its own Hope is put back on every client, told to it once and whispered to the GMs once",
+        Boolean(consoleHope) && consoleHope.raised.after.every(n => n === 2) && JSON.stringify(consoleHope.raised.told) === JSON.stringify(["sheetPutBack"])
+            && consoleHope.raised.whispers === 1, JSON.stringify(consoleHope?.raised ?? null), { flow: "sheet-audit" });
+    check("RELAY: a player's Hope raised through Daggerheart's relay with no roll behind it is refused, nothing written, and the player told",
+        Boolean(consoleHope) && consoleHope.relayed.after === 2 && consoleHope.relayed.told.includes("relay"),
+        JSON.stringify(consoleHope?.relayed ?? null), { flow: "sheet-audit" });
+    check("SECURITY: a forged Hope spent at once on a 3-Hope Call is paid out of the Hope really held - 0 on every client, not 3",
+        Boolean(consoleHope) && consoleHope.spent.bought === true && consoleHope.spent.after.every(n => n === 0),
+        JSON.stringify(consoleHope?.spent ?? null), { flow: "sheet-audit" });
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

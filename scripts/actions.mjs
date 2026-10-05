@@ -92,16 +92,21 @@ export function canPayFor(actor, cost = 1) {
     return freeActionsLeft(actor) > 0 || actionsLeft(actor) >= cost;
 }
 
-/** Bank some. Both Calls come through here - see `applyCall`. */
-export async function grantFreeActions(actor, n = 1) {
+/**
+ * Bank some. Both Calls come through here - see `applyCall` - and so does a Burst handed
+ * back (`refundAction`). Through the module's road with its reason since E29 C4: the GMs'
+ * audit covers a grant by the Call's price (`call`, `ref` the Call) or by a grant spent
+ * before it (`refund`), and lists one that names neither.
+ */
+export async function grantFreeActions(actor, n = 1, { reason = "call", ref = null } = {}) {
     if (!actor || n <= 0) return false;
-    await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, freeActionsLeft(actor) + n);
+    await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) + n }, { reason, ref });
     return true;
 }
 
-export async function grantFreeMoves(actor, n = 1) {
+export async function grantFreeMoves(actor, n = 1, { reason = "call", ref = null } = {}) {
     if (!actor || n <= 0) return false;
-    await actor.setFlag(MODULE_ID, FLAGS.freeMoveGrants, freeMovesLeft(actor) + n);
+    await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: freeMovesLeft(actor) + n }, { reason, ref });
     return true;
 }
 
@@ -204,7 +209,7 @@ export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
  */
 export async function refundAction(actor, amount = 1, receipt = null) {
     if (!actor || amount <= 0) return false;
-    if (receipt?.grant) return grantFreeActions(actor, 1);
+    if (receipt?.grant) return grantFreeActions(actor, 1, { reason: "refund" });
 
     const next = Math.min(actionsMax(actor), actionsLeft(actor) + amount);
     await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: next }, { reason: "refund" });

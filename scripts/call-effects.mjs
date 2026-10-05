@@ -939,9 +939,12 @@ async function progressEffect(actor, call, choice, done, { key }) {
  * silently would be a Call that worked and then refunded itself (trap
  * 100).
  */
+/** A Hope Call's key, as the GMs' audit reads a grant's `ref` (E29 C4). */
+const callKeyOf = call => Object.keys(HOPE_CALLS).find(key => HOPE_CALLS[key] === call) ?? null;
+
 async function freeMovesEffect(actor, call, choice, done) {
     const { grantFreeMoves, freeMovesLeft } = await import("./actions.mjs");
-    if (!await grantFreeMoves(actor, call.freeMoves)) {
+    if (!await grantFreeMoves(actor, call.freeMoves, { reason: "call", ref: callKeyOf(call) })) {
         throw new Error(`could not bank ${call.freeMoves} crossing(s)`);
     }
     done.push(plural("DRPG.Calls.sprinted", { n: freeMovesLeft(actor) }));
@@ -949,7 +952,7 @@ async function freeMovesEffect(actor, call, choice, done) {
 
 async function freeActionsEffect(actor, call, choice, done) {
     const { grantFreeActions, freeActionsLeft } = await import("./actions.mjs");
-    if (!await grantFreeActions(actor, call.freeActions)) {
+    if (!await grantFreeActions(actor, call.freeActions, { reason: "call", ref: callKeyOf(call) })) {
         throw new Error(`could not bank ${call.freeActions} action(s)`);
     }
     done.push(plural("DRPG.Calls.burst", { n: freeActionsLeft(actor) }));

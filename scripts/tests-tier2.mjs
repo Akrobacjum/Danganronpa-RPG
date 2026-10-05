@@ -307,6 +307,40 @@ async function restore(snap) {
 }
 
 /**
+ * A player's write on a student, as tier 2 makes one (E29 C4; C3's tests write the same by hand):
+ * written here by the GM with the option the GMs' audit leaves out of the mark, then handed to the
+ * judge with the player's id and the stamp a module road would carry (`reason`, `ref`). Answers the
+ * verdict. The judge measures it from the GMs' values, as it does any write it did not hear land.
+ */
+async function asPlayerWrite(student, write, player, stamp = null) {
+    const { judgeWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+    await student.update(write, { [AUDIT_ASIDE]: true });
+    return judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id, stamp ? { drpgWrite: { ref: null, ...stamp } } : {});
+}
+
+/** A room marked, or not, for a Short Rest for one test; answers what puts its flag back as it was, an absent one absent. */
+async function markRestRoom(room, short) {
+    const { regionsByName } = await import("./vault.mjs");
+    const { REST_FLAGS } = await import("./rest.mjs");
+    const region = regionsByName().get(room);
+    must(region, `the room ${room} has no region to mark`);
+    const had = region.getFlag(MODULE_ID, REST_FLAGS.short), now = () => region.getFlag(MODULE_ID, REST_FLAGS.short);
+    if (Boolean(had) !== short) await region.setFlag(MODULE_ID, REST_FLAGS.short, short);
+    return async () => {
+        if (had === undefined && now() !== undefined) await region.unsetFlag(MODULE_ID, REST_FLAGS.short);
+        else if (had !== undefined && now() !== had) await region.setFlag(MODULE_ID, REST_FLAGS.short, had);
+    };
+}
+
+/** The GMs' audit idle, and a student's credit emptied: what a test pays is then all there is (tier 2's restore puts the marks back). */
+async function auditFromScratch(student) {
+    const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
+    await sheetAuditIdle();
+    await sheetMarkStore.patch(student.id, { credit: {} });
+}
+
+/**
  * Two students stood alone together in a room nobody else is in, for the lights of an
  * Eclipse to judge (E05 C3): both tokens teleported to its centre and read back - a
  * fixture that did not take would measure a refusal instead. `back()` puts them where
@@ -24176,6 +24210,204 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson(["putBack", was + 3, ruleWas, [`listed:${path}`, `putBack:${rule}`].sort(), was + 3]),
             "with the setting off a statistic was put back or not listed, or a rule the setting does not name stood");
+    }],
+
+    /*
+     * HOPE, THE CREDIT AND THE REASONS' JUDGES (E29 C4, 05.10.2026; audit S02-41; the plan's 2.4, 2.5,
+     * 2.7). Each write is a player's, made as `asPlayerWrite` says; each test empties its student's
+     * credit first, so what it paid is all a refund can take. Hope's maximum is read, not set: a test
+     * needing more says so with `must`.
+     */
+    ["a refund gives back only what was paid", async () => {
+        /* The plan's red first: 1 Hope paid, 2 handed back as a refund - the refund takes the 1 of
+           credit, and the other is put back as a delta, recorded with what the credit gave. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const HOPE = "system.resources.hope.value", hope = () => foundry.utils.getProperty(student._source, HOPE);
+        must(Number(student.system.resources?.hope?.max) >= 4, "the student's Hope cannot reach 4 - the refund would be clamped and measure nothing");
+        const from = Date.now();
+        let read = null;
+        await student.update({ [HOPE]: 3 });
+        await auditFromScratch(student);
+        const paid = await asPlayerWrite(student, { [HOPE]: 2 }, player, { reason: "price" });
+        const refunded = await asPlayerWrite(student, { [HOPE]: 4 }, player, { reason: "refund" });
+        await sheetAuditIdle();
+        const row = Object.values(sheetWriteStore.entries() ?? {}).find(r => r?.actorId === student.id && r.userId === player.id && r.at >= from);
+        read = [paid?.verdict ?? null, refunded?.verdict ?? null, hope(), row?.verdict ?? null, row?.covered ?? null, row?.change?.[HOPE] ?? null];
+        equal(stableJson(read), stableJson(["stands", "putBack", 3, "putBack", { hope: 1 }, [2, 4]]),
+            "a refund gave back more than was paid, or its excess was not put back and recorded with the credit it took");
+    }],
+
+    ["a Short Rest's Breath, an item's tier-3 Hope and a refused Call's refund raise no alarm", async () => {
+        /* Three judges, each fed what a module road writes: an action spent, then the Rest's one write
+           (Breath's Hope and the stamp) in a room the GM marked for a Short Rest; a tier-3 usable's
+           Health and Hope, its consumption heard from the same player (`onItemWrite`, as the hook hears
+           it); a Call's Hope paid and handed back. Each stands, and nothing reaches `sheetWrites`. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        needs(world.atLeast("studentsInRooms", 1), "a student in a room the GM can mark for a rest");
+        const { roomOfActor } = await import("./movement.mjs");
+        const { restStamp } = await import("./rest.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { sheetAuditIdle, judgeWrite, onItemWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const student = cast(3).find(a => roomOfActor(a)) ?? game.actors.find(a => a.type === "character" && roomOfActor(a));
+        must(student, "no student stands in a room");
+        const player = game.users.find(u => !u.isGM);
+        const r = student.system.resources, room = roomOfActor(student);
+        must(Number(r?.hope?.max) >= 5 && Number(r?.hitPoints?.max) >= 2 && Number(r?.actions?.max) >= 1,
+            "the student's Hope, Health or actions are too small for a Breath, a tier-3 kit and a Call");
+        const HOPE = "system.resources.hope.value", HP = "system.resources.hitPoints.value", ACT = "system.resources.actions.value";
+        const from = Date.now();
+        let item = null, read = null, unmark = null;
+        try {
+            unmark = await markRestRoom(room, true);
+            await student.update({ [HOPE]: 2, [HP]: 2, [ACT]: r.actions.max, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0 });
+            if (student.getFlag(MODULE_ID, FLAGS.restsTaken) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.restsTaken);
+            item = await grantItem(student, { name: "Tier 2 C4 kit", category: "usable", tier: 3, goal: "healing", override: true, quiet: true });
+            must(item, "the tier-3 kit was not given");
+            await auditFromScratch(student);
+            const verdicts = [];
+            verdicts.push(await asPlayerWrite(student, { [ACT]: r.actions.max - 1 }, player, { reason: "spend" }));
+            verdicts.push(await asPlayerWrite(student, { [HOPE]: 3, [`flags.${MODULE_ID}.${FLAGS.restsTaken}`]: { short: restStamp("short", getClock()) } },
+                player, { reason: "rest" }));
+            const used = { [HOPE]: 5, [HP]: 0 };
+            await student.update(used, { [AUDIT_ASIDE]: true });
+            const heard = judgeWrite("updateActor", student, foundry.utils.expandObject(used), player.id, { drpgWrite: { reason: "itemUse", ref: item.id } });
+            onItemWrite(item, { system: { quantity: 0 } }, {}, player.id, { primary: true });
+            verdicts.push(await heard);
+            verdicts.push(await asPlayerWrite(student, { [HOPE]: 4 }, player, { reason: "call" }));
+            verdicts.push(await asPlayerWrite(student, { [HOPE]: 5 }, player, { reason: "refund" }));
+            await sheetAuditIdle();
+            read = [verdicts.map(v => v?.verdict ?? null), foundry.utils.getProperty(student._source, HOPE),
+                Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from).length];
+        } finally {
+            if (item) await student.items.get(item.id)?.delete();
+            await unmark?.();
+        }
+        equal(stableJson(read), stableJson([["stands", "stands", "stands", "stands", "stands"], 5, 0]),
+            "a Rest, an item used or a Call's refund a module road wrote was put back, listed or recorded");
+    }],
+
+    ["a rest outside a rest room is put back", async () => {
+        /* The same Rest write, its action paid, in a room the GM has not marked for one: its Hope and its
+           stamp go back together, in one row. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        needs(world.atLeast("studentsInRooms", 1), "a student in a room");
+        const { roomOfActor } = await import("./movement.mjs");
+        const { restStamp } = await import("./rest.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const student = cast(3).find(a => roomOfActor(a)) ?? game.actors.find(a => a.type === "character" && roomOfActor(a));
+        must(student, "no student stands in a room");
+        const player = game.users.find(u => !u.isGM);
+        const r = student.system.resources, room = roomOfActor(student);
+        must(Number(r?.hope?.max) >= 3 && Number(r?.actions?.max) >= 1, "the student's Hope or actions are too small for a Breath");
+        const HOPE = "system.resources.hope.value", ACT = "system.resources.actions.value", RESTS = `flags.${MODULE_ID}.${FLAGS.restsTaken}`;
+        const from = Date.now();
+        let read = null, unmark = null;
+        try {
+            unmark = await markRestRoom(room, false);
+            await student.update({ [HOPE]: 2, [ACT]: r.actions.max, [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0 });
+            if (student.getFlag(MODULE_ID, FLAGS.restsTaken) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.restsTaken);
+            await auditFromScratch(student);
+            await asPlayerWrite(student, { [ACT]: r.actions.max - 1 }, player, { reason: "spend" });
+            const rest = await asPlayerWrite(student, { [HOPE]: 3, [RESTS]: { short: restStamp("short", getClock()) } }, player, { reason: "rest" });
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from);
+            read = [rest?.verdict ?? null, foundry.utils.getProperty(student._source, HOPE), student.getFlag(MODULE_ID, FLAGS.restsTaken) ?? null,
+                rows.map(row => `${row.verdict}:${Object.keys(row.change ?? {}).sort().join(",")}`)];
+        } finally {
+            await unmark?.();
+        }
+        equal(stableJson(read), stableJson(["putBack", 2, null, [`putBack:${[HOPE, RESTS].sort().join(",")}`]]),
+            "a Rest in a room not marked for one kept its Hope or its stamp, or was not recorded as one put-back");
+    }],
+
+    ["a Daggerheart roll message with Hope covers one Hope through the relay, once", async () => {
+        /* The relay's verdict (relay-guard.mjs `judgeRelay`, the live world) on a player's own student:
+           +1 Hope after a duality roll with Hope that the player wrote about it passes; the same +1
+           again, with no new roll, is refused. Nothing is written: the verdict is asked, not run. */
+        needs(world.atLeast("playersWithCharacter", 1), "a player whose own student the relay judges");
+        const player = game.users.find(u => !u.isGM && u.character?.type === "character");
+        const student = player.character;
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const HOPE = "system.resources.hope.value";
+        must(Number(student.system.resources?.hope?.max) >= 3, "the student's Hope cannot rise to 3");
+        await student.update({ [HOPE]: 2 });
+        await auditFromScratch(student);
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "action" } };
+        const message = await ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor: student }),
+            content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll } });
+        let read = null;
+        try {
+            const ask = () => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: student.uuid, data: { [HOPE]: 3 } } }, player);
+            const [first, second] = [ask(), ask()];
+            read = [first.verdict, second.verdict, second.kind ?? null, foundry.utils.getProperty(student._source, HOPE)];
+        } finally {
+            await message?.delete();
+        }
+        equal(stableJson(read), stableJson(["forward", "refuse", "refused", 2]),
+            "a Daggerheart roll's Hope did not pass the relay, or passed a second time with no roll behind it");
+    }],
+
+    ["Daggerheart's relay lowers a module item's count and never raises it", async () => {
+        /* The plan's 2.7: on a player's own student, a module item's quantity may only fall through the
+           relay; an item of Daggerheart's own, which the module keeps no flags on, is judged as before C4.
+           The verdicts are asked, not run. */
+        needs(world.atLeast("playersWithCharacter", 1), "a player whose own student the relay judges");
+        const player = game.users.find(u => !u.isGM && u.character?.type === "character");
+        const student = player.character;
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const made = [];
+        let read = null;
+        try {
+            const kit = await grantItem(student, { name: "Tier 2 C4 relay kit", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+            const [loot] = await student.createEmbeddedDocuments("Item", [{ name: "Tier 2 C4 loot", type: "loot", system: { quantity: 2 } }]);
+            made.push(kit?.id, loot?.id);
+            must(kit && loot, "the two items were not made");
+            const ask = (item, quantity) => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: item.uuid,
+                data: { "system.quantity": quantity } } }, player);
+            const kitHeld = Number(kit.system?.quantity ?? 1), lootHeld = Number(loot.system?.quantity ?? 0);
+            const up = ask(kit, kitHeld + 1), down = ask(kit, Math.max(0, kitHeld - 1));
+            read = [up.verdict, up.kind ?? null, down.verdict, ask(loot, lootHeld + 1).verdict];
+        } finally {
+            const left = made.filter(id => id && student.items.get(id));
+            if (left.length) await student.deleteEmbeddedDocuments("Item", left);
+        }
+        equal(stableJson(read), stableJson(["refuse", "refused", "forward", "forward"]),
+            "a module item's count rose through the relay, fell no more, or an item of Daggerheart's own was judged differently");
+    }],
+
+    ["with lockPlayerResources off a forged Hope rise is listed, not put back", async () => {
+        /* The owner's Q2 (a), 05.10.2026: off, Hope a player raises with nothing to cover it stands and is listed. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const HOPE = "system.resources.hope.value";
+        must(Number(student.system.resources?.hope?.max) >= 4, "the student's Hope cannot rise to 4");
+        const lock = getSetting(SETTINGS.lockPlayerResources), from = Date.now();
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, false);
+            await student.update({ [HOPE]: 2 });
+            await auditFromScratch(student);
+            const verdict = await asPlayerWrite(student, { [HOPE]: 4 }, player);
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from);
+            read = [verdict?.verdict ?? null, foundry.utils.getProperty(student._source, HOPE), rows.map(row => `${row.verdict}:${Object.keys(row.change ?? {}).join(",")}`)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, lock);
+        }
+        equal(stableJson(read), stableJson(["listed", 4, [`listed:${HOPE}`]]),
+            "with the setting off a forged Hope rise was put back, or not listed");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

@@ -1431,8 +1431,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
 
     /*
      * A PLAYER'S REST AND AN ITEM USED, EACH WRITE NAMING ITS REASON (E29 C1, 05.10.2026; audit
-     * S17-12). p1 takes a Short Rest (Meal; no marked room asked - the room is a later commit's
-     * judge) and uses a Tier 1 healing kit, its windows answered on p1's browser. The GM records
+     * S17-12). p1 takes a Short Rest (Meal) and uses a Tier 1 healing kit, its windows answered on
+     * p1's browser. Since C4 the Rest is taken where the GMs' audit allows one: the GM marks the room
+     * Aiko stands in for a Short Rest first where it was not one, and unmarks it after (the day's check below
+     * reads that neither write was put back or listed). The GM records
      * every write on Aiko and her items that p1's user made, with the `drpgWrite` its options
      * carried here: the stamp crossing to the GM is what every later judge of the stage reads (the
      * harness passes options through; a real Foundry's forwarding is LIVE-E29-01). Expected: the
@@ -1443,7 +1445,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      */
     phase("a player's Rest and an item used, each write naming its reason");
     const restSet = await gm.eval(`const INV = await import("${REPO}/scripts/inventory.mjs");
+        const M = await import("${REPO}/scripts/movement.mjs"), REST = await import("${REPO}/scripts/rest.mjs");
         const aiko = game.actors.get("${ids.aiko}"), r = aiko.system.resources;
+        const room = M.roomOfActor(aiko), roomWas = room ? REST.restRooms("short").includes(room) : null;
+        if (room && !roomWas) await REST.setRestRoom(room, { short: true });
         const was = { hp: r.hitPoints.value, stress: r.stress.value, actions: r.actions.value,
             rests: aiko.getFlag("${MOD}", "restsTaken") ?? null, grants: aiko.getFlag("${MOD}", "freeActionGrants") ?? null };
         await aiko.update({ "system.resources.hitPoints.value": 2, "system.resources.stress.value": 2,
@@ -1454,7 +1459,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const row = (c, o, u) => ({ user: u ?? null, stamp: o?.drpgWrite ?? null, paths: Object.keys(foundry.utils.flattenObject(c)).filter(k => k !== "_id" && !k.startsWith("_stats")).sort() });
         w.hooks.push(["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (d.id === aiko.id) w.actor.push(row(c, o, u)); })]);
         w.hooks.push(["updateItem", Hooks.on("updateItem", (d, c, o, u) => { if (d.parent?.id === aiko.id) w.items.push({ id: d.id, ...row(c, o, u) }); })]);
-        return { was, kit: kit?.id ?? null };`);
+        return { was, kit: kit?.id ?? null, room, roomWas };`);
     await settle(400);
     const restRun = await p1.eval(`const R = await import("${REPO}/scripts/rest.mjs");
         const U = await import("${REPO}/scripts/use-items.mjs");
@@ -1463,7 +1468,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         D.wait = async () => ["meal"]; D.confirm = async () => true;
         const aiko = game.actors.get("${ids.aiko}");
         try {
-            const rest = await R.takeRest(aiko, "short", { ignoreRoom: true, quiet: true });
+            const rest = await R.takeRest(aiko, "short", { quiet: true });
             const used = await U.useItem(aiko, aiko.items.get("${restSet.kit}"));
             return { rested: Boolean(rest), used, me: game.user.id };
         } finally {
@@ -1481,6 +1486,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         if (was.grants === null) await aiko.unsetFlag("${MOD}", "freeActionGrants");
         else await aiko.setFlag("${MOD}", "freeActionGrants", was.grants);
         await aiko.items.get("${restSet.kit}")?.delete();
+        if (${JSON.stringify(restSet.room)} && !${restSet.roomWas}) await (await import("${REPO}/scripts/rest.mjs")).setRestRoom(${JSON.stringify(restSet.room)}, { short: false });
         return out;`);
     {
         const STRESS = "system.resources.stress.value", STAMP = `flags.${MOD}.restsTaken.short`;
@@ -1489,7 +1495,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const healed = restSeen.actor.find(x => x.stamp?.reason === "itemUse");
         const broke = restSeen.items.find(x => x.id === restSet.kit);
         check("p1: a Rest is the action's spend and ONE write of its benefit and its stamp, and an item used names the item on its Health and its break - each stamp seen on the GM",
-            restSet.kit !== null && restRun.rested && restRun.used?.hitPoints === 1
+            restSet.kit !== null && restSet.room !== null && restRun.rested && restRun.used?.hitPoints === 1
                 && JSON.stringify(reasons) === JSON.stringify(["spend", "rest", "itemUse"])
                 && rest.length === 1 && rest[0].paths.includes(STRESS) && rest[0].paths.includes(STAMP) && rest[0].stamp.ref === null
                 && healed?.stamp.ref === restSet.kit && broke?.stamp?.reason === "itemUse" && broke.stamp.ref === restSet.kit

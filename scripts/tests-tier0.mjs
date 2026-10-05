@@ -6595,7 +6595,9 @@ const REGRESSIONS = [
             "retrieve", "discard", "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
             "auditPutBack", "auditUndo"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
         const FORWARDERS = [["inventory.mjs", "grantItem", true], ["inventory.mjs", "breakItem", true], ["inventory.mjs", "wearItem", true],
-            ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false]];
+            ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false],
+            // E29 C4: the Burst and Sprint grants go through the road, their reason the caller's (a Call, or a refund).
+            ["actions.mjs", "grantFreeActions", true], ["actions.mjs", "grantFreeMoves", true]];
         const PROTECTED = /\bITEM_FLAGS\s*\.\s*(?:category|tier|identity|wear|broken|location|stashRoom)\b|\$\{MODULE_ID\}\.(?:-=)?(?:category|tier|drpgItemId|wear|broken|location|stashRoom)\b|^\s*"(?:category|tier|drpgItemId|wear|broken|location|stashRoom)"\s*$/m;
         const named = text => text.match(/\breason\s*:\s*"([^"\n]*)"/)?.[1] ?? null;
         const forwarding = (file, blank, at) => {

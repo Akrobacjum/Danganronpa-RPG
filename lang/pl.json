@@ -3065,8 +3065,10 @@
         "rules": "Zasady rzutu",
         "bonuses": "Premie",
         "flag": "Zapisy modułu",
-        "effect": "Efekt"
-      }
+        "effect": "Efekt",
+        "hope": "Hope"
+      },
+      "credit": "Zwrócone z tego, co zapłacono wcześniej: {what}"
     },
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",
