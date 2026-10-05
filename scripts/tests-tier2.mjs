@@ -24981,6 +24981,198 @@ const SCENARIOS = [
                 + "written back, Health after, the card still the away card after the decision, its line, its buttons)");
     }],
 
+    /*
+     * A WRITE IS JUDGED AS ITS HOOK SAW IT (E29 fix r1-G1, 05.10.2026; review round 1 sec B1 = cor B1).
+     * Two writes of a player's both land before the first is judged - as two lines of a console do
+     * behind a third the judge is still putting back - each made as `asPlayerWrite` makes one, both
+     * written before either is handed in. Before the fix the first one's judgement took the document as
+     * it then stood into the mark, the second write with it, and the second found nothing to judge: a
+     * second statistic, the Monokuma flag (after which every write on the student stood) and a GM's
+     * penalty deleted all stood, with no row. 30-security drives the same from p1's console.
+     */
+    ["two writes landed before either is judged are each put back with a row of their own", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const [one, two] = Object.keys(student.system.traits ?? {});
+        must(two && Number(student.system.resources?.hope?.max) >= 6, "the student has fewer than two traits, or cannot hold 6 Hope");
+        const A = `system.traits.${one}.value`, B = `system.traits.${two}.value`, HOPE = "system.resources.hope.value";
+        const MONOKUMA = `flags.${MODULE_ID}.${FLAGS.monokuma}`;
+        const read = path => foundry.utils.getProperty(student._source, path) ?? null;
+        const marked = () => {
+            const mark = sheetMarkStore.get(student.id);
+            return [mark?.traits?.[one]?.value ?? null, mark?.traits?.[two]?.value ?? null, mark?.flags?.[FLAGS.monokuma] ?? null];
+        };
+        const was = { a: read(A), b: read(B), hope: read(HOPE) };
+        const update = write => ({ make: () => student.update(write, { [AUDIT_ASIDE]: true }),
+            judge: () => judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id) });
+        // Every write made, then every one handed to the judge at once: none is judged before the last has landed.
+        const twice = async (...writes) => {
+            const from = Date.now();
+            for (const write of writes) await write.make();
+            const verdicts = await Promise.all(writes.map(write => write.judge()));
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from);
+            return [verdicts.map(verdict => verdict?.verdict ?? null), rows.map(row => `${row.verdict}:${Object.keys(row.change ?? {}).join(",")}`).sort()];
+        };
+        const sheetBack = async () => {
+            await sheetAuditIdle();
+            const fix = Object.fromEntries([[A, was.a], [B, was.b], [HOPE, was.hope]].filter(([path, value]) => read(path) !== value));
+            if (Object.keys(fix).length) await student.update(fix);
+            if (student.getFlag(MODULE_ID, FLAGS.monokuma) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.monokuma);
+            await sheetAuditIdle();
+        };
+        let effect = null, seen = null;
+        try {
+            await sheetAuditIdle();
+            must(stableJson(marked()) === stableJson([was.a, was.b, null]), "the student's mark is not its sheet before the test - this would measure nothing");
+            const statistics = await twice(update({ [A]: was.a + 3 }), update({ [B]: was.b + 3 }));
+            const statisticsAfter = [read(A), read(B), ...marked().slice(0, 2)];
+            await sheetBack();
+            const monokuma = await twice(update({ [A]: was.a + 3 }), update({ [MONOKUMA]: true }));
+            const monokumaAfter = [read(A), read(MONOKUMA), marked()[0], marked()[2]];
+            await sheetBack();
+            [effect] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 G1 penalty",
+                system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: -2 }] } }]);
+            await student.update({ [HOPE]: 2 });
+            await sheetAuditIdle();
+            must(effect && sheetMarkStore.get(student.id)?.effects?.[effect.id], "the GM's penalty is not in the student's mark - this would measure nothing");
+            const deleted = await twice(update({ [HOPE]: 6 }), { make: () => effect.delete({ [AUDIT_ASIDE]: true }),
+                judge: () => judgeWrite("deleteActiveEffect", effect, {}, player.id) });
+            const deletedAfter = [read(HOPE), student.effects.has(effect.id), Boolean(sheetMarkStore.get(student.id)?.effects?.[effect.id])];
+            seen = [statistics, statisticsAfter, monokuma, monokumaAfter, deleted, deletedAfter];
+        } finally {
+            await sheetAuditIdle();
+            if (effect && student.effects.has(effect.id)) await student.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+            await sheetBack();
+        }
+        equal(stableJson(seen), stableJson([
+            [["putBack", "putBack"], [`putBack:${A}`, `putBack:${B}`].sort()], [was.a, was.b, was.a, was.b],
+            [["putBack", "putBack"], [`putBack:${A}`, `putBack:${MONOKUMA}`].sort()], [was.a, null, was.a, null],
+            [["putBack", "putBack"], [`putBack:${HOPE}`, `putBack:effects.${effect?.id}`].sort()], [2, true, true]]),
+            "a write that landed while the one before it waited to be judged was taken into the mark unjudged (each round: the verdicts, "
+                + "the rows, then the sheet and the mark - two statistics; a statistic and the Monokuma flag; a forged Hope and the GM's penalty deleted)");
+    }],
+
+    /*
+     * WHAT A PUT-BACK WRITES BEHIND A BUSY QUEUE (E29 fix r1-G1, 05.10.2026; review round 1 cor M6). The
+     * queue is held by an item used - judged once its consumption is heard, which this test sends last
+     * (`onItemWrite`, as the C4 test above does) - while a player's write lands and is handed in, and a
+     * GM's write or the player's next lands behind it. Rounds: a Hope spent, then the GM's Hope; a
+     * forged Hope, then the GM's Hope; two forged Hopes; a forged statistic, then the GM's own value of
+     * it. Each ends with the document and the mark agreeing and the GM's write standing. At 65e5aec
+     * (05.10.2026, e29run/r1g1red) the first ended at Hope 4 with 6 in the mark and the second at 2 with
+     * 3 - the GMs' value written over the GM's - and in the fourth the item used's judgement took the
+     * GM's statistic into the mark, so the player's was judged as standing. The third, 2 and 2 there
+     * too, holds the correction to what its own write changed (sheet-audit.mjs `hopeLeft`).
+     */
+    ["a write judged behind a busy queue corrects only what it changed: a GM write made meanwhile stands", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { grantItem } = await import("./inventory.mjs");
+        const { judgeWrite, onItemWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const [trait] = Object.keys(student.system.traits ?? {});
+        const r = student.system.resources;
+        must(trait && Number(r?.hope?.max) >= 6 && Number(r?.hitPoints?.max) >= 2, "the student has no trait, or cannot hold 6 Hope and two Health marks");
+        const HOPE = "system.resources.hope.value", HP = "system.resources.hitPoints.value", STAT = `system.traits.${trait}.value`;
+        const read = path => foundry.utils.getProperty(student._source, path) ?? null;
+        const was = { hope: read(HOPE), hp: read(HP), stat: read(STAT) };
+        let kit = null, seen = null;
+        const queued = [];
+        // A player's write: made, then handed in - its judgement waits behind the item used, so it is not awaited here.
+        const asPlayer = (write, stamp = null) => async () => {
+            await student.update(write, { [AUDIT_ASIDE]: true });
+            queued.push(judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id, stamp ? { drpgWrite: { ref: null, ...stamp } } : {}));
+        };
+        const asGm = write => () => student.update(write);
+        const round = async (hope, ...steps) => {
+            await student.update({ [HOPE]: hope, [HP]: 2, [STAT]: was.stat });
+            await auditFromScratch(student);
+            queued.length = 0;
+            await student.update({ [HP]: 1 }, { [AUDIT_ASIDE]: true });
+            const use = judgeWrite("updateActor", student, foundry.utils.expandObject({ [HP]: 1 }), player.id, { drpgWrite: { ref: kit.id, reason: "itemUse" } });
+            for (const step of steps) await step();
+            onItemWrite(kit, { system: { quantity: 0 } }, {}, player.id, { primary: true });
+            const verdicts = [await use, ...await Promise.all(queued)].map(verdict => verdict?.verdict ?? null);
+            await sheetAuditIdle();
+            const mark = sheetMarkStore.get(student.id);
+            return [verdicts, read(HOPE), mark?.resources?.hope?.value ?? null, read(STAT), mark?.traits?.[trait]?.value ?? null];
+        };
+        try {
+            kit = await grantItem(student, { name: "Tier 2 G1 kit", category: "usable", tier: 3, goal: "healing", override: true, quiet: true });
+            must(kit, "the tier-3 kit was not given");
+            seen = [
+                await round(5, asPlayer({ [HOPE]: 4 }, { reason: "price" }), asGm({ [HOPE]: 6 })),
+                await round(2, asPlayer({ [HOPE]: 6 }), asGm({ [HOPE]: 3 })),
+                await round(2, asPlayer({ [HOPE]: 5 }), asPlayer({ [HOPE]: 6 })),
+                await round(5, asPlayer({ [STAT]: was.stat + 3 }), asGm({ [STAT]: was.stat + 1 }))];
+        } finally {
+            await sheetAuditIdle();
+            if (kit) await student.items.get(kit.id)?.delete();
+            await student.update({ [HOPE]: was.hope, [HP]: was.hp, [STAT]: was.stat });
+            await sheetAuditIdle();
+        }
+        const stat = was.stat;
+        equal(stableJson(seen), stableJson([
+            [["stands", "stands"], 6, 6, stat, stat],
+            [["stands", "putBack"], 3, 3, stat, stat],
+            [["stands", "putBack", "putBack"], 2, 2, stat, stat],
+            [["stands", "putBack"], 5, 5, stat + 1, stat + 1]]),
+            "a judgement behind a busy queue wrote over a write that landed after its own, or left the document and the mark apart "
+                + "(each round: the item used's verdict and the player's, Hope and the mark's Hope, the statistic and the mark's)");
+    }],
+
+    ["a write landing while the comparison at ready puts back is judged after it, not taken into the mark", async () => {
+        /* G1 (review round 1 cor B1, which found it by reading): the comparison (C7) read the document again once
+           its put-backs were written and settled the mark on that, so a write landing meanwhile was the mark's
+           before its own judgement. Two differences nobody judged - a statistic raised, a penalty effect made -
+           so the comparison writes twice, and a player's write of another statistic sent as the first put-back
+           lands: it lands while the second is written, and is judged after the comparison. At 65e5aec
+           (05.10.2026, e29run/r1g1red) that statistic stood at 3 for 0, in the mark too. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { compareAtReady, judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const [one, two] = Object.keys(student.system.traits ?? {});
+        must(two, "the student has fewer than two traits");
+        const A = `system.traits.${one}.value`, B = `system.traits.${two}.value`, NAME = "Tier 2 G1 away penalty";
+        const read = path => foundry.utils.getProperty(student._source, path) ?? null;
+        const penalties = () => student.effects.contents.filter(effect => effect.name === NAME);
+        const was = { a: read(A), b: read(B) };
+        let hook = null, landed = null, seen = null;
+        try {
+            await sheetAuditIdle();
+            await student.update({ [A]: was.a + 1 }, { [AUDIT_ASIDE]: true });
+            await student.createEmbeddedDocuments("ActiveEffect", [{ name: NAME,
+                system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: -2 }] } }], { [AUDIT_ASIDE]: true });
+            hook = Hooks.on("updateActor", (doc, changes, options) => {
+                if (doc.id !== student.id || options?.drpgWrite?.reason !== "auditPutBack" || landed) return;
+                landed = student.update({ [B]: was.b + 3 }, { [AUDIT_ASIDE]: true })
+                    .then(() => judgeWrite("updateActor", student, foundry.utils.expandObject({ [B]: was.b + 3 }), player.id));
+            });
+            const found = await compareAtReady();
+            const verdict = await landed;
+            await sheetAuditIdle();
+            seen = [found?.putBack ?? null, verdict?.verdict ?? null, read(A), read(B), sheetMarkStore.get(student.id)?.traits?.[two]?.value ?? null, penalties().length];
+        } finally {
+            if (hook !== null) Hooks.off("updateActor", hook);
+            await landed?.catch(() => null);
+            await sheetAuditIdle();
+            if (penalties().length) await student.deleteEmbeddedDocuments("ActiveEffect", penalties().map(effect => effect.id));
+            const fix = Object.fromEntries([[A, was.a], [B, was.b]].filter(([path, value]) => read(path) !== value));
+            if (Object.keys(fix).length) await student.update(fix);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([2, "putBack", was.a, was.b, was.b, 0]),
+            "a write that landed while the comparison at ready put back was taken into the mark, or not put back "
+                + "(put back at ready, the write's verdict, the first statistic, the second, the mark's second, the penalties left)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

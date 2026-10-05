@@ -2373,6 +2373,107 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ itemsSet, consoleItems }), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S WRITES IN A ROW (E29 fix r1-G1, 05.10.2026; review round 1 sec B1 = cor B1, cor M6). p1's
+     * console sends its writes back to back, so the later ones land on the GM while the judge is still
+     * putting the first back: a forged Hope, then Agility raised; a forged Hope, then the Monokuma flag, then
+     * Agility raised alone; a forged Hope awaited, then the GM's roll penalty deleted. Expected: each write
+     * put back on every client, with a row of its own. Then a Hope spent behind an Agility being put back,
+     * the GM's own Hope written as the spend lands (a GM hook, as the review's probe wrote it): the GM's Hope
+     * stands on every client and in the GMs' mark. Before the fix the later writes stood - the Monokuma
+     * flag, and with it every write after it - and the spend's judgement wrote 4 over the GM's Hope (the
+     * reviews' probes on 69deef0, which wrote 9 where this writes 6). Measured here at 65e5aec (05.10.2026,
+     * e29run/r1g1red): Agility 4 for 1 on every client and in the mark, one row; the flag on every client,
+     * then the lone Agility at 4; the penalty gone everywhere, one row; Hope 4 everywhere, 6 in the mark.
+     */
+    phase("a console's writes in a row", { flow: "sheet-audit" });
+    const readRow = `const a = game.actors.get("${ids.aiko}"); return { agility: a.system.traits.agility.value, hope: a.system.resources.hope.value,
+        monokuma: a.getFlag("${MOD}", "monokuma") ?? null, penalty: a.effects.contents.filter(e => e.name === "SEC G1 penalty").length };`;
+    const audited = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();`;
+    const markRow = `${audited} const m = S.sheetMarkStore.get("${ids.aiko}");
+        return { agility: m?.traits?.agility?.value ?? null, hope: m?.resources?.hope?.value ?? null, monokuma: m?.flags?.monokuma ?? null };`;
+    const rowsOf = from => `${audited} return Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${from})
+        .map(r => r.verdict + ":" + Object.keys(r.change ?? {}).map(k => k.replace(/^effects\\..+$/, "effects.<id>")).join(",")).sort();`;
+    const rowWas = await gm.eval(`${audited} const a = game.actors.get("${ids.aiko}");
+        return { agility: a.system.traits.agility.value, hope: a.system.resources.hope.value, monokuma: a.getFlag("${MOD}", "monokuma") ?? null };`);
+    // Aiko as she was, the test's penalty gone and Hope at `hope`; answers the time, for the rows written after it.
+    const rowBack = hope => gm.eval(`${audited} const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(rowWas)};
+        if (a.getFlag("${MOD}", "monokuma") !== undefined && was.monokuma === null) await a.unsetFlag("${MOD}", "monokuma");
+        const left = a.effects.contents.filter(e => e.name === "SEC G1 penalty").map(e => e.id);
+        if (left.length) await a.deleteEmbeddedDocuments("ActiveEffect", left);
+        const fix = { "system.traits.agility.value": was.agility, "system.resources.hope.value": ${hope ?? "was.hope"} };
+        if (a.system.traits.agility.value !== fix["system.traits.agility.value"] || a.system.resources.hope.value !== fix["system.resources.hope.value"]) await a.update(fix);
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return Date.now();`);
+    // Up to 6 s for the GM's reading to come out as `test` says, every judgement finished, then every client's.
+    const settledRow = async test => {
+        await gm.eval(`const end = Date.now() + 6000; const read = async () => { ${readRow} };
+            while (!(${test})(await read()) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        await settle(800);
+        return Promise.all([gm, p1, p2, p3].map(c => c.eval(readRow)));
+    };
+    let inRow = null;
+    try {
+        const fromA = await rowBack(2);
+        await p1.eval(`const a = game.actors.get("${ids.aiko}");
+            a.update({ "system.resources.hope.value": 6 });
+            a.update({ "system.traits.agility.value": ${rowWas.agility + 3} }, { drpgAutomated: true });
+            return true;`);
+        const agility = { after: await settledRow(`s => s.hope === 2 && s.agility === ${rowWas.agility}`), mark: await gm.eval(markRow), rows: await gm.eval(rowsOf(fromA)) };
+        const fromF = await rowBack(2);
+        await p1.eval(`const a = game.actors.get("${ids.aiko}");
+            a.update({ "system.resources.hope.value": 6 });
+            a.update({ "flags.${MOD}.monokuma": true }, { drpgAutomated: true });
+            return true;`);
+        const flagged = await settledRow(`s => s.hope === 2 && s.monokuma === null`);
+        await p1.eval(`await game.actors.get("${ids.aiko}").update({ "system.traits.agility.value": ${rowWas.agility + 3} }, { drpgAutomated: true }); return true;`);
+        const monokuma = { flagged, alone: await settledRow(`s => s.agility === ${rowWas.agility}`), mark: await gm.eval(markRow), rows: await gm.eval(rowsOf(fromF)) };
+        await rowBack(2);
+        await gm.eval(`await game.actors.get("${ids.aiko}").createEmbeddedDocuments("ActiveEffect", [{ name: "SEC G1 penalty",
+            system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: -2 }] } }]);
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        const fromG = await gm.eval(`return Date.now();`);
+        const deleting = await p1.eval(`const a = game.actors.get("${ids.aiko}"), e = a.effects.contents.find(x => x.name === "SEC G1 penalty");
+            await a.update({ "system.resources.hope.value": 6 }); e?.delete(); return Boolean(e);`);
+        const penalty = { deleting, after: await settledRow(`s => s.hope === 2 && s.penalty === 1`), rows: await gm.eval(rowsOf(fromG)) };
+        await rowBack(5);
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            globalThis.__g1Hook = Hooks.on("updateActor", (doc, changes, options, userId) => {
+                if (doc.id !== a.id || userId !== "${p1.userId}" || !foundry.utils.hasProperty(changes, "system.resources.hope.value")) return;
+                Hooks.off("updateActor", globalThis.__g1Hook);
+                delete globalThis.__g1Hook;
+                void a.update({ "system.resources.hope.value": 6 });
+            });
+            return true;`);
+        await p1.eval(`const a = game.actors.get("${ids.aiko}");
+            const w0 = a.update({ "system.traits.agility.value": ${rowWas.agility + 1} }, { drpgAutomated: true });
+            const w1 = a.update({ "system.resources.hope.value": 4 }, { drpgAutomated: true, drpgWrite: { reason: "price", ref: null } });
+            await Promise.all([w0, w1]); return true;`);
+        const spent = { after: await settledRow(`s => s.agility === ${rowWas.agility} && s.hope === 6`), mark: await gm.eval(markRow) };
+        inRow = { agility, monokuma, penalty, spent };
+    } finally {
+        await gm.eval(`if (globalThis.__g1Hook !== undefined) Hooks.off("updateActor", globalThis.__g1Hook); delete globalThis.__g1Hook; return true;`);
+        await rowBack(null);
+    }
+    const everyClient = (seen, want) => Array.isArray(seen) && seen.length === 4 && seen.every(s => Object.entries(want).every(([key, value]) => s?.[key] === value));
+    const HOPE_ROW = "putBack:system.resources.hope.value", AGILITY_ROW = "putBack:system.traits.agility.value";
+    check("SECURITY: Agility a player's console raises right behind a forged Hope is put back with it on every client and in the GMs' mark, a row each",
+        Boolean(inRow) && everyClient(inRow.agility.after, { hope: 2, agility: rowWas.agility }) && inRow.agility.mark.agility === rowWas.agility
+            && JSON.stringify(inRow.agility.rows) === JSON.stringify([HOPE_ROW, AGILITY_ROW]),
+        JSON.stringify(inRow?.agility ?? null), { flow: "sheet-audit" });
+    check("SECURITY: the Monokuma flag a player's console writes right behind a forged Hope is put back on every client, and Agility raised alone after it is put back too",
+        Boolean(inRow) && everyClient(inRow.monokuma.flagged, { hope: 2, monokuma: null }) && everyClient(inRow.monokuma.alone, { agility: rowWas.agility, monokuma: null })
+            && inRow.monokuma.mark.monokuma === null
+            && JSON.stringify(inRow.monokuma.rows) === JSON.stringify([`putBack:flags.${MOD}.monokuma`, HOPE_ROW, AGILITY_ROW]),
+        JSON.stringify(inRow?.monokuma ?? null), { flow: "sheet-audit" });
+    check("SECURITY: a GM's roll penalty a player's console deletes right behind a forged Hope is made again on every client, a row each",
+        Boolean(inRow) && inRow.penalty.deleting === true && everyClient(inRow.penalty.after, { hope: 2, penalty: 1 })
+            && JSON.stringify(inRow.penalty.rows) === JSON.stringify(["putBack:effects.<id>", HOPE_ROW]),
+        JSON.stringify(inRow?.penalty ?? null), { flow: "sheet-audit" });
+    check("SECURITY: a GM's Hope written while a player's spend waits behind a statistic being put back stands on every client and in the GMs' mark",
+        Boolean(inRow) && everyClient(inRow.spent.after, { hope: 6, agility: rowWas.agility }) && inRow.spent.mark.hope === 6,
+        JSON.stringify(inRow?.spent ?? null), { flow: "sheet-audit" });
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

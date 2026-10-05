@@ -1622,11 +1622,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * would put a card with Undo before the GMs). What is listed is a Call a player's browser armed (`pendingCall`,
      * until C8). And the marks' traffic: 76 patches of `sheetMarks` in this day, measured on the harness on
      * 05.10.2026 (e29run/c3a1, one run; one listed row, a Call armed) - the plan's section 6 asked for the
-     * number. The bound allows a quarter more: a write judged after the next one has landed reads both in
-     * the document, so two writes can move a mark once or twice. C6 (05.10.2026) puts each module item in the
+     * number. The bound allows a quarter more: a write judged after the next one has landed read both in
+     * the document, so two writes could move a mark once or twice - until E29 fix r1-G1, since which a write
+     * moves the mark only by what it named, as its hook saw it. C6 (05.10.2026) puts each module item in the
      * mark, and every write on one moves it: 111 patches in each of two runs on the harness (e29run/c6a1, with
      * the stash, the retrieve and the discard above), 35 of them moving items in the second - the first did not
-     * count them apart - and the other 76 the number C3 measured.
+     * count them apart - and the other 76 the number C3 measured. Read again for G1 (05.10.2026, one run each,
+     * e29run/r1g1q): 114 patches at C9 (65e5aec), 115 with G1, 35 of them items in both.
      */
     phase("the day's writes, as the GMs' audit saw them", { flow: "sheet-audit" });
     const auditDay = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
