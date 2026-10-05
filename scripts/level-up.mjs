@@ -529,7 +529,9 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     // `game.drpg`, and it writes through `trustedWrite` - which bypasses the
     // resource guard by design - so without it a player could raise their own
     // max Health and traits from the console with a single call, walking straight
-    // past the check the dialog in front of it makes.
+    // past the check the dialog in front of it makes. Since E29 C3 the primary GM
+    // puts such a rise from a player's browser back as well (sheet-audit.mjs); this
+    // gate keeps the road a GM's, which is what makes its write the student's new mark.
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;

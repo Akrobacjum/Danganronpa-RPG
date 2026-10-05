@@ -286,7 +286,8 @@ async function drawAndPlay(cls, config, message) {
  * neutral roll drops, travels beside it, and so do the window's costs. Exported for the suite,
  * which sends the GM a packet of its own roll's shape (tests-tier2.mjs `drawnForPlayer`).
  *
- * And what the GM holds the roll against (E08+E28 C12b), each the roller's word: the statistic
+ * And what the roller claims of it (E08+E28 C12b), each the roller's word - since E29 C10 a claim
+ * the GM records beside the roll its own list makes, compares and never counts: the statistic
  * and the experiences, which the neutral roll drops; the Calls the roll applied (the claim's
  * `facts`, the roll window's list, private-rolls.mjs `noteWindowCalls`); the action's context a
  * check reads (a Search's category, goal and stash, a project's id, an opening's side, the crisis

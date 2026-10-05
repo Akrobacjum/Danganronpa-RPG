@@ -6,7 +6,9 @@
  * advancement was earned - not because a player clicked a pip.
  *
  * So those fields become read-only for players and writable only by the GM or
- * by this module's own automation.
+ * by this module's own automation - on the player's own browser, where the hooks
+ * below run (a courtesy, below); the check that a console cannot step past is the
+ * primary GM's (sheet-audit.mjs, E29).
  *
  * Health AND STRESS ARE IN THAT LIST AS OF 1.0.1. They used to be the exception, on
  * the grounds that players mark their own damage - but nothing in this game
@@ -14,10 +16,13 @@
  * Observe, a Rest; all of it through `trustedWrite`, all of it already
  * marked. What the editable pips actually bought was the ability to heal
  * yourself in the middle of an incident, which is not a rule anybody had agreed
- * to and is impossible to notice from the GM's side.
+ * to and was impossible to notice from the GM's side - until E29 C5, which flags
+ * a gain in either that nothing covers to the GMs, with Undo.
  *
  * Automation marks its own writes with a flag in the update options, which is
- * how a legitimate change is told apart from someone poking the sheet.
+ * how these hooks tell a legitimate change from someone poking the sheet. A
+ * console can set that flag too; what the primary GM reads instead is the reason
+ * the write names (`WRITE_STAMP`), and it checks the evidence that reason points to.
  *
  * A COURTESY, ON THE WRITER'S OWN BROWSER (E29 C2, 05.10.2026; audit S03-45). Both
  * hooks below run where the write is made and stand aside for anything carrying that
