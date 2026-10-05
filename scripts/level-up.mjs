@@ -625,7 +625,9 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         // is a courtesy; what keeps the module's own roads off a student's traits and
         // Health and Sanity maxima on a player's console is that each road writing
         // them - this one, `initCharacter` and `restoreStartingSheet` - is a GM's
-        // (R79, R221).
+        // (R79, R221). And since E29 C3 what a console writes there by hand is put back
+        // by the primary GM (sheet-audit.mjs), which takes this write, a GM's, as the
+        // student's new mark.
         const { trustedWrite } = await import("./resource-guard.mjs");
         const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
         update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;

@@ -57,7 +57,8 @@ export async function initCharacter(actor, {
        `applyAdvancement`: with it, every road that writes a student's traits or Health and
        Sanity maxima is a GM's (this, `restoreStartingSheet` and `applyAdvancement` are the
        only module code that writes those paths - grepped 05.10.2026). R221 reads that the gate
-       comes before the first write here and in `restoreStartingSheet`. */
+       comes before the first write here and in `restoreStartingSheet`. A console that writes
+       those paths by hand is put back by the primary GM since E29 C3 (sheet-audit.mjs). */
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;

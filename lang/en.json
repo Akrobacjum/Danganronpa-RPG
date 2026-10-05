@@ -2531,7 +2531,8 @@
         "rollReplaced": "A later roll of the same action replaced the roll it names.",
         "notPaid": "The GM's client saw no action paid for that roll. Take the action again.",
         "rollThrown": "That action's roll has been thrown already.",
-        "callNotPaid": "The GM's client saw no Hope paid for that Call."
+        "callNotPaid": "The GM's client saw no Hope paid for that Call.",
+        "sheetPutBack": "The GM's client put that change to your sheet back: only the GM changes it."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
@@ -2941,6 +2942,19 @@
       "actionOwed": "The critical is gone, but the action it returned is already used. You owe one.",
       "gmReasked": "The GM has been asked to rule again on the new result.",
       "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Please rule again."
+    },
+    "Audit": {
+      "putBack": "{player} changed {name}'s sheet by hand; the GM's client put it back:",
+      "listTitle": "Writes on a student's sheet the GMs put back or listed: {n}",
+      "field": {
+        "traits": "Statistics",
+        "experience": "Experiences",
+        "max": "A maximum",
+        "rules": "Roll rules",
+        "bonuses": "Bonuses",
+        "flag": "The module's records",
+        "effect": "An effect"
+      }
     },
     "Rolls": {
       "rewritePutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",
@@ -3515,7 +3529,9 @@
         "cleanupAttempts": "Each character's last clean-up, kept so a Reroll can take it back",
         "rerollJournal": "A Reroll the GM is making, step by step, so a reload in the middle can be put right",
         "rolls": "The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them",
-        "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found"
+        "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
+        "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
+        "sheetWrites": "The writes on a student's sheet the GMs put back or listed, kept a day"
       },
       "row": {
         "traces": {

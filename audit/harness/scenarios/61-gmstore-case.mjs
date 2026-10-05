@@ -113,6 +113,8 @@
  *      having heard of the other, both are owed, and the publication gives both takers theirs.
  *   T  the Cleaning Tools a clean-up used (E32+E07 C12): a row the primary writes reaches the
  *      second GM, whose discovery breaks the gloves and takes the row off both.
+ *   U  a player's write on their own student (E29 C3): a statistic raised from the console is put
+ *      back once by the primary, and the row reaches the second GM and a GM who joins late.
  */
 export const layers = ["ci"];
 /* Its own bound, not a raise of run-all's shared five minutes (E29 C1, 05.10.2026): this
@@ -154,7 +156,14 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         JSON.stringify({ before, unreachable }));
 
     const probe = JSON.stringify({ visit: 1 });
-    // A copy of the seed GM's browser, so that the two GMs' stores are equal (A5).
+    /* A copy of the seed GM's browser, so that the two GMs' stores are equal (A5) - taken once its stores have
+       hydrated and written what they write then: since E29 C3 the primary fills the marks of a sheet as its
+       stores hydrate (sheet-audit.mjs), and the seed GM's had not yet when this ran (measured 05.10.2026,
+       e29run/scratch/c3/a5probe.mjs: hydrated false, no marks, the copy without the key; A5 then saw a state
+       exchanged for them). */
+    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const end = Date.now() + 10000;
+        while (!E.gmStoresHydrated() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await E.gmStoresIdle(); return E.gmStoresHydrated();`);
     await connect("gm2", { storage: { ...(await storageOf("gm")), [PROBE_KEY]: probe } });
     await settle(400);
     const onGm2 = await gm2.eval(`return { held: localStorage.getItem("${PROBE_KEY}"), me: game.user.id, isGM: game.user.isGM,
@@ -1981,5 +1990,42 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         t1.primary === true && t2.held === true && t2.broke.includes("E32 C12 61 T gloves") && t2.row === false && t3.row === false && t3.broken === true,
         J({ t1, t2, t3 }), { flow: "gm-store" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T"], gm: IDS.gm };
+    /* U (E29 C3, 05.10.2026; the plan's 2.3 and 2.9): a player's write on their own student is judged by the
+       primary alone. With gma the primary and gmb a second GM, p1's console raises Aiko's Agility by 3 past its
+       own browser's guard; p1 must see the write put back exactly once (a second GM judging too would put it back
+       a second time), the GMs whispered once, gmb hold the row and the mark the primary wrote, and gm3, joining
+       with an empty browser, hold both from the exchange. */
+    phase("U: a player's statistic is put back once with two GMs, and a GM who joins late holds the row", { flow: "sheet-audit" });
+    const SA = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const SC = await import("${repoUrl}/scripts/secret.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");`;
+    const putBackRows = `Object.values(S.sheetWriteStore?.entries?.() ?? {}).filter(r => r?.actorId === "${IDS.aiko}" && r.verdict === "putBack" && r.at >= from)`;
+    // A GM whisper is a private card: its flags are read through secret.mjs's `cardFlag`.
+    const auditWhispers = `game.messages.contents.filter(m => SC.cardFlag(m, "sheetAudit") === "${IDS.aiko}").length`;
+    const u0 = await gma.eval(`${SA} return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(),
+        agility: aiko.system.traits.agility.value, mark: S.sheetMarkStore?.get?.(aiko.id)?.traits?.agility?.value ?? null,
+        from: Date.now(), whispers: ${auditWhispers} };`);
+    await p1.eval(`globalThis.__putBacks = 0;
+        if (!globalThis.__putBackHook) {
+            globalThis.__putBackHook = true;
+            Hooks.on("updateActor", (a, c, o) => { if (a.id === "${IDS.aiko}" && o?.drpgWrite?.reason === "auditPutBack") globalThis.__putBacks++; });
+        }
+        await game.actors.get("${IDS.aiko}").update({ "system.traits.agility.value": ${u0.agility + 3} }, { drpgAutomated: true });
+        return true;`);
+    const u1 = await p1.eval(`${untilP} const a = game.actors.get("${IDS.aiko}");
+        await until(() => globalThis.__putBacks > 0 && a.system.traits.agility.value === ${u0.agility});
+        await new Promise(r => setTimeout(r, 1500));
+        return { agility: a.system.traits.agility.value, putBacks: globalThis.__putBacks };`);
+    const u2 = await gmb.eval(`${SA} ${untilP} const from = ${u0.from}; await until(() => ${putBackRows}.length > 0);
+        return { rows: ${putBackRows}.length, mark: S.sheetMarkStore?.get?.(aiko.id)?.traits?.agility?.value ?? null };`);
+    const u3 = await gma.eval(`${SA} return ${auditWhispers} - ${u0.whispers};`);
+    await connect("gm3");
+    const u4 = await gm3.eval(`${SA} ${untilP} const from = ${u0.from}; await until(() => ${putBackRows}.length > 0, 10000);
+        return { rows: ${putBackRows}.length, mark: S.sheetMarkStore?.get?.(aiko.id)?.traits?.agility?.value ?? null };`, { timeout: 30000 });
+    await disconnect("gm3");
+    check("U1: a player's Agility raised from the console is put back once by the primary, whispered once, and held by the second GM and a GM who joins late",
+        u0.primary === true && u0.mark === u0.agility && u1.agility === u0.agility && u1.putBacks === 1 && u2.rows === 1
+            && u2.mark === u0.agility && u3 === 1 && u4.rows === 1 && u4.mark === u0.agility,
+        J({ u0, u1, u2, u3, u4 }), { flow: "sheet-audit" });
+
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U"], gm: IDS.gm };
 }

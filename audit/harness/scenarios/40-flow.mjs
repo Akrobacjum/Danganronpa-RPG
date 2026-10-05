@@ -94,6 +94,17 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
 
     // ---- 0. season setup basics: Monokuma pool, clock at day 1 morning ----------------------
     phase("season setup", { flow: "clock-day" });
+    /* The GMs' audit of a sheet (E29 C3, the plan's section 6): every write on a student patches its mark on
+       the primary when it moves it. Counted from here to the end of the day, with the rows it writes (below). */
+    await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
+        globalThis.__markPatches = 0; globalThis.__auditFrom = Date.now();
+        const store = S.sheetMarkStore;
+        if (store && !store.__counted) {
+            const patch = store.patch;
+            store.patch = (...args) => { globalThis.__markPatches++; return patch.apply(store, args); };
+            store.__counted = true;
+        }
+        return true;`);
     await gm.eval(`
         await game.drpg.setMonokuma(game.actors.get("${ids.monokuma}"), true).catch(() => {});
         await game.drpg.setClock({ chapter: 1, day: 1, session: 1, timeOfDay: "morning", phase: "dailyLife", campaign: "QA season" });
@@ -1485,6 +1496,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
                 && broke.paths.includes(`flags.${MOD}.broken.at`),
             JSON.stringify({ restSet, restRun, restSeen }).slice(0, 1500));
     }
+
+    /*
+     * THE DAY, AS THE GMS' AUDIT SAW IT (E29 C3, 05.10.2026; the plan's section 6, "store traffic"). Every write
+     * above - the GM's and the players' own, a Search, a Rest, Calls, projects, a stash - went past the judge on
+     * the primary. None may be put back: a module road that writes what a roll is built from on a player's browser
+     * would be a false alarm at every table. What is listed is a Call a player's browser armed (`pendingCall`,
+     * until C8). And the marks' traffic: 76 patches of `sheetMarks` in this day, measured on the harness on
+     * 05.10.2026 (e29run/c3a1, one run; one listed row, a Call armed) - the plan's section 6 asked for the
+     * number. The bound allows a quarter more: a write judged after the next one has landed reads both in
+     * the document, so two writes can move a mark once or twice.
+     */
+    phase("the day's writes, as the GMs' audit saw them", { flow: "sheet-audit" });
+    const auditDay = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
+        await (await import("${REPO}/scripts/sheet-audit.mjs").catch(() => ({}))).sheetAuditIdle?.();
+        const rows = Object.values(S.sheetWriteStore?.entries?.() ?? {}).filter(r => r?.at >= globalThis.__auditFrom);
+        return { store: Boolean(S.sheetMarkStore), patches: globalThis.__markPatches,
+            putBack: rows.filter(r => r.verdict === "putBack").map(r => Object.keys(r.change ?? {})),
+            listed: rows.filter(r => r.verdict === "listed").flatMap(r => Object.keys(r.change ?? {})) };`);
+    const MARK_PATCHES_MEASURED = 76;
+    check("a Daily Life day: the GMs' audit puts back nothing a module road wrote, lists only Calls armed, and patches its marks within a quarter of the measured count",
+        auditDay.store && auditDay.putBack.length === 0 && auditDay.listed.every(path => path === `flags.${MOD}.pendingCall`)
+            && auditDay.patches > 0 && auditDay.patches <= Math.ceil(MARK_PATCHES_MEASURED * 1.25),
+        JSON.stringify(auditDay).slice(0, 1500), { flow: "sheet-audit" });
 
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");

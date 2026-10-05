@@ -281,6 +281,23 @@ async function restore(snap) {
     const strayMessages = game.messages.filter(m => !snap.messages.has(m.id)).map(m => m.id);
     if (strayMessages.length) await ChatMessage.deleteDocuments(strayMessages);
 
+    /* THE GMS' AUDIT OF A SHEET, LAST (E29 C3, 05.10.2026). It takes every GM's write on a student as
+       that student's mark (sheet-audit.mjs), and the revival and the resources above are a GM's: each
+       moved a mark after its key had gone back with the settings, one write at a time, so a mark could
+       end a step away from the snapshot's and stamped anew. Its queue let finish and the store let
+       settle, its two keys go back again here, after the last write on a student - as the loop above
+       writes every key back, from the snapshot, the keys read off the stores' own handles (R171 holds a
+       SETTINGS name of a GM store to the engine). */
+    await (await import("./sheet-audit.mjs")).sheetAuditIdle();
+    await gmStoresIdle();
+    const recorded = new Map(snap.settings ?? []);
+    const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+    for (const key of [sheetMarkStore.spec.key, sheetWriteStore.spec.key]) {
+        if (!recorded.has(key) || stableJson(game.settings.get(MODULE_ID, key)) === stableJson(recorded.get(key))) continue;
+        try { await game.settings.set(MODULE_ID, key, recorded.get(key)); }
+        catch (err) { stuck.push(`${key} (${err?.message ?? err})`); }
+    }
+
     await settle();
     /* Read back, not assumed - by the runner now (E30): after every restore it reads
        the whole world (worldDump) and names whatever is not as tier 2 found it. The
@@ -24019,6 +24036,146 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([{ restored: true, advances: 2 }, true, -1, 0,
             STARTING.hp, STARTING.stress, 0, 0, STARTING.hope, -1, true]),
             "a GM's season reset no longer puts the stamped spread back, clears the advances, writes the starting resources or stamps the spread again");
+    }],
+
+    /*
+     * THE GMS' AUDIT OF A SHEET (E29 C3, 05.10.2026; audit S02-41; the plan's 2.3, 2.4). Tier 2 runs
+     * on the GM, so a player's write is made here as the GM with the option the audit leaves out of
+     * the mark (sheet-audit.mjs `AUDIT_ASIDE`) and handed to `judgeWrite` with a real player's id -
+     * the document already holds it, as it does when the hook hears a player's write. 30-security
+     * drives the same from p1's console, and 61 with two GMs. The traits are not in tier 2's
+     * snapshot, so each test puts its student's back itself.
+     */
+    ["a player's statistic is put back, a GM's stands", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const [trait] = Object.keys(student.system.traits ?? {});
+        must(trait, "the student has no traits to raise");
+        const path = `system.traits.${trait}.value`, value = () => foundry.utils.getProperty(student._source, path);
+        const was = value();
+        await sheetAuditIdle();
+        must(sheetMarkStore.get(student.id)?.traits?.[trait]?.value === was, "the student's mark is not its sheet before the test - this would measure nothing");
+        let read = null;
+        try {
+            await student.update({ [path]: was + 3 }, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateActor", student, foundry.utils.expandObject({ [path]: was + 3 }), player.id);
+            await sheetAuditIdle();
+            const back = value();
+            const row = Object.values(sheetWriteStore.entries() ?? {}).find(r => r?.actorId === student.id && r.userId === player.id && r.change?.[path]);
+            await student.update({ [path]: was + 1 });
+            await sheetAuditIdle();
+            read = [verdict?.verdict ?? null, back, row?.verdict ?? null, row?.change?.[path] ?? null, value(),
+                sheetMarkStore.get(student.id)?.traits?.[trait]?.value ?? null];
+        } finally {
+            await student.update({ [path]: was });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson(["putBack", was, "putBack", [was, was + 3], was + 1, was + 1]),
+            "a player's statistic was not put back to its mark and recorded, or a GM's own write did not stand as the new mark");
+    }],
+
+    ["a Level Up the GM applies is the new baseline", async () => {
+        /* The mutant the plan names: the GM's write not taken as the mark puts the player's next write
+           back to the statistic before the Level Up, undoing the advancement with it. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { applyAdvancement } = await import("./level-up.mjs");
+        const [trait] = Object.keys(student.system.traits ?? {});
+        must(trait, "the student has no traits to raise");
+        const path = `system.traits.${trait}.value`, value = () => foundry.utils.getProperty(student._source, path);
+        const was = value();
+        await sheetAuditIdle();
+        let read = null;
+        try {
+            const applied = await applyAdvancement(student, [{ option: "trait", trait }]);
+            await sheetAuditIdle();
+            const raised = value();
+            await student.update({ [path]: was + 3 }, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateActor", student, foundry.utils.expandObject({ [path]: was + 3 }), player.id);
+            await sheetAuditIdle();
+            read = [Boolean(applied), raised, verdict?.verdict ?? null, value(), sheetMarkStore.get(student.id)?.traits?.[trait]?.value ?? null];
+        } finally {
+            await student.update({ [path]: was });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, was + 1, "putBack", was + 1, was + 1]),
+            "the GM's Level Up was not the student's new mark: a player's next write went back past it, or was not put back");
+    }],
+
+    ["the judge runs on the primary alone", async () => {
+        /* Tier 2 has one GM, the primary: a second GM's hook is the same entry told it is not
+           (`onSheetWrite`'s `primary`). It must write nothing - no put-back, no row, no mark - and the
+           primary's, the control, put the same write back. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { onSheetWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const [trait] = Object.keys(student.system.traits ?? {});
+        must(trait, "the student has no traits to raise");
+        const path = `system.traits.${trait}.value`, value = () => foundry.utils.getProperty(student._source, path);
+        const was = value();
+        const rows = () => Object.values(sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === student.id && r.userId === player.id).length;
+        await sheetAuditIdle();
+        let writes = 0, read = null;
+        const hook = Hooks.on("updateActor", (a, c, o) => { if (a.id === student.id && o?.drpgWrite?.reason === "auditPutBack") writes++; });
+        try {
+            await student.update({ [path]: was + 3 }, { [AUDIT_ASIDE]: true });
+            const changes = foundry.utils.expandObject({ [path]: was + 3 });
+            const [rowsBefore, markBefore] = [rows(), stableJson(sheetMarkStore.get(student.id))];
+            const second = onSheetWrite("updateActor", student, changes, {}, player.id, { primary: false });
+            await sheetAuditIdle();
+            await settle();
+            const asSecond = [second, writes, value(), rows() - rowsBefore, stableJson(sheetMarkStore.get(student.id)) === markBefore];
+            await onSheetWrite("updateActor", student, changes, {}, player.id, { primary: true });
+            await sheetAuditIdle();
+            read = [asSecond, [writes, value(), rows() - rowsBefore]];
+        } finally {
+            Hooks.off("updateActor", hook);
+            await student.update({ [path]: was });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[null, 0, was + 3, 0, true], [1, was, 1]]),
+            "a GM that is not the primary judged a player's write, or the primary did not");
+    }],
+
+    ["with lockPlayerResources off a player's statistic is listed and stands, and a roll rule is still put back", async () => {
+        /* The owner's Q2 (a), 05.10.2026: off, the fields the setting's text names - statistics among
+           them - are listed and not put back; a rule is not one of them. One write carries both. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const [trait] = Object.keys(student.system.traits ?? {});
+        must(trait, "the student has no traits to raise");
+        const path = `system.traits.${trait}.value`, rule = "system.rules.dualityRoll.defaultHopeDice";
+        const value = p => foundry.utils.getProperty(student._source, p) ?? null;
+        const [was, ruleWas, hadRules, lock] = [value(path), value(rule), student._source.system?.rules !== undefined, getSetting(SETTINGS.lockPlayerResources)];
+        await sheetAuditIdle();
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, false);
+            const write = { [path]: was + 3, [rule]: 20 };
+            await student.update(write, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id);
+            await sheetAuditIdle();
+            const mine = Object.values(sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === student.id && r.userId === player.id && (r.change?.[path] || r.change?.[rule]));
+            read = [verdict?.verdict ?? null, value(path), value(rule), mine.map(r => `${r.verdict}:${Object.keys(r.change ?? {}).join(",")}`).sort(),
+                sheetMarkStore.get(student.id)?.traits?.[trait]?.value ?? null];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, lock);
+            await student.update({ [path]: was, ...(hadRules ? { [rule]: ruleWas } : { "system.rules": forcedDeletion() }) });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson(["putBack", was + 3, ruleWas, [`listed:${path}`, `putBack:${rule}`].sort(), was + 3]),
+            "with the setting off a statistic was put back or not listed, or a rule the setting does not name stood");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

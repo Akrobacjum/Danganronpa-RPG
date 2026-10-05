@@ -2066,6 +2066,76 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify(startSheet));
 
     /*
+     * WHAT A ROLL IS BUILT FROM, WRITTEN BY HAND (E29 C3, 05.10.2026; audit S02-41; the plan's 2.4).
+     * p1's console steps past its own browser's guard with the option the guard stands aside for
+     * (resource-guard.mjs SYSTEM_WRITE) and, in one write, raises Aiko's Agility by 3 and her Health
+     * maximum by 2, sets a roll rule (`system.rules.dualityRoll.defaultHopeDice` 20) and makes her a
+     * Monokuma (a flag guardSabotageRoom, projectWithinReach and expectedFor read); then it puts an
+     * effect with a roll bonus of 5 on her. The primary GM puts each back (sheet-audit.mjs): every
+     * client reads the sheet as it was, p1 is told once per write - its notice naming the first field
+     * in its language - and the GMs are whispered once per write. Until C3 all of it stood.
+     */
+    phase("a console's sheet", { flow: "sheet-audit" });
+    const readSheet = `const a = game.actors.get("${ids.aiko}");
+        return { agility: a.system.traits.agility.value, hpMax: a.system.resources.hitPoints.max,
+            hopeDice: a.system.rules?.dualityRoll?.defaultHopeDice ?? null, monokuma: a.getFlag("${MOD}", "monokuma") ?? null,
+            effects: a.effects.contents.filter(e => e.name === "SEC console bonus").length };`;
+    // A GM whisper is a private card: its flags other than the document's own are read through secret.mjs's `cardFlag`.
+    const whispered = `const S = await import("${repoUrl}/scripts/secret.mjs");
+        return game.messages.contents.filter(m => S.cardFlag(m, "sheetAudit") === "${ids.aiko}").length;`;
+    const sheetWas = await gm.eval(readSheet);
+    let consoleSheet = null;
+    try {
+        const whispersFrom = await gm.eval(whispered);
+        await p1.eval(`globalThis.__sheetTold = 0; globalThis.__notifications.length = 0;
+            if (!globalThis.__sheetToldHook) {
+                globalThis.__sheetToldHook = true;
+                game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused" && payload.reason === "sheetPutBack") globalThis.__sheetTold++; });
+            }
+            const a = game.actors.get("${ids.aiko}");
+            await a.update({ "system.traits.agility.value": ${sheetWas.agility + 3}, "system.resources.hitPoints.max": ${sheetWas.hpMax + 2},
+                "system.rules.dualityRoll.defaultHopeDice": 20, "flags.${MOD}.monokuma": true }, { drpgAutomated: true });
+            return true;`);
+        const untilBack = test => `const end = Date.now() + 6000; const read = async () => { ${readSheet} };
+            while (!(${test})(await read()) && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return read();`;
+        await gm.eval(untilBack(`s => s.agility === ${sheetWas.agility} && s.monokuma === null`));
+        await settle(800);
+        const written = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readSheet))),
+            told: await p1.eval(`return globalThis.__sheetTold;`),
+            named: await p1.eval(`return globalThis.__notifications.some(n => n.msg.includes(game.i18n.localize("DRPG.Audit.field.traits")));`),
+            whispers: (await gm.eval(whispered)) - whispersFrom };
+        await p1.eval(`await game.actors.get("${ids.aiko}").createEmbeddedDocuments("ActiveEffect", [{ name: "SEC console bonus",
+            system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: 5 }] } }]); return true;`);
+        await settle(400);
+        await gm.eval(untilBack(`s => s.effects === 0`));
+        await settle(800);
+        const effect = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readSheet))),
+            told: await p1.eval(`return globalThis.__sheetTold;`), whispers: (await gm.eval(whispered)) - whispersFrom };
+        consoleSheet = { sheetWas, written, effect };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"); const U = await import("${repoUrl}/scripts/utils.mjs");
+            const was = ${JSON.stringify(sheetWas)};
+            const fix = {};
+            if (a.system.traits.agility.value !== was.agility) fix["system.traits.agility.value"] = was.agility;
+            if (a.system.resources.hitPoints.max !== was.hpMax) fix["system.resources.hitPoints.max"] = was.hpMax;
+            if (a._source.system.rules !== undefined && was.hopeDice === null) fix["system.rules"] = U.forcedDeletion();
+            if (Object.keys(fix).length) await a.update(fix);
+            if (a.getFlag("${MOD}", "monokuma") !== undefined && was.monokuma === null) await a.unsetFlag("${MOD}", "monokuma");
+            const left = a.effects.contents.filter(e => e.name === "SEC console bonus").map(e => e.id);
+            if (left.length) await a.deleteEmbeddedDocuments("ActiveEffect", left);
+            return true;`);
+    }
+    const sheetAsWas = seen => seen.agility === sheetWas.agility && seen.hpMax === sheetWas.hpMax && seen.hopeDice === null && seen.monokuma === null;
+    check("SECURITY: a player's console raising its statistic and Health maximum, setting a roll rule and making itself a Monokuma is put back on every client, told to it once in its words and whispered to the GMs once",
+        Boolean(consoleSheet) && consoleSheet.written.after.every(sheetAsWas) && consoleSheet.written.told === 1
+            && consoleSheet.written.named === true && consoleSheet.written.whispers === 1,
+        JSON.stringify(consoleSheet), { flow: "sheet-audit" });
+    check("SECURITY: an effect a player's console puts a roll bonus on is taken off on every client, told to it once and whispered to the GMs once",
+        Boolean(consoleSheet) && consoleSheet.effect.after.every(seen => seen.effects === 0) && consoleSheet.effect.told === 2
+            && consoleSheet.effect.whispers === 2,
+        JSON.stringify(consoleSheet?.effect ?? null), { flow: "sheet-audit" });
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

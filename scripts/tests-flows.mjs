@@ -155,6 +155,13 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["observe.target", "observe.resolve", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant"],
             sockets: ["search-tokens.mjs"] },
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+    // E29 C3 (05.10.2026): a player's own write on their student - Daggerheart's sheet, the HUD, a console - judged on
+    // the primary GM (sheet-audit.mjs), no socket of the module's. 30-security writes a statistic, a maximum, a rule,
+    // a GM-only flag and an effect from p1's console; 40 reads a day's writes for false alarms; 61 a statistic
+    // with two GMs and a late one. Partial: Hope, Health,
+    // Sanity, actions and the items are C4-C6's, with 20-crit-hope (C4) and 10-murder (C6) to come.
+    { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back or listed",
+        entry: { calls: ["sheet-audit.mjs#judgeWrite"] }, scenarios: ["30-security", "40-flow", "61-gmstore-case"], status: "partial", stage: "E29" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",

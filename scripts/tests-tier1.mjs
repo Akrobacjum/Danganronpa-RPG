@@ -5694,7 +5694,9 @@ const INVARIANTS = [
 const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
-    "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim"
+    "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
+    // sheet-audit.mjs names a field put back by its kind (E29 C3), and bridge-guards.mjs `requestLabel` the same.
+    ...["traits", "experience", "max", "rules", "bonuses", "flag", "effect"].map(kind => `DRPG.Audit.field.${kind}`)
 ];
 
 export { INVARIANTS };

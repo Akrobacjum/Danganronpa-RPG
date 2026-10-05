@@ -2619,7 +2619,8 @@
         "rollReplaced": "Wskazany rzut został zastąpiony późniejszym rzutem tej samej akcji.",
         "notPaid": "Klient GM-a nie widział zapłaty za akcję tego rzutu. Wykonaj akcję jeszcze raz.",
         "rollThrown": "Rzut tej akcji już padł.",
-        "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call."
+        "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call.",
+        "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: zmienia to tylko GM."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -3053,6 +3054,19 @@
       "actionOwed": "Krytyk zniknął, ale akcja, którą oddał, jest już zużyta. Zostajesz na minusie o jedną.",
       "gmReasked": "GM został poproszony o ponowną decyzję na podstawie nowego wyniku.",
       "rulingVoid": "Przerzut: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie."
+    },
+    "Audit": {
+      "putBack": "Ręczna zmiana karty postaci {name} od {player} - klient GM-a ją cofnął:",
+      "listTitle": "Zapisy na kartach postaci cofnięte lub odnotowane przez GM-ów: {n}",
+      "field": {
+        "traits": "Statystyki",
+        "experience": "Doświadczenia",
+        "max": "Maksimum",
+        "rules": "Zasady rzutu",
+        "bonuses": "Premie",
+        "flag": "Zapisy modułu",
+        "effect": "Efekt"
+      }
     },
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",
@@ -4752,7 +4766,9 @@
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",
         "rerollJournal": "Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić",
         "rolls": "Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają",
-        "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała"
+        "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
+        "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
+        "sheetWrites": "Zapisy na kartach postaci cofnięte lub odnotowane przez GM-ów, trzymane przez dobę"
       },
       "row": {
         "traces": {

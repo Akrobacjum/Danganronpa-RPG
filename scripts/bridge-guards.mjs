@@ -143,9 +143,10 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
  * the patterns below - anchored, the first that matches wins. R164 reads every
  * reason the guards, the runs and the functions they hand the question to can
  * give, out of the source, and holds each to exactly one pattern; a text none
- * takes would be told as `refused`, with a debug line naming it. Three codes
- * have no pattern: `relay` (relay-guard.mjs tells its own), and `noGm` and
- * `noAnswer`, which only the asking player's client can know. `refused`, the
+ * takes would be told as `refused`, with a debug line naming it. Four codes
+ * have no pattern: `relay` (relay-guard.mjs tells its own), `sheetPutBack`
+ * (sheet-audit.mjs tells its own: a write the GMs put back, E29 C3), and `noGm`
+ * and `noAnswer`, which only the asking player's client can know. `refused`, the
  * fallback, is also the code of a run that carried out nothing ("nothing was
  * carried out: ..."): a run answers a done only for work done, and which of its
  * resolver's silent reasons applied is not told (E31 review).
@@ -157,7 +158,8 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "relay", "failed", "refused", "noGm", "noAnswer"
+    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "relay", "sheetPutBack", "failed", "refused", "noGm",
+    "noAnswer"
 ]);
 
 /**
@@ -389,7 +391,10 @@ function emitTo(userId, packet) {
  * of the screen is in. Moved here from gm-bridge.mjs with `sayNotDone` (E31).
  */
 export function requestLabel(action) {
-    const key = `DRPG.Bridge.what.${action}`;
+    /* A write the GMs' audit put back (E29 C3, sheet-audit.mjs) is no request: it is named by
+       the field it changed, `sheet.<kind>`, with the label the GMs' whisper gives that field. */
+    const field = /^sheet\.(\w+)$/.exec(String(action ?? ""))?.[1];
+    const key = field ? `DRPG.Audit.field.${field}` : `DRPG.Bridge.what.${action}`;
     return game.i18n.has(key) ? game.i18n.localize(key) : String(action ?? "?");
 }
 

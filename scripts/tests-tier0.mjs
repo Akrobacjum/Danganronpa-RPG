@@ -5964,7 +5964,10 @@ const REGRESSIONS = [
             "chapter.mjs markDeceased status": "the token's marker, written with the flag",
             "chapter.mjs reviveCharacter flag": "the one unwrite",
             "chapter.mjs reviveCharacter status": "the marker, taken off with it",
-            "voice.mjs registerVoice flag": "the updateActor hook reads the change's key, not the actor"
+            "voice.mjs registerVoice flag": "the updateActor hook reads the change's key, not the actor",
+            // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
+            // it names the flag among the others and never asks whether a student is dead.
+            "sheet-audit.mjs GM_FLAGS flag": "a GM-only flag, held in the GMs' mark and put back"
         };
         const census = files => {
             const out = [];

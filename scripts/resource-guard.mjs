@@ -26,6 +26,9 @@
  * GM's for that reason - `applyAdvancement`, `initCharacter` and `restoreStartingSheet`
  * refuse any other browser before their first write (R79, R221) - and the trust model
  * in CLAUDE.md says what a player's own browser can still move on its own character.
+ * The protection is on the primary GM since E29 C3 (sheet-audit.mjs): what a roll is
+ * built from - statistics, maxima, rules, bonuses, the GM-only flags and the effects
+ * that carry them - is put back there whoever wrote it, and the writer is told.
  *
  * ONE ROAD, AND A REASON ON IT (E29 C1, 05.10.2026; audit S17-12). Every write
  * this module makes on a student's resources, and every write of a module
@@ -35,7 +38,8 @@
  * eight bare writes of a module item's protected flags, none of which said what
  * it was for - so nothing on a GM's side could tell a Rest from a console that
  * had found the marker. The reason is a claim, like a
- * packet field: it says which evidence to check, and the GMs' side checks it.
+ * packet field: it says which evidence to check, and the GMs' side checks it (from
+ * C3 the fields above; the reasons' judges are C4's).
  */
 
 import { MODULE_ID, ACTIONS_RESOURCE } from "./config.mjs";
@@ -234,9 +238,13 @@ export async function trustedWrite(doc, changes, { reason, ref = null, ...option
     return doc.update(changes, stampOf(reason, ref, options));
 }
 
-/** Create items on `parent` as the module, for `reason` - the only documents the module creates on a student. */
-export async function trustedCreate(parent, data, { reason, ref = null, ...options } = {}) {
-    return parent.createEmbeddedDocuments("Item", data, stampOf(reason, ref, options));
+/**
+ * Create items on `parent` as the module, for `reason` - the documents the module creates on a
+ * student - or, with `documentName: "ActiveEffect"`, the effect the GMs' audit makes again after a
+ * player deleted it (E29 C3, sheet-audit.mjs).
+ */
+export async function trustedCreate(parent, data, { reason, ref = null, documentName = "Item", ...options } = {}) {
+    return parent.createEmbeddedDocuments(documentName, data, stampOf(reason, ref, options));
 }
 
 /** Delete a document as the module, for `reason`. */

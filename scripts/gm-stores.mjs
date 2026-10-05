@@ -894,6 +894,42 @@ export const rollStore = defineGmStore({
 });
 
 /**
+ * WHAT THE GMS JUDGE A PLAYER'S WRITE AGAINST (E29 C3, 05.10.2026; audit S02-41; the plan's 2.3).
+ * A row per character, keyed by its actor id: the values its last judged write left - `traits`,
+ * `experiences`, `resources` (each value and maximum), `rules`, `bonuses`, the module `flags` only
+ * a GM writes and `pendingCall`, and `effects` (each one's data, so a deleted one can be made
+ * again under its id). Written by the primary after every verdict and every GM's write, and filled
+ * from the documents when its stores hydrate and a character has none (sheet-audit.mjs). Synced
+ * between the GMs, so the next primary judges against the same marks; not backed up - the
+ * documents a restore brings back are the marks' source, and a backup's would judge them against
+ * the sheets of the day it was made. Cut by the reset's "advancement" group: the step that puts
+ * every sheet back writes each student as a GM, which is that student's new mark (the plan named
+ * a "season" group, which the reset window does not have). No player copy - R182 has nothing to ask
+ * of it - and no old key.
+ */
+export const sheetMarkStore = defineGmStore({
+    name: "sheetMarks", key: SETTINGS.gmSheetMarks,
+    kind: "ledger", resetGroup: "advancement", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE WRITES THE GMS PUT BACK OR LISTED (E29 C3, 05.10.2026; the plan's 2.3). A row per write,
+ * keyed by a random id: `actorId`, `itemId`, `userId` (the writer), `reason` and `ref` (what the
+ * write's stamp claimed, resource-guard.mjs `WRITE_STAMP`), `change` (`{ path: [before, after] }`),
+ * `verdict` ("putBack" or "listed"), `messageId` (the GMs' whisper), `decided` and `at`. Written by
+ * the primary as it judges, read by `game.drpg.sheetWrites()`. Synced, not backed up, and swept
+ * past a day as the next is written; cut by the reset's "actions" group, beside the rolls. Its
+ * `exists` answers no for every key, as the rolls' does: a row's key is no document. No player
+ * copy - R182 has nothing to ask of it - and no old key.
+ */
+export const sheetWriteStore = defineGmStore({
+    name: "sheetWrites", key: SETTINGS.gmSheetWrites,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: () => false
+});
+
+/**
  * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the

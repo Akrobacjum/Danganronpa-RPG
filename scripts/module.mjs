@@ -37,6 +37,7 @@ import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerBridgeReplies } from "./bridge-guards.mjs";
 import { registerRollKeeper } from "./reroll-receipts.mjs";
 import { registerRerollRecovery } from "./reroll.mjs";
+import { registerSheetAudit } from "./sheet-audit.mjs";
 import { registerRelayGuard } from "./relay-guard.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
 import { registerTruthBullets } from "./truth-bullets.mjs";
@@ -170,6 +171,9 @@ Hooks.once("init", () => {
     safely("Despair awards", registerDespairAwards);
     // Before the GM stores open at ready: the primary reads the Reroll's journal as they do (E08+E28 C4b).
     safely("the Reroll's journal", registerRerollRecovery);
+    // The same, for the GMs' audit of a sheet (E29 C3): the primary fills the marks a character
+    // lacks as its stores hydrate, and judges every write on a student from then on.
+    safely("the GMs' audit of a sheet", registerSheetAudit);
     safely("Despair overflow", registerOverflow);
     safely("movement", registerMovement);
     safely("the projects tray", registerProjectsUi);
