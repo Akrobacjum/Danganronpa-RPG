@@ -433,11 +433,57 @@ class DrawnResources extends Map {
             else if (!existing.clear) this.set(resource.key, { ...existing, value: existing.value + (resource.value ?? 0) });
         }
     }
+    /*
+     * FROM THE GMS' VALUE, AND WAITED FOR (E29 fix r1-G5, 05.10.2026; review round 1 sec M1).
+     * Daggerheart's `modifyResource` adds each change to the value the document holds and returns
+     * before its write lands (actor.mjs:930-1005, 2.10.5). On a student it runs as a GM's write of
+     * the student's means (sheet-audit.mjs `gmMeansWrite`): a change of a resource the GMs hold is
+     * moved by the difference between their value and the document's (`fromHeld`), so Daggerheart
+     * writes the GMs' value moved by the roll, not a forged Hope the judge has not put back yet; and
+     * the student's queue waits until that write has been heard, or `GRANT_WAIT_MS` where none
+     * comes. Where Daggerheart's own arithmetic says the write changes nothing (`dhWrites`) nothing
+     * is waited for: Foundry sends no such update (sheet.mjs's note, measured on 14.365).
+     */
     async updateResources() {
         if (!this.size || !this.#actor) return;
         const target = this.#actor.system?.partner ?? this.#actor;
-        await target.modifyResource([...this.values()]);
+        const { gmMeansWrite } = await import("./sheet-audit.mjs");
+        await gmMeansWrite(target, async held => {
+            const changes = [...this.values()].map(change => fromHeld(target, change, held));
+            const before = Object.fromEntries(Object.entries(target.system?.resources ?? {})
+                .map(([key, resource]) => [key, { value: resource?.value, max: resource?.max, isReversed: resource?.isReversed }]));
+            let heard = null;
+            const landed = new Promise(resolve => { heard = resolve; });
+            const hook = Hooks.on("updateActor", (doc, data, options, userId) => { if (doc?.id === target.id && userId === game.user?.id) heard(); });
+            try {
+                await target.modifyResource(changes);
+                if (dhWrites(before, changes)) await Promise.race([landed, new Promise(resolve => setTimeout(resolve, GRANT_WAIT_MS))]);
+            } finally {
+                Hooks.off("updateActor", hook);
+            }
+        });
     }
+}
+
+/** A roll's change of a resource the GMs hold, moved so that Daggerheart's sum starts from their value (`updateResources`). */
+function fromHeld(target, change, held) {
+    const now = target.system?.resources?.[change.key]?.value;
+    if (change.clear || change.itemId || !Number.isFinite(held[change.key]) || !Number.isFinite(now) || held[change.key] === now) return change;
+    return { ...change, value: (change.value ?? 0) + held[change.key] - now };
+}
+
+/**
+ * Whether Daggerheart's `modifyResource` writes the actor (actor.mjs:933-976, 2.10.5, read 05.10.2026):
+ * a change of one of its resources but Fear and armour - a Stress past its maximum already turned into
+ * a Hit Point - moved or emptied, held to 0..max, to a value the actor does not hold already.
+ */
+function dhWrites(before, changes) {
+    return changes.some(change => {
+        const now = before[change.key];
+        if (change.itemId || change.key === "fear" || change.key === "armor" || !now) return false;
+        const moved = change.clear ? (now.max && !now.isReversed ? now.max : 0) : (now.value ?? 0) + (change.value ?? 0);
+        return Math.max(Math.min(moved, now.max), 0) !== now.value;
+    });
 }
 
 /*

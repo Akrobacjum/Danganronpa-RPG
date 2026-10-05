@@ -57,7 +57,9 @@
  * it is listed and stands. Health, Sanity, actions and grants are judged the same way
  * and flagged (below). A `restsTaken` stamp no Rest covers is put back. The relay
  * asks the same of a gain Daggerheart writes for a player (`relayGainRefusal`,
- * relay-guard.mjs).
+ * relay-guard.mjs). A write the primary makes of a student's means for a player - a Call
+ * bought on the GM, a drawn roll's resource step - is paid from the GMs' value, in that
+ * student's queue (`gmMeansWrite`, E29 fix r1-G5).
  *
  * WHAT IS FLAGGED (C5, 05.10.2026; the plan's 2.4, 2.8, 2.9). A gain in Health, Sanity
  * or actions that nothing covers, and the free Move given back (G4), stands, and the GMs
@@ -573,6 +575,52 @@ export async function armedCallsHeld(actor) {
     if (!mark || mark.flags?.[FLAGS.monokuma]) return null;
     const stored = mark.flags?.[FLAGS.pendingCall] ?? null;
     return new Set((Array.isArray(stored) ? stored : stored ? [stored] : []).map(entry => entry?.nonce).filter(nonce => typeof nonce === "string"));
+}
+
+/**
+ * The GMs' value of each of a student's means (`hope`, `actions`, `hitPoints`, `stress` and the two
+ * grants): their mark's, on the primary, where the judge keeps it current; the document's on any other
+ * browser - its copy of the mark may not have caught up yet - and where they hold none of their own:
+ * no mark, a Monokuma, the stores not hydrated, not a student (E29 fix r1-G5).
+ */
+export function meansHeld(actor) {
+    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
+    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
+    return ledgerOf(mark && !mark.flags?.[FLAGS.monokuma] ? mark : null, actor);
+}
+
+/*
+ * A GM'S WRITE OF A STUDENT'S MEANS, MADE FOR A PLAYER (E29 fix r1-G5, 05.10.2026; review round 1
+ * sec M1). A Call bought on the GM (gm-bridge.mjs `call.arm`) and a drawn roll's resource step
+ * (roll-draw.mjs `DrawnResources`) write a student's Hope on the primary for the player who asked,
+ * and the judge takes a GM's write as the GMs' value (`gmLedger`). Read off the document, such a
+ * write carried a forged Hope the judge had not put back yet: the review's probe at 69deef0 bought a
+ * Support from 0 real Hope behind a forged 3 and left Botan at 2 in the mark. C8's wait before the
+ * purchase's guards (`judgedFor`) closed that order - refused in 12 runs of 12 at 6c7f9d2 (the
+ * forged write sent unawaited before the request, after it, and 0 or 5 ms before it, three times
+ * each; e29run/r1g5q/head-probe.log) - but not a forged write the primary heard while its own write
+ * was on its way: the put-back, computed from the GMs' value before the GM's write was heard, landed
+ * after that write and wrote it over. With 1 real Hope under a forged 3, in the same four orders, the
+ * Support was bought and paid in the mark, and the document went back to 1 on every client in 5 runs
+ * of 12 (3 of 3 with the request sent first, 2 of 3 with the forged write sent first, none of 6 with a
+ * timer between them). So such a write is a job in the student's queue (`inOrder`): it starts once
+ * every write heard on the student has been judged, reads the GMs' value (`meansHeld`) and holds the
+ * queue until its own write has been heard - an awaited `trustedWrite` does - so a write heard
+ * meanwhile is judged after it, from it (`hopeLeft`). With it, the same probe read as expected in 24
+ * runs of 24 (e29run/r1g5q/q1-probe.log). `write(held)` answers what its caller needs; an error in it
+ * is the caller's, and the queue goes on.
+ */
+export function gmMeansWrite(actor, write) {
+    if (actor?.documentName !== "Actor" || actor.type !== "character") return (async () => write(meansHeld(actor)))();
+    return new Promise((resolve, reject) => {
+        void inOrder(actor.id, async () => {
+            try {
+                resolve(await write(meansHeld(actor)));
+            } catch (err) {
+                reject(err);
+            }
+        });
+    });
 }
 
 /** A path a write names, without v14's `-=` and `==` on its parts: the path it writes. */

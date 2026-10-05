@@ -1218,30 +1218,33 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     // Not a guard, and asked before the three below: it answers "armed" rather
     // than refusing, and a purchase already paid for can fail the Hope check it
     // passed the first time.
-    const { appendArmedCall, pendingCalls, hopeHeld, trustedWrite } = prepared;
+    const { appendArmedCall, pendingCalls, gmMeansWrite, trustedWrite } = prepared;
     const nonce = String(payload.call.nonce ?? "").slice(0, 32);
     if (nonce && pendingCalls(actor).some(entry => entry.nonce === nonce)) return { reply: { ok: true, left: null } };
 
-    // `hopeHeld` came before the guards (`prepare`), so the Hope read below follows
-    // the guard's own read with nothing awaited in between but the guards themselves.
     // `guardArmLiving` is asked after every refusal a living beneficiary would get as
     // well (E05 fix r2-G3): see its note.
     const why = await firstRefusal(sender, payload, ctx, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmLiving);
     if (why) return { refused: why };
-    const held = hopeHeld(buyer);
-
-    await trustedWrite(buyer, { "system.resources.hope.value": held - call.cost }, { reason: "call" });
+    // Paid from the Hope the GMs hold, in the buyer's audit queue (sheet-audit.mjs `gmMeansWrite`,
+    // E29 fix r1-G5): a forged Hope that landed while the guards ran is judged before this write or
+    // after it, never under it - so `guardArmBuyerHope`'s question is asked again here, of that value.
+    const paid = await gmMeansWrite(buyer, async ({ hope }) => {
+        if (hope < call.cost) return { held: hope, left: null };
+        await trustedWrite(buyer, { "system.resources.hope.value": hope - call.cost }, { reason: "call" });
+        return { held: hope, left: hope - call.cost };
+    });
+    if (paid.left === null) return { refused: `the buyer holds ${paid.held} Hope, the Call costs ${call.cost}` };
     try {
         await appendArmedCall(actor, armedEntry(payload.call, call, "hope"));
     } catch (err) {
         error(`Could not arm ${payload.call.key} on ${actor.name}; the Hope goes back`, err);
-        const now = hopeHeld(buyer);
-        await trustedWrite(buyer, { "system.resources.hope.value": now + call.cost }, { reason: "refund" });
+        await gmMeansWrite(buyer, ({ hope }) => trustedWrite(buyer, { "system.resources.hope.value": hope + call.cost }, { reason: "refund" }));
         return { refused: "the Call could not be armed" };
     }
     debug(`Armed ${payload.call.key} on ${actor.name}, paid by ${buyer.name} on this side.`);
     if (buyer.id !== actor.id) void tellBeneficiary(actor, "hope", call.grants);
-    return { reply: { ok: true, left: held - call.cost } };
+    return { reply: { ok: true, left: paid.left } };
 }
 
 async function handleDespair(payload, sender, ctx) {
@@ -1791,16 +1794,17 @@ export const BRIDGE_ACTIONS = table({
         // the guards - never later than the handler made them. And the buyer's and
         // the beneficiary's writes this GM has heard judged first (E29 C8): the
         // guards read the Hope and the armed list the GMs hold, not a forged value
-        // the audit has not put back yet (sheet-audit.mjs `judgedFor`).
+        // the audit has not put back yet (sheet-audit.mjs `judgedFor`) - and the
+        // purchase asks the Hope again where it pays, of the GMs' value (fix r1-G5).
         prepare: async payload => {
             const effects = await import("./call-effects.mjs");
-            const calls = await import("./calls.mjs");
             const guard = await import("./resource-guard.mjs");
-            await (await import("./sheet-audit.mjs")).judgedFor(payload?.actorId, payload?.call?.from);
+            const audit = await import("./sheet-audit.mjs");
+            await audit.judgedFor(payload?.actorId, payload?.call?.from);
             return {
                 actor: game.actors.get(payload?.actorId ?? ""),
                 appendArmedCall: effects.appendArmedCall, pendingCalls: effects.pendingCalls,
-                hopeHeld: calls.hopeHeld, trustedWrite: guard.trustedWrite
+                gmMeansWrite: audit.gmMeansWrite, trustedWrite: guard.trustedWrite
             };
         },
         sanitize: pick({ actorId: as.id, call: as.raw }),

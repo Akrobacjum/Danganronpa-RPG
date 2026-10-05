@@ -336,6 +336,26 @@ async function asPlayerItemWrite(kind, student, target, player, stamp = null, wr
     return { item, verdict: judged?.verdict ?? null };
 }
 
+/**
+ * A PLAYER'S WRITE HEARD WHILE THE GM'S OWN IS ON ITS WAY (E29 fix r1-G5, 05.10.2026). At the next
+ * write this GM makes of `student`'s Hope - in its `preUpdateActor`, before it leaves this browser -
+ * `write`, already on the sheet with the audit's aside, is handed to the judge as `player`'s, as the
+ * primary's hook hands a write it hears: the order in which a player's write lands on the server
+ * before the GM's and reaches the primary after the GM's was sent. `judged()` says whether it was;
+ * `stop()` takes the hook off.
+ */
+async function heardWhilePaid(student, write, player) {
+    const { judgeWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+    const HOPE = "system.resources.hope.value";
+    let judged = false, on = true;
+    const hook = Hooks.on("preUpdateActor", (doc, changes, options, userId) => {
+        if (judged || doc?.id !== student.id || userId !== game.user.id || options?.[AUDIT_ASIDE] || foundry.utils.getProperty(changes, HOPE) === undefined) return;
+        judged = true;
+        void judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id);
+    });
+    return { judged: () => judged, stop: () => { if (on) Hooks.off("preUpdateActor", hook); on = false; } };
+}
+
 /** A module item's data for a test (E29 C6): a Tool of tier 1 unless `flags` say otherwise. */
 const moduleItemData = (name, flags = {}) => ({ name, type: "loot", system: { quantity: 1 },
     flags: { [MODULE_ID]: { category: "tool", tier: 1, ...flags } } });
@@ -685,12 +705,13 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * to cut the packet from. A roll is drawn for an action being taken (fix r2-H1, roll-draw.mjs
  * `drawRefusal`): unless `pay` is false, a packet naming an action that is paid for has one of
  * the character's actions paid just before it is judged (`payAction`), a crisis action's and an
- * opening's nothing - their turn and their stage are the test's. Answers the verdict, what was
- * sent back, the answer's value, the GM's message and record, and `putBack`, which deletes both
- * messages and the record, puts Daggerheart's Fear back as found and the payment's actions as
- * they were. Ask the world's rows first - it writes.
+ * opening's nothing - their turn and their stage are the test's; `ready`, where given, is awaited
+ * after that and just before the packet is judged (E29 fix r1-G5: what the draw must meet). Answers
+ * the verdict, what was sent back, the answer's value, the GM's message and record, and `putBack`,
+ * which deletes both messages and the record, puts Daggerheart's Fear back as found and the
+ * payment's actions as they were. Ask the world's rows first - it writes.
  */
-async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true } = {}) {
+async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -711,6 +732,7 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
     must(packet, `no roll of ${actor.name} reached Daggerheart's configuration hook - this would measure nothing`);
     if (edit) packet = edit(foundry.utils.deepClone(packet));
     const paid = pay && packet.actionKey && !["crisis", "murderOpening"].includes(packet.actionKey) ? await payAction(actor) : null;
+    if (ready) await ready();
     const sent = [];
     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
     let verdict;
@@ -25691,6 +25713,118 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([true, [`flagged:${FREE}`, "listed:effects.<effect>", "listed:items.<tool>.name"].sort(), false]),
             "the comparison at ready did not flag the free Move given back, or did not list the condition taken off and the Tool renamed "
                 + "(a card posted; the student's rows; the free Move on the sheet)");
+    }],
+
+    /*
+     * A GM'S WRITE OF A STUDENT'S MEANS, MADE FOR A PLAYER (E29 fix r1-G5, 05.10.2026; review round 1 sec
+     * M1). A forged Hope is a player's write the judge has not put back yet: written here with the audit's
+     * aside, so the mark keeps the GMs' value under it - and, for "heard while the GM's own write is on its
+     * way", also handed to the judge as the player's from inside that write's `preUpdateActor`, before it
+     * leaves this browser (`heardWhilePaid`).
+     */
+    ["a Call bought on the GM is paid from the Hope the GMs hold, and a forged Hope heard while it is paid is judged after it", async () => {
+        /* A player's Resolve (3 Hope) on their own character, handed to the bridge's runner with the player's
+           id three times: the GMs at 2 under a forged 5; at 3 under a forged 5; at 3 under a forged 5 heard
+           while the GM's payment leaves. Read per ask: the answer and its reason, the character's Hope, the
+           GMs' mark of it, and whether the forged Hope was heard. At 6c7f9d2 (05.10.2026, e29run/r1g5red) the
+           GM paid all three from the forged 5: the first two bought with 2 left in both the sheet and the
+           mark, the third bought with the sheet back at 3 - the put-back, computed before the payment was
+           heard, landed after it - and 2 in the mark. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the purchase is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const E = await import("./call-effects.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = theirs.system.resources.hope.value;
+        must(Number(theirs.system.resources.hope.max) >= 5, `${theirs.name}'s Hope cannot reach 5 - the forged Hope would be clamped and measure nothing`);
+        must(!E.armedCallsShown(theirs).some(c => c.grants === "trait"), `${theirs.name} already holds a Resolve - a second is refused for that, and this would measure it`);
+        const read = [], nonces = ["E29G5RESOLVE0001", "E29G5RESOLVE0002", "E29G5RESOLVE0003"];
+        let heard = null;
+        try {
+            for (const [held, nonce, meanwhile] of [[2, nonces[0], false], [3, nonces[1], false], [3, nonces[2], true]]) {
+                await trustedWrite(theirs, { [HOPE]: held }, { reason: "gmRuling" });
+                await sheetAuditIdle();
+                await theirs.update({ [HOPE]: 5 }, { [AUDIT_ASIDE]: true });
+                heard = meanwhile ? await heardWhilePaid(theirs, { [HOPE]: 5 }, player) : null;
+                const sent = [];
+                try {
+                    await G.judge(BRIDGE_ACTIONS, { action: "call.arm", requestId: `E29G5${nonce}`, actorId: theirs.id,
+                        call: { key: "determination", kind: "hope", grants: "trait", from: theirs.id, nonce } }, player.id,
+                    { send: (to, reply) => sent.push(reply) });
+                } finally {
+                    heard?.stop();
+                }
+                await sheetAuditIdle();
+                await settle();
+                const answer = sent.find(r => r?.action === "bridge.refused" || r?.action === "bridge.done") ?? null;
+                read.push([answer?.action ?? null, answer?.reason ?? null, foundry.utils.getProperty(theirs._source, HOPE),
+                    sheetMarkStore.get(theirs.id)?.resources?.hope?.value ?? null, heard ? heard.judged() : null]);
+                await E.consumeCallsByNonce(theirs, [nonce]);
+            }
+        } finally {
+            heard?.stop();
+            await E.consumeCallsByNonce(theirs, nonces);
+            await sheetAuditIdle();
+            if (foundry.utils.getProperty(theirs._source, HOPE) !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 5, 2, null], ["bridge.done", null, 0, 0, null], ["bridge.done", null, 0, 0, true]]),
+            "a Call bought on the GM was paid from a forged Hope, or a forged Hope heard while it was paid was put back over the payment "
+                + "(per ask: answer, reason, the sheet's Hope, the mark's, the forged Hope heard)");
+    }],
+
+    ["a drawn roll's Hope is the GMs' value moved by the roll, and a forged Hope heard while it is written is judged after it", async () => {
+        /* Two draws of a connected player's roll with Hope (the harness's 9 and 4: one Hope), each met by a
+           forged Hope - the GMs' value and 2 - written with the audit's aside just before the GM judges the
+           packet; the second's also heard while the GM's write of the roll's Hope leaves. Read per draw:
+           whether it was drawn, the sheet's Hope and the mark's less the GMs' value before it, and whether
+           the forged Hope was heard. At 6c7f9d2 (05.10.2026, e29run/r1g5red) Daggerheart added the roll's
+           Hope to the forged value - 3 over the GMs' in the sheet and the mark - and the second's put-back,
+           computed before that write was heard, landed after it: the sheet at the GMs' value, 3 over it
+           in the mark. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const HOPE = "system.resources.hope.value", marked = () => sheetMarkStore.get(theirs.id)?.resources?.hope?.value ?? NaN;
+        const hopeWas = theirs.system.resources.hope.value;
+        must(Number(theirs.system.resources.hope.max) >= 5, `${theirs.name}'s Hope cannot reach 5 - the forged Hope and the roll's would be clamped and measure nothing`);
+        const read = [];
+        let heard = null;
+        try {
+            for (const meanwhile of [false, true]) {
+                await trustedWrite(theirs, { [HOPE]: 1 }, { reason: "gmRuling" });
+                let held = null;
+                const F = await drawnForPlayer(player, theirs, { faces: { hope: 9, fear: 4 }, ready: async () => {
+                    await sheetAuditIdle();
+                    held = marked();
+                    await theirs.update({ [HOPE]: held + 2 }, { [AUDIT_ASIDE]: true });
+                    heard = meanwhile ? await heardWhilePaid(theirs, { [HOPE]: held + 2 }, player) : null;
+                } });
+                try {
+                    heard?.stop();
+                    await sheetAuditIdle();
+                    await settle();
+                    read.push([F.value?.rollId ? "drawn" : F.sent.map(r => r.reason ?? r.action).join(","), foundry.utils.getProperty(theirs._source, HOPE) - held,
+                        marked() - held, heard ? heard.judged() : null]);
+                } finally {
+                    await F.putBack();
+                }
+            }
+        } finally {
+            heard?.stop();
+            await sheetAuditIdle();
+            if (foundry.utils.getProperty(theirs._source, HOPE) !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([["drawn", 1, 1, null], ["drawn", 1, 1, true]]),
+            "a drawn roll's Hope was added to a forged one, or a forged Hope heard while it was written was put back over it "
+                + "(per draw: drawn, the sheet's Hope and the mark's over the GMs' value before it, the forged Hope heard)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

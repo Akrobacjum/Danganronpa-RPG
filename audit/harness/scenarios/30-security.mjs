@@ -2765,6 +2765,57 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify(consoleUses?.move ?? null), { flow: "sheet-audit" });
 
     /*
+     * A FORGED HOPE UNDER A CALL BOUGHT ON THE GM (E29 fix r1-G5, 05.10.2026; review round 1 sec M1). The
+     * review's probe (e29-review/sec-probe5.log): Botan at 0 real Hope, p2's console writes Hope 3 and, not
+     * waiting for it, asks the GM for a Support on Aiko (1 Hope) - at 69deef0 bought, and Botan at 2 in the
+     * GMs' mark. Then Botan at 1 real Hope, the request sent before the forged write twice and after it
+     * twice. Expected: refused with 0, bought with 1, and Botan at 0 on every client and in the mark each
+     * time. At 6c7f9d2 (05.10.2026, e29run/r1g5q/head-probe.log) the first was refused - C8's wait before
+     * the purchase's guards - and with 1 real Hope the forged write's put-back, computed before the GM's
+     * payment was heard, landed after it: Botan back at 1 on every client, 0 in the mark, in 5 runs of 12;
+     * this check, run there, read it on its second run (e29run/r1g5red/30.log).
+     */
+    phase("a console's Hope under a Call bought on the GM", { flow: "call-arm" });
+    const readBought = `const b = game.actors.get("${ids.botan}"), a = game.actors.get("${ids.aiko}");
+        return { hope: b.system.resources.hope.value,
+            armed: (a.getFlag("${MOD}", "pendingCall") ?? []).filter(e => String(e?.nonce ?? "").startsWith("g5sec")).length };`;
+    const boughtWas = await gm.eval(`const b = game.actors.get("${ids.botan}"), a = game.actors.get("${ids.aiko}");
+        return { hope: b.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };`);
+    const boughtFrom = (hope, calls) => gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const b = game.actors.get("${ids.botan}"), a = game.actors.get("${ids.aiko}");
+        await A.sheetAuditIdle();
+        await b.update({ "system.resources.hope.value": ${hope} });
+        const calls = ${calls};
+        if (calls !== null) await a.setFlag("${MOD}", "pendingCall", calls); else if (a.getFlag("${MOD}", "pendingCall") !== undefined) await a.unsetFlag("${MOD}", "pendingCall");
+        await A.sheetAuditIdle(); return true;`);
+    const keptCalls = `(game.actors.get("${ids.aiko}").getFlag("${MOD}", "pendingCall") ?? []).filter(e => !String(e?.nonce ?? "").startsWith("g5sec"))`;
+    const bought = [];
+    try {
+        const support = { key: "support", grants: "advantage", kind: "hope", from: ids.botan };
+        for (const [n, real, requestFirst] of [[1, 0, false], [2, 1, true], [3, 1, true], [4, 1, false], [5, 1, false]]) {
+            await boughtFrom(real, keptCalls);
+            await settle(600);
+            const ask = `B.requestArmCall("${ids.aiko}", ${JSON.stringify({ ...support, nonce: `g5sec${n}` })})`;
+            const answer = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs"), b = game.actors.get("${ids.botan}");
+                ${requestFirst ? `const asked = ${ask}; b.update({ "system.resources.hope.value": 3 }); return await asked;`
+                    : `b.update({ "system.resources.hope.value": 3 }); return await ${ask};`}`, { timeout: 30000 });
+            await gm.eval(`const end = Date.now() + 4000; const read = () => { ${readBought} };
+                while (read().hope !== 0 && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+                await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+            await settle(800);
+            bought.push({ n, real, requestFirst, answer: answer?.ok ? answer.value?.left ?? null : answer?.reason ?? null,
+                after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readBought))),
+                mark: await gm.eval(`return (await import("${repoUrl}/scripts/gm-stores.mjs")).sheetMarkStore.get("${ids.botan}")?.resources?.hope?.value ?? null;`) });
+        }
+    } finally {
+        await boughtFrom(boughtWas.hope, JSON.stringify(boughtWas.calls));
+    }
+    check("SECURITY: a forged Hope under a Support bought on the GM buys nothing - refused with no real Hope, paid from the real one whichever left first, Botan at 0 on every client and in the GMs' mark",
+        bought.length === 5 && bought.every(r => r.mark === 0 && r.after.every(s => s.hope === 0 && s.armed === r.real))
+            && bought[0].answer === "notEnoughHope" && bought.slice(1).every(r => r.answer === 0),
+        JSON.stringify(bought), { flow: "call-arm" });
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`
