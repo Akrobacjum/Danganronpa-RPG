@@ -124,6 +124,11 @@ export function rollDrawState() {
 export function registerRollDraw() {
     const cls = game.system?.api?.dice?.DualityRoll;
     if (cls?.build?.[SEAM]) return;
+    // The payments are watched on any build (fix r2-H2): a Hope Call's progress is held to its
+    // price on the GM (`takeCallPayment`) whether or not this GM draws the dice.
+    Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
+    Hooks.on("createActor", actor => notePayments(actor));
+    Hooks.on("updateActor", notePayments);
     const review = reviewBuild(cls);
     if (!review.ok) {
         seam = { state: "changed", why: review.why };
@@ -139,9 +144,6 @@ export function registerRollDraw() {
     cls.build = drawnBuild;
     seam = { state: "ok", why: "" };
     standAsideFor(drawnByGm);
-    Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
-    Hooks.on("createActor", actor => notePayments(actor));
-    Hooks.on("updateActor", notePayments);
 }
 
 /**
@@ -282,6 +284,12 @@ function contextSent(context) {
         else if (kind !== "bool" && typeof value === "string" && value.length > 0 && value.length <= 128) out[key] = value;
     }
     return out;
+}
+
+/** The project a Work's or a Sabotage's roll is thrown for, as its sent context names it; null for any other roll, or none named. */
+function projectNamed(actionKey, context) {
+    const id = actionKey === "project" ? context?.projectId : actionKey === "sabotage" ? context?.targetProjectId : null;
+    return typeof id === "string" ? id : null;
 }
 
 /** At most `LISTED_MAX` strings of a list, or none. */
@@ -469,7 +477,7 @@ const PAY_WAIT_MS = 1500;
 const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"])]);
 /** The price chain an action's roll is paid by, where it has one (PRICE_CHAINS; cleanup.mjs `chargeTamper`). */
 const CHAIN_OF = Object.freeze({ analyze: "analyze", cleanup: "tamper" });
-/** Each character's tickets on this GM: `{ at, pay, kinds }`, `kinds` the rolls drawn on it. */
+/** Each character's tickets on this GM: `{ at, pay, kinds, size }`, `kinds` the rolls drawn on it (or `call`, a Hope Call's progress: `takeCallPayment`), `size` how much it paid. */
 const payments = new Map();
 /**
  * The option a GM's write of a character's budget carries to count as that character's player's
@@ -509,7 +517,7 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     const writer = game.users?.get(userId ?? "");
     if (!was || !writer || (writer.isGM && options?.[PAID_AS_PLAYER] !== true)) return;
     const tickets = ticketsOf(actor.id);
-    const paid = pay => tickets.push({ at: Date.now(), pay, kinds: [] });
+    const paid = (pay, size = 1) => tickets.push({ at: Date.now(), pay, kinds: [], size });
     const undo = (pay, n) => {
         for (let i = tickets.length - 1; i >= 0 && n > 0; i--) {
             if (tickets[i].pay === pay && !tickets[i].kinds.length) { tickets.splice(i, 1); n--; }
@@ -518,7 +526,7 @@ function notePayments(actor, changes = null, options = null, userId = null) {
     const rise = Math.max(0, now.action - was.action) + Math.max(0, now.grant - was.grant);
     if (rise) undo("action", rise);
     else if (now.action < was.action || now.grant < was.grant) paid("action");
-    if (now.hope < was.hope) paid("hope");
+    if (now.hope < was.hope) paid("hope", was.hope - now.hope);
     else if (now.hope > was.hope) undo("hope", now.hope - was.hope);
     if (now.stress > was.stress) paid("stress");
     else if (now.stress < was.stress) undo("stress", was.stress - now.stress);
@@ -592,6 +600,31 @@ export function paymentsOf(actorId) {
 }
 export function forgetPayments(actorId) {
     payments.delete(actorId);
+}
+
+/*
+ * A HOPE CALL'S PROGRESS IS PAID FOR, ONCE (E08+E28 fix r2-H2, 05.10.2026; review S2-5). Progress
+ * that names no roll is a Call's (call-effects.mjs `progressEffect`), and the GM held it to the
+ * largest Call's 2 and to nothing else: the round-2 review's probe sent three such packets for
+ * Aiko on a project in a room she was not in, and its bar went 0 -> 6. A Hope Call is paid on its
+ * buyer's browser before its effect is asked for (calls.mjs `spendHopeCall`): one write of the
+ * character's Hope, down by the Call's cost, which this GM sees land as it sees an action's
+ * (`notePayments`) - a ticket of `hope`, with the size of the drop. A Call's progress takes one
+ * such ticket no roll was drawn on, of at least the Call's cost, waiting as a draw waits for its
+ * payment (bridge-guards.mjs `guardCallProgress`, asked after every other guard of the packet, so
+ * a Call refused for its room or a frozen project takes none, and the refund of its price takes
+ * the ticket back). What `notePayments` cannot tell apart this cannot either: the drop is the
+ * roller's own write, and a drop as large paid for something else stands for a Call as well.
+ */
+export async function takeCallPayment(actorId, cost) {
+    const find = () => ticketsOf(actorId).find(ticket => ticket.pay === "hope" && !ticket.kinds.length && ticket.size >= cost);
+    for (const end = Date.now() + PAY_WAIT_MS; !find() && Date.now() < end;) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const ticket = find();
+    if (!ticket) return false;
+    ticket.kinds.push("call");
+    return true;
 }
 
 /**
@@ -679,8 +712,10 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         modifiers: (Array.isArray(config.roll?.modifiers) ? config.roll.modifiers : []).map(m => Number(m?.value) || 0),
         expected: recordOf(expected), flags, used: { calls: used, stash, loaded: loads }, versions: [],
         // What the roll was drawn for beyond its action (fix r2-H1): the crisis action it names, the
-        // incident's turn it was thrown in, and the later roll of its action that replaced it, if one does.
-        crisis: key === "crisis" ? told.context.crisis ?? null : null, incident, superseded: null, at: Date.now()
+        // incident's turn it was thrown in, and the later roll of its action that replaced it, if one does;
+        // and the project a Work's or a Sabotage's names, null where it named none (fix r2-H2).
+        crisis: key === "crisis" ? told.context.crisis ?? null : null, project: projectNamed(key, told.context),
+        incident, superseded: null, at: Date.now()
     });
     if (flags.length) await tellUnexpected(actor, flags);
     return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, stash, loaded: loads } };
@@ -813,7 +848,7 @@ export async function expectedFor(actor, { actionKey = null, applied = [], conte
     if (grants.includes("trait")) out.traitFrom = "resolve";
     else if (actionKey === "search" && (ACTIONS.search?.traits ?? []).length === 1) Object.assign(out, { trait: ACTIONS.search.traits[0], traitFrom: "search" });
     else if (actionKey === "project" || actionKey === "sabotage") {
-        const id = actionKey === "project" ? context.projectId : context.targetProjectId;
+        const id = projectNamed(actionKey, context);
         const { allProjects } = await import("./projects.mjs");
         const project = allProjects().find(p => p.id === id);
         if (project?.trait) Object.assign(out, { trait: traitKeyOf(project.trait), traitFrom: "project" });

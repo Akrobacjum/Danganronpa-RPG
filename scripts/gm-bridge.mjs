@@ -22,7 +22,7 @@ import {
     guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
-    guardProjectRoom, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
+    guardProjectRoom, guardSabotageRoom, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
@@ -1610,15 +1610,17 @@ export const BRIDGE_ACTIONS = table({
             // A payload asking for +999 is not the rules asking.
             inRange("amount", n => Number.isFinite(n) && n !== 0 && Math.abs(n) <= STARTING.despairMax,
                 sent => `amount ${sent} is out of range`),
-            // A Call's names no roll; a frozen project, and a roll's from another room (S10-08) - see `guardCallProgress`.
-            guardCallProgress, guardProjectFrozen, guardProjectRoom
+            // A frozen project; progress from another room (S10-08), a Call's as well since fix r2-H2; and a Call's,
+            // which names no roll, paid for once - asked last, so that no other refusal spends its payment (`guardCallProgress`).
+            guardProjectFrozen, guardProjectRoom, guardCallProgress
         ],
         sanitize: pick({ countdownId: as.id, amount: as.num, actorId: as.id, rollId: as.id, relief: as.num, bonus: as.num }),
         run: handleProgress,
         answer: "reply", queue: "project",
-        /* A Work on a Project's amount is what its roll earned on the GMs' record (E08+E28 C16; `progressOf`);
-           a Call's names no roll (`when`), and its guards bound it. */
-        rolled: { field: "rollId", actor: "actorId", kind: "project", when: "rollId", derive: progressOf },
+        /* A Work on a Project's amount is what its roll earned on the GMs' record (E08+E28 C16; `progressOf`),
+           on the project the roll was drawn for (fix r2-H2: `named`); a Call's names no roll (`when`), and its
+           guards bound it. */
+        rolled: { field: "rollId", actor: "actorId", kind: "project", when: "rollId", named: { project: "countdownId" }, derive: progressOf },
         claims: { rollId: "the roll whose record the amount is read from (progressOf), and compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact",
             relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (reliefHeld)",
             bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] and to an indirect murder's progress" }
@@ -1706,12 +1708,15 @@ export const BRIDGE_ACTIONS = table({
             // from the table rather than written out here. Since E08+E28 C16 it is
             // what the roll earned on the GMs' record (`repairOf`), and 0 is a miss.
             inRange("difficulty", n => Number.isFinite(n) && n >= 0 && n <= hardestRepair(),
-                sent => `difficulty ${sent} is out of range (0-${hardestRepair()})`)
+                sent => `difficulty ${sent} is out of range (0-${hardestRepair()})`),
+            // Made standing at the project, a miss included (fix r2-H2; review S2-4).
+            guardSabotageRoom
         ],
         sanitize: pick({ targetId: as.id, difficulty: as.num, actorId: as.id, rollId: as.id, penalty: as.num, relief: as.num }),
         run: handleSabotage,
         answer: "reply", resend: true, queue: "project",
-        rolled: { field: "rollId", actor: "actorId", kind: "sabotage", derive: repairOf },
+        // Of the project its roll was drawn for (fix r2-H2: `named`).
+        rolled: { field: "rollId", actor: "actorId", kind: "sabotage", named: { project: "targetId" }, derive: repairOf },
         claims: { rollId: "the roll whose record the repair is read from (repairOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own Sabotage row of that message",
             penalty: "the roller's word for its concealment, held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0]",
             relief: "the roller's word for its readied tool, held by repairOf to the tools the GM sees on the character (reliefHeld)" }
@@ -2579,8 +2584,8 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false, rol
  * whispered back by the GM's client; the request knows that it was carried out
  * (E31 review), not what it changed.
  */
-export function requestProjectProgress(countdownId, amount, { actorId = null, rollId = null, relief = 0, bonus = 0 } = {}) {
-    return ask(ACTION_PROGRESS, { countdownId, amount, actorId, rollId, relief, bonus });
+export function requestProjectProgress(countdownId, amount, { actorId = null, rollId = null, relief = 0, bonus = 0, call = null } = {}) {
+    return ask(ACTION_PROGRESS, { countdownId, amount, actorId, rollId, relief, bonus, call });
 }
 
 /**

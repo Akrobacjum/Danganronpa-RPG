@@ -245,7 +245,8 @@ the countdowns the rules tick or the GM gave them - all through the relay, which
 no module roll needs any more and which E29 may refuse; `relay-guard.mjs` lists
 the rest. A player's own action budget is the owner's to write as well, so a
 console that hands itself back the action it paid for has paid, as far as the GM
-can see. And three readings still made on the roller's browser: the Search's
+can see; so is a Hope Call's price, and a Call's progress, added once for each
+payment of it the GM saw, is paid on the roller's browser. And three readings still made on the roller's browser: the Search's
 item, drawn and granted on the roller's own sheet (its tier from a drawn total,
 the grant still the player's); a concealment roll's reading; and Listen's lines,
 since every browser holds the tokens.

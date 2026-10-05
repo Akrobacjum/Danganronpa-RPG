@@ -414,7 +414,7 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
  *   when the project does not exist. `changed: false` means the write was a
  *   no-op - the caller must not report success.
  */
-export async function addProgress(countdownId, amount, { by = null, actorId = null, rollId = null, relief = 0, bonus = 0 } = {}) {
+export async function addProgress(countdownId, amount, { by = null, actorId = null, rollId = null, relief = 0, bonus = 0, call = null } = {}) {
     if (!amount) return null;
 
     if (!game.user.isGM) {
@@ -423,8 +423,9 @@ export async function addProgress(countdownId, amount, { by = null, actorId = nu
         // The character whose action this is still travels with it. A Work on a Project names its roll as well (E08+E28 C2), so the GMs'
         // bookmark of that roll keeps what it added (gm-bridge.mjs `noteProgressFact`), and since C16 the GM adds what that roll
         // earned on its record, with the tool's `relief` and the concealment's `bonus` held to the rules (`progressOf`).
+        // A Hope Call's names its `call`, whose price the GM saw paid (fix r2-H2: bridge-guards.mjs `guardCallProgress`).
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
-        const res = await requestProjectProgress(countdownId, amount, { actorId, rollId, relief, bonus });
+        const res = await requestProjectProgress(countdownId, amount, { actorId, rollId, relief, bonus, call });
         // Carried out when ok (the request answers once it is, E31 review), but
         // `changed` is unknown from here - the GM whispers back what actually
         // happened. Claiming a change would be a guess.

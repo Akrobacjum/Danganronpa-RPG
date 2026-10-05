@@ -829,15 +829,50 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * (the Sabotage or its trace sent with no roll: red).
      */
     /* E08+E28 C12a: p1's Work on Project was drawn on the GM as the Search was - its newest drawn
-       message the GM's, its record p1's, Aiko's and the project's. */
+       message the GM's, its record p1's, Aiko's and the project's: its action, and since fix r2-H2 the
+       project it was drawn for (roll-draw.mjs `keepRecord`), the only one it settles. */
     phase("the GM draws p1's Work on Project", { flow: "gm-rolls-total" });
     const drawnWork = await gm.eval(`const D = await import("${REPO}/scripts/roll-draw.mjs").catch(() => null);
         const m = game.messages.contents.filter(x => x.getFlag("${MOD}", "drawn")).at(-1) ?? null;
         const r = D?.rollRecord(m?.getFlag("${MOD}", "rollId") ?? null) ?? null;
-        return { author: m?.author?.id ?? null, gm: game.user.id, userId: r?.userId ?? null, actorId: r?.actorId ?? null, actionKey: r?.actionKey ?? null };`);
+        return { author: m?.author?.id ?? null, gm: game.user.id, userId: r?.userId ?? null, actorId: r?.actorId ?? null, actionKey: r?.actionKey ?? null,
+            project: r?.project ?? null };`);
     check("gm: p1's Work on Project was drawn on the GM, its record p1's, Aiko's and the project's",
-        drawnWork.author === drawnWork.gm && drawnWork.userId === p1Drawn.me && drawnWork.actorId === ids.aiko && drawnWork.actionKey === "project",
-        JSON.stringify(drawnWork));
+        drawnWork.author === drawnWork.gm && drawnWork.userId === p1Drawn.me && drawnWork.actorId === ids.aiko && drawnWork.actionKey === "project"
+            && drawnWork.project === workProject, JSON.stringify({ drawnWork, workProject }));
+
+    /* A HOPE CALL'S PROGRESS, PAID FOR AND ADDED ONCE (E08+E28 fix r2-H2, 05.10.2026; review S2-5). Progress that
+       names no roll is a Hope Call's, and the GM adds it for a payment of the Call's price it saw the player make,
+       once (bridge-guards.mjs `guardCallProgress`, roll-draw.mjs `takeCallPayment`). p1 buys Contribution for Aiko
+       on a project in her room by the sheet's own road (calls.mjs `spendHopeCall`): her Hope goes down by its price
+       on p1's browser, and the GM adds its +1. Then p1 sends the same packet again with nothing paid. Read on the
+       GM: the bar, Aiko's Hope and the refusals logged after each, and the answer p1 was given. */
+    phase("a Hope Call's progress", { flow: "hope-call" });
+    const callProject = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs"), M = await import("${REPO}/scripts/movement.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        await actor.update({ "system.resources.hope.value": 4 });
+        (await import("${REPO}/scripts/utils.mjs")).clearSessionFailures();
+        return (await P.createProject({ name: "QA contribution", target: 6, room: M.locateActor(actor)?.room ?? null }))?.id ?? null;`, { timeout: 30000 });
+    await settle(600);
+    const readCall = `const P = await import("${REPO}/scripts/projects.mjs");
+        return { bar: P.allProjects().find(p => p.id === "${callProject}")?.current ?? null, hope: game.actors.get("${ids.aiko}").system.resources.hope.value,
+            refused: (await import("${REPO}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "project.progress"')).map(e => e.message) };`;
+    const bought = await p1.eval(`const C = await import("${REPO}/scripts/calls.mjs");
+        const r = await C.spendHopeCall(game.actors.get("${ids.aiko}"), "contribution", { choice: { project: "${callProject}" } });
+        return r ? r.label ?? true : null;`, { timeout: 60000 });
+    await settle(900);
+    const afterBuy = await gm.eval(readCall);
+    const replay = await p1.eval(`const B = await import("${REPO}/scripts/gm-bridge.mjs");
+        const r = await B.requestProjectProgress("${callProject}", 1, { actorId: "${ids.aiko}", call: "contribution" });
+        return { ok: r?.ok ?? null, reason: r?.reason ?? null };`, { timeout: 30000 });
+    await settle(600);
+    const afterReplay = await gm.eval(readCall);
+    await gm.eval(`if ("${callProject}") await (await import("${REPO}/scripts/projects.mjs")).deleteProject("${callProject}"); return true;`, { timeout: 30000 });
+    check("p1: a Contribution bought on p1's browser adds its +1 once, and the same packet sent again with nothing paid is refused and moves nothing",
+        Boolean(callProject && bought) && afterBuy.bar === 1 && afterBuy.hope === 2 && !afterBuy.refused.length
+            && replay.ok === false && replay.reason === "callNotPaid" && afterReplay.bar === 1 && afterReplay.hope === 2
+            && afterReplay.refused.some(r => /no payment of that character's stands for that Call/.test(r)),
+        JSON.stringify({ callProject, bought, afterBuy, replay, afterReplay }), { flow: "projects" });
 
     phase("a player's Sabotage and its Reroll", { flow: "projects" });
     const sabTarget = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs");

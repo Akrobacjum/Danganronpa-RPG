@@ -157,7 +157,7 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "relay", "failed", "refused", "noGm", "noAnswer"
+    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -312,7 +312,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["rollThrown", /^a roll of that action is being thrown already$/],
     ["badRequest", /^no crisis action that throws a roll is named$/],
     ["cannotNow", /^that character has no opening roll to throw now$/],
-    ["badRequest", /^that roll's window asks a cost no roll of this game pays$/]
+    ["badRequest", /^that roll's window asks a cost no roll of this game pays$/],
+    // E08+E28 fix r2-H2: progress that names no roll is a Hope Call's, paid for once (guardCallProgress).
+    ["badRequest", /^no Call that adds progress is named$/],
+    ["callNotPaid", /^no payment of that character's stands for that Call$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -538,20 +541,29 @@ export function guardShareGuest(sender, payload, ctx) {
 /*
  * PROGRESS A PLAYER ADDS (E08+E28 C16, 04.10.2026; audit S10-08; the plan's 3.5). A Work on a
  * Project names its roll, and what the roll earned is read off the GMs' record of it (gm-bridge.mjs
- * `progressOf`). A packet that names no roll is a Call's (call-effects.mjs `progressEffect`), so it
- * adds at most what the largest Call of the two tables adds, read from them: until now any packet
- * was held to a Despair pool's 12. A frozen project is refused, where it was answered "did not
- * move": the picker never offers one (projects.mjs `projectsListedIn`), and a refusal spends no
- * roll. A roll's progress is added by a character standing in the project's room when it has one,
- * as the picker lists them, read on the scene documents (`locateActor`): `roomOfActor` sees only
- * the scene this GM is looking at. A Call is not asked where it stands.
+ * `progressOf`). A frozen project is refused, where it was answered "did not move": the picker
+ * never offers one (projects.mjs `projectsListedIn`), and a refusal spends no roll. Progress is
+ * added by a character standing in the project's room when it has one, as the picker lists them,
+ * read on the scene documents (`locateActor`): `roomOfActor` sees only the scene this GM is
+ * looking at.
+ *
+ * A PACKET THAT NAMES NO ROLL IS A HOPE CALL'S, PAID FOR (fix r2-H2, 05.10.2026; review S2-5). C16
+ * held it to the largest Call's 2, asked nothing of where it stood, and took it as often as it came:
+ * the round-2 review's probe added 2 three times for Aiko, in a room she was not in, 0 -> 6. Its
+ * Call is named now (call-effects.mjs `progressEffect`) and must be a Hope Call that adds progress -
+ * a Despair Call is a Monokuma's and bought on a GM's client (calls.mjs `spendDespairCallFor`) - the
+ * amount is that Call's, the character stands in the project's room as Contribution says and its
+ * picker lists (call-effects.mjs `pickProject`), and the Call's price is a payment this GM saw the
+ * player make and takes once (roll-draw.mjs `takeCallPayment`). Asked last of the packet's guards,
+ * so that no other refusal spends the payment.
  */
-const mostCallProgress = () => Math.max(0, ...[...Object.values(HOPE_CALLS), ...Object.values(DESPAIR_CALLS)]
-    .map(call => Math.abs(Number(call?.progress) || 0)));
-
-export function guardCallProgress(sender, payload, ctx) {
+export async function guardCallProgress(sender, payload, ctx) {
     if (sender.isGM || payload?.rollId) return null;
-    return Math.abs(Math.trunc(Number(payload?.amount))) <= mostCallProgress() ? null : `amount ${payload?.amount} is out of range`;
+    const call = Object.hasOwn(HOPE_CALLS, String(payload?.call)) ? HOPE_CALLS[payload.call] : null;
+    if (!call?.progress) return "no Call that adds progress is named";
+    if (Math.trunc(Number(payload.amount)) !== call.progress) return `amount ${payload.amount} is out of range`;
+    const { takeCallPayment } = await import("./roll-draw.mjs");
+    return await takeCallPayment(payload.actorId, call.cost) ? null : "no payment of that character's stands for that Call";
 }
 
 export async function guardProjectFrozen(sender, payload, ctx) {
@@ -560,12 +572,34 @@ export async function guardProjectFrozen(sender, payload, ctx) {
 }
 
 export async function guardProjectRoom(sender, payload, ctx) {
-    if (sender.isGM || !payload?.rollId) return null;
+    if (sender.isGM) return null;
     const { roomOf } = await import("./projects.mjs");
     const room = roomOf(payload.countdownId);
     if (!room) return null;
     const { locateActor } = await import("./movement.mjs");
     return locateActor(game.actors.get(payload.actorId ?? ""))?.room === room ? null : "the character is not in that room";
+}
+
+/*
+ * A SABOTAGE IS MADE STANDING AT ITS PROJECT (E08+E28 fix r2-H2, 05.10.2026; review S2-4). The
+ * picker offers a project to break only in the room the saboteur stands in, never one with no
+ * room - you have to be standing at the thing to break it (projects.mjs `sabotageTargetsIn`) - and
+ * the GM asked neither: the round-2 review's probe drew a Sabotage of Aiko's in Dorm A and froze a
+ * project in another room, its repair made and nothing refused, and a miss named its target for
+ * the Reroll from anywhere as well. A player's packet, a miss's included, is held here to the room
+ * on the scene documents, as `guardProjectRoom` holds a Work's, before its roll is claimed; a
+ * Monokuma reaches every project, as the picker lets them (`anyRoom`).
+ */
+export async function guardSabotageRoom(sender, payload, ctx) {
+    if (sender.isGM) return null;
+    const actor = game.actors.get(payload.actorId ?? "");
+    const { isMonokuma } = await import("./monokuma.mjs");
+    if (isMonokuma(actor)) return null;
+    const { roomOf } = await import("./projects.mjs");
+    const room = roomOf(payload.targetId);
+    if (!room) return "that project is not one the character can work on or break here";
+    const { locateActor } = await import("./movement.mjs");
+    return locateActor(actor)?.room === room ? null : "the character is not in that room";
 }
 
 /*
@@ -1138,16 +1172,17 @@ function rollKindOf(rolled, payload) {
  * Why `record` cannot settle the declaration's action for this packet, or null. Since fix r2-H1
  * (04.10.2026; review S2-1) a roll is also held to what its draw named beyond its action -
  * `named`, a record field and the packet path that must say the same (a crisis roll's crisis
- * action, gm-bridge.mjs `murder.crisis`; a record written without the field, before the fix,
- * is not asked) - and one a later roll of its action replaced settles nothing
- * (roll-draw.mjs `keepRecord`).
+ * action, gm-bridge.mjs `murder.crisis`; a Work's or a Sabotage's project since fix r2-H2,
+ * `project.progress` and `project.sabotage`; a record written without the field, before the
+ * fix, is not asked, and one whose draw named none - null - settles nothing that names one) - and
+ * one a later roll of its action replaced settles nothing (roll-draw.mjs `keepRecord`).
  */
 export function rollRefusal(record, rolled, payload, sender, now = Date.now()) {
     if (!record) return "no roll the GM drew is named";
     if (record.actorId !== valueAt(payload, rolled.actor) || (record.userId !== sender?.id && !sender?.isGM)) return "that roll is not the sender's character's";
     const kind = rollKindOf(rolled, payload);
     const namedOtherwise = Object.entries(rolled.named ?? {})
-        .some(([field, path]) => typeof record[field] === "string" && record[field] !== valueAt(payload, path));
+        .some(([field, path]) => record[field] !== undefined && record[field] !== valueAt(payload, path));
     if (record.actionKey !== kind || namedOtherwise) return "that roll was not thrown for that action";
     if (!(now - (record.at ?? 0) <= TIMING.rerollWindowMinutes * 60_000)) return "that roll is too old to settle anything";
     if (record.superseded) return "a later roll of that action has replaced that roll";

@@ -2528,7 +2528,8 @@
         "projectFrozen": "That project is frozen by a sabotage until its repair is finished.",
         "rollReplaced": "A later roll of the same action replaced the roll it names.",
         "notPaid": "The GM's client saw no action paid for that roll. Take the action again.",
-        "rollThrown": "That action's roll has been thrown already."
+        "rollThrown": "That action's roll has been thrown already.",
+        "callNotPaid": "The GM's client saw no Hope paid for that Call."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",

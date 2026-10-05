@@ -808,20 +808,23 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        marked - this phase scans what p1 is shown of the sabotages, not of a roll thrown for the test -
        and the first freeze below names it; each later one throws its own just before (since fix r2-H1
        a settlement takes the newest roll of an action, so a roll thrown ahead of a newer one of its
-       action settles nothing). */
-    const firstSabotage = (await drawnRoll(p2, ids.botan, "sabotage", "eye", { hope: 9, fear: 5 })).messageId;
-    const sabotageFromP2 = async (targetId, rollId = null) => {
-        const named = rollId ?? (await drawnRoll(p2, ids.botan, "sabotage", "eye", { hope: 9, fear: 5 })).messageId;
-        return p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
-            const r = await P.sabotageProject("${targetId}", 3, { rollId: ${JSON.stringify(named)}, actorId: "${ids.botan}" });
-            return r?.repair?.id ?? null;`, { timeout: 60000 });
-    };
-    await canary.chatMark({ who: ["p1"] });
+       action settles nothing). Since fix r2-H2 a Sabotage's roll is drawn for the project it names
+       (roll-draw.mjs `keepRecord`, `project`) and settles no other, so the projects are made first. */
     const projects = await gm.eval(`
         const P = await import("${repoUrl}/scripts/projects.mjs");
         const pub = await P.createProject({ name: "SEC public", target: 6, room: "Cafeteria", secret: false });
         const sec = await P.createProject({ name: "SEC secret", target: 6, room: "Gym", secret: true });
         return { pub: pub.id, sec: sec.id };`, { timeout: 60000 });
+    const sabotageRollOf = async (client, actorId, targetId, faces = { hope: 9, fear: 5 }) =>
+        (await drawnRoll(client, actorId, "sabotage", "eye", faces, { context: { targetProjectId: targetId } })).messageId;
+    const firstSabotage = await sabotageRollOf(p2, ids.botan, projects.pub);
+    const sabotageFromP2 = async (targetId, rollId = null) => {
+        const named = rollId ?? await sabotageRollOf(p2, ids.botan, targetId);
+        return p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+            const r = await P.sabotageProject("${targetId}", 3, { rollId: ${JSON.stringify(named)}, actorId: "${ids.botan}" });
+            return r?.repair?.id ?? null;`, { timeout: 60000 });
+    };
+    await canary.chatMark({ who: ["p1"] });
     const sabotaged = { repair: await sabotageFromP2(projects.pub, firstSabotage) };
     const readPair = `const P = await import("${repoUrl}/scripts/projects.mjs");
         const ids = P.allProjects().map(p => p.id);
@@ -900,13 +903,16 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        public project in Aiko's room and one in a room nobody stands in; p1's console asks +12 on the
        first, naming one roll, and +1 on the second, naming the other. Read: each bar before and after,
        against the band of ACTIONS.project the roll's total reaches, and the GM's reasons. */
-    const workRolls = [await drawnRoll(p1, ids.aiko, "project", "eye", { hope: 9, fear: 5 })];
     const worked = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         const M = await import("${repoUrl}/scripts/movement.mjs"), C = await import("${repoUrl}/scripts/config.mjs");
         const here = M.locateActor(game.actors.get("${ids.aiko}"))?.room ?? null;
         const near = await P.createProject({ name: "SEC worked here", target: 12, room: here });
+        const beside = await P.createProject({ name: "SEC worked here too", target: 12, room: here });
         const far = await P.createProject({ name: "SEC worked elsewhere", target: 12, room: "SEC nowhere" });
-        return { here, near: near?.id ?? null, far: far?.id ?? null, bands: C.ACTIONS.project.thresholds };`, { timeout: 60000 });
+        return { here, near: near?.id ?? null, beside: beside?.id ?? null, far: far?.id ?? null, bands: C.ACTIONS.project.thresholds };`, { timeout: 60000 });
+    // A Work's roll is drawn for the project it names (fix r2-H2), so each names the one its packet scores on.
+    const workRollOf = countdownId => drawnRoll(p1, ids.aiko, "project", "eye", { hope: 9, fear: 5 }, { context: { projectId: countdownId } });
+    const workRolls = [await workRollOf(worked.near)];
     const barOf = id => `const P = await import("${repoUrl}/scripts/projects.mjs");
         return { current: P.allProjects().find(p => p.id === "${id}")?.current ?? null };`;
     const earned = Math.max(0, ...worked.bands.filter(b => (workRolls[0].total ?? 0) >= b.min).map(b => b.progress));
@@ -923,13 +929,54 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         Boolean(worked.here && worked.near && workRolls[0].messageId) && earned > 0
         && settled - plus12.before.current === earned && !plus12.reasons.length, JSON.stringify({ workRolls, worked, earned, plus12, settled }));
     // Thrown once the first has settled: a newer Work roll of Aiko's would have replaced it (fix r2-H1).
-    workRolls.push(await drawnRoll(p1, ids.aiko, "project", "eye", { hope: 9, fear: 5 }));
+    workRolls.push(await workRollOf(worked.far));
     const farOff = await forge("project.progress", { countdownId: worked.far, amount: 1, actorId: ids.aiko, rollId: workRolls[1].messageId }, barOf(worked.far));
     check("SECURITY: a console's progress on a project in a room its character does not stand in is refused and moves nothing",
         Boolean(worked.far && workRolls[1].messageId) && farOff.unchanged && farOff.reasons.some(r => /the character is not in that room/.test(r))
         && farOff.told.some(t => t.what === "project.progress"), JSON.stringify(farOff));
+    /* 7b++. A PROJECT'S PACKETS ARE HELD TO THEIR ROLL, THEIR PROJECT AND THEIR ROOM (E08+E28 fix r2-H2, 05.10.2026;
+       review S2-4, S2-5, S2-6). The round-2 review's probes, from p1's console for Aiko: a Sabotage of a project in a
+       room she does not stand in froze it and made its repair (bridge-guards.mjs `guardSabotageRoom` now); progress
+       naming no roll added 2 three times from another room, 0 -> 6, and a Contribution nobody paid for was taken
+       (`guardCallProgress`: a Hope Call, its amount, its room, its price paid once); and a Work's roll drawn for one
+       project scored on another in the room (the record's `project`, `rollRefusal`). Each refused, told, and moving
+       nothing. A Call's refusal waits for its payment (roll-draw.mjs `takeCallPayment`, 1500 ms), so it is read
+       once its line is logged. The progress comes before the Sabotage: a Sabotage that got through froze "SEC worked
+       elsewhere", and its progress was then refused as frozen - measured on this fix's first red run (05.10.2026),
+       where it hid the review's 0 -> 6 at fix r2-H1's runtime. */
+    // No Hope of Aiko's this GM saw p1 pay earlier in the scenario may stand for the Contribution below.
+    await gm.eval(`(await import("${repoUrl}/scripts/roll-draw.mjs")).forgetPayments?.("${ids.aiko}"); return true;`);
+    const callRoad = [];
+    for (const fields of [{ countdownId: worked.far, amount: 2 }, { countdownId: worked.far, amount: 2 }, { countdownId: worked.far, amount: 2 },
+        { countdownId: worked.near, amount: 1, call: "contribution" }]) {
+        await clearFailures();
+        await p1.eval(`globalThis.__refused.length = 0;
+            game.socket.emit("${SOCKET}", { action: "project.progress", userId: game.user.id, requestId: "h2-call-road", actorId: "${ids.aiko}",
+                ...${JSON.stringify(fields)} }, ${toGms}); return true;`);
+        for (let i = 0; i < 40 && !(await refusedFor("project.progress")).length; i++) await settle(100);
+        await settle(300);
+        callRoad.push({ reasons: await refusedFor("project.progress"),
+            told: (await p1.eval(`return globalThis.__refused.slice();`)).filter(t => t.what === "project.progress").length });
+    }
+    const callBars = { far: (await gm.eval(barOf(worked.far))).current, near: (await gm.eval(barOf(worked.near))).current };
+    check("SECURITY: progress naming no roll - +2 three times from another room, and a Contribution nobody paid for - is refused, told, and moves no bar",
+        callRoad.length === 4 && callRoad.every(r => r.told === 1) && callRoad.slice(0, 3).every(r => r.reasons.some(x => /the character is not in that room/.test(x)))
+        && callRoad[3].reasons.some(x => /no payment of that character's stands for that Call/.test(x))
+        && callBars.far === 0 && callBars.near === settled, JSON.stringify({ callRoad, callBars, settled }));
+    const elsewhere = await forge("project.sabotage", { targetId: worked.far, difficulty: 3, actorId: ids.aiko, penalty: 0, relief: 0,
+        rollId: await sabotageRollOf(p1, ids.aiko, worked.far) }, `const P = await import("${repoUrl}/scripts/projects.mjs");
+        return { frozen: P.isFrozen("${worked.far}"), repairs: P.allProjects().filter(p => P.repairs(p.id) === "${worked.far}").length };`);
+    check("SECURITY: a console's Sabotage of a project in a room its character does not stand in is refused, told, and freezes nothing",
+        elsewhere.unchanged && elsewhere.after.frozen === false && elsewhere.after.repairs === 0
+        && elsewhere.reasons.some(r => /the character is not in that room/.test(r)) && elsewhere.told.some(t => t.what === "project.sabotage"),
+        JSON.stringify(elsewhere));
+    workRolls.push(await workRollOf(worked.near));
+    const beside = await forge("project.progress", { countdownId: worked.beside, amount: 1, actorId: ids.aiko, rollId: workRolls[2].messageId }, barOf(worked.beside));
+    check("SECURITY: a console's progress naming a Work roll drawn for another project in the room is refused, told, and moves nothing",
+        Boolean(worked.beside && workRolls[2].messageId) && beside.unchanged && beside.reasons.some(r => /that roll was not thrown for that action/.test(r))
+        && beside.told.some(t => t.what === "project.progress"), JSON.stringify(beside));
     await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
-        for (const id of ${JSON.stringify([worked.near, worked.far].filter(Boolean))}) await P.deleteProject(id).catch(() => {});
+        for (const id of ${JSON.stringify([worked.near, worked.beside, worked.far].filter(Boolean))}) await P.deleteProject(id).catch(() => {});
         return true;`, { timeout: 60000 });
     const shared = await forge("project.share", { countdownId: projects.pub, targetUserId: p1.userId },
         `const P = await import("${repoUrl}/scripts/projects.mjs"); return { secret: P.isSecret("${projects.pub}") };`);

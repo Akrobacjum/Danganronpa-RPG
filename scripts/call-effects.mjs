@@ -900,7 +900,7 @@ async function damageEffect(actor, call, choice, done) {
 // note above the project Calls in config.mjs. The branch went too rather
 // than being left standing for nothing: an unreachable handler is how a
 // deleted rule comes back by accident.
-async function progressEffect(actor, call, choice, done) {
+async function progressEffect(actor, call, choice, done, { key }) {
     const { addProgress, allProjects } = await import("./projects.mjs");
     const project = allProjects().find(p => p.id === choice.project);
 
@@ -908,8 +908,9 @@ async function progressEffect(actor, call, choice, done) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
         throw new Error(`project ${choice.project} no longer exists`);
     } else {
-        // Who pays, as the bridge asks it of a player's (E08+E28 C16: gm-bridge.mjs `project.progress`).
-        const applied = await addProgress(choice.project, call.progress, { actorId: actor?.id ?? null });
+        // Who pays, as the bridge asks it of a player's (E08+E28 C16: gm-bridge.mjs `project.progress`), and
+        // for which Call (fix r2-H2): a player's is held to that Call's progress and to its price paid.
+        const applied = await addProgress(choice.project, call.progress, { actorId: actor?.id ?? null, call: key });
         if (!applied) throw new Error(`addProgress refused ${choice.project}`);
 
         // A GM's write says outright whether the bar moved. A player's
@@ -1104,7 +1105,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
         if (call.grantsHope && choice.target) await hopeFromDespairEffect(actor, call, choice, done);
         if (call.feedsOverflow) await feedOverflowEffect(actor, call, choice, done);
         if (call.damage && choice.target) await damageEffect(actor, call, choice, done);
-        if (call.progress && choice.project) await progressEffect(actor, call, choice, done);
+        if (call.progress && choice.project) await progressEffect(actor, call, choice, done, { key });
         if (call.freeMoves) await freeMovesEffect(actor, call, choice, done);
         if (call.freeActions) await freeActionsEffect(actor, call, choice, done);
         if (call.freeRest) await freeRestEffect(actor, call, choice, done);

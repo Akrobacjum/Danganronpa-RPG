@@ -2616,7 +2616,8 @@
         "projectFrozen": "Ten projekt jest zamrożony sabotażem, dopóki nie skończy się jego naprawa.",
         "rollReplaced": "Wskazany rzut został zastąpiony późniejszym rzutem tej samej akcji.",
         "notPaid": "Klient GM-a nie widział zapłaty za akcję tego rzutu. Wykonaj akcję jeszcze raz.",
-        "rollThrown": "Rzut tej akcji już padł."
+        "rollThrown": "Rzut tej akcji już padł.",
+        "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",

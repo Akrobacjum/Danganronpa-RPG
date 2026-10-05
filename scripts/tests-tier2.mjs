@@ -5310,15 +5310,17 @@ const SCENARIOS = [
         const S = await import("./gm-stores.mjs");
         const P = await import("./projects.mjs");
         const store = S.rerollBookmarkStore;
-        const { player, actor } = await playerInRoom();
+        const { player, actor, where } = await playerInRoom();
         const meta = foundry.utils.deepClone(P.projectMeta());
         const made = [];
         const ownHydrated = Object.hasOwn(store, "whenHydrated") ? store.whenHydrated : null;
         const hydrated = store.whenHydrated;
         let release = null, message = null, record = null;
         try {
-            const target = await P.createProject({ name: "SUITE fix r1-G1 sabotage target", target: 6 });
-            const other = await P.createProject({ name: "SUITE fix r1-G1 another target", target: 6 });
+            // In the player's character's room: a player's Sabotage is made standing at its project (fix r2-H2,
+            // bridge-guards.mjs `guardSabotageRoom`), where a project with no room took it until then.
+            const target = await P.createProject({ name: "SUITE fix r1-G1 sabotage target", target: 6, room: where.room });
+            const other = await P.createProject({ name: "SUITE fix r1-G1 another target", target: 6, room: where.room });
             must(target?.id && other?.id, "could not create the projects to sabotage");
             made.push(target.id, other.id);
             ({ message } = await neutralRoll(actor, { faces: { hope: 9, fear: 4 } }));
@@ -6248,13 +6250,14 @@ const SCENARIOS = [
          * the packet's amount, held only to a Despair pool's 12: a console that had thrown a 7 added
          * 12. A Work on a Project names its roll now, and the GM adds what that roll earned on its
          * record (gm-bridge.mjs `progressOf`), with the tool's relief and the concealment's bonus
-         * the packet claims held to the rules; a packet that names no roll is a Call's, and adds at
-         * most what the largest Call adds (bridge-guards.mjs `guardCallProgress`). A public project
-         * of 12 in the room the player's character stands in; three packets from that player asking
-         * +12: naming a roll the record says came to 7; naming one that came to 13, claiming a relief
-         * of 9 and a bonus of 5 on a project that is no indirect murder; naming none. Read: the code
-         * each was refused with (or null) and the bar after it, and the GM's line saying the packet's
-         * 12 lost to the record's 1. Red at C15's runtime: the first packet adds 12.
+         * the packet claims held to the rules; a packet that names no roll is a Call's, which since fix
+         * r2-H2 names its Hope Call and adds that Call's amount (bridge-guards.mjs `guardCallProgress`):
+         * one naming none is refused as a bad request, where C16 refused its 12 as out of range. A
+         * public project of 12 in the room the player's character stands in; three packets from that
+         * player asking +12: naming a roll the record says came to 7; naming one that came to 13,
+         * claiming a relief of 9 and a bonus of 5 on a project that is no indirect murder; naming
+         * none. Read: the code each was refused with (or null) and the bar after it, and the GM's
+         * line saying the packet's 12 lost to the record's 1. Red at C15's runtime: the first packet adds 12.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -6272,7 +6275,7 @@ const SCENARIOS = [
                 after.push([await F.ask("project.progress", { countdownId: project, ...fields }), F.progress(project)]);
             }
             equal(stableJson([...after, watch.count("said amount 12; the GMs' record of its roll says 1,")]),
-                stableJson([["rollMissed", 0], [null, 1], ["outOfRange", 1], 1]),
+                stableJson([["rollMissed", 0], [null, 1], ["badRequest", 1], 1]),
                 "the packet's +12 was added, or not what its roll earned (code and bar after: a 7, a 13 claiming relief and a bonus, no roll; the GM's line)");
         } finally {
             watch.stop();
@@ -6378,6 +6381,141 @@ const SCENARIOS = [
             await F.putBack();
             if (had) await store.patch(actor.id, had);
             else if (store.has(actor.id)) await store.drop(actor.id);
+        }
+    }],
+
+    ["a player's Sabotage is judged standing at its project, a missed one's included", async () => {
+        /*
+         * E08+E28 fix r2-H2, 05.10.2026; review S2-4. The picker offers a project to break only in the
+         * room the saboteur stands in, never one with no room (projects.mjs `sabotageTargetsIn`), and
+         * the GM asked neither: a console froze any project it could see from anywhere, and a miss
+         * named its target for the Reroll from anywhere too. A player's Sabotage is held to the room
+         * on the GM now (bridge-guards.mjs `guardSabotageRoom`), before its roll is claimed. Three
+         * public projects: one in a room nobody stands in, one with no room, one in the player's
+         * character's room. Packets from that player asking a repair of 3, each naming a roll the
+         * record says came to 13 - and one more at the first project naming a roll that came to 5, a
+         * miss, sent as a repair of 0. Read: the code, whether the project froze, and what the roll's
+         * record has settled. Red at fix r2-H1's runtime: every packet passes, the first and the
+         * roomless one freeze, and the miss settles its roll.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the third project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const { isMonokuma } = await import("./monokuma.mjs");
+        must(!isMonokuma(actor), `${actor.name} is a Monokuma, who reaches every project - this would measure nothing`);
+        const F = await projectPackets(player, actor);
+        try {
+            const away = await F.project(`${where.room} - SUITE H2 elsewhere`), roomless = await F.project(null), here = await F.project(where.room);
+            const read = [];
+            for (const [project, total, difficulty] of [[away, 13, 3], [away, 5, 0], [roomless, 13, 3], [here, 13, 3]]) {
+                const roll = await F.rolled(total, "sabotage");
+                read.push([await F.ask("project.sabotage", { targetId: project, difficulty, rollId: roll.id, penalty: 0, relief: 0 }),
+                    F.P.isFrozen(project), F.resolved(roll.id)]);
+            }
+            equal(stableJson(read), stableJson([["notThere", false, []], ["notThere", false, []], ["notThere", false, []], [null, true, ["sabotage"]]]),
+                "a Sabotage from another room, a miss's included, or of a project with no room passed, or one at its project was refused (code, frozen, what the roll settled)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["progress that names no roll is a Hope Call's, of its amount, paid for, once, in its room", async () => {
+        /*
+         * E08+E28 fix r2-H2, 05.10.2026; review S2-5. Progress naming no roll is a Call's
+         * (call-effects.mjs `progressEffect`), and C16 held it to the largest Call's 2 and to nothing
+         * else: the round-2 review's probe added 2 three times for Aiko, in a room she was not in,
+         * 0 -> 6. It names its Call now - a Hope Call that adds progress - and adds that Call's amount
+         * from the project's room, taking a payment of the Call's price this GM saw the player make,
+         * once (bridge-guards.mjs `guardCallProgress`, roll-draw.mjs `takeCallPayment`). A payment is
+         * written here, on the GM's browser, as the player's (`PAID_AS_PLAYER`, as `payAction` pays an
+         * action), the GM's tickets for the character forgotten first. Two public projects: one in
+         * the player's character's room, one in a room nobody stands in. Packets from that player,
+         * none naming a roll: +1 naming no Call; +2 naming Patronage, a Despair Call; +2 naming
+         * Contribution; +1 naming Contribution with nothing paid; the same after 1 Hope paid; after 2
+         * paid; the same again; and, after 2 more paid, +1 naming Contribution on the project nobody
+         * stands at. Read: the code each was refused with (or null) and the bar after it. Red at fix
+         * r2-H1's runtime: all eight pass - the bar of the first project reaches 9, the other 1.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the first project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const D = await import("./roll-draw.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const path = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(actor, path);
+        // A GM's write moves only the reading a payment is measured from; the second write is the player's payment.
+        const pay = async n => {
+            await automatedUpdate(actor, { [path]: n });
+            await automatedUpdate(actor, { [path]: 0 }, { [D.PAID_AS_PLAYER]: true });
+        };
+        const F = await projectPackets(player, actor);
+        D.forgetPayments?.(actor.id);
+        try {
+            const here = await F.project(where.room), away = await F.project(`${where.room} - SUITE H2 elsewhere`);
+            const read = [];
+            const ask = async (project, fields) => read.push([await F.ask("project.progress", { countdownId: project, ...fields }), F.progress(project)]);
+            await ask(here, { amount: 1 });
+            await ask(here, { amount: 2, call: "favoriteProject" });
+            await ask(here, { amount: 2, call: "contribution" });
+            await ask(here, { amount: 1, call: "contribution" });
+            await pay(1);
+            await ask(here, { amount: 1, call: "contribution" });
+            await pay(2);
+            await ask(here, { amount: 1, call: "contribution" });
+            await ask(here, { amount: 1, call: "contribution" });
+            await pay(2);
+            await ask(away, { amount: 1, call: "contribution" });
+            equal(stableJson(read), stableJson([["badRequest", 0], ["badRequest", 0], ["outOfRange", 0], ["callNotPaid", 0], ["callNotPaid", 0],
+                [null, 1], ["callNotPaid", 1], ["notThere", 0]]),
+            "progress naming no roll was added with no Hope Call named, another amount, no payment, twice for one payment, or from another room (code and bar after each)");
+        } finally {
+            D.forgetPayments?.(actor.id);
+            await automatedUpdate(actor, { [path]: hopeWas });
+            await F.putBack();
+        }
+    }],
+
+    ["a Work's or a Sabotage's roll settles only the project its draw named", async () => {
+        /*
+         * E08+E28 fix r2-H2, 05.10.2026; review S2-6. A Work's and a Sabotage's draw names its project
+         * (roll-draw.mjs `drawPacketOf`: `projectId`, `targetProjectId`), and the GM held the roll's
+         * statistic to that project (`expectedFor`) but kept no project on its record: a roll drawn
+         * for one project could score on another in the room, or freeze another. The record keeps it
+         * now (`keepRecord`, `project`), and a packet naming another project is refused
+         * (bridge-guards.mjs `rollRefusal`, `named`); a roll whose draw named none settles none. Two
+         * public projects in the player's character's room, A and B; drawn as the GM draws that
+         * player's roll (`drawnForPlayer`): a Work naming A, scored on B and then on A; a Sabotage
+         * naming A, aimed at B and then at A; a Work naming no project, scored on B. Read: the code
+         * of each, and the bar or the freeze it left. Red at fix r2-H1's runtime: the Work naming A
+         * adds to B, and its second packet is refused as a roll already used.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the projects stand in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls and packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const F = await projectPackets(player, actor);
+        const draws = [];
+        const draw = async (actionKey, context) => {
+            const drawn = await drawnForPlayer(player, actor, { actionKey, edit: p => ({ ...p, context: { ...(p.context ?? {}), ...context } }) });
+            draws.push(drawn);
+            must(drawn.message, `the GM drew no ${actionKey} roll (${drawn.verdict}) - this would measure nothing`);
+            return drawn.message.id;
+        };
+        try {
+            const a = await F.project(where.room), b = await F.project(where.room);
+            const read = [];
+            const work = await draw("project", { projectId: a });
+            read.push([await F.ask("project.progress", { countdownId: b, amount: 1, rollId: work }), F.progress(b)]);
+            read.push([await F.ask("project.progress", { countdownId: a, amount: 1, rollId: work }), F.progress(a) > 0]);
+            const sabotage = await draw("sabotage", { targetProjectId: a });
+            read.push([await F.ask("project.sabotage", { targetId: b, difficulty: 3, rollId: sabotage, penalty: 0, relief: 0 }), F.P.isFrozen(b)]);
+            read.push([await F.ask("project.sabotage", { targetId: a, difficulty: 3, rollId: sabotage, penalty: 0, relief: 0 }), F.P.isFrozen(a)]);
+            const unnamed = await draw("project", {});
+            read.push([await F.ask("project.progress", { countdownId: b, amount: 1, rollId: unnamed }), F.progress(b)]);
+            equal(stableJson(read), stableJson([["rollOtherAction", 0], [null, true], ["rollOtherAction", false], [null, true], ["rollOtherAction", 0]]),
+                "a roll drawn for one project scored on another, or one drawn for none on any, or the project it was drawn for was refused (code and bar or freeze after each)");
+        } finally {
+            for (const drawn of draws.reverse()) await drawn.putBack();
+            await F.putBack();
         }
     }],
 
