@@ -811,7 +811,8 @@ export function neutralRollSource(data, { alias = game.i18n.localize("DRPG.Secre
  * from them. Nothing of the character is needed again but by a Reroll, which
  * rebuilds the formula: it takes the character's data from the actor and the
  * statistic and experiences from the GMs' bookmark or, for a roll the GM drew,
- * its record (reroll.mjs `rollAsThrown`). A modifier keeps its value and loses its label - the
+ * its record - since E29 C11 the whole roll, from the record's `scored`
+ * (reroll.mjs `rollAsThrown`). A modifier keeps its value and loses its label - the
  * formula is summed from the values (dhRoll.mjs `addModifiers`).
  *
  * Read in the source, not measured on a real message (LIVE-E06-02); the

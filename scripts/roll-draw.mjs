@@ -956,6 +956,22 @@ function modifierLabel(m) {
 }
 
 /**
+ * The terms of what the GM threw (`scored`) at the list's faces (`read`): the Hope and the Fear die,
+ * the advantage or disadvantage dice of its sum, the highest kept of several, and one number per flat
+ * source - a draw's (`legalRollOf`) and its Reroll's (`rollOnRecord`) alike.
+ */
+function termsOf(scored, read) {
+    const terms = [dieJson("HopeDie", read.hopeDie), signJson("+"), dieJson("FearDie", read.fearDie)];
+    if (scored.advantage) {
+        const up = scored.advantage > 0, number = Math.abs(scored.advantage);
+        terms.push(signJson(up ? "+" : "-"),
+            dieJson(up ? "AdvantageDie" : "DisadvantageDie", read.advantageDie[up ? "advantage" : "disadvantage"], number, number > 1 ? ["kh"] : []));
+    }
+    for (const m of scored.modifiers) terms.push(signJson(m.value < 0 ? "-" : "+"), numberJson(Math.abs(m.value)));
+    return terms;
+}
+
+/**
  * The roll this GM throws, as JSON for `fromData`, with what it scored (`scored`) and the packet's
  * numbers (`claim`) - see the note above. `scored` is null for a roll nothing is expected of.
  */
@@ -966,13 +982,7 @@ async function legalRollOf(packetRoll, actor, expected, told, { key = null, clai
     if (!expected.checked) return { json: await onGmTerms(json, actor, { key, claimed }), scored: null, claim };
     const scored = scoredOf(actor, expected, claim);
     const { read } = expected;
-    const terms = [dieJson("HopeDie", read.hopeDie), signJson("+"), dieJson("FearDie", read.fearDie)];
-    if (scored.advantage) {
-        const up = scored.advantage > 0, number = Math.abs(scored.advantage);
-        terms.push(signJson(up ? "+" : "-"),
-            dieJson(up ? "AdvantageDie" : "DisadvantageDie", read.advantageDie[up ? "advantage" : "disadvantage"], number, number > 1 ? ["kh"] : []));
-    }
-    for (const m of scored.modifiers) terms.push(signJson(m.value < 0 ? "-" : "+"), numberJson(Math.abs(m.value)));
+    const terms = termsOf(scored, read);
     if (diceShape(terms) !== diceShape(sent) || numbersOf(terms) !== numbersOf(sent)) json.formula = formulaOf(terms);
     json.terms = terms;
     const options = json.options && typeof json.options === "object" ? json.options : (json.options = {});
@@ -1087,8 +1097,9 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         rollId, actorId: actor.id, userId: sender.id, actionKey: key,
         messageId: message.id, claimed: Boolean(claimed), formula: roll.formula,
         // The statistic and the experiences the roll was thrown with, as the GM was told them at
-        // the draw - a Reroll rebuilds the roll from these (reroll.mjs `rollAsThrown`), not from a
-        // bookmark the roller may send again.
+        // the draw - a Reroll of a roll with no `scored` rebuilds the roll from these (reroll.mjs
+        // `rollAsThrown`), not from a bookmark the roller may send again; one with it, from `scored`
+        // (`rollOnRecord`, E29 C11).
         trait: traitKeyOf(told.trait), experiences: told.experiences.filter(name => actor.system?.experiences?.[name]),
         dice: roll.dice.map(die => ({ faces: die.faces, results: die.results.map(r => ({ result: r.result, active: r.active !== false })) })),
         total: roll.total, hope: roll.dHope?.total ?? null, fear: roll.dFear?.total ?? null,
@@ -1647,13 +1658,50 @@ export function drawnRecordOf(message) {
 }
 
 /*
+ * A DRAWN ROLL IS THROWN AGAIN AS THE GM THREW IT (E29 C11, 05.10.2026; the stage plan's 3.7). A
+ * Reroll rebuilds the roll it throws again (reroll.mjs `rollAsThrown`), and until C11 it rebuilt a
+ * drawn roll from its message's roll with the record's statistic and experiences put back. Those
+ * were the packet's (`trait`, `experiences` on the record are what the GM was told), and
+ * Daggerheart's constructor builds the modifiers again out of the options alone - the statistic's
+ * value, the experiences named, every enabled effect's roll bonus (d20Roll.mjs `configureModifiers`,
+ * dhRoll.mjs `bonusEffectBuilder`, read in 2.10.5) - so, by that reading, an experience no Call
+ * bought and an effect the GM clamped away at the draw (C10) came back on the Reroll, and a Call's
+ * bonus or a hindering Call's -1 the GM counted was gone from it. The harness's constructor keeps the
+ * formula it is given, so there the Reroll took whatever the roll it was handed added up to: at
+ * C10's runtime (tier 2, "a Reroll keeps the legal modifiers, not the claim", handed the roll as its
+ * class rebuilds it from the packet) a Search whose packet named an experience and added 3 more,
+ * scored without both, was thrown again with both.
+ * Now a drawn roll is thrown again from the record's `scored` (`legalRollOf`): the formula of the
+ * same dice at the list's faces and the same numbers, the statistic and the experiences the GM
+ * counted, and every other number the GM counted as a base modifier (`baseModifiers`, which
+ * Daggerheart's `applyBaseBonus` starts from) with no effects for it to read again - so the
+ * constructor, which drops the formula's numbers and writes its own, comes back to the GM's sum
+ * as long as the statistic's and the experiences' values on the character are the ones the GM
+ * counted. Not measured at a table (LIVE-E06-02 reads the rebuild there). The record's `scored`
+ * stands for every version a Reroll writes (`keepRerolledVersion`): a Reroll changes the dice, not
+ * what they are added to. Null for a roll with no `scored` - a Monokuma's, of which nothing is
+ * expected, or one drawn before 1.2.68 - which `rollAsThrown` rebuilds as before.
+ */
+export function rollOnRecord(record) {
+    const scored = record?.scored ?? null, read = record?.legal?.read ?? null;
+    if (!scored || !Array.isArray(scored.modifiers) || !read?.kind) return null;
+    const labelled = m => ({ label: modifierLabel(m), value: m.value });
+    const roll = { advantage: Math.sign(scored.advantage), modifiers: scored.modifiers.map(labelled),
+        baseModifiers: scored.modifiers.filter(m => m.key !== "trait" && m.key !== "experience").map(labelled) };
+    if (scored.trait) roll.trait = TRAITS[scored.trait]?.dh ?? scored.trait;
+    return { formula: formulaOf(termsOf(scored, read)), roll, experiences: Array.isArray(scored.experiences) ? [...scored.experiences] : [],
+        critical: read.kind.critical === true, actionType: read.kind.actionType ?? null };
+}
+
+/*
  * A REROLL WRITES THE RECORD'S NEXT VERSION (E08+E28 C17, 04.10.2026; the plan's 3.6). The
  * Reroll is made on a GM (reroll.mjs `makeReroll`) and rewrites the roll's message in place:
  * the message keeps its id and the record its key, and until C17 the record kept the dice of
  * the draw while the message showed the Reroll's. Once a Reroll stands, the record takes the
  * new roll's dice, total and duality, and what it held goes on its `versions`, oldest first:
  * the draw itself stays `versions[0]` for as long as the record lives (D2), each later
- * Reroll's roll after it, each with the time it was thrown. A packet that names the roll from
+ * Reroll's roll after it, each with the time it was thrown. `scored` is not versioned: a drawn
+ * roll's Reroll is thrown from it (`rollOnRecord`, E29 C11), so it holds for every version. A packet that names the roll from
  * then on - a theft from the stash a rerolled Search found - is read on the roll that stands.
  * The record's `at` stays the draw's: the Reroll's reach is counted from the first throw. A
  * roll the GM did not draw has no record, and nothing is written; answers whether one was.
@@ -1693,7 +1741,8 @@ export async function keepRerolledVersion(message, roll) {
  *     The card says so to whoever reads it (`DRPG.Rolls.unwitnessed`, the owner's Q3 (a)).
  * On a GM's return the primary posts one card to the GMs (`askAboutUnwitnessed`): each
  * stamped roll nobody has decided, its character, its dice as the player's browser threw
- * them and what they would have moved, with Grant all and Grant none. The grant is the GM's
+ * them and what they would have moved - and, since E29 C11, what it claimed beside what the GM's
+ * list gives (`awayClaimOf`) -, with Grant all and Grant none. The grant is the GM's
  * (`decideUnwitnessed`): Daggerheart's own resource step on the GM, as the draw runs it
  * (`DrawnResources`, so critical.mjs's rule and Daggerheart's own gates apply), and the
  * Despair through `awardRollDespair`, whose award at the message's creation stands aside
@@ -1787,6 +1836,36 @@ function awayMoves({ outcome, reaction }) {
     return moves.join(", ");
 }
 
+/*
+ * WHAT IT CLAIMED, BESIDE THE GM'S LIST (E29 C11, 05.10.2026; the stage plan's 3.8). A roll thrown
+ * with no GM connected was not drawn, so nothing of the list was held to it: its modifier and its
+ * advantage dice are its window's. The GMs' card says, for each, what it claimed and what the list
+ * would have given it (`expectedFor`, read now on this GM, as a statistic from the sheet is read: the
+ * statistic it names - a roll naming no action is held to none -, no experience, no Call having been
+ * bought on a GM, the hindering Calls armed long enough before now, the effects' part clamped).
+ * Information only: a grant moves what the dice moved, as before, and nothing is flagged or spent.
+ * The claim is read off the stamped message's roll: its total less its Hope, Fear and advantage dice
+ * is its modifier, so any other die its window added is counted in it.
+ */
+async function awayClaimOf({ message, actor }) {
+    const roll = message.rolls?.[0] ?? null;
+    const options = roll?.options ?? {};
+    const up = roll?.dAdvantage ?? null, down = roll?.dDisadvantage ?? null;
+    const flat = Number(roll?.total) - (Number(roll?.dHope?.total) || 0) - (Number(roll?.dFear?.total) || 0)
+        - (Number(up?.total) || 0) + (Number(down?.total) || 0);
+    if (!Number.isFinite(flat)) return null;
+    const trait = traitKeyOf(options.roll?.trait);
+    const claim = { trait, traitValue: trait ? traitValueOf(actor, trait) : 0,
+        experiences: strings(options.experiences).filter(key => actor.system?.experiences?.[key]),
+        flat, advantage: (Number(up?.number) || 0) - (Number(down?.number) || 0), dice: 0 };
+    const { armedCallsHeld } = await import("./sheet-audit.mjs");
+    const hostile = hostileCalls(actor, [], await armedCallsHeld(actor), { claimed: false });
+    const scored = scoredOf(actor, await expectedFor(actor, { hostile, claimed: false, actionType: options.actionType ?? null }), claim);
+    const said = ({ flat: sum, advantage }) => [`${game.i18n.localize(FLAG_KINDS.modifier)} ${signed(sum)}`,
+        ...(advantage ? [`${game.i18n.localize(FLAG_KINDS.advantage)} ${signed(advantage)}`] : [])].join(", ");
+    return game.i18n.format("DRPG.Rolls.awayClaimed", { claimed: said(claim), legal: said(scored) });
+}
+
 /**
  * THE GMs' CARD. At the primary GM's `ready` (module.mjs), and on the primary for a stamped
  * message created while it is here - a roll begun as it connected, or a stamp a console wrote,
@@ -1797,8 +1876,14 @@ export async function askAboutUnwitnessed(messages = null) {
     if (!isPrimaryGm()) return null;
     const rows = (messages ?? game.messages?.contents ?? []).map(awayRowOf).filter(Boolean);
     if (!rows.length) return null;
-    const lines = rows.map(row => `<li>${esc(game.i18n.format("DRPG.Rolls.awayLine", {
-        name: row.actor.name, hope: String(row.hope ?? "-"), fear: String(row.fear ?? "-"), moves: awayMoves(row) }))}</li>`).join("");
+    const lines = (await Promise.all(rows.map(async row => {
+        const claimed = await awayClaimOf(row).catch(err => {
+            error("Could not read what a roll thrown with no GM claimed", err);
+            return null;
+        });
+        return `<li>${esc(game.i18n.format("DRPG.Rolls.awayLine", {
+            name: row.actor.name, hope: String(row.hope ?? "-"), fear: String(row.fear ?? "-"), moves: awayMoves(row) }))}${claimed ? ` ${esc(claimed)}` : ""}</li>`;
+    }))).join("");
     return whisperToGms(`<div class="drpg-away-card"><h3>${esc(game.i18n.localize("DRPG.Rolls.awayTitle"))}</h3><ul>${lines}</ul>`
         + `<div class="drpg-away-actions"><button type="button" data-drpg-away="grant">${esc(game.i18n.localize("DRPG.Rolls.grantAll"))}</button>`
         + `<button type="button" data-drpg-away="none">${esc(game.i18n.localize("DRPG.Rolls.grantNone"))}</button></div></div>`,

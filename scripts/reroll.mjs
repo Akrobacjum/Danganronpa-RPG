@@ -111,6 +111,10 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
  * and the experiences from the GMs' bookmark (action-rolls.mjs `keepGmBookmark`;
  * the roller's own browser's until E08+E28 C4a) - which is kept only for the roll
  * the bookmark names - or, for a roll the GM drew, from its record (E08+E28 C12b). A roll
+ * the GM drew and threw from its own list is rebuilt whole from the record's `scored` since
+ * E29 C11 - its formula, statistic, experiences and every other number the GM counted, with no
+ * effects to read again (roll-draw.mjs `rollOnRecord`, whose note says why): the roll it is
+ * handed and the record's statistic and experiences, which were the packet's, are not read. A roll
  * the module threw that the bookmark does not name is refused rather than
  * thrown weaker: the Reroll's whole point is not to hand back a worse roll
  * than the one paid to replace. A roll the module did not throw is its own
@@ -120,11 +124,26 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
  */
 export async function rollAsThrown(original, actor, message, bookmark = null) {
     if (!isClaimedRoll(message)) return original;
-    // A roll the GM drew: the statistic and the experiences it was thrown with are the record's,
-    // kept at the draw (roll-draw.mjs `drawOnGm`, E08+E28 C12b), and the bookmark's - the
-    // roller's claim, which it may send again - are not read.
-    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    // A roll the GM drew from its own list: the whole roll is the record's `scored` (E29 C11).
+    const { drawnRecordOf, rollOnRecord } = await import("./roll-draw.mjs");
     const record = drawnRecordOf(message);
+    const scored = rollOnRecord(record);
+    if (scored) {
+        const options = foundry.utils.deepClone(original.options ?? {});
+        options.data = actor.getRollData();
+        options.roll = { ...(options.roll ?? {}), ...scored.roll };
+        if (!scored.roll.trait) delete options.roll.trait;
+        options.experiences = scored.experiences;
+        options.effects = [];
+        options.actionType = scored.actionType;
+        if (scored.critical) options.guaranteedCritical = true;
+        else delete options.guaranteedCritical;
+        delete options.extraFormula;
+        return new original.constructor(scored.formula, {}, options);
+    }
+    // A roll the GM drew with no `scored`: the statistic and the experiences it was thrown with are
+    // the record's, kept at the draw (roll-draw.mjs `drawOnGm`, E08+E28 C12b), and the bookmark's -
+    // the roller's claim, which it may send again - are not read.
     const named = Boolean(message.id) && bookmark?.messageId === message.id;
     const kept = record ?? (named ? bookmark : null);
     const trait = kept ? TRAITS[kept.trait]?.dh ?? (TRAIT_BY_DH[kept.trait] ? kept.trait : null) : null;

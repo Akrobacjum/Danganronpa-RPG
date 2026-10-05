@@ -3135,6 +3135,7 @@
       "awayHope": "+{n} Hope",
       "awayDespair": "+1 Despair",
       "awayNothing": "nic (reakcja)",
+      "awayClaimed": "(rzut podał {claimed}; lista GM-a daje {legal})",
       "grantAll": "Przyznaj wszystkie",
       "grantNone": "Nie przyznawaj"
     },

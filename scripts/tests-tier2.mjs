@@ -5131,6 +5131,153 @@ const SCENARIOS = [
             "a roll its window built from what the GMs hold was flagged, or scored other than as built (per source: flags, total as built)");
     }],
 
+    ["a Reroll keeps the legal modifiers, not the claim: a drawn roll is thrown again from what the GM scored", async () => {
+        /*
+         * E29 C11, 05.10.2026; the stage plan's 3.7. A Reroll rebuilt a drawn roll from the roll it was
+         * handed, with the record's statistic and experiences put back (reroll.mjs `rollAsThrown`), and
+         * those were the packet's: what the GM did not count at the draw (C10) came back on the Reroll.
+         * It is thrown from the record's `scored` now (roll-draw.mjs `rollOnRecord`). A player's Search
+         * whose packet names an experience of the character's, which no Experience Call bought, and adds
+         * its value and the rest of 5 - five past the statistic in all. The roll the Reroll is handed is
+         * the packet's as the class rebuilds it, as the C12b test of the Reroll's statistic hands it: the
+         * harness's message keeps its rolls as JSON alone, and its constructor keeps the formula it is
+         * given, where Daggerheart's writes one out of the options - the experiences among them. Read:
+         * the claim's and the thrown flat sums on the record; the rebuilt roll's experiences and its
+         * modifiers' values; once thrown, its total past its Hope and Fear dice; then, the Reroll
+         * written on the record as its next version (`keepRerolledVersion`), whether `scored` is the
+         * draw's still and the record's total the Reroll's. Red at C10's runtime: the experience and the
+         * packet's 5 on the rebuilt roll.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const R = await import("./reroll.mjs");
+        const D = await import("./roll-draw.mjs");
+        const experience = Object.keys(theirs.system?.experiences ?? {})[0] ?? null;
+        must(experience, `${theirs.name} holds no experience - this would measure nothing`);
+        const worth = Number(theirs.system.experiences[experience]?.value) || 0;
+        const F = await drawnForPlayer(player, theirs, { edit: p => addedToPacket(addedToPacket({ ...p, experiences: [experience] }, worth), 5 - worth) });
+        try {
+            must(F.record?.scored && F.message, "the GM kept no scored record of the draw - this would measure nothing");
+            const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
+            const scored = stableJson(F.record.scored);
+            const original = game.system.api.dice.DualityRoll.fromData(foundry.utils.deepClone(F.packet.roll));
+            const thrown = await R.rollAsThrown(original, theirs, F.message);
+            await thrown.evaluate();
+            const kept = await D.keepRerolledVersion(F.message, thrown);
+            const record = D.rollRecord(F.value?.rollId ?? null);
+            equal(stableJson([F.record.claim?.flat ?? null, F.record.scored.flat, thrown.options?.experiences ?? null,
+                (thrown.options?.roll?.modifiers ?? []).map(m => m?.value), thrown.total - thrown.dHope.total - thrown.dFear.total,
+                kept, stableJson(record?.scored ?? null) === scored, record?.total === thrown.total]),
+            stableJson([mod + 5, mod, [], [mod], mod, true, true, true]),
+                "a drawn roll's Reroll was thrown with what its packet claimed, not with what the GM scored (claimed and thrown flat sums; the Reroll's experiences, modifiers and sum past its dice; written as a version, `scored` kept, the record's total the Reroll's)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a Reroll of a crisis roll keeps its weapon die", async () => {
+        /*
+         * E29 C11, 05.10.2026; the stage plan's 3.7. The GM throws a crisis roll's situation dice from
+         * its own reading since C9 and C10 - a weapon in hand, a trap's victim - whatever the packet
+         * carried, and a Reroll of it rebuilt the roll it was handed, which had none where its window
+         * put none on (reroll.mjs `rollAsThrown`): the die the GM threw was gone from the Reroll. It is
+         * thrown from the record's `scored` now (roll-draw.mjs `rollOnRecord`). A direct murder between
+         * two students with players, the victim's Self-defence at a turn of theirs with a weapon in their
+         * hand and a GM's pick of Body settled for it, as C9's weapon-die test sets it; the packet carries
+         * no advantage die, as the harness's roll window puts none on. Read: the advantage the GM threw
+         * (`scored`), and the roll the Reroll rebuilds from the packet's roll (as the test above hands
+         * it): how many dice, whether the third is at the faces the GM read for an advantage die, and
+         * the sign before it. Red at C10's runtime: two dice.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const R = await import("./reroll.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, theirs] = livingStudents().filter(playerOf);
+        const player = playerOf(theirs);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const found = [killer, theirs].map(a => [a, ["hope", "stress", "hitPoints"].map(k => [k, a.system.resources[k]?.value])]);
+        let weapon = null, F = null, read = null;
+        try {
+            await fightOpen(M, killer, theirs);
+            await turnFor(M, theirs, "selfDefence");
+            weapon = await inHand(theirs, "crimeTool", "SUITE E29 C11 weapon in hand");
+            const m = await whisperToGms("<p>SUITE E29 C11 pick</p>");
+            must(m, "no card to settle a pick on - this would measure nothing");
+            await settleCall(m, "SUITE E29 C11", { type: "trait", actorId: theirs.id, kind: "crisis", key: "selfDefence", variant: null, trait: "body" });
+            F = await drawnForPlayer(player, theirs, { actionKey: "crisis",
+                edit: p => ({ ...p, trait: TRAITS.body.dh, situational: 0, context: { ...p.context, crisis: "selfDefence" } }) });
+            must(F.record?.scored && F.message, "the GM kept no scored record of the crisis draw - this would measure nothing");
+            const original = game.system.api.dice.DualityRoll.fromData(foundry.utils.deepClone(F.packet.roll));
+            const thrown = await R.rollAsThrown(original, theirs, F.message);
+            const faces = F.record.legal?.read?.advantageDie?.advantage ?? null;
+            read = [F.record.scored.advantage, thrown.dice.length, faces !== null && thrown.dice[2]?.faces === faces, thrown.terms[3]?.operator ?? null];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(theirs)) await reviveCharacter(theirs, { quiet: true });
+            await F?.putBack();
+            await weapon?.delete();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const [a, values] of found) {
+                const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
+                if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
+            }
+        }
+        equal(stableJson(read), stableJson([1, 3, true, "+"]),
+            "a crisis roll's Reroll lost the weapon's die the GM threw (the advantage thrown; the Reroll's dice, its third at the advantage die's faces, the sign before it)");
+    }],
+
+    ["the GMs' card of a roll thrown with no GM says what it claimed beside what the GM's list gives", async () => {
+        /*
+         * E29 C11, 05.10.2026; the stage plan's 3.8. A roll thrown while no GM was connected is not
+         * drawn (roll-draw.mjs `throwUnwitnessed`), so nothing of the GM's list was held to it; the GMs'
+         * card that asks about it (`askAboutUnwitnessed`) now says what it claimed beside what the list
+         * gives (`awayClaimOf`) - information only. The player's half is a roll thrown here and made
+         * theirs, as "Grant all grants each stamped roll once" makes it: a 9 and a 4 of the player's
+         * character with Agility, its roll then written with 5 more on its total and Agility named on it
+         * (a module roll's message names no statistic), its author the player and its stamp the roller's
+         * browser's. Read: whether the card's words say the claimed modifier (Agility's value and 5)
+         * beside the list's (Agility's value: no action holds the roll to another statistic, no
+         * experience was bought, the seed's characters carry no effects). Red at C10's runtime: the card
+         * says nothing of the modifier.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected player who plays a character");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { TRAIT_BY_DH } = await import("./config.mjs");
+        const agility = Number(theirs.system?.traits?.agility?.value) || 0;
+        let message = null, card = null;
+        try {
+            ({ message } = await neutralRoll(theirs, { faces: { hope: 9, fear: 4 }, trait: TRAIT_BY_DH.agility }));
+            must(message, `no roll of ${theirs.name} was thrown - this would measure nothing`);
+            const thrown = message.rolls?.[0];
+            const json = foundry.utils.deepClone(typeof thrown?.toJSON === "function" ? thrown.toJSON() : thrown);
+            must(json?.total === 9 + 4 + agility, `the roll did not come to its dice and Agility - this would measure nothing: ${stableJson(json?.total)}`);
+            if (Array.isArray(json.terms)) json.terms.push({ class: "OperatorTerm", options: {}, evaluated: true, operator: "+" }, { class: "NumericTerm", options: {}, evaluated: true, number: 5 });
+            json.formula = `${json.formula} + 5`;
+            json.total += 5;
+            json.options = { ...(json.options ?? {}), roll: { ...(json.options?.roll ?? {}), trait: "agility" } };
+            await message.update({ author: player.id, rolls: [JSON.stringify(json)],
+                [`flags.${MODULE_ID}.${D.UNWITNESSED_FLAG}`]: { nonce: foundry.utils.randomID(), actorId: theirs.id, at: Date.now() } });
+            card = await D.askAboutUnwitnessed([game.messages.get(message.id)]);
+            must(card, "the GMs got no card for the stamped roll - this would measure nothing");
+            const signed = n => (n > 0 ? `+${n}` : String(n));
+            const modifier = game.i18n.localize("DRPG.Rolls.flagKind.modifier");
+            const said = game.i18n.format("DRPG.Rolls.awayClaimed", { claimed: `${modifier} ${signed(agility + 5)}`, legal: `${modifier} ${signed(agility)}` });
+            const words = String(await wordsOf(card, 1000) ?? "");
+            ok(words.includes(foundry.utils.escapeHTML(said)), `the GMs' card does not say "${said}": ${words}`);
+        } finally {
+            if (message) await game.messages.get(message.id)?.delete();
+            if (card) await game.messages.get(card.id)?.delete();
+        }
+    }],
+
     ["the trait the GM picked: another one is flagged", async () => {
         /*
          * E08+E28 C12b, 04.10.2026; the owner's rule of 28.09.2026 (E28's amend): the roll's

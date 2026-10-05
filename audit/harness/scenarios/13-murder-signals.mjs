@@ -738,7 +738,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         await trustedWrite(aiko, { "system.resources.hope.value": Math.max(3, hope) }, { reason: "gmRuling" });
         const drawn = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(m);
         return { messageId: m?.id ?? null, usedItemId: row?.facts?.usedItemId ?? null, before: row?.facts?.before ?? null, hope, hp: aiko.system.resources.hitPoints.value,
-            qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0), drawn: drawn ? { total: drawn.total, versions: (drawn.versions ?? []).length } : null };`, { timeout: 60000 });
+            qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0), drawn: drawn ? { total: drawn.total, versions: (drawn.versions ?? []).length, scored: JSON.stringify(drawn.scored ?? null) } : null };`, { timeout: 60000 });
     const reusedAsked = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
         return Boolean(await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll"));`, { timeout: 60000 });
     await settle(1200);
@@ -765,6 +765,27 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         reusedAsked === true && reuse.drawn?.versions === 0 && Number.isFinite(reuse.drawn?.total) && reused.drawn?.total === 6 && reused.drawn.withHope === true
             && JSON.stringify(reused.drawn.versions) === JSON.stringify([reuse.drawn.total]),
         JSON.stringify({ before: reuse.drawn, after: reused.drawn }), { flow: "reroll" });
+    /* A CRISIS REROLL'S CARD IS THE ROLL THE GM THREW (E29 C11, 05.10.2026; the stage plan's 3.7). The
+       Reroll above rebuilt Aiko's drawn Use an item and wrote it into the message: since C11 from the
+       GMs' record of what the GM threw (`scored`, roll-draw.mjs `rollOnRecord`) - its dice at the list's
+       faces, its advantage dice, one number per source the GM counted - where until then it was the roll
+       the message held (here the scenario's stand-in, `1d12 + 1d12`) with the packet's statistic put
+       back. The stand-in throws again what it is built from, so the formula the card holds after the
+       Reroll is the one the Reroll was built from. Read on the GM: that formula against the one the
+       record's `scored` writes, and `scored` before and after the Reroll. Red at C10's runtime:
+       `1d12+1d12`. */
+    const rerollCard = await gm.eval(`const m = game.messages.get(${JSON.stringify(reuse.messageId)});
+        const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(m);
+        const s = r?.scored ?? null, read = r?.legal?.read ?? null;
+        if (!s || !read) return { scored: Boolean(s), read: Boolean(read) };
+        const n = Math.abs(s.advantage), up = s.advantage > 0;
+        const want = "1d" + read.hopeDie + "+1d" + read.fearDie
+            + (n ? (up ? "+" : "-") + n + "d" + read.advantageDie[up ? "advantage" : "disadvantage"] + (n > 1 ? "kh" : "") : "")
+            + s.modifiers.map(x => (x.value < 0 ? "-" : "+") + Math.abs(x.value)).join("");
+        return { formula: String(m?.rolls?.[0]?.formula ?? "").replace(/\\s+/g, ""), want, scored: JSON.stringify(s) };`, { timeout: 30000 });
+    check("reroll: the card of the victim's rerolled Use an item holds the roll the GM threw - its dice and the numbers it counted, from its record - and the record keeps what it scored",
+        reusedAsked === true && typeof rerollCard.want === "string" && rerollCard.formula === rerollCard.want && rerollCard.scored === reuse.drawn?.scored,
+        JSON.stringify({ rerollCard, before: reuse.drawn?.scored ?? null }), { flow: "reroll" });
     await gm.eval(`for (const [a, i] of [["${ids.aiko}", "${handed.kit}"], ["${ids.botan}", "${handed.drink}"], ["${ids.botan}", "${handed.tool}"]]) await game.actors.get(a).items.get(i)?.delete();
         await game.actors.get("${ids.chie}").unsetFlag("${MOD}", "pendingCall"); return true;`, { timeout: 60000 });
     check("fight: the victim's Use an item and a Support bought for the killer are carded veiled - their words to their player alone, and no browser holds a document of theirs, or of the rest the action brought, naming a student or a player",
