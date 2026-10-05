@@ -907,13 +907,19 @@ export const rollStore = defineGmStore({
  * documents a restore brings back are the marks' source, and a backup's would judge them against
  * the sheets of the day it was made. Cut by the reset's "advancement" group: the step that puts
  * every sheet back writes each student as a GM, which is that student's new mark (the plan named
- * a "season" group, which the reset window does not have). No player copy - R182 has nothing to ask
+ * a "season" group, which the reset window does not have), and the primary fills the mark of every
+ * student that step writes nothing on as the cut is applied (`onCut`, E29 fix r1-G6). No player copy - R182 has nothing to ask
  * of it - and no old key.
  */
 export const sheetMarkStore = defineGmStore({
     name: "sheetMarks", key: SETTINGS.gmSheetMarks,
     kind: "ledger", resetGroup: "advancement", backup: false, sync: true,
-    exists: actorId => Boolean(game.actors?.has(actorId))
+    exists: actorId => Boolean(game.actors?.has(actorId)),
+    // A student the reset's steps write nothing on would have no mark until the next hydration (E29 fix r1-G6).
+    onCut: () => {
+        import("./sheet-audit.mjs").then(m => m.refillMarks())
+            .catch(err => error("The GMs' marks of the sheets could not be filled again after a reset", err));
+    }
 });
 
 /**

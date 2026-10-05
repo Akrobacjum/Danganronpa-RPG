@@ -20,7 +20,8 @@
  * (E29 fix r1-G1: `pathsSeen`, `markAfter`). A write that replaces or deletes a whole
  * part - `system.resources`, the module's flags, an item's `flags` - is judged on every
  * leaf under it, as the comparison at ready reads a sheet (G2: `reachOf`). Filled from
- * the documents when the primary's stores hydrate and a student has none.
+ * the documents when the primary's stores hydrate and a student has none, and since E29
+ * fix r1-G6 as a character is made and as a reset's cut takes the marks (`refillMarks`).
  *
  * WHAT IS PUT BACK, with the world setting `lockPlayerResources` on (its default):
  * any change to a statistic, an experience, a maximum, `system.rules`,
@@ -119,7 +120,8 @@
  * the copy the returning GM's browser holds: a GM on a browser that never held them takes
  * the sheets as it finds them, which is the limit of this design, not measured at a table.
  * What a GM writes on this browser before its stores hydrate is the GM's, not a difference
- * (`unmarked`).
+ * (`unmarked`). A GM that becomes the primary because the primary left compares the same way as
+ * it hears it go (`primaryLeft`, G6): what that primary had not judged is judged then.
  *
  * ONE WRITE AFTER ANOTHER, PER STUDENT. Each write is queued behind the ones before
  * it on that student (`inOrder`), so a put-back is computed against the writes
@@ -132,7 +134,7 @@
 
 import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL, VAULT_LIMIT } from "./config.mjs";
 import { SETTINGS, getSetting, getClock } from "./settings.mjs";
-import { isPrimaryGm, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
+import { isPrimaryGm, primaryGmId, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
 import { onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, stableJson } from "./gm-store.mjs";
 import { sheetMarkStore, sheetWriteStore, rollStore } from "./gm-stores.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
@@ -755,6 +757,22 @@ function fillMarks() {
     return sheetMarkStore.patchMany(Object.fromEntries(missing.map(actor => [actor.id, markFrom(actor)])));
 }
 
+/*
+ * THE MARKS A RESET TOOK, AND A STUDENT MADE SINCE (E29 fix r1-G6, 05.10.2026; review round 1 sec m2).
+ * A reset that wipes the "advancement" group cuts every mark (gm-stores.mjs `sheetMarkStore`), and a
+ * student the reset's steps then write nothing on - its sheet already its start, an empty diff - had
+ * none until the primary's next hydration; nor had a character made after it. A player's write on
+ * either became its mark. So the primary fills them as the cut is applied (the store's `onCut`) and
+ * as a character is made - not while the suite holds the stores or stands them in another world, as
+ * at the hydration. Measured by scenario 61's J5 on 8895265 (05.10.2026, e29run/r1g6red): after a
+ * reset with "advancement" ticked the Monokuma - a character the reset's steps write nothing on - had
+ * no mark, nor had a character made after it; with the fill (e29run/r1g6) every character has one.
+ */
+export function refillMarks() {
+    if (!isPrimaryGm() || !gmStoresHydrated() || gmStoresQuiet()) return Promise.resolve();
+    return fillMarks();
+}
+
 /* ---------------------------------------------------------------------------
  * The judge
  * ------------------------------------------------------------------------- */
@@ -783,11 +801,12 @@ export function judgeWrite(kind, doc, changes, userId, options = {}, priors = nu
 
 async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const user = game.users?.get(userId ?? "");
-    if (!gmStoresHydrated() && !options?.[AUDIT_ASIDE]) noteUnmarked(kind, doc, actor, changes);
+    const early = !gmStoresHydrated() && !options?.[AUDIT_ASIDE];
     // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them.
     const stood = mark => ITEM_WRITES.has(kind) ? itemMoves(kind, mark, doc, seen.item)
         : kind === "updateActor" ? { paths: seen.paths } : { effect: { id: doc.id, itemId: itemOf(doc)?.id ?? null, data: seen.effect } };
     if (user?.isGM) {
+        if (early) noteUnmarked(kind, doc, actor, changes);
         /* The GMs' own put-back moves nothing they hold: it writes back what the mark holds, and since G1
            nothing else - what else the document then holds is the writes after it, each judged in turn.
            Any other GM's write is their value of what it names. */
@@ -799,11 +818,9 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
         return { verdict: "mark", change: {} };
     }
     const mark = sheetMarkStore.get(actor.id);
-    // No mark - a student made since the stores hydrated and never written by a GM: nothing to judge against.
-    if (!mark) {
-        await refreshMark(actor);
-        return { verdict: "mark", change: {} };
-    }
+    if (!mark) return unmarkedWrite(kind, doc, actor, changes, user, options, seen);
+    // Judged against this browser's own copy of the mark before the others' arrive: what it named is as judged.
+    if (early) noteUnmarked(kind, doc, actor, changes);
     // A Monokuma is no student; the mark's flag decides, so a write that makes one is still judged.
     if (mark.flags?.[FLAGS.monokuma]) {
         await refreshMark(actor, stood(mark));
@@ -825,6 +842,33 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     await refreshMark(actor, ITEM_WRITES.has(kind) ? { items: found.items, itemEffects: found.itemEffects } : found.moves);
     const verdict = found.back.length ? "putBack" : found.flagged?.length ? "flagged" : found.listed.length ? "listed" : "stands";
     return { verdict, change: found.change };
+}
+
+/*
+ * A PLAYER'S WRITE ON A STUDENT WITH NO MARK (E29 fix r1-G6, 05.10.2026; review round 1 sec m2).
+ * Nothing to judge it against, so the document becomes the mark - and the write that made it is
+ * recorded, `listed`, each path as its hook left it, the value before it being "-" (the GMs held
+ * none). Until this fix the mark took it in silently: measured by the review's probe 90 on 69deef0,
+ * a mark dropped and p1's Agility +3 stood with no row and in the mark, and on 8895265 (05.10.2026,
+ * e29run/r1g6red) by tier 2 - the verdict "mark", no row, the mark holding the +3. The primary now fills a missing mark as a
+ * character is made and as a reset's cut takes the marks (`refillMarks`), so this is the window between
+ * those and the fill's write. Before this browser's stores hydrate nothing is written or recorded:
+ * the other GMs' marks may arrive with the hydration, and the comparison then judges this write as
+ * a difference (`noteUnmarked` leaves it out).
+ */
+async function unmarkedWrite(kind, doc, actor, changes, user, options, seen) {
+    if (!gmStoresHydrated() || !game.actors?.has(actor.id)) return { verdict: "mark", change: {} };
+    const change = {};
+    if (kind === "updateActor") for (const [path, value] of Object.entries(seen.paths ?? {})) change[path] = [null, value ?? null];
+    else if (ITEM_WRITES.has(kind)) {
+        const whole = `items.${doc.id}`;
+        if (kind !== "updateItem") change[whole] = [null, seen.item ?? null];
+        else for (const path of reachOf(changes)) change[`${whole}.${path}`] = [null, foundry.utils.getProperty(seen.item ?? {}, path) ?? null];
+    } else change[effectPath(itemOf(doc)?.id, doc.id)] = [null, seen.effect ?? null];
+    const listed = Object.entries(change).map(([path, moved]) => ({ path, kind: fieldKind(path, moved) }));
+    await record(actor, user, { back: [], flagged: [], listed, change }, options);
+    await refreshMark(actor);
+    return { verdict: listed.length ? "listed" : "mark", change };
 }
 
 /**
@@ -1759,9 +1803,16 @@ const unmarked = new Map();
 
 /**
  * A write judged before this browser's stores hydrated (`refreshMark` waits for them): a GM's -
- * the primary's own writes at its `ready` - or a player's, already judged. The comparison at
- * ready takes what it names as it stands rather than as a difference nobody judged. An effect
- * or an item is named whole, an effect on an item as the mark holds it (`effectPath`, G3).
+ * the primary's own writes at its `ready` - or a player's judged against the copy of the mark
+ * this browser held already. The comparison at ready takes what it names as it stands rather
+ * than as a difference nobody judged. An effect or an item is named whole, an effect on an item
+ * as the mark holds it (`effectPath`, G3). A player's write on a student this browser held no
+ * mark of is not noted (E29 fix r1-G6; review round 1 sec m1): nobody judged it, and until the
+ * fix the comparison skipped what it named and the mark then took it in - a GM on a new browser,
+ * primary while the other GMs' marks were on their way, so the window is the hydration's (at
+ * most `gmStoreSyncMs`). Now the comparison judges it as any difference: measured by scenario 61's
+ * W1 on 8895265 (05.10.2026, e29run/r1g6red), a console's Agility +3 that landed in that window
+ * stood with no row.
  */
 function noteUnmarked(kind, doc, actor, changes) {
     const held = unmarked.get(actor.id) ?? new Set();
@@ -2022,10 +2073,10 @@ function wireAwayCard(ids, element) {
  * hold the other GMs' copies (`registerSheetAudit`), every student with a mark compared with it
  * (`compareOne`, queued behind the writes on that student), and one card for the GMs. Answers the
  * rows' verdicts counted and the card's id, or null where this is not the primary or nothing could
- * be read.
+ * be read. `leaving`: a GM this browser was just told has gone (`primaryLeft`).
  */
-export async function compareAtReady() {
-    if (!isPrimaryGm() || !gmStoresHydrated()) return null;
+export async function compareAtReady({ leaving = null } = {}) {
+    if (!isPrimaryGm({ leaving }) || !gmStoresHydrated()) return null;
     try {
         const students = (game.actors?.contents ?? []).filter(actor => actor.type === "character" && sheetMarkStore.has(actor.id))
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -2080,6 +2131,26 @@ export function onSheetWrite(kind, doc, changes, options, userId, { primary = is
     return judgeWrite(kind, doc, changes, userId, options, priors);
 }
 
+/*
+ * WHEN THE PRIMARY LEAVES (E29 fix r1-G6, 05.10.2026; review round 1 cor m7). Only the primary judges,
+ * and its queue is its browser's: the writes it had heard and not judged when it left, and those that
+ * reached the next GM while that GM still counted it here, were judged by nobody, and the comparison
+ * ran only at a primary's own hydration - long past for a GM that becomes the primary because
+ * another left. So that GM, hydrated, compares every sheet with its marks as it hears the primary go:
+ * what nobody judged is a difference, judged as at ready. A write the old primary had judged has
+ * moved the marks this GM holds only once that primary's patch has arrived; one still on its way
+ * when the GM hears it leave would read as a difference too - the harness sends both in the order
+ * they left, and on Foundry the order is not measured (the harness has the hook only). Measured by
+ * scenario 61's W2 on 8895265 (05.10.2026, e29run/r1g6red): a console's Agility +3 queued behind a
+ * held job on the primary stood with no row after the primary left.
+ */
+function primaryLeft(user, connected) {
+    if (connected || !user?.isGM || gmStoresQuiet()) return;
+    // Whether the GM that left was the primary: counted here whatever its `active` still says.
+    if (primaryGmId({ arriving: user.id }) !== user.id || !isPrimaryGm({ leaving: user.id }) || !gmStoresHydrated()) return;
+    void compareAtReady({ leaving: user.id });
+}
+
 /** On every browser; each hook stands aside unless this is the primary GM. At `init`, so the hydration below is not missed. */
 export function registerSheetAudit() {
     Hooks.on("updateActor", (actor, changes, options, userId) => { onSheetWrite("updateActor", actor, changes, options, userId); });
@@ -2093,6 +2164,8 @@ export function registerSheetAudit() {
     Hooks.on("createItem", (item, options, userId) => { onSheetWrite("createItem", item, {}, options, userId); });
     Hooks.on("deleteItem", (item, options, userId) => { onSheetWrite("deleteItem", item, {}, options, userId); });
     Hooks.on("renderChatMessageHTML", onRenderFlagged);
+    Hooks.on("createActor", actor => { if (actor?.type === "character") void refillMarks(); });
+    Hooks.on("userConnected", primaryLeft);
     Hooks.on("deleteActor", actor => {
         heard.delete(actor.id);
         if (isPrimaryGm() && gmStoresHydrated() && sheetMarkStore.has(actor.id)) void sheetMarkStore.drop(actor.id);

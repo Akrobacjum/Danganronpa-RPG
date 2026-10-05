@@ -117,6 +117,10 @@
  *      back once by the primary, and the row reaches the second GM and a GM who joins late.
  *   V  two GMs' Undo of one flagged write (E29 C5): p1's console raises its actions, the primary and
  *      the second GM click Undo at once, and the write is undone once and the row decided once.
+ *   W  a write nobody judged (E29 fix r1-G6): p1's console write lands while a new primary's marks
+ *      are on their way, and another while the primary's queue is held and it leaves; each is put
+ *      back, at the new primary's ready and by the GM that is primary after it. (J5, after J4: the
+ *      reset's cut leaves no character without a mark.)
  */
 export const layers = ["ci"];
 /* Its own bound, not a raise of run-all's shared five minutes (E29 C1, 05.10.2026): this
@@ -1559,6 +1563,25 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         sameSheetJ4 && litJ4.offer === "standard" && resetJ4.cut > offeredJ4 && resetJ4.offer === null && J(afterJ4.copy) === "{}" && afterJ4.lit === null
         && afterJ4.renders >= 1 && afterJ4.packets === 0 && litAfterAsk.offer === null, J({ sameSheetJ4, offeredJ4, litJ4, resetJ4, afterJ4, answerJ4, litAfterAsk }));
 
+    /* J5 (E29 fix r1-G6, 05.10.2026; review round 1 sec m2): the reset's cut took every mark of the sheets, and
+       a student the reset then wrote nothing on had none until the primary's next hydration - a player's write
+       became its mark. gm2, the primary alone, must hold a mark of every character once the cut is applied
+       (the store's `onCut`, sheet-audit.mjs `refillMarks`), and of a character made after it. */
+    const j5 = await gm2.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const until = async (test, ms = 4000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const unmarked = () => game.actors.filter(a => a.type === "character" && !S.sheetMarkStore.has(a.id)).map(a => a.name);
+        await until(() => !unmarked().length);
+        const out = { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), cleared: S.sheetMarkStore.cleared(),
+            characters: game.actors.filter(a => a.type === "character").length, unmarked: unmarked() };
+        const made = await Actor.create({ name: "G6 J5 student", type: "character" });
+        await until(() => S.sheetMarkStore.has(made.id));
+        out.made = S.sheetMarkStore.has(made.id);
+        await made.delete();
+        return out;`, { timeout: 30000 });
+    check("J5: after the reset's cut the primary holds a mark of every character, and of one made after it",
+        j5.primary === true && j5.cleared === resetJ4.cut && j5.characters >= 4 && j5.unmarked.length === 0 && j5.made === true,
+        J({ j5, cut: resetJ4.cut }), { flow: "sheet-audit" });
+
     /* ------------------- Z. the browser is lost, and the case comes back ------------------- */
 
     phase("Z: a GM backs up, every GM leaves, an empty browser comes back alone, and another restores", { flow: "gm-store" });
@@ -2072,5 +2095,70 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
             && v3?.undos === 1 && v3.actions === 1 && decidedOnce(v4?.gma) && J(v4?.gmb) === J(v4?.gma),
         J({ v0, v1, v2, v3, v4 }), { flow: "sheet-audit" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V"], gm: IDS.gm };
+    /* W (E29 fix r1-G6, 05.10.2026; review round 1 sec m1, cor m7): a write nobody judged is judged when a
+       primary comes or goes. W1: gm2, whose id sorts before gma's, joins with an empty browser while gma and
+       gmb hold their answers to its hello back for four seconds (their `gms.*` packets delayed - under
+       `gmStoreSyncMs`, so gm2 hydrates from them, not alone): it is the primary and holds no mark, and p1's
+       console raises Aiko's Agility by 3 in that window. Its comparison at ready must put it back - until the
+       fix the write was noted as already judged, its path skipped, and the mark took it in. W2: gm2's queue
+       on Aiko held by a job that never ends (`gmMeansWrite`), p1 raises the Agility again, and gm2 leaves
+       with that write unjudged: gma, the primary now, must compare as it hears gm2 go and put it back.
+       Both readings go by the put-back rows and p1's sheet. */
+    phase("W: a write nobody judged is judged when a primary arrives before its marks, and when the primary leaves", { flow: "sheet-audit" });
+    const AGI = "system.traits.agility.value";
+    const holdHello = `globalThis.__wEmit ??= game.socket.emit;
+        game.socket.emit = function (event, packet, ...rest) {
+            if (String(packet?.action ?? "").startsWith("gms.")) { setTimeout(() => globalThis.__wEmit.call(this, event, packet, ...rest), 4000); return; }
+            return globalThis.__wEmit.call(this, event, packet, ...rest);
+        };`;
+    const w0 = await gma.eval(`${SA} await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); ${holdHello}
+        return { agility: aiko.system.traits.agility.value, mark: S.sheetMarkStore?.get?.(aiko.id)?.traits?.agility?.value ?? null, from: Date.now() };`);
+    await gmb.eval(`${holdHello} return true;`);
+    let w1 = null, w2 = null, w3 = null, w4 = null;
+    try {
+        await connect("gm2");
+        await settle(300);
+        await gm2.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); globalThis.__wHeard = [];
+            Hooks.on("updateActor", (a, c) => { if (a.id === "${IDS.aiko}" && foundry.utils.hasProperty(c, "${AGI}")) globalThis.__wHeard.push(E.gmStoresHydrated()); });
+            return true;`);
+        await p1.eval(`await game.actors.get("${IDS.aiko}").update({ "${AGI}": ${w0.agility + 3} }, { drpgAutomated: true }); return true;`);
+        w1 = await gm2.eval(`${SA} ${untilP} const E = await import("${repoUrl}/scripts/gm-store.mjs");
+            const heard = [...globalThis.__wHeard], from = ${w0.from};
+            await until(() => E.gmStoresHydrated(), 15000);
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            // The comparison's rows are kept after its card is posted, past the queue sheetAuditIdle waits for.
+            await until(() => aiko.system.traits.agility.value === ${w0.agility} && ${putBackRows}.length > 0, 5000);
+            return { heard, primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), hydrated: E.gmStoreHydration?.() ?? null,
+                agility: aiko.system.traits.agility.value, rows: ${putBackRows}.length,
+                mark: S.sheetMarkStore?.get?.(aiko.id)?.traits?.agility?.value ?? null };`, { timeout: 40000 });
+        for (const c of [gma, gmb]) await c.eval(`if (globalThis.__wEmit) { game.socket.emit = globalThis.__wEmit; delete globalThis.__wEmit; } return true;`);
+        // W2: gm2's queue on Aiko held, p1's second raise heard there and not judged, then gm2 leaves.
+        const w2from = Date.now();
+        await gm2.eval(`${SA} const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            void A.gmMeansWrite(aiko, () => new Promise(() => {})); return true;`);
+        await p1.eval(`await game.actors.get("${IDS.aiko}").update({ "${AGI}": ${w0.agility + 3} }, { drpgAutomated: true }); return true;`);
+        w2 = await p1.eval(`await new Promise(r => setTimeout(r, 1500)); return game.actors.get("${IDS.aiko}").system.traits.agility.value;`);
+        await disconnect("gm2");
+        w3 = await gma.eval(`${SA} ${untilP} const from = ${w2from};
+            await until(() => aiko.system.traits.agility.value === ${w0.agility} && ${putBackRows}.length > 0, 8000);
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), agility: aiko.system.traits.agility.value,
+                rows: ${putBackRows}.length, mark: S.sheetMarkStore?.get?.(aiko.id)?.traits?.agility?.value ?? null };`, { timeout: 30000 });
+        w4 = await p1.eval(`${untilP} const a = game.actors.get("${IDS.aiko}"); await until(() => a.system.traits.agility.value === ${w0.agility}, 3000);
+            return a.system.traits.agility.value;`);
+    } finally {
+        for (const c of [gma, gmb]) await c.eval(`if (globalThis.__wEmit) { game.socket.emit = globalThis.__wEmit; delete globalThis.__wEmit; } return true;`);
+        await disconnect("gm2");
+        await gma.eval(`${SA} await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            if (aiko.system.traits.agility.value !== ${w0.agility}) await aiko.update({ "${AGI}": ${w0.agility} });
+            return true;`);
+    }
+    check("W1: a console's Agility raised while a new primary's marks were on their way is put back at its ready",
+        w0.mark === w0.agility && J(w1?.heard) === "[false]" && w1.primary === true && w1.agility === w0.agility && w1.rows === 1
+            && w1.mark === w0.agility, J({ w0, w1 }), { flow: "sheet-audit" });
+    check("W2: a console's Agility the primary had heard and not judged when it left is put back by the GM that is primary after it",
+        w2 === w0.agility + 3 && w3?.primary === true && w3.agility === w0.agility && w3.rows === 1 && w3.mark === w0.agility && w4 === w0.agility,
+        J({ w2, w3, w4 }), { flow: "sheet-audit" });
+
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V", "W"], gm: IDS.gm };
 }

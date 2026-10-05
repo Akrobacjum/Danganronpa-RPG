@@ -25207,6 +25207,47 @@ const SCENARIOS = [
                 + "(put back at ready, the write's verdict, the first statistic, the second, the mark's second, the penalties left)");
     }],
 
+    ["a player's write on a student the GMs hold no mark of is recorded as it becomes the mark", async () => {
+        /* E29 fix r1-G6 (review round 1 sec m2, confirmed by its probe 90 on 69deef0). With no mark there is
+           nothing to judge a write against, and the document becomes the mark; until the fix a player's write
+           that made it was taken in with no row. Here the student's mark is dropped, as a reset's cut drops it,
+           and a player's statistic +3 is judged: it must be listed - one row naming the path, nothing before it,
+           the value it left - and the mark then hold it. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const [trait] = Object.keys(student.system.traits ?? {});
+        must(trait, "the student has no trait");
+        const PATH = `system.traits.${trait}.value`;
+        const read = () => foundry.utils.getProperty(student._source, PATH) ?? null;
+        const rows = from => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from);
+        const was = read();
+        let held = null, seen = null;
+        try {
+            await sheetAuditIdle();
+            held = foundry.utils.deepClone(sheetMarkStore.get(student.id) ?? null);
+            must(held, "the student has no mark before the test - this would measure nothing");
+            await sheetMarkStore.drop(student.id);
+            const from = Date.now();
+            await student.update({ [PATH]: was + 3 }, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateActor", student, foundry.utils.expandObject({ [PATH]: was + 3 }), player.id);
+            await sheetAuditIdle();
+            const made = rows(from);
+            seen = [verdict?.verdict ?? null, made.map(row => [row.verdict, row.userId === player.id, stableJson(row.change)]),
+                foundry.utils.getProperty(sheetMarkStore.get(student.id) ?? {}, `traits.${trait}.value`) ?? null];
+        } finally {
+            await sheetAuditIdle();
+            if (held && !sheetMarkStore.has(student.id)) await sheetMarkStore.patch(student.id, held);
+            if (read() !== was) await student.update({ [PATH]: was });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson(["listed", [["listed", true, stableJson({ [PATH]: [null, was + 3] })]], was + 3]),
+            "a player's write on a student with no mark was taken in with no row, or recorded wrong "
+                + "(the verdict, each row's verdict, writer and change, the mark's statistic)");
+    }],
+
     /*
      * A WRITE OVER A WHOLE PART OF A SHEET (E29 fix r1-G2, 05.10.2026; review round 1 sec B2, B4). A
      * player's write that replaces `system.resources` whole - v14's forced replacement, as the harness
