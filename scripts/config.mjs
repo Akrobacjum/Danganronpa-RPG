@@ -198,8 +198,9 @@ export const FLAGS = {
     /**
      * Character, until 1.2.64: the Reroll bookmark. Every browser holds an actor's
      * flags, and the bookmark carried a crisis roll's keys, Stage 6's token ids and a
-     * palm's victim (audit S02-01), so since E05 C7 it is the roller's own client
-     * setting `rollBookmarks` (settings.mjs, action-rolls.mjs `rollBookmark`). The
+     * palm's victim (audit S02-01), so E05 C7 made it the roller's own client
+     * setting `rollBookmarks`, and E08+E28 C4a the GMs' store (gm-stores.mjs
+     * `rerollBookmarkStore`). The
      * name stays for the `dropRollBookmarks` clause, which takes the old flag out, and
      * for world-secrets.mjs, which holds every actor to carrying none.
      */
@@ -331,14 +332,12 @@ export const TIMING = {
     diceSettleMs: 6000,
     /** How far back a Reroll's fallback scan looks for its roll, in real minutes. */
     rerollWindowMinutes: 30,
-    /** How long after a player rewrites a roll the GM takes that Reroll's undo
-     *  (reroll-receipts.mjs). A replay leaves seconds after the rewrite; the rest
-     *  is room for a picker the replay may open on the player's screen. */
-    rerollReceiptMs: 5 * 60 * 1000,
-    /** How long the GM waits once for a receipt that has not arrived yet: the
-     *  rewrite and the undo travel as two messages, and the order they are
-     *  handled in on the GM's client has not been measured. */
-    rerollReceiptRetryMs: 400,
+    /** How long the primary GM waits once for the record of a roll a player's packet names
+     *  before refusing it `rollUnknown` (bridge-guards.mjs `rollsFor`; the plan's 3.8): a
+     *  resolution can reach a GM who became the primary before the GMs' store synced the
+     *  record to it. The Reroll receipts' 400 ms, kept; how long that sync takes at a table
+     *  has not been measured. */
+    rollRecordRetryMs: 400,
     /** How long after the primary GM posts a player's safeword card that player's next
      *  press is logged and not posted again (safeword.mjs `hearSafeword`, E06 C9). A choice,
      *  not a measurement: long enough to swallow a double press and a held key, short enough

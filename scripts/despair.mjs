@@ -275,8 +275,8 @@ export async function adjustDespair(userId, delta) {
      */
     if (game.user?.isGM && !isPrimaryGm() && userId) {
         try {
-            // `sendDespairToPrimary`, not `requestDespairAdjust`: that one hands a GM
-            // straight back here. And no `hasGm` - it was never exported, so asking
+            // `sendDespairToPrimary`, not `requestDespairAdjust` (retired in E08+E28 C8):
+            // that one handed a GM straight back here. And no `hasGm` - it was never exported, so asking
             // for it threw and this fell through to writing locally, every time.
             const { sendDespairToPrimary } = await import("./gm-bridge.mjs");
             const { primaryGmId } = await import("./utils.mjs");

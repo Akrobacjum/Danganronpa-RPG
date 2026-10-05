@@ -105,6 +105,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             forOwnership: reasons.some(r => /sender does not own/.test(r))
         };
     };
+    /* A ROLL OF THE PLAYER'S OWN, DRAWN BY THE GM (E08+E28 C14, 04.10.2026). An Observe, an Analyze
+       and a search for a hidden stash are scored on the GMs' record of the roll their packet names
+       (bridge-guards.mjs `rollRefusal`), so a packet of this scenario's names one: `client` throws
+       `actorId`'s statistic for `actionKey` on `faces`, the GM draws it, and the message the GM wrote
+       for it is read off the roll (action-rolls.mjs `DRAWN_ROLL`) - null when it was not drawn. A roll is drawn for
+       an action being taken (E08+E28 fix r2-H1, roll-draw.mjs `drawRefusal`): unless `pay` is false, `client` first pays
+       one action as an action's own code does (actions.mjs `spendAction`), handing the character one if it has none;
+       a crisis action's roll is its turn's and names its crisis action (`context`), and pays nothing. */
+    const payFor = actorId => `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const who = game.actors.get("${actorId}");
+        if (actionsLeft(who) < 1) await automatedUpdate(who, { "system.resources.actions.value": 1 });
+        await spendAction(who, 1, { quiet: true }); }`;
+    const drawnRoll = (client, actorId, actionKey, trait, faces, { context = null, remember = false, pay = actionKey !== "crisis" } = {}) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        ${pay ? payFor(actorId) : ""}
+        globalThis.__forceRoll = ${JSON.stringify(faces)};
+        let out = null, err = null;
+        try { out = await A.rollTrait(game.actors.get("${actorId}"), "${trait}", { actionKey: "${actionKey}", remember: ${remember},
+            context: ${JSON.stringify(context)} }); }
+        catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { delete globalThis.__forceRoll; }
+        return { messageId: out?.raw?.[A.DRAWN_ROLL]?.messageId ?? null, total: out?.total ?? null, err };`, { timeout: 60000 });
 
     // 4a. handover.item: p1 gives Botan's wrench to Aiko.
     const readHandover = `const b = game.actors.get("${ids.botan}"), a = game.actors.get("${ids.aiko}");
@@ -181,6 +203,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         reasons: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message) };`);
     check("SECURITY: a finishing blow thrown out of turn by the killer's own player kills nobody and is refused",
         victimTurn === "victim" && early.dead === false && early.reasons.some(r => /not their turn/.test(r)), JSON.stringify({ victimTurn, ...early }));
+    /* AND ITS ROLL IS NOT DRAWN OUT OF TURN (E08+E28 fix r2-H1, 04.10.2026; review S2-1). The GM judged the
+       turn at the packet only, so a console drew crisis rolls ahead of its turn and spent the best. At the
+       victim's turn Botan's own player throws Botan's Finishing blow roll: the GM refuses it as it would
+       refuse the blow, and writes no message and keeps no record. */
+    const aheadRows = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Object.values(S.rollStore?.entries() ?? {}).filter(r => r?.actorId === "${ids.botan}" && r.actionKey === "crisis").length;`;
+    const aheadBefore = await gm.eval(aheadRows);
+    const ahead = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 12, fear: 11 }, { context: { crisis: "finishingBlow" } });
+    await settle(900);
+    const aheadAfter = { rows: await gm.eval(aheadRows), reasons: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "roll.draw"')).map(e => e.message);`) };
+    check("SECURITY: a crisis roll thrown at the other side's turn is not drawn, and the GM keeps no record of it",
+        ahead.messageId === null && aheadAfter.rows === aheadBefore && aheadAfter.reasons.some(r => /not their turn/.test(r)),
+        JSON.stringify({ ahead, aheadBefore, aheadAfter }));
     await toSide("killer");
     await settle(500);
     const readCrisis = `return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")) };`;
@@ -192,18 +228,52 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ ...blow, later: blowLater }));
     check("SECURITY: the GM refused the forged murder.crisis for ownership, and told p1",
         blow.forOwnership && blow.told.some(t => t.what === "murder.crisis"), JSON.stringify({ reasons: blow.reasons, told: blow.told }));
-    await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: 99, isCritical: false, withHope: true }); return true;`);
+    /* SCORED ON THE RECORD (E08+E28 C17, 04.10.2026; audit S10-06). The same blow from Botan's own
+       player was the control, and killed on the 99 its packet said. A crisis action is scored on
+       the GMs' record of the roll its packet names now (bridge-guards.mjs `rollRefusal`), and one
+       that names none is refused (`guardCrisisRoll`). At Botan's turn his player sends the blow
+       saying 99 and naming no roll - refused, nobody dies; then saying 99 and naming Botan's
+       crisis roll the GM drew on 2 and 1 - not refused, scored on the record, nobody dies, and the
+       GM's console says the packet's 99 lost. At Botan's turn again, the control: the blow saying
+       0 and naming a roll the GM drew on 6 and 6, a critical, which kills. Red at C16's runtime:
+       the first blow kills. */
+    const crisisSaid = () => gm.eval(`const U = await import("${repoUrl}/scripts/utils.mjs");
+        return { reasons: U.sessionFailures().filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message),
+            said: U.sessionFailures().filter(e => e.message.includes("said total 99; the GMs' record of its roll says")).map(e => e.message) };`);
+    const blowFrom = (total, rollId) => p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        return await B.requestCrisisResult({ actorId: "${ids.botan}", key: "finishingBlow", total: ${total}, isCritical: false, withHope: true, rollId: ${JSON.stringify(rollId)} });`,
+        { timeout: 60000 });
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const unnamed = { answer: await blowFrom(99, null) };
+    await settle(1200);
+    Object.assign(unnamed, await gm.eval(readCrisis), await crisisSaid());
+    const lowRoll = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 2, fear: 1 }, { context: { crisis: "finishingBlow" } });
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const onRecord = { answer: await blowFrom(99, lowRoll.messageId) };
+    await settle(2200);
+    Object.assign(onRecord, await gm.eval(readCrisis), await crisisSaid());
+    check("SECURITY: a finishing blow from Botan's own player saying 99 is refused without its roll, and scored on the GMs' record of the roll it names - nobody dies",
+        unnamed.answer?.ok === false && unnamed.answer?.reason === "rollUnknown" && unnamed.dead === false
+            && Boolean(lowRoll.messageId) && onRecord.answer?.ok === true && onRecord.dead === false && !onRecord.reasons.length && onRecord.said.length > 0,
+        JSON.stringify({ unnamed, lowRoll, onRecord }), { flow: "murder-incident" });
+    await toSide("killer");
+    await settle(500);
+    /* Thrown as a crisis action throws it, kept for a Reroll (`remember`): the Reroll asked below is of this blow. */
+    const critRoll = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 6, fear: 6 }, { context: { crisis: "finishingBlow" }, remember: true });
+    const critAnswer = await blowFrom(0, critRoll.messageId);
     await settle(2200);
     const blowOk = await gm.eval(readCrisis);
-    check("control: the same finishing blow from Botan's own player does kill", blowOk.dead === true, JSON.stringify(blowOk));
+    check("control: a finishing blow from Botan's own player saying 0, naming a critical the GM drew, does kill",
+        Boolean(critRoll.messageId) && critAnswer?.ok === true && blowOk.dead === true, JSON.stringify({ critRoll, critAnswer, blowOk }), { flow: "murder-incident" });
 
     /* A BLOW THAT KILLED IS NOT TAKEN BACK (E32+E07 C8b, 28.09.2026; AUDIT-1.2.42 section 9,
        the owner's answer (A)). Botan's own player sends the undo of the blow that just killed -
        a Reroll's packet, a total of 0 and no Reroll behind it. Until 1.2.66 the guards let it
        as far as the Reroll receipt (refused there as "noReroll", and a player with one had the
-       blow taken back and Daichi left dead); the GM now refuses it first, for the death, and
-       nothing moves: Daichi dead, the stage and the action's receipt as they were. */
+       blow taken back and Daichi left dead); the GM refused it first, for the death, from C8b.
+       Since E08+E28 C8 no player's undo is taken at all - the GM's own Reroll takes an action
+       back - so it is refused before the death is asked (`undoIsTheGms`), and nothing moves:
+       Daichi dead, the stage and the action's receipt as they were. */
     const readUndo = `const s = game.drpg.murderState();
         return { stage: s?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")), receipt: JSON.stringify(s?.lastCrisis ?? null) };`;
     await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
@@ -217,8 +287,69 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         .filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message);`);
     check("SECURITY: the undo of the finishing blow that killed is refused on the GM, and the death stands",
         undoBefore.dead === true && JSON.stringify(undoAfter) === JSON.stringify(undoBefore) && undoAnswer?.ok === false
-            && undoAnswer?.reason === "deathStands" && undoReasons.some(r => /the death stands/.test(r)),
+            && undoAnswer?.reason === "undoIsTheGms" && undoReasons.some(r => /an undo is the GM's own Reroll's/.test(r)),
         JSON.stringify({ undoBefore, undoAfter, undoAnswer, undoReasons }));
+
+    /* THE REROLL IS ASKED OF THE GM (E08+E28 C4a, 03.10.2026; audit S02-47). One request,
+       `reroll.ask { actorId }`, and the GM pays and makes all of it - so the request is the
+       one gate. p1 asks a Reroll of Botan, p2's character: refused for ownership, told to p1,
+       Botan's Hope and roll as they were. Then p2 throws Botan's crisis roll, as a player's
+       crisis action throws it, and asks its Reroll from Botan's own browser: the blow before it
+       killed (the incident's receipt), so the GM refuses it for the death before anything is
+       paid, and tells p2. The harness's roll message has no `Roll#reroll`; on the GM it reads
+       as one of the scenario's (`REROLLABLE`), so the refusal is the death's, not the roll's.
+       Both checks carry the `reroll` flow inside the crisis actions' phase. Since fix r2-H1 the
+       roll is the killing blow's own (`critRoll`, kept for a Reroll): a crisis roll is drawn only
+       at its character's turn, and the incident is at Stage 6 by now. */
+    const readReroll = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = S.rerollBookmarkStore?.get("${ids.botan}");
+        return { hope: game.actors.get("${ids.botan}").system.resources.hope.value, row: row ? { messageId: row.messageId, total: row.total } : null,
+            journal: Boolean(S.rerollJournalStore?.has("${ids.botan}")), dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")),
+            receipt: JSON.stringify(game.drpg.murderState()?.lastCrisis ?? null) };`;
+    const botanRoll = critRoll.messageId;
+    await settle(900);
+    const REROLLABLE = `const m = game.messages.get("${botanRoll}");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 9, fear: 4 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 2, fear: 11 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const botan = game.actors.get("${ids.botan}");
+        await automatedUpdate(botan, { "system.resources.hope.value": Math.max(4, botan.system.resources.hope.value) });
+        return true;`;
+    await gm.eval(REROLLABLE, { timeout: 30000 });
+    await settle(500);
+    const forgedReroll = await forge("reroll.ask", { actorId: ids.botan }, readReroll);
+    check("SECURITY: a reroll.ask for another player's character is refused for ownership, told to p1, and pays and rewrites nothing",
+        Boolean(botanRoll) && forgedReroll.unchanged && forgedReroll.forOwnership && forgedReroll.told.some(t => t.what === "reroll.ask")
+            && forgedReroll.after.row?.messageId === botanRoll,
+        JSON.stringify(forgedReroll), { flow: "reroll" });
+    await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
+    const lethalBefore = await gm.eval(readReroll);
+    const lethalAsk = await p2.eval(`globalThis.__rerollRefused = [];
+        game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused" && payload.what === "reroll.ask") globalThis.__rerollRefused.push(payload.reason ?? null); });
+        const C = await import("${repoUrl}/scripts/calls.mjs");
+        const out = await C.spendHopeCall(game.actors.get("${ids.botan}"), "reroll");
+        await new Promise(r => setTimeout(r, 300));
+        return { made: Boolean(out), told: globalThis.__rerollRefused.slice() };`, { timeout: 60000 });
+    await settle(900);
+    const lethalAfter = await gm.eval(readReroll);
+    const lethalReasons = await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "reroll.ask"')).map(e => e.message);`);
+    check("SECURITY: a Reroll of the crisis action that killed is refused on the GM with deathStands, nothing paid, and the death stands",
+        lethalBefore.dead === true && JSON.stringify(lethalAfter) === JSON.stringify(lethalBefore) && lethalAsk.made === false
+            && JSON.stringify(lethalAsk.told) === JSON.stringify(["deathStands"]) && lethalReasons.some(r => /the death stands/.test(r)),
+        JSON.stringify({ lethalBefore, lethalAfter, lethalAsk, lethalReasons }), { flow: "reroll" });
+    await gm.eval(`const m = game.messages.get("${botanRoll}"); if (m) delete m.rolls; await m?.delete();
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        if (S.rerollBookmarkStore?.has("${ids.botan}")) await S.rerollBookmarkStore.drop("${ids.botan}");
+        return true;`, { timeout: 30000 });
 
     /* STAGE 6 IS DECIDED ON THE GM'S SIDE (E03; audit S05-04). The Tamper list with
        `mine: false` is the whole room, types and all, and it used to be the asking
@@ -423,13 +554,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        travels with its words now, and the GM's popup and ruling wiring read it there - so a
        player's meta is judged as a player's facts are: it cannot ask the GMs for a notice
        (`gmPopup`, `popupForce`) or put a ruling's buttons on a card (`callCard`); what else
-       it says of the player's own card is kept. p1's own card, its packet as a console would
-       write it. */
+       it says of the player's own card is kept. Nor, since E08+E28 fix r2-H5, name somebody as
+       the one who asked a GM to post it (`askedBy`, which `cardWriter` reads on a GM's card).
+       p1's own card, its packet as a console would write it. */
     const metaCard = await p1.eval(`
         const msg = await ChatMessage.create({ content: '<p class="notes" data-drpg-secret>-</p>',
             whisper: ["${gm.userId}"], flags: { "${MOD}": { secret: true } } });
         game.socket.emit("${SOCKET}", { action: "secret.card", id: msg.id, html: "<p>SEC meta</p>", at: Date.now(),
-            meta: { gmPopup: true, popupForce: true, callCard: true, popupTitle: "SEC meta title" } });
+            meta: { gmPopup: true, popupForce: true, callCard: true, askedBy: "${gm.userId}", popupTitle: "SEC meta title" } });
         return msg.id;
     `, { timeout: 30000 });
     await settle(1200);
@@ -437,7 +569,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         const store = game.settings.get("${MOD}", "secretCards") ?? {};
         return { words: Boolean(store[${JSON.stringify(metaCard)}]?.html), meta: store[${JSON.stringify(metaCard)}]?.meta ?? null };
     `);
-    check("SECURITY: a player's card cannot ask the GMs for a notice or carry a ruling's buttons, and keeps its own title",
+    check("SECURITY: a player's card cannot ask the GMs for a notice, carry a ruling's buttons or name who asked for it, and keeps its own title",
         metaKept.words && JSON.stringify(metaKept.meta) === JSON.stringify({ popupTitle: "SEC meta title" }), JSON.stringify(metaKept));
 
     /* THE SAFEWORD'S SIREN FROM A PLAYER'S PRIVATE CARD (E06 fix r1-G5, 28.09.2026; the
@@ -592,10 +724,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         try { await game.actors.get("${ids.aiko}").update({ name: '<img src=x onerror="window.__pwned=3">Aiko' }); return true; }
         catch (err) { return err.message; }`);
     await settle(600);
+    // The resolve names a roll of Aiko's the GM drew, or it is refused before the note is written (E08+E28 C14).
+    const lostRoll = await drawnRoll(p1, ids.aiko, "observe", "eye", { hope: 4, fear: 3 });
     const beforeLost = await gm.eval(`return game.messages.size;`);
     await p1.eval(`
         game.socket.emit("${SOCKET}", { action: "observe.resolve", requestId: "lost-${Date.now()}", userId: game.user.id,
-            actorId: "${ids.aiko}", key: "no-such-key", total: 7 },
+            actorId: "${ids.aiko}", key: "no-such-key", total: 7, rollId: ${JSON.stringify(lostRoll.messageId)} },
             { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
         return true;`);
     await settle(1500);
@@ -610,7 +744,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     `);
     await gm.eval(`await game.actors.get("${ids.aiko}").update({ name: ${JSON.stringify(nameBefore)} }); return true;`);
     check("XSS: a renamed character's name reaches the GM's own Observe note as text",
-        renamed === true && lostCard.renamed && lostCard.cards > 0 && !lostCard.handler, JSON.stringify({ renamed, ...lostCard }));
+        renamed === true && Boolean(lostRoll.messageId) && lostCard.renamed && lostCard.cards > 0 && !lostCard.handler,
+        JSON.stringify({ renamed, lostRoll, ...lostCard }));
 
     /* ONE BROWSER, SEVERAL WORLDS (E02 review). The store of private cards is a client
        setting: one entry in the browser for every world it opens. The start-up tidy
@@ -645,15 +780,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
      * Each block below sends one request a player's own client never sends - or
      * sends it without the Reroll that is the only honest reason for it - and checks
      * on the GM that nothing changed and that the GM said why. Each has a control
-     * beside it: the same road taken honestly still works. A "Reroll receipt" is made
-     * the way a real Reroll makes one: the player rewrites the rolls of their own
-     * character's roll message (reroll-receipts.mjs).
+     * beside it: the same road taken honestly still works. Until E08+E28 C8 a "Reroll
+     * receipt" paid for an undo, made the way a real Reroll made one: the player
+     * rewrote the rolls of their own character's roll message. Since C8 no player's
+     * undo is taken (`undoIsTheGms`) - the GM's own Reroll takes an action back - and
+     * the primary puts such a rewrite back (reroll-receipts.mjs); `rerollOn` still
+     * makes one, to show it pays for nothing.
      */
     const refusedFor = async action => gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
         .filter(e => e.message.includes('Refused a "${action}"')).map(e => e.message);`);
     const clearFailures = () => gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
     const toGms = `{ recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) }`;
-    /** A roll message of the player's own character, and then its rolls rewritten - a Reroll's receipt. */
+    /** A roll message of the player's own character, and then its rolls rewritten - a receipt until E08+E28 C8. */
     const rerollOn = (client, actorId, { fearBefore = false, fearAfter = false } = {}) => client.eval(`
         const roll = fear => ({ class: "DualityRoll", formula: "1d12 + 1d12", total: 14,
             dHope: { total: fear ? 3 : 9 }, dFear: { total: fear ? 9 : 3 } });
@@ -665,21 +803,39 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
 
     // 7a. project.unsabotage: a repair id that is not the one the sabotage made.
     phase("projects", { flow: "projects" });
-    await canary.chatMark({ who: ["p1"] });
+    /* A PLAYER'S SABOTAGE IS THE REPAIR ITS ROLL EARNED (E08+E28 C16, 04.10.2026): the GM reads it off
+       its record of the roll the packet names (gm-bridge.mjs `repairOf`), and a roll settles one. So p2
+       throws a Sabotage of Botan's the GM draws, on faces that earn a repair, before p1's chat is
+       marked - this phase scans what p1 is shown of the sabotages, not of a roll thrown for the test -
+       and the first freeze below names it; each later one throws its own just before (since fix r2-H1
+       a settlement takes the newest roll of an action, so a roll thrown ahead of a newer one of its
+       action settles nothing). Since fix r2-H2 a Sabotage's roll is drawn for the project it names
+       (roll-draw.mjs `keepRecord`, `project`) and settles no other, so the projects are made first. */
     const projects = await gm.eval(`
         const P = await import("${repoUrl}/scripts/projects.mjs");
         const pub = await P.createProject({ name: "SEC public", target: 6, room: "Cafeteria", secret: false });
         const sec = await P.createProject({ name: "SEC secret", target: 6, room: "Gym", secret: true });
         return { pub: pub.id, sec: sec.id };`, { timeout: 60000 });
-    const sabotaged = await p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
-        const r = await P.sabotageProject("${projects.pub}", 3); return { repair: r?.repair?.id ?? null };`, { timeout: 60000 });
+    const sabotageRollOf = async (client, actorId, targetId, faces = { hope: 9, fear: 5 }) =>
+        (await drawnRoll(client, actorId, "sabotage", "eye", faces, { context: { targetProjectId: targetId } })).messageId;
+    const firstSabotage = await sabotageRollOf(p2, ids.botan, projects.pub);
+    const sabotageFromP2 = async (targetId, rollId = null) => {
+        const named = rollId ?? await sabotageRollOf(p2, ids.botan, targetId);
+        return p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+            const r = await P.sabotageProject("${targetId}", 3, { rollId: ${JSON.stringify(named)}, actorId: "${ids.botan}" });
+            return r?.repair?.id ?? null;`, { timeout: 60000 });
+    };
+    await canary.chatMark({ who: ["p1"] });
+    const sabotaged = { repair: await sabotageFromP2(projects.pub, firstSabotage) };
     const readPair = `const P = await import("${repoUrl}/scripts/projects.mjs");
         const ids = P.allProjects().map(p => p.id);
         return { secret: ids.includes("${projects.sec}"), repair: ids.includes("${sabotaged.repair}"), frozen: P.isFrozen("${projects.pub}") };`;
     const mismatched = await forge("project.unsabotage", { targetId: projects.pub, repairId: projects.sec, actorId: ids.aiko }, readPair);
-    check("SECURITY: an unsabotage naming a project that is not the repair deletes nothing and thaws nothing",
+    // Since E08+E28 C8 a player's unsabotage is refused before its pair is asked: a thaw is the GM's own Reroll's.
+    const UNDO_IS_THE_GMS = /an undo is the GM's own Reroll's/;
+    check("SECURITY: an unsabotage naming a project that is not the repair is refused as the GM's own undo, and deletes nothing and thaws nothing",
         Boolean(sabotaged.repair) && mismatched.after.secret && mismatched.after.repair && mismatched.after.frozen
-        && mismatched.reasons.some(r => /not what froze|does not repair/.test(r)), JSON.stringify({ sabotaged, mismatched }));
+        && mismatched.reasons.some(r => UNDO_IS_THE_GMS.test(r)), JSON.stringify({ sabotaged, mismatched }));
     /* WHO SABOTAGED IS THE GMS' (E05 fix r1-G1, 27.09.2026; the security review's S1-m1). p2's user
        id sat on the repair's projectMeta row, `saboteur`, which every browser holds, until the
        repair was finished; it is a field of the GMs' store now. p1 reads the repair's row, the GM
@@ -698,34 +854,131 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         return [C.ACTIONS.sabotage?.label, game.i18n.localize("DRPG.Roll.concealIntent")].filter(t => typeof t === "string" && t.trim() && !t.startsWith("DRPG."));`);
     await canary.chatScan({ who: ["p1"], actorIds: [ids.botan], names: ["Botan Kage"], userIds: [p2.userId], titles: sabotageTitles });
     const notTheirs = await forge("project.unsabotage", { targetId: projects.pub, repairId: sabotaged.repair, actorId: ids.aiko }, readPair);
-    check("SECURITY: p1 taking back p2's sabotage is refused - the GM reads who asked from its store - and nothing is thawed",
-        notTheirs.unchanged && notTheirs.after.frozen && notTheirs.reasons.some(r => /did not ask for that sabotage/.test(r)), JSON.stringify(notTheirs));
+    check("SECURITY: p1 taking back p2's sabotage is refused as the GM's own undo, and nothing is thawed",
+        notTheirs.unchanged && notTheirs.after.frozen && notTheirs.reasons.some(r => UNDO_IS_THE_GMS.test(r)), JSON.stringify(notTheirs));
     await clearFailures();
     await p2.eval(`game.socket.emit("${SOCKET}", { action: "project.unsabotage", userId: game.user.id, requestId: "noreceipt",
         targetId: "${projects.pub}", repairId: "${sabotaged.repair}", actorId: "${ids.botan}" }, ${toGms}); return true;`);
     await settle(1200);
     const noReceipt = { after: await gm.eval(readPair), reasons: await refusedFor("project.unsabotage") };
-    check("SECURITY: the saboteur's own unsabotage with no Reroll behind it is refused",
-        noReceipt.after.frozen && noReceipt.after.repair && noReceipt.reasons.some(r => /no Reroll/.test(r)), JSON.stringify(noReceipt));
-    await rerollOn(p2, ids.botan);
+    check("SECURITY: the saboteur's own unsabotage with no Reroll behind it is refused as the GM's own undo",
+        noReceipt.after.frozen && noReceipt.after.repair && noReceipt.reasons.some(r => UNDO_IS_THE_GMS.test(r)), JSON.stringify(noReceipt));
+    /* A REWRITE PAYS FOR NOTHING (E08+E28 C8; audit S02-19). p2 rewrites the rolls of a roll of
+       Botan's - Hope to Fear - which bought the same thaw until C8: it is refused all the same,
+       and the primary puts the rolls back as they were thrown, on p2's browser as on its own. */
+    await clearFailures();
+    const rewroteOn = await rerollOn(p2, ids.botan, { fearAfter: true });
     await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
         B.requestUndoSabotage("${projects.pub}", "${sabotaged.repair}", "${ids.botan}"); return true;`);
     await settle(1500);
+    const fearOf = `const r = game.messages.get("${rewroteOn}")?.rolls?.[0]; return r?.dFear?.total ?? null;`;
+    const afterRewrite = { after: await gm.eval(readPair), reasons: await refusedFor("project.unsabotage"),
+        fear: { gm: await gm.eval(fearOf), p2: await p2.eval(fearOf) } };
+    check("SECURITY: a rewrite of Botan's roll pays for no unsabotage, and its dice are put back on every browser",
+        afterRewrite.after.frozen && afterRewrite.after.repair && afterRewrite.reasons.some(r => UNDO_IS_THE_GMS.test(r))
+        && afterRewrite.fear.gm === 3 && afterRewrite.fear.p2 === 3, JSON.stringify(afterRewrite), { flow: "reroll" });
+    await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        await P.undoSabotage("${projects.pub}", "${sabotaged.repair}"); return true;`, { timeout: 60000 });
+    await settle(1500);
     const undone = await gm.eval(readPair);
-    check("control: after a Reroll of Botan's roll, the same unsabotage thaws the project and removes its repair",
+    check("control: the GM's own undo of the same sabotage thaws the project and removes its repair",
         undone.frozen === false && undone.repair === false && undone.secret === true, JSON.stringify(undone));
 
     // 7b. project.progress onto a sabotaged project, and project.share of a public one.
-    const frozenAgain = await p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
-        const r = await P.sabotageProject("${projects.pub}", 3); return r?.repair?.id ?? null;`, { timeout: 60000 });
+    const frozenAgain = await sabotageFromP2(projects.pub);
     const readProgress = `const P = await import("${repoUrl}/scripts/projects.mjs");
         const c = P.allProjects().find(p => p.id === "${projects.pub}"); return { current: c?.current ?? null };`;
     const onFrozen = await forge("project.progress", { countdownId: projects.pub, amount: 2, actorId: ids.aiko }, readProgress);
     // `current` is read off the project row (`allProjects`), which is where the bar's
     // figure is: read off the wrong field, this check was null == null and measured
     // nothing - found by taking the frozen guard out and watching it still pass.
-    check("SECURITY: progress onto a sabotaged project does not move it",
-        Boolean(frozenAgain) && typeof onFrozen.before.current === "number" && onFrozen.unchanged, JSON.stringify(onFrozen));
+    // Refused since E08+E28 C16 (bridge-guards.mjs `guardProjectFrozen`), where it was answered "did not move".
+    check("SECURITY: progress onto a sabotaged project is refused and does not move it",
+        Boolean(frozenAgain) && typeof onFrozen.before.current === "number" && onFrozen.unchanged
+        && onFrozen.reasons.some(r => /that project is frozen until its repair is finished/.test(r)), JSON.stringify(onFrozen));
+
+    /* 7b+. WHAT A CONSOLE'S PROGRESS ADDS (E08+E28 C16, 04.10.2026; audit S10-08). A Work on a Project
+       names its roll, and the GM adds what that roll earned on its record (gm-bridge.mjs `progressOf`),
+       the character standing in the project's room when it has one (bridge-guards.mjs `guardProjectRoom`).
+       p1 throws two Work on a Project rolls of Aiko's that the GM draws, on 9 and 5; the GM makes a
+       public project in Aiko's room and one in a room nobody stands in; p1's console asks +12 on the
+       first, naming one roll, and +1 on the second, naming the other. Read: each bar before and after,
+       against the band of ACTIONS.project the roll's total reaches, and the GM's reasons. */
+    const worked = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs"), C = await import("${repoUrl}/scripts/config.mjs");
+        const here = M.locateActor(game.actors.get("${ids.aiko}"))?.room ?? null;
+        const near = await P.createProject({ name: "SEC worked here", target: 12, room: here });
+        const beside = await P.createProject({ name: "SEC worked here too", target: 12, room: here });
+        const far = await P.createProject({ name: "SEC worked elsewhere", target: 12, room: "SEC nowhere" });
+        return { here, near: near?.id ?? null, beside: beside?.id ?? null, far: far?.id ?? null, bands: C.ACTIONS.project.thresholds };`, { timeout: 60000 });
+    // A Work's roll is drawn for the project it names (fix r2-H2), so each names the one its packet scores on.
+    const workRollOf = countdownId => drawnRoll(p1, ids.aiko, "project", "eye", { hope: 9, fear: 5 }, { context: { projectId: countdownId } });
+    const workRolls = [await workRollOf(worked.near)];
+    const barOf = id => `const P = await import("${repoUrl}/scripts/projects.mjs");
+        return { current: P.allProjects().find(p => p.id === "${id}")?.current ?? null };`;
+    const earned = Math.max(0, ...worked.bands.filter(b => (workRolls[0].total ?? 0) >= b.min).map(b => b.progress));
+    const plus12 = await forge("project.progress", { countdownId: worked.near, amount: 12, actorId: ids.aiko, rollId: workRolls[0].messageId }, barOf(worked.near));
+    /* The bar moves after forge's 900 ms: the run first waits up to 1500 ms for the sender's bookmark of the roll
+       (gm-bridge.mjs `handleProgress`, `rollOfSenderNaming`), and a roll thrown for the test is bookmarked by
+       nobody - measured on A1's first run (04.10.2026): "0 -> 1" was logged after the check had read 0. */
+    const settled = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const read = () => P.allProjects().find(p => p.id === "${worked.near}")?.current ?? null;
+        for (let i = 0; i < 60 && read() === ${JSON.stringify(plus12.before.current)}; i++) await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 500));
+        return read();`, { timeout: 30000 });
+    check("SECURITY: a console's +12 on a project adds what the roll it names earned on the GMs' record, and no more",
+        Boolean(worked.here && worked.near && workRolls[0].messageId) && earned > 0
+        && settled - plus12.before.current === earned && !plus12.reasons.length, JSON.stringify({ workRolls, worked, earned, plus12, settled }));
+    // Thrown once the first has settled: a newer Work roll of Aiko's would have replaced it (fix r2-H1).
+    workRolls.push(await workRollOf(worked.far));
+    const farOff = await forge("project.progress", { countdownId: worked.far, amount: 1, actorId: ids.aiko, rollId: workRolls[1].messageId }, barOf(worked.far));
+    check("SECURITY: a console's progress on a project in a room its character does not stand in is refused and moves nothing",
+        Boolean(worked.far && workRolls[1].messageId) && farOff.unchanged && farOff.reasons.some(r => /the character is not in that room/.test(r))
+        && farOff.told.some(t => t.what === "project.progress"), JSON.stringify(farOff));
+    /* 7b++. A PROJECT'S PACKETS ARE HELD TO THEIR ROLL, THEIR PROJECT AND THEIR ROOM (E08+E28 fix r2-H2, 05.10.2026;
+       review S2-4, S2-5, S2-6). The round-2 review's probes, from p1's console for Aiko: a Sabotage of a project in a
+       room she does not stand in froze it and made its repair (bridge-guards.mjs `guardSabotageRoom` now); progress
+       naming no roll added 2 three times from another room, 0 -> 6, and a Contribution nobody paid for was taken
+       (`guardCallProgress`: a Hope Call, its amount, its room, its price paid once); and a Work's roll drawn for one
+       project scored on another in the room (the record's `project`, `rollRefusal`). Each refused, told, and moving
+       nothing. A Call's refusal waits for its payment (roll-draw.mjs `takeCallPayment`, 1500 ms), so it is read
+       once its line is logged. The progress comes before the Sabotage: a Sabotage that got through froze "SEC worked
+       elsewhere", and its progress was then refused as frozen - measured on this fix's first red run (05.10.2026),
+       where it hid the review's 0 -> 6 at fix r2-H1's runtime. */
+    // No Hope of Aiko's this GM saw p1 pay earlier in the scenario may stand for the Contribution below.
+    await gm.eval(`(await import("${repoUrl}/scripts/roll-draw.mjs")).forgetPayments?.("${ids.aiko}"); return true;`);
+    const callRoad = [];
+    for (const fields of [{ countdownId: worked.far, amount: 2 }, { countdownId: worked.far, amount: 2 }, { countdownId: worked.far, amount: 2 },
+        { countdownId: worked.near, amount: 1, call: "contribution" }]) {
+        await clearFailures();
+        await p1.eval(`globalThis.__refused.length = 0;
+            game.socket.emit("${SOCKET}", { action: "project.progress", userId: game.user.id, requestId: "h2-call-road", actorId: "${ids.aiko}",
+                ...${JSON.stringify(fields)} }, ${toGms}); return true;`);
+        for (let i = 0; i < 40 && !(await refusedFor("project.progress")).length; i++) await settle(100);
+        await settle(300);
+        callRoad.push({ reasons: await refusedFor("project.progress"),
+            told: (await p1.eval(`return globalThis.__refused.slice();`)).filter(t => t.what === "project.progress").length });
+    }
+    const callBars = { far: (await gm.eval(barOf(worked.far))).current, near: (await gm.eval(barOf(worked.near))).current };
+    check("SECURITY: progress naming no roll - +2 three times from another room, and a Contribution nobody paid for - is refused, told, and moves no bar",
+        callRoad.length === 4 && callRoad.every(r => r.told === 1) && callRoad.slice(0, 3).every(r => r.reasons.some(x => /the character is not in that room/.test(x)))
+        && callRoad[3].reasons.some(x => /no payment of that character's stands for that Call/.test(x))
+        && callBars.far === 0 && callBars.near === settled, JSON.stringify({ callRoad, callBars, settled }));
+    const elsewhere = await forge("project.sabotage", { targetId: worked.far, difficulty: 3, actorId: ids.aiko, penalty: 0, relief: 0,
+        rollId: await sabotageRollOf(p1, ids.aiko, worked.far) }, `const P = await import("${repoUrl}/scripts/projects.mjs");
+        return { frozen: P.isFrozen("${worked.far}"), repairs: P.allProjects().filter(p => P.repairs(p.id) === "${worked.far}").length };`);
+    check("SECURITY: a console's Sabotage of a project in a room its character does not stand in is refused, told, and freezes nothing",
+        elsewhere.unchanged && elsewhere.after.frozen === false && elsewhere.after.repairs === 0
+        && elsewhere.reasons.some(r => /the character is not in that room/.test(r)) && elsewhere.told.some(t => t.what === "project.sabotage"),
+        JSON.stringify(elsewhere));
+    workRolls.push(await workRollOf(worked.near));
+    const beside = await forge("project.progress", { countdownId: worked.beside, amount: 1, actorId: ids.aiko, rollId: workRolls[2].messageId }, barOf(worked.beside));
+    check("SECURITY: a console's progress naming a Work roll drawn for another project in the room is refused, told, and moves nothing",
+        Boolean(worked.beside && workRolls[2].messageId) && beside.unchanged && beside.reasons.some(r => /that roll was not thrown for that action/.test(r))
+        && beside.told.some(t => t.what === "project.progress"), JSON.stringify(beside));
+    await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        for (const id of ${JSON.stringify([worked.near, worked.beside, worked.far].filter(Boolean))}) await P.deleteProject(id).catch(() => {});
+        return true;`, { timeout: 60000 });
     const shared = await forge("project.share", { countdownId: projects.pub, targetUserId: p1.userId },
         `const P = await import("${repoUrl}/scripts/projects.mjs"); return { secret: P.isSecret("${projects.pub}") };`);
     check("SECURITY: sharing a public project is refused and leaves it public",
@@ -741,8 +994,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const hiddenWork = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         return (await P.createProject({ name: "${SECRET_WORK}", target: 6, room: "Cafeteria", secret: true, viewers: ["${p2.userId}"] }))?.id ?? null;`,
     { timeout: 60000 });
-    const hiddenRepair = await p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
-        const r = await P.sabotageProject("${hiddenWork}", 3); return r?.repair?.id ?? null;`, { timeout: 60000 });
+    const hiddenRepair = await sabotageFromP2(hiddenWork);
     await settle(1000);
     const repairOnP1 = await p1.eval(`const c = game.settings.get("daggerheart", "Countdowns")?.countdowns?.["${hiddenRepair}"] ?? null;
         return c ? { name: c.name, p1: c.ownership?.[game.user.id] ?? null } : null;`);
@@ -856,43 +1108,198 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
 
     const readBullets = `return { botan: game.actors.get("${ids.botan}").items.filter(i => i.getFlag("${MOD}", "isTruthBullet")).length,
         botanStress: game.actors.get("${ids.botan}").system.resources.stress.value };`;
-    const stolenKey = await forge("observe.resolve", { actorId: ids.aiko, key: observed.key, total: 0 }, readBullets);
+    /* Since E08+E28 C14 each resolve below names an Observe roll of its own character's that the GM
+       drew (`drawnRoll`), so what is refused is the key, not a missing roll; the roll's own checks
+       follow the forged undo. */
+    const stolenRoll = await drawnRoll(p1, ids.aiko, "observe", "eye", { hope: 12, fear: 11 });
+    const stolenKey = await forge("observe.resolve", { actorId: ids.aiko, key: observed.key, total: 0, rollId: stolenRoll.messageId }, readBullets);
     check("SECURITY: an Observe resolved with another character's key changes nothing and is refused",
-        observed.ok && stolenKey.unchanged && stolenKey.reasons.some(r => /another character/.test(r)), JSON.stringify({ observed, stolenKey }));
+        observed.ok && Boolean(stolenRoll.messageId) && stolenKey.unchanged && stolenKey.reasons.some(r => /another character/.test(r)),
+        JSON.stringify({ observed, stolenRoll, stolenKey }));
+    const ownRoll = await drawnRoll(p2, ids.botan, "observe", "eye", { hope: 12, fear: 11 });
     await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false }); return true;`);
+        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false, rollId: ${JSON.stringify(ownRoll.messageId)} }); return true;`);
     await settle(1500);
     const found = await gm.eval(readBullets);
     check("control: Botan's own player resolving Botan's key does find the trace",
-        found.botan === stolenKey.after.botan + 1, JSON.stringify({ before: stolenKey.after, after: found }));
+        found.botan === stolenKey.after.botan + 1, JSON.stringify({ before: stolenKey.after, after: found, ownRoll }));
+    const twiceRoll = await drawnRoll(p2, ids.botan, "observe", "eye", { hope: 12, fear: 11 });
     await clearFailures();
     await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false }); return true;`);
+        B.requestObserveResolve({ actorId: "${ids.botan}", key: "${observed.key}", total: 30, isCritical: false, rollId: ${JSON.stringify(twiceRoll.messageId)} }); return true;`);
     await settle(1200);
     const twice = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve") };
     check("SECURITY: the same Observe key resolves once",
         twice.after.botan === found.botan && twice.reasons.some(r => /already been resolved/.test(r)), JSON.stringify(twice));
+    /* A FORGED OBSERVE UNDO (E08+E28 C8, 03.10.2026; audit S10-06). Botan's own player takes
+       back the Observe that found the trace - a Reroll's packet, with no Reroll asked of the GM.
+       Until C8 it went as far as the receipt; the GM's own Reroll takes an Observe back now, so
+       it is refused first, and the bullet stays. */
+    await clearFailures();
+    await p2.eval(`game.socket.emit("${SOCKET}", { action: "observe.resolve", userId: game.user.id, requestId: "forged-undo",
+        actorId: "${ids.botan}", key: "${observed.key}", total: 0, isCritical: false, undo: true }, ${toGms}); return true;`);
+    await settle(1200);
+    const forgedUndo = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve") };
+    check("SECURITY: a forged Observe undo is refused as the GM's own undo, and the bullet it found stays",
+        forgedUndo.after.botan === found.botan && forgedUndo.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)),
+        JSON.stringify(forgedUndo));
 
-    // 7d. despair.adjust with no Reroll behind it, then with one, then again.
+    /*
+     * A CONSOLE'S TOTALS (E08+E28 C14, 04.10.2026; audit S10-06). The GM scored an Observe, an
+     * Analyze and a search for a hidden stash on the `total` and `isCritical` the packet carried,
+     * so a console could send 30 and a critical and be answered with a find, a bullet's real type
+     * or somebody's stash. Each is scored now on the GMs' record of the roll the packet names
+     * (bridge-guards.mjs `rollRefusal`). For each, a packet saying 30 and a critical from the
+     * player's own browser, first naming no roll - refused, nothing changes - then naming a roll of
+     * that character's for that action the GM drew on 2 and 1: no refusal, the GM's log says the
+     * packet's numbers were not the record's, and the result is the record's miss. Red at C13's
+     * runtime: the first packet finds, analyses or opens.
+     */
+    const sendAs = (client, action, fields) => client.eval(`game.socket.emit("${SOCKET}", { action: "${action}", userId: game.user.id,
+        requestId: "console-${action}-" + Date.now(), ...${JSON.stringify(fields)} }, ${toGms}); return true;`);
+    const recordSaid = () => gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => String(e.message).includes("the GMs' record of its roll says")).map(e => e.message);`);
+    const consoleObserve = await gm.eval(`
+        const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.placeRemnant({ x: 1400, y: 400, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: "${ids.chie}", sourceName: "Chie Mori", room: "Cafeteria", subject: "SEC cup again" });
+        const O = await import("${repoUrl}/scripts/observe.mjs");
+        const r = await O.chooseObserveTarget({ actorId: "${ids.botan}", declaration: "general", userId: "${p2.userId}" });
+        return { key: r?.key ?? null, ok: r?.ok ?? false };`, { timeout: 60000 });
+    await clearFailures();
+    await sendAs(p2, "observe.resolve", { actorId: ids.botan, key: consoleObserve.key, total: 30, isCritical: true });
+    await settle(1200);
+    const observeNoRoll = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve") };
+    const observeRoll = await drawnRoll(p2, ids.botan, "observe", "eye", { hope: 2, fear: 1 });
+    await clearFailures();
+    await sendAs(p2, "observe.resolve", { actorId: ids.botan, key: consoleObserve.key, total: 30, isCritical: true, rollId: observeRoll.messageId });
+    await settle(1500);
+    const observeOnRecord = { after: await gm.eval(readBullets), reasons: await refusedFor("observe.resolve"), said: await recordSaid() };
+    check("SECURITY: a console's Observe saying 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names - a miss",
+        consoleObserve.ok && observeNoRoll.after.botan === found.botan && observeNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(observeRoll.messageId) && observeOnRecord.after.botan === found.botan && !observeOnRecord.reasons.length
+            && observeOnRecord.said.length > 0,
+        JSON.stringify({ consoleObserve, observeNoRoll, observeRoll, observeOnRecord }));
+
+    phase("a console's Analyze", { flow: "analyze" });
+    const consoleBullet = await gm.eval(`const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const C = await import("${repoUrl}/scripts/config.mjs");
+        const b = await B.createTruthBullet(game.actors.get("${ids.aiko}"), { name: "SEC a console's Analyze", realType: "neutral", visibility: "obvious" });
+        return { id: b?.id ?? null, dc: C.analyzeDc("obvious", "neutral") };`, { timeout: 30000 });
+    await settle(600);
+    const bulletState = `const i = game.actors.get("${ids.aiko}").items.get("${consoleBullet.id}");
+        return { analyzed: i?.getFlag("${MOD}", "analyzed") ?? false, locked: i?.getFlag("${MOD}", "lockedChapter") ?? null,
+            chapter: (await import("${repoUrl}/scripts/clock.mjs")).getClock().chapter };`;
+    await clearFailures();
+    await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true });
+    await settle(1200);
+    const analyzeNoRoll = { state: await gm.eval(bulletState), reasons: await refusedFor("analyze.resolve") };
+    const analyzeRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 2, fear: 1 });
+    await clearFailures();
+    await sendAs(p1, "analyze.resolve", { actorId: ids.aiko, itemId: consoleBullet.id, total: 30, isCritical: true, rollId: analyzeRoll.messageId });
+    await settle(1500);
+    const analyzeOnRecord = { state: await gm.eval(bulletState), reasons: await refusedFor("analyze.resolve"), said: await recordSaid() };
+    await gm.eval(`const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const i = game.actors.get("${ids.aiko}").items.get("${consoleBullet.id}");
+        if (i) { const uuid = i.uuid; await i.delete(); await B.dropSecret?.(uuid); }
+        return true;`, { timeout: 30000 });
+    check("SECURITY: a console's Analyze saying 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names - locked, not analysed",
+        Boolean(consoleBullet.id) && !analyzeNoRoll.state.analyzed && analyzeNoRoll.state.locked === null
+            && analyzeNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(analyzeRoll.messageId) && analyzeRoll.total < consoleBullet.dc
+            && !analyzeOnRecord.state.analyzed && analyzeOnRecord.state.locked === analyzeOnRecord.state.chapter
+            && !analyzeOnRecord.reasons.length && analyzeOnRecord.said.length > 0,
+        JSON.stringify({ consoleBullet, analyzeNoRoll, analyzeRoll, analyzeOnRecord }), { flow: "analyze" });
+
+    phase("a console's search for a hidden stash", { flow: "give-take-stash" });
+    const consoleStash = await gm.eval(`
+        const V = await import("${repoUrl}/scripts/vault.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const room = M.roomOfActor(aiko);
+        const region = room ? V.regionsByName().get(room) : null;
+        if (!region) return { room, err: "no region" };
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        globalThis.__c14Stash = { room, keys, before: keys.map(k => foundry.utils.deepClone(region.getFlag("${MOD}", k))),
+            found: foundry.utils.deepClone(aiko.getFlag("${MOD}", V.VAULT_FLAGS.found) ?? null) };
+        await region.update({ ["flags.${MOD}." + V.VAULT_FLAGS.stashes]: [{ actorId: "${ids.daichi}", concealed: true }],
+            ["flags.${MOD}." + V.VAULT_FLAGS.hinders]: [], ["flags.${MOD}." + V.VAULT_FLAGS.favours]: [] });
+        return { room, threshold: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.analyze?.stashThreshold ?? 16 };`, { timeout: 30000 });
+    const stashFound = `const V = await import("${repoUrl}/scripts/vault.mjs");
+        return V.hasFoundStash(game.actors.get("${ids.aiko}"), ${JSON.stringify(consoleStash.room ?? "")}, "${ids.daichi}");`;
+    await clearFailures();
+    await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true });
+    await settle(1200);
+    const stashNoRoll = { found: await gm.eval(stashFound), reasons: await refusedFor("vault.findStash") };
+    const stashRoll = await drawnRoll(p1, ids.aiko, "analyze", "head", { hope: 2, fear: 1 });
+    await clearFailures();
+    await sendAs(p1, "vault.findStash", { actorId: ids.aiko, total: 30, isCritical: true, rollId: stashRoll.messageId });
+    await settle(1500);
+    const stashOnRecord = { found: await gm.eval(stashFound), reasons: await refusedFor("vault.findStash"), said: await recordSaid() };
+    await gm.eval(`const V = await import("${repoUrl}/scripts/vault.mjs");
+        const { forcedDeletion } = await import("${repoUrl}/scripts/utils.mjs");
+        const { room, keys, before, found } = globalThis.__c14Stash ?? {};
+        delete globalThis.__c14Stash;
+        const region = room ? V.regionsByName().get(room) : null;
+        if (region) await region.update(Object.fromEntries(keys.map((k, i) => ["flags.${MOD}." + k, before[i] === undefined ? forcedDeletion() : before[i]])));
+        const aiko = game.actors.get("${ids.aiko}");
+        if (found === null) await aiko.unsetFlag("${MOD}", V.VAULT_FLAGS.found);
+        else await aiko.setFlag("${MOD}", V.VAULT_FLAGS.found, found);
+        return true;`, { timeout: 30000 });
+    check("SECURITY: a console's search for a hidden stash saying 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names - not found",
+        !consoleStash.err && stashNoRoll.found === false && stashNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(stashRoll.messageId) && stashRoll.total < consoleStash.threshold
+            && stashOnRecord.found === false && !stashOnRecord.reasons.length && stashOnRecord.said.length > 0,
+        JSON.stringify({ consoleStash, stashNoRoll, stashRoll, stashOnRecord }), { flow: "give-take-stash" });
+
+    /*
+     * A CONSOLE'S STEAL (E08+E28 C15, 04.10.2026; audit S10-06). A Palm was scored on the two
+     * totals its packet carried, and a critical hand lets the thief pick the item. Both are the
+     * GMs' record of the rolls the packet names now (gm-bridge.mjs `palmRolls`). Botan holds an
+     * item; from p1's browser a Steal of it by Aiko saying 30 and a critical for both rolls, first
+     * naming no roll - refused, Botan keeps it - then naming a hand's roll and an unseen roll of
+     * Aiko's the GM drew on 2 and 1: no refusal, the GM's log says the packet's numbers were not
+     * the record's, and Botan keeps it - the record's miss. Red at C14's runtime: the first takes it.
+     */
+    phase("a console's Steal", { flow: "give-take-stash" });
+    const consoleSteal = await gm.eval(`
+        const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const item = await INV.grantItem(game.actors.get("${ids.botan}"), { name: "SEC pocket", category: "usable", tier: 1, override: true, quiet: true });
+        return { itemId: item?.id ?? null, rooms: ["${ids.aiko}", "${ids.botan}"].map(id => M.locateActor(game.actors.get(id))?.room ?? null),
+            bar: (await import("${repoUrl}/scripts/config.mjs")).ACTIONS.palm.threshold };`, { timeout: 30000 });
+    await settle(600);
+    const pocket = `return game.actors.get("${ids.botan}").items.has(${JSON.stringify(consoleSteal.itemId ?? "")});`;
+    const stealFields = { thiefId: ids.aiko, victimId: ids.botan, itemId: consoleSteal.itemId, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true };
+    await clearFailures();
+    await sendAs(p1, "action.steal", stealFields);
+    await settle(1200);
+    const stealNoRoll = { kept: await gm.eval(pocket), reasons: await refusedFor("action.steal") };
+    const handRoll = await drawnRoll(p1, ids.aiko, "steal", "hand", { hope: 2, fear: 1 });
+    const unseenRoll = await drawnRoll(p1, ids.aiko, "palm", "shadow", { hope: 2, fear: 1 });
+    await clearFailures();
+    await sendAs(p1, "action.steal", { ...stealFields, rollId: handRoll.messageId, unseenRollId: unseenRoll.messageId });
+    await settle(1500);
+    const stealOnRecord = { kept: await gm.eval(pocket), reasons: await refusedFor("action.steal"), said: await recordSaid() };
+    await gm.eval(`for (const id of ["${ids.botan}", "${ids.aiko}"]) for (const i of game.actors.get(id).items.filter(i => i.name === "SEC pocket")) await i.delete();
+        return true;`, { timeout: 30000 });
+    check("SECURITY: a console's Steal saying 30 and a critical is refused without its rolls, and scored on the GMs' record of the two it names - a miss",
+        Boolean(consoleSteal.itemId) && Boolean(consoleSteal.rooms[0]) && consoleSteal.rooms[0] === consoleSteal.rooms[1]
+            && stealNoRoll.kept === true && stealNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(handRoll.messageId) && Boolean(unseenRoll.messageId) && handRoll.total < consoleSteal.bar
+            && stealOnRecord.kept === true && !stealOnRecord.reasons.length && stealOnRecord.said.length > 0,
+        JSON.stringify({ consoleSteal, stealNoRoll, handRoll, unseenRoll, stealOnRecord }), { flow: "give-take-stash" });
+
+    // 7d. despair.adjust from a player, with no Reroll behind it and with a rewrite of a roll (a receipt until E08+E28 C8).
     phase("Despair corrections", { flow: "despair" });
     const readPool = `return { pool: game.drpg.getDespair(game.user.id) };`;
     const noReroll = await forge("despair.adjust", { targetUserId: gm.userId, delta: -1, actorId: ids.aiko }, readPool);
     check("SECURITY: a player's Despair correction with no Reroll moves no pool",
-        noReroll.unchanged && noReroll.reasons.some(r => /no Reroll/.test(r)), JSON.stringify(noReroll));
+        noReroll.unchanged && noReroll.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)), JSON.stringify(noReroll));
     await rerollOn(p1, ids.aiko, { fearBefore: false, fearAfter: true });
-    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        await B.requestDespairAdjust("${gm.userId}", 1, { actorId: "${ids.aiko}" }); return true;`);
-    await settle(1500);
-    const paidPoint = await gm.eval(readPool);
-    check("control: after a Reroll that turned Aiko's roll into Despair, her player's +1 lands",
-        paidPoint.pool === noReroll.after.pool + 1, JSON.stringify({ before: noReroll.after, after: paidPoint }));
-    await clearFailures();
-    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        await B.requestDespairAdjust("${gm.userId}", 1, { actorId: "${ids.aiko}" }); return true;`);
-    await settle(1200);
-    const secondPoint = { after: await gm.eval(readPool), reasons: await refusedFor("despair.adjust") };
-    check("SECURITY: one Reroll pays for one Despair correction",
-        secondPoint.after.pool === paidPoint.pool && secondPoint.reasons.some(r => /already undone/.test(r)), JSON.stringify(secondPoint));
+    const paidPoint = await forge("despair.adjust", { targetUserId: gm.userId, delta: 1, actorId: ids.aiko }, readPool);
+    check("SECURITY: a player's Despair correction after a rewrite of Aiko's roll into Despair moves no pool either",
+        paidPoint.unchanged && paidPoint.reasons.some(r => /an undo is the GM's own Reroll's/.test(r)), JSON.stringify(paidPoint));
 
     // 7e. token.sendBack to somewhere the token never stood.
     phase("a send-back", { flow: "crossing-fee-refund" });
@@ -912,12 +1319,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("control: a send-back to where the token stood a moment ago puts it there",
         back.x === start.x && back.y === start.y, JSON.stringify({ start, back }));
 
-    // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM.
+    // 7f. remnant.place: who left it, where, and what it points at, rebuilt on the GM. A discarded
+    //     item's trace: a Search's names its roll since E08+E28 C15, and is measured below.
     phase("a player's traces", { flow: "trace-remnant" });
     await p1.eval(`game.socket.emit("${SOCKET}", { action: "remnant.place", userId: game.user.id, requestId: "forge-trace",
         data: { sourceActor: "${ids.aiko}", sourceName: "Botan Kage", room: "Storage", pointsAt: "${ids.chie}",
             type: "tamper", visibility: "evident", x: 2300, y: 1300, sceneId: canvas.scene.id, reinforced: true,
-            tiedToCrime: false, faint: true, action: "search", note: "planted", subject: "SEC knife" } }, ${toGms}); return true;`);
+            tiedToCrime: false, faint: true, action: "discard", note: "planted", subject: "SEC knife" } }, ${toGms}); return true;`);
     await settle(1500);
     const planted = await gm.eval(`
         const R = await import("${repoUrl}/scripts/remnants.mjs");
@@ -927,22 +1335,53 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a player's trace is written with their own name, their own room, pointing at nobody, as Preparation",
         planted && planted.sourceName === "Aiko Hoshino" && planted.room === "Cafeteria" && planted.pointsAt === null
         && planted.type === "prep" && planted.reinforced === false, JSON.stringify(planted));
-    const badBand = await forge("remnant.place", { data: { sourceActor: ids.aiko, visibility: "x", action: "search", subject: "SEC bad band" } },
+    const badBand = await forge("remnant.place", { data: { sourceActor: ids.aiko, visibility: "x", action: "discard", subject: "SEC bad band" } },
         `const R = await import("${repoUrl}/scripts/remnants.mjs");
         return { n: canvas.scene.tokens.contents.map(t => R.remnantData(t)).filter(d => d?.subject === "SEC bad band").length };`);
     check("SECURITY: a trace with a visibility that does not exist is refused",
         badBand.after.n === 0 && badBand.reasons.some(r => /not a visibility/.test(r)), JSON.stringify(badBand));
 
     /*
-     * 7j. remnant.edit: a Reroll receipt pays for one re-rating of one fresh trace
-     * of the rerolling player's own character that no GM has written on. It is not
-     * tied to the particular trace the first throw left - a trace records no
-     * message it came from, so the GM cannot tell which one that was - which is why
-     * the control below re-rates a trace the GM placed. The first E03 build asked
-     * "fresh, and no GM has written on it" only of a removal, so a receipt from any
-     * Reroll turned a trace a GM had corrected to Hidden (the E03 review). Verified
-     * by hand on 24.09.2026: with the retune's `removalRefusal` call taken out of
-     * gm-bridge.mjs, the first check FAILED.
+     * A TRACE'S BAND IS THE GM'S (E08+E28 C15, 04.10.2026; audit S10-06). A Search's trace was
+     * placed at the visibility its packet named, so a console could leave every trace of its
+     * Searches hidden. It names its roll now and is placed at the band the GMs' record of that
+     * roll earns (gm-bridge.mjs `traceBandOf`). From p1's browser, a Search's trace asking
+     * "hidden": first naming no roll - refused, nothing placed - then naming a Search roll of
+     * Aiko's the GM drew on 12 and 11 (18 or more: "evident" in the Search's table). Read on the
+     * GM: the visibility of each trace placed, the refusals and the GM's log of the packet's band.
+     * Red at C14's runtime: both are placed hidden.
+     */
+    const bandOf = subject => `const R = await import("${repoUrl}/scripts/remnants.mjs");
+        return canvas.scene.tokens.contents.map(t => R.remnantData(t)).filter(d => d?.subject === "${subject}").map(d => d.visibility);`;
+    const hiddenTrace = subject => ({ data: { sourceActor: ids.aiko, visibility: "hidden", action: "search", type: "prep", subject } });
+    await clearFailures();
+    await sendAs(p1, "remnant.place", hiddenTrace("SEC band unnamed"));
+    await settle(1200);
+    const bandNoRoll = { placed: await gm.eval(bandOf("SEC band unnamed")), reasons: await refusedFor("remnant.place") };
+    const bandRoll = await drawnRoll(p1, ids.aiko, "search", "eye", { hope: 12, fear: 11 });
+    await clearFailures();
+    await sendAs(p1, "remnant.place", { ...hiddenTrace("SEC band named"), rollId: bandRoll.messageId });
+    await settle(1500);
+    const bandOnRecord = { placed: await gm.eval(bandOf("SEC band named")), reasons: await refusedFor("remnant.place"),
+        said: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+            .filter(e => String(e.message).includes("said data.visibility hidden")).length;`) };
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        for (const t of canvas.scene.tokens.contents.filter(t => /^SEC band /.test(R.remnantData(t)?.subject ?? ""))) await t.delete();
+        return true;`, { timeout: 30000 });
+    check("SECURITY: a console's Search trace asking hidden is refused without its roll, and placed at the band the GMs' record of the roll it names earns",
+        bandNoRoll.placed.length === 0 && bandNoRoll.reasons.some(r => /no roll the GM drew is named/.test(r))
+            && Boolean(bandRoll.messageId) && bandRoll.total >= 18 && JSON.stringify(bandOnRecord.placed) === '["evident"]'
+            && !bandOnRecord.reasons.length && bandOnRecord.said > 0,
+        JSON.stringify({ bandNoRoll, bandRoll, bandOnRecord }), { flow: "trace-remnant" });
+
+    /*
+     * 7j. remnant.edit: until E08+E28 C8 a Reroll receipt paid for one re-rating of one
+     * fresh trace of the rerolling player's own character that no GM had written on (the
+     * E03 review; verified by hand on 24.09.2026 with `removalRefusal` taken out). Since C8
+     * the GM's own Reroll re-rates a trace on its own client, so a player's edit is refused
+     * whatever trace it names and whatever rewrite of a roll is behind it - a trace a GM has
+     * written on, one two hours old, and the player's own fresh one alike - and the control
+     * is the GM's own re-rating.
      */
     const traceOf = subject => `const R = await import("${repoUrl}/scripts/remnants.mjs");
         const t = canvas.scene.tokens.contents.find(x => R.remnantData(x)?.subject === "${subject}");
@@ -961,38 +1400,37 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     await settle(600);
     const corrected = await gm.eval(traceOf("SEC corrected"));
     const rerolled = await gm.eval(traceOf("SEC rerolled"));
+    const staleBefore = await gm.eval(traceOf("SEC stale"));
     await clearFailures();
     await rerollOn(p1, ids.aiko);
     await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestRemnantEdit(canvas.scene.id, "${corrected?.id}", { visibility: "hidden" }); return true;`);
+        for (const id of ${JSON.stringify([corrected?.id, staleBefore?.id, rerolled?.id])}) B.requestRemnantEdit(canvas.scene.id, id, { visibility: "hidden" });
+        return true;`);
     await settle(1500);
-    const correctedAfter = { after: await gm.eval(traceOf("SEC corrected")), reasons: await refusedFor("remnant.edit") };
-    check("SECURITY: a Reroll does not re-rate a trace a GM has written on",
-        Boolean(corrected) && correctedAfter.after?.visibility === corrected.visibility
-        && correctedAfter.reasons.some(r => /GM has written/.test(r)), JSON.stringify({ corrected, correctedAfter }));
-    // Two hours old by the ledger: the same receipt, still unspent, does not reach it.
-    const staleBefore = await gm.eval(traceOf("SEC stale"));
-    await clearFailures();
-    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestRemnantEdit(canvas.scene.id, "${staleBefore?.id}", { visibility: "hidden" }); return true;`);
-    await settle(1500);
-    const staleAfter = { after: await gm.eval(traceOf("SEC stale")), reasons: await refusedFor("remnant.edit") };
-    check("SECURITY: a Reroll does not re-rate a trace older than a Reroll can reach",
-        Boolean(staleBefore) && staleAfter.after?.visibility === staleBefore.visibility
-        && staleAfter.reasons.some(r => /older than a Reroll/.test(r)), JSON.stringify({ staleBefore, staleAfter }));
-    await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        B.requestRemnantEdit(canvas.scene.id, "${rerolled?.id}", { visibility: "hidden" }); return true;`);
-    await settle(1500);
+    const edits = { corrected: await gm.eval(traceOf("SEC corrected")), stale: await gm.eval(traceOf("SEC stale")),
+        rerolled: await gm.eval(traceOf("SEC rerolled")),
+        // Three refusals with one text are one row of the session log with a count of 3
+        // (utils.mjs `record`), so they are counted, not listed: `refusedFor` read 1 here.
+        undos: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+            .filter(e => e.message.includes('Refused a "remnant.edit"') && e.message.includes("an undo is the GM's own Reroll's"))
+            .reduce((n, e) => n + (e.count ?? 1), 0);`) };
+    check("SECURITY: a player's re-rating is refused as the GM's own undo - of a trace a GM wrote on, of one two hours old, and of their own fresh one",
+        Boolean(corrected && staleBefore && rerolled) && edits.corrected?.visibility === corrected.visibility
+        && edits.stale?.visibility === staleBefore.visibility && edits.rerolled?.visibility === rerolled.visibility
+        && edits.undos === 3, JSON.stringify({ corrected, staleBefore, rerolled, edits }));
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.retuneRemnant(canvas.scene.id, "${rerolled?.id}", { visibility: "hidden" }); return true;`, { timeout: 30000 });
+    await settle(600);
     const rerolledAfter = await gm.eval(traceOf("SEC rerolled"));
-    check("control: the same Reroll re-rates the player's own fresh trace",
+    check("control: the GM's own re-rating of the player's fresh trace lands",
         Boolean(rerolled) && rerolled.visibility !== "hidden" && rerolledAfter?.visibility === "hidden", JSON.stringify({ rerolled, rerolledAfter }));
 
     /*
-     * 7j'. What a player is told when an edit is refused (E31 review). Every refusal of
-     * a player's edit is told with one code, and none comes back before the receipt's
-     * retry. Chie's player, p3, holds no Reroll receipt in this scenario; one trace
-     * here is Chie's, the other Botan's. Both checks were red on the tree before the
-     * fix.
+     * 7j'. What a player is told when an edit is refused (E31 review): one reason for the
+     * player's own trace and for another character's. Chie's player, p3, edits one trace of
+     * Chie's and one of Botan's. Both checks were red on the tree before the E31 fix; the
+     * second, that neither refusal came back before the receipt's retry, went with the
+     * receipts in E08+E28 C8 - nothing is retried now, and the reason is `undoIsTheGms`.
      */
     await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
         await R.placeRemnant({ x: 1650, y: 450, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
@@ -1004,22 +1442,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const ownTrace = await gm.eval(traceOf("SEC own, no receipt"));
     const otherTrace = await gm.eval(traceOf("SEC other, no receipt"));
     const toldEdits = await p3.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
-        const C = await import("${repoUrl}/scripts/config.mjs");
-        const out = { retryMs: C.TIMING.rerollReceiptRetryMs };
+        const out = {};
         for (const [k, id] of [["own", "${ownTrace?.id}"], ["other", "${otherTrace?.id}"]]) {
-            const t0 = Date.now();
             const r = await B.requestRemnantEdit(canvas.scene.id, id, { visibility: "hidden" });
-            out[k] = { ok: r.ok, refused: r.refused ?? false, reason: r.reason ?? null, ms: Date.now() - t0 };
+            out[k] = { ok: r.ok, refused: r.refused ?? false, reason: r.reason ?? null };
         }
         return out;`, { timeout: 60000 });
     const editsAfter = { own: await gm.eval(traceOf("SEC own, no receipt")), other: await gm.eval(traceOf("SEC other, no receipt")) };
     check("SECURITY: an edit with no Reroll behind it is told the same reason for the player's own trace and for another character's",
         Boolean(ownTrace && otherTrace) && toldEdits.own?.refused === true && toldEdits.other?.refused === true
-        && toldEdits.own.reason === toldEdits.other.reason
+        && toldEdits.own.reason === "undoIsTheGms" && toldEdits.other.reason === "undoIsTheGms"
         && editsAfter.own?.visibility === ownTrace.visibility && editsAfter.other?.visibility === otherTrace.visibility,
         JSON.stringify({ toldEdits, ownTrace, otherTrace, editsAfter }));
-    check("SECURITY: neither of those two refusals comes back before the receipt's retry",
-        toldEdits.own?.ms >= toldEdits.retryMs && toldEdits.other?.ms >= toldEdits.retryMs, JSON.stringify(toldEdits));
 
     /*
      * 7k. remnant.tieForItem outside a fight (audit S10-11). Holding the object is
@@ -1280,6 +1714,309 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         return true;`);
 
     /*
+     * 7m. A roll's bookmark (E08+E28 C2, 03.10.2026). The roller's browser tells the GMs what it
+     * rolled for the Reroll's bookmark (`roll.bookmark`), and the GM keeps it only from the
+     * character's own player, for a module roll that player wrote (`owns`, `guardRollAuthor`).
+     * p1 throws Aiko's roll and p2 Botan's, each kept; then p1 names Botan for its own roll, and
+     * Aiko for p2's roll. Each forgery is refused and logged, told to nobody (a report nobody
+     * waits on is quiet), and no row moves.
+     */
+    phase("a roll's bookmark", { flow: "reroll" });
+    const throwKept = (client, actorId) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        try {
+            const out = await A.rollTrait(game.actors.get("${actorId}"), "eye", { remember: true });
+            return out?.raw?.message?.id ?? null;
+        } finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    const readRows = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = id => { const r = S.rerollBookmarkStore?.get(id); return r ? { messageId: r.messageId, by: r.by, claims: r.claims } : null; };
+        return { aiko: row("${ids.aiko}"), botan: row("${ids.botan}") };`;
+    const p1Roll = await throwKept(p1, ids.aiko);
+    const p2Roll = await throwKept(p2, ids.botan);
+    await settle(1200);
+    const keptRows = await gm.eval(readRows);
+    check("control: each player's own roll is kept on the GMs' bookmark, by its roller",
+        Boolean(p1Roll && p2Roll) && keptRows.aiko?.messageId === p1Roll && keptRows.aiko?.by === p1.userId
+        && keptRows.botan?.messageId === p2Roll && keptRows.botan?.by === p2.userId, JSON.stringify({ p1Roll, p2Roll, keptRows }));
+    const forgedOther = await forge("roll.bookmark", { actorId: ids.botan, messageId: p1Roll, actionKey: "search",
+        context: { itemId: "SECFORGEDITEM000" } }, readRows);
+    check("SECURITY: a roll.bookmark naming another player's character is refused for ownership, told to nobody, and changes no row",
+        forgedOther.unchanged && forgedOther.forOwnership && !forgedOther.told.length, JSON.stringify(forgedOther));
+    const forgedRoll = await forge("roll.bookmark", { actorId: ids.aiko, messageId: p2Roll, actionKey: "search",
+        context: { itemId: "SECFORGEDITEM000" } }, readRows);
+    check("SECURITY: a roll.bookmark naming another player's roll message is refused by its author, told to nobody, and changes no row",
+        forgedRoll.unchanged && forgedRoll.reasons.some(r => /sender did not write that roll message/.test(r)) && !forgedRoll.told.length,
+        JSON.stringify(forgedRoll));
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        for (const id of ${JSON.stringify([p1Roll, p2Roll])}) await game.messages.get(id ?? "")?.delete();
+        if (S.rerollBookmarkStore) await S.rerollBookmarkStore.dropMany(["${ids.aiko}", "${ids.botan}"]);
+        return true;`);
+
+    /*
+     * 7n. A roll for the GM to draw (E08+E28 C12a, 04.10.2026; the plan's 3.3). A player's action
+     * roll is thrown on the primary GM (`roll.draw`): the GM throws it for the sender's own
+     * character only (`owns`), and only a duality roll nobody has thrown, carrying the nonce the
+     * packet names (`guardDrawnRoll`). p1 asks a draw for Botan, p2's character, and one for
+     * Aiko with a roll already thrown to 30. Each is refused and logged, and the GM writes no
+     * message and keeps no record. 40-flow drives the legal draw.
+     */
+    phase("a roll for the GM to draw", { flow: "gm-rolls-total" });
+    const readDraws = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { drawn: game.messages.filter(m => m.getFlag("${MOD}", "drawn")).length, rows: Object.keys(S.rollStore?.entries() ?? {}).length };`;
+    const die = (cls, extra = {}) => ({ class: cls, number: 1, faces: 12, modifiers: [], results: [], evaluated: false, ...extra });
+    const unthrown = { class: "DualityRoll", formula: "1d12 + 1d12 + 0", evaluated: false, total: null,
+        terms: [die("HopeDie"), { class: "OperatorTerm", operator: "+", evaluated: true }, die("FearDie"),
+            { class: "OperatorTerm", operator: "+", evaluated: true }, { class: "NumericTerm", number: 0, evaluated: true }],
+        options: { drpgRollNonce: "SECDRAWNONCE", actionType: "action", roll: { type: "trait" } } };
+    const forgedDraw = await forge("roll.draw", { actorId: ids.botan, actionKey: "search", nonce: "SECDRAWNONCE", claimed: true,
+        loaded: null, costs: [], roll: unthrown }, readDraws);
+    check("SECURITY: a roll.draw for another player's character is refused for ownership, and the GM writes no message and keeps no record",
+        forgedDraw.unchanged && forgedDraw.forOwnership, JSON.stringify(forgedDraw));
+    const thrownAlready = { ...unthrown, evaluated: true, total: 30,
+        terms: [die("HopeDie", { results: [{ result: 12, active: true }], evaluated: true }), unthrown.terms[1],
+            die("FearDie", { results: [{ result: 12, active: true }], evaluated: true }), unthrown.terms[3], { class: "NumericTerm", number: 6, evaluated: true }] };
+    const forgedThrown = await forge("roll.draw", { actorId: ids.aiko, actionKey: "search", nonce: "SECDRAWNONCE", claimed: true,
+        loaded: null, costs: [], roll: thrownAlready }, readDraws);
+    check("SECURITY: a roll.draw carrying a roll already thrown is refused, and the GM writes no message and keeps no record",
+        forgedThrown.unchanged && forgedThrown.reasons.some(r => /that is not a duality roll nobody has thrown/.test(r)), JSON.stringify(forgedThrown));
+    /* A DRAW IS AN ACTION'S, AND ITS WINDOW COSTS ITS EXPERIENCES' HOPE (E08+E28 fix r2-H1, 04.10.2026; the
+       round-2 reviews' S2-1 and M2). p1's console asks a draw of a Work on a Project roll of Aiko's, its own
+       character's, with no action paid - the GM drew it until the fix (the review's probe drew three with Aiko's
+       actions 3 -> 3) and refuses it now, once the payment it waits for has not come (roll-draw.mjs
+       `drawRefusal`). Then a draw naming no action whose window asks a Fear cost of 12 - drawn until the fix,
+       the 12 taken off the GM's Fear (bridge-guards.mjs `guardDrawnCosts`). Each is refused and logged, told to
+       p1, and the GM writes no message and keeps no record, and its Fear stays where it was. */
+    const readDrawsFear = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { drawn: game.messages.filter(m => m.getFlag("${MOD}", "drawn")).length, rows: Object.keys(S.rollStore?.entries() ?? {}).length,
+            fear: game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear) };`;
+    const askedDraw = async (requestId, fields) => {
+        // No payment of Aiko's this GM saw earlier in the scenario - a crossing's - may stand for this one.
+        await gm.eval(`(await import("${repoUrl}/scripts/roll-draw.mjs")).forgetPayments?.("${ids.aiko}"); return true;`);
+        await clearFailures();
+        const before = await gm.eval(readDrawsFear);
+        await p1.eval(`globalThis.__refused.length = 0;
+            game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "${requestId}", actorId: "${ids.aiko}", nonce: "SECDRAWNONCE",
+                claimed: true, loaded: null, roll: ${JSON.stringify(unthrown)}, ...${JSON.stringify(fields)} }, ${toGms});
+            return true;`);
+        for (let i = 0; i < 40 && !(await refusedFor("roll.draw")).length; i++) await settle(100);
+        await settle(300);
+        return { before, after: await gm.eval(readDrawsFear), reasons: await refusedFor("roll.draw"),
+            told: (await p1.eval(`return globalThis.__refused.slice();`)).filter(t => t.what === "roll.draw" && t.requestId === requestId).length };
+    };
+    const unpaid = await askedDraw("unpaid-draw", { actionKey: "project", costs: [] });
+    check("SECURITY: a roll.draw for an action its character has not paid for is refused, and the GM writes no message and keeps no record",
+        JSON.stringify(unpaid.after) === JSON.stringify(unpaid.before) && unpaid.reasons.some(r => /no payment of that character's stands for that roll/.test(r))
+        && unpaid.told === 1, JSON.stringify(unpaid));
+    /* The Fear cost names an experience Aiko holds, so the cost's key is the one thing the guard refuses: with none
+       named, one cost is already one more than the experiences allow, and the check stayed green with the key's test
+       taken out of `guardDrawnCosts` (fix r2-H1's mutant h1-any-cost, 131/131 on 05.10.2026). */
+    const aikoExperience = await gm.eval(`return Object.keys(game.actors.get("${ids.aiko}")?.system?.experiences ?? {})[0] ?? null;`);
+    const fearCost = await askedDraw("fear-cost-draw", { actionKey: null, experiences: [aikoExperience],
+        costs: [{ key: "fear", value: 12, enabled: true }] });
+    check("SECURITY: a roll.draw whose window asks a Fear cost is refused, and the GM's Fear does not move",
+        aikoExperience !== null && JSON.stringify(fearCost.after) === JSON.stringify(fearCost.before)
+        && fearCost.reasons.some(r => /asks a cost no roll of this game pays/.test(r)) && fearCost.told === 1, JSON.stringify({ aikoExperience, ...fearCost }));
+    // Put back if it moved, so a later check of Fear reads its own (at a63256f's runtime the 12 came off: 0 -> -11, the roll's own Fear added).
+    if (fearCost.after.fear !== fearCost.before.fear) {
+        await gm.eval(`await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, ${Number(fearCost.before.fear) || 0}); return true;`);
+    }
+    /* A DRAWN ROLL IS THROWN ON THE GM'S TERMS (E08+E28 fix r2-H8, 05.10.2026). The GM threw the roll a packet wrote:
+       its dice's faces and keep, a critical its options guarantee, its kind and Daggerheart's steps it skips
+       (roll-draw.mjs `onGmTerms`), and any term at all (bridge-guards.mjs `guardDrawnRoll`). p1's console pays one of
+       Aiko's actions and asks a Search's draw of a roll it wrote: a Hope and a Fear die of one face, two Hope dice
+       kept high, a critical guaranteed, a reaction with its resource step, countdowns and triggers skipped. Read on the
+       GM: the newest record's dice (faces, how many thrown), its critical against its dice, and the kind and the skips
+       its message keeps. Then a draw naming no action whose roll adds `(10)`: refused, told, and nothing written.
+       At 33bc497's runtime the GM's record read dice [[1,2],[1,1]], a critical, a reaction and the three skips, and the
+       `(10)` draw was written (drawn messages 19 -> 20, records 22 -> 23). */
+    const termsFrom = await gm.eval(`return Date.now();`);
+    const readNewest = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = Object.values(S.rollStore?.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom})
+            .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0] ?? null;
+        const m = row ? game.messages.get(row.messageId) : null;
+        return row ? { dice: row.dice.map(d => [d.faces, d.results.length]), critical: row.isCritical, sameDice: row.hope === row.fear,
+            kind: m?.rolls?.[0]?.options?.actionType ?? null, skips: m?.rolls?.[0]?.options?.skips ?? null } : null;`;
+    const forgedDice = { ...unthrown, formula: "2d1kh + 1d1 + 0",
+        terms: [die("HopeDie", { number: 2, faces: 1, modifiers: ["kh"] }), unthrown.terms[1], die("FearDie", { faces: 1 }), ...unthrown.terms.slice(3)],
+        options: { ...unthrown.options, guaranteedCritical: true, actionType: "reaction", skips: { resources: true, updateCountdowns: true, triggers: true } } };
+    await p1.eval(`${payFor(ids.aiko)}
+        game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "gm-terms-draw", actorId: "${ids.aiko}", nonce: "SECDRAWNONCE",
+            actionKey: "search", claimed: true, loaded: null, costs: [], roll: ${JSON.stringify(forgedDice)} }, ${toGms});
+        return true;`);
+    let onGmTerms = null;
+    for (let i = 0; i < 60 && !onGmTerms; i++) {
+        onGmTerms = await gm.eval(readNewest);
+        if (!onGmTerms) await settle(100);
+    }
+    check("SECURITY: a console's roll.draw is thrown on the GM's dice and kind - d12s, one Hope die, a critical only of equal dice, an action with every step",
+        Boolean(onGmTerms) && JSON.stringify(onGmTerms.dice) === JSON.stringify([[12, 1], [12, 1]]) && onGmTerms.critical === onGmTerms.sameDice
+        && onGmTerms.kind === "action" && JSON.stringify(onGmTerms.skips) === "{}", JSON.stringify(onGmTerms), { flow: "gm-rolls-total" });
+    const parenthesis = await askedDraw("parenthesis-draw", { actionKey: null, costs: [],
+        roll: { ...unthrown, terms: [...unthrown.terms, unthrown.terms[1], { class: "ParentheticalTerm", term: "10", evaluated: false }] } });
+    check("SECURITY: a roll.draw holding a term that is neither a die, a number nor + or - is refused, and the GM writes no message and keeps no record",
+        JSON.stringify(parenthesis.after) === JSON.stringify(parenthesis.before)
+        && parenthesis.reasons.some(r => /holds a term no roll of this game is built of/.test(r)) && parenthesis.told === 1, JSON.stringify(parenthesis));
+    // The draws above are this check's alone: their records and messages go.
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const ids = Object.entries(S.rollStore?.entries() ?? {}).filter(([, r]) => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom});
+        for (const [, r] of ids) await game.messages.get(r.messageId ?? "")?.delete();
+        if (ids.length) await S.rollStore.dropMany(ids.map(([id]) => id));
+        return true;`);
+
+    phase("a trace the GM's Reroll meets", { flow: "reroll" });
+    /*
+     * 7k. The trace a Reroll may no longer touch (E08+E28 fix r1-G3, 04.10.2026; the round-1
+     * reviews' S1 = M2). Until C8 the two checks of 7j asked a player's Reroll edit not to
+     * re-rate a trace a GM had written on, nor one older than a Reroll can reach
+     * (`removalRefusal`, E03); since C4a the GM's own Reroll makes the edit and nothing asked it,
+     * so a Reroll deleted a trace another student had already copied into a Truth Bullet (the
+     * review's probe 99c). Put back against the GM-made Reroll (reroll.mjs `traceKept`): Aiko's
+     * Dynamic, rerolled on the GM onto a band that re-rates its trace (19, Hidden) or a miss
+     * that removes it (5). A trace a GM has written on, one somebody has found (copied into
+     * Chie's bullet; asked of a removal) and one two hours old stay as they were, the row keeps
+     * naming them, the card says it could not be adjusted and the GMs are told; the control is a
+     * fresh, unfound trace, re-rated and removed by the same Reroll.
+     */
+    const rerollOverTrace = (subject, how, next) => gm.eval(`
+        const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const X = await import("${repoUrl}/scripts/reroll.mjs");
+        const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const who = game.actors.get("${ids.aiko}");
+        const trace = await R.placeRemnant({ x: 1700, y: 550, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
+            sourceActor: who.id, sourceName: who.name, room: "Cafeteria", action: "dynamic", subject: "${subject}" });
+        const copy = "${how}" === "found" ? await B.createTruthBullet(game.actors.get("${ids.chie}"), { name: "${subject}, a copy",
+            realType: "prep", visibility: "obvious", remnantId: trace?.id, sceneId: canvas.scene.id }) : null;
+        if ("${how}" === "edited") await R.markRemnantEdited(trace);
+        if ("${how}" === "stale") await R.setRemnantSecret(trace, { placedAt: Date.now() - 2 * 3600_000 });
+        const m = await ChatMessage.create({ content: "SEC a Dynamic to reroll" });
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 11, fear: 9 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = ${JSON.stringify(next)}; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        const hopeWas = who.system.resources.hope.value;
+        await automatedUpdate(who, { "system.resources.hope.value": 5 });
+        if (S.rerollBookmarkStore.has(who.id)) await S.rerollBookmarkStore.drop(who.id);
+        await S.rerollBookmarkStore.patch(who.id, { messageId: m.id, reportMessageId: null, actionKey: "dynamic", trait: "eye", experiences: [],
+            claims: { bandIndex: 3, description: "${subject}" }, total: 20, withFear: false, isCritical: false, first: [], room: "Cafeteria",
+            at: Date.now(), by: game.user.id, facts: { remnantId: trace?.id ?? null, remnantScene: canvas.scene.id } });
+        const told = [];
+        // A whisper's words are secret.mjs's, not the document's (a private card holds a stub).
+        const hook = Hooks.on("createChatMessage", doc => { if (doc.whisper?.length) told.push(doc); });
+        let out = null;
+        try { out = await X.rerollOnGm(who, game.user); } finally { Hooks.off("createChatMessage", hook); }
+        const t = trace ? canvas.scene.tokens.get(trace.id) : null;
+        const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const words = await Promise.all(told.map(doc => wordsOf(doc)));
+        const result = { placed: Boolean(trace) && ("${how}" !== "found" || Boolean(copy)), lines: out?.lines ?? null, refused: out?.refused ?? null,
+            standing: Boolean(t), visibility: t ? R.remnantData(t)?.visibility ?? null : null,
+            rowNames: Boolean(trace) && S.rerollBookmarkStore.get(who.id)?.facts?.remnantId === trace.id,
+            cardSays: (out?.lines ?? []).includes(game.i18n.localize("DRPG.Reroll.remnantManual")),
+            gmsTold: words.some(c => String(c ?? "").includes("${subject}")) };
+        delete m.rolls; await m.delete();
+        await S.rerollBookmarkStore.drop(who.id);
+        await automatedUpdate(who, { "system.resources.hope.value": hopeWas });
+        if (t) { await R.dropRemnantSecret(t); await t.delete(); }
+        await copy?.delete();
+        return result;`, { timeout: 60000 });
+    const RETUNE = { hope: 10, fear: 9 }, REMOVE = { hope: 3, fear: 2 };
+    const keptAsWas = r => r.placed && r.standing && r.visibility === "obvious" && r.rowNames && r.cardSays && r.gmsTold;
+    const gmWritten = await rerollOverTrace("SEC dynamic, GM-written", "edited", RETUNE);
+    await settle(300);
+    check("SECURITY: the GM's Reroll does not re-rate a trace a GM has written on; the card and the GMs say so",
+        keptAsWas(gmWritten), JSON.stringify(gmWritten));
+    const foundTrace = await rerollOverTrace("SEC dynamic, found", "found", REMOVE);
+    await settle(300);
+    check("SECURITY: the GM's Reroll does not remove a trace somebody has already found",
+        keptAsWas(foundTrace), JSON.stringify(foundTrace));
+    const stale = await rerollOverTrace("SEC dynamic, stale", "stale", RETUNE);
+    await settle(300);
+    check("SECURITY: the GM's Reroll does not re-rate a trace older than a Reroll can reach",
+        keptAsWas(stale), JSON.stringify(stale));
+    const freshRetuned = await rerollOverTrace("SEC dynamic, fresh re-rated", "fresh", RETUNE);
+    await settle(300);
+    const freshRemoved = await rerollOverTrace("SEC dynamic, fresh removed", "fresh", REMOVE);
+    await settle(300);
+    check("control: the same Reroll re-rates and removes a fresh trace nobody has found, and tells the GMs nothing",
+        freshRetuned.placed && freshRetuned.standing && freshRetuned.visibility === "hidden" && !freshRetuned.cardSays && !freshRetuned.gmsTold
+        && freshRemoved.placed && !freshRemoved.standing && !freshRemoved.cardSays && !freshRemoved.gmsTold,
+        JSON.stringify({ freshRetuned, freshRemoved }));
+
+    phase("a Listen the GM's Reroll answers", { flow: "reroll" });
+    /*
+     * 7l. What a Listen's Reroll hears (E08+E28 fix r1-G4, 04.10.2026; the round-1 review's S3).
+     * Since C4a the replay ran on the GM and built the lines with the GM's knowledge, so a death
+     * the GMs' store held and nobody had found left the body out of the room: the review's probe
+     * A - p1's own browser named Botan Kage in the Cafeteria, and p1's Listen rerolled from 14 to
+     * 19 came back "In Cafeteria: empty". The GM answers the dice and the rooms now, and p1's
+     * browser hears them (reroll.mjs `heardLines`). p1 throws Aiko's Listen at Botan's room (13),
+     * the GM holds Botan's death in its store only and makes the Reroll throw 20 (the named band),
+     * and p1 asks it as the Call does. Read: what p1's own browser names there, and p1's card.
+     */
+    const rooms = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        return { here: M.roomOfActor(game.actors.get("${ids.aiko}")), there: M.roomOfActor(game.actors.get("${ids.botan}")) };`);
+    // A Listen paid for, as the action pays before its roll (a roll is an action's since fix r2-H1).
+    const listened = await p1.eval(`${payFor(ids.aiko)}
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        try { const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+            const o = await A.rollTrait(game.actors.get("${ids.aiko}"), "shadow", { actionKey: "listen",
+                context: { room: "${rooms.here}", target: "${rooms.there}" } });
+            return o?.raw?.message?.id ?? null; }
+        finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    await settle(1500);
+    const armed = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { isDeadForGm } = await import("${repoUrl}/scripts/settings.mjs");
+        const who = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get(who.id);
+        const m = game.messages.get(row?.messageId ?? "");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 9, fear: 4 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 11, fear: 9 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        globalThis.__secListenHope = who.system.resources.hope.value;
+        await automatedUpdate(who, { "system.resources.hope.value": 6 });
+        await S.deathStore.patch("${ids.botan}", { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
+        return { row: row?.messageId === "${listened}" && row?.actionKey === "listen" && row?.claims?.target === "${rooms.there}",
+            gmDead: isDeadForGm(game.actors.get("${ids.botan}")) };`, { timeout: 30000 });
+    await settle(500);
+    const heard = await p1.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
+        const C = await import("${repoUrl}/scripts/calls.mjs");
+        const S = await import("${repoUrl}/scripts/secret.mjs");
+        const aiko = game.actors.get("${ids.aiko}");
+        const sees = M.occupantsOf("${rooms.there}", aiko).map(a => a.name);
+        const at = game.messages.contents.length;
+        const made = Boolean(await C.spendHopeCall(aiko, "reroll"));
+        await new Promise(r => setTimeout(r, 800));
+        const card = game.messages.contents.slice(at).map(m => String(S.contentOf(m) ?? "")).find(t => t.includes("Reroll")) ?? null;
+        return { sees, made, card: card ? card.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 400) : null };`, { timeout: 90000 });
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const m = game.messages.get("${listened}");
+        if (m) { delete m.rolls; await m.delete(); }
+        await S.deathStore.drop("${ids.botan}");
+        if (S.rerollBookmarkStore.has("${ids.aiko}")) await S.rerollBookmarkStore.drop("${ids.aiko}");
+        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": globalThis.__secListenHope });
+        delete globalThis.__secListenHope;
+        return true;`, { timeout: 30000 });
+    await settle(300);
+    check("SECURITY: a Listen's Reroll names whom the roller's own browser hears - a death only the GMs hold is not told by it",
+        Boolean(listened) && armed.row && armed.gmDead && heard.made && heard.sees.includes("Botan Kage")
+        && Boolean(heard.card) && heard.card.includes("Botan Kage"), JSON.stringify({ rooms, listened, armed, heard }));
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`
@@ -1490,6 +2227,63 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             ticked.tick === 2 && Object.keys(ticked.projects).length > 0 && Object.entries(ticked.projects).every(([id, current]) =>
                 projectsBefore[id] === undefined || projectsBefore[id].progress?.current === current),
             JSON.stringify({ ticked, tick: tick.projects.length }));
+
+        /*
+         * 2.10.8's item transfer (E08+E28 C9, 04.10.2026; the owner's Q1 (a), 03.10). The
+         * copy in lib/dh-relay.mjs is 2.10.8's, so the guard must know every case it has;
+         * a player's transfer moves nothing, every packet is logged, each sender is told,
+         * and the GM hears of it once a session - two players, three packets, one toast
+         * (a 30-second window per sender would make two). The target's `transferItem` is
+         * a recorder, which the control then hands the same packet through the copied
+         * relay itself: an item that did not move must be a refusal, not a relay with
+         * no such case (2.10.5's had none).
+         */
+        const guard = await gm.eval(`return game.drpg.relayGuard();`);
+        check("RELAY: the guard has reviewed every case of the copied relay (2.10.8), so none is called unreviewed",
+            guard.state === "ok" && guard.fingerprint.includes("TransferItem") && guard.unreviewed.length === 0,
+            JSON.stringify({ state: guard.state, fingerprint: guard.fingerprint, unreviewed: guard.unreviewed }));
+        const parcel = await gm.eval(`
+            const [item] = await game.actors.get("${ids.aiko}").createEmbeddedDocuments("Item", [{ name: "SEC parcel", type: "loot" }]);
+            const target = game.actors.get("${ids.botan}");
+            globalThis.__secTransfers = [];
+            target.transferItem = ({ item, quantity }) => globalThis.__secTransfers.push({ item: item?.uuid ?? null, quantity });
+            globalThis.__notifications.length = 0;
+            (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+            return { item: item.uuid, target: target.uuid };`);
+        const transfer = `game.socket.emit("${DH}", { action: "DhTransferItem",
+            data: { item: "${parcel.item}", targetActor: "${parcel.target}", quantity: 1 } });`;
+        const listen = `if (!globalThis.__refused) {
+                globalThis.__refused = [];
+                game.socket.on("${SOCKET}", (payload, senderId) => {
+                    if (payload?.action === "bridge.refused") globalThis.__refused.push({ what: payload.what, from: senderId });
+                });
+            }
+            globalThis.__refused.length = 0;`;
+        await p2.eval(`${listen} return true;`);
+        await p1.eval(`${listen} ${transfer} ${transfer} return true;`);
+        await settle(600);
+        await p2.eval(`${transfer} return true;`);
+        await settle(1500);
+        const transferred = await gm.eval(`return {
+            moved: globalThis.__secTransfers.slice(),
+            left: game.actors.get("${ids.aiko}").items.filter(i => i.name === "SEC parcel").length,
+            logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+                .filter(e => e.message.includes('Refused a Daggerheart "DhTransferItem"')).reduce((n, e) => n + (e.count ?? 1), 0),
+            toasts: (globalThis.__notifications ?? []).filter(n => String(n.msg ?? "").includes("an item transfer")).length };`);
+        const transferHeard = await Promise.all([p1, p2].map(p => p.eval(`return globalThis.__refused.filter(r => r.what === "daggerheart").length;`)));
+        check("RELAY: a player's DhTransferItem is refused on the GM - nothing moves, every packet is logged, each player is told and the GM once a session",
+            transferred.moved.length === 0 && transferred.left === 1 && transferred.logged === 3 && transferred.toasts === 1
+            && transferHeard.every(n => n >= 1), JSON.stringify({ transferred, transferHeard }));
+        const direct = await gm.eval(`const R = await import("${repoUrl}/audit/harness/lib/dh-relay.mjs");
+            globalThis.__secTransfers.length = 0;
+            await R.handleSocketEvent({ action: "DhTransferItem",
+                data: { item: "${parcel.item}", targetActor: "${parcel.target}", quantity: 1 } });
+            const calls = globalThis.__secTransfers.slice();
+            delete game.actors.get("${ids.botan}").transferItem;
+            await fromUuidSync("${parcel.item}")?.delete();
+            return calls;`);
+        check("control: the same packet run through the copied relay itself hands the item to the target",
+            direct.length === 1 && direct[0].item === parcel.item && direct[0].quantity === 1, JSON.stringify(direct));
     } finally {
         await gm.eval(`const u = game.users.get("${p1.userId}"); if (u.role !== 1) await u.update({ role: 1 }); return true;`);
     }

@@ -21,12 +21,12 @@ import {
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
-import { leavesTraceFor } from "./inventory.mjs";
+import { leavesTraceFor, carriedFor } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
 // the whole trial floor into the action pipeline.
-import { getClock, getSetting, SETTINGS } from "./settings.mjs";
+import { getClock } from "./settings.mjs";
 // The chains, and the one payer (T-1). Static, and safe to be: price.mjs imports
 // nothing but leaves and never reaches back into the action pipeline.
 import { quotePrice, payPrice, refundPrice, priceLine } from "./price.mjs";
@@ -39,9 +39,10 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
-import { supersedingRoll, reportRollSubject } from "./private-rolls.mjs";
+import { supersedingRoll, reportRollSubject, isClaimedRoll, ROLL_NONCE } from "./private-rolls.mjs";
+import { rerollBookmarkStore } from "./gm-stores.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
 // does not import this file.
 import { equippedFor, tierOf } from "./use-items.mjs";
@@ -49,8 +50,8 @@ import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
-/** What a readied Tool takes off a threshold. 0 for bare hands. */
-function toolRelief(tool, tierOf) {
+/** What a readied Tool takes off a threshold. 0 for bare hands. Exported for the GM's band of a Sabotage's trace (gm-bridge.mjs `traceBandOf`). */
+export function toolRelief(tool, tierOf) {
     return TOOL_IN_HAND.tierReducesThreshold && tool ? tierOf(tool) : 0;
 }
 
@@ -65,9 +66,21 @@ function toolRelief(tool, tierOf) {
 export const DRPG_ACTION_ROLL = "drpgActionRoll";
 
 /**
+ * The roll was drawn by the primary GM (E08+E28 C12a; roll-draw.mjs): `{ rollId, messageId,
+ * stash, loaded }` on the config the roller's browser plays the GM's faces into. The GM wrote
+ * the message, settled the roll's resources and spent the Calls it applied, so
+ * `commitResources` commits nothing for it and `throwDice` spends nothing; `stash` is the
+ * hidden stash's step the GM drew (`stashStepOf`), `loaded` whether it loaded the die (C12b).
+ * Never sent: it is put on the config after the roll has left for the GM.
+ */
+export const DRAWN_ROLL = "drpgDrawn";
+
+/**
  * The trait on this roll is a GM's pick (E32+E07 C11b; trait-ruling.mjs): the roll
  * window keeps its Statistic select locked and says who chose it (roll-dialog.mjs
- * `lockTrait`). A string key for the reason above.
+ * `lockTrait`). A string key for the reason above. The GM that draws the roll does not
+ * read it: whether a GM picked is that GM's own reading (roll-draw.mjs `pickDue`, E08+E28
+ * fix r2-H8).
  */
 export const TRAIT_BY_GM = "drpgTraitByGm";
 
@@ -99,6 +112,9 @@ function suiteRolling() {
  */
 const GM_ROUTE_CLASS = "drpg-gm-route";
 
+/** The actions `performAction` lets through with no GM connected: none of them throws dice there (E08+E28 C18). */
+const THROWS_NO_DICE = new Set(["move", "rest", "directMurder"]);
+
 /* ==========================================================================
  * ENTRY POINT
  * ========================================================================== */
@@ -118,6 +134,21 @@ export async function performAction(actor, actionKey, options = {}) {
         if (options.free && !game.user.isGM) options = { ...options, free: false };
         if (!actor || actor.type !== "character") {
             ui.notifications.warn(game.i18n.localize("DRPG.Character.notACharacter"));
+            return null;
+        }
+
+        /*
+         * AN ACTION ROLL WAITS FOR A GM (E08+E28 C18, 04.10.2026; the plan's 3.7). A player's
+         * action roll is drawn by the primary GM (roll-draw.mjs), so with no GM connected it
+         * cannot be made - and until C18 it was thrown here anyway and its request refused for
+         * want of a GM, after the price where the action pays first. Refused here, before any
+         * price or window: the first line every action passes. Move and Rest throw no dice, and
+         * Direct Murder's two roads
+         * (a betrayal, a declaration in the dark) ask the GM and say so themselves. A GM who
+         * leaves after this line has the roll refused at the draw (`drawOrThrow`).
+         */
+        if (!game.user.isGM && !activeGmIds().length && !THROWS_NO_DICE.has(actionKey)) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Rolls.waitsForGm"));
             return null;
         }
 
@@ -675,7 +706,7 @@ export async function rollTrait(actor, drpgTrait,
 async function throwDice(actor, drpgTrait, { remember, actionKey, context, title = null, byGm = false }) {
     const dhTrait = TRAITS[drpgTrait]?.dh ?? drpgTrait;
 
-    const { pendingCalls, consumeCalls } = await import("./call-effects.mjs");
+    const { pendingCalls, consumeCallsByNonce } = await import("./call-effects.mjs");
     // Every Call armed for this roll, because they stack (CALL-02). The Loaded
     // Die is the one this roll has to be marked with.
     const armedCalls = pendingCalls(actor);
@@ -695,9 +726,11 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // The system's own card for this roll is claimed as it is created and
     // never rendered: this module reports the same roll in its own card,
     // with the same two faces and the same total. See `supersedingRoll` in
-    // private-rolls.mjs - and note the claim covers only THIS call, so a
-    // trait rolled straight off the sheet keeps Daggerheart's card.
-    const result = await supersedingRoll(() => actor.rollTrait(dhTrait, {
+    // private-rolls.mjs - and note the claim covers only THIS roll, so a
+    // trait rolled straight off the sheet keeps Daggerheart's card, even
+    // while this roll's window is open: the claim takes the message whose
+    // roll carries its nonce (`ROLL_NONCE`, E08+E28 C11), not the first one.
+    const result = await supersedingRoll(nonce => actor.rollTrait(dhTrait, {
         event: { shiftKey: false, altKey: false, ctrlKey: false },
         /*
          * ALWAYS OPEN THE WINDOW - except for the regression suite, which
@@ -732,6 +765,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
          * the chat card. See roll-dialog.mjs and despair-award.mjs.
          */
         [DRPG_ACTION_ROLL]: true,
+        // The claim's own mark, so the claim takes this roll's message and no other.
+        [ROLL_NONCE]: nonce,
         // The roll the Loaded Die was bought for, marked on the roll itself -
         // see `LOADED_DIE` in forced-roll.mjs.
         ...(free ? { [LOADED_DIE]: armed?.nonce ?? foundry.utils.randomID() } : {}),
@@ -746,7 +781,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // other, all called "Shadow Roll", and the player answers the same
         // question three times without being told which is which.
         ...(title ? { title, headerTitle: title } : {})
-    }), { subject: actor });
+    }), { subject: actor, actionKey, facts: { calls: armedCalls.map(entry => entry.nonce), context } });
     if (!result) return null;
     // Which character the roll is about: told to the primary GM as the message
     // was created (the claim's `subject`, E06 fix r1-G2), because the Despair
@@ -759,8 +794,18 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     if (typeof total !== "number") return null;
 
     await commitResources(result);
-    // Whatever the Calls bought, they bought it for this roll and no other.
-    if (armedCalls.length) await consumeCalls(actor);
+    // Whatever the Calls bought, they bought it for this roll and no other - the ones
+    // read above, before the window opened. The window opened with each of them
+    // (roll-dialog.mjs `windowCalls`) and its close has spent them already where
+    // there was a window; this spends them where there was none. One armed after
+    // that stays armed for the next roll (S02-20, E08+E28 C7): `consumeCalls` spent
+    // the whole list, whatever this roll had applied. A roll the GM drew had its Calls
+    // spent by the GM, who read them first (E08+E28 C12b, roll-draw.mjs `drawOnGm`); the
+    // claim's `facts` told it which.
+    const drawn = result?.[DRAWN_ROLL] ?? null;
+    if (armedCalls.length && !drawn) await consumeCallsByNonce(actor, armedCalls.map(entry => entry.nonce));
+    // The Loaded Die is the GM's to load on a drawn roll, and it says whether it did.
+    const loaded = drawn ? drawn.loaded === true : free;
 
     const outcome = {
         total,
@@ -771,11 +816,11 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         // a Hand roll as Eye (ROLL-06). Falls back to the argument when the
         // system's result does not say.
         trait: traitRolled(result, drpgTrait),
-        freeCritical: free,
+        freeCritical: loaded,
         raw: result
     };
 
-    if (free) {
+    if (loaded) {
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.freeCritTitle")
         })}<p>${
@@ -799,56 +844,45 @@ function traitRolled(result, fallback) {
 }
 
 /* ==========================================================================
- * THE REROLL BOOKMARK, IN THE ROLLER'S OWN BROWSER
+ * WHAT THIS BROWSER TELLS THE GMS OF ITS NEWEST ROLL
  * ==========================================================================
  *
- * E05 C7, 26.09.2026; audit S02-01. The bookmark was the actor flag `lastAction`
- * until 1.2.64, and an actor's flags are on every browser: 72-canary read Chie's
- * crisis context off p1's copy of her actor. It is the client setting
- * `rollBookmarks` now (settings.mjs), one entry per world and character, on the
- * browser that rolled - the browser a Reroll is made from (the owner's answer Q6;
- * E08 moves it to the GMs). A roll made in another browser, or before the update
- * (the `dropRollBookmarks` clause), has no bookmark here, and Reroll falls back to
- * the recent-chat scan in reroll.mjs as it always did for a sheet roll.
+ * E05 C7 moved the Reroll's bookmark off the actor flag `lastAction` (on every
+ * browser: 72-canary read Chie's crisis context off p1's copy of her actor) into the
+ * roller's own client setting `rollBookmarks`, and the Reroll read it there. Since
+ * E08+E28 C4a (03.10.2026; audit S02-47, the owner's answer to E05's Q6) the Reroll
+ * is made on a GM from the GMs' own bookmark ("ON THE GMS" below), and this browser
+ * keeps nothing a Reroll reads. What is left here is the roll this browser threw last
+ * for each character, in memory and for this session only, so an action that learns
+ * more of its roll (`noteRollContext`) can tell the GMs the roller's claims again
+ * whole - `keepGmBookmark` takes them whole. A reload loses it, and loses nothing:
+ * the GMs were told as the roll returned.
  *
- * Read and written whole, with no await between the read and the `set`: two
- * characters rolled from one browser at once cannot take each other's entry out.
+ * The retired setting is unregistered, and its value is taken out of this browser's
+ * client storage once (`forgetRollBookmarks`), where Foundry keeps a client setting
+ * under `<namespace>.<key>` - read in Foundry's `ClientSettings`, not measured at a
+ * real table; the harness keeps no client storage, so there it does nothing.
  */
-const EMPTY_BOOKMARKS = () => ({ v: 1, worlds: {} });
+const rollsInHand = new Map();
 
-function allBookmarks() {
-    try {
-        const all = getSetting(SETTINGS.rollBookmarks);
-        return all && all.v === 1 && all.worlds && typeof all.worlds === "object" ? all : EMPTY_BOOKMARKS();
-    } catch {
-        return EMPTY_BOOKMARKS();
-    }
+/** What this browser last told the GMs of its newest roll of this character, or null. Exported for the suite. */
+export function rollInHand(actor) {
+    return actor?.id ? rollsInHand.get(actor.id) ?? null : null;
 }
 
-/** This browser's bookmark for this character in this world, or null. */
-export function rollBookmark(actor) {
-    const world = game.world?.id ?? null;
-    if (!actor?.id || !world) return null;
-    return allBookmarks().worlds[world]?.[actor.id] ?? null;
-}
-
-/** Replace this character's bookmark in this browser - whole, never merged; null takes it out. */
-export async function keepRollBookmark(actor, bookmark) {
-    const world = game.world?.id ?? null;
-    if (!actor?.id || !world) return;
-    const all = allBookmarks();
-    const here = { ...(all.worlds[world] ?? {}) };
-    if (bookmark) here[actor.id] = bookmark;
-    else delete here[actor.id];
-    await game.settings.set(MODULE_ID, SETTINGS.rollBookmarks, { v: 1, worlds: { ...all.worlds, [world]: here } });
+/** The retired client setting `rollBookmarks`, out of this browser's client storage (E08+E28 C4a). At ready. */
+export function forgetRollBookmarks() {
+    const storage = game.settings?.storage?.get?.("client");
+    const key = `${MODULE_ID}.rollBookmarks`;
+    if (typeof storage?.getItem === "function" && storage.getItem(key) !== null) storage.removeItem(key);
 }
 
 /**
  * Record what was just rolled, so the Reroll Hope Call has something to take
- * back. Only the newest roll is kept - the guide's Reroll undoes an action, not
- * a history.
+ * back: the GMs are told (`tellGmsOfRoll`). Only the newest roll is kept - the
+ * guide's Reroll undoes an action, not a history.
  *
- * The bookmark is written fresh here rather than merged, so leftovers from the
+ * The record is written fresh here rather than merged, so leftovers from the
  * previous action - a project id, a Remnant token, an item - can never be
  * attributed to this one. Each action then attaches its own context with
  * `noteRollContext` once it knows what it did.
@@ -858,12 +892,13 @@ export async function keepRollBookmark(actor, bookmark) {
  * was `gmRuled` - `replayAction` tests it before it looks at the action key, so
  * a single Observe earlier in the session sent every subsequent Reroll down the
  * "ask the GM again" path instead of replaying the Search or the project that
- * was actually rerolled. `keepRollBookmark` writes the entry whole.
+ * was actually rerolled. The GMs' row is started afresh for a new roll the same
+ * way (`keepGmBookmark`).
  */
 async function rememberRoll(actor, outcome, result, actionKey = null, context = null) {
     try {
         const messageId = result?.message?.id ?? result?.message?._id ?? null;
-        await keepRollBookmark(actor, {
+        const bookmark = {
             ...(context ?? {}),
             messageId,
             actionKey,
@@ -877,16 +912,20 @@ async function rememberRoll(actor, outcome, result, actionKey = null, context = 
             isCritical: outcome.isCritical,
             freeCritical: Boolean(outcome.freeCritical),
             at: game.time?.worldTime ?? 0
-        });
+        };
+        if (actor?.id) rollsInHand.set(actor.id, bookmark);
+        // Before the action asks the GM for anything it does: see `tellGmsOfRoll`.
+        await tellGmsOfRoll(actor, bookmark);
     } catch {
-        // Losing the bookmark costs a Reroll, not the roll itself.
+        // Losing the record costs a Reroll, not the roll itself.
     }
 }
 
 /**
- * Where a Remnant this action dropped ended up, in a form the bookmark can
- * carry. A player's Remnant is placed by the GM over the socket, so there is no
- * document to point at - Reroll says so rather than pretending it can retune it.
+ * Where a Remnant this action dropped ended up, in a form the record can carry: a
+ * GM's own trace, which `noteRollContext` writes onto the GMs' row as a fact. A
+ * player's Remnant is placed by the GM over the socket, and that GM writes the fact
+ * itself (gm-bridge.mjs `handleRemnant`).
  */
 function remnantRef(placed) {
     const doc = placed?.document ?? placed;
@@ -895,7 +934,7 @@ function remnantRef(placed) {
 }
 
 /**
- * Attach the action's own context to the bookmark, once it is known.
+ * Attach the action's own context to the roll, once it is known.
  *
  * Replacement rather than merge, like `rememberRoll` - the spread of `current`
  * is what carries the rest forward, so a caller passing `{itemId: null}` here
@@ -903,21 +942,391 @@ function remnantRef(placed) {
  */
 async function noteRollContext(actor, data) {
     try {
-        const current = rollBookmark(actor);
+        const current = rollInHand(actor);
         if (!current) return;
-        await keepRollBookmark(actor, { ...current, ...data });
+        const next = { ...current, ...data };
+        rollsInHand.set(actor.id, next);
+        // Told again only when it changes what the GMs keep of the roller's word: most
+        // contexts add facts the GM did, which the GM wrote itself. The roll's card is
+        // named once it is posted (`report`).
+        if (next.actionKey !== current.actionKey || next.reportMessageId !== current.reportMessageId
+            || JSON.stringify(rollClaims(next.actionKey, next)) !== JSON.stringify(rollClaims(current.actionKey, current))) {
+            await tellGmsOfRoll(actor, next);
+        }
+        // A GM's own action placed its trace, froze its project and added its progress on
+        // this client, not through the bridge's handlers that write those facts for a player.
+        if (game.user?.isGM) await noteRollFact(actor.id, next.messageId, ownFacts(data));
     } catch {
         // Same again: informational only.
     }
 }
 
+/* ==========================================================================
+ * THE REROLL BOOKMARK, ON THE GMS
+ * ==========================================================================
+ *
+ * E08+E28 C2, 03.10.2026; audit S05-08, S08-04, S04-18; the plan's 2.2. A Reroll
+ * is to be made on a GM (C4a), and the GM cannot take a roll's word for what its
+ * action did: the bookmark above is the roller's own browser's. So the GMs keep a
+ * row per character in a store of their own (gm-stores.mjs `rerollBookmarkStore`),
+ * and it holds two kinds of thing.
+ *
+ * THE GM'S OWN FACTS, written by the GM that did the thing for that roll: the trace
+ * `handleRemnant` placed (whose id a player's browser is never told - S05-08), the
+ * plant `takePlant` handed over with its identity (S08-04), the project a sabotage
+ * froze and the repair it made, the progress added, the Observe's key and result,
+ * the bullet an Analyze read, the crisis action's pick, item, weapon and the
+ * resources before the item (S04-18), the clean-up attempt. `noteRollFact` writes
+ * one only on the row of the roll it was asked for: each writer reads the row's
+ * message as it starts (`rollOfNow`) and names it as it writes, so a fact that took
+ * a GM's dialog long enough for the character to roll again is dropped, not pinned
+ * on the newer roll. Every packet that leads to a fact names its roll now, and the fact
+ * waits for that roll's row (`noteFactOfRoll`): the Sabotage and the trace since fix
+ * r1-G1, the resolvers' since fix r1-G2 (`rollOfFact`); a Reroll's replay still writes on
+ * the row it read as it started.
+ *
+ * THE ROLLER'S CLAIMS, sent once after the roll by `roll.bookmark` and again when
+ * the action adds one (`tellGmsOfRoll`): what the GM cannot see - which item the
+ * Search put on the roller's own sheet, the category, the relief a Project's tool
+ * gave. Picked per action (`ROLL_CLAIMS`) on the GM, whatever the packet holds. The
+ * rule: a claim touches only the roller's own sheet; anything else a Reroll's
+ * replay touches comes from a GM fact - or, for what only the roller saw of a
+ * project's roll (a Work's relief and bonus, a Sabotage's penalty and relief), from
+ * the claim held to what the GM sees, as the first throw's was (`projectExtrasHeld`,
+ * `sabotageExtrasHeld`; fix r2-H3). A Dynamic action's band is no claim since the
+ * same fix - a GM's ruling, or a GM's own pick kept as a fact (`OWN_FACTS`): the
+ * replay read the roller's `bandIndex`, any of four.
+ *
+ * The roll itself - its total, its duality, its rolls as first thrown - is read off
+ * the message on the GM; the trait and the experiences are the roller's (the message
+ * does not hold the experiences, see `rememberRoll`), and so is the room the character
+ * stood in as the row started, read on the GM. The Reroll reads this row on the GM
+ * since C4a (reroll.mjs `rerollOnGm`): its replay is handed the claims with the facts
+ * over them (`replayBookmark`).
+ *
+ * WHAT A REPLAY NEEDS OF THE ROLLER (E08+E28 C4a). The replays read more of the roll
+ * than C2's claims held, and each was a field of the roller's own bookmark: a Listen's
+ * room, a ruling's request, the clean-up's declaration, whether a Project's critical
+ * gave its action back and from what. They are claims now, of the same kinds; none of
+ * them names a document the replay writes but the roller's own sheet, and the clean-up's
+ * are judged again where they were judged for the first throw - `resolveCleanup` holds
+ * the trace to the GMs' receipt of the attempt (`undoLastCleanup`) and bounds the
+ * declaration and the price.
+ *
+ * ORDER. `roll.bookmark` leaves as the roll returns, before the action sends anything
+ * else, and packets from one sender reach the GM in order. Its guards wait only when
+ * the message has not reached the GM yet (`guardRollAuthor`); a fact asked in that
+ * wait finds the row of the roll before, and is dropped with it when the new row
+ * replaces it. The harness's runs measured the row there first; a table's timing is
+ * not measured.
+ */
+
+/**
+ * What a roller's browser may say about its roll, per action, and as what. An action
+ * not listed claims nothing.
+ */
+export const ROLL_CLAIMS = Object.freeze({
+    search: Object.freeze({ itemId: "id", category: "text", goal: "text", tier: "num", stashDie: "bool", claimed: "bool", fromVault: "bool",
+        gmRuled: "bool", label: "text", request: "text" }),
+    project: Object.freeze({ relief: "num", bonus: "num", refunded: "bool", burst: "bool" }),
+    sabotage: Object.freeze({ penalty: "num", relief: "num" }),
+    dynamic: Object.freeze({ description: "text" }),
+    listen: Object.freeze({ target: "text" }),
+    observe: Object.freeze({ gmRuled: "bool", label: "text", request: "text" }),
+    analyze: Object.freeze({ gmRuled: "bool", label: "text", request: "text" }),
+    cleanup: Object.freeze({ cleanup: "text", cleanupKey: "text", cleanupChange: "obj", cleanupVia: "bool", cleanupPrice: "text",
+        cleanupGrant: "bool", cleanupTarget: "id" })
+});
+
+const CLAIM_AS = Object.freeze({
+    id: v => typeof v === "string" && v.length > 0 && v.length <= 128 ? v : null,
+    text: v => typeof v === "string" ? v.slice(0, 400) : null,
+    num: v => typeof v === "number" && Number.isFinite(v) ? v : null,
+    bool: v => typeof v === "boolean" ? v : null,
+    obj: v => {
+        if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+        try { return JSON.stringify(v).length <= 400 ? JSON.parse(JSON.stringify(v)) : null; } catch { return null; }
+    }
+});
+
+/** The claims an action's context makes, as `ROLL_CLAIMS` lists them; anything else is dropped. */
+export function rollClaims(actionKey, context) {
+    const fields = Object.hasOwn(ROLL_CLAIMS, actionKey ?? "") ? ROLL_CLAIMS[actionKey] : {};
+    const out = {};
+    for (const [field, kind] of Object.entries(fields)) {
+        if (context?.[field] === undefined) continue;
+        out[field] = CLAIM_AS[kind](context[field]);
+    }
+    return out;
+}
+
+/**
+ * The facts a GM's own action wrote into its context, which a player's are written by the bridge's handlers.
+ * A Dynamic action's band is one since fix r2-H3: a GM's own picks it in its own window (`askDynamicDifficulty`)
+ * and leaves no ruling on a card, where a player's band is read (gm-bridge.mjs `dynamicRulingOf`).
+ */
+const OWN_FACTS = ["remnantId", "remnantScene", "repairId", "targetProjectId", "projectId", "progress", "bandIndex"];
+function ownFacts(data) {
+    return Object.fromEntries(OWN_FACTS.filter(f => data?.[f] !== undefined).map(f => [f, data[f]]));
+}
+
+/**
+ * Tell the GMs what was rolled: `roll.bookmark`, judged on the primary, kept by a GM
+ * here (gm-bridge.mjs `requestRollBookmark`). Nobody waits on it; a refusal is the
+ * GM's log line.
+ */
+async function tellGmsOfRoll(actor, bookmark) {
+    if (!actor?.id || !bookmark?.messageId) return;
+    const { requestRollBookmark } = await import("./gm-bridge.mjs");
+    await requestRollBookmark({
+        actorId: actor.id, messageId: bookmark.messageId, actionKey: bookmark.actionKey ?? null,
+        trait: bookmark.trait ?? null, experiences: bookmark.experiences ?? [],
+        context: rollClaims(bookmark.actionKey, bookmark), reportMessageId: bookmark.reportMessageId ?? null
+    });
+}
+
+/** The message of the roll the GMs keep for this character, or null - what a fact names as its writer starts. */
+export function rollOfNow(actorId) {
+    return game.user?.isGM ? rerollBookmarkStore.get(actorId ?? "")?.messageId ?? null : null;
+}
+
+/** The character and roll of `userId`'s newest kept roll of this action - for a request that names no character. */
+export function rollOfSender(userId, actionKey) {
+    if (!game.user?.isGM || !userId) return null;
+    let found = null;
+    for (const [actorId, row] of Object.entries(rerollBookmarkStore.entries())) {
+        if (row?.by !== userId || row.actionKey !== actionKey) continue;
+        if (!found || (row.at ?? 0) > found.at) found = { actorId, messageId: row.messageId, at: row.at ?? 0 };
+    }
+    return found;
+}
+
+/**
+ * `rollOfSender`, once it names `messageId` - or what it names after `ms` (E08+E28 C4a,
+ * 03.10.2026). A Work's progress names its roll, and leaves the roller's browser after the
+ * roll's report; but the report's run awaits before it keeps the row, and the progress was
+ * judged first in 40-flow's player Work (measured 03.10: the row's facts empty, so its Reroll
+ * replayed nothing). Asked only for a progress that names a roll; a report the GM refused
+ * keeps no row, and the wait ends at `ms`.
+ */
+export async function rollOfSenderNaming(userId, actionKey, messageId, ms = 1500) {
+    const end = Date.now() + ms;
+    let found = rollOfSender(userId, actionKey);
+    while (messageId && found?.messageId !== messageId && Date.now() < end) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        found = rollOfSender(userId, actionKey);
+    }
+    return found;
+}
+
+/**
+ * THE CARD A ROLL WAS REPORTED ON (E08+E28 C5, 03.10.2026; audit S02-21; the plan's 2.7).
+ * `report()` posts the action's card from the roller's browser after the roll, and its
+ * outcome paragraphs are built there from facts a replay changes, so the GM making a
+ * Reroll cannot rebuild them: it marks the card instead (reroll.mjs `markReplacedCard`).
+ * The roller names the card in its roll's bookmark; it is kept only when it is a card of
+ * the module's, not a roll, written by the roll's own sender, no older than the roll and
+ * under a minute old - as `guardRollAuthor` bounds the roll's own message. A card the GM
+ * has not seen yet is waited for (secret.mjs `messageArrives`). Null otherwise.
+ */
+const REPORT_CARD_MS = 60_000;
+
+async function reportCardOf(id, roll, by) {
+    if (typeof id !== "string" || !id || !by?.id) return null;
+    const { messageArrives, cardWriter } = await import("./secret.mjs");
+    const card = game.messages.get(id) ?? await messageArrives(id);
+    if (!card || card.id === roll.id || !card.getFlag?.(MODULE_ID, MESSAGE_FLAG) || isClaimedRoll(card)) return null;
+    // Its writer: in an incident the GM posts the roller's card for them (E08+E28 fix r2-H5).
+    if (cardWriter(card)?.id !== by.id) return null;
+    const at = card.timestamp ?? 0;
+    return at >= (roll.timestamp ?? 0) && Date.now() - at <= REPORT_CARD_MS ? card.id : null;
+}
+
+/**
+ * The run of `roll.bookmark`, and a GM's own roll's (E08+E28 C2). The guards tied the
+ * message to the sender and the character to them. The same roll again patches its
+ * row - the action's claims, which grow as it goes - and keeps its facts and the action,
+ * trait and experiences it was first told (fix r1-G1); another
+ * roll starts the row afresh, unless it is older than the one kept. The roll's card,
+ * once named, is kept beside them (`reportCardOf`, C5).
+ */
+export async function keepGmBookmark({ actorId, messageId, actionKey = null, trait = null, experiences = [], context = null,
+    reportMessageId = null } = {}, by = null) {
+    if (!game.user?.isGM) return null;
+    const actor = game.actors.get(actorId ?? "");
+    const message = game.messages.get(messageId ?? "");
+    if (!actor || !message) return null;
+    await rerollBookmarkStore.whenHydrated();
+    const key = typeof actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(actionKey) ? actionKey : null;
+    const told = {
+        actionKey: key,
+        trait: Object.hasOwn(TRAITS, trait ?? "") ? trait : null,
+        experiences: (Array.isArray(experiences) ? experiences : []).filter(e => typeof e === "string" && e.length <= 128).slice(0, 12),
+        claims: rollClaims(key, context)
+    };
+    const card = await reportCardOf(reportMessageId, message, by);
+    if (card) told.reportMessageId = card;
+    const held = rerollBookmarkStore.get(actor.id);
+    if (held?.messageId === message.id) {
+        // The same roll again: its claims, and its card once named. The action is the first
+        // one told (fix r1-G1; the review's S2): it chooses which replay reads the GM's facts,
+        // and a packet sent again for the same message within `guardRollAuthor`'s minute
+        // could rename it. Palm's hand roll is told as "steal" and renamed "palm" by its
+        // context - one replay (reroll.mjs `settleSteal`), and no claims under either; every
+        // other action names its key as it throws (`rollTrait`), so the first is the action's.
+        const again = { claims: rollClaims(held.actionKey ?? null, context), ...(card ? { reportMessageId: card } : {}) };
+        const facts = takeFactsAwaiting(message.id, actor.id, held);
+        if (Object.keys(facts).length) again.facts = { ...(held.facts ?? {}), ...facts };
+        return rerollBookmarkStore.patch(actor.id, again);
+    }
+    const kept = held ? game.messages.get(held.messageId ?? "") : null;
+    if (kept && (kept.timestamp ?? 0) > (message.timestamp ?? 0)) {
+        takeFactsAwaiting(message.id, actor.id, null);
+        return null;
+    }
+    const { dualityOfRoll } = await import("./reroll.mjs");
+    const { total, withFear, isCritical } = dualityOfRoll(message.rolls?.[0]);
+    // Every field, so a new roll leaves nothing of the last one behind - and the facts the GM
+    // wrote for this roll before its row was kept (`noteFactOfRoll`), taken with no await
+    // between them and the patch.
+    const row = { messageId: message.id, reportMessageId: null, ...told, total, withFear, isCritical,
+        first: foundry.utils.deepClone(message.toObject().rolls ?? []), stands: null,
+        room: roomOfActor(actor) ?? null, at: Date.now(), by: by?.id ?? null };
+    return rerollBookmarkStore.patch(actor.id, { ...row, facts: takeFactsAwaiting(message.id, actor.id, row) });
+}
+
+/**
+ * Write what a GM did for a roll onto that roll's row (E08+E28 C2): `messageId` is the
+ * row's as the writer started (`rollOfNow`); a row that has moved on since - or none -
+ * takes nothing. Merged into the row's facts. A GM's only.
+ */
+export async function noteRollFact(actorId, messageId, facts) {
+    if (!game.user?.isGM || !actorId || !messageId || !facts || !Object.keys(facts).length) return false;
+    const held = rerollBookmarkStore.get(actorId);
+    if (held?.messageId !== messageId) return false;
+    await rerollBookmarkStore.patch(actorId, { facts: { ...(held.facts ?? {}), ...facts } });
+    return true;
+}
+
+/*
+ * A FACT FOR THE ROLL ITS PACKET NAMES (E08+E28 fix r1-G1, 04.10.2026; the round-1 review's B1
+ * and M3 = S2). A player's Sabotage and a player's trace are carried out by the GM's handler
+ * (gm-bridge.mjs `handleSabotage`, `handleRemnant`), and that handler wrote the fact on the row
+ * it found as the packet arrived: the sender's newest Sabotage row, or the character's newest
+ * row of any kind. Both were wrong. `roll.bookmark` leaves the roller's browser first, but its
+ * run - three guards, the store's hydration, the card's lookup, an import - ended after the
+ * Sabotage's handler had read the store (the review's 97a/97b: 5 of 5 runs at f941051, and 2 of
+ * 3 of its 97 at d20fadb, no `targetProjectId` on the row, so the Reroll into a miss left the
+ * project frozen), and a trace
+ * of a roll that keeps no row (a discarded item's) was written on whatever the character had
+ * rolled before (99c, probe B: the Search's Reroll then lifted the discard's trace).
+ *
+ * So the packet names its roll's message (`rollId`, the roller's `rollInHand`; from C14 the
+ * record's id) and the fact goes on the row of that message only, and only when the row's `by`
+ * is the packet's sender, its character the one the packet names (when it names one) and its
+ * action one of `actions` - the replay that reads the fact. A row not kept yet is waited for: the
+ * fact is parked under the message's id and merged by `keepGmBookmark` as it creates the row
+ * (`takeFactsAwaiting`), in the same synchronous step as the store's patch, which writes its
+ * section before it awaits (gm-store.mjs `patch`) - so no reading in between can miss both. A
+ * fact still parked after the Reroll window (`TIMING.rerollWindowMinutes`), or whose row turned
+ * out to be another's, another action's or older than the row kept, is dropped and logged on
+ * this GM. The map is this client's, in memory: the primary GM judges every player's packet
+ * (gm-bridge.mjs, the `isPrimaryGm` gate), `roll.bookmark` included; a fact parked as the primary
+ * leaves, or reloads, is lost with it - its Reroll then takes back what the row holds, as before.
+ */
+const factsAwaitingRow = new Map();
+
+function dropStaleFacts(now = Date.now()) {
+    for (const [messageId, waiting] of factsAwaitingRow) {
+        const left = waiting.filter(w => now - w.at <= TIMING.rerollWindowMinutes * 60_000);
+        if (left.length === waiting.length) continue;
+        log(`Dropped ${waiting.length - left.length} fact(s) for roll ${messageId}: its row never came within the Reroll window.`);
+        if (left.length) factsAwaitingRow.set(messageId, left);
+        else factsAwaitingRow.delete(messageId);
+    }
+}
+
+/** Does a row of `actorId` take a fact asked for `by` this sender, for these actions? */
+function rowTakes(row, actorId, wanted) {
+    return row?.by === wanted.by && (!wanted.actorId || wanted.actorId === actorId) && wanted.actions.includes(row.actionKey);
+}
+
+/**
+ * The facts parked for `messageId`, as its row is created or patched: those the row takes,
+ * merged; the rest dropped and logged - nothing else will ever name that message's row.
+ */
+function takeFactsAwaiting(messageId, actorId, row) {
+    const waiting = factsAwaitingRow.get(messageId);
+    if (!waiting) return {};
+    factsAwaitingRow.delete(messageId);
+    const taken = {};
+    for (const w of waiting) {
+        if (rowTakes(row, actorId, w)) Object.assign(taken, w.facts);
+        else log(`Dropped a fact for roll ${messageId}: its row was not kept as ${w.by}'s ${w.actions.join("/")} roll.`, Object.keys(w.facts));
+    }
+    return taken;
+}
+
+/**
+ * Write `facts` on the row of the roll `messageId` names, or park them until `keepGmBookmark`
+ * keeps it (above). `by` is the user Foundry names as the packet's sender, `actorId` the
+ * character the packet names (null when it names none), `actions` the row's actions that take
+ * the fact. True when written or parked; false for a row that does not take it. A GM's only.
+ */
+export async function noteFactOfRoll(messageId, { by, actorId = null, actions }, facts) {
+    if (!game.user?.isGM || typeof messageId !== "string" || !messageId || !by || !facts || !Object.keys(facts).length) return false;
+    await rerollBookmarkStore.whenHydrated();
+    dropStaleFacts();
+    const wanted = { by, actorId, actions, facts, at: Date.now() };
+    const [rowActor, row] = Object.entries(rerollBookmarkStore.entries()).find(([, r]) => r?.messageId === messageId) ?? [];
+    if (!row) {
+        factsAwaitingRow.set(messageId, [...(factsAwaitingRow.get(messageId) ?? []), wanted]);
+        return true;
+    }
+    if (!rowTakes(row, rowActor, wanted)) {
+        log(`Refused a fact for roll ${messageId}: its row is not ${by}'s ${actions.join("/")} roll.`, Object.keys(facts));
+        return false;
+    }
+    await rerollBookmarkStore.patch(rowActor, { facts: { ...(row.facts ?? {}), ...facts } });
+    return true;
+}
+
+/*
+ * AND THE RESOLVERS' FACTS THE SAME WAY (E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1,
+ * its rest). A crisis action, an Analyze, a clean-up, an Observe and a Search's plant are carried
+ * out by a resolver on the GM, which read the character's row as it started (`rollOfNow`) - the
+ * same read as the Sabotage's, and as early: a Strike's packet leaves right after its roll's
+ * `roll.bookmark`. A row not kept yet took no fact, and a crisis row without one was settled as
+ * "the dice are the whole result" while the first throw's damage, trace and turn stood. Each
+ * packet names its roll now (`rollId`, the roller's `rollInHand`), and the resolver writes on that
+ * roll's row for the sender (`by`, the user Foundry names; this GM for its own) through
+ * `noteFactOfRoll`. A resolver run with no roll named - a crisis action taken without dice, a
+ * GM's macro - writes none. A Reroll's replay (`undo`) is a GM's alone (the bridge's
+ * `guardUndoIsTheGms`) and runs on the row the Reroll is being made on, so it keeps writing on
+ * the row it read as it started.
+ */
+
+/** Where a resolver's fact goes: `{ actorId, messageId }` for a replay, `{ actorId, rollId, by, actions }` for a first throw. */
+export function rollOfFact({ undo = false, rollId = null, by = null, actorId = null, actions = [] } = {}) {
+    if (undo) return { actorId, messageId: rollOfNow(actorId) };
+    return { actorId, rollId, by: by ?? game.user?.id ?? null, actions };
+}
+
+/** Write `facts` where `rollOfFact` said: true when written, or parked for its row. */
+export function noteFactOn(roll, facts) {
+    if (!roll) return false;
+    if ("messageId" in roll) return noteRollFact(roll.actorId, roll.messageId, facts);
+    return noteFactOfRoll(roll.rollId, { by: roll.by, actorId: roll.actorId, actions: roll.actions }, facts);
+}
+
 /**
  * THE OLD BOOKMARKS OUT OF WORLD DATA (E05 C7; audit S02-01) - the `dropRollBookmarks`
- * clause. Once, on the primary. Nothing is lifted: a bookmark is the newest roll, a
- * Reroll does not reach across an update, and a roll made before it is still found by
- * reroll.mjs's recent-chat scan. Every actor's `lastAction` flag is deleted in one
- * write (`forcedDeletion()`, `unsetFlag` in a Foundry without it) and read back; one
- * still there throws, so the world is not stamped and the next load tries again.
+ * clause. Once, on the primary. Nothing is lifted: a bookmark is the newest roll, and a
+ * Reroll does not reach across an update - since E08+E28 C4a it reads the GMs' row of the
+ * roll (`keepGmBookmark`), which a roll made before it never had. Every actor's
+ * `lastAction` flag is deleted in one write (`forcedDeletion()`, `unsetFlag` in a
+ * Foundry without it) and read back; one still there throws, so the world is not
+ * stamped and the next load tries again.
  * Idempotent: a world already through it holds none.
  *
  * AND EVERY TOKEN'S OWN ACTOR DATA (E05's fix round, S1-m4, 27.09.2026). 1.2.63 wrote the
@@ -1124,6 +1533,9 @@ async function diceSettled(messageId) {
 
 /** Apply the Hope/Sanity/Fear changes the roll produced, plus any costs. */
 async function commitResources(result) {
+    // A roll the GM drew was settled on the GM's client, costs and all (roll-draw.mjs
+    // `drawOnGm`, E08+E28 C12a): committing it here as well paid its Hope twice.
+    if (result?.[DRAWN_ROLL]) return;
     const updates = result?.resourceUpdates;
     if (!updates?.updateResources) return;
 
@@ -1345,7 +1757,8 @@ export function searchOdds(actor, room, category, vault) {
  * (`CONFIG.Dice.randomUniform`, mapped as its dice map it - forced-roll.mjs reads the same
  * `ceil((1 - u) * faces)`). Not a `Roll`: a roll would be a message, or a throw in Dice So
  * Nice for every screen, and either says a hidden stash is here to people the card does not
- * reach. The harness has no `randomUniform`, and the dice there are `Math.random`'s.
+ * reach. The harness's `randomUniform` is `Math.random` (since E08+E28 C10, which made its
+ * dice draw from it too); `Math.random` here is for a client that has none.
  */
 function stashDraw(n) {
     const u = typeof CONFIG?.Dice?.randomUniform === "function" ? CONFIG.Dice.randomUniform() : Math.random();
@@ -1410,10 +1823,25 @@ export function stashDiceOf(roll, actor = null) {
     return { sign: results.length ? (advantage ? 1 : -1) : 0, results, faces };
 }
 
-/** `stashStep` on this roll's dice, at roll-dialog.mjs's cap - the one call `performSearch` and a Reroll share. */
+/** `stashStep` on this roll's dice, at roll-dialog.mjs's cap - the one call the GM's draw, a Search thrown here and a Reroll share. */
 export async function stashStepFor(roll, actor, draw = stashDraw) {
     const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
     return stashStep({ ...stashDiceOf(roll, actor), cap: ADVANTAGE_CAP }, draw);
+}
+
+/**
+ * THE STEP A SEARCH TAKES (E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on C11e).
+ * The set-aside die's index and the extra die were drawn in the searcher's browser and were in
+ * no message, so nothing checked them. For a roll the GM drew, the GM drew the step with the
+ * dice where the room it sees the searcher in holds a hidden stash (roll-draw.mjs `drawOnGm`)
+ * and sent it back with them (`DRAWN_ROLL`'s `stash`): that step is taken, and none is drawn
+ * here - a step the GM did not draw is no step. A roll thrown here (no GM connected, or a
+ * Daggerheart the draw was not written for) draws its own as in 1.2.66.
+ */
+export async function stashStepOf(roll, actor, stashDie, draw = stashDraw) {
+    const drawn = roll?.raw?.[DRAWN_ROLL];
+    if (drawn) return drawn.stash && typeof drawn.stash === "object" && STASH_LINES[drawn.stash.kind] ? { ...drawn.stash } : null;
+    return stashDie ? stashStepFor(roll, actor, draw) : null;
 }
 
 /**
@@ -1600,6 +2028,8 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
     // concealment worth nothing at all. See `stealFromVault`.
     const res = await requestVaultSteal({
         thiefId: actor.id, ownerId: stashOwner.id, itemId: taken.id, viaSearch: true,
+        // The Search's roll: the GM reads whether it found the stash, and fumbled it, off its record (E08+E28 C15).
+        rollId: rollInHand(actor)?.messageId ?? null,
         // WAS THE HAND STEADY. The catalogue has said since E5 that `stolen`
         // is "heard by the victim, and only when the thief was clumsy enough
         // to be noticed", and there was no clumsiness in the code to read.
@@ -1660,7 +2090,9 @@ async function searchStash(actor, def, roll, { room, category, goalKey, tier, st
      * all returned, and each of those leaves the plant in the room (ACT-03).
      */
 async function searchDraw(room, category, tier, goalKey, actor = null) {
-    const plant = await SearchTokens.takePlant(room, undefined, { actorId: actor?.id ?? null });
+    // The roll it is drawn for, so the GMs' fact of it goes on that roll's row (fix r1-G2).
+    const plant = await SearchTokens.takePlant(room, undefined,
+        { actorId: actor?.id ?? null, rollId: actor ? rollInHand(actor)?.messageId ?? null : null });
 
     return plant
         ? {
@@ -1754,6 +2186,8 @@ async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, grante
             tiedToCrime: null,
             itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
             action: "search",
+            // The roll this trace is the Search's of, for the GMs' row (fix r1-G1).
+            rollId: rollInHand(actor)?.messageId ?? null,
             subject: drawn?.name ?? "",
             note: game.i18n.format("DRPG.Remnant.searchNote", {
                 actor: actor.name,
@@ -1850,9 +2284,10 @@ async function performSearch(actor, def, options) {
 
     // The hidden stash's step lands here, on the total the tiers read, and the card says
     // so (`situationLine`); the roll message keeps the dice's own total. The die it sets
-    // aside or rolls is on the card and in its meta beside the total that counts (`stash`,
-    // for E28), and nowhere else: no message of its own, no Dice So Nice (`stashDraw`).
-    const step = stashDie ? await stashStepFor(roll, actor) : null;
+    // aside or rolls is on the card and in its meta beside the total that counts (`stash`),
+    // and nowhere else: no message of its own, no Dice So Nice (`stashDraw`). The GM's
+    // for a roll it drew (`stashStepOf`, E08+E28 C12b).
+    const step = await stashStepOf(roll, actor, stashDie);
     const { hit, tier, score } = searchTier(roll, step?.change ?? 0, def);
     const extra = situationLine(step, score);
     const stash = step ? { ...step, score } : null;
@@ -2516,17 +2951,15 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     await breakOnDespair(actor, tool, roll);
 
-    // The critical branch is left alone: it never consulted a threshold.
-    const hit = roll.isCritical
-        ? def.critical
-        : resolveThreshold(roll.total, easedBy(def.thresholds, relief));
-    const thresholdProgress = hit?.progress ?? 0;
-    // The bonus only rides on top of progress that was actually earned.
-    const earnedBonus = thresholdProgress ? bonus : 0;
-    const progress = thresholdProgress + earnedBonus;
+    const { hit, progress, bonus: earnedBonus } = projectProgress(roll, { relief, bonus }, def);
 
     let applied = null;
-    if (progress > 0) applied = await addProgress(project.id, progress);
+    /* Named for this roll (E08+E28 C2): the GMs' bookmark keeps what it added, and a Call's progress names none.
+       Since C16 the GM adds what the roll earned on its record, with what only this browser saw - the tool's
+       relief and the concealment's bonus - held to what the rules allow (gm-bridge.mjs `progressOf`). */
+    if (progress > 0) {
+        applied = await addProgress(project.id, progress, { actorId: actor.id, rollId: rollInHand(actor)?.messageId ?? null, relief, bonus });
+    }
 
     // Reroll needs to know what this roll gave the project, so it can take the
     // same amount back before applying the new result.
@@ -2579,6 +3012,66 @@ async function workOnProject(actor, def, options, chosen = null) {
     return outcome;
 }
 
+/**
+ * What a Work on a Project's roll earns: the band its total reaches with the readied tool's
+ * `relief` off the bands (a critical reads none), and an indirect murder's concealment `bonus`
+ * on top of progress actually earned - `bonus` in the answer is the part that rode. The one
+ * reading `workOnProject` and the GM's (gm-bridge.mjs `progressOf`, E08+E28 C16) share.
+ */
+export function projectProgress(roll, { relief = 0, bonus = 0 } = {}, def = ACTIONS.project) {
+    const hit = roll?.isCritical ? def.critical : resolveThreshold(Number(roll?.total) || 0, easedBy(def.thresholds, relief));
+    const earned = hit?.progress ?? 0;
+    return { hit, progress: earned ? earned + bonus : 0, bonus: earned ? bonus : 0 };
+}
+
+/** A concealment of intent made with Despair adds this much (the guide); working alone adds `aloneBonus`. */
+const CONCEALED_WITH_DESPAIR = 1;
+/** The most a concealment adds to a Work's progress: the two never both apply (`projectExtrasHeld`). */
+export const PROJECT_BONUS_MOST = Math.max(INDIRECT_MURDER.concealIntent.aloneBonus ?? 0, CONCEALED_WITH_DESPAIR);
+
+/*
+ * WHAT ONLY THE ROLLER SAW OF A PROJECT'S ROLL, HELD THE SAME WAY EVERYWHERE THE GM SCORES IT
+ * (E08+E28 C16, 04.10.2026; one reading since fix r2-H3, 05.10.2026 - the round-2 review's M1 and
+ * S2-9). A Work's tool relief and concealment bonus and a Sabotage's concealment penalty and tool
+ * relief are the roller's word: the GM sees the tools and the project, not the readied hand or the
+ * concealment roll, which names no action. C16 held them on the first throw (gm-bridge.mjs
+ * `progressOf`, `repairOf`), and two other readers did not: the Reroll's replays scored the row's
+ * claims raw (reroll.mjs `settleProgress`, `settleSabotage`) - the review's EXP-R2 rerolled a Work
+ * claiming a bonus of 40 on a project that is no indirect murder into 13 and moved it 0 -> 41 - and
+ * a Sabotage's trace was banded with the tool readied on the sheet now (gm-bridge.mjs
+ * `traceBandOf`), so a tool that broke on a roll with Fear froze the project at the first band and
+ * left the trace at a miss's. All four read the claims through these two now, each with the throw
+ * the claims were made on (`roll`: `actorId`, `withFear`, `isCritical`):
+ *   - a concealment's bonus only on an indirect murder, at most `PROJECT_BONUS_MOST`;
+ *   - a concealment's penalty from what one thrown with Despair takes, `SABOTAGE_CONCEAL.despairPenalty`, to 0;
+ *   - a tool's relief at most what the GM sees in the character's hand - or, for a roll with Fear
+ *     that is no critical, whose Despair wears the readied tool before the packets leave
+ *     (use-items.mjs `breakOnDespair`), the best tool the character carries, broken or not.
+ */
+function heldTo(claimed, low, high) {
+    return Math.max(low, Math.min(high, Math.trunc(Number(claimed) || 0)));
+}
+
+function reliefHeld(roll, claimed) {
+    const actor = game.actors.get(roll?.actorId ?? "");
+    if (!actor) return 0;
+    const tools = roll.withFear && !roll.isCritical ? carriedFor(actor, "tool") : [equippedFor(actor, "tool")].filter(Boolean);
+    return heldTo(claimed, 0, Math.max(0, ...tools.map(tool => toolRelief(tool, tierOf))));
+}
+
+/** A Work's `relief` and `bonus` as `claimed` says them, held to the rules for `projectId`. */
+export function projectExtrasHeld(roll, claimed, projectId) {
+    return {
+        relief: reliefHeld(roll, claimed?.relief),
+        bonus: isIndirectMurder(projectId) ? heldTo(claimed?.bonus, 0, PROJECT_BONUS_MOST) : 0
+    };
+}
+
+/** A Sabotage's `penalty` and `relief` as `claimed` says them, held to the rules. */
+export function sabotageExtrasHeld(roll, claimed) {
+    return { penalty: heldTo(claimed?.penalty, SABOTAGE_CONCEAL.despairPenalty, 0), relief: reliefHeld(roll, claimed?.relief) };
+}
+
 // Guide: with someone else in the room, the killer must hide their intent
 // first; alone, the project simply gains +1 progress.
 async function concealProjectIntent(actor, { indirect, witnesses, paid, lines }) {
@@ -2599,7 +3092,7 @@ async function concealProjectIntent(actor, { indirect, witnesses, paid, lines })
                         : INDIRECT_MURDER.concealIntent.success)
                    : INDIRECT_MURDER.concealIntent.failure
             }</p>`);
-            if (ok && conceal.withFear) bonus += 1;
+            if (ok && conceal.withFear) bonus += CONCEALED_WITH_DESPAIR;
         } else {
             bonus += INDIRECT_MURDER.concealIntent.aloneBonus;
             lines.push(`<p><em>${game.i18n.localize("DRPG.Project.aloneBonus")}</em></p>`);
@@ -2860,11 +3353,15 @@ async function performSabotage(actor, def, options, preset = null) {
 
     let roll;
     try {
+        /* The relief rides the roll's own bookmark with the penalty (fix r2-H3; the round-2 review's
+           S2-9): the GM bands this Sabotage's trace with the relief claimed for the roll, held as its
+           repair holds it (gm-bridge.mjs `traceBandOf`), and the trace's packet leaves before
+           `noteRollContext` below tells the GMs anything more. */
         roll = await rollTrait(actor, trait, {
             actionKey: "sabotage",
             byGm,
             dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief + penalty)).join(" / "),
-            context: { room, targetProjectId: project.id, penalty, witnesses: witnesses.length }
+            context: { room, targetProjectId: project.id, penalty, relief, witnesses: witnesses.length }
         });
     } finally {
         calls.clearSituational();
@@ -2876,9 +3373,7 @@ async function performSabotage(actor, def, options, preset = null) {
     // `penalty` stays on the score and the relief stays on the bands: one is a
     // modifier the roll earned, the other is a change to what it has to beat.
     const score = roll.total + penalty;
-    const hit = roll.isCritical
-        ? def.critical
-        : resolveThreshold(score, easedBy(def.thresholds, relief));
+    const hit = sabotageHit(roll, { penalty, relief }, def);
     const success = Boolean(hit);
 
     // A successful sabotage freezes the project and spawns its repair. The
@@ -2892,9 +3387,16 @@ async function performSabotage(actor, def, options, preset = null) {
     // project and immediately trying to keep working on it could win the race:
     // the roll called it frozen before the world setting agreed.
     let repair = null;
+    /* Named, so the GM writes the freeze on this roll's row and no other (fix r1-G1); since E08+E28 C16 the
+       GM makes the repair the roll earned on its record, with this browser's concealment and tool held to
+       the rules (gm-bridge.mjs `repairOf`). A player's miss is sent too, as a repair of 0: it freezes
+       nothing and tells the GMs alone its target, for a Reroll of it that succeeds (the orchestrator's
+       decision of 04.10.2026). A GM's own row keeps its target from `noteRollContext` below. */
+    const named = { rollId: rollInHand(actor)?.messageId ?? null, actorId: actor.id, penalty, relief };
     if (success) {
-        const difficulty = sabotageRepairScale(roll, score, relief);
-        repair = await sabotageProject(project.id, difficulty);
+        repair = await sabotageProject(project.id, sabotageRepairScale(roll, score, relief), named);
+    } else if (!game.user.isGM) {
+        await sabotageProject(project.id, 0, named);
     }
     // The dice succeeded but nobody was there (or ready in time) to actually
     // write the freeze - say so rather than claiming a state that never
@@ -3047,11 +3549,20 @@ export function sabotageWatchedLine(actor, room, project) {
     });
 }
 
+/**
+ * The band of the Sabotage table a roll reaches, or null: `penalty` on its total (a concealment
+ * thrown with Despair), the readied tool's `relief` off the bands. The one reading `performSabotage`
+ * and the GM's band of the Sabotage's trace share (gm-bridge.mjs `traceBandOf`, E08+E28 C15).
+ */
+export function sabotageHit(roll, { penalty = 0, relief = 0 } = {}, def = ACTIONS.sabotage) {
+    return roll?.isCritical ? def.critical : resolveThreshold((Number(roll?.total) || 0) + penalty, easedBy(def.thresholds, relief));
+}
+
     // Guide's Sabotage table, by the repair project it demands:
     //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
     // The 12 band was creating a 4-progress "everyday" repair, one scale
     // step harder than the guide asks for.
-function sabotageRepairScale(roll, score, relief) {
+export function sabotageRepairScale(roll, score, relief) {
     return roll.isCritical
         ? PROJECT_SCALE.desperate.progress
         // This 18 is the same band `easedBy` just lowered, read a second
@@ -3073,6 +3584,7 @@ async function dropSabotageTrace(actor, def, roll, { project, room, success, hit
         visibility,
         faint: true,
         action: "sabotage",
+        rollId: rollInHand(actor)?.messageId ?? null,
         subject: project.name,
         note: game.i18n.format("DRPG.Remnant.sabotageNote", {
             actor: actor.name,
@@ -3593,7 +4105,7 @@ async function choosePalm(actor, def, targets, mine) {
  * branch below is "and what does a critical do here", and the answer is
  * "nothing, on purpose".
  */
-async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success }) {
+async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls }) {
     const { requestPlant } = await import("./gm-bridge.mjs");
     const res = await requestPlant({
         plannerId: actor.id,
@@ -3602,7 +4114,8 @@ async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, s
         total: hand.total,
         isCritical: Boolean(hand.isCritical),
         unseenTotal: shadow.total,
-        unseenCritical: Boolean(shadow.isCritical)
+        unseenCritical: Boolean(shadow.isCritical),
+        ...rolls
     });
 
     await noteRollContext(actor, {
@@ -3690,8 +4203,15 @@ async function performPalm(actor, def, options) {
     if (cost > 0 && !paid) return null;
 
     const unseen = def.unseen;
+    /*
+     * TOLD AS THE PALM'S OWN (E08+E28 C15, 04.10.2026; audit S10-06). The GM scores both rolls on
+     * its record of them (gm-bridge.mjs `action.steal`, `action.plant`), and holds each record to
+     * the action it was thrown for. The hand's is told as "steal", as it always was (the GMs'
+     * bookmark renames it "palm" by its context); this one, which told the GM no action until C15,
+     * is told as the action's own key. A supporting roll all the same: nothing remembers it (`remember: false`).
+     */
     const shadow = await rollTrait(actor, unseen.trait, {
-        remember: false, title: game.i18n.localize("DRPG.Steal.unseenRoll"),
+        remember: false, actionKey: "palm", title: game.i18n.localize("DRPG.Steal.unseenRoll"),
         dc: planting ? (def.plant?.unseen ?? unseen.threshold) : unseen.threshold
     });
     if (!shadow) return abort(actor, paid);
@@ -3720,7 +4240,9 @@ async function performPalm(actor, def, options) {
     const seen = !(shadow.isCritical || shadow.total >= unseenBar);
     const success = hand.isCritical || hand.total >= bar;
 
-    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success });
+    // The two rolls the GM scores, by their messages: the hand's is the one this browser keeps (`rollInHand`).
+    const rolls = { rollId: rollInHand(actor)?.messageId ?? null, unseenRollId: shadow.raw?.message?.id ?? shadow.raw?.message?._id ?? null };
+    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success, rolls });
 
     const chosenId = await chooseStolen(victim, hand, success);
 
@@ -3732,7 +4254,8 @@ async function performPalm(actor, def, options) {
         total: hand.total,
         isCritical: Boolean(hand.isCritical),
         unseenTotal: shadow.total,
-        unseenCritical: Boolean(shadow.isCritical)
+        unseenCritical: Boolean(shadow.isCritical),
+        ...rolls
     });
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
@@ -4081,7 +4604,9 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
         actorId: actor.id,
         key: observeKey,
         total: roll.total,
-        isCritical: Boolean(roll.isCritical)
+        isCritical: Boolean(roll.isCritical),
+        // The roll the GMs' fact of the result goes on (fix r1-G2).
+        rollId: rollInHand(actor)?.messageId ?? null
     });
 
     // Deliberately silent about the outcome: the verdict is the GM's to send,
@@ -4366,7 +4891,9 @@ async function analyseBullet(actor, def, roll, subject, charge = null) {
         actorId: actor.id,
         itemId: subject.id,
         total: roll.total,
-        isCritical: Boolean(roll.isCritical)
+        isCritical: Boolean(roll.isCritical),
+        // The roll the GMs' fact of the bullet goes on (fix r1-G2).
+        rollId: rollInHand(actor)?.messageId ?? null
     });
 
     /*
@@ -4491,7 +5018,9 @@ async function locateStash(actor, def, roll, request = "", charge = null) {
     const res = await requestStashSearch({
         actorId: actor.id,
         total: roll.total,
-        isCritical: Boolean(roll.isCritical)
+        isCritical: Boolean(roll.isCritical),
+        // The roll the GM scores the search on, from its own record of it (E08+E28 C14).
+        rollId: rollInHand(actor)?.messageId ?? null
     });
 
     // NOT `gmRuled`. A Reroll can genuinely replay this - the outcome follows
@@ -4585,6 +5114,24 @@ async function askWhatToAnalyze(actor, def, bullets) {
 }
 
 /**
+ * THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
+ * discovered or not, so opening Listen in a room with an unexplored neighbour printed that
+ * room's name - the one thing the fog and the refused crossing (`notConnectedText`) are
+ * careful never to say. A room this viewer has not been in is "Unexplored room 1, 2...",
+ * in the picker and in the answer alike, and the option values are indices, so the page
+ * carries no name either. A GM and the Mastermind, who know the map, see every name
+ * (`known` is `roomsKnownToMe()`, `null` for them). One function since E08+E28 fix r1-G4
+ * (04.10.2026): a Reroll's lines are built on the roller's browser from the same rooms
+ * (reroll.mjs `heardLines`), so the same door gets the same number twice.
+ */
+export function listenLabels(neighbours, known) {
+    let unexplored = 0;
+    return new Map(neighbours.map(r => [r, !known || known.has(r)
+        ? r
+        : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
+}
+
+/**
  * Listen - fully automatic, no GM.
  *
  * The guide's three outcomes map onto three amounts of information:
@@ -4609,17 +5156,7 @@ async function performListen(actor, def, options) {
         return null;
     }
 
-    /* THE DOORS, NOT THE ROOMS BEHIND THEM (22.09). The picker named every neighbouring room,
-       discovered or not, so opening Listen in a room with an unexplored neighbour printed that
-       room's name - the one thing the fog and the refused crossing (`notConnectedText`) are
-       careful never to say. A room this viewer has not been in is "Unexplored room 1, 2...",
-       in the picker and in the answer alike, and the option values are indices, so the page
-       carries no name either. A GM and the Mastermind, who know the map, see every name. */
-    const known = roomsKnownToMe();
-    let unexplored = 0;
-    const labelOf = new Map(neighbours.map(r => [r, !known || known.has(r)
-        ? r
-        : game.i18n.format("DRPG.Listen.unknownRoom", { n: ++unexplored })]));
+    const labelOf = listenLabels(neighbours, roomsKnownToMe());
 
     const options_ = neighbours
         .map((r, i) => `<option value="${i}">${foundry.utils.escapeHTML(labelOf.get(r))}</option>`)
@@ -5066,6 +5603,7 @@ async function performDynamic(actor, options) {
             visibility,
             faint: true,
             action: "dynamic",
+            rollId: rollInHand(actor)?.messageId ?? null,
             subject: description.slice(0, 60),
             note: game.i18n.format("DRPG.Remnant.dynamicNote", {
                 actor: actor.name,
@@ -5174,9 +5712,10 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
  * It reaches the popup's title bar and the chat card's whole ground from here.
  *
  * A Critical is checked first because a roll can be critical AND carry a side,
- * and the rarer fact is the one worth the colour.
+ * and the rarer fact is the one worth the colour. Exported for the Reroll, whose
+ * mark on the card it replaced is drawn in the new roll's colour (E08+E28 C5).
  */
-function rollTone(roll) {
+export function rollTone(roll) {
     return roll?.isCritical ? "critical"
         : roll?.withHope ? "hope"
             : roll?.withFear ? "fear" : null;
@@ -5203,8 +5742,13 @@ function rollHead(def, roll) {
     }) + dualityBar(roll);
 }
 
-async function report(actor, def, roll, outcome) {
-    if (!outcome) return;
+/**
+ * The action's card: posted from the roller's browser, to the owner and the GMs. Answers the
+ * card (null when there was nothing to report or nothing was posted), and names it to the GMs
+ * as the card of the roll it reports (`nameReportCard`, E08+E28 C5). Exported for the suite.
+ */
+export async function report(actor, def, roll, outcome) {
+    if (!outcome) return null;
 
     // The one moment at a roll the whole table waits for. Local: this runs on
     // the client that rolled, and the card it is about is on its way.
@@ -5328,7 +5872,7 @@ async function report(actor, def, roll, outcome) {
     // 26.09.2026; audit S10-05, S02-11): they were `flags.summary`, which every
     // browser holds, and 40-flow read p1's find off p2's copy of this card. They
     // travel with the words to the card's readers (secret.mjs `plainSummary`).
-    await whisperToOwner(actor, html, {
+    const card = await whisperToOwner(actor, html, {
         flags: {
             [MODULE_ID]: {
                 popupTitle: def.label,
@@ -5353,7 +5897,21 @@ async function report(actor, def, roll, outcome) {
         }
     });
 
+    await nameReportCard(actor, roll, card);
     log(`${actor.name}: ${def.label} = ${roll?.total}`);
+    return card ?? null;
+}
+
+/**
+ * The card a roll was reported on, told to the GMs with the roll's bookmark (E08+E28 C5; the
+ * plan's 2.7), so the Reroll that replaces the roll can mark it. Only for the roll this browser
+ * last told them of: a card that reports no roll message, or one this character has rolled
+ * again since, names nothing. The GM judges the card (`reportCardOf`).
+ */
+async function nameReportCard(actor, roll, card) {
+    const rollId = roll?.raw?.message?.id ?? roll?.raw?.message?._id ?? null;
+    if (!card?.id || !rollId || rollInHand(actor)?.messageId !== rollId) return;
+    await noteRollContext(actor, { reportMessageId: card.id });
 }
 
 /** Re-exported so other modules keep a single source for "where am I". */

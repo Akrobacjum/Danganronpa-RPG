@@ -23,27 +23,34 @@
  * the GMs alone - the author reads their own - and its document is emptied as
  * it is created (`neutralRollSource`); the GM learns whose roll it was from the
  * roller's report (`rollSubject`, below). The rules above are for the rolls the
- * module did not throw: a statistic clicked on a sheet, a Monocub's Meddle, a
- * GM's /roll. The incident's participants no longer read each other's rolls
+ * module did not throw: a Monocub's Meddle, Daggerheart's own item rolls, a GM's
+ * /roll, and a statistic clicked on a sheet where no GM draws it (roll-draw.mjs;
+ * since E08+E28 C13 the GM draws one, and writes it as it writes an action's). The
+ * incident's participants no longer read each other's rolls
  * off the whisper list - that list named them all to every console; the primary
  * GM sends them each other's dice instead (`relayIncidentDice`, E06 C6).
  *
  * WHAT A ROLL STILL SAYS (E06 C13, 28.09.2026), written down so nobody has to find it
  * again: its author and its moment, which Foundry stamps on the server - a roll a
  * player's browser throws names that player, and only E28, which throws a player's
- * dice on the GM, takes that away (the owner's answer Q2 (a); known-leaks.json
- * `roll-author`, measured by 11-killer-secrecy); its formula, which carries the
- * statistic's value; and, for a roll the module did not throw, Daggerheart's own card
- * and speaker. Who watches its dice fall is the section on the dice below
- * (`keepDiceToReaders`, `diceAudienceIds`). The GM handbook's section 1 tells the GM
- * the same, with what of it was measured.
+ * dice on the GM, takes that away (the owner's answer Q2 (a)): since E08+E28 C12a a
+ * player's action roll is drawn on the primary GM, who writes it (roll-draw.mjs), and
+ * since C13 a statistic from the sheet as well - 11-killer-secrecy reads the killer's
+ * opening roll written by the GM, known-leaks.json's `roll-author` until C12a. A roll still
+ * thrown in a player's browser - no GM connected, or a Daggerheart build the draw was not
+ * written for (roll-draw.mjs `reviewBuild`) - names that player as before. Then its formula,
+ * which carries the statistic's value; and, for a roll the module did not throw,
+ * Daggerheart's own card and speaker. Who watches its dice fall, and who reads a roll the
+ * GM drew, is the section on the dice below (`keepDiceToReaders`, `diceAudienceIds`,
+ * `relayDrawnDice`, `readableHere`). The GM handbook's section 1 tells the GM the same,
+ * with what of it was measured.
  */
 
 import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
-import { gmIds, ownerOf, error, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
-import { judge, table, pick, as, knownSender, owns, guardRollAuthor, bridgeRequest } from "./bridge-guards.mjs";
+import { gmIds, ownerOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
+import { judge, table, pick, as, knownSender, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
 // and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
@@ -82,10 +89,15 @@ export function registerPrivateRolls() {
     // for why a chat card's border cannot be a stylesheet rule.
     Hooks.on("renderChatMessageHTML", paintChatCard);
 
+    // A statistic the GM drew is headed by its roller's character, not by the GM (`signAsRoller`).
+    Hooks.on("renderChatMessageHTML", signAsRoller);
+
     // Everything already in the log is history. Registered here rather than at
     // module scope because `game.messages` does not exist until the world is
     // ready, and `ready` fires before the chat log has rendered a single card.
     Hooks.once("ready", rememberExistingMessages);
+    // The roller's own drawn rolls, readable again after a reload (fix r2-H7, `refillReadable`).
+    Hooks.once("ready", refillReadable);
 
     // Which character a roll is about, reported by the roller to the primary GM,
     // who judges it by the declaration below (`ROLL_ACTIONS`, E06 C5a) - and the
@@ -97,6 +109,9 @@ export function registerPrivateRolls() {
 
     // Dice So Nice asks every client whether to animate a message (E06 C6).
     Hooks.on("diceSoNiceMessagePreProcess", keepDiceToReaders);
+
+    // Who reads a roll the GM drew, asked before core's rule (E08+E28 C13, `readableHere`).
+    readableRule();
 
     // A Reroll rewrites a roll's dice, and the incident's audience sees it too.
     Hooks.on("updateChatMessage", onRollsRewritten);
@@ -263,6 +278,7 @@ function paintChatCard(message, element) {
         // module posts, so the class means exactly "we wrote this".
         if (message?.getFlag?.(MODULE_ID, MESSAGE_FLAG)) {
             html.classList.add("drpg-chat-card");
+            markReplaced(message, html);
 
             /* AND WHICH WAY ITS ROLL WENT.
              *
@@ -302,6 +318,61 @@ function paintChatCard(message, element) {
         // A card without its border is still a readable card.
         error("Could not paint a chat card", err);
     }
+}
+
+/*
+ * THE CARD A REROLL REPLACED (E08+E28 C5, 03.10.2026; audit S02-21; the plan's 2.7). The GM
+ * making a Reroll marks the action's card `rerolled = { from, to, tone, at }` (reroll.mjs
+ * `markReplacedCard`) - a private card's in the meta its readers keep with its words (fix r1-G6,
+ * read with `cardFlag`), any other's on its document - and every client that draws the card
+ * strikes its header's total and adds one line under the header - "Rerolled: 14 -> 4 (see the
+ * Reroll card)" - in the new roll's colour.
+ * Drawn here, never written into the words: a private card's words are its readers' alone
+ * (secret.mjs), and the GM, who sends its own copy of them again to carry the mark, sends them
+ * as they were.
+ *
+ * AFTER THE WORDS, NOT BEFORE. This hook is registered at init and secret.mjs's, which puts a
+ * private card's words into the element, at ready (module.mjs) - so on a private card this runs
+ * on the stub, and the words replace whatever it drew. The mark waits for the end of the hook's
+ * run (a microtask; every listener of `renderChatMessageHTML` runs in one synchronous call) and
+ * is drawn only where a header with a total is there to strike. Until fix r1-G6 (04.10.2026; the
+ * round-1 review's S4) that was the whole of "the totals reach nobody the card does not": the
+ * drawn line did not, but the mark was on a private card's document, which every browser holds.
+ * A private card's mark now arrives with its words, to its readers alone. The card's author may
+ * write a mark of their own, in its meta or on its document, as they wrote its words: the line is
+ * the card's own word, as the rest of it is.
+ */
+const REPLACED_LINE = "drpg-reroll-replaced";
+
+function markReplaced(message, html) {
+    const mark = cardFlag(message, "rerolled");
+    if (!mark || typeof mark !== "object") return;
+    queueMicrotask(() => {
+        try {
+            drawReplaced(html, mark);
+        } catch (err) {
+            error("Could not mark a card a Reroll replaced", err);
+        }
+    });
+}
+
+/** The struck total and the line, on a card element that holds the header; once. */
+function drawReplaced(html, mark) {
+    const head = html?.querySelector?.(".drpg-card-head");
+    const total = head?.querySelector(".drpg-card-total");
+    if (!total || html.querySelector(`.${REPLACED_LINE}`)) return false;
+    total.style.setProperty("text-decoration", "line-through");
+    const line = document.createElement("p");
+    line.className = REPLACED_LINE;
+    line.textContent = game.i18n.format("DRPG.Reroll.cardReplaced", { from: String(mark.from ?? "?"), to: String(mark.to ?? "?") });
+    const token = Object.hasOwn(OUTCOME_TOKEN, mark.tone ?? "") ? OUTCOME_TOKEN[mark.tone] : null;
+    if (token) {
+        line.dataset.tone = mark.tone;
+        const colour = outcomeColour(token);
+        if (colour) line.style.setProperty("color", colour);
+    }
+    head.after(line);
+    return true;
 }
 
 /**
@@ -536,8 +607,41 @@ const SUPERSEDED_FLAG = "supersededRoll";
  * BACKGROUNDED tab - the roll then hangs after its message exists - so this is
  * the ordinary case, not an exotic one. Marking the claim spent at the moment
  * it stamps means a hang can cost the roll it belongs to and nothing after it.
+ *
+ * AND EACH CLAIM IS ITS OWN ROLL'S (E08+E28 C11, 04.10.2026; audit S02-45). A
+ * claim took the first roll message created while it was open, whoever's roll
+ * it was. A module roll's window stays open as long as its player looks at it,
+ * and a statistic clicked on the sheet meanwhile - a reaction the GM asked for -
+ * created its message first: that card was stamped and hidden, emptied of its
+ * character, and the module's own roll kept Daggerheart's card with the
+ * character's name on it. Tier 2 "a statistic from the sheet thrown while a Work
+ * on Project window is open keeps its card" measures it in the harness, and
+ * 12-social on a player's browser. So each claim mints a nonce, the roll
+ * carries it on its config (`ROLL_NONCE`), and only the message whose first
+ * roll's options carry it is claimed.
  */
 let rollClaims = [];
+
+/**
+ * The key a claim's nonce rides under on the roll's config, which Daggerheart
+ * makes the roll's options (dhRoll.mjs:45-47 `createRollInstance`, and the
+ * message keeps them through `Roll#toJSON`; read in 2.10.5, not measured at a
+ * table). Random, minted per roll and kept nowhere but the open claim on the
+ * roller's browser, so the copy every browser holds on the message links the
+ * roll to nothing: `neutralRollOf` leaves it, and `reportClaimedRoll` reads it
+ * there once the roll has been emptied.
+ */
+export const ROLL_NONCE = "drpgRollNonce";
+
+/** The nonce a roll message's first roll carries (`ROLL_NONCE`), or null. `data` is the creation data, read where the document has no rolls. */
+function rollNonceOf(message, data = null) {
+    let roll = message?.rolls?.[0] ?? data?.rolls?.[0] ?? null;
+    if (typeof roll === "string") {
+        try { roll = JSON.parse(roll); } catch { return null; }
+    }
+    const nonce = roll?.options?.[ROLL_NONCE];
+    return typeof nonce === "string" && nonce ? nonce : null;
+}
 
 /**
  * Run something that posts a system roll card this module replaces with its own.
@@ -552,23 +656,37 @@ let rollClaims = [];
  * trait roll from the sheet has no module card to replace it and keeps its own,
  * which is the whole reason this is a claim and not a blanket rule.
  *
- * @param {() => Promise<any>} fn  the call that produces the roll.
+ * @param {(nonce: string) => Promise<any>} fn  the call that produces the roll; it puts `nonce` on the roll's config under `ROLL_NONCE`.
  * @param {object} [opts]
  * @param {Actor|null} [opts.subject]  the character the roll is about, reported as its message is created (`reportClaimedRoll`).
+ * @param {string|null} [opts.actionKey]  the action the roll is for, kept on the claim for the GM's draw (roll-draw.mjs); never on the roll.
+ * @param {object|null} [opts.facts]  what the GM's draw is told beside the roll (E08+E28 C12b): `calls`, the nonces of the
+ *   Calls the roll applied (the roll window's, `noteWindowCalls`), and `context`, the action's (a Search's category and
+ *   its stash). On the claim, in this browser's memory, and never on the roll, whose options its message keeps.
+ *
+ * The GM's draw of a player's roll (roll-draw.mjs `drawOnGm`, E08+E28 C12a) claims the
+ * message it writes with the roller's nonce, which the roll already carries (`nonce`), stamps
+ * the record's flags beside the claim's (`stamp`), names the user whose roll it is (`by`, C13):
+ * the primary shows its dice as theirs to everybody else who sees them (`relayDrawnDice`) -
+ * the roller plays them from the draw's answer - and hears the message created before
+ * Daggerheart's `toMessage` waits for Dice So Nice (`onCreated`). A statistic from the sheet
+ * keeps Daggerheart's card (`keepCard`, C13): its message is claimed - whispered to the GMs and
+ * emptied as it is created - but not hidden, since no card of the module's stands for it.
  */
-export async function supersedingRoll(fn, { subject = null } = {}) {
-    const claim = { spent: false, subject, reported: false };
+export async function supersedingRoll(fn, { subject = null, actionKey = null, facts = null, nonce = null, stamp = null, by = null, keepCard = false, onCreated = null } = {}) {
+    const claim = { spent: false, subject, actionKey, facts, reported: false, nonce: nonce ?? foundry.utils.randomID(), stamp, by, keepCard, onCreated };
     rollClaims.push(claim);
     try {
-        return await fn();
+        return await fn(claim.nonce);
     } finally {
         rollClaims = rollClaims.filter(c => c !== claim);
     }
 }
 
-/** Stamp a roll message created inside a claim, and say whether it was. See `supersedingRoll`. */
+/** Stamp a roll message created inside its own claim, and say whether it was. See `supersedingRoll`. */
 function claimRollMessage(message, data) {
-    const claim = rollClaims.find(c => !c.spent);
+    const nonce = rollClaims.length ? rollNonceOf(message, data) : null;
+    const claim = nonce ? rollClaims.find(c => !c.spent && c.nonce === nonce) : null;
     if (!claim) return false;
 
     const hasRoll = (message.rolls?.length ?? 0) > 0
@@ -577,8 +695,27 @@ function claimRollMessage(message, data) {
     if (!hasRoll) return false;
 
     claim.spent = true;
-    message.updateSource({ [`flags.${MODULE_ID}.${SUPERSEDED_FLAG}`]: true });
+    const stamp = Object.fromEntries(Object.entries(claim.stamp ?? {}).map(([key, value]) => [`flags.${MODULE_ID}.${key}`, value]));
+    message.updateSource({ ...(claim.keepCard ? {} : { [`flags.${MODULE_ID}.${SUPERSEDED_FLAG}`]: true }), ...stamp });
     return true;
+}
+
+/** The open claim whose roll carries this nonce: what the GM's draw is told of it (roll-draw.mjs). Null when none. */
+export function rollClaimOf(nonce) {
+    const claim = typeof nonce === "string" && nonce ? rollClaims.find(c => c.nonce === nonce) : null;
+    return claim ? { subject: claim.subject, actionKey: claim.actionKey, facts: claim.facts, keepCard: claim.keepCard } : null;
+}
+
+/**
+ * The Calls a roll window applied, kept on its roll's claim for the GM's draw (E08+E28 C12b;
+ * roll-dialog.mjs `onCloseApplication`): the window's list, which `throwDice`'s - read before
+ * the window opened - gives way to (E08+E28 C7). Synchronous, so it lands before the build goes
+ * on past the window. A claim without `facts` - a roll the module did not throw for an action -
+ * keeps nothing.
+ */
+export function noteWindowCalls(nonce, nonces) {
+    const claim = typeof nonce === "string" && nonce ? rollClaims.find(c => c.nonce === nonce) : null;
+    if (claim?.facts && typeof claim.facts === "object") claim.facts.calls = [...nonces];
 }
 
 /*
@@ -591,18 +728,21 @@ function claimRollMessage(message, data) {
  * author's one living character, so a GM's roll for a student, or a player's who plays two,
  * lost its award whenever the animation ran longer. The claim carries its character, and the
  * roller reports it from its own `createChatMessage`, before Daggerheart waits for anything;
- * the incident's dice (`relayIncidentDice`) leave with it. Claims are spent in the order their
- * messages are created, one message each, so the first spent claim not yet reported is this
- * message's. Measured with the harness's Dice So Nice holding the animation (`__dsnAnimation`):
- * tier 2 "a roll's character is kept before its dice have landed", and 13's "the victim's roll
- * reaches the killer while the victim's own dice still fall".
+ * the incident's dice (`relayIncidentDice`) leave with it. Measured with the harness's Dice So
+ * Nice holding the animation (`__dsnAnimation`): tier 2 "a roll's character is kept before its
+ * dice have landed", and 13's "the victim's roll reaches the killer while the victim's own dice
+ * still fall". The claim is found by the roll's nonce (`ROLL_NONCE`, E08+E28 C11), as it was
+ * spent: until C11 it was the first spent claim not yet reported, which held only while
+ * messages were created in the order their claims were spent.
  */
 function reportClaimedRoll(message, options, userId) {
-    if ((userId ?? message?.author?.id) !== game.user?.id || !isClaimedRoll(message)) return;
-    const claim = rollClaims.find(c => c.spent && !c.reported);
+    if ((userId ?? message?.author?.id) !== game.user?.id || !(isClaimedRoll(message) || isDrawnRoll(message))) return;
+    const nonce = rollNonceOf(message);
+    const claim = nonce ? rollClaims.find(c => c.spent && !c.reported && c.nonce === nonce) : null;
     if (!claim) return;
     claim.reported = true;
-    if (claim.subject) reportRollSubject(message, claim.subject);
+    if (claim.subject) reportRollSubject(message, claim.subject, { by: claim.by });
+    if (typeof claim.onCreated === "function") claim.onCreated(message);
 }
 
 /**
@@ -661,14 +801,17 @@ export function neutralRollSource(data, { alias = game.i18n.localize("DRPG.Secre
  * forced-roll.mjs reads it off the config as the dice are thrown, before the
  * message exists, and nothing reads it off a message (grep, 28.09.2026); the
  * harness's roll carries the config's other keys since the same fix, so a mark
- * like it shows. `data` stays as an empty object, not absent - d20Roll.mjs
+ * like it shows. The claim's nonce (`ROLL_NONCE`, E08+E28 C11) stays: it is
+ * minted for the one roll and kept nowhere else, so it names nobody, and the
+ * roller's browser reads it off the emptied message (`reportClaimedRoll`).
+ * `data` stays as an empty object, not absent - d20Roll.mjs
  * `configureModifiers` (:103) reads `options.data.system` as the constructor
  * runs; `effects` and `experiences` are read with `?.` there and in
  * dhRoll.mjs `bonusEffectBuilder` (:344-360), which rebuilds `bonusEffects`
  * from them. Nothing of the character is needed again but by a Reroll, which
  * rebuilds the formula: it takes the character's data from the actor and the
- * statistic and experiences from the roller's bookmark (reroll.mjs
- * `rollAsThrown`). A modifier keeps its value and loses its label - the
+ * statistic and experiences from the GMs' bookmark or, for a roll the GM drew,
+ * its record (reroll.mjs `rollAsThrown`). A modifier keeps its value and loses its label - the
  * formula is summed from the values (dhRoll.mjs `addModifiers`).
  *
  * Read in the source, not measured on a real message (LIVE-E06-02); the
@@ -862,7 +1005,8 @@ export function oldRollReaders(message) {
  * --------------------------------------------------------------------------
  * Three readers on the primary GM find the character a roll is about on its
  * message: the Despair award (despair-award.mjs `resolveActor`), the Reroll
- * receipts (reroll-receipts.mjs `actorIdsOf`) and the diagnostics - by the
+ * keeper (reroll-receipts.mjs `actorIdsOf`, which since E08+E28 C8 names the
+ * roll in the GMs' warning of a rewrite put back) and the diagnostics - by the
  * speaker and by Daggerheart's `system.source.actor`. Both name the roller's
  * character to every browser that holds the message, and since E06 C5b both
  * are emptied on every roll the module throws (`neutralRollSource`), which
@@ -873,10 +1017,12 @@ export function oldRollReaders(message) {
  * and the source are still read after it, for the rolls the module did not
  * throw and for those written before 1.2.65.
  *
- * In memory, like the Reroll receipts: a GM who reloads forgets what was
+ * In memory, as the primary's first throws are (reroll-receipts.mjs): a GM who reloads forgets what was
  * reported before, and such a message is read as an unclaimed one is - its
- * speaker, its source, then its author's one living character. E28 moves the
- * record into the GM's store behind the same function.
+ * speaker, its source, then its author's one living character. E28 kept it so:
+ * a roll the GM draws has its subject kept by that GM as it writes the message
+ * (roll-draw.mjs, `keepSubject`), in memory too; the GMs' store of drawn rolls
+ * (`rolls`) names the character as well, and this function does not read it.
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -886,11 +1032,12 @@ const rollSubjects = new Map();
 
 /*
  * HOW LONG, AND HOW MANY. A subject is read when the roll lands (the Despair
- * award) and again whenever a Reroll rewrites the roll (the receipt), which
- * the recent-chat scan allows up to `TIMING.rerollWindowMinutes` after it, so
- * that is how long one is kept. The E06 plan said twice `rerollReceiptMs`, ten
- * minutes: that would forget a roll a Reroll can still reach, and the receipt
- * would fall back to the author's character. Five hundred bounds a table that
+ * award) and again whenever a Reroll rewrites the roll (the receipt until
+ * E08+E28 C8; the GMs' warning of a player's rewrite put back since), which
+ * the GMs' row of the roll allows up to `TIMING.rerollWindowMinutes` after it, so
+ * that is how long one is kept. The E06 plan said twice the receipt's five
+ * minutes, ten: that would forget a roll a Reroll can still reach, and the
+ * receipt would have fallen back to the author's character. Five hundred bounds a table that
  * rolls faster than that; it is a bound, not a measured session.
  */
 const SUBJECTS_KEPT = 500;
@@ -899,8 +1046,12 @@ const SUBJECT_KEPT_MS = TIMING.rerollWindowMinutes * 60_000;
 /** message id -> the resolvers of `rollSubject` calls waiting for its report. */
 const subjectWaiters = new Map();
 
-/** Record a subject, forget what is too old or too many, and wake whoever waits for this one. */
-function keepSubject(messageId, actorId, userId) {
+/**
+ * Record a subject, forget what is too old or too many, and wake whoever waits for this one.
+ * Exported for the GM's draw (roll-draw.mjs, E08+E28 C12a): the roller's browser keeps the
+ * subject of the message the GM wrote for it, as it keeps one it threw, and asks nothing.
+ */
+export function keepSubject(messageId, actorId, userId) {
     const now = Date.now();
     rollSubjects.delete(messageId);
     rollSubjects.set(messageId, { actorId, userId, at: now });
@@ -927,8 +1078,71 @@ export const ROLL_ACTIONS = table({
         run: keepRollSubject,
         answer: "none", quiet: true,
         claims: { messageId: guardRollAuthor }
+    },
+    /*
+     * A PLAYER'S ROLL, DRAWN BY THE PRIMARY GM (E08+E28 C12a, 04.10.2026; audit S16-05; the
+     * plan's 3.3). The roller's browser configured the roll - Daggerheart's own hooks and window
+     * - and sends it unevaluated (roll-draw.mjs `drawnBuild`); the GM throws it, writes its
+     * message, settles its Hope, Stress and Fear, records it (`rollStore`) and answers with the
+     * faces it drew. The roll is the sender's own character's (`owns`) and a duality roll
+     * nobody has thrown, carrying the claim's nonce and built of dice, numbers and + or -
+     * (`guardDrawnRoll`); its dice, its critical and its kind are the GM's (roll-draw.mjs
+     * `onGmTerms`, fix r2-H8). What the roll adds up
+     * to beyond its dice is observed from C12b on, not refused (D2's allowance for 1.2.67):
+     * the statistic, the experiences, the Calls and the stash the packet names are the
+     * roller's word, held against what the GM knows (roll-draw.mjs `expectedFor`). What it
+     * costs is its experiences' Hope (`guardDrawnCosts`), and the action it is for one its
+     * character is taking now, drawn once (roll-draw.mjs `drawRefusal`; fix r2-H1).
+     */
+    "roll.draw": {
+        label: "DRPG.Bridge.what.roll.draw",
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardDrawnRoll, guardDrawnCosts],
+        sanitize: pick({ actorId: as.id, actionKey: as.maybeText, nonce: as.id, claimed: as.bool, loaded: as.id, costs: as.raw, roll: as.raw,
+            trait: as.maybeText, experiences: as.raw, calls: as.raw, context: as.raw, situational: as.num }),
+        run: drawRollOnGm,
+        answer: "reply",
+        claims: {
+            roll: guardDrawnRoll,
+            nonce: guardDrawnRoll,
+            costs: "a Hope of 1 for each experience the roll names that the sender's own character holds, the cost Daggerheart's window adds for one, else the draw is refused (guardDrawnCosts); drawOnGm (roll-draw.mjs) takes those Hopes off that character",
+            actionKey: "an action that character is taking now: one whose payment the GM saw and no draw has used, its crisis turn or its opening, drawn once (roll-draw.mjs drawRefusal); a roll naming none settles nothing",
+            loaded: "the Loaded Die is loaded on the GM only while that character's armed Calls hold this nonce and the roll applied it (roll-draw.mjs drawOnGm)",
+            experiences: "only the sender's own character's experiences count, at the value the GM holds; one beyond what an armed Call allows is flagged to the GMs (roll-draw.mjs checkRoll)",
+            calls: "only Calls armed on the sender's own character as the GM holds them count; the GM spends those and reads its expectation from them (roll-draw.mjs appliedCalls)",
+            context: "a Search's category and stash as the roller saw them: the room is the GM's, its favour and its hidden stash read by the GM (roll-draw.mjs expectedFor); a crisis roll's crisis action, judged against the incident at the draw (drawRefusal) and kept on the record its packet must match (bridge-guards.mjs rollRefusal)"
+        }
+    },
+    /*
+     * GRANT ALL, GRANT NONE, DECIDED ON THE PRIMARY GM (E08+E28 fix r2-H7, 05.10.2026; the
+     * round-2 review's m5). The GMs' card's buttons were decided on the GM who clicked, against
+     * its own copy of the log, so two GMs clicking within a round trip each found the rolls
+     * undecided and each granted them. Another GM's click asks the primary (roll-draw.mjs
+     * `askToDecide`), whose `decisions` run one after another, so each stamped roll is decided
+     * once. A GM's alone: a player has nothing to grant.
+     */
+    "roll.grant": {
+        label: "DRPG.Bridge.what.roll.grant",
+        guards: [gmOnly("only a GM grants a roll thrown with no GM connected")],
+        sanitize: pick({ messageIds: as.raw, grant: as.bool }),
+        run: grantRollsOnGm,
+        answer: "reply",
+        claims: { messageIds: "decideUnwitnessed (roll-draw.mjs) reads only the ids that are strings, and decides only a roll still stamped and undecided, once" }
     }
 });
+
+/** The run of `roll.grant`: the primary's own decision (roll-draw.mjs `decideUnwitnessed`), answered as the rolls granted. */
+async function grantRollsOnGm(payload) {
+    const { decideUnwitnessed } = await import("./roll-draw.mjs");
+    return { reply: await decideUnwitnessed(payload.messageIds, payload.grant) };
+}
+
+/** The run of `roll.draw`: the GM's draw, with the fields its whitelist lets through. */
+async function drawRollOnGm(payload, sender, ctx) {
+    const { drawOnGm } = await import("./roll-draw.mjs");
+    return drawOnGm({ actorId: payload.actorId, actionKey: payload.actionKey, nonce: payload.nonce, claimed: payload.claimed,
+        loaded: payload.loaded, costs: payload.costs, roll: payload.roll, trait: payload.trait, experiences: payload.experiences,
+        calls: payload.calls, context: payload.context, situational: payload.situational }, sender);
+}
 
 /** The run of `roll.subject`: its guards tied the message to the sender and the character to them. */
 function keepRollSubject(payload, sender, ctx) {
@@ -940,15 +1154,17 @@ function keepRollSubject(payload, sender, ctx) {
  * Tell the primary GM which character a roll the module threw is about - as
  * its message is created (`reportClaimedRoll`), and again from `throwDice`
  * (action-rolls.mjs) once the roll has returned, which says nothing when the
- * first did. Kept on this client as well: the roller's own Reroll finds its
- * roll by it (`belongsTo`, reroll.mjs). A primary GM's own roll is recorded
- * without a packet.
+ * first did. Kept on this client as well (`keptRollSubject`), where the roll's
+ * dice audience reads it; the roller's own Reroll found its roll by it
+ * (reroll.mjs `belongsTo`) until E08+E28 C4a. A primary GM's own roll is recorded
+ * without a packet; one it drew for a player (`by`, the roller) has its dice shown
+ * as theirs (`relayDrawnDice`, E08+E28 C13).
  */
-export function reportRollSubject(message, actor) {
+export function reportRollSubject(message, actor, { by = null } = {}) {
     const messageId = message?.id ?? message?._id ?? null;
     if (!messageId || !actor?.id || keptRollSubject(message) === actor.id) return;
     keepSubject(messageId, actor.id, game.user?.id ?? null);
-    if (isPrimaryGm()) return relayIncidentDice(message);
+    if (isPrimaryGm()) return by ? relayDrawnDice(message, by) : relayIncidentDice(message);
     const decl = ROLL_ACTIONS["roll.subject"];
     void bridgeRequest("roll.subject", { messageId, actorId: actor.id }, { settle: decl.answer, quiet: decl.quiet });
 }
@@ -956,6 +1172,14 @@ export function reportRollSubject(message, actor) {
 /** Is this a roll the module threw - a message `supersedingRoll` claimed as it was created? */
 export function isClaimedRoll(message) {
     return Boolean(message?.getFlag?.(MODULE_ID, SUPERSEDED_FLAG));
+}
+
+/** The flag the GM's draw stamps on the message it writes (roll-draw.mjs `writeDrawnMessage`, E08+E28 C12a). */
+const DRAWN_FLAG = "drawn";
+
+/** Is this the message of a roll a GM drew for a player - an action's, or a statistic from the sheet (E08+E28 C13)? */
+export function isDrawnRoll(message) {
+    return Boolean(message?.getFlag?.(MODULE_ID, DRAWN_FLAG));
 }
 
 /** The character this client was told (or knows, having thrown it) a roll is about, as an id, or null. */
@@ -1003,11 +1227,12 @@ export function rollSubjectNow(message) {
  * message is created, and the roller's report leaves as the roller's browser
  * sees it created (`reportClaimedRoll`), a round trip later, so on the primary
  * GM the report usually comes second. An unclaimed roll is never reported and
- * is not waited for.
+ * is not waited for; a statistic from the sheet the GM drew keeps its card and
+ * is not claimed, and is waited for as the GM's draw keeps its subject (E08+E28 C13).
  */
 export async function rollSubject(message, { waitMs = 0 } = {}) {
     if (!message) return null;
-    if (waitMs > 0 && !keptRollSubject(message) && isClaimedRoll(message)) await subjectReported(message.id, waitMs);
+    if (waitMs > 0 && !keptRollSubject(message) && (isClaimedRoll(message) || isDrawnRoll(message))) await subjectReported(message.id, waitMs);
     return rollSubjectNow(message);
 }
 
@@ -1045,12 +1270,18 @@ function subjectReported(messageId, ms) {
  *   in the fight, the incident's audience at that stage (`incidentAudienceIds`). The one
  *   rule; E28, which throws the players' dice on the GM, asks it too.
  * - `relayIncidentDice`: the primary GM, once it keeps a roll's subject (or sees
- *   a Reroll rewrite its rolls), sends `dice.show { id }` to that audience less
+ *   its rolls rewritten by a GM's hand - a player's is put back since E08+E28 C8;
+ *   a Reroll's GM sends its own, `relayRerolledDice`),
+ *   sends `dice.show { id }` to that audience less
  *   the GMs, the author and whoever rewrote it, by addressed socket. The packet
  *   carries the message's id and nothing else; each receiver plays the rolls of
  *   its own copy of the message (`showRelayedDice`), which every browser holds -
  *   unless it can read the roll, as every client can when rolls are not forced
  *   private: Dice So Nice has animated it there already (E06 fix r1-G2).
+ * - A roll the GM drew for a player (E08+E28 C13, roll-draw.mjs): Dice So Nice's own
+ *   decision is off for it on every browser (`keepDiceToReaders`), and the primary GM shows
+ *   it as the roller's dice to the rest of its audience (`relayDrawnDice`); the roller plays
+ *   the draw's answer. Who may read it beside the GMs is each browser's own `readableHere`.
  *
  * At the stage the roll is reported at, `openingRoll` or `incident` (E06 fix r1-G3,
  * 28.09.2026; review M4, the owner's rule read as written: each incident roll). At the
@@ -1067,15 +1298,203 @@ function subjectReported(messageId, ms) {
 const DICE_SHOW = "dice.show";
 
 /**
+ * The update option a Reroll's rewrite carries (reroll.mjs, E08+E28 C4a): its dice are sent
+ * by the GM that made it (`relayRerolledDice`), so the relay below sends nothing for it.
+ */
+export const REROLL_SHOWN = "drpgRerollShown";
+
+/**
  * `diceSoNiceMessagePreProcess` (Dice So Nice 6.0 and later): the decision is the
  * hook's `interception.willTrigger3DRoll`, and a listener may turn it off. Only
  * off, and only when rolls are forced private - a table that shows its rolls
  * keeps Dice So Nice's own choice.
+ *
+ * Except for a roll the GM drew (E08+E28 C13; the owner's note of 27.09: nobody is ever
+ * shown "the GM rolled"), off on every browser, forced private or not: its author is the
+ * GM, so Dice So Nice would throw it in the GM's colours wherever it animates it. Its dice
+ * are the relay's, in the roller's (`relayDrawnDice`). Dice So Nice's wait for the
+ * message's animation then answers at once (Dice3D.js `waitFor3DAnimationByMessageID`,
+ * read in 6.3.1: a message not animating resolves), so the GM's `toMessage` holds nothing.
  */
 function keepDiceToReaders(messageId, interception) {
-    if (!interception || !game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
+    if (!interception) return;
     const message = game.messages.get(messageId ?? "");
+    if (isDrawnRoll(message)) return void (interception.willTrigger3DRoll = false);
+    if (!game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
     if (message && !message.isContentVisible) interception.willTrigger3DRoll = false;
+}
+
+/*
+ * READABLE HERE (E08+E28 C13, 04.10.2026; the plan's 3.4). A roll the GM drew is the GM's
+ * message, whispered to the GMs and naming nobody (Q2 (a)) - so its roller's browser, which
+ * wrote and read it as its author until C12a, is on no list, and nor is the incident's
+ * audience, which E06 sends each incident roll. Putting them on the whisper would name them to
+ * every console again. So each browser decides for itself: `readableHere` holds the messages it
+ * was told it may read - by the draw's answer (roll-draw.mjs `playBack`) or by a GM's
+ * `dice.show` - and `drawsAwaited` the nonces of the rolls it is waiting on the GM to draw
+ * (`awaitDrawn`), so the roller reads its roll from the moment the GM's message arrives,
+ * before the answer: Foundry tells the chat log of a message as it is created. A patch of
+ * `ChatMessage#isContentVisible` asks it before core's rule (`readableRule`; patches.mjs), so
+ * `enforceContentVisibility`, Daggerheart's card and the Chat pip read one answer. Nothing is
+ * written and nobody's list changes: the document is on every browser already, and a console
+ * that fills its own set reads only what it holds anyway (a whisper reaches every browser).
+ * Bounded as the kept subjects are.
+ *
+ * A RELOAD KEEPS THE ROLLER'S OWN (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m7). The
+ * set was memory alone, so after a reload every sheet roll the GM had drawn for this browser
+ * showed in its own log as a hidden roll - in 1.2.66 the roller read it as its author, and the
+ * owner's 27.09 rule is that the roller sees the result of every roll the GM drew. The draw's
+ * answer (`keep`) also writes the id to this browser's storage (`SETTINGS.readableRolls`, under
+ * the world and the user, bounded as the set), and `refillReadable` reads them back at `ready`.
+ * A GM's `dice.show` is not kept: an incident's audience that reloads reads the fight's earlier
+ * rolls no more, as before this fix.
+ */
+const readableHere = new Set();
+const drawsAwaited = new Set();
+const READABLE_KEPT = 500;
+
+/** Where this world's and this user's kept ids are, in `SETTINGS.readableRolls`. */
+const readableKey = () => `${game.world?.id ?? ""}.${game.user?.id ?? ""}`;
+
+/**
+ * Let this browser read a message (`readableHere`): the draw's answer, or a GM's `dice.show`.
+ * `keep`: the roller's own drawn roll, kept for after a reload as well.
+ */
+export function readHere(messageId, { keep = false } = {}) {
+    if (typeof messageId !== "string" || !messageId) return;
+    readableHere.delete(messageId);
+    readableHere.add(messageId);
+    for (const id of readableHere) {
+        if (readableHere.size <= READABLE_KEPT) break;
+        readableHere.delete(id);
+    }
+    if (keep) void keepReadable(messageId);
+}
+
+async function keepReadable(messageId) {
+    try {
+        const all = { ...(getSetting(SETTINGS.readableRolls) ?? {}) };
+        const ids = (Array.isArray(all[readableKey()]) ? all[readableKey()] : []).filter(id => id !== messageId);
+        ids.push(messageId);
+        all[readableKey()] = ids.slice(-READABLE_KEPT);
+        await game.settings.set(MODULE_ID, SETTINGS.readableRolls, all);
+    } catch (err) {
+        debug("Could not keep a drawn roll readable after a reload", err);
+    }
+}
+
+/**
+ * At `ready`: the set is what this browser kept for this world and user (`readHere`'s `keep`),
+ * as a reload leaves it - what was only in memory is gone. Ids whose message is gone are dropped
+ * from the set, not from storage. Answers how many were read back.
+ */
+export function refillReadable() {
+    readableHere.clear();
+    let ids = [];
+    try {
+        const kept = getSetting(SETTINGS.readableRolls)?.[readableKey()];
+        ids = Array.isArray(kept) ? kept.filter(id => typeof id === "string" && game.messages?.has(id)) : [];
+    } catch (err) {
+        debug("Could not read the drawn rolls this browser kept", err);
+    }
+    for (const id of ids.slice(-READABLE_KEPT)) readableHere.add(id);
+    return readableHere.size;
+}
+
+/** This browser waits on the GM to draw the roll carrying `nonce`; answers the call that stops waiting. */
+export function awaitDrawn(nonce) {
+    if (typeof nonce !== "string" || !nonce) return () => {};
+    drawsAwaited.add(nonce);
+    return () => drawsAwaited.delete(nonce);
+}
+
+/** May this browser read this message by `readableHere`'s rule - beside core's, which the patch asks after it? */
+export function isReadableHere(message) {
+    if (!message?.id) return false;
+    if (readableHere.has(message.id)) return true;
+    return drawsAwaited.size > 0 && isDrawnRoll(message) && drawsAwaited.has(rollNonceOf(message));
+}
+
+/** Marks the patched getter, so a second registration is a no-op and patches.mjs can recognise it. */
+const READABLE_RULE = Symbol.for("drpgReadableHere");
+
+/**
+ * Put `isReadableHere` before core's `isContentVisible`, on the prototype that defines the getter
+ * (Foundry's ChatMessage; Daggerheart's subclass does not override it, chatMessage.mjs in 2.10.5).
+ * Where there is no such getter nothing is installed and the log says so.
+ */
+function readableRule() {
+    let proto = (CONFIG.ChatMessage?.documentClass ?? foundry.documents?.ChatMessage)?.prototype ?? null;
+    while (proto && !Object.hasOwn(proto, "isContentVisible")) proto = Object.getPrototypeOf(proto);
+    const core = proto ? Object.getOwnPropertyDescriptor(proto, "isContentVisible") : null;
+    if (typeof core?.get !== "function") {
+        warn("ChatMessage has no isContentVisible getter here, so a roll the GM drew is not readable on its roller's browser - see diagnosePatches().");
+        return;
+    }
+    if (core.get[READABLE_RULE]) return;
+    const drpgReadableHere = function () {
+        return isReadableHere(this) || core.get.call(this);
+    };
+    drpgReadableHere[READABLE_RULE] = true;
+    drpgReadableHere.wrapped = core.get;
+    Object.defineProperty(proto, "isContentVisible", { ...core, get: drpgReadableHere });
+}
+
+/*
+ * A DRAWN STATISTIC IS HEADED BY ITS ROLLER'S CHARACTER (E08+E28 fix r2-H4, 05.10.2026; review S2-2; the
+ * owner's note of 27.09: the card shows the roller's character to everyone allowed, and nobody is ever
+ * shown "the GM rolled"). A statistic from the sheet the GM drew keeps Daggerheart's card (roll-draw.mjs
+ * `keepCard`), and its message is the GM's and names no actor (Q2 (a)) - so Daggerheart heads it with its
+ * author: `renderHTML` hands the template the author's avatar and no name where the speaker names no
+ * actor, and the template draws the author's name, or under the message's title the private cards'
+ * speaker with "(GM)" (chatMessage.mjs:26-36, chat-message.hbs:3-44, read in 2.10.5). Measured on the
+ * harness's model of that header (client-entry.mjs `renderHTML`, 05.10.2026) before this fix: on the
+ * roller's screen as the card arrived and after, on the GM's and on a reader's where rolls are not
+ * forced private, "GM" over "GM" and the GM's portrait (the harness's GM has no avatar, so Daggerheart's
+ * mystery man); on the GM's under a title, "Duality Roll" over "Monokuma (GM)". On a browser that reads
+ * the card its header is drawn again as Daggerheart heads a character's roll: the character's
+ * portrait, and its name under the title or, with none, as the heading. The character is the one this
+ * browser can tell (`drawnSubjectHere`); where it can tell none - after a reload, past the Reroll's
+ * reach, before a GM's packet arrives - the header names nobody: Daggerheart's mystery man and no name.
+ * A card this browser cannot read is hidden already (`enforceContentVisibility`), and an action's card
+ * everywhere, the module's own card speaking for it. A header of another shape than 2.10.5's is left as
+ * drawn; the suite reads the real one at a table (tests-tier2.mjs, "headed by its roller's character").
+ */
+const MYSTERY_MAN = "icons/svg/mystery-man.svg";
+
+function signAsRoller(message, element) {
+    try {
+        if (!isDrawnRoll(message) || isClaimedRoll(message) || !message.isContentVisible) return;
+        const header = (element instanceof HTMLElement ? element : element?.[0])?.querySelector?.(".message-header");
+        if (!header) return;
+        const subject = drawnSubjectHere(message);
+        const name = subject?.name ?? "";
+        header.querySelector(".portrait img")?.setAttribute("src", subject?.img || MYSTERY_MAN);
+        const heading = header.querySelector(".message-header-main > h4");
+        const line = header.querySelector(".subtitle .name");
+        if (message.title) {
+            if (line) line.textContent = name;
+            return;
+        }
+        if (heading) heading.textContent = name;
+        if (line) line.textContent = "";
+    } catch (err) {
+        error("Could not head a drawn roll with its roller", err);
+    }
+}
+
+/**
+ * The character a roll the GM drew is about, as this browser can tell it: the one it keeps for the
+ * roll - the primary GM as it drew it (`reportRollSubject`), the roller from the draw's answer
+ * (roll-draw.mjs `playBack`), any other reader from a GM's `dice.show` (`showRelayedDice`) - or,
+ * while the roll is still being drawn, its own open claim's: the roller's chat log draws the card
+ * the moment the GM's message arrives, before the answer. Null when none.
+ */
+function drawnSubjectHere(message) {
+    const kept = game.actors.get(keptRollSubject(message) ?? "");
+    if (kept) return kept;
+    const nonce = rollNonceOf(message);
+    return (nonce ? rollClaims.find(c => c.nonce === nonce)?.subject : null) ?? null;
 }
 
 /**
@@ -1104,6 +1523,46 @@ export function diceAudienceIds(message, state = murderState()) {
 }
 
 /**
+ * WHO SEES THE DICE OF A ROLL THE GM DREW (E08+E28 C13; the plan's 3.4), as user ids: where
+ * rolls are forced private, `diceAudienceIds` - the GMs and, for a character seated in the
+ * incident, its audience, read with the roll's subject as the draw kept it - with the roller
+ * (`by`) and, for a Monocub, whoever stands in its room (`sameRoomAudience`, `whisperRoll`'s
+ * rule, the owner's Q3 (b)) - through the relay, not a list; where they are not, every connected
+ * user, whose Dice So Nice threw each public roll until this commit. A bystander gets nothing.
+ */
+export function drawnDiceAudienceIds(message, by = null, state = murderState()) {
+    if (!game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return game.users.filter(u => u.active).map(u => u.id);
+    const subject = game.actors.get(keptRollSubject(message) ?? "") ?? null;
+    const room = subject?.getFlag(MODULE_ID, FLAGS.monocub) ? sameRoomAudience(subject) : [];
+    return [...new Set([...diceAudienceIds(message, state), ...(by ? [by] : []), ...room])];
+}
+
+/**
+ * A ROLL THE GM DREW, SHOWN AS ITS ROLLER'S (E08+E28 C13; the owner's note of 27.09: the
+ * roller sees the roll as their own, and nobody is shown "the GM rolled"). On the primary, as
+ * it keeps the roll's subject (`reportRollSubject`): `dice.show { id, by }` to the rest of
+ * `drawnDiceAudienceIds` - the roller left out, who plays the draw's answer (roll-draw.mjs
+ * `playDice`) - and the dice on this screen as `by`'s. Each receiver plays its own copy's rolls
+ * as `by`'s dice (`showRelayedDice`). Not awaited: the draw does not wait for an animation.
+ * How it looks at a real table, with and without Dice So Nice, is LIVE-E28-01 and -02. A
+ * statistic from the sheet, whose Daggerheart card its readers draw, sends its character too
+ * (`subject`, fix r2-H4): each of them heads the card with it (`signAsRoller`). The packet
+ * reaches only those the roll's dice reach.
+ */
+function relayDrawnDice(message, byId) {
+    if (!message?.id || !isPrimaryGm()) return;
+    const by = game.users.get(byId ?? "") ?? null;
+    const recipients = drawnDiceAudienceIds(message, by?.id ?? null).filter(id => id !== game.user?.id && id !== by?.id);
+    const subject = isClaimedRoll(message) ? null : keptRollSubject(message);
+    try {
+        if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null, ...(subject ? { subject } : {}) }, { recipients });
+    } catch (err) {
+        error("Could not send the dice of a roll the GM drew", err);
+    }
+    void playRolls(message, by ?? game.user);
+}
+
+/**
  * Send the incident's audience a roll's dice (the primary GM alone): those of
  * `diceAudienceIds` who are not GMs, not its author and not in `except` - the GMs
  * and the author read the message and Dice So Nice shows it to them itself.
@@ -1120,10 +1579,56 @@ function relayIncidentDice(message, { except = [] } = {}) {
     }
 }
 
-/** `updateChatMessage`, on the primary GM: a roll the module threw was given new dice - a Reroll. */
+/**
+ * `updateChatMessage`, on the primary GM: a roll the module threw was given new dice by
+ * somebody's own hand. A Reroll's rewrite says so (`REROLL_SHOWN`), and its dice have been
+ * sent already. On the primary that made it the option is the one it passed; one another GM
+ * made reaches it through Foundry's broadcast of the update, which carries its options -
+ * read in Foundry's source, not measured at a real table.
+ */
 function onRollsRewritten(message, changes, options, userId) {
     if (!changes || !Object.hasOwn(changes, "rolls") || !isPrimaryGm() || !isClaimedRoll(message)) return;
+    if (options?.[REROLL_SHOWN]) return;
+    // A rewrite by a user who is not a GM is put back (reroll-receipts.mjs `judgeRewrite`,
+    // E08+E28 C8), so its dice are nobody's to watch.
+    if (!game.users.get(userId ?? "")?.isGM) return;
     relayIncidentDice(message, { except: [userId] });
+}
+
+/**
+ * A REROLL'S DICE, FROM THE GM THAT MADE IT (E08+E28 C4a, 03.10.2026; the owner's rule of
+ * 27.09: the roller sees the roll as their own). The roller's own browser threw them to
+ * the roll's readers until C4a (reroll.mjs's `showRerolledDice`, a synchronised
+ * throw Dice So Nice sent to every client and filtered as it arrived); the GM rewrites the
+ * message now, and Dice So Nice animates no update. So the GM sends `dice.show { id, by,
+ * rewrite }` to the readers of `diceAudienceIds` and the roller (`by`, the user whose
+ * browser threw the roll), and plays them on its own screen; each receiver plays its own
+ * copy's new rolls as `by`'s dice (`showRelayedDice`). Not awaited on this screen: the
+ * Reroll does not wait for an animation. How it looks at a real table, with and without
+ * Dice So Nice, is not measured here. A roll the GM drew goes to the audience its draw's dice
+ * went to (`drawnDiceAudienceIds`, E08+E28 C13), the roller included.
+ */
+export function relayRerolledDice(message, byId = null) {
+    if (!message?.id) return;
+    const by = game.users.get(byId ?? "") ?? message.author ?? null;
+    const audience = isDrawnRoll(message) ? drawnDiceAudienceIds(message, by?.id ?? null) : [...diceAudienceIds(message), ...(by?.id ? [by.id] : [])];
+    const recipients = [...new Set(audience)].filter(id => id !== game.user?.id);
+    try {
+        if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null, rewrite: true }, { recipients });
+    } catch (err) {
+        error("Could not send a Reroll's dice", err);
+    }
+    void playRolls(message, by ?? game.user);
+}
+
+/** A message's rolls on this screen as `user`'s dice, or the dice sound where Dice So Nice is not. */
+async function playRolls(message, user) {
+    try {
+        if (typeof game.dice3d?.showForRoll !== "function") return void foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
+        for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, user, false);
+    } catch (err) {
+        error("Could not show a roll's dice", err);
+    }
 }
 
 /**
@@ -1133,21 +1638,50 @@ function onRollsRewritten(message, changes, options, userId) {
  * they fell instead of veiling a roll this client cannot read, and only here.
  *
  * NOT A ROLL THIS CLIENT READS (E06 fix r1-G2, 28.09.2026; review F2). With rolls
- * not forced private a roll the module threw is public, Dice So Nice animates it on
- * every client, and a Reroll's dice go to everybody (reroll.mjs `showRerolledDice`) -
- * so the relay played each incident roll a second time on every other participant's
- * screen. Asked of the message as it is here rather than of the setting on the GM:
- * what decides is whether this client's Dice So Nice shows it itself.
+ * not forced private a roll the module threw is public, and Dice So Nice animates it on
+ * every client - so the relay played each incident roll a second time on every other
+ * participant's screen. Asked of the message as it is here rather than of the setting on
+ * the GM: what decides is whether this client's Dice So Nice shows it itself.
+ *
+ * A REROLL'S (`rewrite`, E08+E28 C4a) is played even where this client reads the message:
+ * Dice So Nice animates a new message, not new rolls on an old one. As `by`'s dice - the
+ * roller's appearance - when `by` names a user, else the message's author's.
+ *
+ * A ROLL THE GM DREW (E08+E28 C13, `relayDrawnDice`) is played even where this client reads it:
+ * Dice So Nice's own decision is off for it everywhere (`keepDiceToReaders`). As `by`'s dice; on
+ * a GM's screen the dice sound where Dice So Nice is not, as the roll's own sound was before the
+ * GM wrote it muted, and on a player's nothing without it - the crisis and opening cards carry
+ * what an incident roll came to (E06 C4). A statistic from the sheet (no card of the module's
+ * stands for it) is made readable here, so its audience reads Daggerheart's card (`readHere`),
+ * and the character the packet names is kept, so that card is headed by it (`subject`, fix r2-H4,
+ * `signAsRoller`); an action's roll is not - its card is hidden on every browser, and the card that
+ * says it does its own notifying. The log's `updateMessage` draws the card again when either changed
+ * - a card hidden at its first render, or one drawn before its character was known here:
+ * Foundry's API as v13 names it, not read in v14's source, which is not on this machine.
+ * Exported for the suite, which hands it a packet as the socket would (tests-tier2.mjs).
  */
-async function showRelayedDice(payload, senderId) {
+export async function showRelayedDice(payload, senderId) {
     if (!game.users.get(senderId)?.isGM) return;
     const id = typeof payload?.id === "string" ? payload.id : null;
-    if (!id || typeof game.dice3d?.showForRoll !== "function") return;
+    const rewrite = payload?.rewrite === true;
+    if (!id) return;
     try {
         const { messageArrives } = await import("./secret.mjs");
         const message = game.messages.get(id) ?? await messageArrives(id);
-        if (!message || message.isContentVisible) return;
-        for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, message.author, false);
+        const drawn = isDrawnRoll(message);
+        if (!message || (message.isContentVisible && !rewrite && !drawn)) return;
+        const by = typeof payload.by === "string" ? game.users.get(payload.by) ?? null : null;
+        if (drawn && !isClaimedRoll(message)) {
+            // The character the GM names heads the card here (fix r2-H4, `signAsRoller`); one this browser keeps stands.
+            const told = typeof payload.subject === "string" && !keptRollSubject(message) ? game.actors.get(payload.subject) ?? null : null;
+            if (told) keepSubject(message.id, told.id, senderId);
+            const unread = !message.isContentVisible;
+            if (unread) readHere(message.id);
+            if ((told || unread) && typeof ui.chat?.updateMessage === "function") void Promise.resolve(ui.chat.updateMessage(message)).catch(() => {});
+        }
+        if (rewrite || (drawn && game.user?.isGM)) return await playRolls(message, by ?? message.author);
+        if (typeof game.dice3d?.showForRoll !== "function") return;
+        for (const roll of message.rolls ?? []) await game.dice3d.showForRoll(roll, by ?? message.author, false);
     } catch (err) {
         error("Could not show the incident's dice", err);
     }

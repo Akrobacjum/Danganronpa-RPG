@@ -32,7 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote, whenNotesHeld } from "./pr
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf, wordsOf, cardFlag } from "./secret.mjs";
+import { contentOf, wordsOf, cardFlag, cardWriter } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -459,8 +459,8 @@ Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
     // every other message on their screen appears, with a click that jumps
     // straight to the conversation.
     if (game.user.id !== playerUserId) return;
-    const authorId = message.author?.id ?? message.user?.id;
-    if (authorId === game.user.id) return;
+    // Its writer: in an incident a GM posts a player's message for them (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
+    if (cardWriter(message)?.id === game.user.id) return;
 
     showPopup(cardPreview(await wordsOf(message)), {
         title: game.i18n.localize("DRPG.Messenger.playerWindowTitle"),
@@ -503,7 +503,7 @@ function emptyNotice() {
 }
 
 function buildBubble(message) {
-    const authorId = message.author?.id ?? message.user?.id;
+    const authorId = cardWriter(message)?.id;
     const author = game.users.get(authorId);
     const mine = authorId === game.user.id;
     const kind = cardFlag(message, MESSENGER_FLAGS.kind);
@@ -676,7 +676,9 @@ async function ruleApproveCallOrRefuseCall(action, data) {
 }
 
     // A Dynamic action: the difficulty editor is the old dialog, opened from
-    // the card by whichever GM picks it up; "Refuse" tells the player so.
+    // the card by whichever GM picks it up; "Refuse" tells the player so. The
+    // difficulty is kept in the card's meta, where the GM who places the action's
+    // trace reads its band (gm-bridge.mjs `dynamicRulingOf`, E08+E28 C15).
 async function ruleSetDifficulty(action, data) {
     const { askDynamicDifficulty } = await import("./action-rolls.mjs");
     const ruling = await askDynamicDifficulty({
@@ -685,7 +687,7 @@ async function ruleSetDifficulty(action, data) {
     if (!ruling) return null;   // The editor was closed; the card stays open.
     const { answerDynamic } = await import("./gm-bridge.mjs");
     if (!answerDynamic(data.rid, data.asker, ruling)) return null;
-    return settled("DRPG.Bridge.settledAnswered");
+    return { ...settled("DRPG.Bridge.settledAnswered"), ruling: { type: "dynamic", actorId: data.by, tier: ruling.tier } };
 }
 
 async function ruleRefuseDynamic(action, data) {

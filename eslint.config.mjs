@@ -19,8 +19,9 @@
  */
 const names = list => Object.fromEntries(list.trim().split(/\s+/).map(n => [n, "readonly"]));
 // Foundry v14 names the module reads bare: 16 names, 6165 reads in scripts/ on 24.09.2026.
+// JournalEntry: tier-2 "a document keeps a given id only with keepId" (E08+E28 C1), the one bare read.
 const FOUNDRY = names(`game ui canvas CONFIG CONST Hooks foundry PIXI
-    ChatMessage Actor Playlist RollTable Folder Roll fromUuid fromUuidSync`);
+    ChatMessage Actor Playlist RollTable Folder Roll fromUuid fromUuidSync JournalEntry`);
 // Browser names the module reads bare. Not globals.browser: it would let a leftover `name` or `status` through.
 const BROWSER = names(`window document console fetch performance PerformanceObserver
     setTimeout clearTimeout setInterval clearInterval requestAnimationFrame queueMicrotask

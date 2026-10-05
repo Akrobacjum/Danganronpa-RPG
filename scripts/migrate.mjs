@@ -719,7 +719,8 @@ const CLAUSES = [
          * THE REROLL BOOKMARKS OUT OF WORLD DATA (E05 C7; audit S02-01). Until 1.2.64 each
          * character's newest roll and its context - a crisis roll's keys, Stage 6's token
          * ids, a palm's victim - was the actor flag `lastAction`, which every browser holds.
-         * The bookmark is the roller's own client setting now; the old flags are deleted,
+         * The bookmark became the roller's own client setting, and since E08+E28 C4a it is
+         * the GMs' (gm-stores.mjs `rerollBookmarkStore`); the old flags are deleted,
          * with nothing lifted (a Reroll does not reach across an update), on `dropRollBookmarks` -
          * a world actor's, and since E05's fix round (S1-m4) a token's own actor data's too.
          */
@@ -1059,7 +1060,9 @@ function veiledToday(src, words) {
  * words off the document, any whisper the module did not post, 1.2.64's public end of a
  * secret project's repair - because taking them off would take them from every reader not
  * connected now; an old card of a veiled kind known by its words only, when this browser does
- * not hold them; a Monocub's roll; and every card's author (the owner's Q2 (a), until E28).
+ * not hold them; a Monocub's roll; and every card's author (the owner's Q2 (a)): E28 makes a
+ * drawn roll's message the GM's and a card asked for in an incident the GM's to post (fix
+ * r2-H5), from 1.2.67 on, and a card posted before names its poster still.
  *
  * `ChatMessage.updateDocuments` a hundred at a time; a batch that fails is said in the
  * console and left to the read-back. Then every message it changed is read again, after

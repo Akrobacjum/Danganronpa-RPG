@@ -35,7 +35,7 @@ import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG, plural } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
-import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, SECRET_FLAG } from "./secret.mjs";
+import { contentOf, wordsOf, secretHtml, isVeiled, cardFlag, cardWriter, SECRET_FLAG } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
 const EVIDENCE_ID = "drpg-evidence";
 
@@ -599,9 +599,10 @@ async function onCreateChatMessage(message) {
      * Players are untouched: their own cards are the whole point of the popup.
      */
     // `popupForce` only from a GM (E02, audit S11-27): from a player's console it
-    // put a card that looks like the module's own in the middle of every screen.
+    // put a card that looks like the module's own in the middle of every screen. A GM posting a
+    // player's card for them does not make it a GM's (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
     const forGm = cardFlag(message, "gmPopup")
-        || (message.author?.isGM && cardFlag(message, "popupForce"));
+        || (cardWriter(message)?.isGM && cardFlag(message, "popupForce"));
     if (game.user.isGM && whisper.length && !forGm) return;
 
     // A header, when the poster gave one. An action's result card says which

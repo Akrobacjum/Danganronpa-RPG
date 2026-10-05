@@ -214,6 +214,30 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
     return after;
 }
 
+/**
+ * Take spilled Despair back off the counter, as much as it holds of `amount`. GM only. Answers
+ * the points taken (0 when the counter is empty).
+ *
+ * ONE CALLER, A REROLL'S POINT GIVEN BACK (E08+E28 C4b, 03.10.2026; audit S02-22). A roll's
+ * point into a full pool spills here (`adjustDespair`, despair-award.mjs `awardRollDespair`),
+ * and a Reroll that turns that roll into a Hope result gives the point back. Taken off the
+ * pool, as it was until this commit, the pool stood one below where it had been and the
+ * spilled point stayed counted (E32+E07 fix r1-G3's first build, e32run g3f1, 02.10). Nothing
+ * is disarmed: a darkening this point helped arm has already paid its X and stands.
+ */
+export async function takeOverflow(amount, { reason = "given back" } = {}) {
+    if (!game.user.isGM) return 0;
+    const n = Math.round(Number(amount));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    await overflowStore.whenHydrated();
+    const before = state().count;
+    const taken = Math.min(before, n);
+    if (!taken) return 0;
+    await overflowStore.patch(RECORD, { count: before - taken });
+    log(`Despair overflow -${taken} (${reason}) -> ${before - taken}/${overflowThreshold()}.`);
+    return taken;
+}
+
 /*
  * RE-ENTRANCY, SHUT BY CONSTRUCTION.
  *

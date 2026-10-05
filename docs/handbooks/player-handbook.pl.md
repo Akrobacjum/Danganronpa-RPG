@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.66, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.67, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -58,7 +58,9 @@ Każda akcja to rzut dwoistości z Daggerheart: kość Hope i kość Despair (ob
 - Rzut **z Despair** zasila pulę Despair Monokumy, który cię pilnuje. Stąd bierze się jego waluta - z twojego pecha i twojego ryzyka.
 - **Krytyk** daje 2 Hope i nic więcej (nie oczyszcza tu Sanity, inaczej niż w czystym Daggerheart).
 
-Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GMa. Ruszasz tylko to, co akcja pozwala ci wybrać.
+Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GMa. Ruszasz tylko to, co akcja pozwala ci wybrać. Gdy połączony jest GM, kości rzutu akcji i statystyki klikniętej na arkuszu rzuca przeglądarka GMa: spadają na twoim ekranie, w twoich kolorach, jako twój rzut, a wynik czytasz jak dotąd. To, co okno dodaje do kości, jest porównywane z tym, czego spodziewał się GM.
+
+**Gdy nie jest połączony żaden GM**, akcja czeka: po jej wciśnięciu dowiadujesz się, że rzut akcji czeka na GMa, i nic nie płacisz. Każdy inny rzut - statystyka z arkusza, reakcja - nadal się wykonuje, a jego karta mówi, że rzucono go bez połączonego GMa i że GM go zobaczy. Nie rusza Hope, Sanity ani Despair, dopóki GM, gdy wróci do stołu, go nie przyzna.
 
 ---
 
@@ -316,7 +318,7 @@ Reinforced ślady nie schodzą nigdy.
 
 ### Direct Murder - 1 akcja, GM decyduje
 
-Zabójstwo twarzą w twarz, uzgodnione wcześniej z GMem i <ins>za zgodą gracza ofiary</ins>. Zgłosić je można tylko **podczas Eclipse** - jedynego momentu, w którym możesz być z kimś sam na sam. Akcja przepada niezależnie od tego, czy się uda, a jak poszło, nie wie nikt - nawet ty - dopóki Eclipse się nie skończy i pokój się nie uspokoi. Jeśli skończysz z nią sam na sam, a GM pozwoli, incydent się otwiera (rozdział 10).
+Zabójstwo twarzą w twarz, uzgodnione wcześniej z GMem i <ins>za zgodą gracza ofiary</ins>. Zgłosić je można tylko **podczas Eclipse** - jedynego momentu, w którym możesz być z kimś sam na sam. Akcja przepada niezależnie od tego, czy się uda. Jeśli GM jej odmówi, dowiesz się od razu; inaczej jak poszło, nie wie nikt - nawet ty - dopóki Eclipse się nie skończy i pokój się nie uspokoi. Jeśli skończysz z nią sam na sam, a GM pozwoli, incydent się otwiera (rozdział 10).
 
 ### Move - za darmo, potem 1 akcja
 
@@ -335,13 +337,13 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Ultimate** | 1 | Przewaga na rzut, do którego twój Ultimate naprawdę się stosuje. Czeka na GMa tak samo. |
 | **Contribution** | 2 | +1 postępu do projektu, nad którym trwa praca w pokoju, w którym jesteś. |
 | **Sprint** | 2 | Jeszcze jedno przejście między pokojami o tej porze dnia, bez płacenia akcją. |
-| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje. Akcję pamięta przeglądarka, w której rzucałeś; z innej Reroll rzuca kośćmi jeszcze raz i niczego nie cofa. |
+| **Reroll** | 3 | Przerzuć ostatnią akcję. Cofa poprzedni wynik - ślad, przedmiot, Sanity idą razem z nim. Stara karta zostaje, z przekreślonym wynikiem i linią pod nagłówkiem, która podaje stary i nowy wynik. Niektóre rzeczy zostają: ręka, która już była w kieszeni, trop, który już podłożono, ślad, na którym GM coś zapisał albo który ktoś już znalazł. Reroll sprzątania albo Analyze, których pierwszej próby nie da się już cofnąć, jest odrzucany i nic nie zostaje wydane. Akcji kryzysowej, która kogoś zabiła, nie da się przerzucić: śmierć zostaje. Reroll robi przeglądarka GM-a i to ona pobiera Hope; bez podłączonego GM-a Reroll się nie odbywa i nic nie zostaje wydane. Jeśli rzutu nie ma już na czacie, Reroll jest odrzucany i nic nie zostaje wydane. |
 | **Resolve** | 3 | Na jeden rzut sam wybierz, którą statystykę dodać. |
 | **Burst** | 4 | Twoja następna akcja nic nie kosztuje - cała akcja, ile by nie kosztowała. |
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
 | **Loaded Die** | 6 | Przy następnym rzucie jedna kość jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. |
 
-Call wpływający na rzut czeka na twój następny rzut i jest zużyty w chwili rzutu. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
+Call wpływający na rzut czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 
 > [!IMPORTANT]
 > Nikt nie wydaje Hope Calli podczas Eclipse, gdy Monokuma go uciszył (Silence) ani gdy Silence z overflow zaciemnia porę dnia.

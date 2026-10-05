@@ -42,6 +42,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     for (const c of [p1, p2, p3].filter(Boolean)) {
         await c.eval(`globalThis.__dialogAuto = false; return true;`);
     }
+    /* Every document the bystander's browser is sent while its world half says an incident runs, and its
+       author as Foundry stamped it - read at the end (E08+E28 fix r2-H5). */
+    await p2.eval(`globalThis.__incidentDocs = [];
+        Hooks.on("createChatMessage", m => { if (game.settings.get("${MOD}", "murderState")?.active) globalThis.__incidentDocs.push({ id: m.id, author: m._source?.author ?? null }); });
+        return true;`);
 
     const ids = await gm.eval(`return {
         chie: game.actors.getName("Chie Mori").id,
@@ -416,12 +421,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        victim's browser says whose roll it is as the message is created, not once the dice have
        landed; every browser's chat log calls its notifier as a message is created, and the
        roll must light the pip and ring only where it is read; and with rolls not forced private
-       the killer's own Dice So Nice animates the victim's roll and the relay plays no copy. */
+       the killer's own Dice So Nice animates the victim's roll and the relay plays no copy.
+       E08+E28 C13 (04.10.2026; the plan's 3.4): the GM draws each player's roll and writes its
+       message, which no Dice So Nice animates on its own (it would in the GM's colours), so the
+       relay plays it as the roller's dice - forced private or not - and the roller plays its
+       own from the draw's answer; each browser keeps the dice sounds it plays (`__sounds`). */
     phase("dice", { flow: "murder-incident" });
     const DICE_NET = `globalThis.__diceNet = { show: [], words: [], showAt: {} }; globalThis.__dsnShown = []; globalThis.__dsnAnimated = [];
-        globalThis.__dsnHideSecret = false; globalThis.__chatNotified = []; globalThis.__chatRung = []; globalThis.__dsnFell = {};
+        globalThis.__dsnHideSecret = false; globalThis.__chatNotified = []; globalThis.__chatRung = []; globalThis.__dsnFell = {}; globalThis.__sounds = [];
         if (!globalThis.__diceNetOn) {
             globalThis.__diceNetOn = true;
+            const H = foundry.audio.AudioHelper, play = H.play;
+            H.play = function (data, ...rest) { globalThis.__sounds?.push(String(data?.src ?? "")); return play.call(this, data, ...rest); };
             game.socket.on("module.${MOD}", p => {
                 if (p?.action === "dice.show") { globalThis.__diceNet.show.push(p.id ?? null); globalThis.__diceNet.showAt[p.id] ??= Date.now(); }
                 if (p?.action === "secret.card") globalThis.__diceNet.words.push(String(p.html ?? ""));
@@ -458,19 +469,34 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             label: foundry.utils.escapeHTML(CRISIS_ACTIONS["${key}"].label), stage: game.drpg.murderState()?.stage ?? null };`;
     const DICE_READ = act => `const n = globalThis.__diceNet;
         const card = n.words.find(h => h.includes(${JSON.stringify(act.label)} + " - ")) ?? null;
-        return { relayed: n.show.includes("${act.id}"), played: globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null).map(c => c.total),
+        const thrown = globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null);
+        return { relayed: n.show.includes("${act.id}"), played: thrown.map(c => c.total), as: thrown.map(c => c.user),
+            heard: globalThis.__sounds.filter(s => s === CONFIG.sounds.dice).length,
             animated: globalThis.__dsnAnimated.includes("${act.id}"), card: Boolean(card), total: Boolean(card?.includes("<p>${act.total} ")),
             dice3d: Boolean(game.dice3d), notified: globalThis.__chatNotified.includes("${act.id}"), rung: globalThis.__chatRung.includes("${act.id}"),
             shownAt: n.showAt["${act.id}"] ?? null, fell: globalThis.__dsnFell["${act.id}"] ?? null };`;
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
-    await p1.eval(`globalThis.__dsnAnimation = async id => { await new Promise(r => setTimeout(r, 1500)); globalThis.__dsnFell[id] ??= Date.now(); }; return true;`);
+    /* The victim's Dice So Nice holds her own throw 1.5 s: since E08+E28 C12a that throw is the
+       draw's answer played on her screen (roll-draw.mjs `playDice`, `showForRoll` as her own, not
+       synchronised), so the hold is put on that call here and stamped with the drawn message's id. */
+    await p1.eval(`globalThis.__dsnAnimation = async id => { await new Promise(r => setTimeout(r, 1500)); globalThis.__dsnFell[id] ??= Date.now(); };
+        const show = game.dice3d.showForRoll;
+        globalThis.__showAway = show;
+        game.dice3d.showForRoll = async (roll, user, synchronize, ...rest) => {
+            const shown = await show(roll, user, synchronize, ...rest);
+            const own = !synchronize && (user?.id ?? user) === game.user.id;
+            const drawn = own ? game.messages.contents.filter(m => m.getFlag("${MOD}", "drawn")).at(-1) : null;
+            if (drawn) await globalThis.__dsnAnimation?.(drawn.id);
+            return shown;
+        };
+        return true;`);
     /* Leave a clue lists Hand, Leg and Shadow: the GM picks Shadow - the last, so a roll of
        the first listed, as before E32+E07 C11b, cannot pass for the pick (client-entry.mjs
        `__traitRulingAuto`). */
     await gm.eval(`globalThis.__traitRulings.length = 0; globalThis.__traitRulingAuto = "shadow"; return true;`);
     const clue = await p1.eval(ACT(ids.aiko, "leaveClue", { hope: 9, fear: 5 }), { timeout: 60000 });
     const ruled = await gm.eval(`globalThis.__traitRulingAuto = true; return globalThis.__traitRulings.slice();`);
-    await p1.eval(`delete globalThis.__dsnAnimation; return true;`);
+    await p1.eval(`delete globalThis.__dsnAnimation; game.dice3d.showForRoll = globalThis.__showAway; delete globalThis.__showAway; return true;`);
     await settle(900);
     /* THE GM'S PICK OF A STATISTIC (E32+E07 C11b, 02.10.2026; audit S04-23). The card asking
        it is veiled in Aiko's thread: its words reach the victim's browser and no other
@@ -495,13 +521,22 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify(clue.windows) === JSON.stringify([clue.menu]) && Boolean(clue.id) && ruled.length === 1,
         JSON.stringify({ windows: clue.windows, id: clue.id, ruled: ruled.length }));
     const withDsn = { victim: await p1.eval(DICE_READ(clue)), bystander: await p2.eval(DICE_READ(clue)), killer: await p3.eval(DICE_READ(clue)) };
+    /* THE VICTIM'S OWN DICE (E08+E28 C12a, 04.10.2026). The victim's crisis roll is drawn by the GM
+       now (roll-draw.mjs), whose message the victim's Dice So Nice does not animate: the victim's
+       browser plays the GM's faces as its own throw, from the draw's answer (`played`, not
+       synchronised) - the plan's 3.4, its first line. Either is the victim seeing its own dice. */
+    const ownDice = (r, total) => r.animated || r.played.includes(total);
     check("dice: the victim's crisis roll is played on the killer's screen by the GM's relay, and its card tells the killer the action and the total",
         Boolean(clue.id) && clue.stage === "incident" && withDsn.killer.relayed && withDsn.killer.played.includes(clue.total)
-        && withDsn.killer.card && withDsn.killer.total && withDsn.victim.animated && !withDsn.victim.relayed,
+        && withDsn.killer.card && withDsn.killer.total && ownDice(withDsn.victim, clue.total) && !withDsn.victim.relayed
+        && withDsn.killer.as.every(user => user === p1.userId),
         JSON.stringify({ clue, withDsn }), { flow: "private-rolls" });
     check("dice: the bystander is sent neither the roll's dice nor its card, and animates nothing though Dice So Nice's secret-roll hiding is off",
         Boolean(clue.id) && !withDsn.bystander.relayed && !withDsn.bystander.played.length && !withDsn.bystander.animated && !withDsn.bystander.card,
         JSON.stringify(withDsn.bystander), { flow: "private-rolls" });
+    /* Red from E08+E28 C12a to C13: the victim's dice were played from the GM's answer and the hold
+       sat on `waitFor3DAnimationByMessageID`, which nothing on her browser calls any more, so `fell`
+       was never stamped. Held on her own throw since C13 (above). */
     check("dice: the victim's roll reaches the killer while the victim's own dice still fall",
         Boolean(withDsn.killer.shownAt) && Boolean(withDsn.victim.fell) && withDsn.killer.shownAt < withDsn.victim.fell,
         JSON.stringify({ killer: withDsn.killer.shownAt, fell: withDsn.victim.fell }), { flow: "private-rolls" });
@@ -519,10 +554,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         Boolean(strike.id) && strike.stage === "incident" && noDsn.victim.dice3d === false && noDsn.victim.card && noDsn.victim.total
         && !noDsn.bystander.card && !noDsn.bystander.relayed,
         JSON.stringify({ strike, noDsn }), { flow: "private-rolls" });
-    const pip = r => ({ notified: r.notified, rung: r.rung });
+    /* The roll's sound (E08+E28 C13): the GM writes a drawn roll's message muted, so where it is read
+       without Dice So Nice the roller hears the dice the draw's answer plays (`heard`), not the chat's
+       ring of the message (`rung`) - one or the other, once. Red from C12a to C13: the roller's browser
+       could not read the GM's message (`readableHere`), so it lit no pip there. */
+    const pip = r => ({ notified: r.notified, rung: r.rung, heard: r.heard });
+    const rang = r => r.rung || r.heard > 0;
     check("dice: a roll the module threw lights the Chat pip and rings only where it is read - never on the other participant's screen or the bystander's, with Dice So Nice or without",
-        withDsn.victim.notified && !withDsn.victim.rung && noDsn.killer.notified && noDsn.killer.rung
-        && [withDsn.killer, withDsn.bystander, noDsn.victim, noDsn.bystander].every(r => !r.notified && !r.rung),
+        withDsn.victim.notified && !rang(withDsn.victim) && noDsn.killer.notified && rang(noDsn.killer) && !(noDsn.killer.rung && noDsn.killer.heard > 0)
+        && noDsn.killer.heard <= 1 && [withDsn.killer, withDsn.bystander, noDsn.victim, noDsn.bystander].every(r => !r.notified && !rang(r)),
         JSON.stringify({ withDsn: [withDsn.victim, withDsn.killer, withDsn.bystander].map(pip), noDsn: [noDsn.killer, noDsn.victim, noDsn.bystander].map(pip) }),
         { flow: "private-rolls" });
 
@@ -531,8 +571,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        (use-items.mjs `breakOnDespair`, driven with a Despair result as tier 2 drives it): the
        card is veiled while the incident runs (secret.mjs `incidentVeils`; until fix r2-G2 by the
        cast p3's copy holds, settings.mjs `incidentVeil`), so the bystander's copy of it names
-       neither Chie nor her player past its author (Q2 (a): the author stays until E28), and its
-       words go to p3 alone of the players. */
+       neither Chie nor her player - since fix r2-H5 not its author either, which is the GM that
+       posted it for p3's browser - and its words go to p3 alone of the players. */
     const toolId = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         return (await INV.grantItem(game.actors.get("${ids.chie}"), { name: "Suite tool snapped in the fight", category: "tool", tier: 0 }))?.id ?? null;`, { timeout: 60000 });
     await settle(600);
@@ -579,7 +619,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
         const kit = (a, name) => INV.grantItem(a, { name, category: "usable", tier: 1, goal: "healing", quiet: true });
         await automatedUpdate(botan, { "system.resources.hope.value": Math.max(1, botan.system?.resources?.hope?.value ?? 0) });
-        return { kit: (await kit(aiko, "Suite kit used in the fight"))?.id ?? null, drink: (await kit(botan, "Suite kit a bystander drinks"))?.id ?? null,
+        // A pack of two and a Health mark for it to heal, for the Reroll after the cards (E08+E28 C6b).
+        const aikoKit = (await kit(aiko, "Suite kit used in the fight"))?.id ?? null, hpWas = aiko.system.resources.hitPoints.value;
+        await aiko.items.get(aikoKit ?? "")?.update({ "system.quantity": 2 });
+        await automatedUpdate(aiko, { "system.resources.hitPoints.value": Math.max(1, hpWas) });
+        return { kit: aikoKit, hpWas, hpSet: aiko.system.resources.hitPoints.value, drink: (await kit(botan, "Suite kit a bystander drinks"))?.id ?? null,
             tool: (await INV.grantItem(botan, { name: "Suite tool a bystander breaks", category: "tool", tier: 1, quiet: true }))?.id ?? null,
             turn: M.isTheirTurn(aiko) };`, { timeout: 60000 });
     await settle(600);
@@ -634,6 +678,59 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return { docs, held, others };`;
     const useSeen = { p1: await p1.eval(USE_READ), p2: await p2.eval(USE_READ), p3: await p3.eval(USE_READ) };
     const clean = keys => [useSeen.p1, useSeen.p2, useSeen.p3].every(r => keys.every(k => r.docs[k] && r.docs[k].veiled && !r.docs[k].named && !r.docs[k].names));
+    /* ---- 1c+. the Reroll of that Use an item, made on the GM ---------------
+       E08+E28 C6b, 03.10.2026; audit S04-18. Aiko's Use an item above healed her a Health mark and
+       took one of the pack's two on p1's browser, before the GM scored it, and a Reroll's undo gave
+       back neither - it only unbroke the item. Rerolled from p1's into a miss (on the GM the roll
+       reads as one of the scenario's, as 1c' below), the undo puts back the GMs' row's `before`:
+       the mark and the charge. Read on the GM and on the roller's browser: Aiko's Health marks, the
+       pack's quantity and whether it is broken; on the GM, the replay's receipt naming no item.
+       Aiko's Hope and Health are put back. */
+    const reuse = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get(aiko.id) ?? null;
+        const m = game.messages.get(row?.messageId ?? "");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 11, fear: 5 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 4, fear: 2 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
+        const hope = aiko.system.resources.hope.value;
+        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, hope) });
+        const drawn = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(m);
+        return { messageId: m?.id ?? null, usedItemId: row?.facts?.usedItemId ?? null, before: row?.facts?.before ?? null, hope, hp: aiko.system.resources.hitPoints.value,
+            qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0), drawn: drawn ? { total: drawn.total, versions: (drawn.versions ?? []).length } : null };`, { timeout: 60000 });
+    const reusedAsked = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+        return Boolean(await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll"));`, { timeout: 60000 });
+    await settle(1200);
+    const KIT_READ = `const aiko = game.actors.get("${ids.aiko}"), kit = aiko.items.get("${handed.kit}");
+        return { hp: aiko.system.resources.hitPoints.value, qty: Number(kit?.system?.quantity ?? 0), broken: kit?.getFlag("${MOD}", "broken") === true };`;
+    const reused = { p1: await p1.eval(KIT_READ), gm: await gm.eval(KIT_READ),
+        receipt: await gm.eval(`return (await import("${repoUrl}/scripts/murder.mjs")).murderState()?.lastCrisis?.usedItemId ?? null;`),
+        drawn: await gm.eval(`const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(reuse.messageId)}));
+            return r ? { total: r.total, withHope: r.withHope, versions: (r.versions ?? []).map(v => v.total) } : null;`) };
+    await gm.eval(`const m = game.messages.get(${JSON.stringify(reuse.messageId)}); if (m) delete m.rolls;
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(reuse.hope) || 0}, "system.resources.hitPoints.value": ${Number(handed.hpWas) || 0} });
+        return true;`, { timeout: 60000 });
+    check("reroll: a Reroll of the victim's Use an item, made on the GM, gives back the Health mark it healed and the pack's charge - on the GM and on the roller's browser",
+        reusedAsked === true && Boolean(reuse.messageId) && reuse.usedItemId === handed.kit && reuse.qty === 1
+        && [reused.gm, reused.p1].every(r => r.hp === reuse.hp + 1 && r.qty === 2 && r.broken === false) && reused.receipt === null,
+        JSON.stringify({ handed, reuse, reusedAsked, reused }), { flow: "reroll" });
+    /* THE REROLL ON THE GMS' RECORD (E08+E28 C17, 04.10.2026; the plan's 3.6). Aiko's Use an item
+       was drawn by the GM, whose record kept the draw's total while the Reroll rewrote the message:
+       it takes the Reroll's 4 and 2 now, and keeps the draw as its first version (roll-draw.mjs
+       `keepRerolledVersion`). Read on the GM before and after the Reroll above. Red at C16's runtime:
+       the record keeps the draw's total and no version. */
+    check("reroll: the GMs' record of the victim's drawn Use an item holds the Reroll's 6 and keeps the draw as its first version",
+        reusedAsked === true && reuse.drawn?.versions === 0 && Number.isFinite(reuse.drawn?.total) && reused.drawn?.total === 6 && reused.drawn.withHope === true
+            && JSON.stringify(reused.drawn.versions) === JSON.stringify([reuse.drawn.total]),
+        JSON.stringify({ before: reuse.drawn, after: reused.drawn }), { flow: "reroll" });
     await gm.eval(`for (const [a, i] of [["${ids.aiko}", "${handed.kit}"], ["${ids.botan}", "${handed.drink}"], ["${ids.botan}", "${handed.tool}"]]) await game.actors.get(a).items.get(i)?.delete();
         await game.actors.get("${ids.chie}").unsetFlag("${MOD}", "pendingCall"); return true;`, { timeout: 60000 });
     check("fight: the victim's Use an item and a Support bought for the killer are carded veiled - their words to their player alone, and no browser holds a document of theirs, or of the rest the action brought, naming a student or a player",
@@ -646,6 +743,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         bought.broke === "Suite tool a bystander breaks" && clean(["drunk", "broke"])
         && useSeen.p2.held.drunk && useSeen.p2.held.broke && [useSeen.p1, useSeen.p3].every(r => !r.held.drunk && !r.held.broke),
         JSON.stringify({ bought, cardIds, useSeen }));
+    /* A WORD TO THE GM IN THE FIGHT (E08+E28 fix r2-H5, 05.10.2026; review S2-3). The killer's player writes in
+       the messenger; while an incident runs the primary GM posts it at the player's asking (secret.mjs `askGm`), as
+       every private card of a player's then is, and the messenger reads its writer where it read its author
+       (`cardWriter`): it is unread for the GMs and not for the player who wrote it. Red at b9c9629's runtime for the
+       author (p3's). */
+    const UNREAD = `return (await import("${repoUrl}/scripts/messenger.mjs")).unreadCount("${p3.userId}");`;
+    const unreadBefore = { gm: await gm.eval(UNREAD), killer: await p3.eval(UNREAD) };
+    const word = await p3.eval(`const M = await import("${repoUrl}/scripts/messenger.mjs");
+        const m = await M.sendMessage("${p3.userId}", "Suite r2-H5: a word to the GM in the fight");
+        return m ? { id: m.id, author: m.toObject().author ?? null } : null;`, { timeout: 60000 });
+    await settle(900);
+    const unreadAfter = { gm: await gm.eval(UNREAD), killer: await p3.eval(UNREAD) };
+    check("fight: a message the killer's player writes to the GM is posted by the GM, unread for the GMs and not for its writer",
+        Boolean(word?.id) && word.author === gm.userId && unreadAfter.gm === unreadBefore.gm + 1 && unreadAfter.killer === unreadBefore.killer,
+        JSON.stringify({ word, unreadBefore, unreadAfter }), { flow: "messenger" });
 
     const FORCED = on => `const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs"); await game.settings.set("${MOD}", SETTINGS.forcePrivateRolls, ${on}); return true;`;
     await gm.eval(FORCED(false));
@@ -661,9 +773,58 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const unforced = await p3.eval(DICE_READ(open));
     await gm.eval(FORCED(true));
     for (const c of [p1, p3]) await c.eval(`globalThis.__dsnHideSecret = true; return true;`);
-    check("dice: with rolls not forced private the killer's own Dice So Nice animates the victim's roll, and the relay does not play it a second time",
-        Boolean(open.id) && open.stage === "incident" && unforced.animated && !unforced.played.length,
+    /* E08+E28 C13: the victim's roll is the GM's message, which the killer's Dice So Nice would throw
+       in the GM's colours - so its own decision is off, and the relay plays it once, as p1's dice. */
+    check("dice: with rolls not forced private the victim's roll is played once on the killer's screen, as the victim's dice, and the killer's own Dice So Nice does not animate it",
+        Boolean(open.id) && open.stage === "incident" && !unforced.animated && unforced.relayed
+        && JSON.stringify(unforced.played) === JSON.stringify([open.total]) && unforced.as.every(user => user === p1.userId),
         JSON.stringify({ open, unforced }), { flow: "private-rolls" });
+
+    /* ---- 1c'. a Reroll's dice, sent by the GM that made it -----------------
+       E08+E28 C4a, 03.10.2026; the plan's 2.3 step 4; the owner's rule of 27.09 (the roller sees
+       the roll as their own). The Reroll is made on the GM, which rewrites the message - and Dice
+       So Nice animates no update - so the GM sends `dice.show { id, by, rewrite }` to the roll's
+       readers and the roller (private-rolls.mjs `relayRerolledDice`). Aiko's roll above, thrown
+       on p1's browser in the fight, is Rerolled from p1's; the harness's roll message has no
+       `Roll#reroll`, so on the GM it reads as one of the scenario's that throws a 9 and a 4
+       (`STAND`). Read on each player's browser: the rewrite packets it was sent and the dice its
+       Dice So Nice model played for the message. Aiko's Hope and the GM's message are put back. */
+    const STAND = `const m = game.messages.get("${open.id}");
+        class Thrown {
+            constructor(formula, data = {}, options = {}) { this._formula = formula; this.options = options; this.faces = { hope: 7, fear: 3 }; }
+            get dHope() { return { total: this.faces.hope }; } get dFear() { return { total: this.faces.fear }; }
+            get total() { return this.faces.hope + this.faces.fear; }
+            get withHope() { return this.faces.hope > this.faces.fear; } get withFear() { return this.faces.hope < this.faces.fear; }
+            get isCritical() { return this.faces.hope === this.faces.fear; }
+            async reroll() { const r = new Thrown(this._formula, {}, this.options); r.faces = { hope: 9, fear: 4 }; return r; }
+            toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
+        }
+        if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });`;
+    const REWRITES = `globalThis.__rewrites = [];
+        if (!globalThis.__rewritesOn) { globalThis.__rewritesOn = true; game.socket.on("module.${MOD}", p => { if (p?.action === "dice.show" && p.rewrite) globalThis.__rewrites.push({ id: p.id, by: p.by ?? null }); }); }
+        return true;`;
+    for (const c of [p1, p2, p3]) { await c.eval(DICE_NET); await c.eval(REWRITES); }
+    const hopeWas = await gm.eval(`${STAND}
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), was = aiko.system.resources.hope.value;
+        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, was) });
+        return was;`, { timeout: 60000 });
+    const rerolled = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+        const out = await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll");
+        return Boolean(out);`, { timeout: 60000 });
+    await settle(1200);
+    const REWRITE_READ = `return { sent: globalThis.__rewrites.filter(r => r.id === "${open.id}"),
+        played: globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null && c.total === 13).map(c => c.user) };`;
+    const rewriteSeen = { roller: await p1.eval(REWRITE_READ), bystander: await p2.eval(REWRITE_READ), killer: await p3.eval(REWRITE_READ) };
+    await gm.eval(`const m = game.messages.get("${open.id}"); if (m) delete m.rolls;
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(hopeWas) || 0} });
+        return true;`, { timeout: 60000 });
+    const sentTo = who => JSON.stringify(rewriteSeen[who].sent) === JSON.stringify([{ id: open.id, by: p1.userId }])
+        && JSON.stringify(rewriteSeen[who].played) === JSON.stringify([p1.userId]);
+    check("dice: a Reroll the GM makes sends its new dice to the roller and the killer, played as the roller's, and nothing to the bystander",
+        rerolled === true && sentTo("roller") && sentTo("killer") && !rewriteSeen.bystander.sent.length && !rewriteSeen.bystander.played.length,
+        JSON.stringify({ rerolled, rewriteSeen }), { flow: "reroll" });
 
     /* ---- 1d. what a hit leaves, each reader told their own line ------------
        E32+E07 C7, 28.09.2026; audit S04-05. With no Sanity left and all of her Health, Aiko
@@ -943,6 +1104,22 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return true;
     `, { timeout: 60000 });
     await settle(900);
+    /* THE OPENING ROLL, HELD TO WHAT THE GM KNOWS (E08+E28 C12b, 04.10.2026; the plan's 3.3). The
+       victim's roll is drawn on the GM, which reads what it expects of it (roll-draw.mjs `expectedFor`):
+       the statistic the GM picked as the trap opened (`openingTrait`, Eye) and the opening's own die,
+       read off the clock by the GM - none in the morning this file plays in; at Night the victim's
+       die is one the harness's roll, with no roll window, could not carry. Read on the GM: the record
+       of Aiko's newest opening roll. Until C12b nothing was expected and nothing could be flagged. */
+    const openingDrawn = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const newest = () => Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.actionKey === "murderOpening")
+            .sort((a, b) => b.at - a.at)[0] ?? null;
+        for (let i = 0; i < 60 && !newest(); i++) await new Promise(r => setTimeout(r, 100));
+        const r = newest();
+        return r ? { trait: r.expected?.trait ?? null, from: r.expected?.traitFrom ?? null, situation: r.expected?.situationFrom ?? null,
+            advantage: r.expected?.advantage ?? null, flags: r.flags ?? null } : null;`, { timeout: 30000 });
+    check("trap: the victim's opening roll is drawn and held to the GM's pick (Eye) and to the opening's own die, read by the GM - nothing flagged",
+        openingDrawn?.trait === "eye" && openingDrawn.from === "opening" && openingDrawn.situation === "gm" && openingDrawn.advantage === 0
+        && Array.isArray(openingDrawn.flags) && openingDrawn.flags.length === 0, JSON.stringify(openingDrawn), { flow: "murder-incident" });
 
     const trap = await readAll();
     check("trap: the victim is still told", trap.victim?.witness === true && trap.victim?.knowsCast === true,
@@ -1093,7 +1270,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        victim throws a roll of the fight on p1, the way a crisis roll is thrown (as 72 throws
        Chie's), with Dice So Nice's secret-roll hiding off everywhere: the builder's browser and
        the bystander's are sent no `dice.show` and animate nothing - the incident's audience is
-       the victim alone, who threw it. */
+       the victim alone, who threw it. Since E08+E28 C12a the GM draws the roll, and the victim
+       plays its dice from the GM's answer (`played`) rather than animating the message. */
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
     const trapRoll = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         globalThis.__forceRoll = { hope: 8, fear: 3 };
@@ -1105,7 +1283,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const trapDice = { victim: await p1.eval(DICE_READ(trapRoll)), bystander: await p2.eval(DICE_READ(trapRoll)), builder: await p3.eval(DICE_READ(trapRoll)) };
     for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dsnHideSecret = true; return true;`);
     check("trap: the victim's roll of the fight reaches neither the builder's screen nor the bystander's, even with Dice So Nice's secret-roll hiding off",
-        Boolean(trapRoll.id) && trapRoll.stage === "incident" && trapDice.victim.animated
+        Boolean(trapRoll.id) && trapRoll.stage === "incident" && (trapDice.victim.animated || trapDice.victim.played.length > 0)
         && [trapDice.builder, trapDice.bystander].every(r => !r.relayed && !r.played.length && !r.animated),
         JSON.stringify({ trapRoll, trapDice }), { flow: "private-rolls" });
 
@@ -1236,4 +1414,99 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         if (C.isDeadForGm(aiko)) await C.reviveCharacter(aiko, { quiet: true });
         return true;`, { timeout: 60000 });
     await settle(700);
+
+    /* NO DOCUMENT OF A RUNNING INCIDENT IS WRITTEN BY A PLAYER (E08+E28 fix r2-H5, 05.10.2026; review S2-3; E06's Q2).
+       Foundry stamps a message's author on the server - the user whose browser created it - and every browser holds
+       it. Since C12a a player's roll is the GM's message, so the author of a card a player's browser posted after it
+       - an item used in the fight, Stage 6's concealment card after the killer's roll - was the one field that said
+       who had just acted. While an incident runs a player's browser asks the primary GM to post its private cards
+       (secret.mjs `askGm`). Read on p2, the first fight's bystander (Botan walks into the second, and is the
+       accomplice of the last): every document its browser was sent while an incident ran, by author. The cards the
+       players' browsers asked for in the first fight are among them - the tool snapped on p3's, the item used on
+       p1's, the kit drunk and the tool broken on p2's own - so the check is red for an author, not for cards that
+       were never posted. */
+    const incidentDocs = await p2.eval(`return globalThis.__incidentDocs ?? [];`);
+    const playersAsked = [...broke.ids, cardIds.used, cardIds.drunk, cardIds.broke].filter(Boolean);
+    const byPlayers = incidentDocs.filter(d => [p1.userId, p2.userId, p3.userId].includes(d.author));
+    check("the bystander's browser holds no document of a running incident written by a player - the cards the fight's players asked for are the GM's",
+        playersAsked.length === 4 && playersAsked.every(id => incidentDocs.some(d => d.id === id)) && byPlayers.length === 0,
+        JSON.stringify({ held: incidentDocs.length, playersAsked, byPlayers: byPlayers.slice(0, 12) }), { flow: "murder-incident" });
+
+    /* THE KILLER'S PLAYER THROWS THE OPENING, AND STAGE 6'S TRAIL AND BODY MOVE (E08+E28 fix r2-H6, 05.10.2026;
+       review m2). Each names the roll the GM drew, and the GM reads its result off its record of it (C17) -
+       but every opening above is held on p3's browser and ruled on the GM, and no scenario sent a player's
+       trail or body move: C17's mutants that send them naming no roll survived every run, and a regression
+       there refuses every honest opening and both of those actions at a table with the suite green. Chie
+       murders Daichi, the opening's Body picked, and p3's browser answers the invitation as it does at a
+       table, on faces of 11 and 10; the GM swings the blow; Daichi's body lies where Chie stands; and p3
+       lays a trail at Aiko and carries the body off, each on 11 and 2 - to the first neighbouring room the
+       picker would offer, which here is none (measured 05.10: p3 reads no neighbour of Chie's room, so the
+       GM's own reach decides, cleanup.mjs `applyMoveBody`). Read on the GM:
+       the stage after the opening and what each roll's record settled. Last, since it opens an incident
+       the closing check above does not read. */
+    phase("the killer's player throws the opening, a trail and a body move", { flow: "murder-incident" });
+    await p3.eval(`globalThis.__h6Auto = globalThis.__dialogAuto; globalThis.__dialogAuto = true; globalThis.__forceRoll = { hope: 11, fear: 10 }; return true;`);
+    const honestOpening = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const D = await import("${repoUrl}/scripts/roll-draw.mjs");
+        for (const id of ["${ids.chie}", "${ids.daichi}", "${ids.aiko}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        const had = new Set(game.messages.contents.map(m => m.id));
+        await M.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", openingTrait: "body" });
+        const end = Date.now() + 20000;
+        while (M.murderState()?.stage === "openingRoll" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const drawn = game.messages.contents.filter(m => !had.has(m.id)).map(m => D.drawnRecordOf(m)).filter(r => r?.actionKey === "murderOpening");
+        return { stage: M.murderState()?.stage ?? null, records: drawn.map(r => ({ actorId: r.actorId, resolved: r.resolved ?? [] })) };`, { timeout: 60000 });
+    const sixPlaced = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const chie = game.actors.get("${ids.chie}"), floor = canvas.scene;
+        const mine = floor.tokens.find(t => t.actorId === "${ids.chie}"), body = floor.tokens.find(t => t.actorId === "${ids.daichi}");
+        globalThis.__h6Six = { body: body ? { id: body.id, x: body.x, y: body.y } : null,
+            was: { stress: chie.system.resources.stress.value, hope: chie.system.resources.hope.value } };
+        if (M.murderState()?.stage === "incident") {
+            for (let i = 0; i < 4 && M.crisisRefusal(chie, "finishingBlow")?.why === "not their turn"; i++) await M.passTurn();
+            await M.resolveCrisisAction({ actorId: chie.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+        }
+        if (mine && body) await body.update({ x: mine.x, y: mine.y });
+        await chie.update({ "system.resources.stress.value": 0 });
+        await automatedUpdate(chie, { "system.resources.hope.value": Math.max(3, globalThis.__h6Six.was.hope) });
+        await new Promise(r => setTimeout(r, 800));
+        return { stage: M.murderState()?.stage ?? null, moved: Boolean(mine && body) };`, { timeout: 60000 });
+    await settle(800);
+    const SIX = (key, target) => `const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
+        const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const Mv = await import("${repoUrl}/scripts/movement.mjs");
+        const chie = game.actors.get("${ids.chie}");
+        const room = Mv.locateActor(chie)?.room ?? "";
+        const target = ${target === "room" ? "Mv.neighbouringRooms(room).find(r => r !== room) ?? null" : JSON.stringify(target)};
+        globalThis.__forceRoll = { hope: 11, fear: 2 };
+        const before = A.rollInHand(chie)?.messageId ?? null, here = Cl.bodyIsHere(chie);
+        let r = null, err = null;
+        try { r = await Cl.attemptStageSix(chie, "${key}", target); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { delete globalThis.__forceRoll; }
+        const after = A.rollInHand(chie)?.messageId ?? null;
+        return { rolled: Boolean(r?.roll), messageId: after !== before ? after : null, here, target, err };`;
+    const trail = await p3.eval(SIX("misleadingTrail", ids.aiko), { timeout: 60000 });
+    await settle(1200);
+    const carried = await p3.eval(SIX("moveBody", "room"), { timeout: 60000 });
+    await settle(1200);
+    const SETTLED = id => `const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(id ?? "none")}));
+        return r ? { actionKey: r.actionKey, resolved: r.resolved ?? [] } : null;`;
+    const settled = { trail: await gm.eval(SETTLED(trail.messageId)), carried: await gm.eval(SETTLED(carried.messageId)) };
+    await p3.eval(`globalThis.__dialogAuto = globalThis.__h6Auto; delete globalThis.__h6Auto; return true;`);
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { body, was } = globalThis.__h6Six ?? {};
+        delete globalThis.__h6Six;
+        await game.drpg.endMurder({ reason: "suite", followUp: false });
+        const chie = game.actors.get("${ids.chie}"), daichi = game.actors.get("${ids.daichi}");
+        if (C.isDeadForGm(daichi)) await C.reviveCharacter(daichi, { quiet: true });
+        const token = body ? canvas.scene.tokens.get(body.id) : null;
+        if (token) await token.update({ x: body.x, y: body.y });
+        if (was) { await chie.update({ "system.resources.stress.value": was.stress }); await automatedUpdate(chie, { "system.resources.hope.value": was.hope }); }
+        return true;`, { timeout: 60000 });
+    check("the killer's player's opening, trail and body move each name the roll the GM drew, which settles it: the incident begins, and both Stage 6 actions are carried out",
+        honestOpening.stage === "incident" && JSON.stringify(honestOpening.records) === JSON.stringify([{ actorId: ids.chie, resolved: ["murderOpening"] }])
+            && sixPlaced.stage === "resolution" && sixPlaced.moved && trail.rolled && carried.rolled && carried.here === true
+            && JSON.stringify(settled) === JSON.stringify({ trail: { actionKey: "cleanup", resolved: ["cleanup"] }, carried: { actionKey: "cleanup", resolved: ["cleanup"] } }),
+        JSON.stringify({ honestOpening, sixPlaced, trail, carried, settled }), { flow: "murder-incident" });
 }

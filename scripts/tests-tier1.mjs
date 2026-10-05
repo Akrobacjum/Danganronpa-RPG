@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, bodyOf, fnSource, STANDING
+    moduleSources, otherSources, stripComments, bodyOf, fnSource, STANDING, watchLog
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -1556,9 +1556,11 @@ const INVARIANTS = [
         ok(!/setFlag\([^)]*FLAGS\.pendingCall/.test(bridge),
             "the bridge writes the armed slot directly again, so arming on somebody's behalf evicts");
         ok(/appendArmedCall\(/.test(bridge), "the bridge no longer appends to the armed list");
-        ok(/function callDice\(/.test(dialog) && /callDice\(actor\)/.test(dialog),
+        ok(/function callDice\(/.test(dialog) && /callDice\(windowCalls\(app, actor\)\)/.test(dialog),
             "the roll window counts one Call's die instead of adding them up");
-        ok(/consumeCalls\(actor\)/.test(rolls), "an action roll spends only one of the armed Calls");
+        // E08+E28 C7 (S02-20): by name, the ones the roll read - a Call armed after them waits.
+        ok(/consumeCallsByNonce\(actor, armedCalls\.map\(/.test(rolls),
+            "an action roll spends something other than every armed Call it read, by name");
     }],
 
     ["every trait a definition names actually exists", () => {
@@ -1867,11 +1869,20 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const src = name => stripComments(sources.get(name) ?? "");
 
-        // Listen names only the rooms the listener has discovered.
+        // Listen names only the rooms the listener has discovered - its first throw and, since
+        // E08+E28 fix r1-G4, its Reroll's lines (built on the roller's browser, reroll.mjs
+        // `listenLines`), through the one rule (`listenLabels`).
         const listen = src("action-rolls.mjs");
         const body = bodyOf(listen, "async function performListen", { until: "\n}" });
-        ok(/roomsKnownToMe\(\)/.test(body) && /DRPG\.Listen\.unknownRoom/.test(body),
-            "Listen names every neighbouring room again, discovered or not");
+        const rerolled = bodyOf(src("reroll.mjs"), "async function listenLines", { until: "\n}" });
+        const doors = /listenLabels\(neighbours, roomsKnownToMe\(\)\)/;
+        ok(doors.test(body) && doors.test(rerolled),
+            "Listen names every neighbouring room again, discovered or not (the first throw or the Reroll)");
+        const { listenLabels } = await import("./action-rolls.mjs");
+        const unexplored = n => game.i18n.format("DRPG.Listen.unknownRoom", { n });
+        equal(JSON.stringify([[...listenLabels(["A", "B", "C"], new Set(["B"])).values()], [...listenLabels(["A", "B"], null).values()]]),
+            JSON.stringify([[unexplored(1), "B", unexplored(2)], ["A", "B"]]),
+            "a room the viewer has not been in is not \"Unexplored room n\", or a GM's map loses a name");
         ok(/<option value="\$\{i\}">/.test(body), "Listen's options carry room names in the page");
         ok(game.i18n.has("DRPG.Listen.unknownRoom"), "the unexplored-room label has no text");
 
@@ -2737,24 +2748,6 @@ const INVARIANTS = [
         equal(JSON.stringify(tick), JSON.stringify([{ id: "T1", current: -1, start: 0 }]), "the tick is not applied as the one difference it is");
     }],
 
-    ["R135 - a Reroll receipt pays for one undo of each kind, for a few minutes", async () => {
-        /*
-         * E03, 24.09.2026; audit S10-40. The GM-side receipt a player's Reroll leaves
-         * (reroll-receipts.mjs), asked about made-up receipts.
-         */
-        const R = await import("./reroll-receipts.mjs");
-        const now = 1e12;
-        ok(R.rerollReceiptRefusal(null, { now }), "no receipt pays for an undo");
-        ok(!R.rerollReceiptRefusal({ at: now - 1000, used: new Set() }, { kind: "observe", now }), "a fresh receipt is refused");
-        ok(R.rerollReceiptRefusal({ at: now - 10 * 60_000, used: new Set() }, { kind: "observe", now }), "a ten-minute-old receipt still pays");
-        ok(R.rerollReceiptRefusal({ at: now, used: new Set(["despair"]) }, { kind: "despair", now }), "one receipt pays for two Despair corrections");
-        ok(!R.rerollReceiptRefusal({ at: now, used: new Set(["despair"]) }, { kind: "observe", now }), "spending one kind used up another");
-        equal(R.receiptDespairDelta({ wasFear: false, nowFear: true }), 1, "a roll that became Despair does not owe +1");
-        equal(R.receiptDespairDelta({ wasFear: true, nowFear: false }), -1, "a roll that stopped being Despair does not owe -1");
-        equal(R.receiptDespairDelta({ wasFear: true, nowFear: true }), 0, "a roll that stayed Despair owes a point");
-        equal(R.receiptDespairDelta({ wasFear: null, nowFear: false }), -1, "an unseen roll is not read off its new dice");
-    }],
-
     ["R136 - a sabotage is taken back only as the pair it wrote", async () => {
         /*
          * E03, 24.09.2026; audit S10-03, S09-02. `undoSabotage` deleted whatever id
@@ -3029,7 +3022,6 @@ const INVARIANTS = [
          * R1b reads.
          */
         const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
-        const { sessionFailures } = await import("./utils.mjs");
         const me = game.user.id, sent = [], ran = [];
         const send = (to, packet) => sent.push({ to, ...packet });
         const decl = (run, more = {}) => ({ label: "x", guards: [knownSender], sanitize: pick({ n: as.num }), run, answer: "ack", ...more });
@@ -3115,12 +3107,19 @@ const INVARIANTS = [
 
         for (const where of ["Run", "Guard", "Prepare"]) {
             clear();
-            await ask(`r162.throws${where}`);
+            // The lines logged while it is judged, not the session log's rows: a second run in one page found the
+            // first run's row there, and a session past 60 wordings none (fix r2-H6, 05.10.2026; review m1).
+            const log = watchLog();
+            try {
+                await ask(`r162.throws${where}`);
+            } finally {
+                log.stop();
+            }
             const refusals = sent.filter(p => p.action === "bridge.refused");
             equal(refusals.length, 1, `an exception in the ${where.toLowerCase()} was not told as one refusal`);
             equal(refusals[0]?.reason, "failed", `an exception in the ${where.toLowerCase()} was not told as failed`);
-            ok(sessionFailures().some(e => e.message.includes(`Refused a "r162.throws${where}"`) && e.message.includes("the handler failed")),
-                `an exception in the ${where.toLowerCase()} was not logged as "the handler failed"`);
+            equal(log.count(new RegExp(`Refused a "r162\\.throws${where}".*the handler failed`)), 1,
+                `an exception in the ${where.toLowerCase()} was not logged once as "the handler failed"`);
             if (where !== "Run") {
                 ok(!sent.some(p => p.action === "bridge.ack") && !ran.length,
                     `an exception in the ${where.toLowerCase()} was acknowledged, or the run went on: ${JSON.stringify({ sent, ran })}`);
@@ -5229,8 +5228,8 @@ const INVARIANTS = [
          * character in its message (private-rolls.mjs `neutralRollOf`), and a Reroll rebuilds the
          * formula from the roll's options - so reroll.mjs `rollAsThrown` puts back what the
          * rebuild reads: the character's data from the actor, the statistic and the experiences
-         * from the bookmark of the roll's own browser. A made-up roll class stands in for
-         * Daggerheart's, which the harness does not have: a neutral roll comes back rebuilt with
+         * from the GMs' bookmark (the roll's own browser's until E08+E28 C4a). A made-up roll
+         * class stands in for Daggerheart's, which the harness does not have: a neutral roll comes back rebuilt with
          * the sheet, the statistic in Daggerheart's key and the experiences, its own options
          * untouched; a roll the module did not throw comes back as it was; one the bookmark does
          * not name is refused. Then what the Reroll writes into the message (`rerolledSource`),
@@ -5505,6 +5504,164 @@ const INVARIANTS = [
             [pick("body", false), pick("leg", true), pick("body", false), pick("hand", true), null, null, pick("body", true), null],
             [["gms", "weaponAttack"], ["here", "weaponAttack"]]
         ]), "a roll did not take its one trait, or several did not go to a GM, or Resolve was asked, or an answer off the list was rolled (answers, who was asked)");
+    }],
+    ["R216 - a Reroll answered past its clock still counts, and a GM leaving is not the primary", async () => {
+        /*
+         * E08+E28 fix r1-G5, 04.10.2026; the round-1 review's m1 and m3.
+         * m1: `reroll.ask` waits `TIMING.rulingMs` while its run can wait on a GM's dialog as
+         * long as the GM takes; past the clock the asker read "not carried out" while the
+         * Reroll was made and paid, and no card came. Driven with R165's fakes: a request with a
+         * `lateRefused` hears a refusal after its clock, once, with its code, and one without it
+         * hears nothing (as before); and read in the source: `requestReroll` asks quietly with a
+         * `late`, a `lateRefused` and a `lateMs`, and `askReroll` says `DRPG.Reroll.stillMaking`
+         * for the clock, not the bridge's "not carried out". A player's browser answered after
+         * 180 s is not driven here: no scenario waits that long.
+         * m3: the recovery on `userConnected(gm, false)` asked `isPrimaryGm()`, which reads
+         * `active`. Read: `primaryGmId({ leaving })` without this GM (null where it is the only
+         * GM), with a player named (this GM), and the recovery's pass asking with `leaving`.
+         * Which of the hook and the flag comes first on v14 is not measured: one GM here.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const { primaryGmId, isPrimaryGm } = await import("./utils.mjs");
+        const make = () => {
+            const sent = [], said = [];
+            const waiter = createWaiter({
+                emit: packet => sent.push(packet), gmIds: () => ["R216GM"], me: () => ({ id: "R216ME", isGM: false, isPrimary: false }),
+                notify: (action, reason) => said.push(`${action} ${reason}`), fromGm: id => id === "R216GM", report: () => {}
+            });
+            const reply = (action, extra = {}) => waiter.onReply({ action, userId: "R216ME", requestId: sent.at(-1)?.requestId, ...extra }, "R216GM");
+            return { waiter, said, reply };
+        };
+        const heard = [];
+        let w = make();
+        let asked = w.waiter.request("r216.late", {}, { ackMs: 1000, timeoutMs: 40, lateMs: 400, settle: "reply", quiet: true,
+            lateRefused: reason => heard.push(reason) });
+        const timedOut = await asked;
+        await wait(80);
+        w.reply("bridge.refused", { what: "r216.late", reason: "busy" });
+        w.reply("bridge.refused", { what: "r216.late", reason: "made up" });
+        const quietOld = [...w.said];
+        w = make();
+        asked = w.waiter.request("r216.old", {}, { ackMs: 1000, timeoutMs: 40, lateMs: 400, settle: "reply", quiet: true });
+        await asked;
+        await wait(80);
+        w.reply("bridge.refused", { what: "r216.old", reason: "busy" });
+        equal(JSON.stringify([timedOut, heard, quietOld, w.said]), JSON.stringify([{ ok: false, reason: "noAnswer" }, ["busy", "refused"], [], []]),
+            "a refusal after the clock did not go to `lateRefused` with its code (an unknown one as `refused`), or a request without one heard it (the clock's answer, heard, said)");
+
+        const sources = new Map(await otherSources());
+        const body = (file, fn) => fnSource(stripComments(sources.get(file) ?? ""), fn);
+        const ask = body("gm-bridge.mjs", "requestReroll"), caller = body("calls.mjs", "askReroll"), pass = body("reroll.mjs", "recoverRerollJournal");
+        equal(JSON.stringify([/quiet:\s*true/.test(ask), /\blate\b/.test(ask), /\blateRefused\b/.test(ask), /\blateMs:/.test(ask),
+            /DRPG\.Reroll\.stillMaking/.test(caller) && /"noAnswer"/.test(caller), /isPrimaryGm\(\{\s*leaving:\s*gone\s*\}\)/.test(pass)]),
+        JSON.stringify([true, true, true, true, true, true]),
+            "the Reroll's ask does not hear a late answer, or its clock says it was not carried out, or the recovery counts the GM leaving (quiet, late, lateRefused, lateMs, the clock's line, the pass)");
+
+        const player = game.users.find(u => !u.isGM) ?? null;
+        equal(JSON.stringify([primaryGmId({ leaving: game.user.id }) === game.user.id, (player ? primaryGmId({ leaving: player.id }) : primaryGmId()) === primaryGmId(),
+            isPrimaryGm({ leaving: game.user.id })]),
+        JSON.stringify([false, true, false]),
+            "the user named as leaving was still computed as the primary, or a player's leaving moved it (this user primary without itself, the primary without a player, isPrimaryGm without itself)");
+    }],
+
+    ["R217 - the GM's draw is on the build it was written for, and leaves any other build alone", async () => {
+        /*
+         * E08+E28 C12a, 04.10.2026; audit S16-05; the plan's 3.2 (its R216 - taken by fix r1-G5,
+         * so this is the next free number). A player's action roll is configured in their browser
+         * and drawn by the primary GM through a wrap of Daggerheart's `DualityRoll.build`
+         * (roll-draw.mjs), which runs `buildConfigure` and `buildEvaluate` itself and leaves out
+         * `buildPost`. On a build that does something else in between, the wrap would drop it
+         * silently - so the wrap is put only on the build it was read from (D1: Daggerheart 2.10.x
+         * loads, without a maximum), and any other is left alone and said to the GMs once per
+         * version. Read here: this world's class passes `reviewBuild` and is wrapped (the seam's
+         * state, the patch row's probe); and four classes that differ from it each in one place -
+         * the steps in another order, a configuration hook not by Daggerheart's template, no
+         * Duality hooks, no `fromData` - are refused, each with its own reason. Reads only: the
+         * fakes are never wrapped (`registerRollDraw` reads the world's class alone).
+         * Since fix r2-H6 (05.10.2026; review m3) also what is decided on them (`seamFor`, which
+         * `registerRollDraw` wraps by): the reviewed fake is to be wrapped and the reordered one
+         * left alone, its state "changed" with the review's reason. What the fallback then does on
+         * the GM is tier 2's ("a build the draw was not written for ...").
+         */
+        const { reviewBuild, rollDrawState, seamFor } = await import("./roll-draw.mjs");
+        const { PATCHES } = await import("./patches.mjs");
+        const live = game.system?.api?.dice?.DualityRoll;
+        must(typeof live === "function", "this world's Daggerheart has no DualityRoll to draw");
+        const row = PATCHES.find(p => p.target === "DualityRoll.build")?.probe?.() ?? null;
+        equal(JSON.stringify([reviewBuild(live), rollDrawState().state, row?.present, row?.ours]),
+            JSON.stringify([{ ok: true, why: "" }, "ok", true, true]),
+            "this world's build is not the reviewed one, or the seam is not on it (the review, the state, the patch row's present and ours)");
+        /* The fakes are classes, so `reviewBuild` reads their source as it reads Daggerheart's; each
+           standalone, as a class that extended the reviewed one would inherit what it lacks. */
+        const steps = {
+            buildEvaluate: async () => {}, buildPost: async () => {}, toMessage: async () => {}, dualityUpdate: async () => {},
+            fromData: data => data, getHooks: () => ["Duality"]
+        };
+        const reviewed = Object.assign(class R217Reviewed {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildEvaluate(config, message); await this.buildPost(config, message); return config; }
+            static async buildConfigure(config) { for (const hook of config.hooks) Hooks.call(`daggerheart.post${hook}RollConfiguration`, config); return {}; }
+        }, steps);
+        const reordered = Object.assign(class R217Reordered {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildPost(config, message); await this.buildEvaluate(config, message); return config; }
+            static async buildConfigure(config) { for (const hook of config.hooks) Hooks.call(`daggerheart.post${hook}RollConfiguration`, config); return {}; }
+        }, steps);
+        const untemplated = Object.assign(class R217Untemplated {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildEvaluate(config, message); await this.buildPost(config, message); return config; }
+            static async buildConfigure(config) { Hooks.call("daggerheart.postRollConfiguration", config); return {}; }
+        }, steps);
+        const hookless = Object.assign(class R217Hookless {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildEvaluate(config, message); await this.buildPost(config, message); return config; }
+            static async buildConfigure(config) { for (const hook of config.hooks) Hooks.call(`daggerheart.post${hook}RollConfiguration`, config); return {}; }
+        }, steps, { getHooks: () => [] });
+        const unbuilt = Object.assign(class R217Unbuilt {
+            static async build(config, message) { await this.buildConfigure(config, message); await this.buildEvaluate(config, message); await this.buildPost(config, message); return config; }
+            static async buildConfigure(config) { for (const hook of config.hooks) Hooks.call(`daggerheart.post${hook}RollConfiguration`, config); return {}; }
+        }, steps, { fromData: undefined });
+        const verdicts = [reviewed, reordered, untemplated, hookless, unbuilt].map(cls => reviewBuild(cls));
+        equal(JSON.stringify(verdicts.map(v => v.ok)), JSON.stringify([true, false, false, false, false]),
+            "a build that differs from the reviewed one is wrapped, or the reviewed shape is refused (as read; order, template, hooks, fromData)");
+        equal(new Set(verdicts.slice(1).map(v => v.why)).size, 4, "two different departures were refused with one reason");
+        equal(JSON.stringify([seamFor(live), seamFor(reviewed), seamFor(reordered)]),
+            JSON.stringify([{ state: "ok", why: "" }, { state: "ok", why: "" }, { state: "changed", why: verdicts[1].why }]),
+            "the seam would be put on a build that is not the reviewed one, or left off the reviewed one (this world's, the reviewed fake, the reordered fake)");
+    }],
+
+    ["R219 - what one client must decide is decided on the primary GM: another GM asks it, as a player does", async () => {
+        /*
+         * E08+E28 fix r2-H7, 05.10.2026; the round-2 review's S2-7 and m5. A request's `local`
+         * ran on whichever GM asked, so an assistant GM's Reroll was made on its own client while
+         * a player's was made on the primary (two Rerolls of one character could each pass the
+         * GMs' journal and both pay), and Grant all was decided on the GM who clicked (two GMs
+         * each granted the rolls). A request `onPrimary` is done on the primary alone; another GM
+         * sends it to the GMs as a player does. The harness has one GM, so the race is not driven:
+         * the waiter is (`createWaiter`, with fakes, as R165 drives it), and the two requests
+         * that must carry the option are read in their source, and the card's click in its own.
+         * Red before the fix: the assistant GM ran `local` and sent nothing, and neither request
+         * named `onPrimary`.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const run = async who => {
+            const sent = [], ran = [];
+            const waiter = createWaiter({
+                emit: packet => sent.push(packet.action), gmIds: () => ["R219PRIMARY00001", "R219ASSISTANT001"],
+                me: () => who, notify: () => {}, fromGm: () => true, report: () => {}
+            });
+            const out = await Promise.all(["r219.primary", "r219.anyGm"].map((action, i) => waiter.request(action, {},
+                { settle: "reply", ackMs: 30, timeoutMs: 60, quiet: true, local: () => (ran.push(action), "here"), onPrimary: i === 0 })));
+            return [ran, sent, out.map(o => o.ok ? o.value : o.reason)];
+        };
+        const assistant = await run({ id: "R219ASSISTANT001", isGM: true, isPrimary: false });
+        const primary = await run({ id: "R219PRIMARY00001", isGM: true, isPrimary: true });
+        equal(JSON.stringify([assistant, primary]), JSON.stringify([
+            [["r219.anyGm"], ["r219.primary"], ["noAnswer", "here"]],
+            [["r219.primary", "r219.anyGm"], [], ["here", "here"]]
+        ]), "a request only the primary may decide was done on another GM, or not sent to the primary (each: run here, sent, answers)");
+        const sources = new Map(await otherSources());
+        const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"]]
+            .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)));
+        ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
+        const click = fnSource(stripComments(sources.get("roll-draw.mjs") ?? ""), "onRenderUnwitnessed");
+        ok(/\baskToDecide\(/.test(click) && !/\bdecideUnwitnessed\(/.test(click), "the GMs' card's buttons decide on the GM who clicked, not through askToDecide");
     }]
 ];
 

@@ -108,7 +108,7 @@ export const WORLD_SECRET_RULES = Object.freeze({
     }),
     flags: Object.freeze({
         // E05 C7: the Reroll bookmark - a crisis roll's keys, Stage 6's token ids, a palm's victim -
-        // is the roller's own client setting `rollBookmarks` (action-rolls.mjs; S02-01).
+        // left world data (S02-01); since E08+E28 C4a it is the GMs' store (gm-stores.mjs `rerollBookmarkStore`).
         // E05 C14: what was taken off a body, and which trace on the map is its, is a row of the
         // GMs' `lootTraces` store (handover.mjs `liftLootTraces`; S05-39 (3)).
         // E06 C10: an armed Call names nobody who bought it - a Monocub's Confusion named the Monocub

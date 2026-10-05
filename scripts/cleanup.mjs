@@ -67,7 +67,7 @@ import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
-import { usedToolStore, blackenedStore } from "./gm-stores.mjs";
+import { usedToolStore, blackenedStore, cleanupAttemptStore } from "./gm-stores.mjs";
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic
 } from "./remnants.mjs";
@@ -644,9 +644,12 @@ export async function attemptCleanup(actor, tokenId, {
         : null;
 
     const { requestCleanup } = await import("./gm-bridge.mjs");
+    const { rollInHand } = await import("./action-rolls.mjs");
     await requestCleanup({
         actorId: actor.id,
         tokenId,
+        // The roll the GMs' fact of the attempt goes on (fix r1-G2).
+        rollId: rollInHand(actor)?.messageId ?? null,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope),
@@ -837,7 +840,9 @@ async function reshapeTrace(token, data, {
         receipt.transformed = {
             id: token.id,
             sceneId: token.parent?.id ?? null,
-            from: { type: data.type, visibility: data.visibility },
+            // The tie with the type (E08+E28 C3; audit S05-44): a killer's reshape ties an
+            // untied trace (above), and a Reroll that took the reshape back left it tied.
+            from: { type: data.type, visibility: data.visibility, tiedToCrime: Boolean(data.tiedToCrime) },
             publicFrom: remnantData(token)?.public ?? null
         };
     }
@@ -1037,7 +1042,7 @@ export async function applyReshapeRuling({
      * console road) proves nothing, and the card is honoured as it always was.
      */
     const tag = String(attempt ?? "").slice(0, 32);
-    const standing = lastAttempt.get(actorId);
+    const standing = await attemptOf(actorId);
     if (tag && standing?.tokenId === tokenId && standing.attempt !== tag) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeTakenBack"));
         return false;
@@ -1053,15 +1058,19 @@ export async function applyReshapeRuling({
      * THE RECEIPT IS FILLED IN WHEN THE CHANGE HAPPENS, not when it was asked
      * for. A Reroll between the roll and the ruling finds `transformed: null`,
      * which is the truth - nothing had been written yet - and one after the
-     * ruling finds the snapshot `reshapeTrace` takes below. The Map holds the
-     * object, so writing through it here is the same record the roll opened.
+     * ruling finds the snapshot `reshapeTrace` takes below, written onto the
+     * row the roll opened (E08+E28 C3: a GM store now, where it was a Map whose
+     * object this wrote through) - and only onto a row still standing.
      */
-    const receipt = lastAttempt.get(actorId);
+    const receipt = standing?.tokenId === tokenId ? {} : null;
     await reshapeTrace(token, data, {
         name: safeName, text: safeText, softer: quieter, tie: Boolean(tie),
-        receipt: receipt?.tokenId === tokenId ? receipt : null,
+        receipt,
         done
     });
+    if (receipt?.transformed) {
+        await cleanupAttemptStore.patch(actorId, { transformed: receipt.transformed }, { ifLive: true });
+    }
 
     if (actor && done.length) {
         await whisperToOwner(actor, `${cardHead({
@@ -1087,7 +1096,7 @@ export async function declineReshapeRuling({ actorId, tokenId = null, erase = fa
     // The same guard as the approval, and it matters MORE here: the erase below
     // would otherwise remove a trace a Reroll's replay had left standing.
     const tag = String(attempt ?? "").slice(0, 32);
-    const standing = lastAttempt.get(actorId);
+    const standing = await attemptOf(actorId);
     if (tag && tokenId && standing?.tokenId === tokenId && standing.attempt !== tag) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeTakenBack"));
         return false;
@@ -1110,7 +1119,9 @@ export async function declineReshapeRuling({ actorId, tokenId = null, erase = fa
         const token = findRemnantToken(tokenId);
         const data = token ? remnantData(token) : null;
         if (data && !data.reinforced) {
-            if (standing?.tokenId === tokenId) standing.erased = recreationDataFor(token);
+            if (standing?.tokenId === tokenId) {
+                await cleanupAttemptStore.patch(actorId, { erased: recreationDataFor(token) }, { ifLive: true });
+            }
             await removeRemnant(token);
             said = "DRPG.Cleanup.reshapeDeclinedErased";
         }
@@ -1359,7 +1370,7 @@ async function resolveTransformRoad(actor, token, data, verdict, {
     // What this attempt left the Sanity track at, so a Reroll takes back what it
     // moved and not everything since (E03; audit S05-40).
     receipt.stressAfter = resourceValue(actor, "stress");
-    lastAttempt.set(actor.id, receipt);
+    await keepAttempt(receipt);
     log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
         data.visibility} ${data.type} - ${band}.`);
     return { removed: false, transformed: true, band, success };
@@ -1523,7 +1534,10 @@ export async function resolveCleanup({
     // T-1: which step of `PRICE_CHAINS.tamper` the client paid, and whether a
     // Burst paid it. Bounded on arrival by `validPrice` - a packet may claim any
     // string, and only a step the table knows is honoured.
-    price = null, grant = false
+    price = null, grant = false,
+    // The roll it was thrown with and who threw it, for the GMs' fact of the attempt (fix
+    // r1-G2): action-rolls.mjs `rollOfFact`.
+    rollId = null, by = null
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -1539,7 +1553,10 @@ export async function resolveCleanup({
     // top of the first attempt. `undoLastCleanup` has already told the GMs what
     // to put right by hand.
     // Whether the attempt being replaced was the free one, read before the rewind takes its receipt.
-    const replayFree = Boolean(undo && lastAttempt.get(actorId)?.free);
+    const replayFree = Boolean(undo && (await attemptOf(actorId))?.free);
+    // The roll this attempt is for (E08+E28 C2; the one its packet names since fix r1-G2): see `keepAttemptFact`.
+    const rolls = await import("./action-rolls.mjs");
+    const roll = rolls.rollOfFact({ undo, rollId, by, actorId, actions: ["cleanup"] });
     if (undo && !await undoLastCleanup(actor, tokenId)) return null;
 
     // Searched across every scene rather than only the one the killer is
@@ -1558,12 +1575,24 @@ export async function resolveCleanup({
         const free = replayFree || await consumeFreeCleanup(actor);
         if (!validPrice(price) && !free) await spendStress(actor);
         if (free) await waivePrice(actor, validPrice(price));
+        // An attempt that kept no receipt, as the refusal below (E08+E28 C3; audit S05-44).
+        await forgetAttempt(actorId);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
         return { removed: false, gone: true };
     }
 
+    /*
+     * A REFUSED ATTEMPT TAKES THE LAST ONE'S RECEIPT WITH IT (E08+E28 C3, 03.10.2026; audit
+     * S05-44). It kept none of its own and left the previous attempt's standing, so a Reroll
+     * of the refused attempt on the same trace took back the attempt before it - its trace,
+     * its Sanity - and scored the new number on top. With no row, the Reroll is not replayed
+     * and the GMs are told (`undoLastCleanup`).
+     */
     const refused = await cleanupRefusal(actor, token, data, viaAction);
-    if (refused) return refused;
+    if (refused) {
+        await forgetAttempt(actorId);
+        return refused;
+    }
     await noteCleaningTool(actor);
 
     const verdict = cleanupVerdict(actor, data, { total, isCritical, withHope, mode });
@@ -1604,8 +1633,10 @@ export async function resolveCleanup({
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
     if (transforming && success) {
-        return resolveTransformRoad(actor, token, data, verdict,
+        const road = await resolveTransformRoad(actor, token, data, verdict,
             { change, isCritical, total, viaAction, receipt, done, paidStep, charged });
+        await keepAttemptFact(rolls, roll, actorId, receipt);
+        return road;
     }
 
     const { rewrite, rewriteName } = await resolveEraseRoad(actor, token, data, { outcome, transforming, isCritical, transform, receipt, done });
@@ -1627,7 +1658,8 @@ export async function resolveCleanup({
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
     // What this attempt left the Sanity track at - see the transform road above.
     receipt.stressAfter = resourceValue(actor, "stress");
-    lastAttempt.set(actorId, receipt);
+    await keepAttempt(receipt);
+    await keepAttemptFact(rolls, roll, actorId, receipt);
 
     log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} - ${band}${
         rewrite ? `, reshaped into "${rewriteName}" at ${rewrite.visibility}` : ""}.`);
@@ -2067,11 +2099,14 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     await breakOnDespair(actor, tool, roll);
 
     const { requestCleanup } = await import("./gm-bridge.mjs");
+    const { rollInHand } = await import("./action-rolls.mjs");
     await requestCleanup({
         actorId: actor.id,
         tokenId: null,
         key,
         targetId,
+        // The roll the GM scores it on, as the two that aim at a trace name theirs (E08+E28 C17).
+        rollId: rollInHand(actor)?.messageId ?? null,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope),
@@ -2295,17 +2330,55 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
 /* ==========================================================================
  * TAKING A CLEAN-UP BACK - the Reroll's other half
  * --------------------------------------------------------------------------
- * Kept on this client rather than in a world setting, unlike the incident's own
- * receipt in murder.mjs. What it holds is the answer key: the full creation data
- * of a Remnant, including how visible it is and what it really is. Writing that
- * into the murder state would publish it to every player's console - see
- * truth-bullets.mjs for the same reasoning about the ledger. The cost is that a
- * GM who reloads mid-Stage-6 cannot replay a clean-up, which is the same trade
- * observe.mjs already makes, and it says so when it happens.
+ * Kept on the GMs' browsers rather than in a world setting, unlike the incident's
+ * own receipt in murder.mjs. What it holds is the answer key: the full creation
+ * data of a Remnant, including how visible it is and what it really is. Writing
+ * that into the murder state would publish it to every player's console - see
+ * truth-bullets.mjs for the same reasoning about the ledger.
+ *
+ * A GM STORE SINCE E08+E28 C3 (1.2.67; audit S05-44): `cleanupAttemptStore`, a row
+ * per character. It was a Map on the browser that resolved the attempt, so a GM
+ * who reloaded mid-Stage-6 could not replay a clean-up, and another GM never
+ * could. A row is written whole when an attempt ends (`keepAttempt`), amended by
+ * the reshape ruling that fills in what it changed, and dropped by the undo and by
+ * an attempt that ends without one (`forgetAttempt`).
  * ========================================================================== */
 
-/** actorId -> what their last clean-up attempt did. GM browsers only. */
-const lastAttempt = new Map();
+/** Every field of a receipt, each written, so a row holds one attempt's and nothing of the one before it. */
+const RECEIPT_FIELDS = ["actorId", "tokenId", "attempt", "free", "stressBefore", "stressAfter",
+    "erased", "leftBehind", "transformed", "handedBack"];
+
+/**
+ * What a character's last clean-up attempt did, as the GMs' store holds it; null for none.
+ * Exported for the Reroll's question before its payment (reroll.mjs `replayRefusal`).
+ */
+export async function attemptOf(actorId) {
+    await cleanupAttemptStore.whenHydrated();
+    return cleanupAttemptStore.get(actorId ?? "") ?? null;
+}
+
+/** The receipt of an attempt that ended, over whatever the row held. */
+function keepAttempt(receipt) {
+    return cleanupAttemptStore.patch(receipt.actorId,
+        Object.fromEntries(RECEIPT_FIELDS.map(f => [f, receipt[f] ?? null])));
+}
+
+/** No receipt: the last attempt is not this character's to take back any more. */
+async function forgetAttempt(actorId) {
+    await cleanupAttemptStore.whenHydrated();
+    if (cleanupAttemptStore.has(actorId)) await cleanupAttemptStore.drop(actorId);
+}
+
+/**
+ * The attempt a clean-up roll made, on the GMs' bookmark of that roll (E08+E28 C2): the
+ * receipt's `attempt` id, which a reshape card carries too. Only once the attempt is the one
+ * the GMs keep - a road that refused kept none. A replay writes its own attempt over the
+ * first, as it replaces the first's receipt in the store.
+ */
+async function keepAttemptFact(rolls, roll, actorId, receipt) {
+    if (cleanupAttemptStore.get(actorId)?.attempt !== receipt.attempt) return;
+    await rolls.noteFactOn(roll, { cleanupAttempt: receipt.attempt });
+}
 
 /**
  * Enough to build this Remnant again where it stood, with everything it knew.
@@ -2313,13 +2386,13 @@ const lastAttempt = new Map();
  * `placeRemnant` takes exactly this shape, so recreating is handing the flags
  * back rather than reconstructing them from a summary.
  *
- * The token ID is the one thing that cannot come back - Foundry mints a new one.
- * Two things key off it, and neither is hurt here: a Truth Bullet's `remnantId`
- * (a back-reference for the GM, not something the trial reads), and the
- * already-copied check that stops one character copying one trace twice. The
- * second means a character who had already found this trace could find it again
- * after a reroll, which is a strictly kinder failure than the trace staying
- * erased.
+ * THE TOKEN'S ID COMES BACK TOO (E08+E28 C3, 03.10.2026; audit S05-07). It was
+ * the one thing that did not: the undo re-placed the trace without it, so
+ * Foundry minted a new one and the replay that followed looked for the old id -
+ * "vanished", the trace standing, the Sanity charged. `_id` here and `keepId` in
+ * `undoLastCleanup` put it back under the id it had, so what keys off the id
+ * holds as it was: a Truth Bullet's `remnantId`, the already-copied check that
+ * stops one character copying one trace twice, and the ledger row's key.
  */
 function recreationDataFor(token) {
     // FROM THE LEDGER, NOT THE TOKEN (CASE-06). Since the answer key moved
@@ -2330,6 +2403,7 @@ function recreationDataFor(token) {
     const d = remnantData(token);
     if (!d) return null;
     return {
+        _id: token.id,
         x: token.x,
         y: token.y,
         sceneId: token.parent?.id ?? null,
@@ -2365,7 +2439,7 @@ function recreationDataFor(token) {
  * that list.
  */
 async function undoLastCleanup(actor, tokenId) {
-    const receipt = lastAttempt.get(actor.id);
+    const receipt = await attemptOf(actor.id);
     if (!receipt) {
         await whisperToGms(`<p class="drpg-warning">${
             game.i18n.localize("DRPG.Cleanup.rerollLost")}</p>`);
@@ -2373,8 +2447,10 @@ async function undoLastCleanup(actor, tokenId) {
     }
     if (receipt.tokenId !== tokenId) {
         error(`Cleanup reroll: the recorded attempt was on a different trace (${receipt.tokenId}).`);
-        // Same contract as a lost receipt: the caller aborts, and a human is
-        // told, because the dice on the player's screen have already changed.
+        // Same contract as a lost receipt: the caller aborts, and the GMs are
+        // told. The Reroll asks this before its payment (reroll.mjs `replayRefusal`),
+        // so only a receipt that changed while the dice were thrown again reaches
+        // here, and that Reroll is given back (fix r1-G3).
         await whisperToGms(`<p class="drpg-warning">${
             game.i18n.localize("DRPG.Cleanup.rerollLost")}</p>`);
         return false;
@@ -2395,10 +2471,11 @@ async function undoLastCleanup(actor, tokenId) {
         try {
             const { placeRemnant } = await import("./remnants.mjs");
             const { public: pub, ...data } = receipt.erased;
-            const back = await placeRemnant(data);
+            // Under the id it had (`recreationDataFor`).
+            const back = await placeRemnant(data, { keepId: true });
             if (back && pub) await setRemnantPublic(back, pub);
-            // A new token id: a player's Reroll could otherwise lift or retune it
-            // as a trace nobody has found (`removalRefusal`, gm-bridge.mjs).
+            // Marked as put back: a later Reroll does not lift or retune it, found
+            // or not (`removalRefusal`, asked by reroll.mjs `traceKept`).
             if (back) {
                 const { setRemnantSecret } = await import("./remnants.mjs");
                 await setRemnantSecret(back, { restored: true });
@@ -2420,6 +2497,7 @@ async function undoLastCleanup(actor, tokenId) {
     if (receipt.transformed?.from) {
         try {
             const { retuneRemnant, setRemnantPublic } = await import("./remnants.mjs");
+            // `from` carries the tie (E08+E28 C3), so a reshape's tie goes back with it.
             await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
                 receipt.transformed.from);
 
@@ -2480,7 +2558,7 @@ async function undoLastCleanup(actor, tokenId) {
         }
     }
 
-    lastAttempt.delete(actor.id);
+    await cleanupAttemptStore.drop(actor.id);
     return true;
 }
 

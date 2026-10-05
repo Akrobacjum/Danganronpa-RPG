@@ -290,7 +290,7 @@ export function buildDocumentClasses(ctx) {
             for (const d of arr) {
                 // pre-hooks fire on the initiator with a mutable document; a
                 // hook's updateSource() must reach the server (real semantics).
-                const doc = new this(sanitize(d));
+                const doc = new this(createData(d, context));
                 const pre = hooks.call(`preCreate${this.documentName}`, doc, doc.toObject(), opts(context), ctx.userId());
                 if (pre !== false) kept.push(doc.toObject());
             }
@@ -381,7 +381,7 @@ export function buildDocumentClasses(ctx) {
             const cls = ctx.classes[embeddedName] ?? BaseDocument;
             const kept = [];
             for (const d of data) {
-                const doc = new cls(sanitize(d), { parent: this });
+                const doc = new cls(createData(d, context), { parent: this });
                 const pre = hooks.call(`preCreate${embeddedName}`, doc, doc.toObject(), opts(context), ctx.userId());
                 if (pre !== false) kept.push(doc.toObject());
             }
@@ -434,6 +434,24 @@ export function buildDocumentClasses(ctx) {
     function sanitize(d) {
         // strip class instances → plain data
         return JSON.parse(JSON.stringify(d ?? {}));
+    }
+    /*
+     * A GIVEN ID ONLY WITH `keepId` (E08+E28 C1, 03.10.2026). Foundry's `keepId` option:
+     * without it a created document gets an id of its own, which is why the live seed
+     * (audit/live/seed-world.mjs) passes it to build this harness's world at a real table.
+     * The harness kept any `_id` it was handed that was free, so a module path that meant
+     * to bring a document back under its old id passed here without `keepId` and would
+     * mint a new one at a table. With this function's rule taken out, the tier-2 probe "a
+     * document keeps a given id only with keepId" read every given id back (03.10, both
+     * create paths, with and without the option). The new id is made by the constructor,
+     * so a preCreate hook reads the id the server then keeps (cluster.mjs `applyOp`), as it
+     * did before this rule. What Foundry does with a `keepId` whose id is taken was not read:
+     * the server here still mints a fresh one.
+     */
+    function createData(d, context) {
+        const data = sanitize(d);
+        if (!context?.keepId) delete data._id;
+        return data;
     }
     function opts(context) {
         const { parent, ...rest } = context ?? {};
@@ -614,6 +632,9 @@ export function buildDocumentClasses(ctx) {
         get whisper() { return this._source.whisper ?? []; }
         get blind() { return !!this._source.blind; }
         get content() { return this._source.content ?? ""; }
+        // The title Daggerheart's `toMessage` writes (dhRoll.mjs:148, 2.10.5) and its card's header
+        // reads (chat-message.hbs:8, :32) - the harness's `toMessage` writes none (E08+E28 fix r2-H4).
+        get title() { return this._source.title ?? ""; }
         get rolls() { return (this._source.rolls ?? []).map(r => typeof r === "string" ? JSON.parse(r) : r); }
         get isRoll() { return (this._source.rolls ?? []).length > 0; }
         get isAuthor() { return (this._source.author ?? this._source.user ?? null) === ctx.gameRef().user?.id; }
@@ -690,6 +711,16 @@ export function buildDocumentClasses(ctx) {
         get character() { return ctx.gameRef().actors.get(this._source.character) ?? null; }
         get color() { return U.Color.from(this._source.color ?? 0x888888); }
         get isSelf() { return this.id === ctx.userId(); }
+        /* Daggerheart 2.10.8's relay moves an item only on `game.user.isActiveGM`
+           (E08+E28 C9, 04.10.2026); without it here that case never runs headless. Which
+           GM Foundry v14 calls active is not read off its source here: this is the
+           module's own rule (utils.mjs `primaryGmId`) - the connected GM of the highest
+           role, the lowest id among them. */
+        get isActiveGM() {
+            const here = ctx.gameRef().users.filter(u => u.active && u.isGM);
+            const top = Math.max(...here.map(u => u.role));
+            return here.filter(u => u.role === top).map(u => u.id).sort()[0] === this.id;
+        }
         get viewedScene() { return this._source.viewedScene ?? ctx.gameRef().canvas?.scene?.id ?? null; }
         hasRole(role, { exact = false } = {}) {
             const levels = { NONE: 0, PLAYER: 1, TRUSTED: 2, ASSISTANT: 3, GAMEMASTER: 4 };
@@ -787,41 +818,118 @@ export function buildDocumentClasses(ctx) {
 
 /* ============================== Roll ===================================== */
 
+/*
+ * FOUNDRY'S DICE, AS FAR AS THE HARNESS'S FORMULAS GO (E08+E28 C10, 04.10.2026). Until C10 a
+ * roll here was a total and a list of `{ faces, results }` drawn from `Math.random`, and the
+ * duality roll was not thrown at all (client-entry.mjs wrote its faces). A table's roll is
+ * terms: a die draws each face from `CONFIG.Dice.randomUniform` as `ceil((1 - u) * faces)`
+ * (u = 0 is the top face - forced-roll.mjs reads the same mapping), and a roll's dice are its
+ * die terms. So a scripted randomiser and an `evaluate` shadowed on the instance work here as
+ * they do there. Written from Foundry's behaviour as this module's code and comments rely on it,
+ * not copied from its source: dice `XdY` with `kh`/`kl`, numbers, `+` and `-` - what the
+ * harness and the module throw headless; anything else in a formula is skipped, as before.
+ */
+export class Die {
+    constructor({ number = 1, faces = 6, modifiers = [], results = [], evaluated = false } = {}) {
+        this.number = number;
+        this.faces = faces;
+        this.modifiers = [...modifiers];
+        this.results = results.map(r => ({ ...r }));
+        this._evaluated = evaluated;
+    }
+    get denomination() { return `d${this.faces}`; }
+    get formula() { return `${this.number}d${this.faces}${this.modifiers.join("")}`; }
+    get total() {
+        if (!this._evaluated) return undefined;
+        return this.results.filter(r => r.active).reduce((sum, r) => sum + r.result, 0);
+    }
+    mapRandomFace(u) { return Math.ceil((1 - u) * this.faces); }
+    evaluate() {
+        for (let i = 0; i < this.number; i++) this.results.push({ result: this.mapRandomFace(globalThis.CONFIG.Dice.randomUniform()), active: true });
+        for (const modifier of this.modifiers) {
+            const keep = /^k([hl])(\d*)$/.exec(modifier);
+            if (!keep) continue;
+            const n = Number(keep[2] || 1);
+            const order = [...this.results].sort((a, b) => keep[1] === "h" ? b.result - a.result : a.result - b.result);
+            for (const r of order.slice(n)) { r.active = false; r.discarded = true; }
+        }
+        this._evaluated = true;
+        return this;
+    }
+    toJSON() {
+        return { class: this.constructor.name, number: this.number, faces: this.faces, modifiers: [...this.modifiers],
+            results: this.results.map(r => ({ ...r })), evaluated: this._evaluated };
+    }
+}
+export class NumericTerm {
+    constructor({ number = 0 } = {}) { this.number = Number(number); this._evaluated = true; }
+    get total() { return this.number; }
+    get formula() { return String(this.number); }
+    evaluate() { return this; }
+    toJSON() { return { class: "NumericTerm", number: this.number, evaluated: true }; }
+}
+export class OperatorTerm {
+    constructor({ operator = "+" } = {}) { this.operator = operator; this._evaluated = true; }
+    get total() { return this.operator; }
+    get formula() { return this.operator; }
+    evaluate() { return this; }
+    toJSON() { return { class: "OperatorTerm", operator: this.operator, evaluated: true }; }
+}
+
+/* A term rebuilt from its JSON: by its class, from those registered at `CONFIG.Dice.termTypes`
+   (Daggerheart's HopeDie and FearDie, client-entry.mjs), else a die, a number or an operator. */
+function termFromData(data) {
+    const known = { Die, NumericTerm, OperatorTerm, ...(globalThis.CONFIG?.Dice?.termTypes ?? {}) };
+    const cls = known[data?.class] ?? (data?.operator ? OperatorTerm : "faces" in (data ?? {}) ? Die : NumericTerm);
+    return new cls(data ?? {});
+}
+
+function parseTerms(formula) {
+    const terms = [];
+    const re = /(\d*)d(\d+)((?:k[hl]\d*)*)|(\d+)|([+-])/g;
+    let m;
+    while ((m = re.exec(String(formula).replace(/\s+/g, "")))) {
+        if (m[2]) terms.push(new Die({ number: Number(m[1] || 1), faces: Number(m[2]), modifiers: m[3].match(/k[hl]\d*/g) ?? [] }));
+        else if (m[4]) terms.push(new NumericTerm({ number: m[4] }));
+        else terms.push(new OperatorTerm({ operator: m[5] }));
+    }
+    return terms;
+}
+
 export class RollImpl {
-    constructor(formula = "1d20", data = {}) {
+    // What `toJSON` writes as the class, as Foundry writes `this.constructor.name`; the
+    // harness's classes carry other names (DualityRollMock writes "DualityRoll").
+    static JSON_CLASS = "Roll";
+    constructor(formula = "1d20", data = {}, options = {}) {
         this.formula = String(formula);
         this.data = data;
-        this.terms = [];
+        this.options = options;
+        this.terms = parseTerms(this.formula);
         this._evaluated = false;
         this.total = undefined;
-        this.dice = [];
     }
-    static create(formula, data) { return new RollImpl(formula, data); }
-    async evaluate() {
-        // deterministic-ish: parse XdY+Z
-        let total = 0;
-        const cleaned = this.formula.replace(/\s+/g, "");
-        const re = /([+-]?)(\d*)d(\d+)|([+-]?)(\d+)(?!d)/g;
-        let m;
-        while ((m = re.exec(cleaned))) {
-            if (m[3]) {
-                const sign = m[1] === "-" ? -1 : 1;
-                const count = parseInt(m[2] || "1");
-                const faces = parseInt(m[3]);
-                const results = [];
-                for (let i = 0; i < count; i++) results.push(1 + Math.floor(Math.random() * faces));
-                this.dice.push({ faces, number: count, results: results.map(r => ({ result: r, active: true })), total: results.reduce((a, b) => a + b, 0) });
-                total += sign * results.reduce((a, b) => a + b, 0);
-            } else if (m[5]) {
-                total += (m[4] === "-" ? -1 : 1) * parseInt(m[5]);
-            }
+    static create(formula, data, options) { return new this(formula, data, options); }
+    get dice() { return this.terms.filter(t => t instanceof Die); }
+    /* Every die drawn, then the terms summed by their operators. A second evaluate of one
+       instance throws rather than drawing more dice into it: the module clones a roll before
+       it throws it again (reroll.mjs `rerollKeepingDice`). Foundry's own source is not on this
+       machine; that its roll refuses a second evaluate is not measured here. */
+    _evaluate() {
+        if (this._evaluated) throw new Error(`this ${this.constructor.JSON_CLASS} has already been evaluated`);
+        let total = 0, sign = 1;
+        for (const term of this.terms) {
+            if (term instanceof OperatorTerm) { sign = term.operator === "-" ? -1 : 1; continue; }
+            term.evaluate();
+            total += sign * Number(term.total ?? 0);
+            sign = 1;
         }
         this.total = total;
         this._evaluated = true;
         return this;
     }
+    async evaluate() { return this._evaluate(); }
     async roll() { return this.evaluate(); }
-    evaluateSync() { this.evaluate(); return this; }
+    evaluateSync() { return this._evaluate(); }
     async toMessage(messageData = {}, { rollMode, create = true } = {}) {
         const CM = globalThis.ChatMessage;
         const data = { content: String(this.total), rolls: [JSON.stringify({ formula: this.formula, total: this.total })], sound: null, ...messageData };
@@ -829,8 +937,22 @@ export class RollImpl {
         if (create) return CM.create(data);
         return data;
     }
-    toJSON() { return { class: "Roll", formula: this.formula, total: this.total, evaluated: this._evaluated }; }
-    static fromJSON(json) { const d = typeof json === "string" ? JSON.parse(json) : json; const r = new RollImpl(d.formula); r.total = d.total; r._evaluated = true; return r; }
+    /* Foundry's shape (class, options, formula, terms, total, evaluated); `fromData` takes it
+       back, so an unevaluated roll travels as JSON and is thrown where it lands. */
+    toJSON() {
+        return { class: this.constructor.JSON_CLASS, options: this.options, formula: this.formula,
+            terms: this.terms.map(t => t.toJSON()), total: this.total, evaluated: this._evaluated };
+    }
+    static fromData(data) {
+        const roll = new this(data.formula, data.data ?? {}, data.options ?? {});
+        if (Array.isArray(data.terms)) roll.terms = data.terms.map(termFromData);
+        if (data.evaluated ?? true) {
+            roll.total = data.total;
+            roll._evaluated = true;
+        }
+        return roll;
+    }
+    static fromJSON(json) { return this.fromData(typeof json === "string" ? JSON.parse(json) : json); }
 }
 
 /* ============================ PIXI stub ================================== */

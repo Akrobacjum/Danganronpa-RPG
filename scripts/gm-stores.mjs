@@ -807,6 +807,93 @@ export const confusionCopy = defineGmCopy({
 });
 
 /**
+ * THE REROLL'S BOOKMARK, ON THE GMS (E08+E28 C2, 03.10.2026; audit S05-08, S08-04, S04-18; the
+ * plan's 2.2). A row per character, the last roll the GMs were told of: `messageId`, `actionKey`,
+ * `trait`, `experiences`, `total`, `withFear`, `isCritical`, `first` (its rolls as first thrown),
+ * `stands` (the rolls its last Reroll wrote, E08+E28 fix r1-G6; reroll.mjs `standingRolls`),
+ * `room` (where the character stood as the GM kept it, E08+E28 C4a), `at` and `by`, the user
+ * whose browser threw it, and `reportMessageId`, the card the roll was reported on, which a
+ * Reroll marks (C5); then `facts`, written by the GM that did a thing
+ * for that roll - the trace it placed, the plant it handed over, the crisis action's item and the
+ * resources before it, the clean-up attempt - and `claims`, what only the roller's browser saw
+ * (its Search's item on its own sheet, a Project's relief), picked per action (action-rolls.mjs
+ * `ROLL_CLAIMS`). Written by `keepGmBookmark` and `noteRollFact` (action-rolls.mjs), and read by
+ * the Reroll the GM makes (reroll.mjs `rerollOnGm`, E08+E28 C4a). Synced between the
+ * GMs and not backed up: a row is worth one Reroll, minutes long. Cut by the reset's "actions"
+ * group, beside the Confusions. No player copy - R182 has nothing to ask of it - and no old key.
+ */
+export const rerollBookmarkStore = defineGmStore({
+    name: "rerollBookmarks", key: SETTINGS.gmRerollBookmarks,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * A REROLL HALF MADE (E08+E28 C4a, 03.10.2026; audit S02-47; the plan's 2.3). A row per
+ * character while the GM makes its Reroll (reroll.mjs `rerollOnGm`): `phase` - "paid" once the
+ * Hope is taken, "rolled" once the message holds the new dice, "replaying" while the action is
+ * taken back and made again - `hope` (what was paid), `messageId`, `firstRolls` (the message's
+ * rolls before this Reroll), `at` and `by`; since C4b also `gm` (the GM client making it), `first`
+ * and `action` (the first total, the action's key) and, from "replaying", the new `total`. Dropped
+ * when the Reroll stands or has been given
+ * back; a row still here is a Reroll a reload cut, which the primary puts right or tells
+ * (reroll.mjs `recoverRerollJournal`, E08+E28 C4b). Synced
+ * between the GMs, so the next primary reads what the last one left, and not backed up: a row
+ * is seconds long. Cut by the reset's "actions" group, beside the bookmark. No player copy -
+ * R182 has nothing to ask of it - and no old key.
+ */
+export const rerollJournalStore = defineGmStore({
+    name: "rerollJournal", key: SETTINGS.gmRerollJournal,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * A CLEAN-UP'S RECEIPT (E08+E28 C3, 03.10.2026; audit S05-44). A row per character, what their
+ * last clean-up attempt did, so a Reroll can take it back (cleanup.mjs `undoLastCleanup`):
+ * `tokenId`, `attempt`, the Sanity before and after, `free`, `erased` (the trace's whole
+ * creation data, its token id with it), `leftBehind`, `transformed` and `handedBack`. Until
+ * 1.2.67 a Map on the GM's browser that resolved the attempt, so a GM's reload lost it while
+ * the player's Reroll still said the clean-up was replayed. Synced between the GMs and not
+ * backed up: a row is worth one Reroll, minutes long - the Reroll's bookmark's trade. Cut by
+ * the reset's "incident" group. No player copy - R182 has nothing to ask of it - and no old key.
+ */
+export const cleanupAttemptStore = defineGmStore({
+    name: "cleanupAttempts", key: SETTINGS.gmCleanupAttempts,
+    kind: "ledger", resetGroup: "incident", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId))
+});
+
+/**
+ * THE ROLLS THE GM DREW (E08+E28 C12a, 04.10.2026; audit S16-05; the plan's 3.3). A row per
+ * roll, keyed by its `rollId`: `actorId`, `userId` (the roller), `actionKey`, `messageId`,
+ * `claimed`, `formula`, `trait` and `experiences` (as the roll was thrown with them, which a
+ * Reroll rebuilds it from), `dice` (`faces` and each result), `total`, `hope`, `fear`, `isCritical`,
+ * `withHope`, `withFear`, `modifiers`, then `expected`, `flags` and `used` (C12b: what the GM
+ * expected, what differed, the Calls it spent, the stash's step it drew, the Loaded Die),
+ * `resolved` (the actions it has settled, C14), `versions` (the dice and numbers each Reroll
+ * replaced, the draw's first, and `rerolledAt`, C17: roll-draw.mjs `keepRerolledVersion`),
+ * `crisis` (the crisis action a crisis roll was drawn for), `incident` (the incident's turn it was
+ * drawn in, or null) and `superseded` (the later roll of its action that replaced it, or null:
+ * fix r2-H1, roll-draw.mjs `keepRecord`), `project` (the project a Work's or a Sabotage's roll was
+ * drawn for, or null: fix r2-H2), and `at`. Written by the primary GM as it draws a player's roll (roll-draw.mjs `drawOnGm`), and by
+ * the GM a Reroll of it is made on; read by the guard that ties a drawn message to its roller
+ * (bridge-guards.mjs `guardRollAuthor`) and by the resolutions that take its result (`rollRefusal`). Synced between the GMs and not backed up: a
+ * row is worth a roll's resolution and its Reroll, minutes long, and is swept past
+ * `TIMING.rerollWindowMinutes` as the next is written. Cut by the reset's "actions" group,
+ * beside the bookmark. Its `exists` answers no for every key: a row's key is a roll, which is no
+ * document, and a swept roll is gone for good - so its tombstone is compacted after
+ * `TIMING.gmStoreTombstoneDays` (`compactGmStores`) rather than kept one per roll for ever; a row
+ * a GM who held it brings back is swept again by its `at`. No player copy - R182 has nothing to
+ * ask of it - and no old key.
+ */
+export const rollStore = defineGmStore({
+    name: "rolls", key: SETTINGS.gmRolls,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: () => false
+});
+
+/**
  * THE KEY REMNANT PLAN (E05 C5; audit S01-01, S05-02). A row per chapter and slot,
  * `${chapter}:${slot}`: scale, name, text, analysis, note, tokenId, sceneId - the world
  * setting `keyRemnantPlan` until 1.2.64, which every browser held: one chapter's plan, the

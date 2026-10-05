@@ -26,7 +26,8 @@
  * whether it asks the GM (`gmAsk`) and when. A card whose mere existence in one
  * player's thread is the secret is not put there that way. The Direct Murder
  * declared in the dark goes to the GMs in their own log (`callGm` with
- * `gmOnly`), and its ruling reaches the killer veiled (eclipse.mjs). The trap's
+ * `gmOnly`), and a refusal reaches the killer veiled (eclipse.mjs; an allowance is
+ * told only at the lights, E08+E28 C19b). The trap's
  * receipt belongs in the killer's thread and a reshape card (Stage 6's, a
  * Tamper's) in its player's, and since E06 C8 (28.09.2026; audit L18, S05-15)
  * they are VEILED thread cards (`callGm` with `veiled`): the document is
@@ -45,7 +46,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
-import { postSecret, cardFlag, isVeiled, secretHtml, wordsOf } from "./secret.mjs";
+import { postSecret, cardFlag, cardWriter, isVeiled, secretHtml, wordsOf } from "./secret.mjs";
 
 /**
  * Whether this browser hears the messenger at all.
@@ -157,7 +158,7 @@ export async function markThreadRead(playerUserId) {
 export function unreadCount(playerUserId) {
     const since = lastReadAt(playerUserId);
     return threadMessages(playerUserId)
-        .filter(m => m.timestamp > since && (m.author?.id ?? m.user?.id) !== game.user.id)
+        .filter(m => m.timestamp > since && cardWriter(m)?.id !== game.user.id)
         .length;
 }
 
@@ -298,7 +299,8 @@ async function onCreateChatMessage(message) {
         return;
     }
 
-    const authorId = message.author?.id ?? message.user?.id;
+    // Its writer: in an incident a GM posts a player's message for them (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
+    const authorId = cardWriter(message)?.id;
     if (authorId === game.user.id) return; // do not ping yourself
 
     // Was a hard-coded chime. It is a mapped event now, and NOT a mapped event

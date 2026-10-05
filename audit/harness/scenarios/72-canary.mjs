@@ -24,8 +24,8 @@
  *   trap          the indirect murder's bar filled and its trap armed (it watches Storage);
  *                 its receipt, a veiled card in Chie's player's thread, read on p3 and p1 (E06 C8);
  *   eclipse       p1 crosses twice, and no crossing's card names Aiko or p1 (E05 C4);
- *                 the GM allows Chie's parked Direct Murder, and neither the ask nor
- *                 the ruling names her player or her (E05 C3);
+ *                 the GM allows Chie's parked Direct Murder: the ask names neither her
+ *                 player nor her (E05 C3), and p3 is sent no card of the allowance (C19b);
  *   incident      the lights: Chie kills Botan (p2's), her opening thrown on p3's
  *                 client with forced dice (deleted after use), then a Finishing Blow;
  *                 the GM leaves an incident's trace in Dorm B while it runs, and in
@@ -111,11 +111,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     check("gm: Chie's Direct Murder is parked, waiting for the GM", parked === true, String(parked));
     /* The cards a declaration makes, found on the GM - who reads every one of their words - by
        what they say: the ask quotes the park's note. Their documents are read on p1 and p2 in
-       phase eclipse, with the ruling's. */
-    const cardsSaying = (from, { text = null, key = null }) => gm.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
-        const text = ${JSON.stringify(key)} ? game.i18n.localize(${JSON.stringify(key)}) : ${JSON.stringify(text)};
+       phase eclipse. */
+    const cardsSaying = (from, text) => gm.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const text = ${JSON.stringify(text)};
         return game.messages.contents.slice(${from}).filter(m => contentOf(m).includes(text)).map(m => m.id);`);
-    const askCards = await cardsSaying(beforePark, { text: park });
+    const askCards = await cardsSaying(beforePark, park);
 
     /* A token the GM hid. */
     const hidden = canary.marker("token.hidden");
@@ -332,7 +332,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const actor = game.actors.get("${IDS.aiko}");
         const first = await E.judgeEclipseCrossing(actor, null, ${JSON.stringify(crossedInto)}), second = await E.judgeEclipseCrossing(actor, null, ${JSON.stringify(crossedInto)});
         return [first, second];`, { timeout: 60000 });
-    const beforeRuling = await gm.eval(`return game.messages.size;`);
+    // What p3, Chie's player, holds before the allowance: read again just before the lights.
+    const p3HeldBefore = await p3.eval(`return game.messages.contents.map(m => m.id);`);
     const ruled = await gm.eval(`await game.drpg.ruleOnParkedMurder("${IDS.chie}", true);
         return { left: game.drpg.eclipseMovesLeft(game.actors.get("${IDS.aiko}")), eclipse: game.drpg.isEclipse() };`, { timeout: 60000 });
     check("p1: Aiko crosses twice in the Eclipse and has no crossing left", JSON.stringify(crossings) === "[true,true]" && ruled.left === 0 && ruled.eclipse === true,
@@ -360,15 +361,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     check("p2 and p3: the cards of Aiko's two crossings name neither Aiko nor her player, and p1 did not post them",
         Boolean(crossedInto) && crossingCards.length === 2 && crossNaming.length === 0, JSON.stringify({ crossedInto, crossingCards, crossNaming }));
     /* WHAT THE DECLARATION'S CARDS SAY OF WHO DECLARED (E05 C3, 26.09.2026; audit S11-02). The
-       words of the GM's ask and of its ruling travel to their readers alone, but every browser
-       holds their documents. On 1.2.63 the ask was a card in the killer's player's messenger
-       thread - the document names the thread - and the ruling was addressed to that player with
-       Chie as its speaker: a new card of either during an Eclipse said who had declared. Read on
-       p1 and p2: neither card may name p3's thread, be addressed to p3 without them, or speak as
-       Chie. The two cards have to be found, or their absence measures nothing. */
+       words of the GM's ask travel to the GMs alone, but every browser holds its document. On
+       1.2.63 the ask was a card in the killer's player's messenger thread - the document names
+       the thread - and the ruling was addressed to that player with Chie as its speaker: a new
+       card of either during an Eclipse said who had declared. Read on p1 and p2: the ask may not
+       name p3's thread, be addressed to p3 without them, or speak as Chie; it has to be found, or
+       its absence measures nothing. The allowance has no card since E08+E28 C19b (04.10.2026:
+       a declaration allowed in the dark can still be refused at the lights, and its killer was
+       told yes, then no): read on p3, no card that came after it carries words for p3 before
+       the lights - the crossings' cards came before it and are p1's. */
     await settle(600);
-    const ruling = await cardsSaying(beforeRuling, { key: "DRPG.Action.murderApproved" });
-    const declared = [...askCards, ...ruling];
+    const declared = [...askCards];
+    const p3Told = await p3.eval(`const S = await import("${repoUrl}/scripts/secret.mjs"); const had = new Set(${JSON.stringify(p3HeldBefore)});
+        return game.messages.contents.filter(m => !had.has(m.id) && (S.secretHtml(m) !== null || (!S.isVeiled(m) && m.whisper.includes(game.user.id))))
+            .map(m => ({ id: m.id, words: S.contentOf(m).replace(/<[^>]+>/g, " ").trim().slice(0, 80) }));`);
     const naming = [];
     for (const p of [p1, p2]) {
         const docs = await p.eval(`return ${JSON.stringify(declared)}.map(id => {
@@ -381,8 +387,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
             if (d.held && (d.thread === p3.userId || d.speaker === IDS.chie || (d.whisper.includes(p3.userId) && !d.whisper.includes(p.userId)))) naming.push({ who: p.who, ...d });
         }
     }
-    check("p1 and p2: the GM's ask about Chie's declaration and its ruling name neither her player's thread, her player nor Chie",
-        askCards.length >= 1 && ruling.length >= 1 && naming.length === 0, JSON.stringify({ askCards, ruling, naming }));
+    check("p1 and p2: the GM's ask about Chie's declaration names neither her player's thread, her player nor Chie; p3 is sent no card of its allowance",
+        askCards.length >= 1 && naming.length === 0 && p3Told.length === 0, JSON.stringify({ askCards, naming, p3Told }));
     await scanned("eclipse", KILLER_CHAT);
 
     /* incident: the lights. Botan (p2's) stands beside Chie in Dorm B and nobody else is there;
@@ -402,16 +408,43 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return t ? { id: t.id, scene: t.parent?.id ?? null, hidden: t.hidden, marked: t.getFlag("${MOD}", "fromIncident") ?? null } : null;`, { timeout: 60000 });
     await p3.eval(`delete globalThis.__forceRoll; globalThis.__dialogAuto = false; return true;`);
     /* THE CRISIS ROLL'S BOOKMARK (E05 C7, 26.09.2026; audit S02-01). A crisis action's roll is
-       bookmarked for a Reroll with its key (murder.mjs `takeCrisisAction`); here p3 throws Chie's
-       the way that roll is thrown, and the GM rules the blow as before. Until 1.2.64 the bookmark
-       was Chie's actor flag, which this phase's world scan found on p1 and p2 (measured on the C6
-       tree with this roll); it is p3's own client setting now. */
-    const crisisMark = await p3.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+       bookmarked for a Reroll (murder.mjs `takeCrisisAction`); here p3 throws Chie's the way that
+       roll is thrown, and the GM rules the blow as before. Until 1.2.64 the bookmark was Chie's
+       actor flag, which this phase's world scan found on p1 and p2 (measured on the C6 tree with
+       this roll); E05 C7 made it p3's own client setting, and E08+E28 C4a the GMs' row, which
+       p3's browser reports the roll to (action-rolls.mjs `tellGmsOfRoll`). Since E08+E28 fix
+       r2-H1 the GM draws a crisis roll only at its character's turn, so the turn is passed to
+       Chie, the killer, first: the incident opens on the victim's. */
+    const chieTurn = await gm.eval(`for (let i = 0; i < 4 && game.drpg.murderState()?.turnSide !== "killer"; i++) await game.drpg.passTurn();
+        return game.drpg.murderState()?.turnSide ?? null;`, { timeout: 60000 });
+    await p3.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         globalThis.__forceRoll = { hope: 8, fear: 3 };
         try { await A.rollTrait(game.actors.get("${IDS.chie}"), "body", { actionKey: "crisis", context: { crisis: "finishingBlow" } }); }
         finally { delete globalThis.__forceRoll; }
-        return A.rollBookmark?.(game.actors.get("${IDS.chie}"))?.crisis ?? null;`, { timeout: 60000 });
-    check("p3: Chie's crisis roll is bookmarked, with its key, in p3's own browser", crisisMark === "finishingBlow", JSON.stringify({ crisisMark }));
+        return true;`, { timeout: 60000 });
+    const crisisMark = await gm.eval(`const { rerollBookmarkStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        for (let i = 0; i < 40 && rerollBookmarkStore.get("${IDS.chie}")?.by !== "${IDS.p3}"; i++) await new Promise(r => setTimeout(r, 100));
+        const row = rerollBookmarkStore.get("${IDS.chie}");
+        return row ? { actionKey: row.actionKey, by: row.by } : null;`, { timeout: 60000 });
+    check("gm: Chie's crisis roll is kept for a Reroll on the GMs, as p3 threw it", crisisMark?.actionKey === "crisis" && crisisMark.by === IDS.p3,
+        JSON.stringify({ crisisMark, chieTurn }));
+    /* THE GM'S MESSAGE OF A DRAWN ROLL, IN A BYSTANDER'S BROWSER (E08+E28 C12a, 04.10.2026). Chie's
+       crisis roll above was thrown on p3's client and drawn by the GM (roll-draw.mjs): the GM wrote
+       its message, the record's id and `drawn` beside the claim's flag. p1 holds the document, as
+       every browser does: its author is the GM, its module flags are those three, and nothing in it
+       names Chie or p3, by id or by name. And p1, a bystander, cannot read it (E08+E28 C13): a roll
+       the GM drew is read beside the GMs only where the draw's answer or a GM's dice packet says
+       (private-rolls.mjs `readableHere`), which is p3's browser and the victim's, not p1's. */
+    const drawnCopy = await p1.eval(`const m = game.messages.contents.filter(x => x.getFlag("${MOD}", "drawn")).at(-1) ?? null;
+        const doc = m ? JSON.stringify(m.toObject()) : "";
+        const terms = ["${IDS.chie}", "${IDS.p3}", game.actors.get("${IDS.chie}")?.name, game.users.get("${IDS.p3}")?.name].filter(Boolean);
+        return { id: m?.id ?? null, author: m?.author?.id ?? null, flags: Object.keys(m?.flags?.["${MOD}"] ?? {}).sort(), named: terms.filter(t => doc.includes(t)),
+            readable: m ? m.isContentVisible : null };`);
+    check("p1: the GM's message of p3's drawn crisis roll is the GM's, holds three module flags, and names neither Chie nor p3",
+        Boolean(drawnCopy.id) && drawnCopy.author === IDS.gm && JSON.stringify(drawnCopy.flags) === JSON.stringify(["drawn", "rollId", "supersededRoll"])
+            && drawnCopy.named.length === 0, JSON.stringify(drawnCopy));
+    check("p1: a bystander's browser cannot read the GM's message of p3's drawn crisis roll",
+        Boolean(drawnCopy.id) && drawnCopy.readable === false, JSON.stringify(drawnCopy));
     /* A DEATH IN TWO PHASES (E05 C10, 26.09.2026; audit S06-11). Botan carries a Truth Bullet
        into the incident; the blow kills him for the GMs and for his own player (p2), and p1's
        browser reads him alive - no flag, no marker, his bullet still on the sheet - until the

@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.66, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.67, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -58,7 +58,9 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die (both d
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you. That is where Monokuma's money comes from - your bad luck and your risks.
 - A **critical** earns 2 Hope and nothing else (it does not clear Sanity here, unlike plain Daggerheart).
 
-The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose.
+The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose. While a GM is connected, the dice of an action roll and of a statistic you click on your sheet are thrown by the GM's browser: they fall on your screen, in your colours, as your throw, and you read the result as before. What the window adds to the dice is compared with what the GM expected.
+
+**With no GM connected** an action waits: pressing it tells you that an action roll waits for a GM, and nothing is paid. Any other roll - a statistic from your sheet, a reaction - is still thrown, and its card says that it was thrown with no GM connected and that the GM will see it. It moves no Hope, Sanity or Despair until a GM, back at the table, grants it.
 
 ---
 
@@ -316,7 +318,7 @@ Reinforced traces never come off.
 
 ### Direct Murder - 1 action, GM rules
 
-A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. It can only be declared **during an Eclipse** - the one moment you can be alone with somebody. The action is spent whether or not it comes off, and nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (chapter 10).
+A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. It can only be declared **during an Eclipse** - the one moment you can be alone with somebody. The action is spent whether or not it comes off. If the GM refuses it, you are told at once; otherwise nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (chapter 10).
 
 ### Move - free, then 1 action
 
@@ -335,13 +337,13 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Ultimate** | 1 | Advantage on a roll your Ultimate genuinely applies to. Waits for the GM the same way. |
 | **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. |
 | **Sprint** | 2 | One more room crossing this time of day without paying an action for it. |
-| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. Some things stand: a hand already in a pocket, a trail already planted. A crisis action that killed somebody cannot be rerolled: the death stands. The browser you rolled on remembers the action; from another one the Reroll throws the dice again and takes nothing back. |
+| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. |
 | **Resolve** | 3 | For one roll, choose which statistic to add yourself. |
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
 | **Loaded Die** | 6 | On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. |
 
-A Call that affects a roll waits on your next roll and is spent the moment you throw. Sprint and Burst bank instead and last until the time of day ends.
+A Call that affects a roll waits on your next roll and is spent the moment you throw. One armed on you after your roll window opened is not part of that roll: the window says so, and it waits for your next one. Sprint and Burst bank instead and last until the time of day ends.
 
 > [!IMPORTANT]
 > Nobody can spend Hope Calls during an Eclipse, while Silenced by Monokuma, or while the overflow's Silence darkens the time of day.

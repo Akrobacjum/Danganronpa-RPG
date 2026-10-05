@@ -414,15 +414,18 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
  *   when the project does not exist. `changed: false` means the write was a
  *   no-op - the caller must not report success.
  */
-export async function addProgress(countdownId, amount, { by = null, actorId = null } = {}) {
+export async function addProgress(countdownId, amount, { by = null, actorId = null, rollId = null, relief = 0, bonus = 0, call = null } = {}) {
     if (!amount) return null;
 
     if (!game.user.isGM) {
-        // The character whose action this is travels with it: progress taken
-        // BACK is a Reroll's undo, and the GM pays for that from the receipt
-        // for this character (reroll-receipts.mjs), not on the packet's word.
+        // Progress taken BACK is a Reroll's undo, which the GM's own Reroll makes
+        // on its own client: a player's is refused (`undoIsTheGms`, E08+E28 C8).
+        // The character whose action this is still travels with it. A Work on a Project names its roll as well (E08+E28 C2), so the GMs'
+        // bookmark of that roll keeps what it added (gm-bridge.mjs `noteProgressFact`), and since C16 the GM adds what that roll
+        // earned on its record, with the tool's `relief` and the concealment's `bonus` held to the rules (`progressOf`).
+        // A Hope Call's names its `call`, whose price the GM saw paid (fix r2-H2: bridge-guards.mjs `guardCallProgress`).
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
-        const res = await requestProjectProgress(countdownId, amount, actorId);
+        const res = await requestProjectProgress(countdownId, amount, { actorId, rollId, relief, bonus, call });
         // Carried out when ok (the request answers once it is, E31 review), but
         // `changed` is unknown from here - the GM whispers back what actually
         // happened. Claiming a change would be a guess.
@@ -688,10 +691,13 @@ export function repairs(countdownId) {
  * @param {number} difficulty Progress the repair needs - harder sabotage, harder fix.
  * @returns {Promise<{repair: object, target: string}|null>}
  */
-export async function sabotageProject(targetId, difficulty = 3, { saboteur = null } = {}) {
+export async function sabotageProject(targetId, difficulty = 3, { saboteur = null, rollId = null, actorId = null, penalty = 0, relief = 0 } = {}) {
     if (!game.user.isGM) {
         const { requestSabotage } = await import("./gm-bridge.mjs");
-        const res = await requestSabotage(targetId, difficulty);
+        // `rollId`: the Sabotage roll's message, whose row on the GMs takes the freeze (gm-bridge.mjs `handleSabotage`),
+        // and since E08+E28 C16 whose record the GM reads the repair off (`repairOf`). A difficulty of 0 is a miss:
+        // it freezes nothing, and says nothing to the player if it cannot be sent (`quiet`).
+        const res = await requestSabotage(targetId, difficulty, { rollId, actorId, penalty, relief, quiet: !difficulty });
         // What the GM wrote, `{ repair, target }`, or null: the contract every caller reads.
         return res.ok ? res.value : null;
     }
@@ -790,9 +796,10 @@ export function unsabotageRefusal({ targetId, repairId, senderId = null, meta = 
  * Take a sabotage back: thaw the target and delete the repair it spawned.
  *
  * Used by the Reroll Hope Call, which has to undo the action before applying
- * what the new dice are worth. Both writes are world settings, so a player's
- * request goes through the GM exactly as the sabotage itself did. Only the
- * pair the sabotage wrote is taken back - see `unsabotageRefusal`.
+ * what the new dice are worth. Both writes are world settings, and the Reroll
+ * is made on the GM (E08+E28 C4a); a player's request is refused since C8
+ * (`undoIsTheGms`). Only the pair the sabotage wrote is taken back - see
+ * `unsabotageRefusal`.
  *
  * @param {string|null} targetId  The project that was frozen.
  * @param {string|null} repairId  The repair project that was created.

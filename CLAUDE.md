@@ -32,7 +32,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | --- | --- |
 | The suite, in Foundry | `game.drpg.runTests()` in the console, as GM: tiers 0-1, read-only; `runTests({ tier: 2 })` also writes, and asks first in a window |
 | The harness, first time | `cd audit/harness && npm ci` - installs jsdom, ESLint, espree and Playwright (no browser); boots the checkout it sits in, or `DRPG_REPO` |
-| Everything CI runs | `npm test` in `audit/harness`: lint, `tools/check.mjs`, the gate's self-test, the suite and every scenario whose layers include `ci`. 25m58s here (03.10, 4 cores, 17 scenarios); exit 1 on anything red |
+| Everything CI runs | `npm test` in `audit/harness`: lint, `tools/check.mjs`, the gate's self-test, the suite and every scenario whose layers include `ci`. 38m13s here (05.10, 4 cores, 17 scenarios); exit 1 on anything red |
 | The quick part | `npm run quick` - lint, the checks and the gate's self-test, 9-13 s here; `npm run lint` and `npm run check` alone |
 | The suite, headless | `npm run suite`, or `node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
@@ -66,7 +66,7 @@ is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
 
 ## What the suite's four numbers mean
 
-`631 passed, 0 failed, 17 skipped` (headless, 03.10.2026, 1.2.66), and a fourth,
+`738 passed, 0 failed, 17 skipped` (headless, 05.10.2026, 1.2.67), and a fourth,
 `red`, printed only when it is not zero.
 
 - **passed** counts a test that ran at least one `ok()` or `equal()`; one that
@@ -206,26 +206,72 @@ the fog socket, and Daggerheart's own GM relay (`relay-guard.mjs`). The
 judgement uses who Foundry says sent it (`senderOf(senderId)`), what that user
 owns (`ownsActor`, `canSee`, `testUserPermission`), and what the world says now:
 the room the character stands in, the incident's stage and turn, the pair a
-sabotage wrote, the account an Observe key was minted for, and a Reroll receipt
-(`reroll-receipts.mjs`) for anything taken back. Packet fields are claims. A
-refusal changes nothing and is logged on the GM. Since E31 (1.2.62) every
-refusal of a table action is also told to the asker, with a reason code from a
-closed list (`REASONS`, `bridge-guards.mjs`) that the player's client says in
-the player's own language; four are not shown to the player, because nobody is
-waiting on them: a trap report, the Level Up catch-up, a Search's look for a
-planted item and a plant handed back. Daggerheart's relay keeps its own table
-and log line, and tells the player with the code `relay`.
+sabotage wrote, the account an Observe key was minted for, and, since E28
+(1.2.67), the GMs' record of the roll a packet names (`rolled`, the store
+`rolls`). Nothing is taken back on a player's word: a player's packet that
+carries an undo is refused (`guardUndoIsTheGms`, E08), because the Reroll is
+made on the GM. Packet fields are claims. A refusal changes nothing and is
+logged on the GM. Since E31 (1.2.62) every refusal of a table action is also
+told to the asker, with a reason code from a closed list (`REASONS`,
+`bridge-guards.mjs`) that the player's client says in the player's own language;
+four are not shown to the player, because nobody is waiting on them: a trap
+report, the Level Up catch-up, a Search's look for a planted item and a plant
+handed back. Daggerheart's relay keeps its own table and log line, and tells the
+player with the code `relay`.
 
-**Layer two (E28, E29).** The numbers - totals, dice, Hope paid - are checked
-against the roll message the GM can see. Until then a player with a console can
-still lie about their own roll, and move - within each resource's bounds - their
-own character's Hope, Stress and Health, the resources of any actor that is not
-a student (companions included), Fear one step at a time, and the countdowns the
-rules tick or the GM gave them; `relay-guard.mjs` lists the rest. A Reroll
-receipt proves only that the player rewrote the rolls of their
-own character's chat card a few minutes ago - which a Reroll does, and so does
-Daggerheart's own dice reroll, and so can a console. Not that a Reroll was paid
-for, nor that one happened.
+**Layer two (E28, 1.2.67; E29).** The numbers - totals, dice, Hope paid - are
+checked against the roll the GM holds. Since E28 a player's action roll and a
+statistic clicked on the sheet, thrown while a GM is connected, are drawn on the
+primary GM's browser (`roll-draw.mjs`): the dice are the GM's, the resolutions
+the GM runs read their result off the GMs' record of the roll (the store
+`rolls`), and only the GM's own Reroll takes a result back. So a player can no
+longer lie about the dice of those rolls: the GM throws the Hope and Fear dice
+and the advantage die at the faces the character's rules give, a critical only
+as the dice or the character's own effects make one, the roll's kind (an
+action's roll an action, a student's statistic from the sheet a reaction) and
+every one of Daggerheart's steps, and refuses a roll built of anything but dice,
+numbers and + or -. A roll is drawn for an action its
+character is taking - one whose payment the GM saw the player make, the crisis
+turn, the opening - and once; a resolution takes only the newest roll of its
+action, and a roll's window costs nothing but its experiences' Hope. What a roll adds to
+its dice - the statistic, the experiences, the bonus, how many advantage dice,
+a die beyond those - is
+still configured in the roller's browser: one outside the GM's record is flagged
+(`game.drpg.rollFlags()`, a whisper to the GMs), not refused, until E29.
+
+What stays open: a roll thrown with no GM connected (an action waits; any other
+roll is stamped and moves nothing until a GM grants it, on the dice the player's
+browser reports); every roll on a Daggerheart build the draw was not written for
+(thrown in the player's browser, the GM told once per version); Daggerheart's
+own item rolls, its damage rolls and the rest of its rolls, none of them drawn;
+a player's own character's Hope, Stress and Health within each resource's bounds
+(owner permission and the relay's own-character rule), the resources of any
+actor that is not a student (companions included), Fear one step at a time, and
+the countdowns the rules tick or the GM gave them - all through the relay, which
+no module roll needs any more and which E29 may refuse; `relay-guard.mjs` lists
+the rest. A player's own action budget is the owner's to write as well, so a
+console that hands itself back the action it paid for has paid, as far as the GM
+can see; so is a Hope Call's price, and a Call's progress, added once for each
+payment of it the GM saw, is paid on the roller's browser. So is a Call a player
+arms on their own character: a drawn roll that names one is thrown with it - a
+Loaded Die's 12 included - until E29 has those Calls bought on the GM. A trace an action
+leaves is placed at the roller's browser's request: the GM holds a Search's,
+Sabotage's or Dynamic action's to the band its drawn roll reaches, but a console
+that asks for none leaves no trace at all, and a Work's trace on an indirect
+murder takes the band its request names. And three readings still made on the roller's browser: the Search's
+item, drawn and granted on the roller's own sheet (its tier from a drawn total,
+the grant still the player's); a concealment roll's reading; and Listen's lines,
+since every browser holds the tokens.
+
+The Reroll is the GM's own transaction (E08): asked of the primary GM, paid,
+thrown, taken back and replayed there, its steps written in the GMs' journal
+(`rerollJournal`) as it goes, so that a reload half way is undone or, past the
+point where it can be, handed to the GMs to settle. A player's own rewrite of a
+roll's dice - Daggerheart's own rerolls (their chat-menu entries are taken off a
+player's menu) or a console - is put back by the primary GM, which keeps each
+roll's first dice (`reroll-receipts.mjs`, which wrote the receipts this
+paragraph described until E08 and keeps only the dice now); a roll thrown before
+that GM loaded is only told.
 
 Daggerheart's relay writes on the GM's client, so every hook there sees the GM
 as the author. That is why `relay-guard.mjs` passes only the shapes Daggerheart
@@ -253,7 +299,9 @@ steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
    asked: `knownSender` (or `gmOnly`) first; for every id the run receives
    (sanitized `as.id`, as a field named `...Id` must be), a guard that names
    it (`owns`, `ownsActorAt`, `canSeeProject`, `gmOnly`) or a `claims` line
-   saying who judges it; a guard that spends a Reroll receipt last.
+   saying who judges it. A run that scores a roll names it in `rolled`
+   (`{ field, actor, kind }`): the runner hands it the result off the GMs'
+   record of that roll, not the packet's (`rollRefusal`, E28).
    `sanitize: pick({...})` lists exactly what the run reads (R163). A
    check that must not wait between itself and the write goes in `prepare`
    (imports) or in the run. `answer` is `"reply"` when the asker says or
@@ -289,8 +337,8 @@ steps; R1b, R162-R166 and the lint rule are there to catch a skipped one.
    `node tools/registry.mjs --write` when a test was added.
 
 `onIncidentTurn` and `sameScene`, named in E31's brief, are not written: no
-request asks either check today (`guardCrisisAction` and `guardCrisisUndo` ask
-the incident's). When a stage needs one, it goes in `bridge-guards.mjs` beside
+request asks either check today (`guardCrisisAction` asks the incident's, as
+`guardCrisisUndo` did until E08+E28 C8). When a stage needs one, it goes in `bridge-guards.mjs` beside
 the other factories, and nowhere else.
 
 ## The house style
@@ -459,7 +507,7 @@ and the 1.2.56 performance baseline, not yet measured (`audit/perf-baseline.json
 Generated by `node tools/registry.mjs --write` from the tier files; see "Numbering new tests".
 
 <!-- r-registry:start -->
-Next free: R215. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 for A5, written in E12; R121 for A4 (E22); R122 for A1 (E23); R123-R124 for A6 (E24).
+Next free: R220. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 for A5, written in E12; R121 for A4 (E22); R122 for A1 (E23); R123-R124 for A6 (E24).
 
 | R | Tier | Since | Test |
 | --- | --- | --- | --- |
@@ -597,8 +645,8 @@ Next free: R215. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 fo
 | R131 | 1 | 1.2.58 | a held setting of a module that is not here writes nothing |
 | R132 | 1 | 1.2.60 | Daggerheart's GM relay has the guard in front of it |
 | R133 | 1 | 1.2.60 | the relay passes what Daggerheart sends for a player, and nothing else |
-| R134 | 0 | 1.2.60 | an undo from a player is paid for by a Reroll |
-| R135 | 1 | 1.2.60 | a Reroll receipt pays for one undo of each kind, for a few minutes |
+| R134 | 0 | 1.2.60 | an undo from a player is paid for by a Reroll (removed in E08) |
+| R135 | 1 | 1.2.60 | a Reroll receipt pays for one undo of each kind, for a few minutes (removed in E08) |
 | R136 | 1 | 1.2.60 | a sabotage is taken back only as the pair it wrote |
 | R137 | 1 | 1.2.60 | an Observe key is one character's, one account's, once |
 | R138 | 0 | 1.2.60 | the GM judges a crisis action again before it lands |
@@ -678,6 +726,11 @@ Next free: R215. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 fo
 | R212 | 1 | E32 | a roll that lists several statistics asks a GM, and only then |
 | R213 | 0 | E32 | no several-trait roll escapes the GM: nothing takes a list's first trait but a list of one, and every definition that lists several is a ruling's |
 | R214 | 0 | E32 | the hidden stash's step is the old count's die, exactly: every window from -3 to 3, every die and every draw |
+| R215 | 0 | E08 | no player packet carries an undo |
+| R216 | 1 | E08 | a Reroll answered past its clock still counts, and a GM leaving is not the primary |
+| R217 | 1 | E08 | the GM's draw is on the build it was written for, and leaves any other build alone |
+| R218 | 0 | E08 | no declaration takes a roll's result from the packet |
+| R219 | 1 | E08 | what one client must decide is decided on the primary GM: another GM asks it, as a player does |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 

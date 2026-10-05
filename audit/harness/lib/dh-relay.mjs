@@ -1,14 +1,14 @@
 /*
  * Daggerheart's GM relay, copied VERBATIM for the headless harness.
  *
- * Source: Foundryborne Daggerheart, tag 2.10.5 (commit 6bf4b69f98),
- * module/systemRegistration/socket.mjs lines 3-116 - `handleSocketEvent`, the
+ * Source: Foundryborne Daggerheart, tag 2.10.8 (commit d74eaffc1f),
+ * module/systemRegistration/socket.mjs lines 3-128 - `handleSocketEvent`, the
  * three event tables and `registerSocketHooks`. Left out: the
  * `DamageReductionDialog` import on line 1 and `registerUserQueries` (lines
- * 118-121), which the relay does not use. Nothing else is changed.
+ * 130-133), which the relay does not use. Nothing else is changed.
  *
  * Re-copy it; never edit it. The point of having it here is that the security
- * scenario (30-security, part 7) attacks the real relay, not a stand-in that
+ * scenario (30-security, part 8) attacks the real relay, not a stand-in that
  * could be wrong in the module's favour.
  *
  * MIT License, Copyright (c) 2025 WBHarry. Permission is hereby granted, free of
@@ -27,7 +27,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-export function handleSocketEvent({ action = null, data = {} } = {}) {
+export async function handleSocketEvent({ action = null, data = {} } = {}) {
     switch (action) {
         case socketEvent.GMUpdate:
             Hooks.callAll(socketEvent.GMUpdate, data);
@@ -49,6 +49,17 @@ export function handleSocketEvent({ action = null, data = {} } = {}) {
             break;
         case socketEvent.GroupRollStart:
             Hooks.callAll(CONFIG.DH.HOOKS.hooksConfig.groupRollStart, data);
+            break;
+        case socketEvent.TransferItem: {
+            // Transfer events only occur when a player needs to request a GM update, so using a hook would be inconsistent
+            if (game.user.isActiveGM) {
+                const item = await fromUuid(data.item);
+                const targetActor = await fromUuid(data.targetActor);
+                if (!item || !targetActor) return;
+                targetActor.transferItem({ item, quantity: Number(data.quantity || 1) });
+            }
+            break;
+        }
     }
 }
 
@@ -59,7 +70,8 @@ export const socketEvent = {
     DhpFearUpdate: 'DhFearUpdate',
     DowntimeTrigger: 'DowntimeTrigger',
     TagTeamStart: 'DhTagTeamStart',
-    GroupRollStart: 'DhGroupRollStart'
+    GroupRollStart: 'DhGroupRollStart',
+    TransferItem: 'DhTransferItem'
 };
 
 export const GMUpdateEvent = {

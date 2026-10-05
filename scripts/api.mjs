@@ -146,6 +146,7 @@ import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareSc
     restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport,
     checkRegions, whatIsHere } from "./fog.mjs";
 import { a11yReport } from "./a11y.mjs";
+import { rollFlags } from "./roll-draw.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
@@ -996,6 +997,9 @@ export const DrpgApi = {
 
     /** Why are the dice unskinned? Why is no Despair being awarded? */
     diagnoseDice,
+    /** The players' rolls the GM drew whose statistic, modifiers or advantage it did not
+     *  expect (E08+E28 C12b), newest first, from the last Reroll window's minutes. GM only. */
+    rollFlags,
     /** Why can this player see a token in another room? Run it on THEIR
      *  client: it prints every character's room beside whether the token is
      *  visible, which is what tells the two failure modes apart. */

@@ -336,6 +336,37 @@ export const SETTINGS = {
      */
     gmUsedTools: "gmUsedTools",
     /**
+     * THE REROLL'S BOOKMARK, ON THE GMS (E08+E28 C2, 1.2.67; audit S05-08, S08-04, S04-18): a GM
+     * store (gm-stores.mjs `rerollBookmarkStore`), a row per character - its last roll, what the
+     * GMs did for it (`facts`) and what its roller's browser alone saw (`claims`). Synced, not
+     * backed up; no player copy. The Reroll reads it on the GM since C4a.
+     */
+    gmRerollBookmarks: "gmRerollBookmarks",
+    /**
+     * A REROLL HALF MADE (E08+E28 C4a, 1.2.67; audit S02-47): a GM store (gm-stores.mjs
+     * `rerollJournalStore`), a row per character while the GM makes its Reroll - the phase it
+     * reached, the Hope paid, the message and its rolls before. Synced, not backed up; no
+     * player copy.
+     */
+    gmRerollJournal: "gmRerollJournal",
+    /**
+     * A CLEAN-UP'S RECEIPT (E08+E28 C3, 1.2.67; audit S05-44): a GM store (gm-stores.mjs
+     * `cleanupAttemptStore`), a row per character - what their last clean-up attempt did, for
+     * the Reroll that takes it back. Synced, not backed up; no player copy. A Map in the
+     * resolving GM's memory until then.
+     */
+    gmCleanupAttempts: "gmCleanupAttempts",
+    /**
+     * THE ROLLS THE GM DREW (E08+E28 C12a, 1.2.67; audit S16-05): a GM store (gm-stores.mjs
+     * `rollStore`), a row per roll a player threw and the primary GM drew - its dice, its
+     * total, its roller and its character. Synced, not backed up; no player copy.
+     */
+    gmRolls: "gmRolls",
+    /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
+    rollDrawWarned: "rollDrawWarned",
+    /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
+    readableRolls: "readableRolls",
+    /**
      * The words of every private card this browser is a recipient of.
      *
      * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
@@ -344,21 +375,6 @@ export const SETTINGS = {
      * written.
      */
     secretCards: "secretCards",
-    /**
-     * WHAT THIS BROWSER ROLLED LAST, PER CHARACTER - the Reroll bookmark (E05 C7,
-     * 26.09.2026; audit S02-01). `{ v: 1, worlds: { [worldId]: { [actorId]: bookmark } } }`.
-     *
-     * CLIENT-SCOPED, on the roller's own browser. Until 1.2.64 the bookmark was the
-     * actor flag `lastAction`, which every browser holds: a crisis roll's keys, Stage
-     * 6's token ids and the words of a reshaped trace, a palm's victim and item, an
-     * Observe's key - each readable from any console. A Reroll is made by the player
-     * who rolled, from the browser that rolled (call-effects.mjs), so that browser is
-     * the only one that needs it; the owner chose it over a GM store for now (plan Q6,
-     * 26.09), and E08 moves it to the GMs. Not synced, not backed up: a bookmark is the
-     * newest roll, and a roll made in another browser is Rerolled from there. Per world,
-     * because a client setting is one entry for every world this browser opens.
-     */
-    rollBookmarks: "rollBookmarks",
     /*
      * WHICH ITEM IS THE TRAP, AND WHAT IS WAITING IN WHICH ROOM.
      *
@@ -1330,15 +1346,57 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // The Reroll's bookmark on the GMs (E08+E28 C2): no `onChange` - shown nowhere, and
+    // read by the Reroll the GM makes (E08+E28 C4a).
+    game.settings.register(MODULE_ID, SETTINGS.gmRerollBookmarks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A Reroll half made (E08+E28 C4a): no `onChange` - shown nowhere.
+    game.settings.register(MODULE_ID, SETTINGS.gmRerollJournal, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // A clean-up's receipt on the GMs (E08+E28 C3): no `onChange` - shown nowhere, read by
+    // the Reroll's replay of a clean-up (cleanup.mjs `undoLastCleanup`).
+    game.settings.register(MODULE_ID, SETTINGS.gmCleanupAttempts, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    // The rolls the GM drew (E08+E28 C12a): no `onChange` - shown nowhere, read by the guard
+    // that ties a drawn roll's message to its roller (bridge-guards.mjs `guardRollAuthor`).
+    game.settings.register(MODULE_ID, SETTINGS.gmRolls, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    /* The Daggerheart version this browser's GM was told its players' rolls are not drawn
+       by the GM on (E08+E28 C12a, roll-draw.mjs `announceRollDraw`): once per version, as
+       the relay warning above. */
+    game.settings.register(MODULE_ID, SETTINGS.rollDrawWarned, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
+    });
 
-    game.settings.register(MODULE_ID, SETTINGS.secretCards, {
+    /* The roller's own drawn rolls, so a reload still lets them read what they rolled
+       (E08+E28 fix r2-H7, private-rolls.mjs `readHere`); a list of ids per world and user. */
+    game.settings.register(MODULE_ID, SETTINGS.readableRolls, {
         scope: "client",
         config: false,
         type: Object,
         default: {}
     });
 
-    game.settings.register(MODULE_ID, SETTINGS.rollBookmarks, {
+    game.settings.register(MODULE_ID, SETTINGS.secretCards, {
         scope: "client",
         config: false,
         type: Object,

@@ -146,15 +146,8 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
 
         if (await hopeCallBarred(actor)) return null;
 
-        // A Reroll of a crisis action that killed: the death stands (E32+E07 C8b). Asked
-        // before the price, as a barred Call is - see `lethalReroll` in reroll.mjs.
-        if (call.reroll) {
-            const { lethalReroll } = await import("./reroll.mjs");
-            if (lethalReroll(actor)) {
-                ui.notifications.warn(game.i18n.localize("DRPG.Reroll.deathStands"));
-                return null;
-            }
-        }
+        // The Reroll is the GM's to pay for and make (E08+E28 C4a): `askReroll` below.
+        if (call.reroll) return await askReroll(actor, key, call, { note, choice });
 
         let held = hopeHeld(actor);
         if (held < call.cost) {
@@ -283,17 +276,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             return null;
         }
 
-        // A Hope Call is spent Hope. There is no reading to do - the card wears
-        // gold because of what it is, the same gold a Hope roll wears.
-        await whisperToOwner(actor, `
-            <h3>${esc(call.label)}</h3>
-            <p>${esc(callEffect(call))}</p>
-            ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
-            ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
-            <p><em>${game.i18n.format("DRPG.Calls.hopeSpent", {
-                cost: call.cost, left: held - call.cost
-            })}</em></p>`, { flags: { [MODULE_ID]: { popupTone: "hope", sfx: "hopeCall" } } });
-
+        await postHopeCallCard(actor, call, note, done, held - call.cost);
         log(`${actor.name} spent ${call.cost} Hope on ${call.label}.`);
         Hooks.callAll("drpgHopeCall", { actor, key, call, note, choice });
         return call;
@@ -301,6 +284,69 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         error("Hope Call failed", err);
         return null;
     }
+}
+
+/**
+ * A Hope Call is spent Hope. There is no reading to do - the card wears gold because
+ * of what it is, the same gold a Hope roll wears. `left` is the Hope the character
+ * holds after it.
+ */
+async function postHopeCallCard(actor, call, note, done, left) {
+    await whisperToOwner(actor, `
+        <h3>${esc(call.label)}</h3>
+        <p>${esc(callEffect(call))}</p>
+        ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
+        ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+        <p><em>${game.i18n.format("DRPG.Calls.hopeSpent", {
+            cost: call.cost, left
+        })}</em></p>`, { flags: { [MODULE_ID]: { popupTone: "hope", sfx: "hopeCall" } } });
+}
+
+/**
+ * THE REROLL IS ASKED OF THE GM (E08+E28 C4a, 03.10.2026; audit S02-47). It was paid here
+ * before anything was known - its roll, whether its message was still there, whether the
+ * action could be taken back - and made in this tab, which a reload or a closed sheet cut
+ * half way. Now this browser pays nothing: it asks (`requestReroll`), the GM checks, pays,
+ * makes it and answers the lines, and the card is posted from the answer with the Hope the
+ * character holds after the GM's write - a Listen's lines heard here, with what this browser
+ * holds (reroll.mjs `heardLines`, fix r1-G4). A refusal - before the payment, or after the GM gave
+ * back what it took - is said here, by its code as the bridge would (E31), or in the words a
+ * GM's own client was answered. No card either way.
+ *
+ * An answer later than the bridge's clock posts the card then, and a refusal that late is
+ * said then; the clock's own line says the Reroll may still be made, not that it was not
+ * (fix r1-G5, the round-1 review's m1: gm-bridge.mjs `requestReroll`). Asked again meanwhile,
+ * the GM refuses it as one already being made (reroll.mjs `rerollRefusal`).
+ */
+async function askReroll(actor, key, call, { note, choice }) {
+    const { requestReroll } = await import("./gm-bridge.mjs");
+    const { sayNotDone, reasonOf } = await import("./bridge-guards.mjs");
+    const made = async out => {
+        const { heardLines } = await import("./reroll.mjs");
+        await postHopeCallCard(actor, call, note, await heardLines(actor, out.lines), hopeHeld(actor));
+        log(`${actor.name} spent ${call.cost} Hope on ${call.label}, paid and made by the GM.`);
+        Hooks.callAll("drpgHopeCall", { actor, key, call, note, choice });
+        return call;
+    };
+    const res = await requestReroll(actor.id, {
+        late: out => { if (Array.isArray(out?.lines)) made(out).catch(err => error("Could not post a late Reroll's card", err)); },
+        lateRefused: reason => sayNotDone("reroll.ask", reason)
+    });
+    if (!res.ok) {
+        if (res.reason === "noAnswer") ui.notifications.warn(game.i18n.localize("DRPG.Reroll.stillMaking"));
+        else sayNotDone("reroll.ask", res.reason);
+        return null;
+    }
+    const out = res.value;
+    if (!Array.isArray(out?.lines)) {
+        if (out?.refused) {
+            const text = out.said ?? (out.say ? game.i18n.localize(out.say) : null);
+            if (text) ui.notifications.warn(text);
+            else sayNotDone("reroll.ask", reasonOf(out.refused));
+        }
+        return null;
+    }
+    return made(out);
 }
 
 /* ==========================================================================

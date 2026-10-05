@@ -35,7 +35,8 @@ import { registerProjectsUi } from "./projects-ui.mjs";
 import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerBridgeReplies } from "./bridge-guards.mjs";
-import { registerRerollReceipts } from "./reroll-receipts.mjs";
+import { registerRollKeeper } from "./reroll-receipts.mjs";
+import { registerRerollRecovery } from "./reroll.mjs";
 import { registerRelayGuard } from "./relay-guard.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
 import { registerTruthBullets } from "./truth-bullets.mjs";
@@ -72,6 +73,7 @@ import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerNoScrollingText } from "./no-scrolling-text.mjs";
 import { registerCriticalRule } from "./critical.mjs";
+import { registerRollDraw, announceRollDraw, registerUnwitnessedRolls, askAboutUnwitnessed } from "./roll-draw.mjs";
 import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
@@ -166,6 +168,8 @@ Hooks.once("init", () => {
     safely("the player status strip", registerPlayerStatus);
     safely("Despair pools", registerDespair);
     safely("Despair awards", registerDespairAwards);
+    // Before the GM stores open at ready: the primary reads the Reroll's journal as they do (E08+E28 C4b).
+    safely("the Reroll's journal", registerRerollRecovery);
     safely("Despair overflow", registerOverflow);
     safely("movement", registerMovement);
     safely("the projects tray", registerProjectsUi);
@@ -264,6 +268,11 @@ Hooks.once("setup", () => {
      * both late enough to find the class and early enough to matter.
      */
     safely("the critical rule", registerCriticalRule);
+    // A player's roll, drawn by the GM (E08+E28 C12a, roll-draw.mjs): the same class, at the
+    // same moment, for the same reason.
+    safely("the GM's draw of a player's roll", registerRollDraw);
+    // And a roll thrown while no GM was connected (E08+E28 C18): stamped as it is created, and asked of the GMs.
+    safely("the rolls thrown with no GM connected", registerUnwitnessedRolls);
 });
 
 Hooks.once("ready", () => {
@@ -283,6 +292,12 @@ Hooks.once("ready", () => {
     // in the manifest, so this is the only thing that says so). Not awaited either.
     announceNewerSystem().catch(err =>
         error("Could not mention the newer Daggerheart", err));
+    // And a Daggerheart whose roll the GM's draw was not written for (E08+E28 C12a), once per version.
+    announceRollDraw().catch(err =>
+        error("Could not say that rolls are not drawn by the GM", err));
+    // And the rolls the players threw while no GM was connected, on one card to grant or not (E08+E28 C18).
+    askAboutUnwitnessed().catch(err =>
+        error("Could not ask the GMs about the rolls thrown with no GM connected", err));
 
     // Before the migration, whose clauses read the GM-only stores and wait until
     // this client holds the other GMs' copies of them (E04, gm-stores.mjs): the
@@ -292,6 +307,10 @@ Hooks.once("ready", () => {
     // arrived, before the stores open, so it cannot miss it (the primary only).
     safely("the case health check", registerCaseHealth);
     safely("the GM stores", openGmStores);
+    // Every browser, once: the Reroll's old bookmark out of its client storage (E08+E28 C4a).
+    import("./action-rolls.mjs")
+        .then(m => m.forgetRollBookmarks())
+        .catch(err => error("Could not take the retired Reroll bookmark out of this browser", err));
     // First, and before anything below reads a saved shape: bring this world's
     // data up to the shape this build expects. Primary GM only, silent when
     // there is nothing to do, and deliberately NOT awaited - a slow pass must
@@ -332,9 +351,9 @@ Hooks.once("ready", () => {
     // after the sync socket because two of them react to world-state events
     // that arrive over it, and the listener has to exist before the event does.
     safely("the trap watchers", registerTraps);
-    // Before the bridge: an undo the bridge is asked for is paid for by a
-    // receipt this writes, and the receipt has to be watching first.
-    safely("the reroll receipts", registerRerollReceipts);
+    // Before the bridge, where the receipts it wrote until E08+E28 C8 had to be: each
+    // roll's dice as thrown are kept from the moment the bridge can be asked anything.
+    safely("the roll keeper", registerRollKeeper);
     safely("the GM bridge", registerGmBridge);
     // After the API, because the migration it kicks off reads the clock, and
     // after the other socket listeners for the same reason they are ordered:

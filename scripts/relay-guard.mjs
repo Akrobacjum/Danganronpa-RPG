@@ -23,7 +23,8 @@
  * Daggerheart's double write with two GMs online. The table was read off
  * 2.10.5 and checked against 2.6.5's source; the two differ only where this
  * file does not lean on them (how `DowntimeTrigger` is dispatched, where the
- * Fear limit is read from).
+ * Fear limit is read from). 2.10.8's source adds one case, an item transfer
+ * (`DhTransferItem`), which is refused from a player (E08+E28 C9, 04.10.2026).
  *
  * WHEN DAGGERHEART CHANGES. This leans on Daggerheart's own code, so it checks
  * that it is looking at what was reviewed (`fingerprintOf`), and on the primary
@@ -60,13 +61,18 @@ import { senderOf, tellRefused } from "./bridge-guards.mjs";
 
 const GM_UPDATE = "DhGMUpdate";
 const GM_CREATE = "DhGMCreate";
+const TRANSFER = "DhTransferItem";
 
 /** Packets that redraw something on every client and write nothing. */
 const UI_ONLY = new Set(["DhRefresh", "DhFearUpdate", "DowntimeTrigger", "DhTagTeamStart", "DhGroupRollStart"]);
 
-/** The cases of `handleSocketEvent` this file was written against (2.6.5 and 2.10.5 agree). */
+/**
+ * The cases of `handleSocketEvent` this file was written against (2.6.5 and
+ * 2.10.5 agree; `TransferItem` is in 2.10.8's, read 04.10.2026, and not in 2.10.5's).
+ */
 export const REVIEWED_CASES = [
-    "GMUpdate", "GMCreate", "DhpFearUpdate", "Refresh", "DowntimeTrigger", "TagTeamStart", "GroupRollStart"
+    "GMUpdate", "GMCreate", "DhpFearUpdate", "Refresh", "DowntimeTrigger", "TagTeamStart", "GroupRollStart",
+    "TransferItem"
 ];
 
 const SUB = {
@@ -235,7 +241,7 @@ function installBackstop(channel) {
 function neutralise(payload, senderId) {
     const action = payload?.action;
     if (!game.user?.isGM || UI_ONLY.has(action)) return;
-    if (action !== GM_UPDATE && action !== GM_CREATE) {
+    if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
         if (isPrimaryGm()) shapeWarning(String(action));
         payload.action = "__drpgRefused";
         return;
@@ -277,11 +283,14 @@ export function relayGuardStatus() {
  * ========================================================================== */
 
 function forward(packet, senderId) {
+    const failed = err => error("Daggerheart's relay failed on a packet the guard passed on", err);
     for (const fn of originals) {
         try {
-            fn(packet, senderId);
+            // 2.10.8's listener is async (read 04.10.2026): its failure is a rejected promise, not a throw.
+            const pending = fn(packet, senderId);
+            if (typeof pending?.catch === "function") pending.catch(failed);
         } catch (err) {
-            error("Daggerheart's relay failed on a packet the guard passed on", err);
+            failed(err);
         }
     }
 }
@@ -292,7 +301,7 @@ function onRelay(payload, senderId) {
         // A player's client, and a redraw anywhere: Daggerheart's GM handlers
         // do nothing on a player's client, so there is nothing to judge.
         if (UI_ONLY.has(action) || !game.user?.isGM) return forward(payload, senderId);
-        if (action !== GM_UPDATE && action !== GM_CREATE) {
+        if (action !== GM_UPDATE && action !== GM_CREATE && action !== TRANSFER) {
             // Said by the primary GM only, so one GM speaks for the table.
             if (isPrimaryGm()) shapeWarning(String(action));
             return;
@@ -324,7 +333,8 @@ function onRelay(payload, senderId) {
  *   refuse   - nothing changes; `kind` is "forged" (a shape Daggerheart does
  *              not send for a player - as far as its source has been read),
  *              "refused" (a real Daggerheart feature this game keeps to the
- *              GM) or "shape" (something unreviewed)
+ *              GM) or "shape" (something unreviewed); one with `once` is
+ *              said to the GMs the first time in a session only
  *   drop     - nothing to do: Daggerheart's handler would change nothing
  *              either, or the player's own client asked for nothing
  * An `own` verdict may carry `noted`: what in it looked odd, for the console.
@@ -337,6 +347,12 @@ const dropAs = (sub, why) => ({ verdict: "drop", sub, why });
 
 export function judgeRelay(payload, sender, world = liveWorld()) {
     const data = payload?.data;
+    // Q1 (a), the owner, 03.10.2026: a party transfer from a player waits for a
+    // stage that designs it, and the GM hears of it once a session (an unreviewed
+    // case is said once per Daggerheart version).
+    if (payload?.action === TRANSFER) {
+        return { ...refuseAs(TRANSFER, "refused", "an item transfer, which waits for the GM in this game"), once: true };
+    }
     if (payload?.action === GM_CREATE) {
         const type = String(data?.documentType ?? "?");
         // D-a: every region in this game is a room (movement.mjs reads rooms off
@@ -804,6 +820,8 @@ async function applyOps(ops) {
 
 const lastWarned = new Map();
 const shapesWarned = new Set();
+/** The refusals with `once` already said to the GMs this session, by name. */
+const saidOnce = new Set();
 let unknownSaid = false;
 
 /**
@@ -827,8 +845,10 @@ function reportRefusal(verdict, sender) {
     // forged one needs to reach the GMs' chat (E03 second review).
     const key = `${sender.id}|${sub}|${verdict.kind}`;
     const now = Date.now();
-    if (now - (lastWarned.get(key) ?? 0) >= WARN_EVERY_MS) {
-        lastWarned.set(key, now);
+    const due = verdict.once ? !saidOnce.has(sub) : now - (lastWarned.get(key) ?? 0) >= WARN_EVERY_MS;
+    if (due) {
+        if (verdict.once) saidOnce.add(sub);
+        else lastWarned.set(key, now);
         ui.notifications?.warn(game.i18n.format("DRPG.Relay.refused", { name: plainWhat(sender.name), what }));
         if (verdict.kind === "forged") {
             whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Relay.forged", {

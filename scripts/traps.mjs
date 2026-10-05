@@ -69,7 +69,7 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, tab
 // into this file through dynamic imports, which is not a cycle.
 import { allProjects, secretsOf, patchTrigger } from "./projects.mjs";
 import { newItemIdentity } from "./inventory.mjs";
-import { cardFlag, wordsOf, SECRET_FLAG } from "./secret.mjs";
+import { cardFlag, cardWriter, wordsOf, SECRET_FLAG } from "./secret.mjs";
 
 /* ==========================================================================
  * THE ARMED MAP - trap 157
@@ -445,17 +445,33 @@ export async function plantItem(projectId, room, { sceneId = null, ...item } = {
  *
  * ONCE. The plant comes out of the store as it is handed over: it is one object
  * somebody left, not a property the room has acquired.
+ *
+ * AND KEPT ON THE FINDER'S ROLL (E08+E28 C2, 03.10.2026; audit S08-04). With `actorId`,
+ * the searcher's - a GM's own, or the one the bridge's sender owns (search-tokens.mjs
+ * `runTakePlant`) - the plant's name, identity, room and scene go on the GMs' bookmark of
+ * that roll, so a Reroll on a GM (C6a) gives back this plant rather than a fresh draw.
+ * The roll is the one the Search names (`rollId`), and the fact goes on its row only when
+ * that is `by`'s Search of that character (fix r1-G2; action-rolls.mjs `rollOfFact`): the
+ * character's newest row, read here, was the roll before whenever the Search's own row
+ * was still on its way.
  */
-export async function takePlant(room, sceneId = null) {
+export async function takePlant(room, sceneId = null, { actorId = null, rollId = null, by = null } = {}) {
     if (!game.user.isGM || !room) return null;
 
     const key = plantKey(room, sceneId);
     const found = plants()[key] ? structuredClone(plants()[key]) : null;
     if (!found) return null;
+    const rolls = actorId ? await import("./action-rolls.mjs") : null;
+    const roll = rolls?.rollOfFact({ rollId, by, actorId, actions: ["search"] }) ?? null;
 
     // A stamped drop (E04): the plant is gone on every GM, and a copy from a GM
     // that had not heard yet cannot bring it back for a second finder.
     await trapPlantStore.drop(key);
+    if (roll) {
+        await rolls.noteFactOn(roll, { plant: {
+            name: found.name ?? null, identity: found.drpgItemId ?? null, room, sceneId: sceneId ?? game.scenes?.current?.id ?? null
+        } });
+    }
 
     // A plant no longer outlives its project (ITEM-08): `deleteProject` and
     // the season reset prune the store through `pruneTrapsFor` below.
@@ -937,9 +953,11 @@ async function onChatMessage(message) {
 
         const actor = game.actors.get(used.actorId ?? "")
             ?? game.actors.get(message.speaker?.actor ?? "");
-        const why = usedItemRefusal({ author: message.author, actor, used, trap, owns: ownsActor });
+        // Its writer, not its author: in an incident the GM posts a player's card for them (E08+E28 fix r2-H5).
+        const writer = cardWriter(message);
+        const why = usedItemRefusal({ author: writer, actor, used, trap, owns: ownsActor });
         if (why) {
-            warn(`A "used an item" card from ${message.author?.name ?? "?"} did not set off ${trap.name}: ${why}.`);
+            warn(`A "used an item" card from ${writer?.name ?? "?"} did not set off ${trap.name}: ${why}.`);
             return;
         }
         if (!passesModifiers(trap, actor)) return;

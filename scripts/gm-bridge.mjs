@@ -14,17 +14,15 @@
 
 import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
-    LEVEL_UP, LEVEL_UP_OPTIONS
+    LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, error, cardHead, esc } from "./utils.mjs";
 import {
-    firstRefusal, guardObserveReceipt, guardAnalyzeReceipt, guardCrisisAction, guardCrisisUndo,
-    guardCrisisReceipt, guardCleanupReceipt, guardProgressOwner, guardProgressReceipt, guardShareSecret,
-    guardShareGuest, guardTieTraceHolder, guardRemnantEditReceipt, guardUnsabotagePair, guardUnsabotageOwner,
-    guardUnsabotageReceipt, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
+    firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll, guardShareSecret,
+    guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
-    guardArmBuyerHope, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool,
-    guardDespairReceipt, guardTraitRuling, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
+    guardArmBuyerHope, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
+    guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
@@ -85,6 +83,11 @@ const ACTION_DONE = "bridge.done";
 const ACTION_GM_READY = "bridge.gmReady";
 const ACTION_LOOT = "body.loot";
 const ACTION_NOTE_SAVE = "note.save";
+const ACTION_ROLL_BOOKMARK = "roll.bookmark";
+/** player -> GM: make my character's Reroll (E08+E28 C4a) - see reroll.mjs `rerollOnGm`. */
+const ACTION_REROLL = "reroll.ask";
+/** player -> GM: post the private card my browser would post while an incident runs (E08+E28 fix r2-H5) - see secret.mjs `askGm`. */
+const ACTION_CARD = "card.post";
 
 /**
  * A primary GM has finished loading and can answer questions again.
@@ -225,9 +228,12 @@ export function cancelOpeningRoll({ userId }) {
     return true;
 }
 
-/** Send a thrown opening roll to the GM, who owns Stage 4's state. */
-export function requestOpeningResult({ actorId, side, total, isCritical, withHope }) {
-    return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope }, {
+/**
+ * Send a thrown opening roll to the GM, who owns Stage 4's state. A player's names its roll
+ * (`rollId`, the message the GM wrote for it), whose record the GM scores it on (E08+E28 C17).
+ */
+export function requestOpeningResult({ actorId, side, total, isCritical, withHope, rollId = null }) {
+    return ask(ACTION_OPENING_RESULT, { actorId, side, total, isCritical, withHope, rollId }, {
         local: () => import("./murder.mjs").then(m => m.resolveOpening({ actorId, side, total, isCritical, withHope }))
     });
 }
@@ -274,8 +280,8 @@ async function handleObserveResolve(payload, sender, ctx) {
     // guard). That alone was taken to mean "the person who asked for this key",
     // and it did not: the key named a character of its own and nothing compared
     // the two (audit S05-03). `resolveObserve` now holds the key to its
-    // character, its account and one use (`observeResolveRefusal`), and an undo
-    // to a Reroll (`guardObserveReceipt`).
+    // character, its account and one use (`observeResolveRefusal`); an undo is
+    // a GM's alone (`guardUndoIsTheGms`, E08+E28 C8).
     const { resolveObserve } = await import("./observe.mjs");
     const result = await resolveObserve({
         key: payload.key,
@@ -286,7 +292,8 @@ async function handleObserveResolve(payload, sender, ctx) {
         isCritical: payload.isCritical,
         undo: payload.undo,
         senderId: sender.id,
-        senderIsGm: sender.isGM
+        senderIsGm: sender.isGM,
+        rollId: payload.rollId
     });
     // Not a guard: the key is judged inside `resolveObserve`, against the entry
     // it has just read, and for a GM's own resolve as much as for a packet.
@@ -302,7 +309,9 @@ async function handleAnalyzeResolve(payload, sender, ctx) {
         itemId: payload.itemId,
         total: payload.total,
         isCritical: payload.isCritical,
-        undo: payload.undo
+        undo: payload.undo,
+        rollId: payload.rollId,
+        by: sender.id
     });
     // Not a guard: one Analyze per bullet per chapter is the resolver's own
     // rule, asked of a GM's throw too (analyze.mjs).
@@ -463,6 +472,22 @@ async function handleShareBulletOrGiveItem(payload, sender, ctx) {
     if (out?.refused) return { refused: out.refused };
 }
 
+/*
+ * A PALM'S TWO ROLLS, EACH THE GMS' RECORD (E08+E28 C15, 04.10.2026; audit S10-06). A Steal and a
+ * Plant were scored on the packet's two totals - the hand's against the action's bar, the unseen
+ * one against whether anybody watched (`stealFromPerson`, `plantOnPerson`). The packet names both
+ * rolls now: the hand's (`rollId`, thrown as "steal" for a Steal and a Plant alike, as it always
+ * was) and the unseen one (`unseenRollId`, thrown as "palm" since C15, action-rolls.mjs
+ * `performPalm`), whose result goes in `unseenTotal` and `unseenCritical`.
+ * One hand's roll settles one Steal or one Plant.
+ */
+function palmRolls(actor) {
+    return [
+        { field: "rollId", actor, kind: "steal" },
+        { field: "unseenRollId", actor, kind: "palm", into: { total: "unseenTotal", isCritical: "unseenCritical" } }
+    ];
+}
+
     // And into them. Same guards as the theft, mirrored - the sender has to own
     // the character whose pocket the item is leaving.
 async function handlePlant(payload, sender, ctx) {
@@ -514,17 +539,36 @@ async function handleVaultSteal(payload, sender, ctx) {
     await stealFromVault({
         thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
         // Set only by the Search action, which pays for the concealment it is
-        // beating. See the note in `stealFromVault`.
+        // beating. See the note in `stealFromVault`. Since E08+E28 C15 a packet
+        // that says so names the Search's roll, and this is the GMs' record of it
+        // (`searchTheftOf`).
         viaSearch: payload.viaSearch,
-        // Trusted from the sender, and it is worth saying why when nothing
-        // else in this handler is. A client that lied would only ever lie
-        // one way - claiming a steady hand - and the cost of believing it is
-        // that the victim is not told. That is exactly the state this branch
-        // shipped in for four updates, so a forged `false` buys a cheat
-        // nothing it did not already have, while re-rolling the dice here to
-        // check would be a second roll for one action.
+        // Whether the Search fumbled it, read off the same record: the sender's
+        // word until C15, which a client could only ever bend one way - a steady
+        // hand, and the victim not told. On a GM whose Daggerheart is not the build
+        // the draw was written for nobody keeps a record, and it is the sender's
+        // word again (bridge-guards.mjs, "TWO PACKETS PASS WITH NO RECORD").
         clumsy: payload.clumsy
     });
+}
+
+/*
+ * WHAT A SEARCH EARNED AT A STASH, ON THE GMS' RECORD (E08+E28 C15, 04.10.2026; audit S10-06).
+ * `viaSearch` and `clumsy` were the sender's word: that a Search had paid for a concealed stash,
+ * and that its hand was steady. A packet that says `viaSearch` now names the Search's roll, and
+ * both are read off the GMs' record of it: the Search found the stash when its total, with the
+ * hidden stash's step the GM drew with the dice (`used.stash`, roll-draw.mjs `drawOnGm`), reaches
+ * a tier of the Search's table, or the roll is a critical - action-rolls.mjs `searchTier`, as
+ * `performSearch` reads it before it opens the stash (`searchStash`); it fumbled on Despair with no
+ * critical, as `searchStash` says. A packet that does not say `viaSearch` asks no roll: it is the
+ * drawer's free route, which `stealFromVault` holds to a stash that is not concealed or was found,
+ * and its `clumsy` can only tell the stash's owner on the sender.
+ */
+async function searchTheftOf(record) {
+    const { searchTier } = await import("./action-rolls.mjs");
+    const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
+    if (!hit && !record.isCritical) return { why: "that roll did not find the stash" };
+    return { fields: { viaSearch: true, clumsy: Boolean(record.withFear) && !record.isCritical } };
 }
 
     // Stage 4 thrown on the participant's own client. Same guard as a crisis
@@ -549,14 +593,18 @@ async function handleOpeningResult(payload, sender, ctx) {
 async function handleCrisis(payload, sender, ctx, prepared) {
     const { resolveCrisisAction, freeResolutionFor, sideOf } = prepared;
     const actor = game.actors.get(payload.actorId);
+    // A player's packet that names no roll threw none (`guardCrisisRoll`): a decision or a free
+    // take, scored on no dice - a total of 0, no critical, with Hope - as its asker sends it,
+    // whatever this one says (E08+E28 C17). One that names its roll carries the GMs' record of it.
+    const unrolled = !sender.isGM && !payload.rollId;
     const result = await resolveCrisisAction({
         actorId: payload.actorId,
         key: payload.key,
-        total: payload.total,
-        isCritical: payload.isCritical,
-        withHope: payload.withHope,
-        // A Reroll replacing this actor's own last crisis action. The GM
-        // side checks the receipt belongs to them before unwinding anything.
+        total: unrolled ? 0 : payload.total,
+        isCritical: unrolled ? false : payload.isCritical,
+        withHope: unrolled ? true : payload.withHope,
+        // A Reroll replacing this actor's own last crisis action: a GM's packet
+        // alone carries it (`as.gmFlag`, E08+E28 C8).
         undo: payload.undo,
         // Narrowed rather than trusted, by the whitelist: the only two answers
         // this can carry are the two resources a critical Strike may take.
@@ -569,6 +617,13 @@ async function handleCrisis(payload, sender, ctx, prepared) {
         // damage is read off it since E32+E07 C8, and murder.mjs `swungWeapon`
         // narrows it further, to a readied Crime Tool on an action that swings.
         swungId: actor?.items?.has(payload.swungId) ? payload.swungId : null,
+        // What the item's use started from, as the player read it: their own character's
+        // (the declaration's `owns`), numbers or nothing (`resourcesBefore`). Kept on the
+        // GMs' bookmark only (E08+E28 C2).
+        before: payload.before,
+        // The roll the GMs' fact of it goes on, for this sender (fix r1-G2): `rollOfFact`.
+        rollId: payload.rollId,
+        by: sender.id,
         /*
          * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY
          * SOMETHING FOR NOTHING.
@@ -588,8 +643,9 @@ async function handleCrisis(payload, sender, ctx, prepared) {
     // Null: a Reroll's rewind that could not happen (the GMs have been told), or
     // no incident, character or action to score - nothing was applied (E31 review).
     if (!result) return { refused: "nothing was carried out: resolveCrisisAction resolved nothing" };
-    // Said back only when the action's own resolution killed (E32+E07 C8b): the asker's
-    // browser keeps it on the roll's bookmark, and its Reroll Call refuses before paying.
+    // Said back only when the action's own resolution killed (E32+E07 C8b). The asker's
+    // browser kept it on the roll's bookmark until E08+E28 C4a; the GM's Reroll now reads
+    // the death off the action's receipt itself (reroll.mjs `replayRefusal`).
     // The asker is in that death card's audience already; any other answer is null, as before.
     if (result.lethal) return { reply: { lethal: true } };
 }
@@ -645,7 +701,7 @@ async function handleBetrayal(payload, sender, ctx) {
     // leaves, and reading how visible the trace was in the first place are all
     // GM-only - the last of those most of all, since it is the threshold the
     // roll is being measured against. See cleanup.mjs. cleanup.mjs is imported
-    // in the declaration's `prepare`, before the receipt guard, as it was here.
+    // in the declaration's `prepare`, before the guards, as it was here.
 async function handleCleanup(payload, sender, ctx, prepared) {
     const cleanup = prepared;
 
@@ -699,23 +755,21 @@ async function handleCleanup(payload, sender, ctx, prepared) {
         // trace has to belong to the sender. Forging it costs them the
         // right to touch anybody else's trace, which is the only thing the
         // waived guards were protecting.
-        viaAction: payload.viaAction
+        viaAction: payload.viaAction,
+        rollId: payload.rollId,
+        by: sender.id
     });
     if (!cleaned) return { refused: "nothing was carried out: resolveCleanup cleaned nothing" };
 }
 
     // A Meddle writes to the TARGET's sheet, not the Monocub's own - arming a
     // Call is exactly the write a player has no permission to make on somebody
-    // else's actor.
+    // else's actor. Its dice are thrown here since E08+E28 C17 (`meddleOnGm`),
+    // and the roll goes back for the Monocub's card - none for a Meddle it
+    // refuses, which throws nothing since fix r2-H7.
 async function handleMeddle(payload, sender, ctx) {
-    const { resolveMeddle } = await import("./monocub.mjs");
-    await resolveMeddle({
-        actorId: payload.actorId,
-        targetId: payload.targetId,
-        help: payload.help,
-        total: payload.total,
-        isCritical: payload.isCritical
-    });
+    const { meddleOnGm } = await import("./monocub.mjs");
+    return { reply: await meddleOnGm({ actorId: payload.actorId, targetId: payload.targetId, help: payload.help }) };
 }
 
 /*
@@ -746,17 +800,24 @@ async function handleTraitRuling(payload, sender, ctx) {
 async function handleProgress(payload, sender, ctx) {
     const { asker } = ctx;
     // Sight of the project and the size of the step are the declaration's
-    // guards now; progress taken back is a Reroll's - see `guardProgressOwner`.
+    // guards now; progress taken back is the GM's own Reroll's - see `guardUndoIsTheGms`.
+    // A Work on a Project's amount is what its roll earned, on the GMs' record (`progressOf`).
     const amount = Math.trunc(payload.amount);
     const { addProgress } = await import("./projects.mjs");
+    const rolls = await import("./action-rolls.mjs");
+    // The roll this progress is for, as the request arrives (E08+E28 C2): see `noteProgressFact`.
+    const kept = amount > 0 && payload.rollId ? await rolls.rollOfSenderNaming(sender.id, "project", payload.rollId) : null;
+    const roll = kept?.messageId === payload.rollId ? kept : null;
     // Who asked, so a finished project can fall back to them when nobody
     // recorded who proposed it.
     const result = await addProgress(payload.countdownId, amount, { by: asker });
     debug(`Applied ${amount} progress to ${payload.countdownId} on behalf of a player.`, result);
     // Null: the project is not there any more - nothing was added, and the asker
     // is told so once, by the refusal (E31 review). A project that did not move
-    // (frozen, already full) is an answer, whispered below.
+    // (already full) is an answer, whispered below; a frozen one is refused
+    // before this since E08+E28 C16 (`guardProjectFrozen`).
     if (!result) return { refused: "nothing was carried out: addProgress found no such project" };
+    await noteProgressFact(rolls, roll, payload.countdownId, result);
 
     // Report back to whoever asked.
     //
@@ -782,6 +843,19 @@ async function handleProgress(payload, sender, ctx) {
     });
 }
 
+/**
+ * THE PROGRESS A PLAYER'S PROJECT ROLL ADDED, ON THE GMS' BOOKMARK (E08+E28 C2). The packet
+ * names no character; a Work on a Project names its roll's message, and it is written only
+ * when that is the sender's newest kept Work on a Project (`rollOfSender`). A Call's progress
+ * names no roll, and a Reroll's taking back (a negative amount) writes none. What moved, from
+ * the project's own answer: a full project adds 0 (a frozen one is refused before, `guardProjectFrozen`).
+ */
+async function noteProgressFact(rolls, roll, projectId, result) {
+    if (!roll) return;
+    const progress = result.changed === false ? 0 : (Number(result.to) || 0) - (Number(result.from) || 0);
+    await rolls.noteRollFact(roll.actorId, roll.messageId, { projectId, progress });
+}
+
 async function handleShare(payload, sender, ctx, prepared) {
     // projects.mjs came in the declaration's `prepare`, before the guards, as it
     // was imported here: sight asked again with nothing awaited before the write.
@@ -796,6 +870,9 @@ async function handleShare(payload, sender, ctx, prepared) {
     debug(`Shared project ${payload.countdownId} with ${payload.targetUserId} on behalf of a player.`);
 }
 
+/** The actions whose Reroll takes back the trace their roll left (reroll.mjs `settleSearch`, `settleSabotage`, `settleDynamic`). */
+const TRACE_OF_ROLL = Object.freeze(["search", "sabotage", "dynamic"]);
+
 async function handleRemnant(payload, sender, ctx) {
     /*
      * REBUILT, NOT NARROWED (CASE-13, then E03; audit S05-13, S10-10). A
@@ -807,6 +884,7 @@ async function handleRemnant(payload, sender, ctx) {
      * `narrowPlayerRemnant`, which now builds every one of them here.
      */
     const { placeRemnant, narrowPlayerRemnant } = await import("./remnants.mjs");
+    const { noteFactOfRoll } = await import("./action-rolls.mjs");
     let data = { ...(payload.data ?? {}) };
     if (!sender.isGM) {
         const actor = game.actors.get(data.sourceActor);
@@ -822,7 +900,22 @@ async function handleRemnant(payload, sender, ctx) {
     // A trace this client could not place (no scene, no Remnant actor, a token
     // that could not be created) is a failure, not "placed" (E31 review): the
     // player's item stays on the sheet.
-    if (!await placeRemnant(data)) return { refused: "the trace could not be placed" };
+    const placed = await placeRemnant(data);
+    if (!placed) return { refused: "the trace could not be placed" };
+    /* WHICH TRACE, ON THE GMS' BOOKMARK (E08+E28 C2; audit S05-08). The player's browser is
+       answered as before, with no id: a Reroll that retunes or removes this trace is the GM's
+       from C4a, and finds it by this fact - the browser's `remnantRef` named none. Written on
+       the row of the roll the packet names, when it is the sender's roll of this character and
+       its action is one whose replay owns a trace and placed this one (fix r1-G1; the review's
+       M3 = S2): until then it went on the character's newest row, whatever had placed it, and a
+       discarded item's trace became the Search's before it, for that Search's Reroll to lift. A
+       placement naming no roll writes none. */
+    const doc = placed.document ?? placed;
+    const owner = TRACE_OF_ROLL.includes(data.action) ? [data.action] : [];
+    if (doc?.id && payload.rollId && owner.length) {
+        await noteFactOfRoll(payload.rollId, { by: sender.id, actorId: data.sourceActor, actions: owner },
+            { remnantId: doc.id, remnantScene: doc.parent?.id ?? data.sceneId ?? null });
+    }
     debug("Placed a Remnant on behalf of a player.");
 }
 
@@ -833,7 +926,8 @@ async function handleRemnant(payload, sender, ctx) {
  * above drops every packet's `tiedToCrime` - so since E03 a trap built from a player's browser left
  * untied traces, which the chapter's end sweeps. Judged here on the GMs' record, not on the packet:
  * the project it names is an indirect murder, and the sender's character is its killer or the one
- * who proposed it. A Sabotage's trace is not judged: nothing the GMs keep records a failed one.
+ * who proposed it. A Sabotage's trace is not judged: until E08+E28 C16 nothing the GMs kept recorded a
+ * failed one's target, and the roll's row that does now is not read here.
  */
 async function worksOwnMurder(projectId, actor, action) {
     if (action !== "project" || typeof projectId !== "string" || !projectId || !actor) return false;
@@ -841,6 +935,96 @@ async function worksOwnMurder(projectId, actor, action) {
     if (!isIndirectMurder(projectId)) return false;
     const { killerId, by } = secretsOf(projectId);
     return killerId === actor.id || by === actor.id;
+}
+
+/*
+ * A TRACE'S BAND IS THE GM'S (E08+E28 C15, 04.10.2026; audit S10-06; the plan's 3.5). A player's
+ * Search, Sabotage or Dynamic action leaves a trace whose visibility its roll decides, and the
+ * packet said which: a console could leave every trace hidden. The packet names that roll now
+ * (`rollId`, as it has since fix r1-G1 for the GMs' row), and the band is read off the GMs' record
+ * of it with the action's own table, as the roller's browser reads it:
+ *   - a Search: the tier its total reaches with the hidden stash's step the GM drew, or the
+ *     critical's band (action-rolls.mjs `searchTier`, `leaveSearchTrace`);
+ *   - a Sabotage: the band its total reaches (`sabotageHit`), with the concealment's penalty and
+ *     the readied tool's relief the roller claimed for that roll (the GMs' bookmark,
+ *     `ROLL_CLAIMS.sabotage`), held as its repair holds them (action-rolls.mjs
+ *     `sabotageExtrasHeld`) - the concealment's own roll names no action, so its Despair is not on
+ *     a record yet; a miss leaves the table's `failureRemnant`. The relief was the tool readied
+ *     on the sheet now until fix r2-H3 (the round-2 review's S2-9): a tool that broke on a roll
+ *     with Fear was in no hand, and the trace of a Sabotage whose repair froze the project was
+ *     left at a miss's band;
+ *   - a Dynamic action: the difficulty a GM set on its card (`dynamicRulingOf`); a roll under it
+ *     leaves no trace (`performDynamic`). The roller's band is no claim since fix r2-H3.
+ * A roll that leaves no trace is refused, and a packet whose visibility differs is placed at the
+ * GM's band and logged (bridge-guards.mjs `onRecord`). Whether a trace is placed at all is still
+ * the roller's browser's: a console that sends no `remnant.place` leaves none, and a Work's trace
+ * (`project`, not in `TRACE_OF_ROLL`) takes the band its packet names - CLAUDE.md's "What stays
+ * open" (the round-2 review's S2-8; fix r2-H7).
+ */
+async function traceBandOf(record) {
+    let band = null;
+    if (record.actionKey === "search") {
+        const { searchTier } = await import("./action-rolls.mjs");
+        const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
+        band = record.isCritical ? ACTIONS.search.critical?.remnant : hit?.remnant;
+    } else if (record.actionKey === "sabotage") {
+        const { sabotageHit, sabotageExtrasHeld } = await import("./action-rolls.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const row = rerollBookmarkStore.get(record.actorId);
+        const hit = sabotageHit(record, sabotageExtrasHeld(record, row?.messageId === record.messageId ? row.claims : null));
+        band = hit ? hit.remnant : ACTIONS.sabotage.failureRemnant;
+    } else if (record.actionKey === "dynamic") {
+        const ruled = DYNAMIC_THRESHOLDS[dynamicRulingOf(record)?.tier];
+        if (!ruled) return { why: "no ruling of a GM's sets that roll's band" };
+        band = record.isCritical || (Number(record.total) || 0) >= ruled.range[0] ? ruled.remnant : null;
+    }
+    return band ? { fields: { "data.visibility": band } } : { why: "that roll leaves no trace" };
+}
+
+/**
+ * The difficulty a GM set on a Dynamic action's card for this roll's character: the newest ruling
+ * kept in a card's meta (messenger-app.mjs `ruleSetDifficulty`, `settleCall`) within a Reroll's
+ * reach of the roll, as a GM's pick of a statistic is found (roll-draw.mjs `gmPickOf`), or null.
+ * `record` needs `actorId` and `at`; the Reroll's replay reads it too (reroll.mjs `settleDynamic`).
+ */
+export function dynamicRulingOf(record) {
+    const since = (record.at ?? 0) - TIMING.rerollWindowMinutes * 60_000;
+    const messages = game.messages?.contents ?? [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (typeof message.timestamp === "number" && message.timestamp < since) break;
+        const ruling = cardFlag(message, "ruling");
+        if (ruling?.type === "dynamic" && ruling.actorId === record.actorId) return ruling;
+    }
+    return null;
+}
+
+/*
+ * WHAT A PROJECT'S ROLL EARNED IS THE GM'S (E08+E28 C16, 04.10.2026; audit S10-08, S10-06; the plan's
+ * 3.5). Progress and a Sabotage's repair were the packet's numbers, held only to a range: a console
+ * that named a roll of 7 added 12. The packet names its roll now, and the GM reads what it earned
+ * off its record with the action's own table, as the roller's browser reads it (action-rolls.mjs
+ * `projectProgress`, `sabotageHit`, `sabotageRepairScale`). What only the roller saw rides on the
+ * packet and is held to what the rules allow (action-rolls.mjs `projectExtrasHeld`,
+ * `sabotageExtrasHeld`, which the Reroll's replays and a Sabotage's trace read too since fix
+ * r2-H3): an indirect murder's concealment adds at most `PROJECT_BONUS_MOST`, and to nothing else;
+ * a Sabotage's concealment takes off at most what one thrown with Despair takes; the readied
+ * tool's relief is at most the GM's reading of the sheet. Read off the packet, not the GMs'
+ * bookmark of the roll, because the packet can arrive first (fix r1-G1 measured it so). A Work
+ * whose roll earned nothing is refused; a Sabotage's miss is a repair of 0, which freezes nothing
+ * (`handleSabotage`).
+ */
+async function progressOf(record, payload) {
+    const { projectProgress, projectExtrasHeld } = await import("./action-rolls.mjs");
+    const { progress } = projectProgress(record, projectExtrasHeld(record, { relief: payload.relief, bonus: payload.bonus }, payload.countdownId));
+    return progress > 0 ? { fields: { amount: progress } } : { why: "that roll earned no progress" };
+}
+
+async function repairOf(record, payload) {
+    const { sabotageHit, sabotageRepairScale, sabotageExtrasHeld } = await import("./action-rolls.mjs");
+    const { penalty, relief } = sabotageExtrasHeld(record, { penalty: payload.penalty, relief: payload.relief });
+    const hit = sabotageHit(record, { penalty, relief });
+    return { fields: { difficulty: hit ? sabotageRepairScale(record, (Number(record.total) || 0) + penalty, relief) : 0 } };
 }
 
 async function handleTieTrace(payload, sender, ctx) {
@@ -869,26 +1053,44 @@ async function handleRemnantEdit(payload, sender, ctx) {
     const asked = payload.patch ?? {};
     const narrowed = { remove: Boolean(asked.remove) };
     if (REMNANT_VISIBILITY_LABELS[asked.visibility]) narrowed.visibility = asked.visibility;
-    // The type is a GM's to change, never a player's: the one honest player
-    // sender (reroll.mjs) sends a band and nothing else, and a trace's type
-    // decides who may tamper with it and how hard it is to Observe (E03 second
-    // review). The killer's own re-typing goes through cleanup.mjs on the GM.
+    // The type is a GM's to change, never a player's (and since E08+E28 C8 no
+    // player edits a trace at all): a player's Reroll sent a band and nothing
+    // else, and a trace's type decides who may tamper with it and how hard it
+    // is to Observe (E03 second review). The killer's own re-typing goes through cleanup.mjs on the GM.
     if (sender.isGM && CLEANUP.transform?.types?.includes(asked.type)) narrowed.type = asked.type;
 
     const { retuneRemnant } = await import("./remnants.mjs");
     // Null: no such token, a reinforced trace asked to go, or nothing to change -
-    // nothing was done (E31 review), and it is told with the declaration's `tell`.
+    // nothing was done (E31 review), and it is told as refused.
     if (!await retuneRemnant(payload.sceneId, payload.tokenId, narrowed)) {
         return { refused: "nothing was carried out: retuneRemnant changed nothing" };
     }
-    debug("Retuned a Remnant on behalf of a player.", narrowed);
+    debug(`Retuned a Remnant on behalf of ${sender.name}.`, narrowed);
 }
 
 async function handleSabotage(payload, sender, ctx) {
     const { sabotageProject } = await import("./projects.mjs");
+    const rolls = await import("./action-rolls.mjs");
+    /* The repair is what the roll earned, on the GMs' record (`repairOf`); 0 is a miss, which
+       freezes nothing and names its target for the GM's Reroll of it (E08+E28 C16; the
+       orchestrator's decision of 04.10.2026): until fix r1-G1 the roller's bookmark kept the
+       target of any Sabotage, and since then the GM learns it only from this packet, so a miss
+       rerolled into a success froze nothing. */
+    const difficulty = Math.trunc(payload.difficulty);
     // Who asked, so that only their own Reroll can take it back (E03).
-    const result = await sabotageProject(payload.targetId, Math.trunc(payload.difficulty),
-        { saboteur: sender.isGM ? null : sender.id });
+    const result = difficulty > 0 ? await sabotageProject(payload.targetId, difficulty,
+        { saboteur: sender.isGM ? null : sender.id }) : null;
+    /* Which project it froze and the repair it made, for the Reroll's undo on a GM (C4a), on the
+       row of the roll the packet names (fix r1-G1; the review's B1). The sender's newest Sabotage
+       row, read as the packet arrived, was the previous Sabotage's or none: `roll.bookmark`'s run
+       ended after this one in 5 of 5 of the review's runs at f941051 (2 of 3 of its 97 at d20fadb),
+       and the Reroll into a miss left the project frozen. The fact now waits for its row (`noteFactOfRoll`); a packet naming no roll
+       writes none. */
+    if ((result || !difficulty) && payload.rollId) {
+        await rolls.noteFactOfRoll(payload.rollId, { by: sender.id, actions: ["sabotage"] },
+            { targetProjectId: payload.targetId, repairId: result?.repair?.id ?? null });
+    }
+    if (!difficulty) return { reply: null };
 
     // Tell the asker what actually happened - not just that the request
     // arrived. Without this a player's own sabotage always reported success
@@ -903,7 +1105,7 @@ async function handleSabotage(payload, sender, ctx) {
 }
 
 async function handleUnsabotage(payload, sender, ctx) {
-    // The pair, the character and the Reroll - see `guardUnsabotagePair`.
+    // A GM's alone since E08+E28 C8 (`guardUndoIsTheGms`); the pair is still asked (`unsabotageRefusal`).
     const { undoSabotage } = await import("./projects.mjs");
     // Null: `unsabotageRefusal` kept it to the GM's console - nothing was undone (E31 review).
     if (!await undoSabotage(payload.targetId, payload.repairId, { senderId: sender.isGM ? null : sender.id })) {
@@ -1039,10 +1241,8 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
 }
 
 async function handleDespair(payload, sender, ctx) {
-    // A player's point is a Reroll's, on their own Monokuma - see `guardDespairOwner`.
-    // The size and the pool are asked BEFORE the receipt is spent (the review of
-    // the guard split; the declaration's order): a packet that fails them must
-    // not use up the Reroll.
+    // A GM's alone since E08+E28 C8, as a Reroll's point is the GM's own (reroll.mjs); the size
+    // and the pool are the declaration's guards.
     const delta = Math.trunc(payload.delta);
     const target = game.users.get(payload.targetUserId);
     const { adjustDespair } = await import("./despair.mjs");
@@ -1077,14 +1277,49 @@ async function handleNoteSave(payload, sender) {
     return { reply: { updatedAt: out.updatedAt, stamp: out.stamp } };
 }
 
+/** The run of `roll.bookmark` (E08+E28 C2): the guards tied the message to the sender and the character to them. */
+async function handleRollBookmark(payload, sender) {
+    const { keepGmBookmark } = await import("./action-rolls.mjs");
+    await keepGmBookmark({
+        actorId: payload.actorId,
+        messageId: payload.messageId,
+        actionKey: payload.actionKey,
+        trait: payload.trait,
+        experiences: payload.experiences,
+        context: payload.context,
+        reportMessageId: payload.reportMessageId
+    }, sender);
+}
+
+/**
+ * The run of `reroll.ask` (E08+E28 C4a): the GM makes the sender's Reroll of their character
+ * and answers the lines of the Call's card, or refuses with why - before anything was paid,
+ * or after giving back what was.
+ */
+async function handleReroll(payload, sender) {
+    const { rerollOnGm } = await import("./reroll.mjs");
+    const out = await rerollOnGm(game.actors.get(payload.actorId), sender);
+    if (out?.refused) return { refused: out.refused };
+    return { reply: { lines: out?.lines ?? [] } };
+}
+
+/** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
+async function handleCardPost(payload, sender) {
+    const { postAsked, cardTooLong } = await import("./secret.mjs");
+    if (cardTooLong(payload.content, payload.flags)) return { refused: "the card is longer than a player's words may be" };
+    const message = await postAsked(sender, { content: payload.content, whisper: payload.whisper, speaker: payload.speaker,
+        flags: payload.flags, summary: payload.summary, veiled: payload.veiled });
+    if (!message) return { refused: "nothing was carried out: the card could not be posted" };
+    return { reply: { id: message.id } };
+}
+
 /**
  * WHAT THE PRIMARY GM ANSWERS, ONE DECLARATION PER REQUEST (E31, 25.09.2026;
  * audit S17-08).
  *
  * Each declaration names the guards its request is judged by, in the order
  * they are asked - `knownSender` (or `gmOnly`) first; for every id the run
- * receives, a guard that names it or a `claims` line saying who judges it; a
- * guard that spends a Reroll receipt last - the fields the run may read
+ * receives, a guard that names it or a `claims` line saying who judges it - the fields the run may read
  * (`sanitize`), the run, and how the asker is answered: `reply` once the run
  * has carried it out, with its answer - every request whose asker says or
  * counts on it that it was done (E31 review), and every queued one; `ack` once
@@ -1127,22 +1362,29 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_OBSERVE_RESOLVE]: {
         label: "DRPG.Bridge.what.observe.resolve",
-        guards: [knownSender, owns("actorId", "sender does not own that character"), guardObserveReceipt],
-        sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, undo: as.bool }),
+        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleObserveResolve,
         // The "got it" only: the run can wait on the GM describing what was found
         // (`describeFind`, observe.mjs), and what its asker says on the answer is
         // that the GM has it - "The GM is judging what you found", and a Reroll's
         // "goes back to the GM" (E31 review).
-        answer: "ack"
+        answer: "ack",
+        /* The total and the critical are the GMs' record of the roll `rollId` names, not the
+           packet's (E08+E28 C14; bridge-guards.mjs `rollRefusal`): an Observe's roll, of this
+           character, the sender's, settling one Observe. */
+        rolled: { field: "rollId", actor: "actorId", kind: "observe" },
+        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Observe" }
     },
     [ACTION_ANALYZE_RESOLVE]: {
         label: "DRPG.Bridge.what.analyze.resolve",
-        guards: [knownSender, owns("actorId", "sender does not own that character"), guardAnalyzeReceipt],
-        sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.bool }),
+        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id, itemId: as.id, total: as.num, isCritical: as.bool, undo: as.gmFlag, rollId: as.id }),
         run: handleAnalyzeResolve,
         answer: "reply",
-        claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world" }
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze" },
+        claims: { itemId: "looked up on that one character by resolveAnalyze (analyze.mjs), never across the world",
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an Analyze" }
     },
     [ACTION_ADVANCEMENT]: {
         label: "DRPG.Bridge.what.advancement.apply",
@@ -1176,67 +1418,90 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.action.plant",
         guards: [knownSender, owns("plannerId", "sender does not own the character planting")],
         sanitize: pick({ plannerId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
-            unseenTotal: as.num, unseenCritical: as.bool }),
+            unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handlePlant,
         answer: "ack",
+        // Both of the Palm's rolls, each on the GMs' record of it (E08+E28 C15; `palmRolls`).
+        rolled: palmRolls("plannerId"),
         claims: {
             victimId: "judged by plantOnPerson (vault.mjs): a living victim in the planter's room",
-            itemId: "judged by plantOnPerson (vault.mjs): an item in the planter's own hands"
+            itemId: "judged by plantOnPerson (vault.mjs): an item in the planter's own hands",
+            rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm",
+            unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the planter's Palm"
         }
     },
     [ACTION_FIND_STASH]: {
         label: "DRPG.Bridge.what.vault.findStash",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool }),
+        sanitize: pick({ actorId: as.id, total: as.num, isCritical: as.bool, rollId: as.id }),
         run: handleFindStash,
-        answer: "ack"
+        answer: "ack",
+        // An Analyze's roll: a search for a hidden stash is one of the Analyze's three roads (E08+E28 C14).
+        rolled: { field: "rollId", actor: "actorId", kind: "analyze" },
+        claims: { rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the sender's character's Analyze" }
     },
     [ACTION_STEAL]: {
         label: "DRPG.Bridge.what.action.steal",
         guards: [knownSender, owns("thiefId", "sender does not own the character stealing")],
         sanitize: pick({ thiefId: as.id, victimId: as.id, itemId: as.id, total: as.num, isCritical: as.bool,
-            unseenTotal: as.num, unseenCritical: as.bool }),
+            unseenTotal: as.num, unseenCritical: as.bool, rollId: as.id, unseenRollId: as.id }),
         run: handleSteal,
         answer: "ack",
+        rolled: palmRolls("thiefId"),
         claims: {
             victimId: "judged by stealFromPerson (vault.mjs): a living victim in the thief's room",
-            itemId: "honoured by stealFromPerson (vault.mjs) only on a critical, and only if it is in the victim's pockets"
+            itemId: "honoured by stealFromPerson (vault.mjs) only on a critical, and only if it is in the victim's pockets",
+            rollId: "the hand's roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm",
+            unseenRollId: "the unseen roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for the thief's Palm"
         }
     },
     [ACTION_VAULT_STEAL]: {
         label: "DRPG.Bridge.what.vault.steal",
         guards: [knownSender, owns("thiefId", "sender does not own the character searching")],
-        sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id, viaSearch: as.bool, clumsy: as.bool }),
+        sanitize: pick({ thiefId: as.id, ownerId: as.id, itemId: as.id, viaSearch: as.bool, clumsy: as.bool, rollId: as.id }),
         run: handleVaultSteal,
         answer: "ack",
+        // A packet that says a Search paid for it names that Search's roll (E08+E28 C15; `searchTheftOf`).
+        rolled: { field: "rollId", actor: "thiefId", kind: "search", when: "viaSearch", derive: searchTheftOf },
         claims: {
             ownerId: "judged by stealFromVault (vault.mjs): the owner of a stash the thief can reach",
-            itemId: "judged by stealFromVault (vault.mjs): an item that owner has stashed"
+            itemId: "judged by stealFromVault (vault.mjs): an item that owner has stashed",
+            rollId: "the Search's roll whether it found the stash, and fumbled it, is read from (searchTheftOf): one the GM drew for the thief's Search"
         }
     },
     [ACTION_OPENING_RESULT]: {
         label: "DRPG.Bridge.what.murder.openingResult",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
-        sanitize: pick({ actorId: as.id, side: as.raw, total: as.num, isCritical: as.bool, withHope: as.bool }),
+        sanitize: pick({ actorId: as.id, side: as.raw, total: as.num, isCritical: as.bool, withHope: as.bool, rollId: as.id }),
         run: handleOpeningResult,
         answer: "ack",
-        claims: { side: "compared by resolveOpening (murder.mjs) with the side the incident's own state gives that character" }
+        // The opening's roll, on the GMs' record of it (E08+E28 C17; bridge-guards.mjs `rollRefusal`).
+        rolled: { field: "rollId", actor: "actorId", kind: "murderOpening" },
+        claims: { side: "compared by resolveOpening (murder.mjs) with the side the incident's own state gives that character",
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal): one the GM drew for that character's opening" }
     },
     [ACTION_CRISIS]: {
         label: "DRPG.Bridge.what.murder.crisis",
-        guards: [knownSender, owns("actorId", "sender does not own that character"),
-            guardCrisisAction, guardCrisisUndo, guardCrisisReceipt],
+        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character"), guardCrisisAction, guardCrisisRoll],
         // murder.mjs before the guards, as the handler imported it (the plan's W2).
         prepare: () => import("./murder.mjs"),
-        sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, undo: as.bool,
-            choice: as.oneOf("stress", "hp"), usedItemId: as.id, swungId: as.id, free: as.bool }),
+        sanitize: pick({ actorId: as.id, key: as.text, total: as.num, isCritical: as.bool, withHope: as.bool, undo: as.gmFlag,
+            choice: as.oneOf("stress", "hp"), usedItemId: as.id, swungId: as.id, free: as.bool, before: as.raw, rollId: as.id }),
         run: handleCrisis,
         // Answered once applied, which can wait on the GM: two killers' victim
         // running out is asked of them (`checkVictimSpent`, murder.mjs).
         answer: "reply",
+        /* A crisis action's roll, on the GMs' record of it (E08+E28 C17). A packet that names
+           none threw none - a third party's decision, a free take - and `guardCrisisRoll`
+           refuses any other; the run scores it on no dice. The roll settles the crisis action
+           it was drawn for and no other (fix r2-H1; roll-draw.mjs `drawRefusal`): the record's
+           `crisis` is the packet's `key`. */
+        rolled: { field: "rollId", actor: "actorId", kind: "crisis", when: "rollId", named: { crisis: "key" } },
         claims: {
             usedItemId: "narrowed in the run to an item the acting character holds, else null",
-            swungId: "narrowed in the run to an item the acting character holds, else null"
+            swungId: "narrowed in the run to an item the acting character holds, else null",
+            before: "numbers or null by resourcesBefore (murder.mjs): a claim about the sender's own character, kept on the GMs' bookmark",
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a crisis action"
         }
     },
     [ACTION_PARK_MURDER]: {
@@ -1257,28 +1522,34 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_CLEANUP]: {
         label: "DRPG.Bridge.what.murder.cleanup",
-        guards: [knownSender, owns("actorId", "sender does not own that character"), guardCleanupReceipt],
-        // cleanup.mjs before the receipt guard, as the handler imported it.
+        guards: [knownSender, guardUndoIsTheGms, owns("actorId", "sender does not own that character")],
+        // cleanup.mjs before the guards, as the handler imported it.
         prepare: () => import("./cleanup.mjs"),
         sanitize: pick({ actorId: as.id, tokenId: as.id, key: as.text, targetId: as.id, total: as.num, isCritical: as.bool,
-            withHope: as.bool, viaAction: as.bool, undo: as.bool, grant: as.bool, price: as.raw, transform: as.raw, change: as.raw }),
+            withHope: as.bool, viaAction: as.bool, undo: as.gmFlag, grant: as.bool, price: as.raw, transform: as.raw, change: as.raw,
+            rollId: as.id }),
         run: handleCleanup,
         answer: "reply",
+        // Each of Stage 6's actions throws a clean-up's roll, read off the GMs' record of it (E08+E28 C17).
+        rolled: { field: "rollId", actor: "actorId", kind: "cleanup" },
         claims: {
             tokenId: "resolveCleanup (cleanup.mjs) finds the trace in the cleaner's room and judges it, or refuses",
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
             price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
-            change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)"
+            change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
+            rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a clean-up"
         }
     },
     [ACTION_MEDDLE]: {
         label: "DRPG.Bridge.what.monocub.meddle",
         guards: [knownSender, owns("actorId", "sender does not own that Monocub")],
-        sanitize: pick({ actorId: as.id, targetId: as.id, help: as.bool, total: as.num, isCritical: as.bool }),
+        // No total and no critical: the GM throws the Meddle's dice itself (E08+E28 C17; monocub.mjs `meddleOnGm`).
+        sanitize: pick({ actorId: as.id, targetId: as.id, help: as.bool }),
         run: handleMeddle,
-        answer: "ack",
-        claims: { targetId: "judged by resolveMeddle (monocub.mjs): a living student in the Monocub's room" }
+        // The roll it threw goes back, for the Monocub's card.
+        answer: "reply",
+        claims: { targetId: "judged by meddleRefused (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
     },
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",
@@ -1313,6 +1584,9 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.project.progress",
         guards: [
             knownSender,
+            // Progress taken back - a negative amount - was a Reroll's, paid for by a receipt
+            // until E08+E28 C8; it is the GM's own Reroll's now.
+            guardUndoIsTheGms,
             /*
              * ONLY A PROJECT THE SENDER MAY KNOW ABOUT (E01, 24.09.2026; audit S14-03).
              * This checked that the sender exists and nothing else, so a player who had
@@ -1325,15 +1599,26 @@ export const BRIDGE_ACTIONS = table({
              * the sender Foundry names, never to the payload's claim.
              */
             canSeeProject("countdownId", "sender may not see that project"),
+            // The character whose roll or Call it is (E08+E28 C16): a roll is read as theirs, and they stand in the room.
+            owns("actorId", "sender does not own that character"),
             // Progress comes from an action or a Call, so it is small by definition.
             // A payload asking for +999 is not the rules asking.
             inRange("amount", n => Number.isFinite(n) && n !== 0 && Math.abs(n) <= STARTING.despairMax,
                 sent => `amount ${sent} is out of range`),
-            guardProgressOwner, guardProgressReceipt
+            // A frozen project; progress from another room (S10-08), a Call's as well since fix r2-H2; and a Call's,
+            // which names no roll, paid for once - asked last, so that no other refusal spends its payment (`guardCallProgress`).
+            guardProjectFrozen, guardProjectRoom, guardCallProgress
         ],
-        sanitize: pick({ countdownId: as.id, amount: as.num }),
+        sanitize: pick({ countdownId: as.id, amount: as.num, actorId: as.id, rollId: as.id, relief: as.num, bonus: as.num }),
         run: handleProgress,
-        answer: "reply", queue: "project"
+        answer: "reply", queue: "project",
+        /* A Work on a Project's amount is what its roll earned on the GMs' record (E08+E28 C16; `progressOf`),
+           on the project the roll was drawn for (fix r2-H2: `named`); a Call's names no roll (`when`), and its
+           guards bound it. */
+        rolled: { field: "rollId", actor: "actorId", kind: "project", when: "rollId", named: { project: "countdownId" }, derive: progressOf },
+        claims: { rollId: "the roll whose record the amount is read from (progressOf), and compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact",
+            relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (action-rolls.mjs projectExtrasHeld)",
+            bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] and to an indirect murder's progress (projectExtrasHeld)" }
     },
     [ACTION_SHARE]: {
         label: "DRPG.Bridge.what.project.share",
@@ -1361,12 +1646,17 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_REMNANT]: {
         label: "DRPG.Bridge.what.remnant.place",
         guards: [knownSender, ownsActorAt(payload => payload?.data?.sourceActor, "sender does not own the character leaving it", ["data"])],
-        sanitize: pick({ data: as.raw }),
+        sanitize: pick({ data: as.raw, rollId: as.id }),
         run: handleRemnant,
         // Answered once placed (E31), and as failed when it could not be (E31 review):
         // the item a planted trace stands for leaves the sheet only when it was.
         answer: "reply",
-        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs); a GM's is placed as written" }
+        /* The band a Search's, a Sabotage's or a Dynamic action's trace is left at is the GM's,
+           read off its record of the roll (E08+E28 C15; `traceBandOf`); another action's trace
+           names no roll. One roll leaves one trace. */
+        rolled: { field: "rollId", actor: "data.sourceActor", kind: TRACE_OF_ROLL, kindAt: "data.action", settles: "trace", derive: traceBandOf },
+        claims: { data: "a player's is rebuilt from a whitelist by narrowPlayerRemnant (remnants.mjs), its visibility the GM's band where its action's roll leaves it (traceBandOf); a GM's is placed as written",
+            rollId: "the roll a Search's, Sabotage's or Dynamic action's trace takes its band from (traceBandOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and an action that owns a trace" }
     },
     [ACTION_TIE_TRACE]: {
         label: "DRPG.Bridge.what.remnant.tieForItem",
@@ -1379,23 +1669,18 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_REMNANT_EDIT]: {
         label: "DRPG.Bridge.what.remnant.edit",
         guards: [
-            knownSender,
-            // Only the character who left it may re-rate it, which is what a reroll
-            // of their own action is. Anyone else editing evidence is the one thing
-            // an investigation cannot survive. From the ledger, which this GM holds
-            // (`remnantSourceOf`) - the token has carried no `sourceActor` flag since
-            // the answer key moved off it (CASE-09). A refusal is asked again after
-            // the receipt's retry, as the receipt's own is.
-            ownsActorAt(remnantSourceOf, "sender did not leave that Remnant", ["sceneId", "tokenId"],
-                { retryMs: TIMING.rerollReceiptRetryMs }),
-            guardRemnantEditReceipt
+            // A player's re-rating was a Reroll's, paid for by a receipt, until E08+E28 C8: the
+            // GM's own Reroll re-rates the trace on its own client now (reroll.mjs
+            // `settleRemnant`), so a player's is refused, and told why.
+            gmOnly("an undo is the GM's own Reroll's"),
+            // A trace somebody left: from the ledger, which this GM holds (`remnantSourceOf`) -
+            // the token has carried no `sourceActor` flag since the answer key moved off it
+            // (CASE-09). A GM owns every character, so this refuses only a trace nobody left.
+            ownsActorAt(remnantSourceOf, "sender did not leave that Remnant", ["sceneId", "tokenId"])
         ],
         sanitize: pick({ sceneId: as.id, tokenId: as.id, patch: as.raw }),
         run: handleRemnantEdit,
         answer: "reply",
-        // Every refusal - by these guards or by the run - is told to the asker as this
-        // one code; the GM's log keeps each one's own reason (E31 review).
-        tell: "traceOutOfReach",
         claims: { patch: "narrowed in the run: remove as a flag, a visibility from REMNANT_VISIBILITY_LABELS, a type from a GM only" }
     },
     [ACTION_SABOTAGE]: {
@@ -1409,31 +1694,43 @@ export const BRIDGE_ACTIONS = table({
             // frozen from a console, including a secret one whose existence the
             // sender had no way to learn honestly.
             canSeeProject("targetId", "sender cannot see that project"),
+            // The saboteur, whose roll it is (E08+E28 C16).
+            owns("actorId", "sender does not own that character"),
             // `difficulty` becomes the repair project's progress target, so it is
             // how much work the freeze costs its owner to undo. It arrived unread: a
             // payload asking for a target of 9999 froze a project for the rest of
             // the season. The ceiling is the hardest scale the rules define, read
-            // from the table rather than written out here.
-            inRange("difficulty", n => Number.isFinite(n) && n >= 1 && n <= hardestRepair(),
-                sent => `difficulty ${sent} is out of range (1-${hardestRepair()})`)
+            // from the table rather than written out here. Since E08+E28 C16 it is
+            // what the roll earned on the GMs' record (`repairOf`), and 0 is a miss.
+            inRange("difficulty", n => Number.isFinite(n) && n >= 0 && n <= hardestRepair(),
+                sent => `difficulty ${sent} is out of range (0-${hardestRepair()})`),
+            // Made standing at the project, a miss included (fix r2-H2; review S2-4).
+            guardSabotageRoom
         ],
-        sanitize: pick({ targetId: as.id, difficulty: as.num }),
+        sanitize: pick({ targetId: as.id, difficulty: as.num, actorId: as.id, rollId: as.id, penalty: as.num, relief: as.num }),
         run: handleSabotage,
-        answer: "reply", resend: true, queue: "project"
+        answer: "reply", resend: true, queue: "project",
+        // Of the project its roll was drawn for (fix r2-H2: `named`).
+        rolled: { field: "rollId", actor: "actorId", kind: "sabotage", named: { project: "targetId" }, derive: repairOf },
+        claims: { rollId: "the roll whose record the repair is read from (repairOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own Sabotage row of that message",
+            penalty: "the roller's word for its concealment, held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0] (action-rolls.mjs sabotageExtrasHeld)",
+            relief: "the roller's word for its readied tool, held by repairOf to the tools the GM sees on the character (sabotageExtrasHeld)" }
     },
     [ACTION_UNSABOTAGE]: {
         label: "DRPG.Bridge.what.project.unsabotage",
         guards: [
-            knownSender,
+            // A player's thaw was a Reroll's, paid for by a receipt, until E08+E28 C8: the GM's
+            // own Reroll takes its sabotage back on its own client now (reroll.mjs), so a
+            // player's is refused, and told why.
+            gmOnly("an undo is the GM's own Reroll's"),
             // Same rule as freezing it. Thawing is the completion of a repair
             // project, so the sender has to be able to see what they are thawing.
-            canSeeProject("targetId", "sender cannot see that project"),
-            guardUnsabotagePair, guardUnsabotageOwner, guardUnsabotageReceipt
+            canSeeProject("targetId", "sender cannot see that project")
         ],
         sanitize: pick({ targetId: as.id, repairId: as.id }),
         run: handleUnsabotage,
         answer: "reply", queue: "project",
-        claims: { repairId: guardUnsabotagePair }
+        claims: { repairId: "a GM's: undoSabotage (projects.mjs) takes back only the pair the sabotage wrote (unsabotageRefusal)" }
     },
     [ACTION_SENDBACK]: {
         label: "DRPG.Bridge.what.token.sendBack",
@@ -1499,7 +1796,9 @@ export const BRIDGE_ACTIONS = table({
     },
     [ACTION_DESPAIR]: {
         label: "DRPG.Bridge.what.despair.adjust",
-        guards: [knownSender, guardDespairOwner, guardDespairMonokuma, guardDespairDelta, guardDespairPool, guardDespairReceipt],
+        // A player's point was a Reroll's, paid for by a receipt, until E08+E28 C8: the GM settles a
+        // Reroll's Despair itself (reroll.mjs), and an Assistant GM's correction comes here (DESP-12).
+        guards: [gmOnly("an undo is the GM's own Reroll's"), guardDespairDelta, guardDespairPool],
         sanitize: pick({ targetUserId: as.id, delta: as.num }),
         run: handleDespair,
         answer: "reply",
@@ -1521,6 +1820,60 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ text: as.text }),
         run: handleNoteSave,
         answer: "reply"
+    },
+    /* THE ROLL A REROLL WOULD TAKE BACK, AS ITS ROLLER SAW IT (E08+E28 C2, 03.10.2026; the
+       plan's 2.2). Sent by the roller's browser after the roll, and again when its action
+       adds a claim (action-rolls.mjs `tellGmsOfRoll`): a report nobody waits on, so a refusal
+       is the GM's log line. The roll's own numbers are read off the message on the GM. Since
+       C5 it also names the card the roll was reported on, which a Reroll marks. */
+    [ACTION_ROLL_BOOKMARK]: {
+        label: "DRPG.Bridge.what.roll.bookmark",
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardRollAuthor],
+        sanitize: pick({ actorId: as.id, messageId: as.id, actionKey: as.maybeText, trait: as.maybeText, experiences: as.raw, context: as.raw,
+            reportMessageId: as.id }),
+        run: handleRollBookmark,
+        answer: "none", quiet: true,
+        claims: {
+            messageId: guardRollAuthor,
+            experiences: "the roller's own sheet's: keepGmBookmark (action-rolls.mjs) keeps up to twelve short strings",
+            context: "picked per action by rollClaims (action-rolls.mjs ROLL_CLAIMS): what the roller alone saw; a Reroll's replay judges anything it writes beyond the roller's own sheet",
+            reportMessageId: "kept only when reportCardOf (action-rolls.mjs) finds a module card of the sender's, no older than the roll and under a minute old; a Reroll only marks it"
+        }
+    },
+    /*
+     * THE REROLL, ASKED OF THE GM (E08+E28 C4a, 03.10.2026; audit S02-47). One request, and
+     * the GM makes all of it from its own bookmark (reroll.mjs `rerollOnGm`): the packet names
+     * the character and nothing else. Not queued: a second Reroll of a character while one is
+     * made is refused there, not made after it. Not resent to a GM who reloads - the journal
+     * a reload leaves is read on the GMs' side (C4b).
+     */
+    [ACTION_REROLL]: {
+        label: "DRPG.Bridge.what.reroll.ask",
+        guards: [knownSender, owns("actorId", "sender does not own that character")],
+        sanitize: pick({ actorId: as.id }),
+        run: handleReroll,
+        answer: "reply"
+    },
+    /*
+     * A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS (E08+E28 fix r2-H5, 05.10.2026; review
+     * S2-3). Posted by this GM, as its author, so that no incident card names the player whose
+     * browser asked for it (secret.mjs `askGm`, `postAsked`). Held to what the player could have
+     * posted themselves: it speaks as no character or as one the sender owns, it is read by users
+     * of this world, and it weighs what a player's words may. Not resent to a GM who reloads: a
+     * card posted before the reload would be posted twice.
+     */
+    [ACTION_CARD]: {
+        label: "DRPG.Bridge.what.card.post",
+        guards: [knownSender, guardCardSpeaker, guardCardReaders],
+        sanitize: pick({ content: as.text, whisper: as.raw, speaker: as.raw, flags: as.raw, summary: as.raw, veiled: as.bool }),
+        run: handleCardPost,
+        answer: "reply",
+        claims: {
+            whisper: guardCardReaders,
+            speaker: guardCardSpeaker,
+            flags: "the card's own module flags, judged by postAsked (secret.mjs): none of GM_META, a thread only the sender's own, who asked written by this GM",
+            summary: "the card's facts, judged by postAsked (secret.mjs) as secret.card judges a player's: plain fields, and none about a character the sender does not own"
+        }
     }
 });
 
@@ -1583,6 +1936,17 @@ function ask(action, payload, opts = {}) {
 }
 
 /**
+ * The private card a player's browser would post while an incident runs, asked of the primary GM
+ * (secret.mjs `askGm`); its value is `{ id }`. A GM's own browser posts its cards itself and never
+ * asks, but one that did would post it here (`local`: the card, whose `id` is the same).
+ */
+export function requestCardPost(card) {
+    return ask(ACTION_CARD, card, {
+        local: () => import("./secret.mjs").then(m => m.postAsked(game.user, card))
+    });
+}
+
+/**
  * Take something off a body.
  *
  * Everything the taking does needs the GM: the Truth Bullet's answer key exists
@@ -1624,24 +1988,11 @@ export function requestArmCall(actorId, call, timeoutMs = TIMING.rulingMs) {
 }
 
 /**
- * Despair pools are a world setting; a player's reroll asks the GM to fix one.
- *
- * `userId` is the sender, `targetUserId` the Monokuma being adjusted. They used
- * to be the same field, which is how the GM side had no way of telling who was
- * asking from whose pool was moving. `actorId` is the rerolling character: the
- * GM pays a player's point from the receipt of that character's Reroll (E03).
- */
-export function requestDespairAdjust(targetUserId, delta, { actorId = null } = {}) {
-    return ask(ACTION_DESPAIR, { targetUserId, delta, actorId }, {
-        local: () => import("./despair.mjs").then(m => m.adjustDespair(targetUserId, delta))
-    });
-}
-
-/**
  * An assistant GM's Despair change, sent to the primary to write (DESP-12).
  *
- * NOT `requestDespairAdjust`, whose GM road hands the change straight back to
- * `adjustDespair` - which, on an assistant, would route here again for ever.
+ * NOT `requestDespairAdjust` - a player's Reroll's road, retired in E08+E28 C8 - whose GM
+ * road handed the change straight back to `adjustDespair`, which, on an assistant, would
+ * have routed here again for ever.
  * 1.2.47 wired the receiving half (`handleDespair` admits a GM sender at any size)
  * and reached for the sending half through `hasGm`, which this file never
  * exported: the import came back undefined, the call threw, `adjustDespair`'s
@@ -1671,8 +2022,9 @@ export function sendDespairToPrimary(targetUserId, delta) {
  * arrived, and the answer - two world writes and a repair project - may take
  * longer than that on a slow client.
  */
-export function requestSabotage(targetId, difficulty, timeoutMs = TIMING.rulingMs) {
-    return ask(ACTION_SABOTAGE, { targetId, difficulty }, { timeoutMs });
+export function requestSabotage(targetId, difficulty, { rollId = null, actorId = null, penalty = 0, relief = 0, quiet = false,
+    timeoutMs = TIMING.rulingMs } = {}) {
+    return ask(ACTION_SABOTAGE, { targetId, difficulty, actorId, rollId, penalty, relief }, { timeoutMs, quiet });
 }
 
 /**
@@ -1734,8 +2086,8 @@ export function requestTieTrace(identity) {
  * for is taken off the sheet only when it was placed, and "trace left" is said
  * only then.
  */
-export function requestRemnant(data) {
-    return ask(ACTION_REMNANT, { data });
+export function requestRemnant(data, rollId = null) {
+    return ask(ACTION_REMNANT, { data, rollId });
 }
 
 /**
@@ -1997,9 +2349,9 @@ export async function requestCleanableTraces(actorId, { mine = false, quiet = fa
  * describing what was found, so the request waits only for the "got it", and a
  * refusal after it is still told.
  */
-export function requestObserveResolve({ actorId, key, total, isCritical, undo = false }) {
-    return ask(ACTION_OBSERVE_RESOLVE, { actorId, key, total, isCritical, undo }, {
-        local: () => import("./observe.mjs").then(m => m.resolveObserve({ key, total, isCritical, undo, actorId }))
+export function requestObserveResolve({ actorId, key, total, isCritical, undo = false, rollId = null }) {
+    return ask(ACTION_OBSERVE_RESOLVE, { actorId, key, total, isCritical, undo, rollId }, {
+        local: () => import("./observe.mjs").then(m => m.resolveObserve({ key, total, isCritical, undo, actorId, rollId }))
     });
 }
 
@@ -2011,9 +2363,9 @@ export function requestObserveResolve({ actorId, key, total, isCritical, undo = 
  * person, so the request waits for it (E31 review) and a Reroll says the bullet
  * was analysed again only when it was.
  */
-export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo = false }) {
-    return ask(ACTION_ANALYZE_RESOLVE, { actorId, itemId, total, isCritical, undo }, {
-        local: () => import("./analyze.mjs").then(m => m.resolveAnalyze({ actorId, itemId, total, isCritical, undo }))
+export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo = false, rollId = null }) {
+    return ask(ACTION_ANALYZE_RESOLVE, { actorId, itemId, total, isCritical, undo, rollId }, {
+        local: () => import("./analyze.mjs").then(m => m.resolveAnalyze({ actorId, itemId, total, isCritical, undo, rollId }))
     });
 }
 
@@ -2068,12 +2420,56 @@ export function requestCrisisResult({
     // again on the GM's - see `askCriticalTarget`.
     choice = null,
     // The weapon the roll was thrown with. Remembered GM-side for Stage 6.
-    swungId = null
+    swungId = null,
+    // The character's Health, Stress and the item's quantity before the item was used
+    // (E08+E28 C2; audit S04-18), for the GMs' bookmark: what a Reroll puts back.
+    before = null,
+    // The roll it was thrown with (fix r1-G2): the GMs' fact of it goes on that roll's row. None
+    // for an action taken without dice.
+    rollId = null
 }) {
-    return ask(ACTION_CRISIS, { actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId }, {
+    return ask(ACTION_CRISIS, { actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId, before, rollId }, {
         local: () => import("./murder.mjs").then(m => m.resolveCrisisAction({
-            actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId
+            actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId, before, rollId
         }))
+    });
+}
+
+/**
+ * Tell the GMs what was just rolled for the Reroll's bookmark (E08+E28 C2); a GM keeps
+ * it here. See action-rolls.mjs `tellGmsOfRoll`.
+ */
+export function requestRollBookmark(payload) {
+    return ask(ACTION_ROLL_BOOKMARK, payload, {
+        local: () => import("./action-rolls.mjs").then(m => m.keepGmBookmark(payload, game.user))
+    });
+}
+
+/**
+ * Ask the GM to make this character's Reroll (E08+E28 C4a): it pays, throws, replays and
+ * settles, and answers `{ lines }` - or, on a GM's own client, `{ refused, say }` where a
+ * player's request is refused by the bridge.
+ *
+ * AN ANSWER PAST THE CLOCK STILL COUNTS (E08+E28 fix r1-G5, 04.10.2026; the round-1 review's
+ * m1). The run can wait on the GM as long as the GM takes - an Observe's replay that opens
+ * `describeFind`, a critical crisis replay with no first pick opening the pick window - and the
+ * answer's clock is `TIMING.rulingMs`. Past it the asker read "not carried out" while the Reroll
+ * was being made and paid, and its card was never posted. So the ask is quiet and the caller
+ * says each outcome (calls.mjs `askReroll`): an answer after the clock goes to `late`, a refusal
+ * after it to `lateRefused`, for as long as a Reroll's roll can be reached at all
+ * (`TIMING.rerollWindowMinutes`, an outer bound chosen, not a time measured).
+ *
+ * MADE ON THE PRIMARY GM, WHOEVER ASKS (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's
+ * S2-7). An assistant GM's own Reroll ran on its own client (`local`) and a player's on the
+ * primary, so two Rerolls of one character could each read the GMs' journal before the
+ * other's row reached it, and both pay, throw and replay. `onPrimary`: another GM asks the
+ * primary as a player does, so `making` (reroll.mjs) holds every Reroll of a character on one
+ * client. The harness has one GM, so the race itself is not measured; R219 reads the waiter.
+ */
+export function requestReroll(actorId, { late = null, lateRefused = null } = {}) {
+    return ask(ACTION_REROLL, { actorId }, {
+        quiet: true, late, lateRefused, lateMs: TIMING.rerollWindowMinutes * 60_000, onPrimary: true,
+        local: () => import("./reroll.mjs").then(m => m.rerollOnGm(game.actors.get(actorId ?? ""), game.user))
     });
 }
 
@@ -2095,7 +2491,9 @@ export function requestCleanup({
     // T-1: which step of Tamper's price chain the client already paid, and
     // whether a Burst paid it. Absent means "nothing was paid on the client",
     // and the resolver charges the Sanity itself.
-    price = null, grant = false
+    price = null, grant = false,
+    // The roll it was thrown with (fix r1-G2): the GMs' fact of the attempt goes on that roll's row.
+    rollId = null
 }) {
     // The two that aim at a TRACE go to `resolveCleanup`; the two that roll
     // against a flat threshold go to `resolveStageSix`. Naming the first pair
@@ -2105,12 +2503,12 @@ export function requestCleanup({
     const mode = key === "transformTrace" ? "transform" : "erase";
     return ask(ACTION_CLEANUP, {
         actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
-        change, viaAction, price, grant
+        change, viaAction, price, grant, rollId
     }, {
         local: () => import("./cleanup.mjs").then(m => aimed
             ? m.resolveCleanup({
                 actorId, tokenId, total, isCritical, withHope, undo, transform,
-                mode, change, viaAction, price, grant
+                mode, change, viaAction, price, grant, rollId
             })
             : m.resolveStageSix({
                 actorId, key, targetId, total, isCritical, withHope, viaAction,
@@ -2139,10 +2537,10 @@ export function requestBetrayal({ actorId, note = "" }) {
     });
 }
 
-/** Hand a thrown Meddle to the GM to be scored and applied to the target. */
-export function requestMeddleResolve({ actorId, targetId, help, total, isCritical }) {
-    return ask(ACTION_MEDDLE, { actorId, targetId, help, total, isCritical }, {
-        local: () => import("./monocub.mjs").then(m => m.resolveMeddle({ actorId, targetId, help, total, isCritical }))
+/** Ask the GM to throw a paid Meddle and apply it to the target; answers the roll it threw (E08+E28 C17). */
+export function requestMeddleResolve({ actorId, targetId, help }) {
+    return ask(ACTION_MEDDLE, { actorId, targetId, help }, {
+        local: () => import("./monocub.mjs").then(m => m.meddleOnGm({ actorId, targetId, help }))
     });
 }
 
@@ -2150,10 +2548,12 @@ export function requestMeddleResolve({ actorId, targetId, help, total, isCritica
  * Pull one item out of somebody else's stash. GM-only on both ends.
  *
  * `viaSearch` marks the route that has already paid for a concealed stash with
- * an action, a search token and a penalised roll - see `stealFromVault`.
+ * an action, a search token and a penalised roll - see `stealFromVault`. A
+ * player's names that Search's roll (`rollId`), which the GM reads `viaSearch`
+ * and `clumsy` off (`searchTheftOf`, E08+E28 C15).
  */
-export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false }) {
-    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId, viaSearch, clumsy }, {
+export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false, rollId = null }) {
+    return ask(ACTION_VAULT_STEAL, { thiefId, ownerId, itemId, viaSearch, clumsy, rollId }, {
         local: () => import("./vault.mjs").then(m => m.stealFromVault({ thiefId, ownerId, itemId, viaSearch, clumsy }))
     });
 }
@@ -2161,15 +2561,17 @@ export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false,
 /**
  * Go through somebody's pockets. GM-only on both ends, like its sibling above.
  *
- * The two totals travel and the verdicts are made on the other side - see
- * `stealFromPerson`. `itemId` is a request rather than an instruction: it is
- * honoured only on a critical, and only if it is really in the victim's pockets.
+ * The two rolls are named and the verdicts are made on the other side - see
+ * `stealFromPerson` - on the GMs' record of each (`palmRolls`, E08+E28 C15);
+ * the two totals travel for the GM's log. `itemId` is a request rather than an
+ * instruction: it is honoured only on a critical, and only if it is really in
+ * the victim's pockets.
  */
 export function requestSteal({
     thiefId, victimId, itemId = null,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
 }) {
-    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical }, {
+    return ask(ACTION_STEAL, { thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
         local: () => import("./vault.mjs").then(m => m.stealFromPerson({
             thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
         }))
@@ -2178,8 +2580,8 @@ export function requestSteal({
 
 /**
  * Leave something in somebody's pocket. The mirror of `requestSteal`, and the
- * same division of labour: the two totals travel, both verdicts are made on the
- * other side against `ACTIONS.palm`.
+ * same division of labour: the two rolls are named, both verdicts are made on
+ * the other side against `ACTIONS.palm`.
  *
  * `itemId` is not a request here but a statement - it came out of the planter's
  * own pockets and there is nothing secret about it. The GM side still checks it
@@ -2187,9 +2589,9 @@ export function requestSteal({
  */
 export function requestPlant({
     plannerId, victimId, itemId,
-    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false, rollId = null, unseenRollId = null
 }) {
-    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical }, {
+    return ask(ACTION_PLANT, { plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical, rollId, unseenRollId }, {
         local: () => import("./vault.mjs").then(m => m.plantOnPerson({
             plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
         }))
@@ -2200,12 +2602,13 @@ export function requestPlant({
  * Hand a Locate-a-hidden-stash roll to the GM to be scored.
  *
  * Like Observe: the answer is the whisper the finder gets, and the write it may
- * cause is a flag on their own sheet. The number travels; the threshold, the
- * room and which stash it opens are all decided on the far side - see
- * `resolveStashSearch`.
+ * cause is a flag on their own sheet. The number travels for the GM's log
+ * only: the GM scores the roll `rollId` names, as its record of it says (E08+E28
+ * C14), and the threshold, the room and which stash it opens are all decided on
+ * the far side - see `resolveStashSearch`.
  */
-export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
-    return ask(ACTION_FIND_STASH, { actorId, total, isCritical }, {
+export function requestStashSearch({ actorId, total = 0, isCritical = false, rollId = null }) {
+    return ask(ACTION_FIND_STASH, { actorId, total, isCritical, rollId }, {
         local: () => import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical }))
     });
 }
@@ -2215,8 +2618,8 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
  * whispered back by the GM's client; the request knows that it was carried out
  * (E31 review), not what it changed.
  */
-export function requestProjectProgress(countdownId, amount, actorId = null) {
-    return ask(ACTION_PROGRESS, { countdownId, amount, actorId });
+export function requestProjectProgress(countdownId, amount, { actorId = null, rollId = null, relief = 0, bonus = 0, call = null } = {}) {
+    return ask(ACTION_PROGRESS, { countdownId, amount, actorId, rollId, relief, bonus, call });
 }
 
 /**
@@ -2415,7 +2818,9 @@ export async function callGm(actor, {
  * @param {object} [ruling]      What was ruled, kept in a private card's meta beside
  *   `settled` (E32+E07 C11b): the statistic a GM picked, `{ type: "trait", actorId,
  *   kind, key, variant, trait }` - the record a check of the roll against the pick
- *   reads (E28/E29). Its readers are the card's: on a veiled thread card the
+ *   reads (E28/E29); and the difficulty a GM set for a Dynamic action, `{ type:
+ *   "dynamic", actorId, tier }`, which the band of its trace is read from
+ *   (`dynamicRulingOf`, E08+E28 C15). Its readers are the card's: on a veiled thread card the
  *   thread's player and the GMs. A player's own meta may not carry it (secret.mjs
  *   `GM_META`). Never written on a document.
  */

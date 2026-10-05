@@ -922,7 +922,8 @@ const BRIDGE_TABLE_FILES = Object.freeze([
  *      exported by the table's own file (counted, as `local`);
  *   4. the first guard is `knownSender` or a `gmOnly`, or reads no sender and is
  *      followed by `knownSender`;
- *   5. a guard that spends a Reroll receipt is the last one;
+ *   5. (retired with the Reroll receipts in E08+E28 C8: a guard that spent one
+ *      was the last);
  *   6. every id or raw field the run receives is covered: by a factory guard
  *      that names it, or by a claim - a guard of the declaration whose source
  *      reads `payload.<field>`, or a written reason of at least 20 characters;
@@ -983,11 +984,6 @@ function bridgeTableProblems(tables, { en, pl, guards, reasons = [], told = [] }
                 const opens = first === guards.knownSender || first?.factory === "gmOnly"
                     || (typeof first === "function" && !readsSender(first) && second === guards.knownSender);
                 if (!opens) problems.push(`${at}: its first guard is not knownSender or gmOnly, nor a check that reads no sender followed by knownSender`);
-                list.forEach((guard, i) => {
-                    if (i < list.length - 1 && /spendRerollReceipt\(/.test(source(guard))) {
-                        problems.push(`${at}: ${guard.name} spends a Reroll receipt and is not the last guard`);
-                    }
-                });
             }
 
             const kinds = decl.sanitize?.fields ?? {};
@@ -1607,6 +1603,35 @@ function describeDiff(d) {
 }
 
 /**
+ * WHAT THE GM'S CLIENT SAID WHILE A TEST RAN (E08+E28 C15, 04.10.2026). A test that reads "logged
+ * on the GM" counts the lines `warn` and `error` (utils.mjs) write to the console from the watch
+ * on, not the rows of `sessionFailures()`: that log keeps the first 60 wordings and drops every
+ * new one after (`SESSION_LOG_CAP`), and a whole suite fills it. Measured on C15's first suite
+ * run: the 60th wording arrived just before "a trace's band is the GM's, whatever the packet
+ * names", which then counted none of its two lines, and "a bookmark note for another player's
+ * character is refused" none of its two refusals - the first had passed on its named run, the
+ * second on every suite before C15 (C14: its refusals were the log's 51st and 52nd wordings).
+ * `count(test)` is how many lines since the watch match `test` (a string or a RegExp); `stop()`
+ * puts the console back. In the kit since fix r2-H6 (05.10.2026; review m1): the same
+ * cap and the same one-row-per-wording made four tests that counted the log's rows fail on a
+ * second run in one page session (logged 1 -> 0), and R162's `.some()` then passed on the
+ * first run's line - so tier 1 counts with it too.
+ */
+function watchLog() {
+    const lines = [], kept = { warn: console.warn, error: console.error };
+    for (const level of Object.keys(kept)) {
+        console[level] = function (...args) {
+            lines.push(args.map(a => (a instanceof Error ? a.message : String(a))).join(" "));
+            return kept[level].apply(this, args);
+        };
+    }
+    return {
+        count: test => lines.filter(line => (typeof test === "string" ? line.includes(test) : test.test(line))).length,
+        stop: () => Object.assign(console, kept)
+    };
+}
+
+/**
  * Which test was running when the world was written - on for the whole run, tier 2
  * included (E30).
  *
@@ -1685,6 +1710,6 @@ export {
     moduleSources, otherSources, suiteSources, scanSuite, stripComments, moduleStyles, bodyOf, topLevelFunction, fnSource, lineAround,
     withGuards, staticImports, importCycles, bridgeTables, bridgeTableProblems, payloadReads, refusalProblems, lineAt, stripStrings, blankComments, blankLiterals, callArgs, testsIn, bareCuts, vacuousAsserts, needsArgs, redMarkers, vacuousChecks,
     LINT_FIXTURES, FLOWS, FLOW_EXEMPT, storeKeyAccess, GM_STORE_PENDING,
-    stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, cast,
+    stringLiterals, STANDING, stableJson, moduleSettingValues, watchWrites, watchLog, cast,
     worldDump, dumpDiff, describeDiff, hashText, dumpOf, dumpPathsOf, DUMP_RULES, DUMP_FOREIGN_SETTINGS
 };

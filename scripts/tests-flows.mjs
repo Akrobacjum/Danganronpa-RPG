@@ -64,12 +64,14 @@
 export const FLOWS = Object.freeze([
     { id: "action-roll", what: "A player's action roll: the tile, the roll window, and the difficulty a GM rules for a Dynamic action",
         entry: { bridge: ["dynamic.difficulty"], api: ["performAction"] }, scenarios: ["40-flow"], status: "partial", stage: "E39" },
+    // E08+E28 C14 (04.10.2026): partial - 30 sends a console's Analyze and 40 throws a player's and rerolls it; what the
+    // price does when the GM's side refuses is driven by 61 (keysNotOpen) and not tagged here.
     { id: "analyze", what: "Analyze: the price paid on the player's client, the analysis read on the GM's",
-        entry: { bridge: ["analyze.resolve"] }, scenarios: [], status: "planned", stage: "E39" },
+        entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
         entry: { api: ["discoverBody"] }, scenarios: ["10-murder"], status: "covered", stage: "<=1.2.50" },
     { id: "call-arm", what: "A Call armed on a character: paid on the caller's side, armed by the GM",
-        entry: { bridge: ["call.arm"] }, scenarios: ["30-security"], status: "partial", stage: "E39" },
+        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask"], sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E40" },
@@ -78,40 +80,56 @@ export const FLOWS = Object.freeze([
         status: "partial", stage: "E37" },
     { id: "crossing-fee-refund", what: "A token sent back to where it stood, and the crossing it paid for handed back",
         entry: { bridge: ["token.sendBack"] }, scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
-    { id: "despair", what: "Despair: a correction from a player's Reroll, a Despair Call from a GM, the pools every screen shows",
+    // E08+E28 C8 (03.10.2026): a player's road is gone - a Reroll's point is the GM's own (C4b), and a
+    // player's `despair.adjust` is refused (`undoIsTheGms`; 30 and 33 send one). 33's A7 drives the GM road.
+    { id: "despair", what: "Despair: an Assistant GM's correction written by the primary, a Despair Call from a GM, the pools every screen shows",
         entry: { bridge: ["despair.adjust"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "discovery-ledger", what: "Which rooms each character has found: written by the GM, pulled and rebuilt by the clients",
         entry: { sockets: ["fog.mjs"] }, scenarios: ["60-ledger", "30-security", "61-gmstore-case"], status: "covered", stage: "<=1.2.50" },
     { id: "eclipse-route-veto", what: "A move during an Eclipse: asked of the GM, allowed or refused",
         entry: { bridge: ["eclipse.move"], sockets: ["eclipse.mjs"] }, scenarios: ["33-bridge-paths"], status: "partial", stage: "E39" },
+    // E08+E28 C15 (04.10.2026): 40-flow drives a player's Plant end to end, both of its rolls on the GMs' record.
     { id: "give-take-stash", what: "Things changing hands: a handover, a plant, a steal, a found stash, a body looted",
         entry: { bridge: ["handover.item", "handover.bullet", "action.plant", "vault.findStash", "action.steal", "vault.steal", "body.loot"] },
-        scenarios: ["30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+        scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
     { id: "gm-store", what: "The GM store between GM clients: a late, empty browser, the exchange, tombstones, backup and restore, the reset's cuts",
         entry: { sockets: ["gm-store.mjs"], api: ["backupCase", "restoreCase"] }, scenarios: ["61-gmstore-case"], status: "covered", stage: "1.2.63" },
+    // E08+E28 C12a (04.10.2026): a player's action roll is drawn on the primary GM (`roll.draw`,
+    // roll-draw.mjs). 40-flow draws a Search and a Project on p1's browser and reads the GM's message
+    // and record; 30-security sends a forged draw. Partial: the resolutions read the record from C14 on.
+    // Covered from C17 (04.10.2026): every resolution that takes a roll's result reads it off the record (R218's
+    // list is empty), and 30 and 40 drive a player's drawn roll and a console's packet that names one.
+    // E08+E28 C18 (04.10.2026): 15-held drops the GM - an action refused, a statistic stamped - and a GM's
+    // return grants it on the GMs' card. Fix r2-H7 (05.10.2026): another GM's click on that card asks the
+    // primary (`roll.grant`); the harness has one GM, so 15 clicks it on the primary and R219 reads the waiter.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
-        entry: {}, scenarios: [], status: "planned", stage: "E33" },
+        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held"], status: "covered", stage: "1.2.67" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
         entry: { bridge: ["call.approve"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: [], status: "planned", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
         entry: { sockets: ["mastermind.mjs"] }, scenarios: ["61-gmstore-case"], status: "partial", stage: "E40" },
+    // E08+E28 fix r2-H5 (05.10.2026): while an incident runs a player's private card is asked of the primary GM, who posts
+    // it (`card.post`, secret.mjs `askGm`): 13-murder-signals' fight sends the players' cards and a word in the messenger.
     { id: "messenger", what: "The messenger and every private card: the words travel only to the people on the card",
-        entry: { sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals"], status: "covered", stage: "<=1.2.50" },
     // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
     // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
-    // not the Monocub's own ask.
+    // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice (monocub.mjs `meddleOnGm`); tier 2
+    // judges a Monocub's packet, and no scenario drives the Monocub's ask yet.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
         entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow"], status: "partial", stage: "E45" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening
     // on the GM's browser (grep of the scenarios that day). Still partial, moved to E33, which tests the incident
-    // again after E28.
+    // again after E28. E08+E28 C17 (04.10.2026): the opening, the crisis actions and Stage 6 are scored on the GMs' record
+    // of the roll they name; 30 sends Botan's player's finishing blow on its record, 10 Chie's player's clean-up and its
+    // Reroll, and a player's opening is judged in tier 2 alone.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "61-gmstore-case"], suite: ["tests-grid.mjs"],
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case"], suite: ["tests-grid.mjs"],
         status: "partial", stage: "E33" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
@@ -122,6 +140,18 @@ export const FLOWS = Object.freeze([
     { id: "projects", what: "Projects: progress, sharing, sabotage and its undoing",
         entry: { bridge: ["project.progress", "project.share", "project.sabotage", "project.unsabotage"] },
         scenarios: ["30-security", "33-bridge-paths", "40-flow"], status: "partial", stage: "E39" },
+    // E08+E28 C2 (03.10.2026): the GMs keep each character's last roll and what they did for it; the roller's browser
+    // reports what only it saw (`roll.bookmark`). 30 sends forged reports, 33 a legal one. C4a: the Reroll is asked of
+    // the GM (`reroll.ask`) and made there - 40-flow's player Rerolls, 30's refused asks, 13's dice of a rewrite.
+    // E08+E28 C4b: 20-crit-hope's rerolled critical, settled behind the players' flag.
+    // E08+E28 C5: `roll.bookmark` names the roll's card, and 40-flow reads p1's Search card a Reroll replaced, marked on p1.
+    // E08+E28 C8: a player's rewrite of a roll's dice is put back by the primary (reroll-receipts.mjs, a hook, no
+    // bridge action); 30 and 33 rewrite one from a player's browser and read it put back.
+    // Covered at the 1.2.67 release (05.10.2026): both actions are sent from a player's browser in a ci scenario -
+    // roll.bookmark in 30 and 33 (33's phase "a roll's bookmark"), reroll.ask in 40-flow (p1's REROLL_ASK, from
+    // its phase "a Reroll" on) and 30 (grep of the scenarios that day).
+    { id: "reroll", what: "The Reroll: the GMs keep each character's last roll and what its action did, the roller reports what only its browser saw, and the GM makes the Reroll it is asked for",
+        entry: { bridge: ["roll.bookmark", "reroll.ask"] }, scenarios: ["13-murder-signals", "20-crit-hope", "30-security", "33-bridge-paths", "40-flow"], status: "covered", stage: "1.2.67" },
     { id: "safeword", what: "The safeword: one press stops the table on every screen - the primary GM posts the card for a player (E06 C9), the caller only with no GM connected or when no card lands in time (fix r2-G3)",
         entry: { sockets: ["safeword.mjs"] }, scenarios: ["40-flow"], status: "covered", stage: "<=1.2.50" },
     { id: "search-observe", what: "A Search or an Observe: the GM judges it, spends the room's token, grants the find, and only the searcher reads the card",

@@ -28,7 +28,7 @@ import {
     esc, primaryGmId} from "./utils.mjs";
 // A Confusion's armed Calls are the GMs' store and the owner's copy (E06 fix r2-G4), read
 // synchronously beside the flag - gm-stores.mjs reaches a domain module only by `import()`.
-import { confusionStore, confusionCopy } from "./gm-stores.mjs";
+import { confusionStore, confusionCopy, rollStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 import { senderOf, ownsActor, replyForMe } from "./bridge-guards.mjs";
 
@@ -357,21 +357,37 @@ export async function consumeCalls(actor) {
 }
 
 /**
- * Spend every armed Call except the ones granting `keep`.
+ * Spend the armed Calls named by `nonces`, and leave every other one armed.
  *
- * One window, two fates (CALL-02 with CALL-03): a statistic rolled off the sheet
- * while a Loaded Die is held uses the Support armed beside it and cannot use the
- * 12, so the Support is spent and the Loaded Die waits for the action it was
- * bought for. Returns what was spent.
+ * A roll spends what it applied (E08+E28 C7, 03.10.2026; audit S02-20): the roll
+ * window the Calls it opened with (roll-dialog.mjs `windowCalls`), `throwDice` the
+ * ones it read before its window opened. A Call armed after that was spent with
+ * the rest by `consumeCalls`, on a roll it never touched; it waits for the next
+ * one now. One window, two fates still holds (CALL-02 with CALL-03): a Loaded Die
+ * a statistic rolled off the sheet cannot load is not among the window's names.
+ * Returns what was spent.
  */
-export async function consumeCallsExcept(actor, keep = null) {
+export async function consumeCallsByNonce(actor, nonces) {
     if (shielded) return [];
+    return spendCallsByNonce(actor, nonces);
+}
+
+/**
+ * The spend itself, which no shield stands in front of: a GM spends with it the Calls a
+ * player's roll applied as it draws that roll (roll-draw.mjs `drawOnGm`, E08+E28 C12b), and
+ * this GM's own supporting roll, if one is open here, has nothing to do with somebody
+ * else's. The roller's browser spends nothing of a drawn roll (`throwDice`, roll-dialog.mjs
+ * `onCloseApplication`): the GM read what it applied before it threw the dice, so a spend
+ * landing first on the roller's side would have taken the Calls out from under the GM's
+ * reading.
+ */
+export async function spendCallsByNonce(actor, nonces) {
+    const names = new Set(nonces ?? []);
+    if (!names.size) return [];
     const pending = pendingCallsRaw(actor);
-    const confusions = armedConfusions(actor).filter(entry => !keep || entry.grants !== keep);
-    if (!pending.length && !confusions.length) return [];
-    const kept = keep ? pending.filter(entry => entry.grants === keep) : [];
-    const spent = pending.filter(entry => !kept.includes(entry));
-    if (!spent.length && !confusions.length) return [];
+    const spent = pending.filter(entry => names.has(entry.nonce));
+    const kept = pending.filter(entry => !names.has(entry.nonce));
+    const confusions = armedConfusions(actor).filter(entry => names.has(entry.nonce));
     if (spent.length && kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept.map(unsigned));
     else if (spent.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
     if (confusions.length) await spendConfusions(actor, confusions);
@@ -411,11 +427,13 @@ export function grants(actor, what) {
  * Approval are announced where they are bought, and a Monokuma's is the GM's.
  *
  * A roll on the owner's browser spends the Confusion there at once - off the
- * copy, with the nonce kept as `spent` - and the ask tells the primary, which
- * drops it from the store. With no GM connected the copy keeps it spent, and
- * the next ask - at a GM's arrival - drops it: a spent Confusion comes back to
- * no roll. What a real table's two GMs do with one ask each has not been
- * measured; the ask goes to the primary alone.
+ * copy, with the nonce kept as `spent` - and the ask tells the primary. Since
+ * E08+E28 C12b a roll the GM draws is spent by the GM as it draws it, and the
+ * primary takes an ask's `spent` only for a nonce a drawn roll's record names
+ * (`answerConfusions`): a roll thrown with no GM connected keeps its Confusion
+ * spent in this browser's copy for the session and armed in the store. What a
+ * real table's two GMs do with one ask each has not been measured; the ask goes
+ * to the primary alone.
  *
  * What the store does not hide: a Confusion's critical wastes or refunds an
  * action on the target, and action budgets are actor data every browser holds
@@ -559,12 +577,37 @@ function askForConfusions(primary = primaryGmId()) {
     }
 }
 
-/** Primary: drop what the asker spent on their own characters, then answer them and every other owner of what changed. */
-async function answerConfusions(sender, spent) {
+/*
+ * A REPORT OF A CONFUSION SPENT IS TAKEN FOR A ROLL THE GM DREW (E08+E28 C12b, 04.10.2026; the
+ * owner's note of 28.09.2026 on E06 fix r2-G4). The ask's `spent` was the owner's word for their
+ * own characters, and a Confusion that hinders is one a player gains by calling spent with no
+ * roll at all. Since C12b the GM spends the Calls a drawn roll applied as it draws it, and
+ * writes their nonces in the roll's record (`used.calls`, roll-draw.mjs `drawOnGm`); a report
+ * is taken for a nonce a record names, for that record's character, and no other - the rest
+ * stays armed. Where the players' rolls are thrown in their own browsers - a Daggerheart the
+ * draw was not written for (roll-draw.mjs `reviewBuild`) - there is no record to name anything,
+ * and the report is taken as in 1.2.66: without it a Confusion would stay armed for good.
+ */
+function namedByRecords() {
+    const named = new Map();
+    for (const row of Object.values(rollStore.entries() ?? {})) {
+        for (const nonce of Array.isArray(row?.used?.calls) ? row.used.calls : []) named.set(nonce, row.actorId);
+    }
+    return named;
+}
+
+/**
+ * Primary: drop what the asker spent on their own characters - a nonce a drawn roll's record
+ * names, above - then answer them and every other owner of what changed. Exported for the suite.
+ */
+export async function answerConfusions(sender, spent) {
+    const { rollDrawState } = await import("./roll-draw.mjs");
+    const named = rollDrawState().state === "ok" ? namedByRecords() : null;
     for (const [actorId, nonces] of Object.entries(spent && typeof spent === "object" ? spent : {})) {
         // A packet's actor ids are claims: only a character the asker owns has its Confusion spent.
         if (!Array.isArray(nonces) || !ownsActor(sender, actorId)) continue;
-        if (await dropConfusions(actorId, nonces.filter(nonce => typeof nonce === "string"))) tellConfusionOwners(actorId);
+        const taken = nonces.filter(nonce => typeof nonce === "string" && (!named || named.get(nonce) === actorId));
+        if (taken.length && await dropConfusions(actorId, taken)) tellConfusionOwners(actorId);
     }
     sendConfusionsTo(sender.id);
 }
@@ -857,7 +900,7 @@ async function damageEffect(actor, call, choice, done) {
 // note above the project Calls in config.mjs. The branch went too rather
 // than being left standing for nothing: an unreachable handler is how a
 // deleted rule comes back by accident.
-async function progressEffect(actor, call, choice, done) {
+async function progressEffect(actor, call, choice, done, { key }) {
     const { addProgress, allProjects } = await import("./projects.mjs");
     const project = allProjects().find(p => p.id === choice.project);
 
@@ -865,7 +908,9 @@ async function progressEffect(actor, call, choice, done) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
         throw new Error(`project ${choice.project} no longer exists`);
     } else {
-        const applied = await addProgress(choice.project, call.progress);
+        // Who pays, as the bridge asks it of a player's (E08+E28 C16: gm-bridge.mjs `project.progress`), and
+        // for which Call (fix r2-H2): a player's is held to that Call's progress and to its price paid.
+        const applied = await addProgress(choice.project, call.progress, { actorId: actor?.id ?? null, call: key });
         if (!applied) throw new Error(`addProgress refused ${choice.project}`);
 
         // A GM's write says outright whether the bar moved. A player's
@@ -927,15 +972,6 @@ async function freeRestEffect(actor, call, choice, done) {
     if (rested === false) throw new NothingToDo("the rest was not taken");
     if (!rested) throw new Error("the rest failed");
     done.push(...(rested.applied ?? []));
-}
-
-// --- reroll the last action ---
-async function rerollEffect(actor, call, choice, done) {
-    const { rerollLastAction } = await import("./reroll.mjs");
-    const lines = await rerollLastAction(actor);
-    // `rerollLastAction` has already said why.
-    if (!lines) throw new NothingToDo("nothing to reroll");
-    done.push(...lines);
 }
 
 // --- a new rule, announced to everyone AND written down ---
@@ -1069,11 +1105,12 @@ export async function applyCall(actor, key, kind, choice = {}) {
         if (call.grantsHope && choice.target) await hopeFromDespairEffect(actor, call, choice, done);
         if (call.feedsOverflow) await feedOverflowEffect(actor, call, choice, done);
         if (call.damage && choice.target) await damageEffect(actor, call, choice, done);
-        if (call.progress && choice.project) await progressEffect(actor, call, choice, done);
+        if (call.progress && choice.project) await progressEffect(actor, call, choice, done, { key });
         if (call.freeMoves) await freeMovesEffect(actor, call, choice, done);
         if (call.freeActions) await freeActionsEffect(actor, call, choice, done);
         if (call.freeRest) await freeRestEffect(actor, call, choice, done);
-        if (call.reroll) await rerollEffect(actor, call, choice, done);
+        // No branch for `reroll`: since E08+E28 C4a the GM pays for it and makes it, asked by
+        // calls.mjs `askReroll` instead of this (reroll.mjs `rerollOnGm`).
         if (call.announces && choice.text) await newRuleEffect(actor, call, choice, done);
         if (call.sealsRoom && choice.room) await sealRoomEffect(actor, call, choice, done);
         if (call.silences && choice.target) await silenceEffect(actor, call, choice, done);

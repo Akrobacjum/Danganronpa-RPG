@@ -5,7 +5,7 @@
  * tests.mjs; the tools are in tests-kit.mjs.
  */
 
-import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL } from "./config.mjs";
+import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
@@ -270,8 +270,9 @@ const REGRESSIONS = [
          * every request named to `tellRefused` by hand, and a declaration's `tell`
          * is one of the closed list's codes, and a queued declaration answers
          * reply, and a field named as an id is sanitized as one. The reader is run
-         * first on a fixture with seven planted faults, which must come back
-         * exactly.
+         * first on a fixture with six planted faults, which must come back
+         * exactly (seven until E08+E28 C8 retired the Reroll receipts, and the
+         * rule that a guard spending one comes last with them).
          *
          * READ LIVE rather than exercised, because the thing being checked is the
          * SHAPE of the judgement, not its outcome: a request that never runs in a
@@ -286,8 +287,6 @@ const REGRESSIONS = [
                 sanitize: G.pick({ actorId: G.as.id, targetId: G.as.id }), run: fine, answer: "ack" },
             "fixture.nopl": { label: "DRPG.Bridge.what.fixture.nopl", guards: [G.knownSender],
                 sanitize: G.pick({ n: G.as.num }), run: fine, answer: "ack" },
-            "fixture.receipt": { label: "DRPG.Bridge.what.fixture.receipt", guards: [G.knownSender, G.guardObserveReceipt, G.owns("actorId", "not theirs")],
-                sanitize: G.pick({ actorId: G.as.id, undo: G.as.bool }), run: fine, answer: "ack" },
             "fixture.tell": { label: "DRPG.Bridge.what.fixture.tell", guards: [G.knownSender],
                 sanitize: G.pick({ n: G.as.num }), run: fine, answer: "ack", tell: "fixtureNowhere" },
             "fixture.queued": { label: "DRPG.Bridge.what.fixture.queued", guards: [G.knownSender],
@@ -304,12 +303,11 @@ const REGRESSIONS = [
         equal(JSON.stringify(planted.problems), JSON.stringify([
             "fixture.mjs fixture.unclaimed: targetId reaches the run with no guard naming it and no claim saying who judges it",
             "fixture.mjs fixture.nopl: DRPG.Bridge.what.fixture.nopl is missing in pl.json",
-            "fixture.mjs fixture.receipt: guardObserveReceipt spends a Reroll receipt and is not the last guard",
             "fixture.mjs fixture.tell: it tells its refusals as \"fixtureNowhere\", which is not a code of the closed list",
             "fixture.mjs fixture.queued: it waits in the \"fixture\" queue, is acknowledged as it arrives, and answers \"ack\", not reply",
             "fixture.mjs fixture.textId: targetId names an id and is sanitized as text, not as.id",
             "reason fixtureUnsaid: DRPG.Bridge.why.fixtureUnsaid is missing in pl.json"
-        ]), "the table reader does not find exactly the seven faults planted for it - it would misread the module's tables too");
+        ]), "the table reader does not find exactly the six faults planted for it - it would misread the module's tables too");
 
         // The requests named to `tellRefused` by hand, outside the runner: a literal second argument.
         const toldIn = text => [...stripComments(text).matchAll(/\btellRefused\(\s*[^,()]+,\s*"([^"]+)"/g)].map(m => m[1]);
@@ -3978,7 +3976,7 @@ const REGRESSIONS = [
         const dialog = stripComments(new Map(await otherSources()).get("roll-dialog.mjs") ?? "");
         const open = bodyOf(dialog, "function onRenderApplication", { until: "function forceReaction" });
         ok(open.length > 400, "the render hook has moved or gone");
-        ok(/advantageSources\(actor\)/.test(open),
+        ok(/advantageSources\(app, actor\)/.test(open),
             "the unlocked road reads Breakdown alone again, so a bought die is lost");
         ok(!/const fromState = stateGrant\(actor\);/.test(open),
             "the state-only reader is back");
@@ -3986,7 +3984,7 @@ const REGRESSIONS = [
             "only one pair of chips is locked, so the other one can cancel the purchase");
         ok(/stripExperienceCosts\(app\)/.test(open) && /hideCostSection\(root\)/.test(open),
             "an experience a Call paid for is charged again when the lock is off");
-        ok(open.indexOf("locking()") < open.indexOf("advantageSources(actor)"),
+        ok(open.indexOf("locking()") < open.indexOf("advantageSources(app, actor)"),
             "the unlocked branch now runs for everybody, including the locked road");
     }],
 
@@ -4814,56 +4812,6 @@ const REGRESSIONS = [
         ok(!bad.length, `printed into markup without escaping: ${bad.join("; ")}`);
     }],
 
-    ["R134 - an undo from a player is paid for by a Reroll", async () => {
-        /*
-         * E03, 24.09.2026; audit S10-40 and the undo half of S10-03, S05-03, S04-09,
-         * S05-13, S05-40. Every packet that TAKES SOMETHING BACK - an Observe's bullet,
-         * a crisis action, a clean-up, an Analyze, a sabotage, progress, a trace, a
-         * point of Despair - was believed, and a console could send one without ever
-         * buying a Reroll. The handlers that carry one now ask for the receipt a
-         * Reroll leaves (reroll-receipts.mjs). Read from source, because the honest
-         * road needs a player's client and a GM's at once - 30-security drives it.
-         */
-        const sources = new Map(await otherSources());
-        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
-        const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
-        must(bridge.length > 1000 && leaf.length > 1000, "gm-bridge.mjs or bridge-guards.mjs did not load");
-        const both = `${bridge}\n${leaf}`;
-        /*
-         * THROUGH THE TABLE (E31, 25.09.2026). A request that takes something back is
-         * a declaration of the bridge's tables, and its receipt is spent by one of the
-         * guards it names (a `guard...Receipt`: the note above `firstRefusal` in
-         * bridge-guards.mjs), which the runner asks before the run. So each declaration
-         * is read as its guards, with the guards those name; the receipt's has to be
-         * the last, since a guard asked after it could refuse an undo already paid
-         * for; and a guard named anywhere that nothing defines fails, rather than
-         * reading as a guard with nothing in it.
-         */
-        const PAYS = ["observe.resolve", "analyze.resolve", "murder.crisis", "murder.cleanup",
-            "project.unsabotage", "project.progress", "remnant.edit", "despair.adjust"];
-        const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
-        const spends = guard => withGuards(both, String(guard)).body.includes("spendRerollReceipt(");
-        const unpaid = [], early = [];
-        for (const action of PAYS) {
-            const guards = all[action]?.guards;
-            must(Array.isArray(guards), `${action} is no longer a declaration of the bridge's tables - this test reads nothing until it is pointed at it again`);
-            const paying = guards.map(spends);
-            if (!paying.includes(true)) unpaid.push(action);
-            else if (paying.indexOf(true) !== guards.length - 1) early.push(action);
-        }
-        ok(!unpaid.length, `these take something back for a player with no Reroll receipt: ${unpaid.join(", ")}`);
-        ok(!early.length, `these spend the receipt before a guard that could still refuse: ${early.join(", ")}`);
-        // And nothing outside the list reads `undo` - on its whitelist or in a guard - without one.
-        const stray = Object.entries(all).filter(([action, decl]) => !PAYS.includes(action)
-            && ("undo" in (decl.sanitize?.fields ?? {}) || decl.guards.some(guard => /payload\??\.undo\b/.test(String(guard)))))
-            .map(([action]) => action);
-        ok(!stray.length, `these read payload.undo and ask for no receipt: ${stray.join(", ")}`);
-        // Every guard a function of the bridge names is defined, the player's road of call.arm among them.
-        const nowhere = [...new Set([...bridge.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]))]
-            .flatMap(name => withGuards(both, topLevelFunction(bridge, name)).missing.map(guard => `${name} asks ${guard}`));
-        ok(!nowhere.length, `these functions ask a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${nowhere.join(", ")}`);
-    }],
-
     ["R138 - the GM judges a crisis action again before it lands", async () => {
         /*
          * E03, 24.09.2026; audit S04-09. The stage, the side, the turn, the locks and
@@ -5401,6 +5349,16 @@ const REGRESSIONS = [
         const G = await import("./bridge-guards.mjs");
         const problemsOf = (label, decl, lookup) => {
             const r = payloadReads(decl, lookup);
+            // The runner reads the roll a result comes from in the run's copy (E08+E28 C14, bridge-guards.mjs `judge`):
+            // since C15 each of a list, and the fields a path, `when` and `kindAt` start from; since C16 what a
+            // `derive` reads of the copy it is handed (gm-bridge.mjs `progressOf`), read as a run's reads are; since
+            // fix r2-H1 the paths a `named` field is compared with (a crisis roll's `key`).
+            for (const rolled of G.rollsOf(decl)) {
+                const derived = rolled.derive ? payloadReads({ run: rolled.derive }, lookup) : { fields: [], unreadable: [] };
+                r.unreadable.push(...derived.unreadable);
+                r.fields = [...new Set([...r.fields, rolled.field, ...derived.fields,
+                    ...[rolled.actor, rolled.when, rolled.kindAt, ...Object.values(rolled.named ?? {})].filter(Boolean).map(path => path.split(".")[0])])];
+            }
             const listed = Object.keys(decl.sanitize?.fields ?? {}).sort();
             const out = [];
             if (r.unreadable.length) out.push(`${label}: its run reads the packet as ${r.unreadable.join(", ")}, which this cannot follow`);
@@ -5492,17 +5450,25 @@ const REGRESSIONS = [
         ]), "the reason reader does not find exactly the six faults planted for it - it would misread the module too");
 
         /* The functions a guard or a run hands the question to, and how each is read:
-           its return value is the reason, its `why:` or its `refused:`. Two pass on a
-           listed function's reason (`resolveObserve` observeResolveRefusal's, the
-           receipt's `spendRerollReceipt` rerollReceiptRefusal's or its caller's check),
+           its return value is the reason, its `why:` or its `refused:`. One passes on a
+           listed function's reason (`resolveObserve` observeResolveRefusal's; the
+           receipt's `spendRerollReceipt` was a second, until E08+E28 C8 retired it),
            and one is wrapped: `hopeCallRefusal` says, in the GM's language, what the
            guard asking it puts inside its own English reason. */
         const DELEGATES = {
-            rerollReceiptRefusal: "returns", crisisRefusal: "why", crisisUndoRefusal: "returns", unsabotageRefusal: "returns",
+            crisisRefusal: "why", crisisUndoRefusal: "returns", unsabotageRefusal: "returns",
             sendBackRefusal: "returns", playerArmRefusal: "returns", observeResolveRefusal: "returns", removalRefusal: "returns",
             searchSpendRefusal: "returns", narrowPlayerRemnant: "refused", resolveAnalyze: "refused", resolveStageSix: "refused",
             answerKeysRefusal: "returns", shareBullet: "refused", applyRecordedMove: "refused",
-            resolveObserve: "passes", spendRerollReceipt: "passes", hopeCallRefusal: "wraps"
+            // E08+E28 C4a: the Reroll the GM makes, and the checks it asks before the payment.
+            rerollOnGm: "refused", makeReroll: "refused", rerollRefusal: "why", replayRefusal: "returns",
+            // E08+E28 C14: the roll a result is read from, asked by the runner after the guards.
+            rollRefusal: "returns",
+            // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive` (C16: a Work on a Project's).
+            searchTheftOf: "why", traceBandOf: "why", progressOf: "why",
+            // E08+E28 fix r2-H1: the draw of a player's roll, held to the action it is for before it is thrown.
+            drawOnGm: "refused", drawRefusal: "returns",
+            resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
         const functions = [], texts = [];
@@ -6326,10 +6292,13 @@ const REGRESSIONS = [
             "the reader does not find the three planted firsts, or finds the comment's or the string's");
 
         // The functions that take a list's first, and the definition each reads; measured 02.10.2026.
+        // roll-draw.mjs expectedFor (E08+E28 C12b, 04.10.2026) holds a drawn Search to Search's
+        // one trait, and only while it lists one.
         const FIRSTS = {
             "action-rolls.mjs chooseSearchCategory": ACTIONS.search,
             "action-rolls.mjs performPalm": ACTIONS.palm,
-            "cleanup.mjs cleanupTrait": ACTIONS.tamper
+            "cleanup.mjs cleanupTrait": ACTIONS.tamper,
+            "roll-draw.mjs expectedFor": ACTIONS.search
         };
         const sites = [];
         for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);
@@ -6427,6 +6396,174 @@ const REGRESSIONS = [
             if (off.length || ![...now.out.values()].every(Number.isInteger)) differs.push(`${n}: ${off.join(" ")}`);
         }
         equal(differs.join("; "), "", "the step does not land where the old count's dice did (window count: the values whose odds differ)");
+    }],
+
+    ["R215 - no player packet carries an undo", async () => {
+        /*
+         * E08+E28 C8, 03.10.2026; audit S10-06 (the undo), S02-19. Until C4a a Reroll took its
+         * action back from the roller's browser, with packets that said `undo` (an Observe, an
+         * Analyze, a crisis action, a clean-up), a negative amount (progress), or that were
+         * nothing but an undo (`despair.adjust`, `project.unsabotage`, `remnant.edit`), and E03
+         * let each one through on a receipt (R134, R135, removed here). The GM makes the Reroll
+         * now, so a player's undo is refused (`guardUndoIsTheGms`, reason `undoIsTheGms`) and
+         * never reaches a run. Read live, as R134 read it: every declaration of the bridge's
+         * tables, its whitelist asked with a player's `undo` and a GM's, and its guards. Red
+         * before C8: four whitelists hand a player's `undo` to the run.
+         */
+        const G = await import("./bridge-guards.mjs");
+        const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
+        must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
+        const player = { id: "SUITEPLAYER00215", name: "suite player", isGM: false };
+        const gm = { id: "SUITEGMUSER00215", name: "suite GM", isGM: true };
+        const takesUndo = Object.entries(all).filter(([, decl]) => "undo" in (decl.sanitize?.fields ?? {}));
+        must(takesUndo.length >= 4, `only ${takesUndo.length} declaration(s) list undo - the GM's own Reroll needs observe, analyze, crisis and clean-up's`);
+        const carried = takesUndo.filter(([, decl]) => decl.sanitize({ undo: true }, player).undo !== false).map(([action]) => action);
+        ok(!carried.length, `these hand a player's undo to their run: ${carried.join(", ")}`);
+        const lost = takesUndo.filter(([, decl]) => decl.sanitize({ undo: true }, gm).undo !== true).map(([action]) => action);
+        ok(!lost.length, `these drop a GM's undo, which the GM's own Reroll sends: ${lost.join(", ")}`);
+        const UNDO = /^an undo is the GM's own Reroll's$/;
+        const asks = guards => (guards ?? []).some(guard => guard === G.guardUndoIsTheGms
+            || (guard?.factory === "gmOnly" && UNDO.test(String(guard.why))));
+        const unasked = [...takesUndo.map(([action]) => action), "project.progress", "despair.adjust", "project.unsabotage", "remnant.edit"]
+            .filter(action => !asks(all[action]?.guards));
+        ok(!unasked.length, `these take something back and do not refuse a player's undo with its reason: ${unasked.join(", ")}`);
+        const whole = ["despair.adjust", "project.unsabotage", "remnant.edit"].filter(action =>
+            !all[action]?.guards?.some(guard => guard?.factory === "gmOnly" && UNDO.test(String(guard.why))));
+        ok(!whole.length, `these are only ever an undo and are not a GM's alone: ${whole.join(", ")}`);
+        const guard = typeof G.guardUndoIsTheGms === "function" ? G.guardUndoIsTheGms : () => "no guard";
+        equal(JSON.stringify([
+            G.reasonOf(guard(player, { undo: true })), G.reasonOf(guard(player, { amount: -1 })), guard(player, { amount: 2 }),
+            guard(player, { undo: false }), guard(gm, { undo: true }), guard(gm, { amount: -2 })
+        ]), JSON.stringify(["undoIsTheGms", "undoIsTheGms", null, null, null, null]),
+        "the guard does not refuse exactly a player's undo and a player's negative amount, with its reason");
+        // Carried from R134: every guard a function of the bridge names is defined.
+        const sources = new Map(await otherSources());
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const leaf = stripComments(sources.get("bridge-guards.mjs") ?? "");
+        must(bridge.length > 1000 && leaf.length > 1000, "gm-bridge.mjs or bridge-guards.mjs did not load");
+        const both = `${bridge}\n${leaf}`;
+        const nowhere = [...new Set([...bridge.matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].map(m => m[1]))]
+            .flatMap(name => withGuards(both, topLevelFunction(bridge, name)).missing.map(g => `${name} asks ${g}`));
+        ok(!nowhere.length, `these functions ask a guard neither gm-bridge.mjs nor bridge-guards.mjs defines: ${nowhere.join(", ")}`);
+    }],
+
+    ["R218 - no declaration takes a roll's result from the packet", async () => {
+        /*
+         * E08+E28 C14, 04.10.2026; audit S10-06; the plan's 3.5 (its R217, which C12a took, so this
+         * is the next free number). A run that scores a roll read the packet's `total`, `isCritical`
+         * and `withHope`, and a packet can say anything. A declaration that takes a result says
+         * where its roll is named now (`rolled`), and the runner hands the run the GMs' record of
+         * that roll instead (bridge-guards.mjs `rollRefusal`). Read live: every declaration of the
+         * bridge's tables that takes a result - a field of RESULT, or one a roll decides in that
+         * declaration (DERIVED) - declares `rolled`, takes its `field` and `actor` as ids, has its
+         * `actor` judged by an `owns` guard, and names an action of config.mjs as its `kind`; or it
+         * is on WAITING, the declarations C15-C17 move, each of which must still take a result (a
+         * name left there once its declaration moved is an exemption nobody needs). The reader is
+         * run first on a fixture with five planted faults. Red before C14: Observe, Analyze and the
+         * search for a hidden stash take a total and name no roll.
+         *
+         * C15 (04.10.2026) took a Palm's Steal and Plant, a theft from a stash and a trace off
+         * WAITING, and `rolled` became one roll or a list (bridge-guards.mjs `rollsOf`): each is read
+         * alike. Its `actor` may be a path into a field the declaration takes (a trace's
+         * `data.sourceActor`), judged by an `owns`-kind guard that covers the field; a `kind` may be a
+         * list, with `kindAt` the path that names which; `when` is a field taken as a flag; `into`
+         * names fields the declaration takes; a `derive` is a function. A Palm's hand is thrown as
+         * "steal", the Reroll's name for it (`THROWN_AS`). A sixth fixture is a list read clean.
+         *
+         * C16 (04.10.2026) took a project's progress and its Sabotage off WAITING. Progress that
+         * names no roll is a Call's, so its `when` is the roll's own field - an id, not a flag -
+         * and its guards bound what such a packet takes (bridge-guards.mjs `guardCallProgress`).
+         *
+         * C17 (04.10.2026) took the last four off WAITING, which is empty now and stays a list so a
+         * declaration put back on it is read as the exemption it would be. An opening, a crisis
+         * action and Stage 6 name their roll; their actions are the incident's tables of config.mjs,
+         * not ACTIONS (`TABLES`: the record's `actionKey` names the table, as the roll is thrown for
+         * it). A crisis packet that names no roll threw none, so its `when` is the roll's own field,
+         * and its guards refuse the rest (bridge-guards.mjs `guardCrisisRoll`). A Meddle takes no
+         * result from its packet at all: the GM throws its dice (monocub.mjs `meddleOnGm`), which the
+         * reader finds as a declaration that takes nothing it has to name a roll for.
+         */
+        const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
+        const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
+            "vault.steal": ["viaSearch", "clumsy"] };
+        const WAITING = [];
+        const THROWN_AS = { steal: "palm" };
+        const TABLES = { crisis: CRISIS_ACTIONS, cleanup: CLEANUP.actions, murderOpening: MURDER_OPENING };
+        const takes = (action, decl) => Object.keys(decl.sanitize?.fields ?? {})
+            .filter(field => RESULT.includes(field) || (DERIVED[action] ?? []).includes(field));
+        const problemsOf = (all, waiting) => {
+            const problems = [];
+            for (const [action, decl] of Object.entries(all)) {
+                const kinds = decl.sanitize?.fields ?? {};
+                if (!decl.rolled) {
+                    const taken = takes(action, decl);
+                    if (taken.length && !waiting.includes(action)) problems.push(`${action}: takes ${taken.join(", ")} from the packet and names no roll`);
+                    continue;
+                }
+                for (const { field, actor, kind, kindAt, when, into, derive } of [].concat(decl.rolled)) {
+                    if (kinds[field] !== "id") problems.push(`${action}: its roll is named in ${field}, which it does not take as an id`);
+                    const [head, ...path] = String(actor).split(".");
+                    const judged = (decl.guards ?? []).some(guard => (guard?.factory === "owns" || (path.length && guard?.factory === "ownsActorAt"))
+                        && guard.covers?.includes(head));
+                    if ((path.length ? !kinds[head] : kinds[head] !== "id") || !judged) {
+                        problems.push(`${action}: the roll's character, ${actor}, is not an id an owns guard judges`);
+                    }
+                    for (const one of [].concat(kind)) {
+                        if (!Object.hasOwn(ACTIONS, THROWN_AS[one] ?? one) && !(Object.hasOwn(TABLES, one) && TABLES[one])) {
+                            problems.push(`${action}: its roll's action ${one} is not an action of config.mjs`);
+                        }
+                    }
+                    if (Array.isArray(kind) !== Boolean(kindAt) || (kindAt && !kinds[String(kindAt).split(".")[0]])) {
+                        problems.push(`${action}: its roll's action is a list without a field that names which, or the other way round`);
+                    }
+                    if (when && kinds[when] !== "bool" && when !== field) problems.push(`${action}: its roll is asked when ${when} is set, which it does not take as a flag`);
+                    for (const target of Object.values(into ?? {})) {
+                        if (!kinds[target]) problems.push(`${action}: its roll's result goes in ${target}, which it does not take`);
+                    }
+                    if (derive !== undefined && typeof derive !== "function") problems.push(`${action}: what its roll earned is not read by a function`);
+                }
+            }
+            for (const action of waiting) {
+                if (!all[action] || all[action].rolled || !takes(action, all[action]).length) {
+                    problems.push(`${action}: waits for a later commit and takes no result from the packet - take it off the list`);
+                }
+            }
+            return problems;
+        };
+        const G = await import("./bridge-guards.mjs");
+        const owner = G.owns("actorId", "not theirs");
+        const FIXTURE = {
+            "fixture.fine": { guards: [G.knownSender, owner], sanitize: G.pick({ actorId: G.as.id, total: G.as.num, rollId: G.as.id }),
+                rolled: { field: "rollId", actor: "actorId", kind: "observe" } },
+            "fixture.bare": { guards: [G.knownSender, owner], sanitize: G.pick({ actorId: G.as.id, isCritical: G.as.bool }) },
+            "fixture.text": { guards: [G.knownSender], sanitize: G.pick({ actorId: G.as.id, total: G.as.num, rollId: G.as.text }),
+                rolled: { field: "rollId", actor: "actorId", kind: "noSuchAction" } },
+            "fixture.waits": { guards: [G.knownSender], sanitize: G.pick({ note: G.as.text }) },
+            "fixture.pair": { guards: [G.knownSender, owner], sanitize: G.pick({ actorId: G.as.id, total: G.as.num, unseenTotal: G.as.num,
+                rollId: G.as.id, unseenRollId: G.as.id }),
+            rolled: [{ field: "rollId", actor: "actorId", kind: "steal" },
+                { field: "unseenRollId", actor: "actorId", kind: "palm", into: { total: "unseenTotal" } }] }
+        };
+        equal(JSON.stringify(problemsOf(FIXTURE, ["fixture.waits"])), JSON.stringify([
+            "fixture.bare: takes isCritical from the packet and names no roll",
+            "fixture.text: its roll is named in rollId, which it does not take as an id",
+            "fixture.text: the roll's character, actorId, is not an id an owns guard judges",
+            "fixture.text: its roll's action noSuchAction is not an action of config.mjs",
+            "fixture.waits: waits for a later commit and takes no result from the packet - take it off the list"
+        ]), "the reader does not find exactly the five faults planted for it - it would misread the module's tables too");
+
+        const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
+        must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
+        const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
+        log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
+            + `${WAITING.length} wait for a later commit; monocub.meddle takes ${JSON.stringify(takes("monocub.meddle", all["monocub.meddle"] ?? {}))} from its packet`);
+        equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
+            "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
+            "Observe, Analyze, the search for a hidden stash, a Palm, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
+        equal(JSON.stringify([Boolean(all["monocub.meddle"]?.sanitize), takes("monocub.meddle", all["monocub.meddle"] ?? {})]), JSON.stringify([true, []]),
+            "monocub.meddle is no declaration of the bridge's, or a Meddle's packet carries a result the GM would read");
+        const problems = problemsOf(all, WAITING);
+        ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
     }]
 ];
 

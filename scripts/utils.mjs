@@ -130,10 +130,10 @@ export function pause(ms) {
  * first while the real GM is the one running the game, the automation silently
  * never fires. Assistants are only used when no full GM is connected.
  */
-export function isPrimaryGm() {
+export function isPrimaryGm({ leaving = null } = {}) {
     // `game.user` is null for the first and last moments of a client's life,
     // and socket packets arrive in both.
-    return Boolean(game.user?.isGM) && primaryGmId() === game.user.id;
+    return Boolean(game.user?.isGM) && primaryGmId({ leaving }) === game.user.id;
 }
 
 /**
@@ -150,16 +150,22 @@ export function isPrimaryGm() {
  * "a GM is listening" signal, gm-bridge.mjs `onGmReady`; which of the two a client
  * sees first on v14 is LIVE-E04-12).
  *
+ * `leaving`: a GM this client was just told has gone (`userConnected(user, false)`) -
+ * counted as gone whatever its `active` still says (E08+E28 fix r1-G5, 04.10.2026; the
+ * round-1 review's m3: the Reroll journal's recovery on a GM leaving, reroll.mjs). Which
+ * of the hook and the flag comes first on v14 is not measured: the harness has one GM.
+ *
  * @returns {string|null} User id, or null when no GM is connected.
  */
-export function primaryGmId({ arriving = null } = {}) {
-    const here = u => u.active || (arriving !== null && u.id === arriving);
+export function primaryGmId({ arriving = null, leaving = null } = {}) {
+    const here = u => u.id !== leaving && (u.active || (arriving !== null && u.id === arriving));
     const full = game.users
         .filter(u => here(u) && u.role === CONST.USER_ROLES.GAMEMASTER)
         .map(u => u.id)
         .sort();
 
-    const assistants = arriving !== null && game.users.get(arriving)?.isGM ? [...new Set([...activeGmIds(), arriving])] : activeGmIds();
+    const assistants = (arriving !== null && game.users.get(arriving)?.isGM ? [...new Set([...activeGmIds(), arriving])] : activeGmIds())
+        .filter(id => id !== leaving);
     const pool = full.length ? full : assistants.sort();
     return pool[0] ?? null;
 }

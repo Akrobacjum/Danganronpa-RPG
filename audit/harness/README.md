@@ -88,12 +88,12 @@ release or stage the status belongs to.
 | 12 | scenarios/12-social.mjs | ci | exists | <=1.2.50 | private rolls, inventory limits, movement and Search between clients |
 | 13 | scenarios/13-murder-signals.mjs | ci | exists | <=1.2.50 | what a killing shows four screens; a bystander sees nothing |
 | 14 | scenarios/14-quiet.mjs | ci, local-gate | exists | <=1.2.50 | a redraw that changes nothing writes nothing |
-| 15 | scenarios/15-held.mjs | ci | exists | 1.2.58 (E27) | other modules' client settings held on every client |
+| 15 | scenarios/15-held.mjs | ci | exists | 1.2.58 (E27) | other modules' client settings held on every client; a GM away and back (E08+E28 C18) |
 | 16 | scenarios/16-first-run.mjs | local-gate | planned | E58 | a clean install from the manifest, and the first run |
 | 17 | scenarios/17-assistant.mjs | ci | exists | E30 | an Assistant GM (role 3) is a GM, and its relay packets are judged like a player's |
 | 18 | scenarios/18-trial.mjs | ci | planned | E40 | the trial with real ballots, a player leak scan after every step (plan v2 calls it 15-trial; 15 is 15-held) |
 | 19 | scenarios/19-standing-cast.mjs | ci | exists | E32+E07 fix r2-G2 | what a player outside the running incident is sent of its cast: one packet, repeated by every GM, no newer than the opening |
-| 20 | scenarios/20-crit-hope.mjs | ci | exists | <=1.2.50 | a critical pays +2 Hope, a Hope roll +1 |
+| 20 | scenarios/20-crit-hope.mjs | ci | exists | <=1.2.50 | a critical pays +2 Hope, a Hope roll +1; a Reroll into a critical pays the second Hope only with the players' Hope and Fear automation on (1.2.67) |
 | 30 | scenarios/30-security.mjs | ci | exists | <=1.2.50 | forged packets and writes change nothing on the GM |
 | 31 | scenarios/31-fuzz.mjs | ci, local-gate | planned | E43 | malformed packets to every bridge entry and socket: no write, no GM exception, a refusal with a reason |
 | 32 | scenarios/32-case-security.mjs | ci | planned | E43 | the hostile-client matrix, delivery proven before the effect is checked |
@@ -312,8 +312,8 @@ number is not reused for a scenario.
   queued request is acknowledged as it arrives), a GM who leaves mid-request
   and a planted item that arrives after its five seconds
   (taken back while the GM's client accepts it, `TIMING.plantWindowMs`) are
-  LIVE-E31-02, -03 and -04. A Reroll's receipt is made by rewriting the rolls of
-  the player's own roll message, not by `Roll#reroll` (LIVE-E31-01); windows
+  LIVE-E31-02, -03 and -04. A Reroll is made on the GM over the harness's own
+  roll, not Daggerheart's `Roll#reroll` (LIVE-E31-01, LIVE-E08-01); windows
   close at once, so what `handOff` saves under reduced motion is not measured
   (LIVE-E31-05); and a refusal is read in Polish by a client whose language was
   switched mid-run, not by a Polish player at a table (LIVE-E31-06).

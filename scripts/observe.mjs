@@ -513,7 +513,7 @@ async function askWhichRemnant(actor, room, request, candidates) {
  *
  * Now the character has to be the entry's, the account has to be the one the
  * key was minted for, a key is resolved once, and an undo needs a result to undo.
- * Since E05 C7 the bookmark is in the roller's own browser (`rollBookmarks`), so the
+ * Since E05 C7 the bookmark is out of world data (the GMs' store since E08+E28 C4a), so the
  * key is no longer in world data either; these checks stay, because they are what
  * holds whatever a packet claims.
  * Pure, so the suite can hold it to that with an entry it made up.
@@ -548,7 +548,9 @@ export function observeResolveRefusal(entry, { actorId = null, senderId = null, 
  * @returns {Promise<object|null>} `{ refused }` when `observeResolveRefusal` says no.
  */
 export async function resolveObserve({ key, total, isCritical = false, undo = false,
-    actorId = null, senderId = null, senderIsGm = true } = {}) {
+    actorId = null, senderId = null, senderIsGm = true,
+    // The roll it was thrown with, for the GMs' fact of the result (fix r1-G2): `scoreObserve`.
+    rollId = null } = {}) {
     if (!game.user.isGM) return null;
     // THE CACHE FIRST, THEN THE SWEEP. A sweep over an unloaded cache is a sweep
     // over nothing, and it would then write that nothing back (ACT-08).
@@ -598,6 +600,39 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
 
     const actor = game.actors.get(entry.actorId);
     if (!actor) return null;
+    describing.set(key, actor.id);
+    try {
+        return await scoreObserve(actor, entry, key, { total, isCritical, undo, rollId, by: senderId });
+    } finally {
+        describing.delete(key);
+    }
+}
+
+/**
+ * THE OBSERVES BEING SCORED ON THIS CLIENT, key -> character (E08+E28 C6a, 03.10.2026; audit
+ * S05-22). From the checks to the written result a resolve waits on the GM's dialog for as
+ * long as the GM takes (`describeFind`), and a Reroll asked then has no result to take back yet: reroll.mjs
+ * `replayRefusal` asks this and refuses before anything is paid. The plan's 2.5 put the mark on
+ * the entry (`entry.busy`); it is kept beside the cache instead, because every entry of the
+ * cache is written through to a store that outlives a reload (`writePending`) - a mark written
+ * with it by another Observe's write, and a reload in the dialog, would have refused that
+ * Observe's Reroll for the hour the entry lives. Asked on the client the Reroll is made on,
+ * which is the one that resolves: both go to the primary GM, or both stay on a GM's own.
+ */
+const describing = new Map();
+
+/** Whether an Observe of `actorId`'s is being scored on this client now. */
+export function observeBeingDescribed(actorId) {
+    return [...describing.values()].includes(actorId);
+}
+
+/** `resolveObserve`'s scoring, once its checks have passed. */
+async function scoreObserve(actor, entry, key, { total, isCritical, undo, rollId = null, by = null }) {
+    // The roll this result is for (E08+E28 C2): describing a find can wait on a GM's dialog, and
+    // a roll thrown meanwhile is not this one (`keepResult`). The one the resolve's packet names,
+    // and its sender's (fix r1-G2; action-rolls.mjs `rollOfFact`).
+    const rolls = await import("./action-rolls.mjs");
+    const roll = rolls.rollOfFact({ undo, rollId, by, actorId: actor.id, actions: ["observe"] });
 
     // A Reroll replaces a result rather than adding to it. What the first throw
     // produced is recorded here rather than sent to the observer and quoted
@@ -627,11 +662,11 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
         if (!found) {
             const marked = await applyFailure(actor, total, entry);
             entry.result = { success: false, bulletId: null, projectId: null, stress: marked };
-            await writePending();
+            await keepResult(rolls, roll, key, entry);
             return { success: false, key };
         }
         entry.result = { success: true, bulletId: null, projectId: found, stress: 0 };
-        await writePending();
+        await keepResult(rolls, roll, key, entry);
         return { success: true, key };
     }
 
@@ -654,8 +689,19 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
         projectId: foundProject,
         stress: marked
     };
-    await writePending();
+    await keepResult(rolls, roll, key, entry);
     return { success, key };
+}
+
+/**
+ * Write the result through (ACT-08), and onto the GMs' bookmark of the roll it is for
+ * (E08+E28 C2): the key and the result a Reroll on a GM undoes (C4a). The target was
+ * chosen before that roll was thrown, so it is the entry's, read by its key, and not a
+ * fact of the row - the row the target step would have found was the roll before.
+ */
+async function keepResult(rolls, roll, key, entry) {
+    await writePending();
+    await rolls.noteFactOn(roll, { observeKey: key, observeResult: structuredClone(entry.result) });
 }
 
 /** Put back whatever the previous throw of this same Observe did. */

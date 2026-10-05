@@ -464,8 +464,8 @@ async function takeDeclaredBetrayals(id) {
  * said who had declared something. `gmOnly` whispers it to the GMs, and its title -
  * the one line of it the document carries, as the popup's title - says nothing of
  * what is asked. Its buttons are wired in the log as in a thread (gm-bridge.mjs,
- * `registerGmBridge`); the killer hears the ruling, veiled, from
- * `ruleOnParkedMurder`.
+ * `registerGmBridge`); the killer hears a refusal, veiled, from
+ * `ruleOnParkedMurder`, and an allowance only at the lights.
  *
  * It cannot name a victim, because there is not one yet. Nobody has finished
  * placing and the room the killer ends up in is the whole question the Eclipse
@@ -518,6 +518,16 @@ async function askGmToAllow(killerId, parked) {
  * The killer's card is VEILED (E05, S11-02): addressed to them and the GMs it
  * named their actor as its speaker and their player among its readers, in a
  * document every browser holds, at the moment the GM ruled on a declaration.
+ *
+ * AN ALLOWANCE IS NOT TOLD (E08+E28 C19b, 04.10.2026; D6's gap, the owner's decision of
+ * 03.10). It whispered "The GM has allowed the attempt" while the Eclipse ran, and a
+ * declaration allowed here can still be refused at the lights - an incident another
+ * killer opened first (`judgePendingMurders`) - so the same killer was told yes, then
+ * no: two answers that contradict each other, the second of which D6 had made the
+ * ordinary refusal so that it said nothing of the incident. An allowed declaration's
+ * killer hears one answer, at the lights; the row's `approved`, the GM's notification and
+ * the log stay. A refusal is still told at once: its row is dropped, so the lights never
+ * answer it a second time.
  */
 export async function ruleOnParkedMurder(killerId, allow) {
     if (!game.user.isGM || !killerId) return null;
@@ -535,13 +545,10 @@ export async function ruleOnParkedMurder(killerId, allow) {
     if (allow) await pendingMurderStore.patch(killerId, { approved: true });
     else await pendingMurderStore.drop(killerId);
 
-    if (killer) {
+    if (killer && !allow) {
         await whisperToOwner(killer,
-            `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
-                allow
-                    ? game.i18n.localize("DRPG.Action.murderApproved")
-                    : `<span class="drpg-warning">${
-                        game.i18n.localize("DRPG.Action.murderRefused")}</span>`}</p>`, { veiled: true });
+            `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p><span class="drpg-warning">${
+                game.i18n.localize("DRPG.Action.murderRefused")}</span></p>`, { veiled: true });
     }
 
     log(`Direct murder by ${killer?.name ?? killerId} ${allow ? "allowed" : "refused"}.`);
@@ -629,6 +636,10 @@ export async function liftPendingMurders() {
  * owner's D6): "an incident was already running" told them somebody was being
  * killed somewhere at that moment. The words are the ordinary refusal a GM's
  * "no" sends (`murderRefused`); the GMs keep the reason (`murderSecondDeclaration`).
+ * And only to a killer whose room fits (E08+E28 C19b, 04.10.2026): the room is read
+ * first, so a killer left alone or with witnesses is told that, incident or not - "the
+ * GM did not allow it" after the GM had allowed it on the card was a refusal that was
+ * not the GM's (`ruleOnParkedMurder`).
  *
  * AND NOTHING OPENS WITHOUT THE GM. The room condition is the guide's and the
  * module can read it; whether this killing happens at this table tonight is not
@@ -699,14 +710,6 @@ async function judgePendingMurders(id, taken = new Map()) {
             continue;
         }
 
-        if (murderState()) {
-            await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
-            await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
-                killer: foundry.utils.escapeHTML(killer.name)
-            })}</p>`);
-            continue;
-        }
-
         if (present.length !== 1) {
             const reason = present.length === 0
                 ? game.i18n.localize("DRPG.Action.murderNobody")
@@ -716,6 +719,14 @@ async function judgePendingMurders(id, taken = new Map()) {
                 killer: foundry.utils.escapeHTML(killer.name),
                 room: foundry.utils.escapeHTML(room ?? "-"),
                 reason: foundry.utils.escapeHTML(reason)
+            })}</p>`);
+            continue;
+        }
+
+        if (murderState()) {
+            await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
+            await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
+                killer: foundry.utils.escapeHTML(killer.name)
             })}</p>`);
             continue;
         }

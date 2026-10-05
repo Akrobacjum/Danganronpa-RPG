@@ -37,8 +37,15 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     /* DICE SO NICE WITH "HIDE 3D DICE ON SECRET ROLLS" OFF (E06 C6, 27.09.2026; audit S02-40).
        Each client's model of Dice So Nice (client-entry.mjs, "DICE SO NICE'S DECISION") animates
        a roll wherever the setting is off, readable or not, unless the module's
-       `diceSoNiceMessagePreProcess` says no - which it does where the roll cannot be read. */
-    const DSN_OFF = `globalThis.__dsnHideSecret = false; globalThis.__dsnAnimated = []; return true;`;
+       `diceSoNiceMessagePreProcess` says no - which it does where the roll cannot be read.
+       A STATISTIC FROM THE SHEET, DRAWN BY THE GM (E08+E28 C13, 04.10.2026; the plan's 3.4; the
+       owner's note of 27.09). Aiko's roll is p1's statistic from her sheet, which the GM draws and
+       writes (roll-draw.mjs): Dice So Nice's own decision is off for the GM's message on every
+       browser - it would throw it in the GM's colours - and the dice are played as p1's: on p1
+       from the draw's answer, on the GM by the relay (private-rolls.mjs `relayDrawnDice`), on p2
+       not at all. Each model keeps every `showForRoll` with the user whose dice it throws
+       (`__dsnShown`), and what it would animate itself (`__dsnAnimated`). */
+    const DSN_OFF = `globalThis.__dsnHideSecret = false; globalThis.__dsnAnimated = []; globalThis.__dsnShown = []; return true;`;
     for (const c of [gm, p1, p2]) await c.eval(DSN_OFF);
     const rollRes = await p1.eval(`
         const actor = game.actors.get("${ids.aiko}");
@@ -46,7 +53,7 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         const before = game.messages.contents.length;
         const cfg = await actor.rollTrait("agility", {});
         const mine = game.messages.contents.length - before;
-        return { mine, id: cfg?.message?.id ?? null };
+        return { mine, id: cfg?.message?.id ?? null, total: cfg?.message?.rolls?.[0]?.total ?? null };
     `, { timeout: 60000 });
     await settle(400);
     const onP2 = await p2.eval(`
@@ -62,10 +69,148 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         onP2.held === true && onP2.whisper.length > 0 && !onP2.whisper.includes(p2.userId) && onP2.contentVisible === false,
         JSON.stringify(onP2));
     console.log("[qa] what p2's console can still read of Aiko's private roll (documented, README 'Privacy'):", JSON.stringify(onP2.readable));
-    const DSN_READ = `const shown = globalThis.__dsnAnimated.includes("${rollRes.id}"); globalThis.__dsnHideSecret = true; return shown;`;
-    const animated = { gm: await gm.eval(DSN_READ), p1: await p1.eval(DSN_READ), p2: await p2.eval(DSN_READ) };
-    check("DICE: with Dice So Nice's secret-roll hiding off, Aiko's roll animates for Aiko and the GM and not on p2's screen",
-        Boolean(rollRes.id) && animated.gm === true && animated.p1 === true && animated.p2 === false, JSON.stringify(animated));
+    const onP1 = await p1.eval(`const m = game.messages.get("${rollRes.id}");
+        return m ? { contentVisible: m.isContentVisible, author: m.author?.id ?? null, drawn: m.getFlag("${MOD}", "drawn") === true,
+            superseded: Boolean(m.getFlag("${MOD}", "supersededRoll")), speaker: m.speaker?.actor ?? null } : null;`);
+    check("PRIVACY: Aiko's statistic from the sheet is drawn by the GM - the GM's message, naming nobody, keeping Daggerheart's card - and read on her browser alone of the players",
+        onP1?.contentVisible === true && onP1.author === gm.userId && onP1.drawn && !onP1.superseded && onP1.speaker === null
+            && onP2.contentVisible === false, JSON.stringify({ onP1, p2: onP2.contentVisible }));
+    /* AFTER A RELOAD (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m7). Which drawn rolls a
+       browser may read was memory alone, so a reload hid every sheet roll of Aiko's the GM had drawn
+       from her own log. The harness cannot reload a client: p1's set is emptied and read back from
+       its storage as a reload's `ready` does (private-rolls.mjs `refillReadable`), and her statistic
+       is read again; that `ready` reads it back is read in the file served. Red at 17feea3's runtime: nothing to read it back with, nothing kept. */
+    const reloaded = await p1.eval(`const P = await import("${repoUrl}/scripts/private-rolls.mjs");
+        const read = typeof P.refillReadable === "function" ? P.refillReadable() : null;
+        const kept = game.settings.settings.has("${MOD}.readableRolls") ? game.settings.get("${MOD}", "readableRolls") : {};
+        const m = game.messages.get("${rollRes.id}");
+        const wired = (await (await fetch("/modules/${MOD}/scripts/private-rolls.mjs")).text()).includes('Hooks.once("ready", refillReadable)');
+        return { read, wired, kept: (kept?.[game.world.id + "." + game.user.id] ?? []).includes("${rollRes.id}"), readable: Boolean(m?.isContentVisible) };`);
+    check("PRIVACY: after a reload Aiko still reads her statistic the GM drew - kept on her browser for this world and her user",
+        Boolean(onP1?.drawn) && reloaded.read >= 1 && reloaded.wired && reloaded.kept && reloaded.readable, JSON.stringify(reloaded));
+    const DSN_READ = `const shown = globalThis.__dsnShown.filter(c => !c.synchronize).map(c => [c.user, c.total]);
+        const animated = globalThis.__dsnAnimated.includes("${rollRes.id}"); globalThis.__dsnHideSecret = true; return { shown, animated };`;
+    const dice = { gm: await gm.eval(DSN_READ), p1: await p1.eval(DSN_READ), p2: await p2.eval(DSN_READ) };
+    const asAiko = r => r.shown.length === 1 && r.shown[0][0] === p1.userId && r.shown[0][1] === rollRes.total;
+    check("DICE: Aiko's drawn roll is thrown on her screen and the GM's as her dice, never as the GM's, and not on p2's - Dice So Nice's own decision animates it nowhere",
+        Boolean(rollRes.id) && asAiko(dice.p1) && asAiko(dice.gm) && dice.p2.shown.length === 0 && [dice.gm, dice.p1, dice.p2].every(r => r.animated === false),
+        JSON.stringify(dice));
+
+    /* WITHOUT DICE SO NICE (E08+E28 C13; LIVE-E28-02 is the table's reading). p1 and p2 lose
+       `game.dice3d` (put back after) and Aiko throws a second statistic. The GM's message is muted
+       (dhRoll.mjs:151, as the harness's `toMessage` writes it), so the roller hears the dice from
+       the draw's answer (roll-draw.mjs `playDice`) and reads the result on her own copy; p2 hears
+       nothing and reads nothing. Every sound a browser plays is kept for the window (`__sounds`). */
+    const NO_DSN = `globalThis.__dice3dAway = game.dice3d; delete game.dice3d; globalThis.__sounds = [];
+        if (!globalThis.__soundsOn) {
+            globalThis.__soundsOn = true;
+            const H = foundry.audio.AudioHelper, play = H.play;
+            H.play = function (data, ...rest) { globalThis.__sounds?.push(String(data?.src ?? "")); return play.call(this, data, ...rest); };
+        }
+        return true;`;
+    for (const c of [p1, p2]) await c.eval(NO_DSN);
+    const quiet = await p1.eval(`const cfg = await game.actors.get("${ids.aiko}").rollTrait("instinct", {});
+        return { id: cfg?.message?.id ?? null, total: cfg?.message?.rolls?.[0]?.total ?? null };`, { timeout: 60000 });
+    await settle(400);
+    const QUIET_READ = `const m = game.messages.get(${JSON.stringify(quiet.id)});
+        const out = { heard: globalThis.__sounds.filter(s => s === CONFIG.sounds.dice).length, readable: Boolean(m?.isContentVisible), total: m?.rolls?.[0]?.total ?? null };
+        game.dice3d = globalThis.__dice3dAway; delete globalThis.__dice3dAway; globalThis.__sounds = null;
+        return out;`;
+    const heard = { p1: await p1.eval(QUIET_READ), p2: await p2.eval(QUIET_READ) };
+    check("DICE: without Dice So Nice Aiko hears the dice of her drawn roll once and reads its result; p2 hears nothing and reads nothing",
+        Boolean(quiet.id) && heard.p1.heard === 1 && heard.p1.readable && heard.p1.total === quiet.total && heard.p2.heard === 0 && !heard.p2.readable,
+        JSON.stringify({ quiet, heard }));
+
+    /* A ROLL'S CLAIM IS ITS OWN (E08+E28 C11, 04.10.2026; audit S02-45). The module claims the
+       card of a roll it throws as the card is created, and until C11 it claimed the first roll
+       card p1's browser created while its roll was in flight - so a statistic Aiko clicked on
+       her sheet while a Work on Project window stood open lost its card, and the project's roll
+       kept Daggerheart's. The window is held by Aiko's `rollTrait` standing in for it, the sheet
+       roll thrown meanwhile, then the window let go; both cards read as the GM's browser holds
+       them: the sheet's kept, the project's claimed and emptied. Since E08+E28 C13 the GM draws
+       the sheet's roll too, and writes it naming nobody - its card kept, not hidden. The Work is
+       paid for first, as the action pays before its roll: since fix r2-H1 the GM draws a roll
+       only for an action whose payment it saw. */
+    const twoRolls = await p1.eval(`
+        const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        if (actionsLeft(actor) < 1) await automatedUpdate(actor, { "system.resources.actions.value": 1 });
+        await spendAction(actor, 1, { quiet: true });
+        const thrown = actor.rollTrait;
+        let held = false, letGo = null;
+        const shut = new Promise(resolve => { letGo = resolve; });
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
+        actor.rollTrait = async (dh, config) => { held = true; await shut; return thrown.call(actor, dh, config); };
+        try {
+            const pending = A.rollTrait(actor, "body", { remember: false, actionKey: "project", title: game.i18n.localize("DRPG.Roll.project") });
+            const end = Date.now() + 6000;
+            while (!held && Date.now() < end) await new Promise(r => setTimeout(r, 50));
+            const sheet = held ? (await thrown.call(actor, "agility", {}))?.message?.id ?? null : null;
+            letGo();
+            const project = (await pending)?.raw?.message?.id ?? null;
+            return { held, sheet, project };
+        } finally { letGo(); delete actor.rollTrait; }
+    `, { timeout: 60000 });
+    await settle(400);
+    const twoOnGm = await gm.eval(`
+        const read = id => { const m = game.messages.get(id); return m ? { claimed: Boolean(m.getFlag("${MOD}", "supersededRoll")), drawn: m.getFlag("${MOD}", "drawn") === true, actor: m.speaker?.actor ?? null } : null; };
+        return { sheet: read(${JSON.stringify(twoRolls.sheet)}), project: read(${JSON.stringify(twoRolls.project)}) };
+    `);
+    check("PRIVACY: a statistic Aiko throws off her sheet while a Work on Project window is open keeps its card, and the project's roll is the one claimed (S02-45)",
+        twoRolls.held === true && twoOnGm.sheet?.claimed === false && twoOnGm.sheet.drawn && twoOnGm.sheet.actor === null
+            && twoOnGm.project?.claimed === true && twoOnGm.project.actor === null,
+        JSON.stringify({ twoRolls, twoOnGm }));
+
+    /* WHO HEADS A DRAWN STATISTIC'S CARD (E08+E28 fix r2-H4, 05.10.2026; review S2-2; the owner's note of
+       27.09: the card shows the roller's character to everyone allowed, and nobody is ever shown "the GM
+       rolled"). The GM's message names no actor, so Daggerheart heads its card with its author, the GM;
+       each browser that reads it draws the header again with Aiko (private-rolls.mjs `signAsRoller`). Cards
+       are drawn by `renderHTML`, the harness's model of Daggerheart 2.10.5's header (client-entry.mjs), with
+       Aiko given a portrait of her own for the phase. p1 draws her card the moment the GM's message arrives,
+       as her log does while the draw is still out (her open claim), and again after the answer; the GM and
+       p2 after it. Then with rolls not forced private every browser reads the card, and p2 learns whose it
+       is from the GM's `dice.show`, which asks p2's log to draw the card again (`__chatRedrawn`). */
+    phase("a drawn statistic's header");
+    const PORTRAIT = "icons/svg/skull.svg";
+    await gm.eval(`const a = game.actors.get("${ids.aiko}"); globalThis.__headImg = a.img; await a.update({ img: "${PORTRAIT}" }); return true;`);
+    await settle(200);
+    const HEAD = `async m => {
+        if (!m) return null;
+        const li = await m.renderHTML();
+        const text = s => li.querySelector(s)?.textContent.trim() ?? null;
+        return { hidden: li.style.display === "none", portrait: li.querySelector(".message-header .portrait img")?.getAttribute("src") ?? null,
+            heading: text(".message-header-main > h4"), line: text(".message-header .subtitle .name") };
+    }`;
+    const ROLL_HEADED = trait => `
+        const head = ${HEAD};
+        let first = null;
+        const hook = Hooks.on("createChatMessage", m => { if (!first && m.getFlag("${MOD}", "drawn")) first = head(m); });
+        try {
+            const cfg = await game.actors.get("${ids.aiko}").rollTrait("${trait}", {});
+            return { id: cfg?.message?.id ?? null, first: await first };
+        } finally { Hooks.off("createChatMessage", hook); }`;
+    const HEAD_OF = id => `return await (${HEAD})(game.messages.get(${JSON.stringify(id)}));`;
+    const headed = await p1.eval(ROLL_HEADED("presence"), { timeout: 60000 });
+    await settle(400);
+    const heads = { p1: await p1.eval(HEAD_OF(headed.id)), gm: await gm.eval(HEAD_OF(headed.id)), p2: await p2.eval(HEAD_OF(headed.id)) };
+    const aikos = h => h?.hidden === false && h.portrait === PORTRAIT && h.heading === "Aiko Hoshino" && h.line === "";
+    check("PRIVACY: Aiko's drawn statistic is headed by Aiko on her screen - as it arrives and after - and on the GM's, never by the GM; p2 is drawn no card (S2-2)",
+        Boolean(headed.id) && aikos(headed.first) && aikos(heads.p1) && aikos(heads.gm) && heads.p2?.hidden === true,
+        JSON.stringify({ headed, heads }));
+    await gm.eval(`await game.settings.set("${MOD}", "forcePrivateRolls", false); return true;`);
+    await p2.eval(`globalThis.__chatRedrawn = []; return true;`);
+    await settle(200);
+    const open = await p1.eval(ROLL_HEADED("finesse"), { timeout: 60000 });
+    await settle(400);
+    const onP2Open = await p2.eval(`const h = await (${HEAD})(game.messages.get(${JSON.stringify(open.id)}));
+        return { ...h, redrawn: (globalThis.__chatRedrawn ?? []).filter(id => id === ${JSON.stringify(open.id)}).length };`);
+    await gm.eval(`await game.settings.set("${MOD}", "forcePrivateRolls", true);
+        await game.actors.get("${ids.aiko}").update({ img: globalThis.__headImg }); return true;`);
+    await settle(200);
+    check("PRIVACY: with rolls not forced private p2 reads Aiko's drawn statistic headed by Aiko, as the GM's dice packet names her, and its log draws it again (S2-2)",
+        Boolean(open.id) && aikos(onP2Open) && onP2Open.redrawn === 1, JSON.stringify({ open, onP2Open }));
 
     // --- inventory carry limit (Gear = 2 shared slots) ---
     phase("inventory");
