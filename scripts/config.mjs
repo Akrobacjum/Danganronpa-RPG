@@ -1891,6 +1891,11 @@ export const HOPE_CALLS = {
          *
          * So `needsGm` makes the player write what they intend and sends it for
          * approval; the Hope is charged when the GM says yes, and not before.
+         * And the Call is armed only with that yes (E29 fix r2-H4, 05.10.2026):
+         * the primary GM keeps the yes a GM gives on the card for that one
+         * purchase, and a player's `call.arm` of a `needsGm` Call takes it
+         * (bridge-guards.mjs `guardArmGmYes`). Until then only the asking browser
+         * waited for the ruling, and a console armed both with none asked.
          */
         needsGm: true,
         label: "Ultimate", icon: "fa-star", cost: 1, target: "none", grants: "advantage",

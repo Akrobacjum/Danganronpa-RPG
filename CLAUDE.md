@@ -242,9 +242,10 @@ bonus and dice, each action's situation, Breakdown, a hindering Call armed long
 enough before the roll), and what the roller's window configured is a claim: a
 difference is recorded on the roll (`game.drpg.rollFlags()`), whispered to the GMs
 and named on a card to the roller, and never counted. The Calls that change a roll
-are bought on the primary GM (`call.arm`, which takes the Hope there), so a drawn
-roll applies only the Calls the GMs hold armed, and a Reroll throws again from what
-the GM counted (the record's `scored`), never from a claim.
+are bought on the primary GM (`call.arm`, which takes the Hope there - an Experience
+or an Ultimate only with the yes a GM gave on its card, which the primary keeps), so
+a drawn roll applies only the Calls the GMs hold armed, and a Reroll throws again
+from what the GM counted (the record's `scored`), never from a claim.
 
 The sheet is the other half of layer two (E29). A player's writes on a student
 they own - its resources, statistics, maxima, rules and bonuses, the module's

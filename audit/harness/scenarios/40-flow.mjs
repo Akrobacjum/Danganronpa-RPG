@@ -363,7 +363,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             if (!hit) continue;
             const rid = hit[1].match(/data-rid="([^"]+)"/)?.[1]; const asker = hit[1].match(/data-asker="([^"]+)"/)?.[1];
             const B = await import("${REPO}/scripts/gm-bridge.mjs");
-            const sent = B.answerHopeCall(rid, asker, true);
+            const sent = await B.answerHopeCall(rid, asker, true);
             return { found: true, sent, rid, asker, text: html.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 200) };
         }
         return { found: false, n: msgs.length };`, { timeout: 30000 });
@@ -404,7 +404,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
                 const hit = S.contentOf(m).match(/data-drpg-call="approveCall"([^>]*)>/);
                 if (!hit) continue;
                 const rid = hit[1].match(/data-rid="([^"]+)"/)?.[1], asker = hit[1].match(/data-asker="([^"]+)"/)?.[1];
-                return { found: true, sent: B.answerHopeCall(rid, asker, true) };
+                return { found: true, sent: await B.answerHopeCall(rid, asker, true) };
             }
             return { found: false };`, { timeout: 30000 });
         const bought = await ownAsk;

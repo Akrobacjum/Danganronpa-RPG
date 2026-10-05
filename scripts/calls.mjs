@@ -180,10 +180,14 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
          * a socket message and waiting for your own dialog works, and is a
          * needlessly long way round to open the dialog directly.
          */
+        // The purchase's own name, sent with the ask and again with the arm: the GM's yes to a
+        // Call that waits for one is kept on the primary for it, and the arm takes it there
+        // (E29 fix r2-H4; bridge-guards.mjs `guardArmGmYes`).
+        const nonce = foundry.utils.randomID();
         if (call.needsGm) {
             const ask = {
                 actorId: actor.id, actorName: actor.name, key,
-                callLabel: call.label, effect: callEffect(call), cost: call.cost, note
+                callLabel: call.label, effect: callEffect(call), cost: call.cost, note, nonce
             };
 
             /*
@@ -260,7 +264,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
 
         // Do the thing, not just charge for it.
         const { applyCall } = await import("./call-effects.mjs");
-        const { lines: done, failed } = await applyCall(actor, key, "hope", choice);
+        const { lines: done, failed } = await applyCall(actor, key, "hope", choice, { nonce });
 
         if (failed && gmPays) {
             ui.notifications.warn(game.i18n.format("DRPG.Calls.notArmedNotCharged", { call: call.label }));

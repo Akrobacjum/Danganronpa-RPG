@@ -2551,6 +2551,7 @@
         "observe.target": "Wybór celu Observe",
         "cleanup.traces": "Ślady w zasięgu",
         "call.approve": "Zgoda na Hope Call",
+        "call.yes": "Zgoda GM-a na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",
         "trait.ruling": "Wybór statystyki przez GM-a",
         "trap.event": "Zgłoszenie dla pułapek",
@@ -2621,6 +2622,7 @@
         "notPaid": "Klient GM-a nie widział zapłaty za akcję tego rzutu. Wykonaj akcję jeszcze raz.",
         "rollThrown": "Rzut tej akcji już padł.",
         "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call.",
+        "callNotApproved": "Klient GM-a nie ma zgody GM-a na ten Call. Poproś o nią jeszcze raz.",
         "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",

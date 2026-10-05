@@ -177,6 +177,72 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("control: the GM took the Support's price from Botan once",
         armOk.hope === arm.before.hope - 1, JSON.stringify({ before: arm.before.hope, after: armOk.hope }));
 
+    /* 4b2. A CALL THAT WAITS FOR THE GM'S YES, FROM p1'S CONSOLE (E29 fix r2-H4, 05.10.2026; the round-2
+       reviews' sec M4 and cor M1, their probe 98 Q1). Aiko at 3 Hope, her armed list emptied (4b's control left
+       a Support on it, which an Ultimate's advantage would meet first), and p1 sends what its own browser never
+       sends: an arm of an Ultimate and of an Experience with no ruling asked; the ask of an Experience, which puts
+       the card up in p1's thread; p1's own yes to that ask (`call.yes`); and the arm the ask named. Read on the
+       GM: Aiko's Hope, her armed list in the document and in the GMs' mark, and the refusals it logged - two
+       rows, the three arms' one sentence kept once with its count (utils.mjs `record`; a first run of this check
+       counted rows, 05.10.2026, and read 2 where it expected 4); on p1, every answer to the three arms and the
+       yes. Her list and Hope are put back after. Until this fix the first two were armed and paid, Hope 3 -> 1,
+       and nothing was told. */
+    phase("a Call that waits for the GM's yes", { flow: "hope-call" });
+    const yesWas = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await a.update({ "system.resources.hope.value": 3 });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        return was;`);
+    let yesRoad = null;
+    try {
+        const told = await p1.eval(`
+            const got = [], mine = ["SECH4ULTIMATE", "SECH4EXPERIENCE", "SECH4ASK", "SECH4OWNYES", "SECH4ASKED"];
+            const on = payload => {
+                if (!mine.includes(payload?.requestId) || payload.userId !== game.user.id) return;
+                if (payload.action === "bridge.refused" || payload.action === "bridge.done") got.push([payload.requestId, payload.action, payload.reason ?? null]);
+            };
+            game.socket.on("${SOCKET}", on);
+            const toGms = { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) };
+            const arm = (key, grants, nonce) => ({ action: "call.arm", actorId: "${ids.aiko}", call: { key, kind: "hope", grants, from: "${ids.aiko}", nonce } });
+            for (const [requestId, packet] of [
+                ["SECH4ULTIMATE", arm("ultimate", "advantage", "SECH4ULTIMATE01")],
+                ["SECH4EXPERIENCE", arm("experience", "experience", "SECH4EXPERIENCE01")],
+                ["SECH4ASK", { action: "call.approve", actorId: "${ids.aiko}", key: "experience", note: "SEC H4", nonce: "SECH4EXPERIENCE02" }],
+                ["SECH4OWNYES", { action: "call.yes", rid: "SECH4ASK", asker: game.user.id }],
+                ["SECH4ASKED", arm("experience", "experience", "SECH4EXPERIENCE02")]
+            ]) {
+                game.socket.emit("${SOCKET}", { ...packet, userId: game.user.id, requestId }, toGms);
+                await new Promise(r => setTimeout(r, 1500));
+            }
+            game.socket.off?.("${SOCKET}", on);
+            return got;`, { timeout: 60000 });
+        await settle(600);
+        const after = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const a = game.actors.get("${ids.aiko}"), keys = v => (Array.isArray(v) ? v : v ? [v] : []).map(e => e?.key ?? null);
+            return { hope: a.system.resources.hope.value, doc: keys(a.getFlag("${MOD}", "pendingCall")),
+                mark: keys(S.sheetMarkStore.get("${ids.aiko}")?.flags?.pendingCall),
+                logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+                    .filter(e => /Refused a "call\\.(arm|yes)"/.test(e.message)).map(e => [e.message, e.count]) };`);
+        yesRoad = { told, after };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(yesWas)};
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hope.value": was.hope });
+            if (was.calls) await a.setFlag("${MOD}", "pendingCall", was.calls); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("SECURITY: p1's console arms no Ultimate or Experience without a GM's yes, and its own yes is no GM's - each refused and told, nothing paid or armed",
+        Boolean(yesRoad) && JSON.stringify(yesRoad.told) === JSON.stringify([
+            ["SECH4ULTIMATE", "bridge.refused", "callNotApproved"], ["SECH4EXPERIENCE", "bridge.refused", "callNotApproved"],
+            ["SECH4OWNYES", "bridge.refused", "gmOnly"], ["SECH4ASKED", "bridge.refused", "callNotApproved"]])
+            && yesRoad.after.hope === 3 && !yesRoad.after.doc.length && !yesRoad.after.mark.length && yesRoad.after.logged.length === 2
+            && yesRoad.after.logged.some(([m, n]) => /"call\.arm".*: no GM's yes stands for that Call/.test(m) && n === 3)
+            && yesRoad.after.logged.some(([m, n]) => /"call\.yes".*: only a GM says yes to a Call/.test(m) && n === 1),
+        JSON.stringify(yesRoad), { flow: "hope-call" });
+
     // 4c. murder.crisis: p1 throws the finishing blow as Botan, the killer.
     //     The incident is opened the way 13-murder-signals opens one; the killer's
     //     player sits still so an opening roll cannot race the GM's.

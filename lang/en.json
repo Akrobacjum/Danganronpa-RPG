@@ -2463,6 +2463,7 @@
         "advancement.offer": "Level Up offer",
         "advancement.ask": "Your Level Up offers",
         "call.approve": "Hope Call approval",
+        "call.yes": "A GM's yes to a Hope Call",
         "dynamic.difficulty": "Dynamic action difficulty",
         "trait.ruling": "The GM's pick of a statistic",
         "trap.event": "A report for the traps",
@@ -2533,6 +2534,7 @@
         "notPaid": "The GM's client saw no action paid for that roll. Take the action again.",
         "rollThrown": "That action's roll has been thrown already.",
         "callNotPaid": "The GM's client saw no Hope paid for that Call.",
+        "callNotApproved": "The GM's client holds no GM's yes for that Call. Ask for it again.",
         "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",

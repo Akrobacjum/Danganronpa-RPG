@@ -5814,6 +5814,65 @@ const SCENARIOS = [
             "a Call on the buyer's own character was paid or armed with too little Hope, not paid and armed by the GM with enough, or kept the packet's time (per ask: answer, reason, Hope after, entry armed and its time the GM's)");
     }],
 
+    ["a Call that waits for the GM's yes is armed only with the one the primary kept for it, once, and only a GM says it", async () => {
+        /*
+         * E29 fix r2-H4, 05.10.2026; the round-2 reviews' sec M4 and cor M1. Since C8 the GM arms a player's
+         * Call on the buyer's own character (`call.arm`), and an Experience or an Ultimate - a Call that waits
+         * for a GM's ruling (config.mjs `needsGm`) - was armed and paid with no ruling asked: the review's
+         * probe armed both from p1's console, Hope 3 -> 1. A player's Experience for their own character at 3
+         * Hope, each packet handed to the bridge's runner with the player's id: an arm with no ask; the ask
+         * (`call.approve`, which puts the card up), the player's own yes to it (`call.yes`) and the arm it
+         * names; this GM's yes on the card (`answerHopeCall`) and the same arm; that arm once more after its
+         * entry is spent. Read per arm: the answer and its reason, the Hope after, whether that purchase is
+         * armed; then the ask's answer, the player's yes's reason and this GM's. Until this fix every arm was
+         * armed and paid.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the purchase is asked by a player, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which keeps a GM's yes - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const E = await import("./call-effects.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = theirs.system.resources.hope.value;
+        must(!E.armedCallsShown(theirs).some(c => c.grants === "experience"), `${theirs.name} already holds an Experience - a second is refused for that, and this would measure it`);
+        const judged = async (action, fields, requestId) => {
+            const sent = [];
+            await G.judge(B.BRIDGE_ACTIONS, { action, requestId, ...fields }, player.id, { send: (to, reply) => sent.push(reply) });
+            await settle();
+            return sent.find(r => r?.action === "bridge.refused" || r?.action === "bridge.done") ?? null;
+        };
+        const nonces = ["E29H4EXPERIENCE1", "E29H4EXPERIENCE2"], read = [];
+        const arm = async (nonce, n) => {
+            const answer = await judged("call.arm", { actorId: theirs.id,
+                call: { key: "experience", kind: "hope", grants: "experience", from: theirs.id, nonce } }, `E29H4ARM${n}`);
+            read.push([answer?.action ?? null, answer?.reason ?? null, theirs.system.resources.hope.value,
+                E.armedCallsShown(theirs).some(c => c.nonce === nonce)]);
+        };
+        try {
+            await trustedWrite(theirs, { [HOPE]: 3 }, { reason: "gmRuling" });
+            await arm(nonces[0], 1);
+            const asked = await judged("call.approve", { actorId: theirs.id, key: "experience", note: "E29 fix r2-H4", nonce: nonces[1] }, "E29H4ASKED000001");
+            const ownYes = await judged("call.yes", { rid: "E29H4ASKED000001", asker: player.id }, "E29H4OWNYES00001");
+            await arm(nonces[1], 2);
+            const gmYes = await B.answerHopeCall("E29H4ASKED000001", player.id, true);
+            await arm(nonces[1], 3);
+            await E.consumeCallsByNonce(theirs, [nonces[1]]);
+            await arm(nonces[1], 4);
+            read.push([asked?.action ?? "waits for the card", ownYes?.reason ?? null, gmYes]);
+        } finally {
+            await E.consumeCallsByNonce(theirs, nonces);
+            if (theirs.system.resources.hope.value !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+        }
+        equal(stableJson(read), stableJson([
+            ["bridge.refused", "callNotApproved", 3, false], ["bridge.refused", "callNotApproved", 3, false],
+            ["bridge.done", null, 2, true], ["bridge.refused", "callNotApproved", 2, false],
+            ["waits for the card", "gmOnly", true]
+        ]), "an Experience was armed with no GM's yes, with the player's own, twice on one yes, or not on this GM's (per arm: answer, reason, Hope after, armed; then the ask's answer, the player's yes's reason, this GM's yes)");
+    }],
+
     ["a drawn roll applies only the Calls the GMs hold armed: a Loaded Die a player's browser wrote is put back and not loaded", async () => {
         /*
          * E29 C8, 05.10.2026; the plan's 1.5 item 5, fix r2-H8's H8-6. The GM drew a roll with every

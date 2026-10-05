@@ -227,7 +227,7 @@ export function alreadyArmed(actor, call) {
  * With no GM connected the bridge says so (`noGm`), and nothing is armed or paid. A GM - a
  * Monokuma, a Monocub's Meddle resolved on the GM - writes it directly.
  */
-export async function armCall(actor, { key, kind, grants, amount = null, from = null }) {
+export async function armCall(actor, { key, kind, grants, amount = null, from = null, nonce = null }) {
     if (!actor || !grants) return null;
 
     // `amount` only means something for `grants: "bonus"` - Monocub's Meddle is
@@ -236,8 +236,9 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     // small, boring change rather than a bonus-specific code path.
     // `nonce` names this one purchase. The Loaded Die is spent by the first roll
     // that throws it, and two windows opened on the same Call carry the same
-    // name - see `LOADED_DIE` in forced-roll.mjs.
-    const payload = { key, kind, grants, amount, from, nonce: foundry.utils.randomID() };
+    // name - see `LOADED_DIE` in forced-roll.mjs. A Hope Call's is its buyer's,
+    // the name its GM's yes was kept for (E29 fix r2-H4; calls.mjs `spendHopeCall`).
+    const payload = { key, kind, grants, amount, from, nonce: nonce ?? foundry.utils.randomID() };
 
     if (!game.user?.isGM) {
         // Answered now, not just sent (E03): the GM charges the buyer and may
@@ -812,7 +813,7 @@ class NothingToDo extends Error {}
  * -------------------------------------------------------------------------- */
 
 // --- effects that arm the next roll ---
-async function grantEffect(actor, call, choice, done, { key, kind }) {
+async function grantEffect(actor, call, choice, done, { key, kind, nonce = null }) {
     // Support and Approval arm someone else; the rest arm the caller.
     const beneficiary = choice.target ?? actor;
 
@@ -824,7 +825,7 @@ async function grantEffect(actor, call, choice, done, { key, kind }) {
         throw new NothingToDo(`${beneficiary.name} already holds ${call.key}`);
     }
 
-    const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id });
+    const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id, nonce });
 
     // `armCall` returns null when the flag could not be written - no GM
     // online to forward it, or the write itself failed. Announcing it
@@ -1123,13 +1124,14 @@ async function destroyItemEffect(actor, call, choice, done) {
  * @param {string} key
  * @param {"hope"|"despair"} kind
  * @param {object} choice  { target, project, room, item } from the picker.
+ * @param {object} [opts]  { nonce }: the purchase's own name, the one its GM's yes was kept for.
  * @returns {Promise<{lines: string[], failed: boolean}>} what happened, and
  *   whether the Call delivered nothing - in which case the caller must hand the
  *   price back. A Call that has been paid for and did nothing is a theft: the
  *   Reroll costs 3 Hope, and "there was nothing to reroll" used to keep all
  *   three of them.
  */
-export async function applyCall(actor, key, kind, choice = {}) {
+export async function applyCall(actor, key, kind, choice = {}, { nonce = null } = {}) {
     const call = kind === "despair" ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return { lines: [], failed: true };
 
@@ -1137,7 +1139,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
 
     try {
         // The branches, in the order they have always run.
-        if (call.grants) await grantEffect(actor, call, choice, done, { key, kind });
+        if (call.grants) await grantEffect(actor, call, choice, done, { key, kind, nonce });
         if (call.grantsHope && choice.target) await hopeFromDespairEffect(actor, call, choice, done);
         if (call.feedsOverflow) await feedOverflowEffect(actor, call, choice, done);
         if (call.damage && choice.target) await damageEffect(actor, call, choice, done);
