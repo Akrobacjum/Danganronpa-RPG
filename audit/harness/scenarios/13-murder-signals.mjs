@@ -29,7 +29,8 @@
  * the player's browser, the menu (E32+E07 C15, 1c). A trap's card opens the GM's murder
  * window on the student the trap read, and opens nothing until the GM confirms (E32+E07 C14, part 2).
  * The GM's tracker names whose opening roll it waits for, and lists the fight's last turns, which
- * no participant's copy holds (E32+E07 C17, 0 and 1d).
+ * no participant's copy holds (E32+E07 C17, 0 and 1d). What the killer's own browser writes in the
+ * fight names to a bystander's hooks only a reason the GMs' audit reads (E29 fix r1-G7, 1c).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -577,6 +578,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return (await INV.grantItem(game.actors.get("${ids.chie}"), { name: "Suite tool snapped in the fight", category: "tool", tier: 0 }))?.id ?? null;`, { timeout: 60000 });
     await settle(600);
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
+    /* What p2's own hooks receive of the writes on Chie and her items from here (E29 fix r1-G7: read below). */
+    await p2.eval(`const seen = globalThis.__g7Seen = [];
+        const row = (kind, d, o, u) => ({ kind, id: d.id, user: u ?? null, stamp: o?.drpgWrite ?? null });
+        globalThis.__g7Hooks = [
+            ["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (d.id === "${ids.chie}") seen.push(row("updateActor", d, o, u)); })],
+            ["updateItem", Hooks.on("updateItem", (d, c, o, u) => { if (d.parent?.id === "${ids.chie}") seen.push(row("updateItem", d, o, u)); })]];
+        return true;`);
     const broke = await p3.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
         const a = game.actors.get("${ids.chie}"); const had = new Set(game.messages.contents.map(m => m.id));
         const name = await U.breakOnDespair(a, a.items.get("${toolId}"), { withFear: true, isCritical: false });
@@ -597,6 +605,32 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         && brokeSeen.killer.held && [brokeSeen.victim, brokeSeen.bystander].every(r => r.words === 0 && !r.held)
         && brokeSeen.bystander.docs === 1 && brokeSeen.bystander.veiled && !brokeSeen.bystander.named && brokeSeen.bystander.everybody,
         JSON.stringify({ toolId, broke, brokeSeen }));
+
+    /* WHAT A BYSTANDER'S BROWSER READS OF THE KILLER'S OWN WRITES (E29 fix r1-G7, 05.10.2026; the
+       round-1 security review's M2). The tool's wear above was written on p3's browser, and so is a
+       clean-up's concealment Sanity (cleanup.mjs `markResolutionStress`, called here as
+       `concealFromWitnesses` calls it on the killer's browser, on a track the GM clears first);
+       p2's hooks kept the options of both as they arrived (the harness forwards them; whether a
+       real Foundry does is LIVE-E29-01). A player's write names only a reason the GMs' audit reads
+       off it (resource-guard.mjs `stampOf`): the Sanity `price`, the wear none. Red before the
+       fix (C8's runtime, 05.10): `itemWear` with the tool's id on the wear, `concealment` on the
+       Sanity. Chie's Sanity is put back. */
+    const sanityWas = await gm.eval(`const a = game.actors.get("${ids.chie}"), was = a.system.resources.stress.value;
+        await a.update({ "system.resources.stress.value": 0 }); return was;`);
+    await settle(300);
+    const marked = await p3.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
+        return await C.markResolutionStress(game.actors.get("${ids.chie}"));`, { timeout: 30000 });
+    await settle(600);
+    const killerSeen = await p2.eval(`for (const [name, id] of globalThis.__g7Hooks ?? []) Hooks.off(name, id);
+        const seen = (globalThis.__g7Seen ?? []).filter(w => w.user === "${p3.userId}"); delete globalThis.__g7Seen; delete globalThis.__g7Hooks; return seen;`);
+    await gm.eval(`await game.actors.get("${ids.chie}").update({ "system.resources.stress.value": ${Number(sanityWas) || 0} }); return true;`);
+    {
+        const wear = killerSeen.filter(w => w.kind === "updateItem" && w.id === toolId), sanity = killerSeen.filter(w => w.kind === "updateActor");
+        check("p2, a bystander: the killer's own browser's writes in the fight name only a reason the GMs' audit reads - a concealment's Sanity `price`, a tool's wear none",
+            marked === true && wear.length > 0 && wear.every(w => w.stamp === null)
+                && sanity.length === 1 && JSON.stringify(sanity[0].stamp) === JSON.stringify({ reason: "price", ref: null }),
+            JSON.stringify({ marked, killerSeen }));
+    }
 
     /* A USE IN THE FIGHT, AND A BYSTANDER'S, EACH FROM ITS PLAYER'S OWN BROWSER (E06 fix r2-G2,
        28.09.2026; review round 2's MJ2 and m6). The victim takes "Use an item" with a tier 1 kit

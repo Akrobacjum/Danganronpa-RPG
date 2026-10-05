@@ -24109,7 +24109,9 @@ const SCENARIOS = [
            both, named `rest`; the action's spend stays its own write, named `spend`. A Short
            Rest with Meal, its window answered here and the room waived (the room is not what is
            measured). Red before C1: three writes - the spend, the Sanity, the stamp - none
-           naming a reason. */
+           naming a reason. Since E29 fix r1-G7 a GM's write names no reason (nothing judges it:
+           resource-guard.mjs `stampOf`), so on this GM the two writes go unnamed; a player's Rest
+           named `rest` beside its `spend` is read on p1's browser (40-flow). */
         const [student] = cast(1);
         const { takeRest } = await import("./rest.mjs");
         const D = foundry.applications.api.DialogV2;
@@ -24134,9 +24136,43 @@ const SCENARIOS = [
             else delete D.wait;
         }
         equal(stableJson([Boolean(rest), student.system.resources.stress.value, writes]), stableJson([true, 1, [
-            { paths: ["system.resources.actions.value"], stamp: { reason: "spend", ref: null } },
-            { paths: [`flags.${MODULE_ID}.${FLAGS.restsTaken}.short`, "system.resources.stress.value"], stamp: { reason: "rest", ref: null } }
-        ]]), "a Short Rest's Sanity and its stamp are not one write named rest, beside the action's spend");
+            { paths: ["system.resources.actions.value"], stamp: null },
+            { paths: [`flags.${MODULE_ID}.${FLAGS.restsTaken}.short`, "system.resources.stress.value"], stamp: null }
+        ]]), "a Short Rest's Sanity and its stamp are not one write beside the action's spend, or a GM's write named its reason");
+    }],
+
+    ["a GM's module write names no reason but the audit's own", async () => {
+        /* E29 fix r1-G7, 05.10.2026; the round-1 security review's M2. A write's options reach every
+           browser that holds the document, and the GMs' audit reads a reason only off a player's
+           write (sheet-audit.mjs), so a GM's write names none - but the audit's own put-back and
+           Undo, which the audit tells apart from every other GM's write (resource-guard.mjs
+           `stampOf`). Every reason of the closed list through each of the three roads, on this GM,
+           handed to a stand-in document that keeps the options it is given and writes nothing: the
+           module's marker on all sixty, `HOPE_REFUND` on the three refunds, a reason and its `ref`
+           on the audit's six alone. The roads are called by other names so that R220, which reads
+           every call of a road in the suite for a literal reason, does not read this loop over the
+           whole list as a write that names none. Red before the fix (C8's runtime, 05.10): every
+           one named its reason, as C1's `stampOf` stamped it.
+           What a player's write names is read on a player's browser (13-murder-signals), and what a
+           bystander's browser reads of the incident's writes in 10-murder. */
+        const { trustedWrite: write, trustedCreate: create, trustedDelete: drop, WRITE_REASONS, WRITE_STAMP, HOPE_REFUND } =
+            await import("./resource-guard.mjs");
+        const sent = [];
+        const stand = {
+            update: async (changes, options) => sent.push(["write", options]),
+            createEmbeddedDocuments: async (name, data, options) => sent.push(["create", options]),
+            delete: async options => sent.push(["delete", options])
+        };
+        for (const reason of WRITE_REASONS) {
+            await write(stand, {}, { reason, ref: "SUITEref" });
+            await create(stand, [], { reason, ref: "SUITEref" });
+            await drop(stand, { reason, ref: "SUITEref" });
+        }
+        const named = sent.filter(([, options]) => WRITE_STAMP in options).map(([road, options]) => [road, options[WRITE_STAMP]]);
+        equal(stableJson([sent.length, sent.every(([, options]) => options.drpgAutomated === true),
+            sent.filter(([, options]) => options[HOPE_REFUND] === true).length, named]),
+            stableJson([60, true, 3, ["auditPutBack", "auditUndo"].flatMap(reason => ["write", "create", "delete"].map(road => [road, { reason, ref: "SUITEref" }]))]),
+            `a GM's module write named a reason nothing judges, or the audit's own went without one: ${stableJson(named)}`);
     }],
 
     ["a GM still sets a student up", async () => {

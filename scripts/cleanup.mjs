@@ -2610,6 +2610,14 @@ async function handBack(actor, price, amount = 1, receipt = null) {
  * failure. The clean-up's `spendStress` below swallows the error; the
  * incident's (murder.mjs) lets it surface and pays in Health when the track
  * is full. Both used to carry their own copy of this line.
+ *
+ * A PRICE (E29 fix r1-G7, 05.10.2026; the round-1 security review's M2). It named
+ * `concealment`, and a bystander's browser read that word on the killer's Sanity -
+ * written on the GM for a crisis action and a clean-up's or a Stage 6 attempt's price,
+ * on the killer's own browser for a concealment roll (`concealFromWitnesses`). A rise of
+ * marks stands without a judge, so it names what it is, the action's price, which says
+ * nothing of who is in the incident; from a GM no reason goes at all (resource-guard.mjs
+ * `stampOf`).
  */
 export async function markResolutionStress(actor) {
     const marks = resourceValue(actor, "stress");
@@ -2617,7 +2625,7 @@ export async function markResolutionStress(actor) {
     if (marks >= max) return false;
     await trustedWrite(actor, {
         "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
-    }, { reason: "concealment" });
+    }, { reason: "price" });
     return true;
 }
 

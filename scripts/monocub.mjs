@@ -277,7 +277,9 @@ export async function performMeddle(actor, targetId, help) {
     }
 
     if (!await spendAction(actor, def.cost)) return null;
-    await trustedWrite(actor, { "system.resources.hope.value": hope - def.hopeCost }, { reason: "meddle" });
+    // A price (E29 fix r1-G7): a player's write names only a reason the GMs' audit reads off it
+    // (resource-guard.mjs `stampOf`), and it reads this Hope as it reads every price paid.
+    await trustedWrite(actor, { "system.resources.hope.value": hope - def.hopeCost }, { reason: "price" });
 
     // The GM throws the dice and scores them (`meddleOnGm`); its answer is the roll, which the
     // card shows here as this Monocub's. Not answered (refused, no GM, a roll that is not one):

@@ -209,11 +209,15 @@ function prune(node) {
 
 /**
  * Why the module wrote, in one closed list (E29 C1, 05.10.2026; the plan's 2.2). A write
- * names one of these in `options.drpgWrite.reason`; R220 reads the source for a write
- * that names none, or a word not on this list. The GMs' side judges a player's write by
- * the evidence its reason points at - a Rest by the room and the clock, an item's use by
- * the item - and a GM's own write by nothing: GM-side writes name a reason all the same,
- * so the list stays the one place that says what the module writes and why.
+ * names one of these as its `reason`; R220 reads the source for a write that names none,
+ * or a word not on this list. The GMs' side judges a player's write by the evidence its
+ * reason points at - a Rest by the room and the clock, an item's use by the item - and a
+ * GM's own write by nothing: GM-side writes name a reason all the same, so the list stays
+ * the one place that says what the module writes and why. Which reasons leave the writer's
+ * browser is `stampOf`'s (fix r1-G7). `concealment` is named by no write since that fix -
+ * the Sanity it named is a resolution's price (cleanup.mjs `markResolutionStress`) - and
+ * stays on the list the plan and R220 hold; the GMs' judge still reads it, as it reads
+ * whatever a console claims, as a refund (sheet-audit.mjs `REFUNDS`).
  */
 export const WRITE_REASONS = Object.freeze([
     "spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash", "retrieve", "discard",
@@ -221,21 +225,42 @@ export const WRITE_REASONS = Object.freeze([
     "auditPutBack", "auditUndo"
 ]);
 
-/** The option a module write carries: `{ reason, ref }`. */
+/** The option a module write carries where its reason goes with it (`stampOf`): `{ reason, ref }`. */
 export const WRITE_STAMP = "drpgWrite";
 
 /*
+ * WHERE A REASON GOES (E29 fix r1-G7, 05.10.2026; the round-1 security review's M2). A write's
+ * options reach every browser that holds the document - the GMs' audit needs them to, and
+ * whether a real Foundry forwards them is LIVE-E29-01 - and until this fix every module write
+ * carried its reason to all of them. Measured in the harness on 05.10 (10-murder at C8's
+ * runtime): a bystander's browser read `concealment` on the killer's Sanity, `reroll` on her
+ * clean-up's Reroll and `incident` on the victim's sheet and on the gloves the body's discovery
+ * broke - who is in the incident, which E06's rule keeps from a bystander. So a reason leaves
+ * the writer's browser only where a judge reads it. On a player's write that is `JUDGED`: the
+ * reasons the GMs' audit reads off a player's write, to judge it or onto the row it keeps of one
+ * (sheet-audit.mjs); any other reason a road names on a player's browser - a tool's wear on a
+ * Despair - goes as the module's write with no reason. A GM's write is judged by nothing and
+ * names none, but the audit's own put-back and Undo (`AUDIT_OWN`), which the audit tells apart
+ * from every other GM's write.
+ */
+const JUDGED = new Set(["spend", "refund", "price", "call", "rest", "itemUse", "stash", "retrieve", "discard", "searchFind"]);
+const AUDIT_OWN = new Set(["auditPutBack", "auditUndo"]);
+
+/*
  * The options every road stamps. `ref` names the evidence the reason's judge reads - the
- * GMs' record of a Search's roll (its `rollId`, E29 C6), the item a use spent, "relief" for a Relief's free rest - or
- * null. It travels with the update to every browser that receives the document, so it
- * names nothing that browser may not know: no price's action and no Call's key, which a
- * spend, a price and a refund do not need (they are judged on what was paid). `refund`
+ * GMs' record of a Search's roll (its `rollId`, E29 C6), the item a use spent, "relief" for a
+ * Relief's free rest, the Call's key on the grant a Burst or a Sprint gives (C4; `callCovers`
+ * reads it, and the grant's own flag already shows every browser which Call it was: only a
+ * Burst gives free actions, only a Sprint free moves) - or null. It goes where its reason goes,
+ * so it names nothing a browser that receives the document may not know: no price's action,
+ * which a spend, a price and a refund do not need (they are judged on what was paid). `refund`
  * also sets `HOPE_REFUND`, the one marker the Despair darkening lets a Hope rise through.
  * An unlisted reason throws: the roads are async, so it arrives as the write's rejection.
  */
 function stampOf(reason, ref, options) {
     if (!WRITE_REASONS.includes(reason)) throw new Error(`a module write named "${reason}", which is not a reason of WRITE_REASONS`);
-    return { ...options, [SYSTEM_WRITE]: true, [WRITE_STAMP]: { reason, ref: ref ?? null },
+    const goes = game.user?.isGM ? AUDIT_OWN.has(reason) : JUDGED.has(reason);
+    return { ...options, [SYSTEM_WRITE]: true, ...(goes ? { [WRITE_STAMP]: { reason, ref: ref ?? null } } : {}),
         ...(reason === "refund" ? { [HOPE_REFUND]: true } : {}) };
 }
 
