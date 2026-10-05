@@ -1214,7 +1214,7 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     // Not a guard, and asked before the three below: it answers "armed" rather
     // than refusing, and a purchase already paid for can fail the Hope check it
     // passed the first time.
-    const { appendArmedCall, pendingCalls, hopeHeld, automatedUpdate, HOPE_REFUND } = prepared;
+    const { appendArmedCall, pendingCalls, hopeHeld, trustedWrite } = prepared;
     const nonce = String(payload.call.nonce ?? "").slice(0, 32);
     if (nonce && pendingCalls(actor).some(entry => entry.nonce === nonce)) return { reply: { ok: true, left: null } };
 
@@ -1226,13 +1226,13 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     if (why) return { refused: why };
     const held = hopeHeld(buyer);
 
-    await automatedUpdate(buyer, { "system.resources.hope.value": held - call.cost });
+    await trustedWrite(buyer, { "system.resources.hope.value": held - call.cost }, { reason: "call" });
     try {
         await appendArmedCall(actor, armedEntry(payload.call, call, "hope"));
     } catch (err) {
         error(`Could not arm ${payload.call.key} on ${actor.name}; the Hope goes back`, err);
         const now = hopeHeld(buyer);
-        await automatedUpdate(buyer, { "system.resources.hope.value": now + call.cost }, { [HOPE_REFUND]: true });
+        await trustedWrite(buyer, { "system.resources.hope.value": now + call.cost }, { reason: "refund" });
         return { refused: "the Call could not be armed" };
     }
     debug(`Armed ${payload.call.key} on ${actor.name}, paid by ${buyer.name} on this side.`);
@@ -1786,7 +1786,7 @@ export const BRIDGE_ACTIONS = table({
             return {
                 actor: game.actors.get(payload?.actorId ?? ""),
                 appendArmedCall: effects.appendArmedCall, pendingCalls: effects.pendingCalls,
-                hopeHeld: calls.hopeHeld, automatedUpdate: guard.automatedUpdate, HOPE_REFUND: guard.HOPE_REFUND
+                hopeHeld: calls.hopeHeld, trustedWrite: guard.trustedWrite
             };
         },
         sanitize: pick({ actorId: as.id, call: as.raw }),
@@ -2372,7 +2372,7 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
 /**
  * A player's Level Up picks, sent to the GM who offered it (N-2, Dawid 20.09).
  *
- * `applyAdvancement` writes through `automatedUpdate`, which bypasses the resource
+ * `applyAdvancement` writes through `trustedWrite`, which bypasses the resource
  * guard on purpose - so it is GM-only, and it has to stay that way. The player
  * picks; the GM's client checks the offer again and writes.
  */

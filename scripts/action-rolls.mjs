@@ -2118,6 +2118,7 @@ async function grantDrawn(actor, drawn, { category, tier, goalKey }) {
         // exactly what `grantItem` already treats as "use the category icon and
         // the tier line".
         granted = await grantItem(actor, {
+            reason: "searchFind", ref: rollInHand(actor)?.messageId ?? null,
             name: drawn.name, category, tier, goal: goalKey,
             img: drawn.img ?? null, description: drawn.description ?? "",
             // What else it can do, from the table entry it came out of.

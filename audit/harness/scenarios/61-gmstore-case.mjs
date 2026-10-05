@@ -115,6 +115,12 @@
  *      second GM, whose discovery breaks the gloves and takes the row off both.
  */
 export const layers = ["ci"];
+/* Its own bound, not a raise of run-all's shared five minutes (E29 C1, 05.10.2026): this
+   scenario ran 261.5-267.8 s alone through E08+E28 (e08run c10..c19b), 281.1 s in the last
+   whole chain's lane (r2final) and 285.1 s beside two other harness runs (scratchpad m1,
+   05.10.2026) - 15 s under the shared bound, which npm test, the local gate and CI apply. Eight
+   minutes is a hang detector with room for a slower runner; the other scenarios keep five. */
+export const timeoutMs = 480000;
 export const accounts = [
     { who: "gm2", id: "USERGM2000000000", name: "Second GM", role: 4, character: null, color: "#66aaff", late: true },
     { who: "gm3", id: "USERGM3000000000", name: "Third GM", role: 4, character: null, color: "#66ffaa", late: true },
@@ -1837,7 +1843,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        GMs (one row per pool, the newer write kept), Q2 paid on gmb's return a second time. */
     phase("Q: two GMs' conversions from one pool are both owed, and a GM back alone does not pay them again", { flow: "gm-store" });
     const DS = `const D = await import("${repoUrl}/scripts/despair.mjs");
-        const noHope = () => import("${repoUrl}/scripts/resource-guard.mjs").then(m => m.automatedUpdate(game.actors.get("${IDS.botan}"), { "system.resources.hope.value": 0 }));
+        const noHope = () => import("${repoUrl}/scripts/resource-guard.mjs").then(m => m.trustedWrite(game.actors.get("${IDS.botan}"), { "system.resources.hope.value": 0 }, { reason: "gmRuling" }));
         const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
     const readQ = `return { pool: D.getDespair("${GMA}"), owed: D.owedOf("${GMA}"), primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm() };`;
     const q1a = await gma.eval(`${DS} await D.setDespair("${GMA}", 10); await noHope();

@@ -181,7 +181,7 @@ export async function adjustCritHopeTopUp(actor, delta) {
     if (!actor || !delta) return;
     try {
         const { STARTING } = await import("./config.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
 
         const hope = actor.system?.resources?.hope;
         const held = hope?.value ?? 0;
@@ -189,7 +189,7 @@ export async function adjustCritHopeTopUp(actor, delta) {
         const next = Math.min(max, Math.max(0, held + delta));
         if (next === held) return;
 
-        await automatedUpdate(actor, { "system.resources.hope.value": next });
+        await trustedWrite(actor, { "system.resources.hope.value": next }, { reason: "gmRuling" });
         debug(`${actor.name}: crit top-up ${delta > 0 ? "paid" : "reversed"}, now ${next}/${max}.`);
     } catch (err) {
         error("Could not adjust the critical's second Hope", err);

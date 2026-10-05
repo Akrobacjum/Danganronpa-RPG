@@ -50,7 +50,7 @@ import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
 import { onGmStoresHydrated, gmStoresQuiet } from "./gm-store.mjs";
-import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 
 /**
  * Reroll, with the dice the first roll was actually made with.
@@ -545,7 +545,7 @@ async function makeReroll(actor, sender) {
         await rerollJournalStore.drop(actor.id);
         return { refused: `the buyer holds ${held} Hope, the Call costs ${cost}`, said: game.i18n.format("DRPG.Calls.notEnoughHope", { call: HOPE_CALLS.reroll.label, cost, held }) };
     }
-    await automatedUpdate(actor, { "system.resources.hope.value": held - cost });
+    await trustedWrite(actor, { "system.resources.hope.value": held - cost }, { reason: "reroll" });
     await journal({ phase: "paid" });
     if (cutHere("paid")) return { cut: "paid" };
 
@@ -711,7 +711,7 @@ async function giveBack(actor, message, firstRolls, cost) {
         const { hopeHeld } = await import("./calls.mjs");
         const { resourceMax } = await import("./character.mjs");
         const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-        await automatedUpdate(actor, { "system.resources.hope.value": Math.min(max, hopeHeld(actor) + cost) }, { [HOPE_REFUND]: true });
+        await trustedWrite(actor, { "system.resources.hope.value": Math.min(max, hopeHeld(actor) + cost) }, { reason: "refund" });
     } catch (err) {
         error(`Could not give back the ${cost} Hope a Reroll that did not stand had taken`, err);
     }
@@ -1163,6 +1163,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
         const roles = held.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [];
         drawn = found ? { name: plant.name ?? held.name, roles } : null;
         granted = drawn ? await grantItem(actor, {
+            reason: "reroll",
             name: drawn.name, category: bookmark.category ?? null, tier, goal: bookmark.goal ?? null, roles,
             extraFlags: { [ITEM_FLAGS.identity]: plant.identity }
         }) : null;
@@ -1184,6 +1185,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
             drawnName = drawn.name;
             const { grantItem } = await import("./inventory.mjs");
             granted = await grantItem(actor, {
+                reason: "reroll",
                 name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null,
                 roles: drawn.roles ?? []
             });

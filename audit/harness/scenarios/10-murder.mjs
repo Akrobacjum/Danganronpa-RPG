@@ -190,11 +190,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         while (Cl.cleanupBlocker(game.actors.get("${ids.chie}")) !== null && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         return Cl.cleanupBlocker(game.actors.get("${ids.chie}"));`, { timeout: 30000 });
     const sixSet = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const chie = game.actors.get("${ids.chie}"), floor = canvas.scene, at = floor.tokens.find(t => t.actorId === chie.id);
         const was = { stress: chie.system.resources.stress.value, hope: chie.system.resources.hope.value };
         await chie.update({ "system.resources.stress.value": 0 });
-        await automatedUpdate(chie, { "system.resources.hope.value": Math.max(3, was.hope) });
+        await trustedWrite(chie, { "system.resources.hope.value": Math.max(3, was.hope) }, { reason: "gmRuling" });
         const trace = await R.placeRemnant({ type: "incident", visibility: "evident", x: at.x, y: at.y, scene: floor, note: "E08 C17 10 a trace Chie's player scrubs" });
         return { was, id: trace?.id ?? null, scene: floor.id };`, { timeout: 60000 });
     const sixThrown = await p3.eval(`const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
@@ -228,12 +228,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const sixAfter = await gm.eval(SIX_READ);
     await gm.eval(`const m = game.messages.get(${JSON.stringify(sixThrown.messageId ?? "none")}); if (m) delete m.rolls;
         const R = await import("${repoUrl}/scripts/remnants.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const chie = game.actors.get("${ids.chie}");
         const t = game.scenes.get(${JSON.stringify(sixSet.scene)})?.tokens.get(${JSON.stringify(sixSet.id ?? "none")});
         if (t) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
         await chie.update({ "system.resources.stress.value": ${Number(sixSet.was?.stress) || 0} });
-        await automatedUpdate(chie, { "system.resources.hope.value": ${Number(sixSet.was?.hope) || 0} });
+        await trustedWrite(chie, { "system.resources.hope.value": ${Number(sixSet.was?.hope) || 0} }, { reason: "gmRuling" });
         return true;`, { timeout: 60000 });
     check("p3: Chie's Stage 6 erase, thrown on her player's browser, is scored on the GMs' record of its roll, and its Reroll erases again and keeps the draw as the record's first version",
         sixCast === null && Boolean(sixSet.id) && sixThrown.rolled === true && Boolean(sixThrown.messageId) && sixFirst.stands === false

@@ -118,9 +118,9 @@ export function restSpent(actor, kind, clock = null) {
     return restsTaken(actor)[kind] === restStamp(kind, now);
 }
 
-async function markRestTaken(actor, kind, clock) {
-    const all = { ...restsTaken(actor), [kind]: restStamp(kind, clock) };
-    await actor.setFlag(MODULE_ID, FLAGS.restsTaken, all);
+/** The "used up" stamp for this rest, as a path of the one write that also carries its benefits. */
+function restTakenUpdate(actor, kind, clock) {
+    return { [`flags.${MODULE_ID}.${FLAGS.restsTaken}`]: { ...restsTaken(actor), [kind]: restStamp(kind, clock) } };
 }
 
 /**
@@ -199,14 +199,15 @@ export async function takeRest(actor, kind = "short", {
 
         if (cost > 0 && !await spendAction(actor, cost)) return null;
 
-        // The benefits first, the "used up" stamp second. The other order meant
-        // a failed write left the rest spent and nothing restored - and a long
-        // rest is once per session, so that is a session's worth of recovery
-        // gone to a database hiccup.
-        const applied = await applyRest(actor, kind, picks);
+        // The benefits and the "used up" stamp in ONE write (E29 C1, 05.10.2026). They
+        // were two, benefits first, so a failed write could not leave the rest spent and
+        // nothing restored - a long rest is once per session. One write keeps that and
+        // gives the GMs' side one change to judge with its stamp beside it: a Rest's gains
+        // are covered by the stamp moving (the plan's 2.5), and as two writes the gains
+        // arrived with nothing to say which Rest they were.
         // Relief does not use the allowance up, which is half of what it buys:
         // the Short Rest this character had before it is still there.
-        if (!ignoreLimit) await markRestTaken(actor, kind, clock);
+        const applied = await applyRest(actor, kind, picks, { stamp: ignoreLimit ? null : clock, relief: free });
 
         if (!quiet) {
             await whisperToOwner(actor, `${cardHead({ action: kindLabel(kind), room })}
@@ -321,9 +322,9 @@ async function choosePicks(kind, count) {
  * recovering means subtracting. A long rest clears the track; a short rest
  * clears half, rounded up in the character's favour.
  */
-async function applyRest(actor, kind, picks) {
+async function applyRest(actor, kind, picks, { stamp = null, relief = false } = {}) {
     const full = kind === "long";
-    const update = {};
+    const update = stamp ? restTakenUpdate(actor, kind, stamp) : {};
     const applied = [];
     const { overflowBlocksHope } = await import("./overflow.mjs");
     const hopeBlocked = overflowBlocksHope();
@@ -358,14 +359,13 @@ async function applyRest(actor, kind, picks) {
         }
     }
 
-    // Marked as automation: none of these three paths are in `GUARDED` today,
-    // so a plain `actor.update()` happens to work - but Rest is the one place
-    // in the module that wrote resources without the marker, and the day any
-    // of the three joins the guarded list this call silently starts failing for
-    // players while every other resource change in the module keeps working.
+    // Through the module's road: Health and Sanity are in the courtesy guard's
+    // `GUARDED`, so a plain `actor.update()` from a player's browser would lose them.
+    // `ref` "relief" is a Relief's free rest, which the GMs' side covers by that Call's
+    // payment rather than by the room, the allowance and the action.
     if (Object.keys(update).length) {
-        const { automatedUpdate } = await import("./resource-guard.mjs");
-        await automatedUpdate(actor, update);
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        await trustedWrite(actor, update, { reason: "rest", ref: relief ? "relief" : null });
     }
     return applied;
 }

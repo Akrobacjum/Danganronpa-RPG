@@ -13,6 +13,7 @@ import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS
     BEDROOM_KEY_FLAG }
     from "./config.mjs";
 import { whisperToOwner, log, warn, error } from "./utils.mjs";
+import { trustedWrite, trustedCreate } from "./resource-guard.mjs";
 
 /** Flag keys stored on every item this module creates. */
 export const ITEM_FLAGS = {
@@ -213,21 +214,24 @@ export function durabilityLeft(item) {
  * durability is out of play from that moment - not from the end of the
  * incident, which is when the old rule got round to it.
  *
+ * `reason` and `ref` are the write's (resource-guard.mjs `WRITE_REASONS`): every caller in
+ * the module names its own (R220); "gmRuling" is what a GM's macro or the suite gets.
+ *
  * @returns {Promise<{worn: number, left: number, broke: boolean}|null>}
  */
-export async function wearItem(item) {
+export async function wearItem(item, { reason = "gmRuling", ref = null } = {}) {
     if (!item || isBroken(item)) return null;
 
     const total = durabilityOf(item);
     const worn = Math.min(total, wearOf(item) + 1);
 
     if (worn >= total) {
-        const broke = await breakItem(item);
+        const broke = await breakItem(item, { reason, ref });
         return { worn: total, left: 0, broke };
     }
 
     try {
-        await item.setFlag(MODULE_ID, ITEM_FLAGS.wear, worn);
+        await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: worn }, { reason, ref });
     } catch (err) {
         warn("Could not record the wear on an item", err);
         return null;
@@ -252,9 +256,11 @@ export function isBroken(item) {
  * Idempotent: breaking what is already broken changes nothing and reports
  * success, because the caller's intent - "this is used up now" - is satisfied.
  *
+ * `reason` and `ref` as `wearItem`'s.
+ *
  * @returns {Promise<boolean>} whether the item is now broken.
  */
-export async function breakItem(item) {
+export async function breakItem(item, { reason = "gmRuling", ref = null } = {}) {
     if (!item) return false;
     if (isBroken(item)) return true;
 
@@ -262,10 +268,10 @@ export async function breakItem(item) {
         // One write, two facts. Written through `update` rather than two
         // `setFlag` calls so a sheet cannot render between them and show a
         // broken tool that is still in somebody's hand.
-        await item.update({
+        await trustedWrite(item, {
             [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: { at: Date.now() },
             [`flags.${MODULE_ID}.equipped`]: false
-        });
+        }, { reason, ref });
     } catch (err) {
         warn("Could not mark the item as broken", err);
         return false;
@@ -596,11 +602,12 @@ export function carriedFor(actor, role) {
  *   creation. Truth Bullets carry a good deal more than a category and a tier,
  *   and patching them on afterwards would leave a moment - one database write
  *   long, but a real one - where a Truth Bullet exists with no type at all.
+ * @param {string} [options.reason]  the creation's reason and `ref`, as `wearItem`'s
  * @returns {Promise<Item|null>}
  */
 export async function grantItem(actor, {
     name, category, tier, goal = null, description = "", override = false, img = null,
-    roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false
+    roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false, reason = "gmRuling", ref = null
 }) {
     if (!actor || !name) return null;
 
@@ -675,7 +682,7 @@ export async function grantItem(actor, {
     const fallbackDescription = hasTier ? `<p>Tier ${tier}. ${effect}</p>` : "";
 
     try {
-        const [item] = await actor.createEmbeddedDocuments("Item", [{
+        const [item] = await trustedCreate(actor, [{
             name,
             type,
             img: img ?? itemIcon(category),
@@ -704,6 +711,7 @@ export async function grantItem(actor, {
                 }
             }
         }], {
+            reason, ref,
             [CAP_OVERRIDE]: override,
             /*
              * `quiet` SUPPRESSES THE RECEIVER'S RE-RENDER, and it exists for

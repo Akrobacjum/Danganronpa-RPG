@@ -54,7 +54,6 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * and who deleted her items, while p1 asks. `REROLL_READ` takes the stand-in and the hooks off.
      */
     const REROLL_ARM = (first, next) => `const S = await import("${REPO}/scripts/gm-stores.mjs");
-        const { automatedUpdate } = await import("${REPO}/scripts/resource-guard.mjs");
         const aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get("${ids.aiko}");
         const m = game.messages.get(row?.messageId ?? "");
         class Thrown {
@@ -68,7 +67,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         }
         if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
         const hopeWas = aiko.system.resources.hope.value;
-        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(4, hopeWas) });
+        await aiko.update({ "system.resources.hope.value": Math.max(4, hopeWas) });
         const w = globalThis.__rerollWrites = { hope: [], rolls: [], items: [], hooks: [], messageId: m?.id ?? null, hopeWas,
             hopeAt: aiko.system.resources.hope.value,
             row: row ? { actionKey: row.actionKey, claims: row.claims, facts: row.facts, by: row.by, reportMessageId: row.reportMessageId ?? null } : null };
@@ -84,14 +83,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const card = game.messages.contents.slice(at).map(m => String(S.contentOf(m) ?? "")).find(t => t.includes("Reroll")) ?? null;
         return { made: Boolean(out), card: card ? card.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400) : null };`;
     const REROLL_READ = `const S = await import("${REPO}/scripts/gm-stores.mjs");
-        const { automatedUpdate } = await import("${REPO}/scripts/resource-guard.mjs");
         const w = globalThis.__rerollWrites, aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get("${ids.aiko}");
         for (const [name, id] of w.hooks) Hooks.off(name, id);
         const m = game.messages.get(w.messageId ?? ""); if (m) delete m.rolls;
         const out = { hope: w.hope, rolls: w.rolls, items: w.items, paid: w.hopeAt - aiko.system.resources.hope.value,
             row: row ? { total: row.total, claims: row.claims, facts: row.facts, rerolled: row.rerolled ?? false } : null,
             journal: Boolean(S.rerollJournalStore.has("${ids.aiko}")), gm: game.user.id };
-        await automatedUpdate(aiko, { "system.resources.hope.value": w.hopeWas });
+        await aiko.update({ "system.resources.hope.value": w.hopeWas });
         return out;`;
 
     // ---- 0. season setup basics: Monokuma pool, clock at day 1 morning ----------------------
@@ -1419,6 +1417,74 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && !thrownDynamic.err && thrownDynamic.success === true
             && dynamicGm.ruling?.tier === 0 && JSON.stringify(dynamicGm.resolved) === JSON.stringify(["trace"]),
         JSON.stringify({ ruled, thrownDynamic, dynamicGm }), { flow: "action-roll" });
+
+    /*
+     * A PLAYER'S REST AND AN ITEM USED, EACH WRITE NAMING ITS REASON (E29 C1, 05.10.2026; audit
+     * S17-12). p1 takes a Short Rest (Meal; no marked room asked - the room is a later commit's
+     * judge) and uses a Tier 1 healing kit, its windows answered on p1's browser. The GM records
+     * every write on Aiko and her items that p1's user made, with the `drpgWrite` its options
+     * carried here: the stamp crossing to the GM is what every later judge of the stage reads (the
+     * harness passes options through; a real Foundry's forwarding is LIVE-E29-01). Expected: the
+     * action's spend, then ONE Rest write with the Sanity and the `restsTaken` stamp, then the
+     * kit's Health and its break, both naming the kit. The GM's fixture writes in this file are
+     * plain updates: the courtesy guard stands aside for a GM and nothing judges a GM's write, so
+     * the file runs on the code before C1 as well - which is how this check's red is read.
+     */
+    phase("a player's Rest and an item used, each write naming its reason");
+    const restSet = await gm.eval(`const INV = await import("${REPO}/scripts/inventory.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), r = aiko.system.resources;
+        const was = { hp: r.hitPoints.value, stress: r.stress.value, actions: r.actions.value,
+            rests: aiko.getFlag("${MOD}", "restsTaken") ?? null, grants: aiko.getFlag("${MOD}", "freeActionGrants") ?? null };
+        await aiko.update({ "system.resources.hitPoints.value": 2, "system.resources.stress.value": 2,
+            "system.resources.actions.value": Math.max(1, was.actions), "flags.${MOD}.freeActionGrants": 0 });
+        if (was.rests) await aiko.unsetFlag("${MOD}", "restsTaken");
+        const kit = await INV.grantItem(aiko, { name: "Scenario 40 C1 kit", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+        const w = globalThis.__c1Writes = { actor: [], items: [], hooks: [] };
+        const row = (c, o, u) => ({ user: u ?? null, stamp: o?.drpgWrite ?? null, paths: Object.keys(foundry.utils.flattenObject(c)).filter(k => k !== "_id" && !k.startsWith("_stats")).sort() });
+        w.hooks.push(["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (d.id === aiko.id) w.actor.push(row(c, o, u)); })]);
+        w.hooks.push(["updateItem", Hooks.on("updateItem", (d, c, o, u) => { if (d.parent?.id === aiko.id) w.items.push({ id: d.id, ...row(c, o, u) }); })]);
+        return { was, kit: kit?.id ?? null };`);
+    await settle(400);
+    const restRun = await p1.eval(`const R = await import("${REPO}/scripts/rest.mjs");
+        const U = await import("${REPO}/scripts/use-items.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = { wait: Object.getOwnPropertyDescriptor(D, "wait"), confirm: Object.getOwnPropertyDescriptor(D, "confirm") };
+        D.wait = async () => ["meal"]; D.confirm = async () => true;
+        const aiko = game.actors.get("${ids.aiko}");
+        try {
+            const rest = await R.takeRest(aiko, "short", { ignoreRoom: true, quiet: true });
+            const used = await U.useItem(aiko, aiko.items.get("${restSet.kit}"));
+            return { rested: Boolean(rest), used, me: game.user.id };
+        } finally {
+            for (const k of ["wait", "confirm"]) { if (own[k]) Object.defineProperty(D, k, own[k]); else delete D[k]; }
+        }`, { timeout: 30000 });
+    await settle(800);
+    const restSeen = await gm.eval(`const w = globalThis.__c1Writes; delete globalThis.__c1Writes;
+        for (const [name, id] of w.hooks) Hooks.off(name, id);
+        const aiko = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(restSet.was)};
+        const out = { actor: w.actor.filter(x => x.user === "${restRun.me}"), items: w.items.filter(x => x.user === "${restRun.me}") };
+        await aiko.update({ "system.resources.hitPoints.value": was.hp, "system.resources.stress.value": was.stress,
+            "system.resources.actions.value": was.actions });
+        await aiko.unsetFlag("${MOD}", "restsTaken");
+        if (was.rests) await aiko.setFlag("${MOD}", "restsTaken", was.rests);
+        if (was.grants === null) await aiko.unsetFlag("${MOD}", "freeActionGrants");
+        else await aiko.setFlag("${MOD}", "freeActionGrants", was.grants);
+        await aiko.items.get("${restSet.kit}")?.delete();
+        return out;`);
+    {
+        const STRESS = "system.resources.stress.value", STAMP = `flags.${MOD}.restsTaken.short`;
+        const reasons = restSeen.actor.map(x => x.stamp?.reason ?? null);
+        const rest = restSeen.actor.filter(x => x.stamp?.reason === "rest");
+        const healed = restSeen.actor.find(x => x.stamp?.reason === "itemUse");
+        const broke = restSeen.items.find(x => x.id === restSet.kit);
+        check("p1: a Rest is the action's spend and ONE write of its benefit and its stamp, and an item used names the item on its Health and its break - each stamp seen on the GM",
+            restSet.kit !== null && restRun.rested && restRun.used?.hitPoints === 1
+                && JSON.stringify(reasons) === JSON.stringify(["spend", "rest", "itemUse"])
+                && rest.length === 1 && rest[0].paths.includes(STRESS) && rest[0].paths.includes(STAMP) && rest[0].stamp.ref === null
+                && healed?.stamp.ref === restSet.kit && broke?.stamp?.reason === "itemUse" && broke.stamp.ref === restSet.kit
+                && broke.paths.includes(`flags.${MOD}.broken.at`),
+            JSON.stringify({ restSet, restRun, restSeen }).slice(0, 1500));
+    }
 
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");

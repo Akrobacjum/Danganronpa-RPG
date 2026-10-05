@@ -750,6 +750,7 @@ export async function gmGiveItemDialog(actor) {
     if (!give) return false;
 
     const item = await grantItem(actor, {
+        reason: "gmRuling",
         name: give.name,
         category: give.category,
         tier: give.tier,

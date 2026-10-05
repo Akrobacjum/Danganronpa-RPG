@@ -27,7 +27,7 @@
 import { MODULE_ID, OBSERVE_FAIL_STRESS, PROJECT_OBSERVE, TIMES_OF_DAY, TIMING } from "./config.mjs";
 import { rankForObserve } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import {
     dialogContent, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug
@@ -746,7 +746,7 @@ async function undoPrevious(actor, entry) {
         const next = Math.max(0, marks - previous.stress);
         if (next !== marks) {
             try {
-                await automatedUpdate(actor, { "system.resources.stress.value": next });
+                await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "reroll" });
             } catch (err) {
                 error("Could not return the Sanity a reroll undid", err);
             }
@@ -784,7 +784,7 @@ export async function chargeObserveMiss(actor, { total = null, dc = null } = {})
 
     if (marked > 0) {
         try {
-            await automatedUpdate(actor, { "system.resources.stress.value": next });
+            await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "price" });
         } catch (err) {
             error("Could not apply the Sanity from a failed Observe", err);
         }

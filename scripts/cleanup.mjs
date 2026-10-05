@@ -79,7 +79,7 @@ import { isMonokuma } from "./monokuma.mjs";
 import { copiedRemnants, bulletsOf, secretOf } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
     dialogContent, log, error, cardHead, isPrimaryGm } from "./utils.mjs";
@@ -2533,9 +2533,9 @@ async function undoLastCleanup(actor, tokenId) {
             const value = moved === null
                 ? receipt.stressBefore
                 : Math.min(ceiling, Math.max(0, resourceValue(actor, "stress") - moved));
-            await automatedUpdate(actor, {
+            await trustedWrite(actor, {
                 "system.resources.stress.value": value
-            });
+            }, { reason: "reroll" });
         } catch (err) {
             error("Could not refund the Sanity a rerolled clean-up spent", err);
         }
@@ -2615,9 +2615,9 @@ export async function markResolutionStress(actor) {
     const marks = resourceValue(actor, "stress");
     const max = resourceMax(actor, "stress");
     if (marks >= max) return false;
-    await automatedUpdate(actor, {
+    await trustedWrite(actor, {
         "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
-    });
+    }, { reason: "concealment" });
     return true;
 }
 
@@ -2670,9 +2670,9 @@ async function restoreStress(actor, amount = 1) {
     const marks = resourceValue(actor, "stress");
     if (marks <= 0) return;
     try {
-        await automatedUpdate(actor, {
+        await trustedWrite(actor, {
             "system.resources.stress.value": Math.max(0, marks - amount)
-        });
+        }, { reason: "refund" });
     } catch (err) {
         error("Could not give back the Sanity a critical clean-up earned", err);
     }
@@ -3074,7 +3074,7 @@ async function destroyTools(actor, categories) {
         const items = rememberedTools(actor, category) ?? [equippedFor(actor, category)].filter(Boolean);
         for (const item of items) {
             try {
-                if (await breakItem(item)) destroyed.push(item.name);
+                if (await breakItem(item, { reason: "incident" })) destroyed.push(item.name);
             } catch (err) {
                 error(`Could not ruin the ${category} used in the incident`, err);
             }

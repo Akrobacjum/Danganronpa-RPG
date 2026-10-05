@@ -16,7 +16,7 @@
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
@@ -248,7 +248,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
          */
         const gmPays = !game.user.isGM && call.target === "player" && Boolean(call.grants)
             && Boolean(choice?.target) && !choice.target.isOwner;
-        if (!gmPays) await automatedUpdate(actor, { "system.resources.hope.value": held - call.cost });
+        if (!gmPays) await trustedWrite(actor, { "system.resources.hope.value": held - call.cost }, { reason: "call" });
 
         // Do the thing, not just charge for it.
         const { applyCall } = await import("./call-effects.mjs");
@@ -266,9 +266,9 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         if (failed) {
             const now = hopeHeld(actor);
             const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-            await automatedUpdate(actor, {
+            await trustedWrite(actor, {
                 "system.resources.hope.value": Math.min(max, now + call.cost)
-            }, { [HOPE_REFUND]: true });
+            }, { reason: "refund" });
             ui.notifications.warn(game.i18n.format("DRPG.Calls.refunded", {
                 call: call.label, cost: call.cost
             }));

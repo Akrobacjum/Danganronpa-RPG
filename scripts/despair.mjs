@@ -19,7 +19,7 @@
 import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { resourceValue } from "./character.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { announce, whisperToOwner, log, warn, error, isPrimaryGm, plural } from "./utils.mjs";
 import { despairOwedStore } from "./gm-stores.mjs";
 import { overflowStatus } from "./overflow.mjs";
@@ -628,7 +628,7 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
      * speaks as nobody (secret.mjs).
      */
     await recordOwed(monokumaUserId, granted);
-    await automatedUpdate(actor, { "system.resources.hope.value": hope + granted });
+    await trustedWrite(actor, { "system.resources.hope.value": hope + granted }, { reason: "gmRuling" });
 
     const user = game.users.get(monokumaUserId);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {

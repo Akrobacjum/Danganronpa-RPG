@@ -74,8 +74,8 @@ export async function initCharacter(actor, {
     // the guard and the character would come out with the maxima set and the
     // values untouched. Setting a character up IS automation; it just happens to
     // be the kind a human presses a button for.
-    const { automatedUpdate } = await import("./resource-guard.mjs");
-    await automatedUpdate(actor, update);
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    await trustedWrite(actor, update, { reason: "setup" });
 
     // The Tier 2 opening item, when one was agreed.
     //
@@ -86,6 +86,7 @@ export async function initCharacter(actor, {
     if (startingItem) {
         const { grantItem } = await import("./inventory.mjs");
         await grantItem(actor, {
+            reason: "setup",
             name: startingItem,
             category: "usable",
             tier: STARTING.startingItemTier,
@@ -175,8 +176,8 @@ export async function restoreStartingSheet(actor) {
         // `system.traits` is guarded against hand-editing, so a plain update
         // would have the trait writes stripped and the rest go through - the
         // same half-application `applyAdvancement` guards against.
-        const { automatedUpdate } = await import("./resource-guard.mjs");
-        await automatedUpdate(actor, update);
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        await trustedWrite(actor, update, { reason: "setup" });
     }
 
     return { restored: true, advances: hadAdvances };

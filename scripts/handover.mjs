@@ -410,6 +410,7 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
 
     const name = item.name;
     const taken = await grantItem(taker, {
+        reason: "gmRuling",
         name,
         category,
         tier: item.getFlag(MODULE_ID, "tier") ?? null,
@@ -758,6 +759,7 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
 
     const name = item.name;
     const copy = await grantItem(to, {
+        reason: "gmRuling",
         name,
         category,
         tier: item.getFlag(MODULE_ID, "tier") ?? null,

@@ -114,9 +114,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        one action as an action's own code does (actions.mjs `spendAction`), handing the character one if it has none;
        a crisis action's roll is its turn's and names its crisis action (`context`), and pays nothing. */
     const payFor = actorId => `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const who = game.actors.get("${actorId}");
-        if (actionsLeft(who) < 1) await automatedUpdate(who, { "system.resources.actions.value": 1 });
+        if (actionsLeft(who) < 1) await trustedWrite(who, { "system.resources.actions.value": 1 }, { reason: "gmRuling" });
         await spendAction(who, 1, { quiet: true }); }`;
     const drawnRoll = (client, actorId, actionKey, trait, faces, { context = null, remember = false, pay = actionKey !== "crisis" } = {}) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         ${pay ? payFor(actorId) : ""}
@@ -319,9 +319,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             toJSON() { return { class: "DualityRoll", formula: this._formula, total: this.total, evaluated: true }; }
         }
         if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const botan = game.actors.get("${ids.botan}");
-        await automatedUpdate(botan, { "system.resources.hope.value": Math.max(4, botan.system.resources.hope.value) });
+        await trustedWrite(botan, { "system.resources.hope.value": Math.max(4, botan.system.resources.hope.value) }, { reason: "gmRuling" });
         return true;`;
     await gm.eval(REROLLABLE, { timeout: 30000 });
     await settle(500);
@@ -1882,7 +1882,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const X = await import("${repoUrl}/scripts/reroll.mjs");
         const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const who = game.actors.get("${ids.aiko}");
         const trace = await R.placeRemnant({ x: 1700, y: 550, sceneId: canvas.scene.id, type: "prep", visibility: "obvious",
             sourceActor: who.id, sourceName: who.name, room: "Cafeteria", action: "dynamic", subject: "${subject}" });
@@ -1902,7 +1902,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         }
         Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
         const hopeWas = who.system.resources.hope.value;
-        await automatedUpdate(who, { "system.resources.hope.value": 5 });
+        await trustedWrite(who, { "system.resources.hope.value": 5 }, { reason: "gmRuling" });
         if (S.rerollBookmarkStore.has(who.id)) await S.rerollBookmarkStore.drop(who.id);
         await S.rerollBookmarkStore.patch(who.id, { messageId: m.id, reportMessageId: null, actionKey: "dynamic", trait: "eye", experiences: [],
             claims: { bandIndex: 3, description: "${subject}" }, total: 20, withFear: false, isCritical: false, first: [], room: "Cafeteria",
@@ -1922,7 +1922,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             gmsTold: words.some(c => String(c ?? "").includes("${subject}")) };
         delete m.rolls; await m.delete();
         await S.rerollBookmarkStore.drop(who.id);
-        await automatedUpdate(who, { "system.resources.hope.value": hopeWas });
+        await trustedWrite(who, { "system.resources.hope.value": hopeWas }, { reason: "gmRuling" });
         if (t) { await R.dropRemnantSecret(t); await t.delete(); }
         await copy?.delete();
         return result;`, { timeout: 60000 });
@@ -1972,7 +1972,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
     await settle(1500);
     const armed = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const { isDeadForGm } = await import("${repoUrl}/scripts/settings.mjs");
         const who = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get(who.id);
         const m = game.messages.get(row?.messageId ?? "");
@@ -1987,7 +1987,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         }
         if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
         globalThis.__secListenHope = who.system.resources.hope.value;
-        await automatedUpdate(who, { "system.resources.hope.value": 6 });
+        await trustedWrite(who, { "system.resources.hope.value": 6 }, { reason: "gmRuling" });
         await S.deathStore.patch("${ids.botan}", { chapter: 99, day: 1, timeOfDay: "night", at: Date.now(), keepBullets: true, known: [] });
         return { row: row?.messageId === "${listened}" && row?.actionKey === "listen" && row?.claims?.target === "${rooms.there}",
             gmDead: isDeadForGm(game.actors.get("${ids.botan}")) };`, { timeout: 30000 });
@@ -2003,12 +2003,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         const card = game.messages.contents.slice(at).map(m => String(S.contentOf(m) ?? "")).find(t => t.includes("Reroll")) ?? null;
         return { sees, made, card: card ? card.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 400) : null };`, { timeout: 90000 });
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const m = game.messages.get("${listened}");
         if (m) { delete m.rolls; await m.delete(); }
         await S.deathStore.drop("${ids.botan}");
         if (S.rerollBookmarkStore.has("${ids.aiko}")) await S.rerollBookmarkStore.drop("${ids.aiko}");
-        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": globalThis.__secListenHope });
+        await trustedWrite(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": globalThis.__secListenHope }, { reason: "gmRuling" });
         delete globalThis.__secListenHope;
         return true;`, { timeout: 30000 });
     await settle(300);

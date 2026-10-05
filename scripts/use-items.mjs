@@ -39,7 +39,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 // `discardRemnantType`. `murder.mjs` imports this file back, so it is reached
 // dynamically inside the function; `settings.mjs` does not and can be static.
 import { bodyDiscovery } from "./settings.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
 
@@ -216,7 +216,7 @@ export async function breakOnDespair(actor, tool, roll) {
          * us to, which is what keeps the break on the roll that caused it: the
          * hand is emptied here, not by something sweeping up after the incident.
          */
-        outcome = await wearItem(tool);
+        outcome = await wearItem(tool, { reason: "itemWear", ref: tool.id });
         if (!outcome) return null;
     } catch (err) {
         // A tool that failed to wear is a great deal better than an action
@@ -476,8 +476,8 @@ export async function useItem(actor, item, { again = null } = {}) {
     // Read BEFORE `consume`, which may clear the flags along with the item.
     const stamp = usedStamp(actor, item);
 
-    const restored = await restore(actor, amounts);
-    await consume(item);
+    const restored = await restore(actor, amounts, { reason: "itemUse", ref: item.id });
+    await consume(item, { reason: "itemUse" });
     if (again) return restored;
 
     const summary = describe(restored);
@@ -615,7 +615,7 @@ async function confirmUse(item, preview, pointless) {
  * actually restored is reported rather than what was offered: a character with
  * one mark of Health who drinks a Tier 2 kit recovers one, not two.
  */
-async function restore(actor, amounts) {
+async function restore(actor, amounts, { reason, ref }) {
     const update = {};
     const done = {};
     // Under the Despair darkening a Hope write is stripped; reporting it as
@@ -645,7 +645,7 @@ async function restore(actor, amounts) {
 
     if (Object.keys(update).length) {
         try {
-            await automatedUpdate(actor, update);
+            await trustedWrite(actor, update, { reason, ref });
         } catch (err) {
             error("Could not apply what the item restored", err);
             return {};
@@ -669,11 +669,11 @@ function describe(restored) {
  * against the two you may carry, so using the last of your kit is a moment that
  * costs you something afterwards as well as at the time - see BROKEN_ITEMS.
  */
-async function consume(item) {
+async function consume(item, { reason }) {
     const quantity = Number(item.system?.quantity ?? 1);
     try {
-        if (quantity > 1) await item.update({ "system.quantity": quantity - 1 });
-        else await breakItem(item);
+        if (quantity > 1) await trustedWrite(item, { "system.quantity": quantity - 1 }, { reason, ref: item.id });
+        else await breakItem(item, { reason, ref: item.id });
     } catch (err) {
         error("Could not consume the item", err);
     }
@@ -820,7 +820,7 @@ export async function discardBroken(actor, item) {
     }
 
     try {
-        await item.delete();
+        await trustedDelete(item, { reason: "discard" });
     } catch (err) {
         error("Could not remove the discarded item", err);
     }
@@ -854,8 +854,8 @@ export async function grantItemEffect(actor, item, amounts = {}, { consumeItem =
 
     const stamp = usedStamp(actor, item);
 
-    const restored = await restore(actor, amounts);
-    if (item && consumeItem) await consume(item);
+    const restored = await restore(actor, amounts, { reason: "gmRuling", ref: item?.id ?? null });
+    if (item && consumeItem) await consume(item, { reason: "gmRuling" });
 
     const summary = describe(restored);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.used", {

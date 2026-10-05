@@ -26,6 +26,7 @@
 import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER }
     from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel } from "./inventory.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
@@ -217,6 +218,7 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
     const owner = game.actors.get((scene ? vaultOwnerOf(room, scene) : null)
         ?? bedroomOwnerAnywhere(room) ?? "");
     const item = await grantItem(actor, {
+        reason: "gmRuling",
         name: game.i18n.format("DRPG.Vault.keyName", { room }),
         category: "bedroomKey",
         tier: null,
@@ -819,14 +821,14 @@ export async function stow(actor, item) {
     }
 
     try {
-        await item.update({
+        await trustedWrite(item, {
             [`flags.${MODULE_ID}.${ITEM_FLAGS.location}`]: LOCATIONS.vault,
             // Put down as well as put away: a thing in a drawer is not in a
             // hand, and `retrieve` writes only the location back, so the
             // readied flag would otherwise come out of the stash with it.
             [`flags.${MODULE_ID}.equipped`]: false,
             [`flags.${MODULE_ID}.${ITEM_FLAGS.stashRoom}`]: room
-        });
+        }, { reason: "stash" });
     } catch (err) {
         error("Could not stash the item", err);
         return false;
@@ -862,10 +864,10 @@ export async function retrieve(actor, item) {
     try {
         // The stash it was in goes with it: a carried item has no stash, and a
         // stale room name would decide where it lands if it is ever put back.
-        await item.update({
+        await trustedWrite(item, {
             [`flags.${MODULE_ID}.${ITEM_FLAGS.location}`]: LOCATIONS.carried,
             [`flags.${MODULE_ID}.${ITEM_FLAGS.stashRoom}`]: null
-        });
+        }, { reason: "retrieve" });
     } catch (err) {
         error("Could not take the item out of the stash", err);
         return false;
@@ -1130,6 +1132,7 @@ export async function stealFromVault({
     const { grantItem, preservedFlags } = await import("./inventory.mjs");
 
     const copy = await grantItem(thief, {
+        reason: "gmRuling",
         name: item.name,
         category,
         tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
@@ -1296,6 +1299,7 @@ export async function stealFromPerson({
     let handsFull = false;
     if (item) {
         copy = await grantItem(thief, {
+            reason: "gmRuling",
             name: item.name,
             category: item.getFlag(MODULE_ID, ITEM_FLAGS.category),
             tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
@@ -1464,6 +1468,7 @@ export async function plantOnPerson({
     let handsFull = false;
     if (success) {
         landed = await grantItem(victim, {
+            reason: "gmRuling",
             name: item.name,
             category: item.getFlag(MODULE_ID, ITEM_FLAGS.category),
             tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,

@@ -36,6 +36,7 @@ import {
 } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import {
     whisperToOwner, whisperToGms, isPrimaryGm, primaryGmId, ownerIdsOf, forcedDeletion, log, warn, error, plural
 } from "./utils.mjs";
@@ -557,6 +558,7 @@ export async function createTruthBullet(actor, {
     const clock = getClock();
 
     const item = await grantItem(actor, {
+        reason: "gmRuling",
         name,
         category: BULLET_CATEGORY,
         // Truth Bullets are uncapped, but `grantItem` still passes the creation
@@ -1054,7 +1056,7 @@ export async function migrateTruthBullets() {
                 : "evident";
 
             try {
-                await item.update({
+                await trustedWrite(item, {
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.isBullet}`]: true,
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: "neutral",
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.visibility}`]: visibility,
@@ -1065,7 +1067,7 @@ export async function migrateTruthBullets() {
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.lockedChapter}`]: null,
                     // The old visibility-as-tier smuggling ends here.
                     [`flags.${MODULE_ID}.tier`]: null
-                });
+                }, { reason: "setup" });
                 await setSecret(item.uuid, { realType: "neutral", gmNote: "" }, { weak: true, fillOnly: true });
                 migrated.push({ actor: actor.name, name: item.name, visibility });
             } catch (err) {

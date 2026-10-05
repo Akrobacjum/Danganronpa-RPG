@@ -135,8 +135,8 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         const actor = game.actors.get("${ids.aiko}");
         const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
-        if (actionsLeft(actor) < 1) await automatedUpdate(actor, { "system.resources.actions.value": 1 });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        if (actionsLeft(actor) < 1) await trustedWrite(actor, { "system.resources.actions.value": 1 }, { reason: "gmRuling" });
         await spendAction(actor, 1, { quiet: true });
         const thrown = actor.rollTrait;
         let held = false, letGo = null;

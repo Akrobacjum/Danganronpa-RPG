@@ -3708,7 +3708,7 @@ const REGRESSIONS = [
          * second question, and the answer can be the player.
          *
          * THE APPLY DOES NOT MOVE. `applyAdvancement` writes through
-         * `automatedUpdate`, which bypasses the resource guard by design, so a player
+         * `trustedWrite`, which bypasses the resource guard by design, so a player
          * who could call it could raise their own maxima from the console. The player
          * PICKS; their picks go to the GM's client, which checks the offer again and
          * writes. Every assertion here is about that boundary.
@@ -4297,7 +4297,7 @@ const REGRESSIONS = [
 
         /* A decline is a ruling, not a refund - the whole point of where this sits. */
         const decline = bodyOf(src, "export async function declineReshapeRuling");
-        ok(!/refundPrice|handBack|automatedUpdate/.test(decline.slice(0, 900)),
+        ok(!/refundPrice|handBack|trustedWrite/.test(decline.slice(0, 900)),
             "declining hands the price back, which turns every ruling into a free retry");
 
         /* And the GM's card reaches both. */
@@ -6564,6 +6564,100 @@ const REGRESSIONS = [
             "monocub.meddle is no declaration of the bridge's, or a Meddle's packet carries a result the GM would read");
         const problems = problemsOf(all, WAITING);
         ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
+    }],
+
+    ["R220 - a module write names a reason of the closed list", async () => {
+        /*
+         * E29 C1, 05.10.2026; audit S17-12; the plan's 2.2. Every write the module makes on a
+         * student's resources, and every write of a module item's protected flags, goes through
+         * resource-guard.mjs's three roads (`trustedWrite`, `trustedCreate`, `trustedDelete`) and
+         * names its reason, a literal of `WRITE_REASONS`; the GMs' side judges a player's write by
+         * the evidence that reason points at. Read live, every file but resource-guard.mjs:
+         * nothing calls `automatedUpdate` or sets the marker (`[SYSTEM_WRITE]`, `drpgAutomated:`)
+         * by hand; every road's options name a listed reason, or forward the `reason` of one of
+         * FORWARDERS - the helpers that write for their callers, whose every call outside the
+         * suite then names one (the suite's own calls take their default, "gmRuling"); and outside
+         * the suite no `update`, `setFlag`, `unsetFlag` or embedded write names a protected flag of
+         * inventory.mjs's ITEM_FLAGS (category, tier, drpgItemId, wear, broken, location,
+         * stashRoom). It reads a call's own text: flags built elsewhere and handed in by name are
+         * not seen. The reader is run first on a fixture with seven planted faults. Red before C1:
+         * 37 `automatedUpdate` calls in 17 files, 37 more in tier 2, eight bare writes of a
+         * protected item flag (wear, broken, the creation, a stash and a retrieve, a Reroll's two
+         * give-backs, the bullets' migration). E33 extends it.
+         */
+        const guard = await import("./resource-guard.mjs");
+        ok(Array.isArray(guard.WRITE_REASONS), "resource-guard.mjs has no list of a write's reasons");
+        const listed = new Set(guard.WRITE_REASONS ?? []);
+        equal(JSON.stringify([...listed]), JSON.stringify(["spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash",
+            "retrieve", "discard", "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
+            "auditPutBack", "auditUndo"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
+        const FORWARDERS = [["inventory.mjs", "grantItem", true], ["inventory.mjs", "breakItem", true], ["inventory.mjs", "wearItem", true],
+            ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false]];
+        const PROTECTED = /\bITEM_FLAGS\s*\.\s*(?:category|tier|identity|wear|broken|location|stashRoom)\b|\$\{MODULE_ID\}\.(?:-=)?(?:category|tier|drpgItemId|wear|broken|location|stashRoom)\b|^\s*"(?:category|tier|drpgItemId|wear|broken|location|stashRoom)"\s*$/m;
+        const named = text => text.match(/\breason\s*:\s*"([^"\n]*)"/)?.[1] ?? null;
+        const forwarding = (file, blank, at) => {
+            const fn = [...blank.slice(0, at).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].pop()?.[1];
+            return FORWARDERS.some(([home, name]) => home === file && name === fn);
+        };
+        const read = { roads: 0, calls: 0, writes: 0 };
+        const problemsIn = (file, raw, suite) => {
+            const code = blankComments(raw), blank = blankLiterals(code), out = [];
+            const at = i => `${file}:${lineAt(code, i)}`;
+            const argsOf = m => callArgs(blank, m.index + m[0].length - 1).args.map(a => code.slice(a.start, a.end));
+            const defined = m => /function\s+$/.test(blank.slice(Math.max(0, m.index - 24), m.index));
+            for (const m of blank.matchAll(/\bautomatedUpdate\s*\(|\[\s*SYSTEM_WRITE\s*\]|\bdrpgAutomated\s*:/g)) {
+                out.push(`${at(m.index)} writes past the roads (${m[0].replace(/\s+/g, "")})`);
+            }
+            for (const m of blank.matchAll(/\btrusted(Write|Create|Delete)\s*\(/g)) {
+                if (defined(m)) continue;
+                read.roads++;
+                const options = argsOf(m)[m[1] === "Delete" ? 1 : 2] ?? "";
+                const reason = named(options);
+                if (reason !== null && !listed.has(reason)) out.push(`${at(m.index)} names "${reason}", which is not on the list`);
+                else if (reason === null && !(/\breason\b/.test(options) && forwarding(file, blank, m.index))) out.push(`${at(m.index)} names no reason`);
+            }
+            if (suite) return out;
+            for (const [home, name, exported] of FORWARDERS) {
+                if (!exported && home !== file) continue;
+                for (const m of blank.matchAll(new RegExp(`\\b${name}\\s*\\(`, "g"))) {
+                    if (defined(m)) continue;
+                    read.calls++;
+                    const all = argsOf(m).join(",");
+                    const reason = named(all);
+                    if (reason !== null && !listed.has(reason)) out.push(`${at(m.index)} hands ${name} "${reason}", which is not on the list`);
+                    else if (reason === null && !(/\breason\b/.test(all) && forwarding(file, blank, m.index))) out.push(`${at(m.index)} calls ${name} without naming its reason`);
+                }
+            }
+            for (const m of blank.matchAll(/\.\s*(?:update|setFlag|unsetFlag|updateEmbeddedDocuments|createEmbeddedDocuments)\s*\(/g)) {
+                read.writes++;
+                if (argsOf(m).some(arg => PROTECTED.test(arg))) out.push(`${at(m.index)} writes a module item's protected flag past the roads`);
+            }
+            return out;
+        };
+        const PLANTED = [
+            "await automatedUpdate(actor, { a: 1 });",
+            "await actor.update({ a: 1 }, { [SYSTEM_WRITE]: true });",
+            "await trustedWrite(actor, { a: 1 }, { reason: \"spend\", ref: null });",
+            "await trustedWrite(actor, { a: 1 }, { reason: \"whim\" });",
+            "await trustedDelete(item);",
+            "await item.setFlag(MODULE_ID, ITEM_FLAGS.broken, false);",
+            "await item.update({ [`flags.${MODULE_ID}.wear`]: forcedDeletion(), \"system.quantity\": 1 });",
+            "await grantItem(actor, { name: \"x\", category: \"tool\", tier: 1 });",
+            "// await automatedUpdate(actor, {}); and \"trustedWrite(a, b)\" in a string",
+            "await item.update({ \"system.quantity\": 1 }); await breakItem(item, { reason: \"itemUse\" });"
+        ].join("\n");
+        equal(JSON.stringify(problemsIn("planted.mjs", PLANTED, false).map(p => Number(p.match(/^planted\.mjs:(\d+) /)?.[1]))),
+            JSON.stringify([1, 2, 4, 5, 8, 6, 7]),
+            "the reader does not see the planted writes as they are - a call past the roads, the marker by hand, an unlisted reason, none, a forwarder's call without one, a protected flag set and unset, a comment and a string");
+        read.roads = read.calls = read.writes = 0;
+        const others = new Set((await otherSources()).map(([file]) => file));
+        const problems = [];
+        for (const [file, raw] of await moduleSources()) {
+            if (file !== "resource-guard.mjs") problems.push(...problemsIn(file, raw, !others.has(file)));
+        }
+        must(read.roads + read.calls > 30, `the reader found ${read.roads} road(s) and ${read.calls} call(s) of a forwarder - it would measure nothing`);
+        log(`R220: ${read.roads} road(s), ${read.calls} call(s) of a forwarder and ${read.writes} other write(s) read; ${problems.length} problem(s)`);
+        ok(!problems.length, `${problems.length} module write(s) without a reason of the list: ${problems.slice(0, 12).join("; ")}`);
     }]
 ];
 

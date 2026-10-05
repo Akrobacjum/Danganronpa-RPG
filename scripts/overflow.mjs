@@ -562,7 +562,7 @@ async function rotEverything(amount) {
             }
 
             for (let i = 0; i < Math.min(amount, spare); i++) {
-                const result = await wearItem(item);
+                const result = await wearItem(item, { reason: "itemWear" });
                 if (!result) break;
                 worn++;
                 // Cannot happen while `spare` is respected, and checked anyway:

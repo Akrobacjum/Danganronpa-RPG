@@ -14,7 +14,7 @@
 
 import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, STARTING, callEffect } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 // The darkening's own reader, and a leaf: static so `refusalBeforePaying` can
 // stay synchronous for the sheet, which asks it between two windows.
@@ -830,7 +830,7 @@ async function hopeFromDespairEffect(actor, call, choice, done) {
         throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
     }
 
-    await automatedUpdate(choice.target, { "system.resources.hope.value": next });
+    await trustedWrite(choice.target, { "system.resources.hope.value": next }, { reason: "call" });
     done.push(game.i18n.format("DRPG.Calls.hopeGranted", {
         name: choice.target.name, n: next - held
     }));
@@ -883,7 +883,7 @@ async function damageEffect(actor, call, choice, done) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.nothingToMark", { name: choice.target.name }));
         throw new NothingToDo(`${choice.target.name} has nothing left to mark`);
     }
-    await automatedUpdate(choice.target, update);
+    await trustedWrite(choice.target, update, { reason: "call" });
     done.push(game.i18n.format("DRPG.Calls.damaged", {
         name: choice.target.name,
         what: landed.join(", ")

@@ -13,7 +13,7 @@
 import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
 import { isDeceased } from "./settings.mjs";
 import { isWounded } from "./character.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
 import { overflowActionPenalty, overflowFloor, overflowBlocksFreeMove } from "./overflow.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -169,7 +169,7 @@ export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
         return false;
     }
 
-    await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - amount });
+    await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - amount }, { reason: "spend" });
 
     /*
      * EVERY SPEND, NOT ONLY THE ACTION GRID - trap 44, decided here.
@@ -207,7 +207,7 @@ export async function refundAction(actor, amount = 1, receipt = null) {
     if (receipt?.grant) return grantFreeActions(actor, 1);
 
     const next = Math.min(actionsMax(actor), actionsLeft(actor) + amount);
-    await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: next });
+    await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: next }, { reason: "refund" });
     return true;
 }
 
@@ -230,7 +230,7 @@ export async function takeBackRefund(actor, amount = 1, receipt = null) {
         return { grant: true, amount };
     }
     if (!receipt?.grant && actionsLeft(actor) >= amount) {
-        await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsLeft(actor) - amount });
+        await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsLeft(actor) - amount }, { reason: "spend" });
         playSfx("actionSpent");
         return { grant: false, amount };
     }
@@ -249,7 +249,7 @@ export async function setActions(actor, value) {
         return false;
     }
     const clamped = Math.max(0, Math.min(actionsMax(actor), value));
-    await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: clamped });
+    await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: clamped }, { reason: "gmRuling" });
     return true;
 }
 
@@ -343,7 +343,7 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
     if (dead && !actor.getFlag(MODULE_ID, FLAGS.monocub)) return null;
 
     const { total, wounded } = actionBudget(actor);
-    await automatedUpdate(actor, {
+    await trustedWrite(actor, {
         [`system.resources.${ACTIONS_RESOURCE}.value`]: total,
         [`system.resources.${ACTIONS_RESOURCE}.max`]: total,
         ...(keepGrants ? {} : {
@@ -357,7 +357,7 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
             [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0,
             [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
         })
-    });
+    }, { reason: "setup" });
 
     return { actor, total, wounded };
 }

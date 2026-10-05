@@ -44,7 +44,7 @@ import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog } from "./utils.mjs";
@@ -277,7 +277,7 @@ export async function performMeddle(actor, targetId, help) {
     }
 
     if (!await spendAction(actor, def.cost)) return null;
-    await automatedUpdate(actor, { "system.resources.hope.value": hope - def.hopeCost });
+    await trustedWrite(actor, { "system.resources.hope.value": hope - def.hopeCost }, { reason: "meddle" });
 
     // The GM throws the dice and scores them (`meddleOnGm`); its answer is the roll, which the
     // card shows here as this Monocub's. Not answered (refused, no GM, a roll that is not one):
@@ -519,7 +519,7 @@ async function scoreMeddle(actor, target, help, total, isCritical) {
 async function wasteAction(actor) {
     const left = actionsLeft(actor);
     if (left <= 0) return;
-    await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - 1 });
+    await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - 1 }, { reason: "meddle" });
 }
 
 /* ==========================================================================

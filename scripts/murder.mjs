@@ -57,7 +57,7 @@ import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStor
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf, reserveOf, reserveChange, reserveNote } from "./character.mjs";
 import { youOrThem } from "./secret.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken, isStashed, servesAs, wearOf } from "./inventory.mjs";
 import { equippedFor, breakOnDespair, isEquipped, readiedItems, tierOf, EQUIPPED_FLAG } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
@@ -1490,9 +1490,9 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
         if (victim) {
-            await automatedUpdate(victim, {
+            await trustedWrite(victim, {
                 "system.resources.stress.value": resourceMax(victim, "stress")
-            });
+            }, { reason: "incident" });
         }
     }
     await tellGms(prose[band], { keys });
@@ -2190,6 +2190,7 @@ async function grantImprovisedWeapon(actor, def, band, done) {
 
     const { grantItem } = await import("./inventory.mjs");
     const item = await grantItem(actor, {
+        reason: "incident",
         name: def.unarmedImprovises.name,
         category: "crimeTool",
         tier,
@@ -2800,9 +2801,9 @@ async function undoLastCrisis({ actorId, key, before = null }) {
     if (receipt.usedItemId) {
         try {
             const item = game.actors.get(actorId)?.items?.get(receipt.usedItemId);
-            await item?.setFlag(MODULE_ID, ITEM_FLAGS.broken, false);
+            if (item) await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false }, { reason: "reroll" });
             const qty = Number(item?.system?.quantity ?? 1);
-            if (item && typeof used?.qty === "number" && used.qty > qty) await item.update({ "system.quantity": qty + 1 });
+            if (item && typeof used?.qty === "number" && used.qty > qty) await trustedWrite(item, { "system.quantity": qty + 1 }, { reason: "reroll" });
         } catch (err) {
             error("Could not give back the item a rerolled crisis action used", err);
         }
@@ -2826,11 +2827,11 @@ async function undoLastCrisis({ actorId, key, before = null }) {
         try {
             const item = game.actors.get(actorId)?.items?.get(receipt.wore.itemId);
             const other = item ? readiedItems(item.parent).some(i => i.id !== item.id) : true;
-            await item?.update({
+            if (item) await trustedWrite(item, {
                 [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: receipt.wore.wear,
                 [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false,
                 [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: receipt.wore.equipped && !other
-            });
+            }, { reason: "reroll" });
         } catch (err) {
             error("Could not give back the wear a rerolled swing took", err);
         }
@@ -2906,7 +2907,7 @@ async function restoreResource(actor, field, value) {
     if (!actor || typeof value !== "number") return;
     if (resourceValue(actor, field) === value) return;
     try {
-        await automatedUpdate(actor, { [`system.resources.${field}.value`]: value });
+        await trustedWrite(actor, { [`system.resources.${field}.value`]: value }, { reason: "reroll" });
     } catch (err) {
         error(`Could not restore ${field} while taking a crisis action back`, err);
     }
@@ -3128,7 +3129,7 @@ async function takeReserves(actor, { hitPoints = 0, stress = 0 }, done) {
     const health = reserveChange(actor, "hitPoints", -(hitPoints + sanity.overflow));
     const update = { ...health.update, ...sanity.update };
     if (!Object.keys(update).length) return false;
-    await automatedUpdate(actor, update);
+    await trustedWrite(actor, update, { reason: "incident" });
     const note = landedNote(actor, [health, sanity]);
     if (note) done.push(note);
     return true;
@@ -3325,10 +3326,10 @@ async function thirdLeaves(actor) {
 async function swapRoles(state, done, { restores = false } = {}) {
     const victim = game.actors.get(state.victimId);
     if (restores && victim) {
-        await automatedUpdate(victim, {
+        await trustedWrite(victim, {
             "system.resources.stress.value": 0,
             "system.resources.hitPoints.value": 0
-        });
+        }, { reason: "incident" });
     }
     // Everything that described the OLD arrangement of the fight is cleared,
     // not only the two hindrance stores.
@@ -3534,7 +3535,7 @@ async function spendStress(actor, done) {
      * way out free, and the incident lost the one currency that was still
      * moving it towards an ending.
      *
-     * `automatedUpdate` is what carries it, so the Wounded marker arrives the
+     * `trustedWrite` is what carries it, so the Wounded marker arrives the
      * way it always does - `states.mjs` watches `updateActor` and does not care
      * who wrote the change. And a full Health track does not kill: the incident
      * ends because both tracks are now full, which is `isSpent`, and the caller
@@ -3543,7 +3544,7 @@ async function spendStress(actor, done) {
     const health = reserveChange(actor, "hitPoints", -RESOLUTION_HEALTH_COST);
     if (!health.landed) return;
 
-    await automatedUpdate(actor, health.update);
+    await trustedWrite(actor, health.update, { reason: "incident" });
     done.push(landedNote(actor, [health]));
 }
 

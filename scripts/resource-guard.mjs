@@ -11,21 +11,31 @@
  * Health AND STRESS ARE IN THAT LIST AS OF 1.0.1. They used to be the exception, on
  * the grounds that players mark their own damage - but nothing in this game
  * asks them to. Damage arrives from a crisis action, a Despair Call, a failed
- * Observe, a Rest; all of it through `automatedUpdate`, all of it already
+ * Observe, a Rest; all of it through `trustedWrite`, all of it already
  * marked. What the editable pips actually bought was the ability to heal
  * yourself in the middle of an incident, which is not a rule anybody had agreed
  * to and is impossible to notice from the GM's side.
  *
  * Automation marks its own writes with a flag in the update options, which is
  * how a legitimate change is told apart from someone poking the sheet.
+ *
+ * ONE ROAD, AND A REASON ON IT (E29 C1, 05.10.2026; audit S17-12). Every write
+ * this module makes on a student's resources, and every write of a module
+ * item's protected flags, goes through `trustedWrite`, `trustedCreate` or
+ * `trustedDelete` below and names why, from one closed list. Measured before
+ * (R220's reader at 889f073): 37 bare `automatedUpdate` calls in 17 files and
+ * eight bare writes of a module item's protected flags, none of which said what
+ * it was for - so nothing on a GM's side could tell a Rest from a console that
+ * had found the marker. The reason is a claim, like a
+ * packet field: it says which evidence to check, and the GMs' side checks it.
  */
 
 import { MODULE_ID, ACTIONS_RESOURCE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { debug } from "./utils.mjs";
 
-/** Put this in an update's options to mark it as automation, not hand-editing. */
-export const SYSTEM_WRITE = "drpgAutomated";
+/** In an update's options: automation, not hand-editing. Set by the three roads at the end of this file only. */
+const SYSTEM_WRITE = "drpgAutomated";
 
 /**
  * Marks a write that GIVES BACK Hope somebody was just charged, rather than
@@ -180,9 +190,48 @@ function prune(node) {
 }
 
 /**
- * Update an actor as automation, bypassing the guard.
- * Every automated resource change in this module goes through here.
+ * Why the module wrote, in one closed list (E29 C1, 05.10.2026; the plan's 2.2). A write
+ * names one of these in `options.drpgWrite.reason`; R220 reads the source for a write
+ * that names none, or a word not on this list. The GMs' side judges a player's write by
+ * the evidence its reason points at - a Rest by the room and the clock, an item's use by
+ * the item - and a GM's own write by nothing: GM-side writes name a reason all the same,
+ * so the list stays the one place that says what the module writes and why.
  */
-export function automatedUpdate(actor, data, options = {}) {
-    return actor.update(data, { ...options, [SYSTEM_WRITE]: true });
+export const WRITE_REASONS = Object.freeze([
+    "spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash", "retrieve", "discard",
+    "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
+    "auditPutBack", "auditUndo"
+]);
+
+/** The option a module write carries: `{ reason, ref }`. */
+export const WRITE_STAMP = "drpgWrite";
+
+/*
+ * The options every road stamps. `ref` names the evidence the reason's judge reads - a
+ * Search's roll message, the item a use spent, "relief" for a Relief's free rest - or
+ * null. It travels with the update to every browser that receives the document, so it
+ * names nothing that browser may not know: no price's action and no Call's key, which a
+ * spend, a price and a refund do not need (they are judged on what was paid). `refund`
+ * also sets `HOPE_REFUND`, the one marker the Despair darkening lets a Hope rise through.
+ * An unlisted reason throws: the roads are async, so it arrives as the write's rejection.
+ */
+function stampOf(reason, ref, options) {
+    if (!WRITE_REASONS.includes(reason)) throw new Error(`a module write named "${reason}", which is not a reason of WRITE_REASONS`);
+    return { ...options, [SYSTEM_WRITE]: true, [WRITE_STAMP]: { reason, ref: ref ?? null },
+        ...(reason === "refund" ? { [HOPE_REFUND]: true } : {}) };
+}
+
+/** Update a document as the module, for `reason`. */
+export async function trustedWrite(doc, changes, { reason, ref = null, ...options } = {}) {
+    return doc.update(changes, stampOf(reason, ref, options));
+}
+
+/** Create items on `parent` as the module, for `reason` - the only documents the module creates on a student. */
+export async function trustedCreate(parent, data, { reason, ref = null, ...options } = {}) {
+    return parent.createEmbeddedDocuments("Item", data, stampOf(reason, ref, options));
+}
+
+/** Delete a document as the module, for `reason`. */
+export async function trustedDelete(doc, { reason, ref = null, ...options } = {}) {
+    return doc.delete(stampOf(reason, ref, options));
 }

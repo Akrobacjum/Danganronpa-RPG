@@ -82,9 +82,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     /** An action of `actorId`'s paid on its player's browser, as an action pays before its roll - since E08+E28 fix r2-H1 the
         GM draws a roll only for an action whose payment it saw (roll-draw.mjs `drawRefusal`). Code for that player's eval. */
     const payFor = actorId => `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const who = game.actors.get("${actorId}");
-        if (actionsLeft(who) < 1) await automatedUpdate(who, { "system.resources.actions.value": 1 });
+        if (actionsLeft(who) < 1) await trustedWrite(who, { "system.resources.actions.value": 1 }, { reason: "gmRuling" });
         await spendAction(who, 1, { quiet: true }); }`;
     /** One packet from p1 that its own client never sends: another player's character, in another player's name. */
     const forgeFromP1 = (action, requestId, fields) => p1.eval(`game.socket.emit("${SOCKET}",

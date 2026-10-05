@@ -526,7 +526,7 @@ function readForm(dialog, picks) {
  */
 export async function applyAdvancement(actor, picks, kind = "standard", { reasons = null } = {}) {
     // Same guard as `openAdvancement`, and for the same reason. This is also on
-    // `game.drpg`, and it writes through `automatedUpdate` - which bypasses the
+    // `game.drpg`, and it writes through `trustedWrite` - which bypasses the
     // resource guard by design - so without it a player could raise their own
     // max Health and traits from the console with a single call, walking straight
     // past the check the dialog in front of it makes.
@@ -620,10 +620,10 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         // Marked as automation: `system.traits` is guarded against hand-editing,
         // so a plain update would have the trait rise silently stripped while the
         // Health and Sanity rises went through - a half-applied advancement.
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
         update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;
-        await automatedUpdate(actor, update);
+        await trustedWrite(actor, update, { reason: "levelUp" });
         /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Withdrawn here rather than at the
            three call sites - the GM's own picker, a player's picks arriving over the
            socket, and the API - because this is the one place that writes an

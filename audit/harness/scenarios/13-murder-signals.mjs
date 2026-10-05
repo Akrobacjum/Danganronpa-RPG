@@ -614,15 +614,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             support: game.i18n.format("DRPG.Calls.armedForYou", { what: game.i18n.localize("DRPG.Calls.grants.advantage") }) };`);
     const handed = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const M = await import("${repoUrl}/scripts/murder.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         if (!M.isTheirTurn(game.actors.get("${ids.aiko}"))) await M.passTurn();
         const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
         const kit = (a, name) => INV.grantItem(a, { name, category: "usable", tier: 1, goal: "healing", quiet: true });
-        await automatedUpdate(botan, { "system.resources.hope.value": Math.max(1, botan.system?.resources?.hope?.value ?? 0) });
+        await trustedWrite(botan, { "system.resources.hope.value": Math.max(1, botan.system?.resources?.hope?.value ?? 0) }, { reason: "gmRuling" });
         // A pack of two and a Health mark for it to heal, for the Reroll after the cards (E08+E28 C6b).
         const aikoKit = (await kit(aiko, "Suite kit used in the fight"))?.id ?? null, hpWas = aiko.system.resources.hitPoints.value;
         await aiko.items.get(aikoKit ?? "")?.update({ "system.quantity": 2 });
-        await automatedUpdate(aiko, { "system.resources.hitPoints.value": Math.max(1, hpWas) });
+        await trustedWrite(aiko, { "system.resources.hitPoints.value": Math.max(1, hpWas) }, { reason: "gmRuling" });
         return { kit: aikoKit, hpWas, hpSet: aiko.system.resources.hitPoints.value, drink: (await kit(botan, "Suite kit a bystander drinks"))?.id ?? null,
             tool: (await INV.grantItem(botan, { name: "Suite tool a bystander breaks", category: "tool", tier: 1, quiet: true }))?.id ?? null,
             turn: M.isTheirTurn(aiko) };`, { timeout: 60000 });
@@ -687,7 +687,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        pack's quantity and whether it is broken; on the GM, the replay's receipt naming no item.
        Aiko's Hope and Health are put back. */
     const reuse = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get(aiko.id) ?? null;
         const m = game.messages.get(row?.messageId ?? "");
         class Thrown {
@@ -701,7 +701,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         }
         if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
         const hope = aiko.system.resources.hope.value;
-        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, hope) });
+        await trustedWrite(aiko, { "system.resources.hope.value": Math.max(3, hope) }, { reason: "gmRuling" });
         const drawn = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(m);
         return { messageId: m?.id ?? null, usedItemId: row?.facts?.usedItemId ?? null, before: row?.facts?.before ?? null, hope, hp: aiko.system.resources.hitPoints.value,
             qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0), drawn: drawn ? { total: drawn.total, versions: (drawn.versions ?? []).length } : null };`, { timeout: 60000 });
@@ -715,8 +715,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         drawn: await gm.eval(`const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(reuse.messageId)}));
             return r ? { total: r.total, withHope: r.withHope, versions: (r.versions ?? []).map(v => v.total) } : null;`) };
     await gm.eval(`const m = game.messages.get(${JSON.stringify(reuse.messageId)}); if (m) delete m.rolls;
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
-        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(reuse.hope) || 0}, "system.resources.hitPoints.value": ${Number(handed.hpWas) || 0} });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(reuse.hope) || 0}, "system.resources.hitPoints.value": ${Number(handed.hpWas) || 0} }, { reason: "gmRuling" });
         return true;`, { timeout: 60000 });
     check("reroll: a Reroll of the victim's Use an item, made on the GM, gives back the Health mark it healed and the pack's charge - on the GM and on the roller's browser",
         reusedAsked === true && Boolean(reuse.messageId) && reuse.usedItemId === handed.kit && reuse.qty === 1
@@ -805,9 +805,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return true;`;
     for (const c of [p1, p2, p3]) { await c.eval(DICE_NET); await c.eval(REWRITES); }
     const hopeWas = await gm.eval(`${STAND}
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const aiko = game.actors.get("${ids.aiko}"), was = aiko.system.resources.hope.value;
-        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, was) });
+        await trustedWrite(aiko, { "system.resources.hope.value": Math.max(3, was) }, { reason: "gmRuling" });
         return was;`, { timeout: 60000 });
     const rerolled = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
         const out = await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll");
@@ -817,8 +817,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         played: globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null && c.total === 13).map(c => c.user) };`;
     const rewriteSeen = { roller: await p1.eval(REWRITE_READ), bystander: await p2.eval(REWRITE_READ), killer: await p3.eval(REWRITE_READ) };
     await gm.eval(`const m = game.messages.get("${open.id}"); if (m) delete m.rolls;
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
-        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(hopeWas) || 0} });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(hopeWas) || 0} }, { reason: "gmRuling" });
         return true;`, { timeout: 60000 });
     const sentTo = who => JSON.stringify(rewriteSeen[who].sent) === JSON.stringify([{ id: open.id, by: p1.userId }])
         && JSON.stringify(rewriteSeen[who].played) === JSON.stringify([p1.userId]);
@@ -1457,7 +1457,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const drawn = game.messages.contents.filter(m => !had.has(m.id)).map(m => D.drawnRecordOf(m)).filter(r => r?.actionKey === "murderOpening");
         return { stage: M.murderState()?.stage ?? null, records: drawn.map(r => ({ actorId: r.actorId, resolved: r.resolved ?? [] })) };`, { timeout: 60000 });
     const sixPlaced = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const chie = game.actors.get("${ids.chie}"), floor = canvas.scene;
         const mine = floor.tokens.find(t => t.actorId === "${ids.chie}"), body = floor.tokens.find(t => t.actorId === "${ids.daichi}");
         globalThis.__h6Six = { body: body ? { id: body.id, x: body.x, y: body.y } : null,
@@ -1468,7 +1468,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         }
         if (mine && body) await body.update({ x: mine.x, y: mine.y });
         await chie.update({ "system.resources.stress.value": 0 });
-        await automatedUpdate(chie, { "system.resources.hope.value": Math.max(3, globalThis.__h6Six.was.hope) });
+        await trustedWrite(chie, { "system.resources.hope.value": Math.max(3, globalThis.__h6Six.was.hope) }, { reason: "gmRuling" });
         await new Promise(r => setTimeout(r, 800));
         return { stage: M.murderState()?.stage ?? null, moved: Boolean(mine && body) };`, { timeout: 60000 });
     await settle(800);
@@ -1494,7 +1494,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const settled = { trail: await gm.eval(SETTLED(trail.messageId)), carried: await gm.eval(SETTLED(carried.messageId)) };
     await p3.eval(`globalThis.__dialogAuto = globalThis.__h6Auto; delete globalThis.__h6Auto; return true;`);
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const { body, was } = globalThis.__h6Six ?? {};
         delete globalThis.__h6Six;
         await game.drpg.endMurder({ reason: "suite", followUp: false });
@@ -1502,7 +1502,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         if (C.isDeadForGm(daichi)) await C.reviveCharacter(daichi, { quiet: true });
         const token = body ? canvas.scene.tokens.get(body.id) : null;
         if (token) await token.update({ x: body.x, y: body.y });
-        if (was) { await chie.update({ "system.resources.stress.value": was.stress }); await automatedUpdate(chie, { "system.resources.hope.value": was.hope }); }
+        if (was) { await chie.update({ "system.resources.stress.value": was.stress }); await trustedWrite(chie, { "system.resources.hope.value": was.hope }, { reason: "gmRuling" }); }
         return true;`, { timeout: 60000 });
     check("the killer's player's opening, trail and body move each name the roll the GM drew, which settles it: the incident begins, and both Stage 6 actions are carried out",
         honestOpening.stage === "incident" && JSON.stringify(honestOpening.records) === JSON.stringify([{ actorId: ids.chie, resolved: ["murderOpening"] }])

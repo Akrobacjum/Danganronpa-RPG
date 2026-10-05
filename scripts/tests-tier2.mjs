@@ -673,14 +673,14 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
  * first to a character that has none; `back` puts the actions as they were.
  */
 async function payAction(actor) {
-    const { automatedUpdate } = await import("./resource-guard.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
     const { actionsLeft } = await import("./actions.mjs");
     const { PAID_AS_PLAYER } = await import("./roll-draw.mjs");
     const path = "system.resources.actions.value";
     const left = actionsLeft(actor);
-    if (left < 1) await automatedUpdate(actor, { [path]: 1 });
-    await automatedUpdate(actor, { [path]: Math.max(1, left) - 1 }, { [PAID_AS_PLAYER]: true });
-    return { back: async () => { if (actionsLeft(actor) !== left) await automatedUpdate(actor, { [path]: left }); } };
+    if (left < 1) await trustedWrite(actor, { [path]: 1 }, { reason: "gmRuling" });
+    await trustedWrite(actor, { [path]: Math.max(1, left) - 1 }, { reason: "gmRuling", [PAID_AS_PLAYER]: true });
+    return { back: async () => { if (actionsLeft(actor) !== left) await trustedWrite(actor, { [path]: left }, { reason: "gmRuling" }); } };
 }
 
 /** A connected player and a character they play, and one they do not; ask `connectedPlayersWithCharacter` first. */
@@ -995,7 +995,7 @@ async function swingFixture(identity = null) {
  */
 async function useItemRerolled(next, { tier = 1 } = {}) {
     const { ITEM_FLAGS, isBroken } = await import("./inventory.mjs");
-    const { automatedUpdate } = await import("./resource-guard.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
     const { resourceMax } = await import("./character.mjs");
     const { M, killer, putBack } = await swingFixture();
     const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
@@ -1010,7 +1010,7 @@ async function useItemRerolled(next, { tier = 1 } = {}) {
         const before = { hp: tier === 3 ? 3 : 2, stress: killer.system.resources.stress.value, qty: 2 };
         if (tier === 3) {
             before.hope = max - 2;
-            await automatedUpdate(killer, { "system.resources.hope.value": max });
+            await trustedWrite(killer, { "system.resources.hope.value": max }, { reason: "gmRuling" });
         }
         await killer.update({ "system.resources.hitPoints.value": 1 });
         await pack.update({ "system.quantity": 1 });
@@ -1020,7 +1020,7 @@ async function useItemRerolled(next, { tier = 1 } = {}) {
         must(used && F.row()?.facts?.usedItemId === pack.id && M.murderState()?.lastCrisis?.usedItemId === pack.id,
             `the first Use an item was not scored with the pack on the row and the receipt - this would measure nothing: ${stableJson([used, F.row()?.facts ?? null])}`);
         const scored = M.murderState()?.lastCrisis?.hopeGranted ?? 0;
-        await automatedUpdate(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) });
+        await trustedWrite(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) }, { reason: "gmRuling" });
         const { out } = await rerollAgain(killer, F.message, { hope: 9, fear: 4 }, next);
         const now = killer.items.get(pack.id);
         const read = { replayed: Array.isArray(out?.lines), hp: killer.system.resources.hitPoints.value, qty: Number(now?.system?.quantity ?? 0),
@@ -4887,7 +4887,7 @@ const SCENARIOS = [
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
         const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [theirs, victim] = livingStudents().filter(playerOf);
         const player = playerOf(theirs);
@@ -4939,7 +4939,7 @@ const SCENARIOS = [
             for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
             for (const [a, values] of found) {
                 const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
-                if (changed.length) await automatedUpdate(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])));
+                if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
             }
         }
         equal(stableJson(read), stableJson([
@@ -5089,7 +5089,7 @@ const SCENARIOS = [
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
         const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [theirs, victim] = livingStudents().filter(playerOf);
         const player = playerOf(theirs);
@@ -5129,7 +5129,7 @@ const SCENARIOS = [
             for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
             for (const [a, values] of found) {
                 const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
-                if (changed.length) await automatedUpdate(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])));
+                if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
             }
         }
         equal(stableJson(read), stableJson([[[["trait", "body", "eye"]], "body"], [[["pick", "1", "0"]], null]]),
@@ -5549,7 +5549,7 @@ const SCENARIOS = [
             "a record written late was not found, a missing one was refused at once, or the fallback did not let the packet's numbers stand and tell the GMs once (late, never, changed, the word twice, the version kept, the live seam again; the state after)");
     }],
 
-    ["a private card a player asks the GM to post in an incident is the GM's, and carries no more than the player's owncould", async () => {
+    ["a private card a player asks the GM to post in an incident is the GM's, and carries no more than the player's own could", async () => {
         /*
          * E08+E28 fix r2-H5, 05.10.2026; review S2-3. While an incident runs a player's browser asks
          * the primary GM to post its private cards (secret.mjs `askGm`), so that no document of the
@@ -6033,11 +6033,11 @@ const SCENARIOS = [
         must(experience, `${theirs.name} holds no experience - this would measure nothing`);
         const hope = () => theirs.system.resources.hope.value;
         const hopeAt = hope();
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const log = watchLog();
         const out = [];
         try {
-            await automatedUpdate(theirs, { "system.resources.hope.value": 3 });
+            await trustedWrite(theirs, { "system.resources.hope.value": 3 }, { reason: "gmRuling" });
             for (const [costs, experiences] of [[[{ key: "fear", value: 12, enabled: true }], [experience]],
                 [[{ key: "hope", value: 1, enabled: true }], []], [[{ key: "hope", value: 1, enabled: true }], [experience]]]) {
                 let moved = null;
@@ -6054,7 +6054,7 @@ const SCENARIOS = [
             }
         } finally {
             log.stop();
-            await automatedUpdate(theirs, { "system.resources.hope.value": hopeAt });
+            await trustedWrite(theirs, { "system.resources.hope.value": hopeAt }, { reason: "gmRuling" });
         }
         equal(stableJson([out, log.count('Refused a "roll.draw"')]), stableJson([[["badRequest", 0, 0, false], ["badRequest", 0, 0, false],
             [null, 1, -1, true]], 2]), "a Fear cost or a Hope with no experience is not refused, or moves something, or the Hope an experience "
@@ -6121,7 +6121,7 @@ const SCENARIOS = [
          * a63256f's runtime: every draw is made.
          */
         needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { actionsLeft } = await import("./actions.mjs");
         const D = await import("./roll-draw.mjs");
         const G = await import("./bridge-guards.mjs");
@@ -6139,23 +6139,23 @@ const SCENARIOS = [
         };
         const asPlayer = { [D.PAID_AS_PLAYER]: true };
         const pay = async () => {
-            await automatedUpdate(theirs, { [path]: top }, asPlayer);
-            await automatedUpdate(theirs, { [path]: top - 1 }, asPlayer);
+            await trustedWrite(theirs, { [path]: top }, { reason: "gmRuling", ...asPlayer });
+            await trustedWrite(theirs, { [path]: top - 1 }, { reason: "gmRuling", ...asPlayer });
         };
         const out = [];
         try {
-            await automatedUpdate(theirs, { [path]: top });
+            await trustedWrite(theirs, { [path]: top }, { reason: "gmRuling" });
             D.forgetPayments?.(theirs.id);
             out.push(await draw("observe"));
-            await automatedUpdate(theirs, { [path]: top - 1 });
+            await trustedWrite(theirs, { [path]: top - 1 }, { reason: "gmRuling" });
             out.push(await draw("observe"));
-            await automatedUpdate(theirs, { [path]: top });
+            await trustedWrite(theirs, { [path]: top }, { reason: "gmRuling" });
             await pay();
             out.push(await draw("observe"), await draw("observe"));
             await pay();
             out.push(await draw("palm"), await draw("steal"), await draw("steal"));
             await pay();
-            await automatedUpdate(theirs, { [path]: top }, asPlayer);
+            await trustedWrite(theirs, { [path]: top }, { reason: "gmRuling", ...asPlayer });
             out.push(await draw("observe"));
             let packet = null, second = null;
             const told = [];
@@ -6173,7 +6173,7 @@ const SCENARIOS = [
             }
             out.push((D.paymentsOf?.(theirs.id) ?? []).filter(ticket => !ticket.kinds.length).length);
         } finally {
-            await automatedUpdate(theirs, { [path]: left });
+            await trustedWrite(theirs, { [path]: left }, { reason: "gmRuling" });
         }
         equal(stableJson(out), stableJson(["notPaid", "notPaid", true, "notPaid", true, true, "notPaid", "notPaid", "notPaid", "rollThrown", 0]),
             "a roll is drawn with nothing paid, or on the GM's own write, or twice on one payment, or a Palm's hand cannot ride on its "
@@ -6810,13 +6810,13 @@ const SCENARIOS = [
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
         const { player, actor, where } = await playerInRoom();
         const D = await import("./roll-draw.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const path = "system.resources.hope.value";
         const hopeWas = foundry.utils.getProperty(actor, path);
         // A GM's write moves only the reading a payment is measured from; the second write is the player's payment.
         const pay = async n => {
-            await automatedUpdate(actor, { [path]: n });
-            await automatedUpdate(actor, { [path]: 0 }, { [D.PAID_AS_PLAYER]: true });
+            await trustedWrite(actor, { [path]: n }, { reason: "gmRuling" });
+            await trustedWrite(actor, { [path]: 0 }, { reason: "gmRuling", [D.PAID_AS_PLAYER]: true });
         };
         const F = await projectPackets(player, actor);
         D.forgetPayments?.(actor.id);
@@ -6840,7 +6840,7 @@ const SCENARIOS = [
             "progress naming no roll was added with no Hope Call named, another amount, no payment, twice for one payment, or from another room (code and bar after each)");
         } finally {
             D.forgetPayments?.(actor.id);
-            await automatedUpdate(actor, { [path]: hopeWas });
+            await trustedWrite(actor, { [path]: hopeWas }, { reason: "gmRuling" });
             await F.putBack();
         }
     }],
@@ -6909,7 +6909,7 @@ const SCENARIOS = [
         needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
         const R = await import("./reroll.mjs");
         const { rerollBookmarkStore } = await import("./gm-stores.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { toolRelief } = await import("./action-rolls.mjs");
         const { equippedFor, tierOf } = await import("./use-items.mjs");
         const { remnantData } = await import("./remnants.mjs");
@@ -6927,7 +6927,7 @@ const SCENARIOS = [
                 try {
                     const facts = actionKey === "project" ? { projectId: project, progress: 0 } : { targetProjectId: project, repairId: null };
                     await rerollBookmarkStore.patch(actor.id, { facts: { ...(B.row()?.facts ?? {}), ...facts } });
-                    await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+                    await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
                     const out = await R.rerollOnGm(actor, player);
                     await settle();
                     read.push([Array.isArray(out?.lines), actionKey === "project" ? F.progress(project) : F.P.isFrozen(project)]);
@@ -6960,7 +6960,7 @@ const SCENARIOS = [
         needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
         const R = await import("./reroll.mjs");
         const { remnantData } = await import("./remnants.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { player, actor, where } = await playerInRoom();
         const scene = where.scene, had = new Set(scene.tokens.map(t => t.id));
         const card = await ChatMessage.create({ content: "<p>Suite r2-H3 ruling</p>", whisper: [game.user.id],
@@ -6968,7 +6968,7 @@ const SCENARIOS = [
         const F = await playerRollBookmark(player, actor, "dynamic", { bandIndex: 3, description: "Suite r2-H3 a Dynamic action" });
         const stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 11, fear: 9 } });
         try {
-            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
             const out = await R.rerollOnGm(actor, player);
             await settle();
             const left = scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.action === "dynamic").map(d => d.visibility);
@@ -7053,7 +7053,7 @@ const SCENARIOS = [
         needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
         const R = await import("./reroll.mjs");
         const { rerollBookmarkStore, rollStore } = await import("./gm-stores.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { equippedFor, EQUIPPED_FLAG } = await import("./use-items.mjs");
         const { ITEM_FLAGS } = await import("./inventory.mjs");
         const { player, actor, where } = await playerInRoom();
@@ -7074,7 +7074,7 @@ const SCENARIOS = [
             await B.message.update({ [`flags.${MODULE_ID}.drawn`]: true, [`flags.${MODULE_ID}.rollId`]: record.rollId });
             const project = await F.project(where.room);
             await rerollBookmarkStore.patch(actor.id, { facts: { ...(B.row()?.facts ?? {}), projectId: project, progress: 0 } });
-            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
             const out = await R.rerollOnGm(actor, player);
             await settle();
             equal(stableJson([Array.isArray(out?.lines), F.progress(project)]), stableJson([true, 1]),
@@ -7110,7 +7110,7 @@ const SCENARIOS = [
         const { performAction } = await import("./action-rolls.mjs");
         const { rerollBookmarkStore } = await import("./gm-stores.mjs");
         const { remnantData } = await import("./remnants.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { actor, where } = await playerInRoom();
         const scene = where.scene, had = new Set(scene.tokens.map(t => t.id)), seen = new Set(game.messages.map(m => m.id));
         const traces = () => scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.action === "dynamic").map(d => d.visibility);
@@ -7134,7 +7134,7 @@ const SCENARIOS = [
             must(row?.actionKey === "dynamic" && row?.by === game.user.id && message && !traces().length,
                 `the GM's own Dynamic action was not kept as its miss on its row - this would measure nothing: ${stableJson(row)}`);
             stand = rerollableRoll(message, { first: { hope: 5, fear: 4 }, next: { hope: 11, fear: 9 } });
-            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
             const out = await R.rerollOnGm(actor, game.user);
             await settle();
             equal(stableJson([Array.isArray(out?.lines), traces()]), stableJson([true, ["subtle"]]),
@@ -7596,14 +7596,14 @@ const SCENARIOS = [
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const R = await import("./reroll.mjs");
         const { reasonOf } = await import("./bridge-guards.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { killer, putBack } = await swingFixture();
         const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
         let F = null, stand = null, watch = null;
         try {
             F = await playerRollBookmark(player, killer, "crisis");
             must(F.verdict && F.row()?.actionKey === "crisis" && !F.row()?.facts?.crisis, `the crisis row was not kept bare - this would measure nothing: ${stableJson(F.row())}`);
-            await automatedUpdate(killer, { "system.resources.hope.value": Math.max(4, killer.system.resources.hope.value) });
+            await trustedWrite(killer, { "system.resources.hope.value": Math.max(4, killer.system.resources.hope.value) }, { reason: "gmRuling" });
             stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
             watch = watchRerollWrites(killer, F.message.id);
             const hope0 = killer.system.resources.hope.value;
@@ -7639,7 +7639,7 @@ const SCENARIOS = [
         const R = await import("./reroll.mjs");
         const { reasonOf } = await import("./bridge-guards.mjs");
         const { cleanupAttemptStore, rerollJournalStore } = await import("./gm-stores.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { player, actor } = await playerInRoom();
         const C = await cleanupFixture(actor, "SUITE E08 G3 a clean-up rerolled with nothing to take back");
         let F = null, stand = null, watch = null, late = false;
@@ -7658,7 +7658,7 @@ const SCENARIOS = [
             watch = watchRerollWrites(actor, F.message.id);
             // Each Reroll asked with the Hope it costs, so one that stood does not refuse the next for its price.
             const ask = async () => {
-                await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
                 const hope = actor.system.resources.hope.value;
                 const out = await R.rerollOnGm(actor, player);
                 await settle();
@@ -7707,7 +7707,7 @@ const SCENARIOS = [
         const { resolveAnalyze } = await import("./analyze.mjs");
         const { getClock } = await import("./clock.mjs");
         const { rerollJournalStore } = await import("./gm-stores.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { player, actor } = await playerInRoom();
         const chapter = getClock().chapter;
         let F = null, stand = null, watch = null, late = false, bullet = null;
@@ -7726,7 +7726,7 @@ const SCENARIOS = [
             watch = watchRerollWrites(actor, F.message.id);
             // Each Reroll asked with the Hope it costs, so one that stood does not refuse the next for its price.
             const ask = async () => {
-                await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
                 const hope = actor.system.resources.hope.value;
                 const out = await R.rerollOnGm(actor, player);
                 await settle();
@@ -7778,7 +7778,7 @@ const SCENARIOS = [
         const M = await import("./movement.mjs");
         const { deathStore } = await import("./gm-stores.mjs");
         const { isDeadForGm } = await import("./settings.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { player, actor, where } = await playerInRoom();
         const other = (canvas.tokens?.placeables ?? []).map(t => ({ them: t.actor, room: M.roomOfToken(t.document) }))
             .find(o => o.them && o.room && M.occupantsOf(o.room, actor).some(a => a.id === o.them.id));
@@ -7792,7 +7792,7 @@ const SCENARIOS = [
                 `the Listen's row does not name the room listened to - this would measure nothing: ${stableJson(F.row())}`);
             stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 11, fear: 9 } });
             const ask = async () => {
-                await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+                await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
                 const out = await R.rerollOnGm(actor, player);
                 await settle();
                 return out?.lines ?? null;
@@ -7815,7 +7815,7 @@ const SCENARIOS = [
             if (dead) await deathStore.drop(other.them.id);
             stand?.putBack();
             await F?.putBack();
-            await automatedUpdate(actor, { "system.resources.hope.value": hopeWas });
+            await trustedWrite(actor, { "system.resources.hope.value": hopeWas }, { reason: "gmRuling" });
         }
     }],
 
@@ -7935,7 +7935,7 @@ const SCENARIOS = [
         const observe = await import("./observe.mjs");
         const remnants = await import("./remnants.mjs");
         const bullets = await import("./truth-bullets.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { player, actor, where } = await playerInRoom();
         const had = new Set(actor.items.map(i => i.id));
         const D = foundry.applications.api.DialogV2;
@@ -7955,7 +7955,7 @@ const SCENARIOS = [
             F = await playerRollBookmark(player, actor, "observe", {});
             const target = await observe.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
             must(target?.ok, `the Observe found nothing to aim at where its trace lies: ${stableJson(target)}`);
-            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
             stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
             watch = watchRerollWrites(actor, F.message.id);
             const hope0 = actor.system.resources.hope.value;
@@ -8022,7 +8022,7 @@ const SCENARIOS = [
         const observe = await import("./observe.mjs");
         const remnants = await import("./remnants.mjs");
         const bullets = await import("./truth-bullets.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { player, actor, where } = await playerInRoom();
         const had = new Set(actor.items.map(i => i.id));
         const D = foundry.applications.api.DialogV2;
@@ -8035,7 +8035,7 @@ const SCENARIOS = [
         let answer = null, stubbed = false;
         let trace = null, H = null, F = null, stand = null, watch = null, resolving = null;
         try {
-            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
             H = await playerRollBookmark(player, actor, "observe", { gmRuled: true });
             must(H.row()?.claims?.gmRuled === true && !H.row()?.facts?.observeKey,
                 `the hand-ruled Observe's row does not claim the ruling without a key - this would measure nothing: ${stableJson(H.row())}`);
@@ -8054,7 +8054,7 @@ const SCENARIOS = [
             F = await playerRollBookmark(player, actor, "observe", { gmRuled: true });
             const target = await observe.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
             must(target?.ok, `the Observe found nothing to aim at where its trace lies: ${stableJson(target)}`);
-            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
             stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
             watch = watchRerollWrites(actor, F.message.id);
             const hope0 = actor.system.resources.hope.value;
@@ -8144,7 +8144,7 @@ const SCENARIOS = [
          * marks - those the first Strike left.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { M, killer, victim, putBack } = await swingFixture();
         const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
         const marks = () => [victim.system.resources.hitPoints.value, victim.system.resources.stress.value];
@@ -8158,7 +8158,7 @@ const SCENARIOS = [
             const first = marks();
             must(struck && F.row()?.facts?.choice === "stress" && first[0] === before[0] && first[1] > before[1],
                 `the first critical Strike did not land on Sanity with its pick on the row - this would measure nothing: ${stableJson([struck, F.row()?.facts ?? null, before, first])}`);
-            await automatedUpdate(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) });
+            await trustedWrite(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) }, { reason: "gmRuling" });
             const { out } = await rerollAgain(killer, F.message, { hope: 9, fear: 4 }, { hope: 7, fear: 7 });
             equal(stableJson([Array.isArray(out?.lines), marks()]), stableJson([true, first]),
                 "the Reroll of a critical Strike on Sanity did not land its replay where the striker picked (replayed, victim's Health and Sanity marks)");
@@ -8930,7 +8930,7 @@ const SCENARIOS = [
         const { breakOnDespair } = await import("./use-items.mjs");
         const { appendArmedCall } = await import("./call-effects.mjs");
         const { spendHopeCall } = await import("./calls.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { HOPE_CALLS } = await import("./config.mjs");
         const { livingStudents } = await import("./chapter.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
@@ -8952,13 +8952,13 @@ const SCENARIOS = [
                 await neutralRoll(victim, { remember: true, faces: { hope: 5, fear: 3 } });
                 await breakOnDespair(killer, tool, { withFear: true, isCritical: false });
                 await breakOnDespair(killer, tool, { withFear: true, isCritical: false });
-                await automatedUpdate(victim, { "system.resources.hope.value": Math.max(hope, HOPE_CALLS.sprint.cost) });
+                await trustedWrite(victim, { "system.resources.hope.value": Math.max(hope, HOPE_CALLS.sprint.cost) }, { reason: "gmRuling" });
                 await spendHopeCall(victim, "sprint");
                 await settle();
             });
         } finally {
             await killer.items.get(tool.id)?.delete();
-            await automatedUpdate(victim, { "system.resources.hope.value": hope });
+            await trustedWrite(victim, { "system.resources.hope.value": hope }, { reason: "gmRuling" });
         }
         const made = game.messages.contents.filter(m => !had.has(m.id));
         const names = [...[killer, victim].flatMap(a => [a.id, a.name]), LOADED];
@@ -10832,7 +10832,7 @@ const SCENARIOS = [
         const { cardFlag } = await import("./secret.mjs");
         const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
         const { deferAdvancement } = await import("./level-up.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const pair = [holder, other];
         const before = new Map(pair.map(a => [a.id, { max: a.system?.resources?.hitPoints?.max ?? 0, advances: a.getFlag(MODULE_ID, FLAGS.advances) ?? 0 }]));
         const titles = new Map(pair.map(a => [game.i18n.format("DRPG.Advance.title", { actor: a.name }), a.id]));
@@ -10866,8 +10866,8 @@ const SCENARIOS = [
         } finally {
             Hooks.off("updateActor", hook);
             for (const a of pair) {
-                await automatedUpdate(a, { "system.resources.hitPoints.max": before.get(a.id).max,
-                    [`flags.${MODULE_ID}.${FLAGS.advances}`]: before.get(a.id).advances });
+                await trustedWrite(a, { "system.resources.hitPoints.max": before.get(a.id).max,
+                    [`flags.${MODULE_ID}.${FLAGS.advances}`]: before.get(a.id).advances }, { reason: "gmRuling" });
             }
             await deferredOfferStore.dropMany([holder.id, dead.id].filter(id => deferredOfferStore.has(id)));
             await reviveCharacter(dead, { quiet: true });
@@ -16863,14 +16863,14 @@ const SCENARIOS = [
         const o = await import("./overflow.mjs");
         const { despairOwedStore } = await import("./gm-stores.mjs");
         const { TIMES_OF_DAY } = await import("./config.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { resourceValue } = await import("./character.mjs");
         const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
         ok(Boolean(donor), "no Monokuma's pool to convert from - this measures nothing");
         const [who] = cast(1);
         const clock = foundry.utils.deepClone(getClock());
         const state = () => [D.getDespair(donor.id), D.owedOf(donor.id), D.spendableDespair(donor.id)];
-        const noHope = () => automatedUpdate(who, { "system.resources.hope.value": 0 });
+        const noHope = () => trustedWrite(who, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
         try {
             await despairOwedStore.drop(donor.id);
             await D.setDespair(donor.id, 5);
@@ -16942,7 +16942,7 @@ const SCENARIOS = [
         const o = await import("./overflow.mjs");
         const S = await import("./gm-stores.mjs");
         const { DESPAIR_CALLS } = await import("./config.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { resourceValue } = await import("./character.mjs");
         const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
         ok(Boolean(donor), "no Monokuma's pool - this measures nothing");
@@ -16979,7 +16979,7 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rules0, threshold: 20 });
             await S.despairOwedStore.drop(donor.id);
             await D.setDespair(donor.id, 3);
-            await automatedUpdate(who, { "system.resources.hope.value": 0 });
+            await trustedWrite(who, { "system.resources.hope.value": 0 }, { reason: "gmRuling" });
             const converted = await heldAcross(S.despairOwedStore, () => D.convertDespairToHope(donor.id, who, 2),
                 () => S.despairOwedStore.patch(donor.id, { owed: 2, since }));
             equal(stableJson([...converted, resourceValue(who, "hope")]), stableJson(["waiting", 0, 0]),
@@ -23946,6 +23946,43 @@ const SCENARIOS = [
             stableJson([true, 1, [true, game.i18n.localize("DRPG.Project.repairNameSecret"), true, false], null]),
             `a repair 1.2.64 made of a secret project is still public or named, or the clause that did not read back did not throw: ${
                 stableJson({ threw, report, sealed, again })}`);
+    }],
+
+    ["a rest is one write with its stamp", async () => {
+        /* E29 C1, 05.10.2026; audit S17-12; the plan's 2.2 and 2.5. A Rest's benefits and its
+           "used up" stamp were two writes, benefits first, so the GMs' side would have seen
+           Sanity cleared with nothing beside it to say which Rest it was. Now one write carries
+           both, named `rest`; the action's spend stays its own write, named `spend`. A Short
+           Rest with Meal, its window answered here and the room waived (the room is not what is
+           measured). Red before C1: three writes - the spend, the Sanity, the stamp - none
+           naming a reason. */
+        const [student] = cast(1);
+        const { takeRest } = await import("./rest.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        await student.update({ "system.resources.stress.value": 2, "system.resources.actions.value": 2,
+            [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0 });
+        await student.unsetFlag(MODULE_ID, FLAGS.restsTaken);
+        const writes = [];
+        const hook = Hooks.on("updateActor", (actor, changed, options) => {
+            if (actor.id !== student.id) return;
+            writes.push({ paths: Object.keys(foundry.utils.flattenObject(changed)).filter(p => p !== "_id" && !p.startsWith("_stats")).sort(),
+                stamp: options?.drpgWrite ?? null });
+        });
+        let rest = null;
+        D.wait = async () => ["meal"];
+        try {
+            rest = await takeRest(student, "short", { ignoreRoom: true, quiet: true });
+            await settle();
+        } finally {
+            Hooks.off("updateActor", hook);
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+        }
+        equal(stableJson([Boolean(rest), student.system.resources.stress.value, writes]), stableJson([true, 1, [
+            { paths: ["system.resources.actions.value"], stamp: { reason: "spend", ref: null } },
+            { paths: [`flags.${MODULE_ID}.${FLAGS.restsTaken}.short`, "system.resources.stress.value"], stamp: { reason: "rest", ref: null } }
+        ]]), "a Short Rest's Sanity and its stamp are not one write named rest, beside the action's spend");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

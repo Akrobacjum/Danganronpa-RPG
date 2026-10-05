@@ -35,7 +35,7 @@ import { MODULE_ID, FLAGS, PRICE_CHAINS, STARTING } from "./config.mjs";
 import { getClock, isDeadForGm } from "./settings.mjs";
 import { canPayFor, freeActionsLeft, actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
+import { trustedWrite, HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { plural, whisperToOwner, debug } from "./utils.mjs";
 
@@ -195,13 +195,13 @@ export async function payPrice(actor, key, { skip = [], quiet = false } = {}) {
     if (quote.pay === "hope") {
         const held = resourceValue(actor, "hope");
         if (held < quote.amount) return null;
-        await automatedUpdate(actor, { "system.resources.hope.value": held - quote.amount });
+        await trustedWrite(actor, { "system.resources.hope.value": held - quote.amount }, { reason: "price" });
         return { key, pay: "hope", amount: quote.amount, grant: false };
     }
 
     const marks = resourceValue(actor, "stress");
     if (roomLeft(actor, "stress") < quote.amount) return null;
-    await automatedUpdate(actor, { "system.resources.stress.value": marks + quote.amount });
+    await trustedWrite(actor, { "system.resources.stress.value": marks + quote.amount }, { reason: "price" });
     return { key, pay: "stress", amount: quote.amount, grant: false };
 }
 
@@ -228,9 +228,9 @@ export async function refundPrice(actor, receipt, { quiet = false } = {}) {
     if (receipt.pay === "hope") {
         const max = resourceMax(actor, "hope") || STARTING.hopeMax;
         const held = resourceValue(actor, "hope");
-        await automatedUpdate(actor,
+        await trustedWrite(actor,
             { "system.resources.hope.value": Math.min(max, held + receipt.amount) },
-            { [HOPE_REFUND]: true });
+            { reason: "refund" });
         // Already full counts as landed: there was nowhere for it to go, and that
         // is not the same as the refund being eaten.
         const landed = resourceValue(actor, "hope") > held || held >= max;
@@ -254,9 +254,9 @@ export async function refundPrice(actor, receipt, { quiet = false } = {}) {
     }
 
     const marks = resourceValue(actor, "stress");
-    await automatedUpdate(actor, {
+    await trustedWrite(actor, {
         "system.resources.stress.value": Math.max(0, marks - receipt.amount)
-    });
+    }, { reason: "refund" });
     if (!quiet) await tellRefund(actor, receipt);
     return true;
 }
