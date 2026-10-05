@@ -1060,7 +1060,9 @@ function veiledToday(src, words) {
  * words off the document, any whisper the module did not post, 1.2.64's public end of a
  * secret project's repair - because taking them off would take them from every reader not
  * connected now; an old card of a veiled kind known by its words only, when this browser does
- * not hold them; a Monocub's roll; and every card's author (the owner's Q2 (a), until E28).
+ * not hold them; a Monocub's roll; and every card's author (the owner's Q2 (a)): E28 makes a
+ * drawn roll's message the GM's and a card asked for in an incident the GM's to post (fix
+ * r2-H5), from 1.2.67 on, and a card posted before names its poster still.
  *
  * `ChatMessage.updateDocuments` a hundred at a time; a batch that fails is said in the
  * console and left to the read-back. Then every message it changed is read again, after

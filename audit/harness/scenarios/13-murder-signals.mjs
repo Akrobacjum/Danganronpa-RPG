@@ -571,8 +571,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        (use-items.mjs `breakOnDespair`, driven with a Despair result as tier 2 drives it): the
        card is veiled while the incident runs (secret.mjs `incidentVeils`; until fix r2-G2 by the
        cast p3's copy holds, settings.mjs `incidentVeil`), so the bystander's copy of it names
-       neither Chie nor her player past its author (Q2 (a): the author stays until E28), and its
-       words go to p3 alone of the players. */
+       neither Chie nor her player - since fix r2-H5 not its author either, which is the GM that
+       posted it for p3's browser - and its words go to p3 alone of the players. */
     const toolId = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         return (await INV.grantItem(game.actors.get("${ids.chie}"), { name: "Suite tool snapped in the fight", category: "tool", tier: 0 }))?.id ?? null;`, { timeout: 60000 });
     await settle(600);

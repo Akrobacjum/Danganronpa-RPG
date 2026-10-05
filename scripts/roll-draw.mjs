@@ -376,9 +376,10 @@ async function playBack(cls, roll, config, message, { rollId, messageId, faces, 
     config.message = game.messages.get(messageId) ?? await messageArrives(messageId);
     // Whose roll it is, kept here as for a roll this browser threw, so `reportRollSubject`
     // asks nothing: the GM kept it as it wrote the message. And the message is this browser's
-    // to read from here on (C13), as it was while the GM drew it (`awaitDrawn`).
+    // to read from here on (C13), as it was while the GM drew it (`awaitDrawn`) - after a
+    // reload too (`keep`, fix r2-H7).
     if (subject?.id) keepSubject(messageId, subject.id, game.user?.id ?? null);
-    readHere(messageId);
+    readHere(messageId, { keep: true });
     await playDice(roll);
 }
 
@@ -1233,13 +1234,26 @@ export async function askAboutUnwitnessed(messages = null) {
  * its roller could take off would list the roll again, to be granted again. A GM may set a
  * message's author (the harness's model of Foundry allows it; not measured at a table). The
  * mark is written before the grant, so a second card or a second click finds the roll decided,
- * and this client's decisions run one after another (`decisions`); two GMs clicking at the
- * same moment are not kept apart (not measured). GM only. Answers the rolls granted.
+ * and this client's decisions run one after another (`decisions`). Two GMs clicking within a
+ * round trip each found the rolls undecided on their own copy and each granted them (the
+ * round-2 review's m5, read in the code), so a click is decided on the primary GM since fix
+ * r2-H7 (`askToDecide`): one client, one queue. GM only. Answers the rolls granted.
  */
 export function decideUnwitnessed(messageIds, grant) {
     const run = decisions.then(() => decideNow(messageIds, grant));
     decisions = run.catch(() => null);
     return run;
+}
+
+/**
+ * A GM's click on the GMs' card, decided on the primary GM (`roll.grant`, private-rolls.mjs
+ * `ROLL_ACTIONS`; E08+E28 fix r2-H7): here when this is the primary, asked of it otherwise.
+ * Answers the rolls granted, or none where nothing was decided.
+ */
+export async function askToDecide(messageIds, grant) {
+    const res = await bridgeRequest("roll.grant", { messageIds, grant: grant === true }, {
+        settle: "reply", onPrimary: true, local: () => decideUnwitnessed(messageIds, grant) });
+    return res.ok && Array.isArray(res.value) ? res.value : [];
 }
 
 async function decideNow(messageIds, grant) {
@@ -1326,7 +1340,7 @@ function onRenderUnwitnessed(message, element) {
             if (!button) return;
             event.preventDefault();
             element.querySelector(".drpg-away-actions")?.remove();
-            await decideUnwitnessed(ids, button.dataset.drpgAway === "grant");
+            await askToDecide(ids, button.dataset.drpgAway === "grant");
         });
     } catch (err) {
         error("Could not draw a roll thrown with no GM connected", err);

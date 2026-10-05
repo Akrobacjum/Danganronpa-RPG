@@ -50,7 +50,7 @@ import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
-import { judge, table, pick, as, knownSender, owns, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
+import { judge, table, pick, as, knownSender, owns, gmOnly, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
 // and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
@@ -96,6 +96,8 @@ export function registerPrivateRolls() {
     // module scope because `game.messages` does not exist until the world is
     // ready, and `ready` fires before the chat log has rendered a single card.
     Hooks.once("ready", rememberExistingMessages);
+    // The roller's own drawn rolls, readable again after a reload (fix r2-H7, `refillReadable`).
+    Hooks.once("ready", refillReadable);
 
     // Which character a roll is about, reported by the roller to the primary GM,
     // who judges it by the declaration below (`ROLL_ACTIONS`, E06 C5a) - and the
@@ -1107,8 +1109,30 @@ export const ROLL_ACTIONS = table({
             calls: "only Calls armed on the sender's own character as the GM holds them count; the GM spends those and reads its expectation from them (roll-draw.mjs appliedCalls)",
             context: "a Search's category and stash as the roller saw them: the room is the GM's, its favour and its hidden stash read by the GM (roll-draw.mjs expectedFor); a crisis roll's crisis action, judged against the incident at the draw (drawRefusal) and kept on the record its packet must match (bridge-guards.mjs rollRefusal)"
         }
+    },
+    /*
+     * GRANT ALL, GRANT NONE, DECIDED ON THE PRIMARY GM (E08+E28 fix r2-H7, 05.10.2026; the
+     * round-2 review's m5). The GMs' card's buttons were decided on the GM who clicked, against
+     * its own copy of the log, so two GMs clicking within a round trip each found the rolls
+     * undecided and each granted them. Another GM's click asks the primary (roll-draw.mjs
+     * `askToDecide`), whose `decisions` run one after another, so each stamped roll is decided
+     * once. A GM's alone: a player has nothing to grant.
+     */
+    "roll.grant": {
+        label: "DRPG.Bridge.what.roll.grant",
+        guards: [gmOnly("only a GM grants a roll thrown with no GM connected")],
+        sanitize: pick({ messageIds: as.raw, grant: as.bool }),
+        run: grantRollsOnGm,
+        answer: "reply",
+        claims: { messageIds: "decideUnwitnessed (roll-draw.mjs) reads only the ids that are strings, and decides only a roll still stamped and undecided, once" }
     }
 });
+
+/** The run of `roll.grant`: the primary's own decision (roll-draw.mjs `decideUnwitnessed`), answered as the rolls granted. */
+async function grantRollsOnGm(payload) {
+    const { decideUnwitnessed } = await import("./roll-draw.mjs");
+    return { reply: await decideUnwitnessed(payload.messageIds, payload.grant) };
+}
 
 /** The run of `roll.draw`: the GM's draw, with the fields its whitelist lets through. */
 async function drawRollOnGm(payload, sender, ctx) {
@@ -1312,14 +1336,29 @@ function keepDiceToReaders(messageId, interception) {
  * `enforceContentVisibility`, Daggerheart's card and the Chat pip read one answer. Nothing is
  * written and nobody's list changes: the document is on every browser already, and a console
  * that fills its own set reads only what it holds anyway (a whisper reaches every browser).
- * Bounded as the kept subjects are; a set, so in memory, and a reload forgets it.
+ * Bounded as the kept subjects are.
+ *
+ * A RELOAD KEEPS THE ROLLER'S OWN (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m7). The
+ * set was memory alone, so after a reload every sheet roll the GM had drawn for this browser
+ * showed in its own log as a hidden roll - in 1.2.66 the roller read it as its author, and the
+ * owner's 27.09 rule is that the roller sees the result of every roll the GM drew. The draw's
+ * answer (`keep`) also writes the id to this browser's storage (`SETTINGS.readableRolls`, under
+ * the world and the user, bounded as the set), and `refillReadable` reads them back at `ready`.
+ * A GM's `dice.show` is not kept: an incident's audience that reloads reads the fight's earlier
+ * rolls no more, as before this fix.
  */
 const readableHere = new Set();
 const drawsAwaited = new Set();
 const READABLE_KEPT = 500;
 
-/** Let this browser read a message (`readableHere`): the draw's answer, or a GM's `dice.show`. */
-export function readHere(messageId) {
+/** Where this world's and this user's kept ids are, in `SETTINGS.readableRolls`. */
+const readableKey = () => `${game.world?.id ?? ""}.${game.user?.id ?? ""}`;
+
+/**
+ * Let this browser read a message (`readableHere`): the draw's answer, or a GM's `dice.show`.
+ * `keep`: the roller's own drawn roll, kept for after a reload as well.
+ */
+export function readHere(messageId, { keep = false } = {}) {
     if (typeof messageId !== "string" || !messageId) return;
     readableHere.delete(messageId);
     readableHere.add(messageId);
@@ -1327,6 +1366,37 @@ export function readHere(messageId) {
         if (readableHere.size <= READABLE_KEPT) break;
         readableHere.delete(id);
     }
+    if (keep) void keepReadable(messageId);
+}
+
+async function keepReadable(messageId) {
+    try {
+        const all = { ...(getSetting(SETTINGS.readableRolls) ?? {}) };
+        const ids = (Array.isArray(all[readableKey()]) ? all[readableKey()] : []).filter(id => id !== messageId);
+        ids.push(messageId);
+        all[readableKey()] = ids.slice(-READABLE_KEPT);
+        await game.settings.set(MODULE_ID, SETTINGS.readableRolls, all);
+    } catch (err) {
+        debug("Could not keep a drawn roll readable after a reload", err);
+    }
+}
+
+/**
+ * At `ready`: the set is what this browser kept for this world and user (`readHere`'s `keep`),
+ * as a reload leaves it - what was only in memory is gone. Ids whose message is gone are dropped
+ * from the set, not from storage. Answers how many were read back.
+ */
+export function refillReadable() {
+    readableHere.clear();
+    let ids = [];
+    try {
+        const kept = getSetting(SETTINGS.readableRolls)?.[readableKey()];
+        ids = Array.isArray(kept) ? kept.filter(id => typeof id === "string" && game.messages?.has(id)) : [];
+    } catch (err) {
+        debug("Could not read the drawn rolls this browser kept", err);
+    }
+    for (const id of ids.slice(-READABLE_KEPT)) readableHere.add(id);
+    return readableHere.size;
 }
 
 /** This browser waits on the GM to draw the roll carrying `nonce`; answers the call that stops waiting. */

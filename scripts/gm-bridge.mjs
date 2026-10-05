@@ -765,7 +765,8 @@ async function handleCleanup(payload, sender, ctx, prepared) {
     // A Meddle writes to the TARGET's sheet, not the Monocub's own - arming a
     // Call is exactly the write a player has no permission to make on somebody
     // else's actor. Its dice are thrown here since E08+E28 C17 (`meddleOnGm`),
-    // and the roll goes back for the Monocub's card.
+    // and the roll goes back for the Monocub's card - none for a Meddle it
+    // refuses, which throws nothing since fix r2-H7.
 async function handleMeddle(payload, sender, ctx) {
     const { meddleOnGm } = await import("./monocub.mjs");
     return { reply: await meddleOnGm({ actorId: payload.actorId, targetId: payload.targetId, help: payload.help }) };
@@ -955,7 +956,10 @@ async function worksOwnMurder(projectId, actor, action) {
  *   - a Dynamic action: the difficulty a GM set on its card (`dynamicRulingOf`); a roll under it
  *     leaves no trace (`performDynamic`). The roller's band is no claim since fix r2-H3.
  * A roll that leaves no trace is refused, and a packet whose visibility differs is placed at the
- * GM's band and logged (bridge-guards.mjs `onRecord`).
+ * GM's band and logged (bridge-guards.mjs `onRecord`). Whether a trace is placed at all is still
+ * the roller's browser's: a console that sends no `remnant.place` leaves none, and a Work's trace
+ * (`project`, not in `TRACE_OF_ROLL`) takes the band its packet names - CLAUDE.md's "What stays
+ * open" (the round-2 review's S2-8; fix r2-H7).
  */
 async function traceBandOf(record) {
     let band = null;
@@ -1545,7 +1549,7 @@ export const BRIDGE_ACTIONS = table({
         run: handleMeddle,
         // The roll it threw goes back, for the Monocub's card.
         answer: "reply",
-        claims: { targetId: "judged by resolveMeddle (monocub.mjs): a living student in the Monocub's room" }
+        claims: { targetId: "judged by meddleRefused (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
     },
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",
@@ -2454,10 +2458,17 @@ export function requestRollBookmark(payload) {
  * says each outcome (calls.mjs `askReroll`): an answer after the clock goes to `late`, a refusal
  * after it to `lateRefused`, for as long as a Reroll's roll can be reached at all
  * (`TIMING.rerollWindowMinutes`, an outer bound chosen, not a time measured).
+ *
+ * MADE ON THE PRIMARY GM, WHOEVER ASKS (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's
+ * S2-7). An assistant GM's own Reroll ran on its own client (`local`) and a player's on the
+ * primary, so two Rerolls of one character could each read the GMs' journal before the
+ * other's row reached it, and both pay, throw and replay. `onPrimary`: another GM asks the
+ * primary as a player does, so `making` (reroll.mjs) holds every Reroll of a character on one
+ * client. The harness has one GM, so the race itself is not measured; R219 reads the waiter.
  */
 export function requestReroll(actorId, { late = null, lateRefused = null } = {}) {
     return ask(ACTION_REROLL, { actorId }, {
-        quiet: true, late, lateRefused, lateMs: TIMING.rerollWindowMinutes * 60_000,
+        quiet: true, late, lateRefused, lateMs: TIMING.rerollWindowMinutes * 60_000, onPrimary: true,
         local: () => import("./reroll.mjs").then(m => m.rerollOnGm(game.actors.get(actorId ?? ""), game.user))
     });
 }

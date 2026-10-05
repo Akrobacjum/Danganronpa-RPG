@@ -2469,6 +2469,7 @@
         "roll.subject": "A report of whose roll it was",
         "roll.bookmark": "What a roll did, kept for a Reroll",
         "roll.draw": "A roll for the GM to throw",
+        "roll.grant": "A grant of rolls thrown with no GM connected",
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
         "searchTokens.spend": "Spend a search token",

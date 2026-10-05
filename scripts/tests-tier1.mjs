@@ -5624,6 +5624,44 @@ const INVARIANTS = [
         equal(JSON.stringify([seamFor(live), seamFor(reviewed), seamFor(reordered)]),
             JSON.stringify([{ state: "ok", why: "" }, { state: "ok", why: "" }, { state: "changed", why: verdicts[1].why }]),
             "the seam would be put on a build that is not the reviewed one, or left off the reviewed one (this world's, the reviewed fake, the reordered fake)");
+    }],
+
+    ["R219 - what one client must decide is decided on the primary GM: another GM asks it, as a player does", async () => {
+        /*
+         * E08+E28 fix r2-H7, 05.10.2026; the round-2 review's S2-7 and m5. A request's `local`
+         * ran on whichever GM asked, so an assistant GM's Reroll was made on its own client while
+         * a player's was made on the primary (two Rerolls of one character could each pass the
+         * GMs' journal and both pay), and Grant all was decided on the GM who clicked (two GMs
+         * each granted the rolls). A request `onPrimary` is done on the primary alone; another GM
+         * sends it to the GMs as a player does. The harness has one GM, so the race is not driven:
+         * the waiter is (`createWaiter`, with fakes, as R165 drives it), and the two requests
+         * that must carry the option are read in their source, and the card's click in its own.
+         * Red before the fix: the assistant GM ran `local` and sent nothing, and neither request
+         * named `onPrimary`.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const run = async who => {
+            const sent = [], ran = [];
+            const waiter = createWaiter({
+                emit: packet => sent.push(packet.action), gmIds: () => ["R219PRIMARY00001", "R219ASSISTANT001"],
+                me: () => who, notify: () => {}, fromGm: () => true, report: () => {}
+            });
+            const out = await Promise.all(["r219.primary", "r219.anyGm"].map((action, i) => waiter.request(action, {},
+                { settle: "reply", ackMs: 30, timeoutMs: 60, quiet: true, local: () => (ran.push(action), "here"), onPrimary: i === 0 })));
+            return [ran, sent, out.map(o => o.ok ? o.value : o.reason)];
+        };
+        const assistant = await run({ id: "R219ASSISTANT001", isGM: true, isPrimary: false });
+        const primary = await run({ id: "R219PRIMARY00001", isGM: true, isPrimary: true });
+        equal(JSON.stringify([assistant, primary]), JSON.stringify([
+            [["r219.anyGm"], ["r219.primary"], ["noAnswer", "here"]],
+            [["r219.primary", "r219.anyGm"], [], ["here", "here"]]
+        ]), "a request only the primary may decide was done on another GM, or not sent to the primary (each: run here, sent, answers)");
+        const sources = new Map(await otherSources());
+        const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"]]
+            .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)));
+        ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
+        const click = fnSource(stripComments(sources.get("roll-draw.mjs") ?? ""), "onRenderUnwitnessed");
+        ok(/\baskToDecide\(/.test(click) && !/\bdecideUnwitnessed\(/.test(click), "the GMs' card's buttons decide on the GM who clicked, not through askToDecide");
     }]
 ];
 

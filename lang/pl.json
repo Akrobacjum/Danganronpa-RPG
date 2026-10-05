@@ -2557,6 +2557,7 @@
         "roll.subject": "Zgłoszenie, czyj to był rzut",
         "roll.bookmark": "Co zrobił rzut, zapisane na Reroll",
         "roll.draw": "Rzut do wykonania przez GM-a",
+        "roll.grant": "Przyznanie rzutów rzuconych bez GM-a",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "searchTokens.spend": "Wydanie Search Tokena",

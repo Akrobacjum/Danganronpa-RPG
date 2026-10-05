@@ -805,6 +805,9 @@ Po E08+E28 (1.2.67) doszły te, których harness nie rozstrzyga (plan E08+E28, s
 99. **LIVE-E28-06 - dwóch GM-ów:** na losowanie odpowiada główny; zmiana głównego między losowaniem a jego rozstrzygnięciem.
 100. **LIVE-E28-07 - karta w tle u głównego GM-a:** ile czeka losowanie (obsługa socketu a dławione zegary przeglądarki).
 101. **LIVE-E28-08 - Daggerheart 2.10.6+:** przekazanie przedmiotu drużynie przez gracza (odpowiedź Q1 (a)) jest odrzucane na kliencie GM-a, niczego nie zmienia, a GM dowiaduje się o tym raz na sesję.
+102. **LIVE-E28-09 - `dualityUpdate` i `handleTriggers` po stronie GM-a:** losowanie GM-a uruchamia dla rzutu gracza oba kroki Daggerhearta (roll-draw.mjs), których harness nie modeluje (lib/daggerheart.mjs). Przy stole: odliczanie, które tyka rzut gracza, tyka raz (nie zero i nie dwa razy), a wyzwalacz przedmiotu odpala raz, na właściwej postaci.
+103. **LIVE-E28-10 - karta Meddle Monocuba z JSON-a rzutu GM-a:** `Roll.fromData` i `getTooltip` (monocub.mjs `postMeddleRoll`) na v14 dają kartę z kośćmi i sumą, którą widzi pokój; Meddle odrzucony przez GM-a (cel w innym pokoju albo martwy) nie wystawia żadnej karty, a gracz Monocuba dostaje wiadomość o odmowie. Żaden test nie rysuje tej karty z JSON-a GM-a.
+104. **LIVE-E28-11 - dwóch GM-ów, jedna decyzja:** Reroll asystenta GM-a i jego Przyznaj wszystkie idą do głównego GM-a (`onPrimary`, fix r2-H7) - harness ma jednego GM-a, więc ani wyścig dwóch kliknięć, ani dwóch Rerolli tej samej postaci nie został zmierzony. Przy stole: dwóch GM-ów klika Przyznaj wszystkie naraz - Hope i Despair przyznane raz; dwa Rerolle tej samej postaci naraz - jeden zrobiony, drugi odrzucony, Hope zapłacone raz.
 
 Znane luki po E03, świadomie zostawione (nie live checki, tylko zapis):
 

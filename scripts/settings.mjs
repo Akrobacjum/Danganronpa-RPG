@@ -364,6 +364,8 @@ export const SETTINGS = {
     gmRolls: "gmRolls",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
+    /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
+    readableRolls: "readableRolls",
     /**
      * The words of every private card this browser is a recipient of.
      *
@@ -1383,6 +1385,15 @@ export function registerSettings() {
         config: false,
         type: String,
         default: ""
+    });
+
+    /* The roller's own drawn rolls, so a reload still lets them read what they rolled
+       (E08+E28 fix r2-H7, private-rolls.mjs `readHere`); a list of ids per world and user. */
+    game.settings.register(MODULE_ID, SETTINGS.readableRolls, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
 
     game.settings.register(MODULE_ID, SETTINGS.secretCards, {

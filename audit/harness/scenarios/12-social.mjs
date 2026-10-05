@@ -75,6 +75,19 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     check("PRIVACY: Aiko's statistic from the sheet is drawn by the GM - the GM's message, naming nobody, keeping Daggerheart's card - and read on her browser alone of the players",
         onP1?.contentVisible === true && onP1.author === gm.userId && onP1.drawn && !onP1.superseded && onP1.speaker === null
             && onP2.contentVisible === false, JSON.stringify({ onP1, p2: onP2.contentVisible }));
+    /* AFTER A RELOAD (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m7). Which drawn rolls a
+       browser may read was memory alone, so a reload hid every sheet roll of Aiko's the GM had drawn
+       from her own log. The harness cannot reload a client: p1's set is emptied and read back from
+       its storage as a reload's `ready` does (private-rolls.mjs `refillReadable`), and her statistic
+       is read again; that `ready` reads it back is read in the file served. Red at 17feea3's runtime: nothing to read it back with, nothing kept. */
+    const reloaded = await p1.eval(`const P = await import("${repoUrl}/scripts/private-rolls.mjs");
+        const read = typeof P.refillReadable === "function" ? P.refillReadable() : null;
+        const kept = game.settings.settings.has("${MOD}.readableRolls") ? game.settings.get("${MOD}", "readableRolls") : {};
+        const m = game.messages.get("${rollRes.id}");
+        const wired = (await (await fetch("/modules/${MOD}/scripts/private-rolls.mjs")).text()).includes('Hooks.once("ready", refillReadable)');
+        return { read, wired, kept: (kept?.[game.world.id + "." + game.user.id] ?? []).includes("${rollRes.id}"), readable: Boolean(m?.isContentVisible) };`);
+    check("PRIVACY: after a reload Aiko still reads her statistic the GM drew - kept on her browser for this world and her user",
+        Boolean(onP1?.drawn) && reloaded.read >= 1 && reloaded.wired && reloaded.kept && reloaded.readable, JSON.stringify(reloaded));
     const DSN_READ = `const shown = globalThis.__dsnShown.filter(c => !c.synchronize).map(c => [c.user, c.total]);
         const animated = globalThis.__dsnAnimated.includes("${rollRes.id}"); globalThis.__dsnHideSecret = true; return { shown, animated };`;
     const dice = { gm: await gm.eval(DSN_READ), p1: await p1.eval(DSN_READ), p2: await p2.eval(DSN_READ) };

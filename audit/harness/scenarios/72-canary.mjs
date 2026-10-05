@@ -112,10 +112,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     /* The cards a declaration makes, found on the GM - who reads every one of their words - by
        what they say: the ask quotes the park's note. Their documents are read on p1 and p2 in
        phase eclipse. */
-    const cardsSaying = (from, { text = null, key = null }) => gm.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
-        const text = ${JSON.stringify(key)} ? game.i18n.localize(${JSON.stringify(key)}) : ${JSON.stringify(text)};
+    const cardsSaying = (from, text) => gm.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const text = ${JSON.stringify(text)};
         return game.messages.contents.slice(${from}).filter(m => contentOf(m).includes(text)).map(m => m.id);`);
-    const askCards = await cardsSaying(beforePark, { text: park });
+    const askCards = await cardsSaying(beforePark, park);
 
     /* A token the GM hid. */
     const hidden = canary.marker("token.hidden");

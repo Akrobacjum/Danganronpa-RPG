@@ -1485,14 +1485,17 @@ export function createWaiter({ emit, gmIds, me, notify, fromGm, clock = { set: s
     };
 
     function request(action, payload = {}, { settle: kind = "ack", patient = false, resend = false, ackMs = TIMING.ackMs,
-        timeoutMs = TIMING.rulingMs, local = null, quiet = false, nothingSpent = false, late = null, lateRefused = null, lateMs = 0 } = {}) {
+        timeoutMs = TIMING.rulingMs, local = null, onPrimary = false, quiet = false, nothingSpent = false, late = null, lateRefused = null,
+        lateMs = 0 } = {}) {
         return new Promise(resolve => {
             const entry = { id: null, action, kind, patient, resend, resent: false, quiet, nothingSpent, late, lateRefused, lateMs, timeoutMs,
                 resolve, settled: false, ackTimer: null, answerTimer: null, packet: null };
             try {
                 const self = me();
-                // 1. The GM's own client does it here; a GM does not talk to itself down a socket.
-                if (self.isGM && typeof local === "function") {
+                // 1. The GM's own client does it here; a GM does not talk to itself down a socket. What
+                //    only one client may decide (`onPrimary`) is done here on the primary alone, and any
+                //    other GM asks it as a player does (E08+E28 fix r2-H7; the round-2 review's S2-7, m5).
+                if (self.isGM && typeof local === "function" && (!onPrimary || self.isPrimary)) {
                     Promise.resolve().then(local).then(value => settle(entry, { ok: true, value }), err => {
                         report(`The GM's own client failed while carrying out "${action}"`, err);
                         fail(entry, "failed");
@@ -1618,7 +1621,8 @@ const waiter = createWaiter({
  * @param {string} action   the declaration's name, e.g. "project.sabotage"
  * @param {object} payload  the fields its whitelist reads
  * @param {object} [opts]   settle ("none" | "ack" | "reply"), patient, resend, ackMs, timeoutMs,
- *                          local (the GM's own client does it), quiet, nothingSpent, late
+ *                          local (the GM's own client does it), onPrimary (only the primary GM's
+ *                          does; another GM asks the primary), quiet, nothingSpent, late
  *                          (`late(value, requestId)`, for an answer that arrives after the clock),
  *                          lateRefused (`lateRefused(reason, requestId)`, for a refusal that does),
  *                          lateMs (how long after the wait ends `late` is still handed one;

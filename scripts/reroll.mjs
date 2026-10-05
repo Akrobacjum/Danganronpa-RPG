@@ -422,15 +422,17 @@ const REPLAY_SAYS = Object.freeze({
  */
 async function rerollRefusal(actor, sender, cost) {
     /* ONE REROLL OF A CHARACTER AT A TIME, ON EVERY GM (E08+E28 fix r1-G5, 04.10.2026; the
-       round-1 review's m2). `making` is this client's alone: an assistant GM's own Reroll runs
-       on its client (gm-bridge.mjs `requestReroll`'s `local`) while a player's runs on the
-       primary, and each paid 3 and took the action back. A journal row of the character is a
+       round-1 review's m2). `making` is this client's alone: an assistant GM's own Reroll ran
+       on its client (gm-bridge.mjs `requestReroll`'s `local`) while a player's ran on the
+       primary, and each paid 3 and took the action back. Since fix r2-H7 (the round-2 review's
+       S2-7) every Reroll is made on the primary (`onPrimary`), so `making` holds them all and
+       this row is what a primary that changed, or reloaded, finds. A journal row of the character is a
        Reroll somebody is making, or one cut short; the primary settles the cut ones first
        (`recoverRerollJournal`, which answers nothing on another GM), so what is left is in hand
        somewhere and this one is refused, nothing paid. Until this fix a cut row nobody had
        recovered yet was overwritten by the next Reroll's row and never given back or told.
-       Two GMs asking in the same moment can both pass before either row arrives; that window
-       is the store's sync, not measured. */
+       Two primaries in the same moment (one leaving, one arriving) could both pass before
+       either row arrives; that window is the store's sync, not measured (LIVE-E08-03). */
     await rerollJournalStore.whenHydrated();
     await recoverRerollJournal();
     if (rerollJournalStore.has(actor.id)) return { why: "a Reroll of that character is already being made", say: "DRPG.Reroll.busy" };

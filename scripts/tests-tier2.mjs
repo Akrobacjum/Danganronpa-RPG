@@ -7200,6 +7200,102 @@ const SCENARIOS = [
             "the Meddle was scored on its packet, or the GM's answer did not carry the roll it threw (codes, the answer's total and critical, its roll's total, Confusions armed, the target's actions lost)");
     }],
 
+    ["a Meddle the GM refuses throws no dice and answers no roll", async () => {
+        /*
+         * E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m6. Since C17 the GM throws a
+         * Meddle's dice (monocub.mjs `meddleOnGm`), and it threw them before `resolveMeddle` asked
+         * whether the Meddle stands, answering the roll even for one it refused - so the Monocub's
+         * browser posted a dice card to the room for a Meddle that did nothing. The questions come
+         * first now (`meddleRefused`). A Monocub with a player sends a Meddle on itself, which the
+         * GM refuses ("you cannot Meddle with yourself"). Read: the codes told, whether the answer
+         * holds a roll, how many dice the GM drew (`CONFIG.Dice.randomUniform`, counted), and
+         * whether the Monocub's player was told it was refused. Red at 17feea3's runtime: a roll
+         * answered, two dice drawn.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const wasCub = cub.getFlag(MODULE_ID, FLAGS.monocub) ?? null;
+        const real = CONFIG.Dice.randomUniform;
+        const refusal = game.i18n.localize("DRPG.Monocub.meddleRefused");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const told = [];
+        let answered = false, answer = null, drawn = 0, toldCub = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            CONFIG.Dice.randomUniform = () => (drawn++, real());
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.meddle", requestId: "suite-h7-meddle", actorId: cub.id, targetId: cub.id, help: true },
+                player(cub).id, { send: (to, reply) => {
+                    if (reply?.action === "bridge.refused") told.push(reply.reason);
+                    if (reply?.action === "bridge.done") { answered = true; answer = reply.value ?? null; }
+                } });
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            toldCub = game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal));
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            if (wasCub === null) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await cub.setFlag(MODULE_ID, FLAGS.monocub, wasCub);
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+        }
+        equal(stableJson([told, answered, Boolean(answer?.roll), drawn, toldCub]), stableJson([[], true, false, 0, true]),
+            "a Meddle the GM refused was thrown, or its roll answered for a card, or the Monocub was not told (codes, answered, a roll, dice drawn, told)");
+    }],
+
+    ["Grant all asked of the primary GM is decided there once, and refused from a player", async () => {
+        /*
+         * E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m5. The GMs' card's buttons were
+         * decided on the GM who clicked, so two GMs clicking within a round trip each granted the
+         * rolls. A click is decided on the primary now (`roll.grant`, private-rolls.mjs
+         * `ROLL_ACTIONS`; roll-draw.mjs `askToDecide`): here, on the primary, its own click and
+         * another GM's request reach one queue. A 9 and a 4 of the player's character, stamped
+         * as "Grant all grants each stamped roll once" stamps it; the player asks for the grant
+         * (refused, a GM's alone), then this GM's request and its own click at once. Read: the
+         * player's code and whether the roll was still undecided after it, how many rolls each of
+         * the two granted, the Hope moved from 0 and the stamp's mark. Red at 17feea3's runtime:
+         * no `roll.grant`, no `askToDecide`.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected player who plays a character");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { ROLL_ACTIONS } = await import("./private-rolls.mjs");
+        let id = null;
+        try {
+            const { message } = await neutralRoll(theirs, { faces: { hope: 9, fear: 4 } });
+            must(message, `no roll of ${theirs.name} was thrown - this would measure nothing`);
+            id = message.id;
+            await message.update({ author: player.id,
+                [`flags.${MODULE_ID}.${D.UNWITNESSED_FLAG}`]: { nonce: foundry.utils.randomID(), actorId: theirs.id, at: Date.now() } });
+            await theirs.update({ "system.resources.hope.value": 0 });
+            // A judge that sent nothing (no such declaration) answers "unanswered" once it returns.
+            const ask = (sender, requestId) => new Promise(resolve => {
+                Promise.resolve(G.judge(ROLL_ACTIONS, { action: "roll.grant", requestId, messageIds: [id], grant: true }, sender, { send: (to, reply) => {
+                    if (reply?.action === "bridge.refused") resolve(reply.reason);
+                    if (reply?.action === "bridge.done") resolve(reply.value ?? null);
+                } })).then(() => resolve("unanswered"), () => resolve("threw"));
+            });
+            const refused = await ask(player.id, "suite-h7-grant-player");
+            const open = !Object.hasOwn(game.messages.get(id)?.getFlag(MODULE_ID, D.UNWITNESSED_FLAG) ?? { granted: null }, "granted");
+            const counts = await withDhAutomation({ hopeFear: { players: true } }, async () => {
+                const both = await Promise.all([ask(game.user.id, "suite-h7-grant-gm"), D.askToDecide([id], true)]);
+                await until(() => theirs.system.resources.hope.value === 1);
+                await settle();
+                return both.map(out => Array.isArray(out) ? out.length : out).sort();
+            });
+            equal(stableJson([refused, open, counts, theirs.system.resources.hope.value, game.messages.get(id)?.getFlag(MODULE_ID, D.UNWITNESSED_FLAG)?.granted ?? null]),
+                stableJson(["gmOnly", true, [0, 1], 1, true]),
+                "a player's grant was carried out, or the primary decided one roll twice (the player's code, undecided after it, granted by the GM's request and the click in either order, Hope, the mark)");
+        } finally {
+            if (id) await game.messages.get(id)?.delete();
+        }
+    }],
+
     ["a Reroll keeps the first version on the record", async () => {
         /*
          * E08+E28 C17, 04.10.2026; the plan's 3.6. The Reroll is made on a GM and rewrites the roll's

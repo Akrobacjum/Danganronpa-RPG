@@ -318,7 +318,7 @@ Reinforced ślady nie schodzą nigdy.
 
 ### Direct Murder - 1 akcja, GM decyduje
 
-Zabójstwo twarzą w twarz, uzgodnione wcześniej z GMem i <ins>za zgodą gracza ofiary</ins>. Zgłosić je można tylko **podczas Eclipse** - jedynego momentu, w którym możesz być z kimś sam na sam. Akcja przepada niezależnie od tego, czy się uda, a jak poszło, nie wie nikt - nawet ty - dopóki Eclipse się nie skończy i pokój się nie uspokoi. Jeśli skończysz z nią sam na sam, a GM pozwoli, incydent się otwiera (rozdział 10).
+Zabójstwo twarzą w twarz, uzgodnione wcześniej z GMem i <ins>za zgodą gracza ofiary</ins>. Zgłosić je można tylko **podczas Eclipse** - jedynego momentu, w którym możesz być z kimś sam na sam. Akcja przepada niezależnie od tego, czy się uda. Jeśli GM jej odmówi, dowiesz się od razu; inaczej jak poszło, nie wie nikt - nawet ty - dopóki Eclipse się nie skończy i pokój się nie uspokoi. Jeśli skończysz z nią sam na sam, a GM pozwoli, incydent się otwiera (rozdział 10).
 
 ### Move - za darmo, potem 1 akcja
 

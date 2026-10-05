@@ -295,15 +295,23 @@ export async function performMeddle(actor, targetId, help) {
 
 /**
  * A Meddle's dice, thrown and scored on this GM (E08+E28 C17): the flat 2d12 `rollFlat` throws,
- * applied by `resolveMeddle`, answered as the roll (its JSON), the total and the critical, for
- * the Monocub's card. Thrown before `resolveMeddle` asks its questions, as dice are thrown at a
- * table before the GM rules; a Meddle it refuses is answered all the same, and the Monocub has
- * been told it was refused. GM-side.
+ * applied by `scoreMeddle`, answered as the roll (its JSON), the total and the critical, for
+ * the Monocub's card. GM-side.
+ *
+ * ASKED BEFORE THE DICE (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m6). C17 threw
+ * the dice before `resolveMeddle` asked its questions, as 1.2.66's Monocub had, and answered
+ * a Meddle it refused all the same - so the Monocub's browser posted a dice card to the room
+ * for a Meddle that did nothing (a target gone, dead, in another room). Its questions are
+ * asked first now (`meddleRefused`, which tells the Monocub), and a refusal is answered with
+ * no roll, so no card is posted.
  */
 export async function meddleOnGm({ actorId, targetId, help } = {}) {
     if (!game.user.isGM) return null;
+    const actor = game.actors.get(actorId);
+    const target = game.actors.get(targetId);
+    if (!actor || !target || await meddleRefused(actor, target)) return null;
     const { roll, total, isCritical } = await rollFlat();
-    await resolveMeddle({ actorId, targetId, help, total, isCritical });
+    await scoreMeddle(actor, target, help, total, isCritical);
     return { roll: roll.toJSON(), total, isCritical };
 }
 
@@ -382,9 +390,12 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
 
     const actor = game.actors.get(actorId);
     const target = game.actors.get(targetId);
-    const def = MONOCUB.meddle;
-    if (!actor || !target) return null;
+    if (!actor || !target || await meddleRefused(actor, target)) return null;
+    return scoreMeddle(actor, target, help, total, isCritical);
+}
 
+/** Is this Meddle refused? Said in the GM's log and to the Monocub where it is (`resolveMeddle`'s questions). */
+async function meddleRefused(actor, target) {
     /*
      * Everything `meddleTargets` decides, decided again here.
      *
@@ -412,7 +423,7 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
         if (isMonocub(actor)) {
             await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
         }
-        return null;
+        return true;
     };
 
     if (!isMonocub(actor)) return refuse("they are not a Monocub");
@@ -433,7 +444,12 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
 
     const { sameRoom } = await import("./movement.mjs");
     if (!sameRoom(actor, target)) return refuse("they are not in the same room");
+    return false;
+}
 
+/** A Meddle no question refused, scored on `total` and applied. GM-side. */
+async function scoreMeddle(actor, target, help, total, isCritical) {
+    const def = MONOCUB.meddle;
     const hit = isCritical ? def.critical : resolveThreshold(total, def.thresholds);
 
     if (!hit) {

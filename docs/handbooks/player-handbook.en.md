@@ -318,7 +318,7 @@ Reinforced traces never come off.
 
 ### Direct Murder - 1 action, GM rules
 
-A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. It can only be declared **during an Eclipse** - the one moment you can be alone with somebody. The action is spent whether or not it comes off, and nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (chapter 10).
+A face-to-face killing, agreed with the GM beforehand and <ins>consented to by the victim's player</ins>. It can only be declared **during an Eclipse** - the one moment you can be alone with somebody. The action is spent whether or not it comes off. If the GM refuses it, you are told at once; otherwise nobody, not even you, learns how it went until the Eclipse ends and the room settles. If you end up alone with them and the GM allows it, the incident opens (chapter 10).
 
 ### Move - free, then 1 action
 
