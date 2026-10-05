@@ -24836,6 +24836,127 @@ const SCENARIOS = [
                 + "written back, Health after, the card still the away card after the decision, its line, its buttons)");
     }],
 
+    /*
+     * E29 FIX R1-G8 (05.10.2026; round 1's m1, m6, m8): an Undo writes an object back whole, a card
+     * whose row was swept says it can no longer be decided, and a Search that ended without a draw
+     * names no find.
+     */
+    ["Undo of a flagged Rest stamp writes the stamp back whole: a kind added since does not stay", async () => {
+        /* Round 1's m1, the review's probe (probe 92, phase E) as a test: the mark holds `{short}`, the
+           document `{short, long}`, and a flagged row of that change; Undo answers the field undone, and
+           the stamp must read `{short}` again. At HEAD the before-value was written plainly, Foundry
+           merged it, and the stamp kept `long` under a row and a card that said "undone". */
+        const [student] = cast(1);
+        const { decideWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const path = `flags.${MODULE_ID}.restsTaken`, short = { short: "d1:morning" }, both = { short: "d1:morning", long: "s1" };
+        const rowId = foundry.utils.randomID();
+        let read = null;
+        try {
+            await student.update({ [path]: replaced(short) });
+            await sheetAuditIdle();
+            await student.update({ [path]: both }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(stableJson(student.getFlag(MODULE_ID, "restsTaken")) === stableJson(both), "the stamp did not take the second kind - the Undo below would measure nothing");
+            await sheetWriteStore.patch(rowId, { actorId: student.id, itemId: null, userId: null, reason: null, ref: null,
+                change: { [path]: [short, both] }, covered: null, verdict: "flagged", messageId: null, decided: null, at: Date.now(), away: true, n: 0 });
+            const decided = await decideWrite(rowId, false);
+            await sheetAuditIdle();
+            read = [decided?.undone ?? null, student.getFlag(MODULE_ID, "restsTaken") ?? null];
+        } finally {
+            if (sheetWriteStore.has(rowId)) await sheetWriteStore.drop(rowId);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[path], short]),
+            "Undo of a flagged Rest stamp did not answer it undone, or left the kind added since in the stamp (undone, the stamp after)");
+    }],
+
+    ["a flagged card whose row was swept draws no buttons and says it can no longer be decided; a young card without its row keeps them", async () => {
+        /* Round 1's m8. A row is kept a day (sheet-audit.mjs `keepRows`); a card whose rows are gone decided
+           nothing, yet kept its buttons on every render. Three cards of the suite's own, each naming a row no
+           store holds, drawn as the chat log draws them: a flagged one a day and a minute old, the same one
+           fresh (its row may still be on its way - it is posted before the row is written), and a card of
+           the changes made with no GM watching a day and a minute old - each read once the hook's listeners
+           have all run, secret.mjs's swap of the card's words among them. At HEAD every one kept its buttons. */
+        const [student] = cast(1);
+        const { whisperToGms } = await import("./utils.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const gone = foundry.utils.randomID(), day = 24 * 60 * 60_000;
+        must(!sheetWriteStore.has(gone), "the store holds the row the cards name as gone");
+        const card = `<div class="drpg-audit-card"><ul></ul><div class="drpg-audit-actions"><button type="button" data-drpg-audit="undo">Undo</button>`
+            + `<button type="button" data-drpg-audit="keep">Keep</button></div></div>`;
+        const made = [];
+        const drawn = async (flags, age) => {
+            const message = await whisperToGms(card, { flags: { [MODULE_ID]: flags } });
+            must(message, "no card was posted - this would measure nothing");
+            made.push(message.id);
+            message.updateSource({ timestamp: Date.now() - age });
+            const li = document.createElement("li");
+            li.innerHTML = `<div class="message-content">${card}</div>`;
+            Hooks.callAll("renderChatMessageHTML", message, li);
+            await wait(0);
+            return [li.querySelectorAll("[data-drpg-audit]").length, li.querySelector(".drpg-audit-expired")?.textContent ?? null];
+        };
+        let read = null;
+        try {
+            read = [await drawn({ sheetAudit: student.id, sheetFlagged: gone }, day + 60_000), await drawn({ sheetAudit: student.id, sheetFlagged: gone }, 0),
+                await drawn({ sheetAway: [gone] }, day + 60_000)];
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+        }
+        const said = game.i18n.localize("DRPG.Audit.expired");
+        equal(stableJson(read), stableJson([[0, said], [2, null], [0, said]]),
+            "a card whose row was swept kept its buttons or said nothing, or a young card without its row lost them (per card: buttons, the line)");
+    }],
+
+    ["a Search asked of the GM or taken from a stash names no find, and a stash's theft on a record a find stood on is refused", async () => {
+        /* Round 1's m6. A Search drawn for the player's packet with the goal "something specific" keeps
+           that goal on the GMs' record (roll-draw.mjs `CONTEXT_SENT`), and a tier-1 item named after it is
+           flagged; so is one named after a record a stash's theft settled ("search" in its `resolved`, as
+           bridge-guards.mjs `rollsFor` writes it); and the vault steal's reading of a record a find stood on
+           refuses the theft (gm-bridge.mjs `searchTheftOf`), where the same reading of a fresh record takes
+           it. At HEAD the record kept no goal, both items stood, and the theft was taken. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { searchTier } = await import("./action-rolls.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const theft = BRIDGE_ACTIONS["vault.steal"]?.rolled?.derive;
+        must(typeof theft === "function", "the vault steal reads no Search's record - this would measure nothing");
+        must(searchTier({ total: 13 }).tier === 1 && searchTier({ total: 13 }).hit, "the Search's table gives no tier-1 hit at 13 any more - the totals below measure nothing");
+        const made = [], backs = [];
+        let read = null;
+        try {
+            const F = await drawnForPlayer(player, theirs, { faces: { hope: 12, fear: 11 },
+                edit: packet => ({ ...packet, context: { ...(packet.context ?? {}), category: "tool", goal: "specific" } }) });
+            backs.push(F.putBack);
+            must(F.record && (searchTier(F.record).hit || F.record.isCritical), "the GM drew no Search that hit - this would measure nothing");
+            const stash = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
+            const found = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
+            const fresh = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
+            backs.push(stash.putBack, found.putBack, fresh.putBack);
+            await rollStore.patch(stash.rollId, { resolved: ["search"] });
+            const find = async (name, rollId) => {
+                const out = await asPlayerItemWrite("createItem", theirs, moduleItemData(name), player, { reason: "searchFind", ref: rollId });
+                made.push(out.item);
+                return out.verdict;
+            };
+            const verdicts = [await find("E29 G8 a find on a specific Search", F.record.rollId), await find("E29 G8 a find on a stash's Search", stash.rollId),
+                await find("E29 G8 a find", found.rollId)];
+            await sheetAuditIdle();
+            read = [F.record.goal ?? null, ...verdicts, (await theft(rollStore.get(found.rollId)))?.why ?? null, (await theft(rollStore.get(fresh.rollId)))?.why ?? null];
+        } finally {
+            await sheetAuditIdle();
+            for (const item of made) if (theirs.items.get(item.id)) await item.delete();
+            await sheetAuditIdle();
+            for (const back of backs) await back();
+        }
+        equal(stableJson(read), stableJson(["specific", "flagged", "flagged", "stands", "that roll has already settled that action", null]),
+            "a Search's record kept no goal, or a find on a specific Search or on a stash's stood, or a find on a fresh record did not, or a theft on a "
+                + "record a find stood on was taken, or one on a fresh record refused (the goal, the three verdicts, the two thefts' refusals)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

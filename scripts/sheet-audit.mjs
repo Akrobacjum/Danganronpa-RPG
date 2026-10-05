@@ -1008,12 +1008,21 @@ async function placeStands(actor, item, before, now) {
  * `searchTier`, the reading the Search itself makes). Answers the student's finds with this one in
  * them, or null. A find whose record is swept is forgotten with it: a record past a Reroll's reach
  * names no find any more.
+ *
+ * NOT A SEARCH THAT ENDED WITHOUT A DRAW (round 1's m6, 05.10.2026). A hit asked of the GM ("something
+ * specific", action-rolls.mjs `searchSpecific`) or taken from a stash (`searchStash`) creates nothing
+ * through `grantDrawn`, so its record stayed unused and a console's item named after it stood - a
+ * second item for one Search. The record now keeps the Search's goal as the roller sent it (roll-draw.mjs
+ * `CONTEXT_SENT`, the roller's word like the category beside it), and a stash's theft settles the
+ * record's "search" (bridge-guards.mjs `rollsFor`); a find on either is refused. The other way round,
+ * a theft named after a record a find already stood on is refused by gm-bridge.mjs `searchTheftOf`.
  */
 async function searchFind(actor, mark, data, stamp, user) {
     if (stamp.reason !== "searchFind" || typeof stamp.ref !== "string" || !user || !isModuleItem(data)) return null;
     const { rollRecord } = await import("./roll-draw.mjs");
     const record = rollRecord(stamp.ref);
     if (record?.actorId !== actor.id || record.userId !== user.id || record.actionKey !== "search" || mark.finds?.[stamp.ref]) return null;
+    if (record.goal === "specific" || (Array.isArray(record.resolved) && record.resolved.includes("search"))) return null;
     const { searchTier } = await import("./action-rolls.mjs");
     const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical }, record.used?.stash?.change ?? 0);
     const found = foundry.utils.getProperty(data, `flags.${MODULE_ID}.${ITEM_FLAGS.tier}`);
@@ -1173,6 +1182,11 @@ let decisions = Promise.resolve();
  * it reads. The card is written again for every GM. Answers the decision, or null where there
  * was none to make. Exported for tier 2, as `judgeWrite`.
  *
+ * A before-value that is an object goes back whole (`wholeValue`), as a put-back writes it
+ * (`putBackPatch`). Written plainly, Foundry merged it into what the player made of it: the
+ * review's probe (round 1's m1, 05.10.2026) undid a Rest stamp row of `{short}` -> `{short, long}`,
+ * the row and the card said "undone" and the flag still held `{short, long}`.
+ *
  * AN ITEM (C6): a deleted one still gone is made again under its id from the row's copy - the
  * carry cap does not refuse what was there - and a created one still there is deleted; one made
  * again or deleted since is the field that moved.
@@ -1196,7 +1210,7 @@ async function decideNow(rowId, keep, by) {
         const decided = { by, at: Date.now(), how: keep ? "keep" : "undo", undone, moved: keep ? [] : paths.filter(path => !undone.includes(path)) };
         await sheetWriteStore.patch(rowId, { decided });
         const fields = undone.filter(path => path !== whole);
-        if (fields.length) await trustedWrite(actor, Object.fromEntries(fields.map(path => [path, row.change[path][0]])), { reason: "auditUndo" });
+        if (fields.length) await trustedWrite(actor, Object.fromEntries(fields.map(path => [path, wholeValue(row.change[path][0])])), { reason: "auditUndo" });
         if (undone.includes(whole) && deleted) await trustedCreate(actor, [row.data], { reason: "auditUndo", keepId: true, [CAP_OVERRIDE]: true });
         else if (undone.includes(whole)) await trustedDelete(actor.items.get(row.itemId), { reason: "auditUndo" });
         const card = game.messages.get(row.messageId ?? "");
@@ -1218,18 +1232,50 @@ export async function askToDecideWrite(rowId, keep) {
     return res.ok ? res.value ?? null : null;
 }
 
+/*
+ * A CARD WHOSE ROWS ARE SWEPT (round 1's m8, 05.10.2026). A row is kept a day (`keepRows`), its
+ * card for as long as the chat log keeps it; until this fix such a card kept its buttons, a click
+ * took them off, `decideNow` found no row and answered null, and the next render drew them again -
+ * buttons that decided nothing and said nothing. A card is swept when every row it names is gone
+ * from the hydrated store and the card is older than a row is kept: a younger card without its row
+ * is one whose row is still on its way (the card is posted before the row is written, `record`), and
+ * a row older than a day is only dropped when the next rows go in, so until then it still decides.
+ * Read by tier 2 on a card of its own; not seen at a table, where a card that old is a day's play away.
+ *
+ * Drawn a microtask later, once the hook has run every listener: secret.mjs's swap - a listener of
+ * the same hook, registered after this one - writes the card's words into it again, buttons and all.
+ * Taken off at once, they were back by the time the hook returned (05.10.2026, e29run/r1g8probe:
+ * the sweep's test was true and the drawn card still held its button).
+ */
+function sweptCard(message, ids) {
+    return gmStoresHydrated() && ids.length > 0 && ids.every(id => !sheetWriteStore.has(id))
+        && Number(message?.timestamp) < Date.now() - ROW_KEPT_MS;
+}
+
+/** A swept card drawn without its buttons, and one line that it can no longer be decided. */
+function drawSwept(element) {
+    element.querySelectorAll(".drpg-audit-actions, .drpg-audit-all").forEach(el => el.remove());
+    if (element.querySelector(".drpg-audit-expired")) return;
+    const line = document.createElement("p");
+    line.className = "drpg-audit-expired";
+    line.textContent = game.i18n.localize("DRPG.Audit.expired");
+    (element.querySelector(".drpg-audit-card") ?? element).append(line);
+}
+
 /**
  * The card's two buttons, wired on a GM's browser for a card a GM posted, as roll-draw.mjs
  * `onRenderUnwitnessed` wires Grant all; taken off once the row every GM holds is decided. A row
- * not here yet - the card can arrive before the store's sync - leaves them on.
+ * not here yet - the card can arrive before the store's sync - leaves them on; a row swept
+ * (`sweptCard`) takes them off and says so.
  */
 function onRenderFlagged(message, element) {
     try {
         if (!game.user?.isGM || !cardWriter(message)?.isGM) return;
         const away = cardFlag(message, AWAY_CARD);
-        if (Array.isArray(away)) return void wireAwayCard(away, element);
+        if (Array.isArray(away)) return void (sweptCard(message, away) ? queueMicrotask(() => drawSwept(element)) : wireAwayCard(away, element));
         const rowId = cardFlag(message, FLAGGED_CARD);
         if (typeof rowId !== "string") return;
+        if (sweptCard(message, [rowId])) return void queueMicrotask(() => drawSwept(element));
         if (sheetWriteStore.get(rowId)?.decided) return void element.querySelector(".drpg-audit-actions")?.remove();
         element.addEventListener("click", async event => {
             const button = event.target?.closest?.("[data-drpg-audit]");

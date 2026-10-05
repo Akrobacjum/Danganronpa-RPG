@@ -289,13 +289,13 @@ async function drawAndPlay(cls, config, message) {
  * And what the GM holds the roll against (E08+E28 C12b), each the roller's word: the statistic
  * and the experiences, which the neutral roll drops; the Calls the roll applied (the claim's
  * `facts`, the roll window's list, private-rolls.mjs `noteWindowCalls`); the action's context a
- * check reads (a Search's category and stash, a project's id, an opening's side, the crisis action
- * a crisis roll is thrown for - fix r2-H1 - `CONTEXT_SENT`);
+ * check reads (a Search's category, goal and stash, a project's id, an opening's side, the crisis action
+ * a crisis roll is thrown for - fix r2-H1 - `CONTEXT_SENT`; the goal since E29 fix r1-G8);
  * and the situation's dice as this browser armed them (call-effects.mjs `situationalAdvantage`),
  * which the GM reads for itself where it can.
  */
 const SENT_WITHOUT = new Set(["resourceUpdates", "message", "messageRoll", "data", "effects", "bonusEffects"]);
-const CONTEXT_SENT = Object.freeze({ category: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text", crisis: "text" });
+const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text", crisis: "text" });
 const LISTED_MAX = 16;
 
 /** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
@@ -836,8 +836,10 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         expected: recordOf(expected), flags, used: { calls: used, stash, loaded: loads }, versions: [],
         // What the roll was drawn for beyond its action (fix r2-H1): the crisis action it names, the
         // incident's turn it was thrown in, and the later roll of its action that replaced it, if one does;
-        // and the project a Work's or a Sabotage's names, null where it named none (fix r2-H2).
+        // and the project a Work's or a Sabotage's names, null where it named none (fix r2-H2); a
+        // Search's goal, which the find's judge reads (sheet-audit.mjs `searchFind`, E29 fix r1-G8).
         crisis: key === "crisis" ? told.context.crisis ?? null : null, project: projectNamed(key, told.context),
+        goal: key === "search" ? told.context.goal ?? null : null,
         incident, superseded: null, at: Date.now()
     });
     if (flags.length) await tellUnexpected(actor, flags);

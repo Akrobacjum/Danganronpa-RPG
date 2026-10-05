@@ -568,8 +568,12 @@ async function handleVaultSteal(payload, sender, ctx) {
  */
 async function searchTheftOf(record) {
     const { searchTier } = await import("./action-rolls.mjs");
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
     const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
     if (!hit && !record.isCritical) return { why: "that roll did not find the stash" };
+    // A Search ends in a find or in a stash's loot, never both (`performSearch`): a record a find
+    // already stood on (sheet-audit.mjs `searchFind`, the mark's `finds`) takes no theft (E29 fix r1-G8).
+    if (sheetMarkStore.get(record.actorId)?.finds?.[record.rollId]) return { why: "that roll has already settled that action" };
     return { fields: { viaSearch: true, clumsy: Boolean(record.withFear) && !record.isCritical } };
 }
 

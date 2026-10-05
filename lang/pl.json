@@ -2621,7 +2621,7 @@
         "notPaid": "Klient GM-a nie widział zapłaty za akcję tego rzutu. Wykonaj akcję jeszcze raz.",
         "rollThrown": "Rzut tej akcji już padł.",
         "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call.",
-        "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: zmienia to tylko GM."
+        "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -3058,7 +3058,7 @@
     },
     "Audit": {
       "putBack": "Ręczna zmiana karty postaci {name} od {player} - klient GM-a ją cofnął:",
-      "listTitle": "Zapisy na kartach postaci cofnięte lub odnotowane przez GM-ów: {n}",
+      "listTitle": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów: {n}",
       "field": {
         "traits": "Statystyki",
         "experience": "Doświadczenia",
@@ -3086,6 +3086,7 @@
       "undone": "Cofnięte przez: {gm}.",
       "kept": "Zostawione przez: {gm}.",
       "changedSince": "Cofnij od {gm} - nie nadpisano tego, co od tamtej pory znów się zmieniło: {fields}.",
+      "expired": "Tego nie da się już rozstrzygnąć: GM-owie trzymają zapis zgłoszonej zmiany przez dobę, a ten już zniknął.",
       "awayTitle": "Zmiany na kartach postaci zrobione, gdy żaden GM nie patrzył",
       "awayPutBack": "Cofnięte od razu, tak jak przy patrzącym GM-ie:",
       "awayLine": "{name} - {field} ({path}): {before} -> {after}",
@@ -4792,7 +4793,7 @@
         "rolls": "Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
         "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
-        "sheetWrites": "Zapisy na kartach postaci cofnięte lub odnotowane przez GM-ów, trzymane przez dobę"
+        "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę"
       },
       "row": {
         "traces": {
