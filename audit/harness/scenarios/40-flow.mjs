@@ -1629,6 +1629,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * the stash, the retrieve and the discard above), 35 of them moving items in the second - the first did not
      * count them apart - and the other 76 the number C3 measured. Read again for G1 (05.10.2026, one run each,
      * e29run/r1g1q): 114 patches at C9 (65e5aec), 115 with G1, 35 of them items in both.
+     * Since E29 fix r1-G4 (the plan's 2.4 and 2.8; review round 1 sec m3, cor m10) a write no judgement reads is
+     * listed and one that stood on credit or a judge has a `covered` row. Measured on the harness on 05.10.2026
+     * (e29run/r1g4q, one run): three listed rows, each an item's `equipped` taken off as a module road writes it
+     * with something it judges - a Tool worn out (`itemWear`), the kit used up (`itemUse`, inventory.mjs
+     * `breakItem`) and a Tool stowed (`stash`) - and three covered rows: the item used (its Health), the Rest
+     * (its stamp and its Sanity) and the Search's find; 115 patches, 35 of them items, as at G1.
      */
     phase("the day's writes, as the GMs' audit saw them", { flow: "sheet-audit" });
     const auditDay = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
@@ -1636,11 +1642,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const rows = Object.values(S.sheetWriteStore?.entries?.() ?? {}).filter(r => r?.at >= globalThis.__auditFrom);
         return { store: Boolean(S.sheetMarkStore), patches: globalThis.__markPatches, itemPatches: globalThis.__itemPatches,
             putBack: rows.filter(r => r.verdict === "putBack").map(r => Object.keys(r.change ?? {})),
-            listed: rows.filter(r => r.verdict === "listed").flatMap(r => Object.keys(r.change ?? {})),
-            flagged: rows.filter(r => r.verdict === "flagged").map(r => Object.keys(r.change ?? {})) };`);
+            listed: rows.filter(r => r.verdict === "listed").flatMap(r => Object.keys(r.change ?? {}).map(k => (r.reason ?? "-") + ":" + k.replace(/^items\.[^.]+/, "items.<id>"))),
+            flagged: rows.filter(r => r.verdict === "flagged").map(r => Object.keys(r.change ?? {})),
+            covered: rows.filter(r => r.verdict === "covered").map(r => r.reason + ":" + Object.keys(r.change ?? {}).map(k => k.replace(/^items\.[^.]+/, "items.<id>")).sort().join(",") + (r.covered ? ":" + JSON.stringify(r.covered) : "")).sort() };`);
     const MARK_PATCHES_MEASURED = 111;
-    check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed, and patches its marks within a quarter of the measured count",
-        auditDay.store && auditDay.putBack.length === 0 && auditDay.flagged.length === 0 && auditDay.listed.every(path => path === `flags.${MOD}.pendingCall`)
+    const COVERED_MEASURED = ["itemUse:system.resources.hitPoints.value", `rest:flags.${MOD}.restsTaken,system.resources.stress.value`, "searchFind:items.<id>"];
+    check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed and an item's readiness, has a covered row for the Rest, the item used and the find, and patches its marks within a quarter of the measured count",
+        auditDay.store && auditDay.putBack.length === 0 && auditDay.flagged.length === 0
+            && auditDay.listed.every(entry => entry.endsWith(`:flags.${MOD}.pendingCall`) || entry.endsWith(`:items.<id>.flags.${MOD}.equipped`))
+            && JSON.stringify(auditDay.covered) === JSON.stringify(COVERED_MEASURED)
             && auditDay.patches > 0 && auditDay.patches <= Math.ceil(MARK_PATCHES_MEASURED * 1.25),
         JSON.stringify({ ...auditDay, c6Phase: [dayItems.patches, dayRun?.gm?.patches] }).slice(0, 1500), { flow: "sheet-audit" });
 

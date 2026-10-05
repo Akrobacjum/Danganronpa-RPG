@@ -24528,8 +24528,11 @@ const SCENARIOS = [
     ["a Short Rest's Breath, an item's tier-3 Hope and a refused Call's refund raise no alarm", async () => {
         /* Three judges, each fed what a module road writes: an action spent, then the Rest's one write
            (Breath's Hope and the stamp) in a room the GM marked for a Short Rest; a tier-3 usable's
-           Health and Hope, its consumption heard from the same player (`onItemWrite`, as the hook hears
-           it); a Call's Hope paid and handed back. Each stands, and nothing reaches `sheetWrites`. */
+           Health and Hope, its consumption - the count lowered, as the player's browser writes it -
+           heard from the same player (`onItemWrite`, as the hook hears it); a Call's Hope paid and
+           handed back. Each stands and nothing is told; since E29 fix r1-G4 (the plan's 2.8; review
+           round 1 cor m10) each leaves one row, `covered`, with its reason - the refund's with the
+           credit it took - where until then none left any. */
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
         needs(world.atLeast("studentsInRooms", 1), "a student in a room the GM can mark for a rest");
         const { roomOfActor } = await import("./movement.mjs");
@@ -24560,19 +24563,24 @@ const SCENARIOS = [
             const used = { [HOPE]: 5, [HP]: 0 };
             await student.update(used, { [AUDIT_ASIDE]: true });
             const heard = judgeWrite("updateActor", student, foundry.utils.expandObject(used), player.id, { drpgWrite: { reason: "itemUse", ref: item.id } });
+            await item.update({ "system.quantity": 0 }, { [AUDIT_ASIDE]: true });
             onItemWrite(item, { system: { quantity: 0 } }, {}, player.id, { primary: true });
             verdicts.push(await heard);
             verdicts.push(await asPlayerWrite(student, { [HOPE]: 4 }, player, { reason: "call" }));
             verdicts.push(await asPlayerWrite(student, { [HOPE]: 5 }, player, { reason: "refund" }));
             await sheetAuditIdle();
             read = [verdicts.map(v => v?.verdict ?? null), foundry.utils.getProperty(student._source, HOPE),
-                Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from).length];
+                Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from)
+                    .map(row => `${row.verdict}:${row.reason}:${Object.keys(row.change ?? {}).sort().join(",")}:${stableJson(row.covered)}`).sort()];
         } finally {
             if (item) await student.items.get(item.id)?.delete();
             await unmark?.();
         }
-        equal(stableJson(read), stableJson([["stands", "stands", "stands", "stands", "stands"], 5, 0]),
-            "a Rest, an item used or a Call's refund a module road wrote was put back, listed or recorded");
+        const RESTS = `flags.${MODULE_ID}.${FLAGS.restsTaken}`;
+        equal(stableJson(read), stableJson([["stands", "stands", "stands", "stands", "stands"], 5, [
+            `covered:itemUse:${[HOPE, HP].sort().join(",")}:${stableJson(null)}`, `covered:refund:${HOPE}:${stableJson({ hope: 1 })}`,
+            `covered:rest:${[HOPE, RESTS].sort().join(",")}:${stableJson(null)}`].sort()]),
+            "a Rest, an item used or a Call's refund a module road wrote was put back, flagged or listed, or left no row saying what covered it");
     }],
 
     ["a rest outside a rest room is put back", async () => {
@@ -24831,7 +24839,8 @@ const SCENARIOS = [
     ["a Search's find stands; a second item on the same record, or one above the tier its total earns, is flagged", async () => {
         /* A record of 13 earns tier 1 on the Search's table (12 and up). A tier-1 find on it stands and
            uses it; a second tier-1 item named after the same record is flagged; a tier-2 item named after
-           a fresh record of 13 is flagged too. At HEAD a creation was judged as an effect, and all three stood. */
+           a fresh record of 13 is flagged too. At HEAD a creation was judged as an effect, and all three stood.
+           Since E29 fix r1-G4 the find that stood has its row, `covered` (the plan's 2.8). */
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
         const [student] = cast(1);
         const player = game.users.find(u => !u.isGM);
@@ -24854,7 +24863,7 @@ const SCENARIOS = [
             const two = await find("E29 C6 a second find on one record", 1, first.rollId);
             const high = await find("E29 C6 a find above its tier", 2, fresh.rollId);
             await sheetAuditIdle();
-            const named = id => id === two.item.id ? "second" : id === high.item.id ? "high" : id;
+            const named = id => id === one.item.id ? "one" : id === two.item.id ? "second" : id === high.item.id ? "high" : id;
             const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from);
             read = [one.verdict, two.verdict, high.verdict, rows.map(row => `${row.verdict}:${named(row.itemId)}`).sort(),
                 sheetMarkStore.get(student.id)?.finds?.[first.rollId] === one.item.id];
@@ -24865,7 +24874,7 @@ const SCENARIOS = [
             await first.putBack();
             await fresh.putBack();
         }
-        equal(stableJson(read), stableJson(["stands", "flagged", "flagged", ["flagged:high", "flagged:second"], true]),
+        equal(stableJson(read), stableJson(["stands", "flagged", "flagged", ["covered:one", "flagged:high", "flagged:second"], true]),
             "a Search's find did not stand on its record, or a second item on that record or one above its tier was not flagged "
                 + "(the three verdicts, the rows, the record kept as used)");
     }],
@@ -25091,11 +25100,14 @@ const SCENARIOS = [
         const asGm = write => () => student.update(write);
         const round = async (hope, ...steps) => {
             await student.update({ [HOPE]: hope, [HP]: 2, [STAT]: was.stat });
+            await kit.update({ "system.quantity": 1 });
             await auditFromScratch(student);
             queued.length = 0;
             await student.update({ [HP]: 1 }, { [AUDIT_ASIDE]: true });
             const use = judgeWrite("updateActor", student, foundry.utils.expandObject({ [HP]: 1 }), player.id, { drpgWrite: { ref: kit.id, reason: "itemUse" } });
             for (const step of steps) await step();
+            // The consumption as the player's browser writes it: since E29 fix r1-G4 it is read off the kit, against the GMs' copy.
+            await kit.update({ "system.quantity": 0 }, { [AUDIT_ASIDE]: true });
             onItemWrite(kit, { system: { quantity: 0 } }, {}, player.id, { primary: true });
             const verdicts = [await use, ...await Promise.all(queued)].map(verdict => verdict?.verdict ?? null);
             await sheetAuditIdle();
@@ -25513,6 +25525,172 @@ const SCENARIOS = [
         equal(stableJson(seen), stableJson([4, ["Tier 2 G3 away penalty"], true, false, ["Tier 2 G3 away penalty"], false]),
             "the comparison at ready left an effect on a student's item, or an item made carrying one (put back at ready; the Tool's effects, "
                 + "the penalty under its id, the item made still there; the Tool's effects in the mark, the item made in the mark)");
+    }],
+
+    /*
+     * CREDIT AND CONSUMPTION ARE WHAT THE GMS HELD (E29 fix r1-G4, 05.10.2026; review round 1 cor M1, cor M2,
+     * cor m9 = sec m3, cor m10). Each write is a player's, made as `asPlayerWrite` says.
+     */
+    ["a refund a GM writes takes the credit its payment left, so a player's refund of the same is put back", async () => {
+        /* The review's probe's sequence (cor M1): the GM pays 2 Hope for a Reroll and gives them back, as
+           reroll.mjs does when the Reroll does not stand; then the player's write gives the same 2 "back".
+           The GM's refund took the credit its payment left, so nothing covers the player's. At fd7c61f
+           (05.10.2026, e29run/r1g4red) the 2 were still in the credit, and the player's refund stood on
+           them: Hope 5, no row. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const HOPE = "system.resources.hope.value", hope = () => foundry.utils.getProperty(student._source, HOPE);
+        must(Number(student.system.resources?.hope?.max) >= 5, "the student's Hope cannot reach 5 - the refund would be clamped and measure nothing");
+        const from = Date.now();
+        await student.update({ [HOPE]: 3 });
+        await auditFromScratch(student);
+        await trustedWrite(student, { [HOPE]: 1 }, { reason: "reroll" });
+        await trustedWrite(student, { [HOPE]: 3 }, { reason: "refund" });
+        await sheetAuditIdle();
+        const left = (sheetMarkStore.get(student.id)?.credit?.hope ?? []).reduce((sum, entry) => sum + entry.n, 0);
+        const forged = await asPlayerWrite(student, { [HOPE]: 5 }, player, { reason: "refund" });
+        await sheetAuditIdle();
+        const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === student.id && r.userId === player.id && r.at >= from);
+        equal(stableJson([left, forged?.verdict ?? null, hope(), rows.map(r => [r.verdict, r.change?.[HOPE] ?? null, r.covered])]),
+            stableJson([0, "putBack", 3, [["putBack", [3, 5], null]]]),
+            "a GM's refund left its payment in the credit, or a player's refund of the same stood on it (the credit left, the verdict, Hope, the rows)");
+    }],
+
+    ["an item used whose consumption is its count raised by hand is no use: Hope put back, Health flagged, the count put back", async () => {
+        /* The review's probe's sequence (cor M2): a tier-3 kit's use - 2 Hope and two Health marks - and,
+           for its consumption, the kit's count raised 1 -> 2. A count that rose consumed nothing of what the
+           GMs held, so the use is judged as one with no consumption, and the rise is put back. At fd7c61f
+           (05.10.2026, e29run/r1g4red) the use stood - Hope 4, both marks healed - and the count's
+           put-back was the only row. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { grantItem } = await import("./inventory.mjs");
+        const { sheetAuditIdle, judgeWrite, onItemWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const r = student.system.resources;
+        must(Number(r?.hope?.max) >= 4 && Number(r?.hitPoints?.max) >= 2, "the student's Hope or Health is too small for a tier-3 kit");
+        const HOPE = "system.resources.hope.value", HP = "system.resources.hitPoints.value", COUNT = "system.quantity";
+        const from = Date.now();
+        let kit = null, read = null;
+        try {
+            await student.update({ [HOPE]: 2, [HP]: 2 });
+            kit = await grantItem(student, { name: "Tier 2 G4 kit", category: "usable", tier: 3, goal: "healing", override: true, quiet: true });
+            must(kit && Number(kit.system.quantity) === 1, "the tier-3 kit was not given, or not one");
+            await auditFromScratch(student);
+            const used = { [HOPE]: 4, [HP]: 0 };
+            await student.update(used, { [AUDIT_ASIDE]: true });
+            const use = judgeWrite("updateActor", student, foundry.utils.expandObject(used), player.id, { drpgWrite: { reason: "itemUse", ref: kit.id } });
+            await kit.update({ [COUNT]: 2 }, { [AUDIT_ASIDE]: true });
+            onItemWrite(kit, foundry.utils.expandObject({ [COUNT]: 2 }), {}, player.id, { primary: true });
+            const count = judgeWrite("updateItem", kit, foundry.utils.expandObject({ [COUNT]: 2 }), player.id, {});
+            const verdicts = [(await use)?.verdict ?? null, (await count)?.verdict ?? null];
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from);
+            read = [verdicts, foundry.utils.getProperty(student._source, HOPE), foundry.utils.getProperty(student._source, HP),
+                student.items.get(kit.id)?.system?.quantity ?? null, rows.map(row => `${row.verdict}:${Object.keys(row.change ?? {}).sort().join(",")}`).sort()];
+        } finally {
+            await sheetAuditIdle();
+            if (kit) await student.items.get(kit.id)?.delete();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([["putBack", "putBack"], 2, 0, 1,
+            [`flagged:${HP}`, `putBack:${HOPE}`, `putBack:items.${kit.id}.${COUNT}`].sort()]),
+            "a count raised by hand covered an item's use, or was not put back (the verdicts, Hope, Health, the count, the rows)");
+    }],
+
+    ["the free Move a player gives back is flagged with Undo, and what no judgement reads is listed - a flag, a condition, an item the GMs hold no copy of", async () => {
+        /* Review round 1 cor m9 = sec m3, the plan's 2.4: the free Move used, then given back by the
+           player's write - flagged, as a grant's rise is, and the GM's Undo uses it again; a module flag no
+           judgement reads (the player's own `ultimate`), a condition with no changes taken off, and an
+           item that is not the module's taken off the sheet - each listed, as it was and as it is. At
+           fd7c61f (05.10.2026, e29run/r1g4red) the mark held no free Move, all four writes stood, and none
+           left a row. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle, judgeWrite, decideWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const FREE = `flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`, ULT = `flags.${MODULE_ID}.${FLAGS.ultimate}`;
+        const from = Date.now();
+        let effect = null, thing = null, read = null;
+        try {
+            await student.update({ [FREE]: true });
+            [effect] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 G4 condition", statuses: ["restrained"] }]);
+            [thing] = await student.createEmbeddedDocuments("Item", [{ name: "Tier 2 G4 keepsake", type: "loot", system: { quantity: 1 } }]);
+            await sheetAuditIdle();
+            must(effect && thing, "no condition or no item to take off - this would measure nothing");
+            const used = sheetMarkStore.get(student.id)?.flags?.[FLAGS.freeMoveUsed] ?? null;
+            const verdicts = [(await asPlayerWrite(student, { [FREE]: false }, player))?.verdict ?? null,
+                (await asPlayerWrite(student, { [ULT]: "Tier 2 G4" }, player))?.verdict ?? null];
+            await effect.delete({ [AUDIT_ASIDE]: true });
+            verdicts.push((await judgeWrite("deleteActiveEffect", effect, {}, player.id))?.verdict ?? null);
+            verdicts.push((await asPlayerItemWrite("deleteItem", student, thing, player)).verdict);
+            await sheetAuditIdle();
+            const mine = Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.actorId === student.id && row.userId === player.id && row.at >= from);
+            const rows = mine.map(([, row]) => [row.verdict, row.change]).sort((a, b) => stableJson(a).localeCompare(stableJson(b)));
+            const [flaggedId] = mine.find(([, row]) => row.verdict === "flagged") ?? [];
+            const marked = sheetMarkStore.get(student.id)?.flags?.[FLAGS.freeMoveUsed] ?? null;
+            const decided = flaggedId ? await decideWrite(flaggedId, false) : null;
+            await sheetAuditIdle();
+            read = [used, verdicts, rows, marked, decided?.how ?? null, decided?.undone ?? null, student.getFlag(MODULE_ID, FLAGS.freeMoveUsed) ?? null,
+                sheetMarkStore.get(student.id)?.flags?.[FLAGS.freeMoveUsed] ?? null];
+        } finally {
+            await sheetAuditIdle();
+            if (effect && student.effects.get(effect.id)) await student.effects.get(effect.id).delete();
+            if (thing && student.items.get(thing.id)) await student.items.get(thing.id).delete();
+            await sheetAuditIdle();
+        }
+        const summary = (name, statuses) => ({ name, statuses, changes: [] });
+        const rows = [["flagged", { [FREE]: [true, false] }], ["listed", { [ULT]: [null, "Tier 2 G4"] }],
+            ["listed", { [`effects.${effect.id}`]: [summary("Tier 2 G4 condition", ["restrained"]), null] }],
+            ["listed", { [`items.${thing.id}`]: ["Tier 2 G4 keepsake", null] }]].sort((a, b) => stableJson(a).localeCompare(stableJson(b)));
+        equal(stableJson(read), stableJson([true, ["flagged", "listed", "listed", "listed"], rows, false, "undo", [FREE], true, true]),
+            "the free Move given back was not flagged or not undone, or a write no judgement reads left no row (the free Move used in the GMs' "
+                + "mark; the verdicts; the rows; the free Move in the mark before the Undo; the decision; the free Move on the sheet and in the mark after it)");
+    }],
+
+    ["the comparison at ready puts the free Move given back on its card, and lists a condition taken off and a module item's other field", async () => {
+        /* What the three writes of the test above would have been judged as, made with no GM watching
+           (the C7 comparison judges a difference as a write naming it, G4): the free Move given back on
+           the card, flagged; the condition taken off and the Tool renamed, listed - one row for the
+           student, one for the Tool. At fd7c61f (05.10.2026, e29run/r1g4red) none of the three was a
+           difference: no row, no card. */
+        const [student] = cast(1);
+        const { compareAtReady, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const FREE = `flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`;
+        const from = Date.now();
+        let effect = null, tool = null, read = null;
+        try {
+            await student.update({ [FREE]: true });
+            [effect] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 G4 away condition", statuses: ["restrained"] }]);
+            tool = await grantItem(student, { name: "Tier 2 G4 away tool", category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(effect && tool, "no condition or no Tool to change - this would measure nothing");
+            await student.update({ [FREE]: false }, { [AUDIT_ASIDE]: true });
+            await effect.delete({ [AUDIT_ASIDE]: true });
+            await tool.update({ name: "Tier 2 G4 away tool, renamed" }, { [AUDIT_ASIDE]: true });
+            const found = await compareAtReady();
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.away && row.at >= from);
+            read = [Boolean(found?.card), rows.map(row => `${row.verdict}:${Object.keys(row.change ?? {})
+                .map(key => key.replace(tool.id, "<tool>").replace(effect.id, "<effect>")).sort().join(",")}`).sort(),
+                student.getFlag(MODULE_ID, FLAGS.freeMoveUsed) ?? null];
+        } finally {
+            await sheetAuditIdle();
+            if (effect && student.effects.get(effect.id)) await student.effects.get(effect.id).delete();
+            if (tool && student.items.get(tool.id)) await student.items.get(tool.id).delete();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, [`flagged:${FREE}`, "listed:effects.<effect>", "listed:items.<tool>.name"].sort(), false]),
+            "the comparison at ready did not flag the free Move given back, or did not list the condition taken off and the Tool renamed "
+                + "(a card posted; the student's rows; the free Move on the sheet)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

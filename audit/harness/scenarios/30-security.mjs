@@ -2679,6 +2679,92 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify(consoleEffects?.gift ?? null), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S CREDIT AND FREE USES (E29 fix r1-G4, 05.10.2026; review round 1 cor M1, cor M2, cor m9 = sec m3).
+     * The GM pays 2 of Aiko's Hope for a Reroll and gives them back, as reroll.mjs does when one does not stand;
+     * then p1's console, with the hooks a real write fires: gives the same 2 Hope "back" (`refund`); uses a tier-3
+     * kit (2 Hope, both Health marks) and, for its consumption, raises the kit's count 1 -> 2; gives Aiko's free
+     * Move back (`game.drpg.restoreFreeMove`). Expected: the refund put back on every client; the use's Hope put
+     * back, its Health flagged, the count put back; the free Move flagged to the GMs and standing, p1 told nothing
+     * of it. At fd7c61f (05.10.2026, e29run/r1g4red) all three stood on every client: Hope 4 after the refund with
+     * no row; Hope 4 and both marks after the use, the count's put-back its only row; the free Move given back
+     * with no row.
+     */
+    phase("a console's credit and free uses", { flow: "sheet-audit" });
+    const readUses = `const a = game.actors.get("${ids.aiko}"), r = a.system.resources;
+        return { hope: r.hope.value, hp: r.hitPoints.value, free: a.getFlag("${MOD}", "freeMoveUsed") ?? null,
+            kit: a.items.find(i => i.name === "E29 G4 30 kit")?.system?.quantity ?? null };`;
+    const usesWas = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), a = game.actors.get("${ids.aiko}");
+        const was = { hope: a.system.resources.hope.value, hp: a.system.resources.hitPoints.value, free: a.getFlag("${MOD}", "freeMoveUsed") ?? null };
+        await a.update({ "system.resources.hope.value": 2, "system.resources.hitPoints.value": 2, "flags.${MOD}.freeMoveUsed": true });
+        const kit = await INV.grantItem(a, { name: "E29 G4 30 kit", category: "usable", tier: 3, goal: "healing", override: true, quiet: true });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { ...was, kit: kit?.id ?? null, user: ${JSON.stringify(await p1.eval(`return game.user.id;`))} };`);
+    // From a clean credit: the GM's own writes, each judged before the next, and the moment the player's begin.
+    const usesStart = (paid = false) => gm.eval(`const R = await import("${repoUrl}/scripts/resource-guard.mjs"), a = game.actors.get("${ids.aiko}");
+        const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await a.update({ "system.resources.hope.value": 2, "system.resources.hitPoints.value": 2 }); await A.sheetAuditIdle();
+        await S.sheetMarkStore.patch(a.id, { credit: {} });
+        if (${paid}) {
+            await R.trustedWrite(a, { "system.resources.hope.value": 0 }, { reason: "reroll" }); await A.sheetAuditIdle();
+            await R.trustedWrite(a, { "system.resources.hope.value": 2 }, { reason: "refund" }); await A.sheetAuditIdle();
+        }
+        return Date.now();`);
+    const usesRows = from => `${audited} return Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.userId === "${usesWas.user}" && r.at >= ${from})
+        .map(r => r.verdict + ":" + Object.keys(r.change ?? {}).map(k => k.replace("${usesWas.kit}", "<kit>")).sort().join(",")).sort();`;
+    const settledUses = async (test, ms = 6000) => {
+        await gm.eval(`const end = Date.now() + ${ms}; const read = () => { ${readUses} };
+            while (!(${test})(read()) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        await settle(800);
+        return Promise.all([gm, p1, p2, p3].map(c => c.eval(readUses)));
+    };
+    let consoleUses = null;
+    try {
+        await p1.eval(`globalThis.__usesTold = [];
+            if (!globalThis.__usesToldHook) {
+                globalThis.__usesToldHook = true;
+                game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused") globalThis.__usesTold.push(payload.reason); });
+            }
+            return true;`);
+        const toldNow = () => p1.eval(`const told = globalThis.__usesTold.slice(); globalThis.__usesTold.length = 0; return told;`);
+        const fromRefund = await usesStart(true);
+        await p1.eval(`await game.actors.get("${ids.aiko}").update({ "system.resources.hope.value": 4 }, { drpgAutomated: true, drpgWrite: { reason: "refund", ref: null } });
+            return true;`);
+        const refund = { after: await settledUses(`s => s.hope === 2`), rows: await gm.eval(usesRows(fromRefund)), told: await toldNow() };
+        const fromUse = await usesStart();
+        await p1.eval(`const a = game.actors.get("${ids.aiko}");
+            await a.update({ "system.resources.hope.value": 4, "system.resources.hitPoints.value": 0 }, { drpgAutomated: true, drpgWrite: { reason: "itemUse", ref: "${usesWas.kit}" } });
+            await a.items.get("${usesWas.kit}").update({ "system.quantity": 2 }, { drpgAutomated: true });
+            return true;`);
+        const use = { after: await settledUses(`s => s.hope === 2 && s.kit === 1`, 8000), rows: await gm.eval(usesRows(fromUse)), told: await toldNow() };
+        const fromMove = await gm.eval(`return Date.now();`);
+        await p1.eval(`await game.drpg.restoreFreeMove(game.actors.get("${ids.aiko}")); return true;`);
+        const move = { after: await settledUses(`s => s.free === false`), rows: await gm.eval(usesRows(fromMove)), told: await toldNow() };
+        consoleUses = { refund, use, move };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.items.get("${usesWas.kit}")?.delete();
+            await a.update({ "system.resources.hope.value": ${usesWas.hope}, "system.resources.hitPoints.value": ${usesWas.hp} });
+            if (${JSON.stringify(usesWas.free)} === null) await a.unsetFlag("${MOD}", "freeMoveUsed"); else await a.setFlag("${MOD}", "freeMoveUsed", ${JSON.stringify(usesWas.free)});
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    }
+    const HP_PATH = "system.resources.hitPoints.value", HOPE_PATH = "system.resources.hope.value";
+    check("SECURITY: a refund the GM gave back leaves nothing to take - a player's console giving the same Hope back is put back on every client, the player told",
+        Boolean(consoleUses) && everyClient(consoleUses.refund.after, { hope: 2 })
+            && JSON.stringify(consoleUses.refund.rows) === JSON.stringify([`putBack:${HOPE_PATH}`]) && JSON.stringify(consoleUses.refund.told) === JSON.stringify(["sheetPutBack"]),
+        JSON.stringify(consoleUses?.refund ?? null), { flow: "sheet-audit" });
+    check("SECURITY: a kit a player's console uses with its count raised for the consumption is no use - its Hope put back, its Health flagged, the count put back",
+        Boolean(consoleUses) && Boolean(usesWas.kit) && everyClient(consoleUses.use.after, { hope: 2, hp: 0 })
+            && consoleUses.use.after.slice(0, 2).every(s => s.kit === 1)
+            && JSON.stringify(consoleUses.use.rows) === JSON.stringify([`flagged:${HP_PATH}`, "putBack:items.<kit>.system.quantity", `putBack:${HOPE_PATH}`]),
+        JSON.stringify({ usesWas, use: consoleUses?.use ?? null }), { flow: "sheet-audit" });
+    check("SECURITY: the free Move a player's console gives back stands flagged to the GMs, a row and nothing told",
+        Boolean(consoleUses) && everyClient(consoleUses.move.after, { free: false })
+            && JSON.stringify(consoleUses.move.rows) === JSON.stringify([`flagged:flags.${MOD}.freeMoveUsed`]) && consoleUses.move.told.length === 0,
+        JSON.stringify(consoleUses?.move ?? null), { flow: "sheet-audit" });
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`
