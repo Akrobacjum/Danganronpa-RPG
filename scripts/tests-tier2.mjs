@@ -813,6 +813,19 @@ function addedToPacket(packet, n, label = null) {
     return packet;
 }
 
+/**
+ * A PACKET'S ROLL AS ITS WINDOW CONFIGURED IT, for a test that rebuilds it with Daggerheart's
+ * `fromData` (E29 fix r2-H1, 05.10.2026). A packet carries only the options a window may say
+ * (roll-draw.mjs `DRAWN_OPTIONS`), and the constructor reads `options.source` without `?.`
+ * (dualityRoll.mjs:185; the harness's `DualityRollMock` since the same fix): every roll a window
+ * configures has one, as every roll the GM writes does. Answers a copy; the packet is left as it was.
+ */
+function configuredRollOf(packet) {
+    const roll = foundry.utils.deepClone(packet.roll);
+    roll.options = { ...(roll.options ?? {}), source: {} };
+    return roll;
+}
+
 /** A connected player and a character they play, and one they do not; ask `connectedPlayersWithCharacter` first. */
 function playerAndCharacters() {
     const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
@@ -5021,7 +5034,7 @@ const SCENARIOS = [
         const F = await drawnForPlayer(player, theirs, { edit: packet => addedToPacket({ ...packet, trait: "agility" }, 5) });
         try {
             must(F.record && F.value, "the GM kept no record of the draw or answered nothing - this would measure nothing");
-            const configured = cls.fromData(foundry.utils.deepClone(F.packet.roll));
+            const configured = cls.fromData(configuredRollOf(F.packet));
             const config = { roll: { trait: "instinct" }, [DRAWN_ROLL]: { rollId: F.value.rollId, messageId: F.value.messageId } };
             const copy = typeof D.rollerCopyOf === "function" ? await D.rollerCopyOf(cls, configured, config, {}, F.value) : null;
             const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
@@ -5160,7 +5173,7 @@ const SCENARIOS = [
             must(F.record?.scored && F.message, "the GM kept no scored record of the draw - this would measure nothing");
             const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
             const scored = stableJson(F.record.scored);
-            const original = game.system.api.dice.DualityRoll.fromData(foundry.utils.deepClone(F.packet.roll));
+            const original = game.system.api.dice.DualityRoll.fromData(configuredRollOf(F.packet));
             const thrown = await R.rollAsThrown(original, theirs, F.message);
             await thrown.evaluate();
             const kept = await D.keepRerolledVersion(F.message, thrown);
@@ -5213,7 +5226,7 @@ const SCENARIOS = [
             F = await drawnForPlayer(player, theirs, { actionKey: "crisis",
                 edit: p => ({ ...p, trait: TRAITS.body.dh, situational: 0, context: { ...p.context, crisis: "selfDefence" } }) });
             must(F.record?.scored && F.message, "the GM kept no scored record of the crisis draw - this would measure nothing");
-            const original = game.system.api.dice.DualityRoll.fromData(foundry.utils.deepClone(F.packet.roll));
+            const original = game.system.api.dice.DualityRoll.fromData(configuredRollOf(F.packet));
             const thrown = await R.rollAsThrown(original, theirs, F.message);
             const faces = F.record.legal?.read?.advantageDie?.advantage ?? null;
             read = [F.record.scored.advantage, thrown.dice.length, faces !== null && thrown.dice[2]?.faces === faces, thrown.terms[3]?.operator ?? null];
@@ -5288,6 +5301,9 @@ const SCENARIOS = [
          * Hand, a roll of Hand; after a card picking Body, a roll of Eye; then a roll of Eye with no
          * new card - the newest is used already. And a Search, which rolls Eye, rolled with Hand.
          * Read: each record's flags and the statistic it expected. Until C12b nothing was expected.
+         * The crisis packets no longer say a GM picked (E29 fix r2-H1, 05.10.2026): the window's mark
+         * (action-rolls.mjs `TRAIT_BY_GM`) is not an option a packet may carry (roll-draw.mjs
+         * `DRAWN_OPTIONS`) and one that does is refused; the GM has not read it since fix r2-H8.
          * IN A FIGHT, AT THE ROLLER'S OWN TURNS (fix r2-H1, 05.10.2026). A crisis roll is drawn only
          * as its crisis action could be taken - the character's turn in a running incident, for a
          * crisis action open to them that the packet names - and one stands unsettled a turn
@@ -5310,7 +5326,6 @@ const SCENARIOS = [
         const { TRAITS } = await import("./config.mjs");
         const { whisperToGms } = await import("./utils.mjs");
         const { settleCall } = await import("./gm-bridge.mjs");
-        const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
         const had = new Set(game.messages.contents.map(m => m.id));
         const found = [theirs, victim].map(a => [a, ["hope", "stress", "hitPoints"].map(k => [k, a.system.resources[k]?.value])]);
         const card = async trait => {
@@ -5321,10 +5336,9 @@ const SCENARIOS = [
         };
         // The records are kept until the last draw: a pick a record names is used.
         const drawn = [];
-        const draw = async (actionKey, trait, byGm) => {
+        const draw = async (actionKey, trait) => {
             const F = await drawnForPlayer(player, theirs, { actionKey,
-                edit: p => ({ ...p, trait: TRAITS[trait].dh, roll: { ...p.roll, options: { ...p.roll.options, ...(byGm ? { [TRAIT_BY_GM]: true } : {}) } },
-                    ...(actionKey === "crisis" ? { context: { ...p.context, crisis: "strike" } } : {}) }) });
+                edit: p => ({ ...p, trait: TRAITS[trait].dh, ...(actionKey === "crisis" ? { context: { ...p.context, crisis: "strike" } } : {}) }) });
             drawn.push(F);
             // The statistic's flag alone: the packet's formula still carries Eye's value, which the modifier's flag reads.
             return [(F.record?.flags ?? []).filter(f => f.kind === "trait").map(f => [f.kind, f.expected, f.claimed]), F.record?.legal?.trait ?? null];
@@ -5339,15 +5353,15 @@ const SCENARIOS = [
             await fightOpen(M, theirs, victim);
             await turnFor(M, theirs, "strike");
             await card("hand");
-            read.push(await draw("crisis", "hand", true));
+            read.push(await draw("crisis", "hand"));
             await card("body");
             await nextTurn();
-            read.push(await draw("crisis", "eye", true));
+            read.push(await draw("crisis", "eye"));
             await nextTurn();
-            read.push(await draw("crisis", "eye", true));
+            read.push(await draw("crisis", "eye"));
             await M.endMurder({ reason: "test", followUp: false });
             await settle();
-            read.push(await draw("search", "hand", false));
+            read.push(await draw("search", "hand"));
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
@@ -5430,6 +5444,9 @@ const SCENARIOS = [
          * Read: the GM's Fear after each, and the kind its message keeps. The countdowns and the
          * triggers are not in the harness: their skips are read, not run. At 33bc497's runtime:
          * [["reaction",0,"reaction"],["skips",0,"action"],["sheet",1,"action"]].
+         * THE SKIPS ARE REFUSED SINCE E29 FIX r2-H1 (05.10.2026): `skips` is not an option a window
+         * may send (roll-draw.mjs `DRAWN_OPTIONS`), and a packet carrying one is refused before
+         * anything is thrown - the next test reads that refusal. Two draws are left here.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -5438,7 +5455,6 @@ const SCENARIOS = [
         const withOptions = (p, extra) => ({ ...p, roll: { ...p.roll, options: { ...p.roll.options, ...extra } } });
         const cases = [
             ["reaction", "search", p => withOptions(p, { actionType: "reaction" })],
-            ["skips", "search", p => withOptions(p, { skips: { resources: true, updateCountdowns: true, triggers: true } })],
             ["sheet", null, p => withOptions({ ...p, actionKey: null, claimed: false }, { actionType: "action" })]
         ];
         const read = await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
@@ -5456,8 +5472,67 @@ const SCENARIOS = [
             }
             return out;
         });
-        equal(stableJson(read), stableJson([["reaction", 1, "action"], ["skips", 1, "action"], ["sheet", 0, "reaction"]]),
+        equal(stableJson(read), stableJson([["reaction", 1, "action"], ["sheet", 0, "reaction"]]),
             "a drawn roll's kind or its steps were the packet's (per draw: the GM's Fear from 0, the kind its message keeps)");
+    }],
+
+    ["a drawn roll's options are the GM's own: what a packet's options say is written over or refused, and Daggerheart's constructor finds what it reads", async () => {
+        /*
+         * E29 fix r2-H1, 05.10.2026; review round 2's sec B1 and cor B1. The GM built a drawn roll from
+         * a clone of the packet's and wrote over only the options it named (roll-draw.mjs
+         * `legalRollOf`), so any other option of the packet's rode on the roll it threw - the review's
+         * `rerolledRoll` moved the GM's Fear (its probe 99 P1) - and the packet left out `data`, which
+         * Daggerheart's constructor reads with no `?.`, so its own classes could build no drawn roll
+         * (cor-r2-fromdata/probe.mjs). Now the packet carries only `DRAWN_OPTIONS`, `data` empty; the
+         * GM writes every option itself (`drawnOptions`); a packet with another key is refused
+         * (bridge-guards.mjs `guardDrawnRoll`). Three Searches of a player's character: an honest
+         * packet; one whose options say, within the list, a reaction, a critical, an extra formula of
+         * 5 and an experience, and inside `roll` a difficulty of 1, base modifiers of 5 and a
+         * companion's roll; and one sending Daggerheart's `skips` (moved here from the kind test
+         * above, which it was drawn in until this fix). Read: whether the honest packet's option keys
+         * are all listed, and its `data`; the second's roll as the GM answered it (the JSON it built):
+         * its keys, its options' keys, its `roll`'s keys, its kind, `hasRoll`, critical, extra formula,
+         * experiences, `data` and `source`, and the record's total and critical; the third's answer
+         * and its code, the guard's reason for its packet, and whether a record was kept. At 070b72b's
+         * runtime under its own harness (e29run/r2h1bred): the honest packet's keys not all listed and
+         * no `data`; the GM's options fifteen keys, the packet's `costs`, `dialog`, `event`, `hooks` and
+         * `title` among them, its `roll` keeping the difficulty and the companion's roll, no `data`; the
+         * skips draw drawn and recorded. Under this fix's harness no draw was made: the rebuild threw.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const { DRAWN_OPTIONS } = await import("./roll-draw.mjs");
+        const { ROLL_NONCE } = await import("./private-rolls.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
+        const experience = Object.keys(theirs.system?.experiences ?? {})[0] ?? "R2H1-claimed";
+        const withOptions = (p, extra) => ({ ...p, roll: { ...p.roll, options: { ...p.roll.options, ...extra } } });
+        const said = p => withOptions(p, { actionType: "reaction", guaranteedCritical: true, extraFormula: "+ 5", experiences: [experience],
+            roll: { ...(p.roll.options?.roll ?? {}), difficulty: 1, baseModifiers: [{ label: "", value: 5 }], companionRoll: true } });
+        const made = [];
+        try {
+            const honest = await drawnForPlayer(player, theirs);
+            made.push(honest);
+            must(honest.record, "the GM kept no record of the honest draw - this would measure nothing");
+            const F = await drawnForPlayer(player, theirs, { edit: said });
+            made.push(F);
+            const skipped = await drawnForPlayer(player, theirs, { edit: p => withOptions(p, { skips: { resources: true, updateCountdowns: true, triggers: true } }) });
+            made.push(skipped);
+            const json = F.value?.roll ?? null, options = json?.options ?? null;
+            const listed = new Set(DRAWN_OPTIONS ?? []);
+            equal(stableJson([Object.keys(honest.packet.roll.options).every(key => listed.has(key)), stableJson(honest.packet.roll.options.data ?? null),
+                json && Object.keys(json).sort(), options && Object.keys(options).sort(), options && Object.keys(options.roll ?? {}).sort(),
+                options?.actionType ?? null, options?.hasRoll ?? null, options?.guaranteedCritical ?? null, options?.extraFormula ?? null, options?.experiences ?? null,
+                stableJson(options?.data ?? null), stableJson(options?.source ?? null), F.record?.total ?? null, F.record?.isCritical ?? null,
+                skipped.sent.map(s => [s.action, s.reason]), await G.guardDrawnRoll(player, skipped.packet, {}), Boolean(skipped.record)]),
+            stableJson([true, "{}",
+                ["class", "evaluated", "formula", "options", "terms"], ["actionType", "data", ROLL_NONCE, "experiences", "hasRoll", "roll", "skips", "source"].sort(),
+                ["advantage", "modifiers", "trait", "type"], "action", true, null, null, [], "{}", "{}", 9 + 4 + mod, false,
+                [["bridge.refused", "badRequest"]], "that roll's options hold what no roll of this game is drawn with: skips", false]),
+                "a drawn roll's packet sent options past its list or no empty data, the GM kept one the packet's options said, or a packet with Daggerheart's skips was not refused (the honest packet's keys listed and its data; the GM's roll's keys, options' keys and roll's keys; its kind, hasRoll, critical, extra formula, experiences, data and source; the record's total and critical; the skips draw's answers, the guard's reason and its record)");
+        } finally {
+            for (const F of made) await F.putBack();
+        }
     }],
 
     ["a drawn roll holding a term that is neither a die, a number nor + or - is refused, and nothing is thrown", async () => {
@@ -5972,7 +6047,7 @@ const SCENARIOS = [
             must(F.message && F.record, "the GM drew nothing - this would measure nothing");
             const bookmark = { messageId: F.message.id, trait: "hand", experiences: ["C12B-claimed"], stashDie: true };
             // The roll as the class rebuilds it from the packet's JSON: the harness's message keeps its rolls as JSON alone.
-            const original = game.system.api.dice.DualityRoll.fromData(foundry.utils.deepClone(F.packet.roll));
+            const original = game.system.api.dice.DualityRoll.fromData(configuredRollOf(F.packet));
             const thrown = await R.rollAsThrown(original, theirs, F.message, bookmark);
             const stash = typeof R.stashDieOf === "function" ? await R.stashDieOf(bookmark) : bookmark.stashDie;
             equal(stableJson([thrown?.options?.roll?.trait ?? null, thrown?.options?.experiences ?? null, stash]), stableJson(["instinct", [], false]),
@@ -21904,7 +21979,8 @@ const SCENARIOS = [
         }
         const total = 9 + Number(who.system?.traits?.instinct?.value ?? 0);
         const DR = game.system.api.dice.DualityRoll;
-        const back = handed ? DR.fromData(JSON.parse(JSON.stringify({ ...handed.toJSON(), options: {} }))) : null;
+        // Its options as Daggerheart's constructor needs them: it reads `data` and `source` (E29 fix r2-H1; client-entry.mjs `DualityRollMock`).
+        const back = handed ? DR.fromData(JSON.parse(JSON.stringify({ ...handed.toJSON(), options: { data: {}, source: {} } }))) : null;
         equal(stableJson([heard, seen, shadowed, handed && [handed._evaluated, handed.dHope?.total, handed.dFear?.total],
             [result?.roll?.hope?.value, result?.roll?.fear?.value, result?.roll?.total], [card?.dHope?.total, card?.dFear?.total, card?.total],
             back && [back instanceof DR, back._evaluated, back.dHope?.total, back.dFear?.total, back.total]]),

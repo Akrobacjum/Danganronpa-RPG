@@ -1828,7 +1828,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        GM: the newest record's dice (faces, how many thrown), its critical against its dice, and the kind and the skips
        its message keeps. Then a draw naming no action whose roll adds `(10)`: refused, told, and nothing written.
        At 33bc497's runtime the GM's record read dice [[1,2],[1,1]], a critical, a reaction and the three skips, and the
-       `(10)` draw was written (drawn messages 19 -> 20, records 22 -> 23). */
+       `(10)` draw was written (drawn messages 19 -> 20, records 22 -> 23). Since E29 fix r2-H1 a packet's options may
+       not carry `skips` at all - it is refused, the next check's rule - so this roll asks the critical and the kind
+       alone, and the skips read are the GM's own. */
     const termsFrom = await gm.eval(`return Date.now();`);
     const readNewest = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const row = Object.values(S.rollStore?.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom})
@@ -1838,7 +1840,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             kind: m?.rolls?.[0]?.options?.actionType ?? null, skips: m?.rolls?.[0]?.options?.skips ?? null } : null;`;
     const forgedDice = { ...unthrown, formula: "2d1kh + 1d1 + 0",
         terms: [die("HopeDie", { number: 2, faces: 1, modifiers: ["kh"] }), unthrown.terms[1], die("FearDie", { faces: 1 }), ...unthrown.terms.slice(3)],
-        options: { ...unthrown.options, guaranteedCritical: true, actionType: "reaction", skips: { resources: true, updateCountdowns: true, triggers: true } } };
+        options: { ...unthrown.options, guaranteedCritical: true, actionType: "reaction" } };
     await p1.eval(`${payFor(ids.aiko)}
         game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "gm-terms-draw", actorId: "${ids.aiko}", nonce: "SECDRAWNONCE",
             actionKey: "search", claimed: true, loaded: null, costs: [], roll: ${JSON.stringify(forgedDice)} }, ${toGms});
@@ -1856,6 +1858,24 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a roll.draw holding a term that is neither a die, a number nor + or - is refused, and the GM writes no message and keeps no record",
         JSON.stringify(parenthesis.after) === JSON.stringify(parenthesis.before)
         && parenthesis.reasons.some(r => /holds a term no roll of this game is built of/.test(r)) && parenthesis.told === 1, JSON.stringify(parenthesis));
+    /* A DRAWN ROLL'S OPTIONS ARE THE GM'S (E29 fix r2-H1, 05.10.2026; review round 2's sec B1). The GM threw a drawn roll with
+       every option its packet carried beyond the ones it wrote over, and Daggerheart's resource step pays the difference from
+       a `rerolledRoll` (dualityRoll.mjs `addDualityResourceUpdates`): the review's console took one of the GM's Fear with a
+       Hope result (its probe 99 P1, at 070b72b's runtime: 1 -> 0, no flag on the record). The GM now writes every option itself
+       (roll-draw.mjs `drawnOptions`), and a packet holding a key past the ones a window may say is refused (bridge-guards.mjs
+       `guardDrawnRoll`). p1's console asks a draw naming no action whose options carry a `rerolledRoll` of a Fear result, the
+       GM's dice set to a Hope result (9 and 2) and its Fear to 2 first: refused and told, nothing written, the Fear still 2.
+       At 070b72b's runtime (this file kept, e29run/r2h1bred): drawn (drawn messages 21 -> 22, records 24 -> 25), the Fear
+       2 -> 1, nothing refused. */
+    const fearWas = await gm.eval(`return game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear);`);
+    await gm.eval(`await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, 2); globalThis.__forceRoll = { hope: 9, fear: 2 }; return true;`);
+    const rerolledDraw = await askedDraw("rerolled-draw", { actionKey: null, costs: [],
+        roll: { ...unthrown, options: { ...unthrown.options, rerolledRoll: { result: { duality: -1 }, isCritical: false } } } });
+    await gm.eval(`delete globalThis.__forceRoll; await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, ${Number(fearWas) || 0}); return true;`);
+    check("SECURITY: a roll.draw whose options carry Daggerheart's rerolledRoll is refused and told, and the GM writes nothing and its Fear does not move",
+        rerolledDraw.before.fear === 2 && JSON.stringify(rerolledDraw.after) === JSON.stringify(rerolledDraw.before)
+        && rerolledDraw.reasons.some(r => /options hold what no roll of this game is drawn with: rerolledRoll/.test(r)) && rerolledDraw.told === 1,
+        JSON.stringify(rerolledDraw), { flow: "gm-rolls-total" });
     /* AN ARMED CALL IS THE GMS' (E29 C8, 05.10.2026; the plan's 1.5 item 5 and 3.3). p1's console writes a Loaded Die onto
        Aiko's armed list itself - a Call nobody paid for, past its own browser's courtesy - pays one of Aiko's actions and asks
        a Search's draw naming it, among its Calls and as its loaded mark. Read on the GM once its audit has judged Aiko's

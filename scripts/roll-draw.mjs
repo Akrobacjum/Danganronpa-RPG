@@ -277,14 +277,15 @@ async function drawAndPlay(cls, config, message) {
 }
 
 /*
- * WHAT THE ROLL TAKES TO THE GM. The roll as Foundry writes it (`toJSON`), unevaluated,
- * its options made plain and then neutral as its message would keep them
- * (private-rolls.mjs `neutralRollOf`): the GM's message is written from it, and needs
- * nothing of the character - the GM has the character. A document on the config (a
- * character, a token) is left out rather than serialised: it would name the roll's
- * character in every browser's copy of the message. The Loaded Die's mark, which the
- * neutral roll drops, travels beside it, and so do the window's costs. Exported for the suite,
- * which sends the GM a packet of its own roll's shape (tests-tier2.mjs `drawnForPlayer`).
+ * WHAT THE ROLL TAKES TO THE GM. The roll as Foundry writes it (`toJSON`), unevaluated, with
+ * only the options a window may say of the roll the GM writes for itself (`DRAWN_OPTIONS`, E29
+ * fix r2-H1, "THE GM'S OWN OPTIONS" below), made plain and then neutral as its message would keep
+ * them (private-rolls.mjs `neutralRollOf`): the GM needs nothing of the character - it has the
+ * character - and a key past the list is refused (bridge-guards.mjs `guardDrawnRoll`). Its `data`
+ * goes empty, not absent: Daggerheart's constructor reads it (`rollFromLegal`'s note). The Loaded
+ * Die's mark, which the neutral roll drops, travels beside it, and so do the window's costs.
+ * Exported for the suite, which sends the GM a packet of its own roll's shape (tests-tier2.mjs
+ * `drawnForPlayer`).
  *
  * And what the roller claims of it (E08+E28 C12b), each the roller's word - since E29 C10 a claim
  * the GM records beside the roll its own list makes, compares and never counts: the statistic
@@ -298,7 +299,7 @@ async function drawAndPlay(cls, config, message) {
  * which the GM no longer reads: it reads every action's situation for itself (E29 C9,
  * `LEGAL_READERS`). The field still travels; nothing on the GM reads it.
  */
-const SENT_WITHOUT = new Set(["resourceUpdates", "message", "messageRoll", "data", "effects", "bonusEffects"]);
+export const DRAWN_OPTIONS = Object.freeze([ROLL_NONCE, "actionType", "roll", "experiences", "guaranteedCritical", "extraFormula", "data"]);
 const CONTEXT_SENT = Object.freeze({ category: "text", goal: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text",
     crisis: "text", cleanupKey: "text", cleanupVia: "bool" });
 const LISTED_MAX = 16;
@@ -326,10 +327,12 @@ const strings = list => (Array.isArray(list) ? list : []).filter(item => typeof 
 export function drawPacketOf(roll, config, claim) {
     const json = roll.toJSON();
     const options = {};
-    for (const [key, value] of Object.entries(json.options ?? {})) {
-        if (SENT_WITHOUT.has(key) || value === undefined || typeof value === "function" || value?.documentName) continue;
+    for (const key of DRAWN_OPTIONS) {
+        const value = json.options?.[key];
+        if (key === "data" || value === undefined || typeof value === "function" || value?.documentName) continue;
         try { options[key] = JSON.parse(JSON.stringify(value)); } catch { /* not JSON, so not on a message either */ }
     }
+    options.data = {};
     const plain = JSON.parse(JSON.stringify({ ...json, options: {} }));
     return {
         actorId: claim.subject?.id ?? null,
@@ -410,15 +413,34 @@ export async function rollerCopyOf(cls, configured, config, message, { faces = [
 /**
  * A roll rebuilt from the JSON the GM wrote (`legalRollOf`), on either side. Daggerheart's
  * constructor, which `fromData` runs first, writes `options.roll.modifiers` again from the roll's
- * data and its window's choices (d20Roll.mjs `configureModifiers`, :96-124, read in 2.10.5), and a
- * drawn roll's data is emptied (private-rolls.mjs `neutralRollOf`): the GM's statistic, modifiers,
- * advantage and experiences are put back on the instance after it. Not measured at a table
- * (LIVE-E28-12 reads `fromData` there); the harness's constructor leaves the options alone.
- * `json` is consumed - Daggerheart's `fromData` names the dice's classes in it.
+ * data and its window's choices (d20Roll.mjs `configureModifiers`, :96-124, read in 2.10.5), and
+ * the roll's data there is the empty `data` its options carry (dhRoll.mjs:11 takes `options.data`
+ * where the roll's own is empty, as `fromData`'s is): the GM's statistic, modifiers, advantage and
+ * experiences are put back on the instance after it. Not measured at a table (LIVE-E28-12 reads
+ * `fromData` there). `json` is consumed - Daggerheart's `fromData` names the dice's classes in it.
+ *
+ * AND DAGGERHEART CAN BUILD IT (E29 fix r2-H1, 05.10.2026; review round 2's cor B1). That
+ * constructor reads `options.data.system` (d20Roll.mjs:103), `this.data.traits` where the roll
+ * names a statistic (dualityRoll.mjs:174) and `options.source.item` (:185), none of them with `?.`
+ * (2.6.5 and 2.10.5 alike). The packet left `data` out from E08+E28 C12a, and the GM's roll was
+ * built from the packet's: run on Daggerheart 2.10.5's own roll classes, Foundry's `fromData` stood
+ * in for as the harness models it (e29-review/cor-r2-fromdata/probe.mjs), C10's roll threw a
+ * TypeError at dualityRoll.mjs:174 and 1.2.67's packet one at d20Roll.mjs:103; with `data` empty
+ * it built. The same probe on the JSON a headless draw of a statistic from the sheet handed
+ * `fromData` (e29run/scratch/r2h1-probe): at 070b72b the GM's and the roller's each threw at
+ * dualityRoll.mjs:174; with this fix each built. The suite stayed green because the harness's
+ * constructor read none of it (client-entry.mjs `DualityRollMock` reads all three since this fix).
+ * The GM writes both into its own options (`drawnOptions`); they are put here too for a JSON
+ * written before the fix. Built so, the constructor's formula (`_formula`) is the dice alone,
+ * `1d12 + 1d12` in that probe - it is written before `fromData` puts the JSON's terms in, and the
+ * terms carry the numbers; what Foundry's `formula` reads back at a table is not measured here.
  */
 function rollFromLegal(cls, json, data = null) {
-    const said = foundry.utils.deepClone(json?.options?.roll ?? {});
-    const experiences = Array.isArray(json?.options?.experiences) ? [...json.options.experiences] : [];
+    const options = json.options && typeof json.options === "object" ? json.options : (json.options = {});
+    options.data ??= {};
+    options.source ??= {};
+    const said = foundry.utils.deepClone(options.roll ?? {});
+    const experiences = Array.isArray(options.experiences) ? [...options.experiences] : [];
     const roll = cls.fromData(json);
     roll.options.roll = roll.options.roll && typeof roll.options.roll === "object" ? roll.options.roll : {};
     for (const key of ["trait", "modifiers", "advantage"]) {
@@ -804,7 +826,8 @@ export async function drawOnGm(packet, sender) {
  * the GM's randomness at the packet's size and flagged (`dice`); what a drawn roll may be built
  * of at all is the guard's (bridge-guards.mjs `guardDrawnRoll`). Foundry's own `fromData` is not
  * on this machine: the harness models it (lib/shim.mjs), and Daggerheart's constructor is
- * modelled as far as `guaranteedCritical` (client-entry.mjs `DualityRollMock`).
+ * modelled as far as `guaranteedCritical` and, since fix r2-H1, the options it reads before any
+ * modifier is written (client-entry.mjs `DualityRollMock`; `rollFromLegal`'s note).
  */
 
 /** Daggerheart's advantage dice, by the class `fromData` gives the fifth term, and the sign each is thrown with. */
@@ -836,15 +859,15 @@ function formulaOf(terms) {
  * faces and the kind are the list's (config.mjs `LEGAL_ROLL_MODIFIERS`, E29 C9): `hopeDie`,
  * `fearDie`, `advantageDie` and `kind`, read by their readers below. Since E29 C10 a student's roll
  * is built whole from the list (`legalRollOf`), and this writes only the roll of a character
- * nothing is expected of - a Monokuma's - whose numbers and advantage dice stay its window's.
+ * nothing is expected of - a Monokuma's - whose numbers and advantage dice stay its window's. Its
+ * options are the GM's own since fix r2-H1 (`drawnOptions`), its modifiers the numbers it throws.
  */
-async function onGmTerms(json, actor, { key = null, claimed = true } = {}) {
+async function onGmTerms(json, actor, { key = null, claimed = true, nonce = null } = {}) {
     const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
     const die = (cls, faces, number = 1, modifiers = []) => ({ class: cls, options: {}, evaluated: false, number, faces, modifiers, results: [] });
     const sign = op => ({ class: "OperatorTerm", options: {}, evaluated: false, operator: op });
     const terms = Array.isArray(json.terms) ? json.terms : (json.terms = []);
-    const options = json.options && typeof json.options === "object" ? json.options : (json.options = {});
-    const draw = { key, claimed, actionType: options.actionType };
+    const draw = { key, claimed, actionType: json.options?.actionType };
     const sent = diceShape(terms);
     terms[0] = die("HopeDie", await legal("hopeDie", actor, draw));
     terms[1] = sign("+");
@@ -856,15 +879,11 @@ async function onGmTerms(json, actor, { key = null, claimed = true } = {}) {
         terms[3] = sign(advantage > 0 ? "+" : "-");
         terms[4] = die(terms[4].class, faces, number, number > 1 ? ["kh"] : []);
     }
-    if (diceShape(terms) !== sent) json.formula = formulaOf(terms);
+    const formula = diceShape(terms) !== sent ? formulaOf(terms) : json.formula;
     const { actionType, critical } = await legal("kind", actor, draw);
-    if (critical) options.guaranteedCritical = true;
-    else delete options.guaranteedCritical;
-    options.actionType = actionType;
-    options.skips = {};
-    options.roll = options.roll && typeof options.roll === "object" ? options.roll : {};
-    if (typeof options.roll.advantage === "object" || (options.roll.advantage ?? 0) !== advantage) options.roll.advantage = advantage;
-    return json;
+    const modifiers = terms.flatMap((term, i) => (typeof term?.number === "number" && !("faces" in term)
+        ? [{ label: "", value: (terms[i - 1]?.operator === "-" ? -1 : 1) * term.number }] : []));
+    return { class: json.class, formula, terms, evaluated: false, options: drawnOptions(nonce, { actionType, critical, advantage, modifiers }) };
 }
 
 /*
@@ -888,7 +907,8 @@ async function onGmTerms(json, actor, { key = null, claimed = true } = {}) {
  *     hindering Call's; and the part of the claim the list cannot read - the effects a window toggles
  *     - clamped into the range the character's effects allow (`effectRange`);
  *   - `options.roll.trait`, `.advantage` and `options.experiences` to match, its kind and critical as
- *     `onGmTerms` writes them, no `skips`, no `extraFormula`, no `baseModifiers`.
+ *     `onGmTerms` writes them, no `skips`, no `extraFormula`, no `baseModifiers` - and, since fix
+ *     r2-H1, nothing else of the packet's options ("THE GM'S OWN OPTIONS" below).
  * The packet keeps only what the GM cannot know and the list lets it say: the statistic of a roll
  * whose action names none, the experiences named (counted as far as a Call bought one) and the
  * effects' part, clamped. Its numbers are the claim (`claimOf`), recorded beside what was thrown
@@ -972,34 +992,58 @@ function termsOf(scored, read) {
     return terms;
 }
 
+/*
+ * THE GM'S OWN OPTIONS (E29 fix r2-H1, 05.10.2026; review round 2's sec B1). A Daggerheart roll's
+ * options are its whole config (dhRoll.mjs:45), and every step the GM runs after the dice reads
+ * it. Until this fix the GM's roll started from a clone of the packet's and had written over only
+ * the options it named, so any other one the packet carried stayed on the roll the GM threw: the
+ * review's Search sent with Daggerheart's `rerolledRoll` beside a Fear result left the GM's Fear
+ * 1 -> 1, and on a Hope result took one off, 1 -> 0, recording no flag (its probe 99 P1, at
+ * 070b72b's runtime) - the resource step pays the difference from that "earlier" roll
+ * (dualityRoll.mjs `addDualityResourceUpdates`, :290-297). So the GM writes every option of the
+ * roll it throws into a fresh object, from its own list: the claim's nonce (which the guard held
+ * to the packet's), the kind and the critical its readers decided, a statistic's roll (`type`)
+ * with the advantage, the modifiers and the statistic it counted, the experiences it counted,
+ * every step run (`skips` empty), the empty `data` and `source` Daggerheart's constructor reads
+ * (`rollFromLegal`'s note; the GM puts the character's uuid on `source` as it throws), and
+ * `hasRoll`. Daggerheart's card shows the roll's result only under `hasRoll` (roll.hbs:6, 2.10.5),
+ * read off the message's `system` (dhRoll.mjs `_prepareChatRenderContext`, :198-213), which
+ * `toMessage` writes from these options (:151-155); its `rollTrait` sets it (actor.mjs:678), and
+ * at 070b72b the honest packet carried it to the GM's roll (e29run/scratch/r2h1-probe). Without
+ * it a drawn roll's card would show no result at a table - read in the source, not measured
+ * there; the harness renders no Daggerheart card, so the suite reads the key, not the card.
+ * Nothing else - an extra formula, base modifiers, a difficulty, a window's statistic mark - and
+ * nothing of the packet's `roll`. The packet itself may carry only `DRAWN_OPTIONS` (each a key
+ * the GM writes over, and the empty `data`), and one carrying any other key is refused and told
+ * (bridge-guards.mjs `guardDrawnRoll`). Every roll the GM draws is a statistic's (`drawsHere`).
+ */
+function drawnOptions(nonce, { actionType, critical, advantage, modifiers, trait = null, experiences = [] }) {
+    const roll = { type: "trait", advantage, modifiers };
+    if (trait) roll.trait = trait;
+    const options = { [ROLL_NONCE]: nonce, actionType, roll, experiences: [...experiences], skips: {}, data: {}, source: {}, hasRoll: true };
+    if (critical) options.guaranteedCritical = true;
+    return options;
+}
+
 /**
  * The roll this GM throws, as JSON for `fromData`, with what it scored (`scored`) and the packet's
- * numbers (`claim`) - see the note above. `scored` is null for a roll nothing is expected of.
+ * numbers (`claim`) - see the note above. `scored` is null for a roll nothing is expected of. Of the
+ * packet's roll only its class and its formula are kept (the guard holds both), the formula only
+ * where the dice and the numbers are the GM's.
  */
-async function legalRollOf(packetRoll, actor, expected, told, { key = null, claimed = true } = {}) {
+async function legalRollOf(packetRoll, actor, expected, told, { key = null, claimed = true, nonce = null } = {}) {
     const json = foundry.utils.deepClone(packetRoll && typeof packetRoll === "object" ? packetRoll : {});
     const sent = Array.isArray(json.terms) ? json.terms : [];
     const claim = claimOf(sent, actor, told);
-    if (!expected.checked) return { json: await onGmTerms(json, actor, { key, claimed }), scored: null, claim };
+    if (!expected.checked) return { json: await onGmTerms(json, actor, { key, claimed, nonce }), scored: null, claim };
     const scored = scoredOf(actor, expected, claim);
     const { read } = expected;
     const terms = termsOf(scored, read);
-    if (diceShape(terms) !== diceShape(sent) || numbersOf(terms) !== numbersOf(sent)) json.formula = formulaOf(terms);
-    json.terms = terms;
-    const options = json.options && typeof json.options === "object" ? json.options : (json.options = {});
-    if (read.kind.critical) options.guaranteedCritical = true;
-    else delete options.guaranteedCritical;
-    options.actionType = read.kind.actionType;
-    options.skips = {};
-    delete options.extraFormula;
-    options.experiences = [...scored.experiences];
-    const roll = { ...(options.roll && typeof options.roll === "object" ? options.roll : {}), advantage: Math.sign(scored.advantage),
-        modifiers: scored.modifiers.map(m => ({ label: modifierLabel(m), value: m.value })) };
-    delete roll.baseModifiers;
-    if (scored.trait) roll.trait = TRAITS[scored.trait]?.dh ?? scored.trait;
-    else delete roll.trait;
-    options.roll = roll;
-    return { json, scored, claim };
+    const formula = diceShape(terms) !== diceShape(sent) || numbersOf(terms) !== numbersOf(sent) ? formulaOf(terms) : json.formula;
+    const options = drawnOptions(nonce, { actionType: read.kind.actionType, critical: read.kind.critical, advantage: Math.sign(scored.advantage),
+        modifiers: scored.modifiers.map(m => ({ label: modifierLabel(m), value: m.value })),
+        trait: scored.trait ? TRAITS[scored.trait]?.dh ?? scored.trait : null, experiences: scored.experiences });
+    return { json: { class: json.class, formula, terms, evaluated: false, options }, scored, claim };
 }
 
 /**
@@ -1064,7 +1108,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded,
         actionType: json?.options?.actionType ?? null });
     // The roll this GM throws is the one it builds from its list (`legalRollOf`, E29 C10); the packet's is a claim.
-    const legal = await legalRollOf(json, actor, expected, told, { key, claimed });
+    const legal = await legalRollOf(json, actor, expected, told, { key, claimed, nonce });
     const roll = rollFromLegal(cls, foundry.utils.deepClone(legal.json));
     // A Daggerheart roll's options are its config (dhRoll.mjs:45). What the GM's own steps
     // read is put back in memory: the character's uuid for the resource step, its roll data

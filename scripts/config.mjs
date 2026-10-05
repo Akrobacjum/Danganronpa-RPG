@@ -3875,9 +3875,10 @@ export const CLEANUP = {
  *     experience, Breakdown's one die, the hostile Call's grace;
  *   - `label` is the line a flag names it by (`DRPG.Rolls.legal.*`).
  * The advantage dice of every row are summed and capped at roll-dialog.mjs `ADVANTAGE_CAP`, as the
- * roll window sums them (`advantageSources`). Monokuma's rolls are a GM's and are not drawn. From
- * C9 the GM reads the list and still only observes: a roll that differs is flagged to the GMs and
- * stands as drawn.
+ * roll window sums them (`advantageSources`). Monokuma's rolls are a GM's and are not drawn. In C9
+ * the GM read the list and only observed: a roll that differed was flagged to the GMs and stood as
+ * drawn. From C10 the GM throws the roll this list makes (roll-draw.mjs `legalRollOf`): what the
+ * roller's window put on beyond it is a claim, recorded and flagged to the GMs, never counted.
  */
 /** How long before a draw a hostile Call - a disadvantage, a negative bonus - is armed to count whether the roll names it or not (the owner's Q3 (a), 05.10.2026), in ms. */
 export const HOSTILE_GRACE = 60_000;

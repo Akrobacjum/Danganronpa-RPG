@@ -501,9 +501,24 @@ class DualityRollMock extends RollImpl {
        2.10.5, re-read 05.10.2026 for E08+E28 fix r2-H8): a critical whatever the dice, with neither
        Hope nor Fear (:89-101). Until then the mock read the dice alone, so a roll whose options
        named one could not be told from any other here. */
+    /* WHAT DAGGERHEART'S CONSTRUCTOR READS (E29 fix r2-H1, 05.10.2026; review round 2's cor B1). A
+       roll whose own data is empty, as one `fromData` rebuilds is, takes its options' (dhRoll.mjs:11),
+       and d20Roll.mjs `constructFormula` -> `configureModifiers` then reads, before any modifier is
+       written: the statistic's value off that data where `options.roll.trait` names one
+       (dualityRoll.mjs:174), `options.source.item` (:185) and `options.data.system` (d20Roll.mjs:103),
+       none of them with `?.` (2.6.5 and 2.10.5 alike). Until this fix the mock read none of it: the
+       suite was green on every drawn roll while Daggerheart's own classes threw a TypeError on the
+       JSON one is rebuilt from (e29-review/cor-r2-fromdata/probe.mjs, on the packet's shape;
+       e29run/scratch/r2h1-probe, on what a headless draw handed `fromData`). Read here as Daggerheart reads them, so a roll it could
+       not build is not built here either; what they say is not used - the harness's formula carries the
+       statistic already (`createRollInstance`), and a rebuilt roll's terms are its JSON's. */
     constructor(formula, data = {}, options = {}) {
         super(formula, data, options);
+        if (!this.data || !Object.keys(this.data).length) this.data = options.data;
         this.createBaseDice();
+        if (options.roll?.trait) void this.data.traits?.[options.roll.trait];
+        void options.source.item;
+        void options.data.system?.experiences;
         this.guaranteedCritical = options?.guaranteedCritical;
     }
     get advantageNumber() { return this._adv ?? 1; }
