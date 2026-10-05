@@ -28,27 +28,42 @@ function stateDiff(a, b, at = "", out = []) {
  * nothing of the dump's rules), with an incident open (A1) and inside a Class Trial
  * with the debate running (A2) - the two states a GM is most likely to be in when
  * somebody asks whether the module is healthy.
+ *
+ * THE LOAD'S OWN WRITES BEFORE THE FIRST READING (E29 fix r1-G9, 05.10.2026). The reading
+ * before the run is the harness's, and it was taken as soon as A1's incident was open - while
+ * the GM's load could still be writing what it writes of its own accord after `ready`: the
+ * stores' compaction and the case's marks (gm-stores.mjs `whenGmStoresLoaded`), among them
+ * `caseMark.since`, which this seed's trace earns at every boot. The suite's own first reading
+ * waits for that (tests.mjs `loadSettled`); this one did not, so a load slower than A1's start
+ * landed between the two readings. At k1 (05.10.2026) A1 failed on `caseMark.since` beside two
+ * other lanes and passed alone; with the case's mark held back 6 s (a probe running this file's
+ * A1, e29run/r1g9probe) it failed the same way without this wait (1 run of 1) and passed with it
+ * (2 of 2). Bounded as the suite's is.
  */
-async function readOnlyRun(gm, check, label) {
+async function readOnlyRun(gm, check, label, repoUrl) {
     const out = await gm.eval(`
+        const [{ whenGmStoresLoaded }, { migrationOnLoad }] = await Promise.all([import("${repoUrl}/scripts/gm-stores.mjs"), import("${repoUrl}/scripts/migrate.mjs")]);
+        const settled = await Promise.race([Promise.all([whenGmStoresLoaded(), migrationOnLoad()]).then(() => true),
+            new Promise(res => setTimeout(() => res(false), 30000))]);
         const before = globalThis.__harnessWorldState();
         const r = await game.drpg.runTests({ tier: 1 });
         await new Promise(res => setTimeout(res, 400));
         const after = globalThis.__harnessWorldState();
-        return { before, after, tiers: [...new Set((r?.results ?? []).map(x => x.tier))], failed: r?.failed, passed: r?.passed,
+        return { settled, before, after, tiers: [...new Set((r?.results ?? []).map(x => x.tier))], failed: r?.failed, passed: r?.passed,
             tier2: /TIER 2/.test(r?.text ?? ""), purity: (r?.results ?? []).find(x => x.name === "tier 0/1 changed nothing in the world") ?? null,
             fails: (r?.results ?? []).filter(x => x.outcome === "fail").map(x => (x.name + ": " + (x.message ?? "")).slice(0, 300)) };
     `, { timeout: 240000 });
     check(`gm: ${label} - tiers 0 and 1 only, no tier 2`, out && !out.tier2 && out.tiers.every(t => t <= 1) && out.tiers.length > 0,
         JSON.stringify({ tiers: out?.tiers, tier2: out?.tier2 }));
     const moved = out ? stateDiff(out.before, out.after) : ["no answer"];
-    check(`gm: ${label} - the harness's own reading of the world did not move`, moved.length === 0, moved.slice(0, 12).join("; "));
+    check(`gm: ${label} - the harness's own reading of the world did not move`, moved.length === 0,
+        (out?.settled === false ? "the load had not settled in 30 s; " : "") + moved.slice(0, 12).join("; "));
     check(`gm: ${label} - the suite says tier 0/1 changed nothing`, out?.purity?.outcome === "pass",
         `${out?.purity?.outcome ?? "no purity result"}: ${out?.purity?.message ?? ""}`.slice(0, 600));
     check(`gm: ${label} - nothing failed`, out?.failed === 0, (out?.fails ?? []).join(" | ").slice(0, 1200));
 }
 
-export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, IDS }) {
+export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, IDS, repoUrl }) {
     // The suite drives the whole table from the GM's client and measures state
     // between its own steps; a player client auto-answering a dialog it was sent
     // (an opening roll, a ballot) would race those measurements.
@@ -76,7 +91,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
         return true;
     `, { timeout: 60000 });
     await settle(500);
-    await readOnlyRun(gm, check, "A1, an incident open");
+    await readOnlyRun(gm, check, "A1, an incident open", repoUrl);
     await gm.eval(`await game.drpg.endMurder({ reason: "test", followUp: false }); return true;`, { timeout: 60000 });
     await settle(500);
 
@@ -88,7 +103,7 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
         return true;
     `, { timeout: 60000 });
     await settle(500);
-    await readOnlyRun(gm, check, "A2, inside a Class Trial");
+    await readOnlyRun(gm, check, "A2, inside a Class Trial", repoUrl);
     await gm.eval(`
         await game.drpg.endFloor();
         await game.drpg.setClock(globalThis.__clockBeforeA2);

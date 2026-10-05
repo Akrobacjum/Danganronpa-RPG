@@ -363,6 +363,21 @@ async function auditFromScratch(student) {
 }
 
 /**
+ * A student's actions able to reach `n` for one test (E29 fix r1-G9): its maximum raised to `n` by
+ * the GM when it is lower; tier 2's restore puts the maximum back, as it does the actions. Scenario
+ * 01 runs tier 2 after a Class Trial and back, and the clock's reset leaves every student at the
+ * rules' starting maximum of 2 (`STARTING.actions`, actions.mjs `resetAllActions`), so C5's three
+ * tests that raise actions to 3 met 2 there and failed on their own precondition - in the whole
+ * suite only: alone, in a fresh world, the seed's 3 was there (k1, 05.10.2026, e29run/k1rerun:
+ * 3/1/0 each after that round trip, 4/0/0 without it; with this, 4/0/0 each after it,
+ * e29run/r1g9probe).
+ */
+async function actionsReach(student, n) {
+    const MAX = "system.resources.actions.max";
+    if (!(Number(foundry.utils.getProperty(student._source, MAX)) >= n)) await student.update({ [MAX]: n });
+}
+
+/**
  * Two students stood alone together in a room nobody else is in, for the lights of an
  * Eclipse to judge (E05 C3): both tokens teleported to its centre and read back - a
  * fixture that did not take would measure a refusal instead. `back()` puts them where
@@ -24566,6 +24581,7 @@ const SCENARIOS = [
         const { sheetWriteStore } = await import("./gm-stores.mjs");
         const { contentOf } = await import("./secret.mjs");
         const ACT = "system.resources.actions.value", acts = () => foundry.utils.getProperty(student._source, ACT);
+        await actionsReach(student, 3);
         must(Number(student.system.resources?.actions?.max) >= 3, "the student's actions cannot reach 3 - the write would be clamped and measure nothing");
         const from = Date.now();
         await student.update({ [ACT]: 1 });
@@ -24625,6 +24641,7 @@ const SCENARIOS = [
         const { sheetWriteStore } = await import("./gm-stores.mjs");
         const { cardFlag } = await import("./secret.mjs");
         const ACT = "system.resources.actions.value", HP = "system.resources.hitPoints.value", GRANT = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        await actionsReach(student, 3);
         const r = student.system.resources;
         must(Number(r?.actions?.max) >= 3 && Number(r?.hitPoints?.max) >= 2, "the student's actions cannot reach 3 or it cannot hold two Health marks");
         const lock = getSetting(SETTINGS.lockPlayerResources), from = Date.now();
@@ -24657,6 +24674,7 @@ const SCENARIOS = [
         const { sheetAuditIdle, decideWrite } = await import("./sheet-audit.mjs");
         const { sheetWriteStore } = await import("./gm-stores.mjs");
         const ACT = "system.resources.actions.value", acts = () => foundry.utils.getProperty(student._source, ACT);
+        await actionsReach(student, 3);
         must(Number(student.system.resources?.actions?.max) >= 3, "the student's actions cannot reach 3 - the write would be clamped and measure nothing");
         const from = Date.now();
         await student.update({ [ACT]: 1 });
