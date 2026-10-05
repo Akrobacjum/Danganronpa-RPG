@@ -638,9 +638,10 @@ async function relayedDice(run) {
  * where the harness reads them (`__forceRoll`); a real table throws its own, so a Fear there
  * moves Daggerheart's Fear, which restore() does not put back and this does. `title` is the
  * action's, as `rollTrait` is given one; `experiences` the ids the roll dialog would have
- * picked (`__forceExperiences`, E06 fix r1-G1). The caller deletes the message.
+ * picked (`__forceExperiences`, E06 fix r1-G1); `trait` the statistic, Eye unless named (E29
+ * fix r1-G10). The caller deletes the message.
  */
-async function neutralRoll(who, { remember = false, faces = null, title = null, experiences = null } = {}) {
+async function neutralRoll(who, { remember = false, faces = null, title = null, experiences = null, trait = "eye" } = {}) {
     const rolls = await import("./action-rolls.mjs");
     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
     const hadPicks = Object.hasOwn(globalThis, "__forceExperiences"), picks = globalThis.__forceExperiences;
@@ -649,7 +650,7 @@ async function neutralRoll(who, { remember = false, faces = null, title = null, 
     try {
         if (faces) globalThis.__forceRoll = faces;
         if (experiences) globalThis.__forceExperiences = experiences;
-        const outcome = await rolls.rollTrait(who, "eye", { remember, ...(title ? { title } : {}) });
+        const outcome = await rolls.rollTrait(who, trait, { remember, ...(title ? { title } : {}) });
         return { outcome, message: outcome?.raw?.message ?? null };
     } finally {
         if (hadForce) globalThis.__forceRoll = force;
@@ -706,12 +707,14 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * `drawRefusal`): unless `pay` is false, a packet naming an action that is paid for has one of
  * the character's actions paid just before it is judged (`payAction`), a crisis action's and an
  * opening's nothing - their turn and their stage are the test's; `ready`, where given, is awaited
- * after that and just before the packet is judged (E29 fix r1-G5: what the draw must meet). Answers
- * the verdict, what was sent back, the answer's value, the GM's message and record, and `putBack`,
- * which deletes both messages and the record, puts Daggerheart's Fear back as found and the
- * payment's actions as they were. Ask the world's rows first - it writes.
+ * after that and just before the packet is judged (E29 fix r1-G5: what the draw must meet). `trait`
+ * is the statistic of the roll the packet is cut from, so its formula carries that statistic's
+ * value (Eye unless named; E29 fix r1-G10). Answers the verdict, what was sent back, the
+ * answer's value, the GM's message and record, and `putBack`, which deletes both messages and the
+ * record, puts Daggerheart's Fear back as found and the payment's actions as they were. Ask the
+ * world's rows first - it writes.
  */
-async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null } = {}) {
+async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null, trait = "eye" } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -724,7 +727,7 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
     const made = [];
     let thrown;
     try {
-        thrown = await neutralRoll(actor);
+        thrown = await neutralRoll(actor, { trait });
     } finally {
         Hooks.off(`${game.system.id}.postDualityRollConfiguration`, hook);
     }
@@ -5174,7 +5177,8 @@ const SCENARIOS = [
         /*
          * E08+E28 fix r2-H8, 05.10.2026 (H8-5). The GM looked for a pick card only where the roll's
          * window said a GM had picked (`TRAIT_BY_GM`), which is the packet's to say: a crisis roll sent
-         * without it was held to no pick at all (roll-draw.mjs `pickDue`). Two crisis draws of a
+         * without it was held to no pick at all (roll-draw.mjs `pickDue`; since E29 fix r1-G10 the
+         * table's `gm` row, on `listedFor`). Two crisis draws of a
          * player's character, a Strike - whose definition lists several statistics - at turns of theirs
          * in a fight (C12b's pick test's setting), neither packet saying a GM picked: after a card
          * picking Body, a roll of Eye; a turn later, a roll of Hand, with no card made for it. Read:
@@ -6839,6 +6843,140 @@ const SCENARIOS = [
             for (const a of [other, theirs]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
             await fixture.back();
         }
+    }],
+
+    ["every definition and part that lists one statistic is expected at it, and a roll of it on another is flagged while one on it is clean", async () => {
+        /*
+         * E29 fix r1-G10, 05.10.2026; audit S18-01, the auditor's correction of that day. The GM
+         * expected the statistic of a Search, a project, the opening, a pick card and Stage 6's
+         * single-statistic steps, and of nothing else: a definition that lists ONE statistic was held
+         * to none, and a roll of it on another was flagged by nobody (roll-draw.mjs `TRAIT_SOURCES`,
+         * its `fixed` row). Every definition of config that lists one statistic - an action of the
+         * table, a crisis action, a clean-up's step - and every part of an action that names one, each
+         * told as the module tells it: a Palm's hand as "steal" and its cover as "palm" (action-rolls.mjs
+         * `performPalm`), Tamper through the clean-up's door (cleanup.mjs `cleanupTrait`), a crisis
+         * action and a step in the packet's context. A part this test does not know how the module
+         * tells is read as told for no action, and fails here. Read: what the GM expects of a roll of
+         * each (`expectedFor`: the statistic, and the row that gave it); the crisis variants - a trap's
+         * victim's, which no roll outside a fight is - that list one; and for each told outside a
+         * fight, the flags of two rolls drawn from a player, on another statistic and on its own, each
+         * cut from a roll of that statistic so that its formula carries that statistic's value. At
+         * 9b5b72a's runtime ten of the thirteen were expected nothing (`[null, null]`: Observe,
+         * Analyze, Listen, a Palm's hand and cover, five crisis actions), Tamper's door and moving the
+         * body were C9's under the name `cleanup`, and the rolls on another statistic of Observe,
+         * Analyze, Listen and a Palm's two drew no flag. The draws are put back last first: each puts
+         * back Daggerheart's Fear as it found it, and a Fear the roll it is cut from gave can land
+         * after that roll's own check (seen once in eight runs, on 05.10.2026: Fear 0 -> 1 left).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS, CRISIS_ACTIONS, CLEANUP, TRAITS } = await import("./config.mjs");
+        const one = list => {
+            const listed = (Array.isArray(list) ? list : []).filter(t => Object.hasOwn(TRAITS, t));
+            return listed.length === 1 ? listed[0] : null;
+        };
+        // How the module tells a roll of each: an action of the table under its own key unless named here.
+        const TOLD = { palm: { actionKey: "steal" }, tamper: { actionKey: "cleanup", context: { cleanupVia: true, cleanupKey: "eraseTrace" } } };
+        const PARTS = { "palm.unseen": { actionKey: "palm" } };
+        const cases = [];
+        for (const [key, def] of Object.entries(ACTIONS)) {
+            const trait = one(def?.traits);
+            if (trait) cases.push({ name: key, trait, told: TOLD[key] ?? { actionKey: key } });
+            for (const [part, piece] of Object.entries(def ?? {})) {
+                if (typeof piece?.trait === "string") cases.push({ name: `${key}.${part}`, trait: piece.trait, told: PARTS[`${key}.${part}`] ?? { actionKey: null } });
+            }
+        }
+        for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
+            const trait = one(def?.traits);
+            if (trait && !def.noRoll) cases.push({ name: `crisis.${key}`, trait, told: { actionKey: "crisis", context: { crisis: key } } });
+        }
+        for (const [key, def] of Object.entries(CLEANUP.actions ?? {})) {
+            const trait = one(def?.traits);
+            if (trait) cases.push({ name: `cleanup.${key}`, trait, told: { actionKey: "cleanup", context: { cleanupKey: key } } });
+        }
+        must(cases.length > 0, "config lists no definition of one statistic - this would measure nothing");
+        const variants = Object.entries(CRISIS_ACTIONS).filter(([, def]) => one(def?.indirectVictim?.traits)).map(([key]) => key);
+        const expected = [];
+        for (const c of cases) {
+            const e = await D.expectedFor(theirs, { actionKey: c.told.actionKey, context: c.told.context ?? {} });
+            expected.push([c.name, e.trait ?? null, e.traitFrom ?? null]);
+        }
+        const other = trait => (trait === "eye" ? "hand" : "eye");
+        const drawnHere = cases.filter(c => c.told.actionKey && c.told.actionKey !== "crisis");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const drawn = [], flags = [];
+        try {
+            for (const c of drawnHere) {
+                for (const trait of [other(c.trait), c.trait]) {
+                    const F = await drawnForPlayer(player, theirs, { actionKey: c.told.actionKey, trait,
+                        edit: p => ({ ...p, context: { ...(p.context ?? {}), ...(c.told.context ?? {}) } }) });
+                    drawn.push(F);
+                    must(F.record, `the GM kept no record of a roll of ${c.name} (${F.verdict}) - this would measure nothing`);
+                    flags.push([c.name, trait, (F.record.flags ?? []).map(f => [f.kind, f.expected, f.claimed])]);
+                }
+            }
+        } finally {
+            for (const F of [...drawn].reverse()) await F.putBack();
+            D.forgetPayments?.(theirs.id);
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+        }
+        equal(stableJson([expected, variants, flags]), stableJson([
+            cases.map(c => [c.name, c.trait, c.name === "search" ? "search" : "fixed"]),
+            [],
+            drawnHere.flatMap(c => [[c.name, other(c.trait), [["trait", c.trait, other(c.trait)]]], [c.name, c.trait, []]])
+        ]), "a definition or a part of one statistic was not expected at it, a crisis variant of one went unread, or a roll of it was not flagged on another statistic or was flagged on its own (per definition: statistic and row expected; variants of one; per draw: flags)");
+    }],
+
+    ["a crisis action that lists one statistic is held to it at its character's turn: a roll on another is flagged, one on it is not", async () => {
+        /*
+         * E29 fix r1-G10, 05.10.2026; audit S18-01. A crisis action whose definition lists one
+         * statistic asks no GM which (trait-ruling.mjs `traitFor`), and the GM held its roll to none:
+         * a pick was due only where the definition lists several, and nothing else read one. Pin lists
+         * Body. A direct murder between two students with players (`fightOpen`), the killer's Pin drawn
+         * at a turn of theirs on Eye and at their next turn on Body, each packet cut from a roll of that
+         * statistic. Read: each record's statistic flags (`trait`, `pick` - what the fight adds in dice
+         * is C9's tests'), the statistic it expected and the row that gave it. At 9b5b72a's runtime:
+         * [[[],null,null],[[],null,null]] - neither flagged, nothing expected. Put back last first, as
+         * the test above says why.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [theirs, victim] = livingStudents().filter(playerOf);
+        const player = playerOf(theirs);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const found = [theirs, victim].map(a => [a, ["hope", "stress", "hitPoints"].map(k => [k, a.system.resources[k]?.value])]);
+        const drawn = [];
+        const draw = async trait => {
+            const F = await drawnForPlayer(player, theirs, { actionKey: "crisis", trait, edit: p => ({ ...p, context: { ...p.context, crisis: "pin" } }) });
+            drawn.push(F);
+            must(F.record, `the GM kept no record of the Pin on ${trait} (${F.verdict}) - this would measure nothing`);
+            return [(F.record.flags ?? []).filter(f => f.kind === "trait" || f.kind === "pick").map(f => [f.kind, f.expected, f.claimed]),
+                F.record.legal?.trait ?? null, F.record.legal?.traitFrom ?? null];
+        };
+        const read = [];
+        try {
+            await fightOpen(M, theirs, victim);
+            await turnFor(M, theirs, "pin");
+            read.push(await draw("eye"));
+            await M.passTurn();
+            await turnFor(M, theirs, "pin");
+            read.push(await draw("body"));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const F of [...drawn].reverse()) await F.putBack();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const [a, values] of found) {
+                const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
+                if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
+            }
+        }
+        equal(stableJson(read), stableJson([[[["trait", "body", "eye"]], "body", "fixed"], [[], "body", "fixed"]]),
+            "a crisis action of one statistic was not held to it at its character's turn: a roll on another went unflagged, or one on it was flagged (per draw: statistic flags, statistic expected, its row)");
     }],
 
     ["a console's theft from a stash that says a Search found it is refused without that Search's roll, and read off the GMs' record of it", async () => {

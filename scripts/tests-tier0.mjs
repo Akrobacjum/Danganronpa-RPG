@@ -6297,14 +6297,14 @@ const REGRESSIONS = [
             "the reader does not find the three planted firsts, or finds the comment's or the string's");
 
         // The functions that take a list's first, and the definition each reads; measured 02.10.2026.
-        // roll-draw.mjs expectedFor (E08+E28 C12b, 04.10.2026) holds a drawn Search to Search's
-        // one trait, and only while it lists one - through its `trait` row's reader since E29 C9
-        // (`traitReading`, which takes Tamper's one statistic with a `slice`, not a first).
+        // roll-draw.mjs held a drawn Search to Search's one trait with a first of its own from E08+E28
+        // C12b (04.10.2026) until E29 fix r1-G10, whose table of sources (`TRAIT_SOURCES`) reads each
+        // definition's list whole and takes a statistic from it only where it lists one; Tamper's door
+        // takes Tamper's first with a `slice`, as `cleanupTrait` takes it - no `[0]` for this to read.
         const FIRSTS = {
             "action-rolls.mjs chooseSearchCategory": ACTIONS.search,
             "action-rolls.mjs performPalm": ACTIONS.palm,
-            "cleanup.mjs cleanupTrait": ACTIONS.tamper,
-            "roll-draw.mjs traitReading": ACTIONS.search
+            "cleanup.mjs cleanupTrait": ACTIONS.tamper
         };
         const sites = [];
         for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);

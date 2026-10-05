@@ -56,9 +56,10 @@ export const OWN_PERFORMERS = Object.freeze(["move", "dynamic", "search", "proje
 /**
  * The definition a spec names, from this browser's config (a project's, from the
  * world), or null for a kind or key it does not know. `variant` is "indirectVictim"
- * for the table a trap's victim rolls (`def.indirectVictim`), else null.
+ * for the table a trap's victim rolls (`def.indirectVictim`), else null. `part` names a
+ * part of an action of kind `action` that names a statistic of its own.
  */
-function definitionOf({ kind, key, variant = null } = {}) {
+function definitionOf({ kind, key, variant = null, part = null } = {}) {
     if (kind === "crisis" && Object.hasOwn(CRISIS_ACTIONS, key ?? "")) {
         const base = CRISIS_ACTIONS[key];
         const def = !variant ? base : variant === "indirectVictim" ? base.indirectVictim ?? null : null;
@@ -73,6 +74,14 @@ function definitionOf({ kind, key, variant = null } = {}) {
         return CLEANUP.actions[key].traits ? CLEANUP.actions[key] : CLEANUP;
     }
     if (kind === "generic" && Object.hasOwn(ACTIONS, key ?? "") && !OWN_PERFORMERS.includes(key)) return ACTIONS[key];
+    // An action of the table whoever performs it, whole or the part of it that names a statistic of
+    // its own (a Palm's `unseen`, its cover): what a drawn roll of it is held to where it lists one
+    // (roll-draw.mjs `listedFor`, the `fixed` row; E29 fix r1-G10).
+    if (kind === "action" && Object.hasOwn(ACTIONS, key ?? "")) {
+        if (!part) return ACTIONS[key];
+        const piece = Object.hasOwn(ACTIONS[key], part) ? ACTIONS[key][part] : null;
+        return typeof piece?.trait === "string" ? { traits: [piece.trait] } : null;
+    }
     if (kind === "project") {
         // A project with a statistic rolls it; one without asks, from the list a statistic is given from.
         const project = allProjects().find(p => p.id === key);

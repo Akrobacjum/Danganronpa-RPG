@@ -915,13 +915,14 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
  * them: by reading, a crisis roll's packet that said 0 with a weapon in hand was expected 0 and
  * flagged nothing (tier 2, "a crisis roll's weapon die is the GM's reading ...", measures it). Now each part a roll may add up to is a row of config.mjs `LEGAL_ROLL_MODIFIERS`, read
  * by the reader of its name (`LEGAL_READERS` below) from what this GM holds:
- *   - the statistic (`trait`): Eye for a Search, the project's own for a Work on it or a Sabotage
- *     of it, the opening's as the GM picked it, a clean-up's single-statistic step (Tamper's door,
- *     moving the body), and for any other action that lists several, the newest pick card for
- *     this character no drawn roll has used yet - waited for a moment, as the card's meta can land
- *     after the answer, and flagged (`pick`) when there is none; an armed Resolve's roll is the
- *     player's pick. A roll that names no action - a statistic from the sheet, a concealment - is
- *     held to no statistic;
+ *   - the statistic (`trait`), from the first row of `TRAIT_SOURCES` that answers (fix r1-G10): an
+ *     armed Resolve's roll is the player's pick; the opening's as the GM picked it; Eye for a
+ *     Search; the project's own for a Work on it or a Sabotage of it; for an action that lists
+ *     several, the newest pick card for this character no drawn roll has used yet - waited for a
+ *     moment, as the card's meta can land after the answer, and flagged (`pick`) when there is
+ *     none; for one that lists one - an action, a crisis action, a clean-up's step, Tamper's door,
+ *     a Palm's cover - that one. A roll that names no action - a statistic from the sheet, a
+ *     concealment - is held to no statistic;
  *   - the flat modifier: the statistic's value off the character as this GM holds it, one
  *     experience where an Experience Call bought it (`experience`), the Calls' bonus (`callBonus`),
  *     and Daggerheart's roll bonuses from the character's active effects as a range (`effects`):
@@ -1026,18 +1027,33 @@ function traitKeyOf(trait) {
  * with a statistic one of its single-statistic roads rolls - Tamper's Shadow, a Stage 6 action's own -
  * was held to no pick whatever its step. Both ride in the context since (`CONTEXT_SENT`, the roller's
  * word, as the step always was for a Reroll): Tamper's door and a step that lists one statistic -
- * moving the body - are held to that statistic (`traitReading`), any other step to a pick.
+ * moving the body - are held to that statistic, any other step to a pick. Since fix r1-G10 the
+ * definition is read once for both (`listedFor`): several statistics ask a pick (`gm`), one is
+ * expected as it stands (`fixed`) - see "WHERE A ROLL'S STATISTIC COMES FROM" below.
  */
-async function pickDue(actor, actionKey, context) {
+
+/** The parts of an action told under a key of their own (`rollTrait`'s `actionKey`): a Palm's cover as "palm", its hand as "steal" (action-rolls.mjs `performPalm`). */
+const TOLD_AS = Object.freeze({ palm: Object.freeze({ key: "palm", part: "unseen" }), steal: Object.freeze({ key: "palm" }) });
+
+/**
+ * The statistics the definition a roll is told for lists, read from this GM's config as the
+ * ruling reads it (trait-ruling.mjs `listedTraits`): a crisis action at the variant the character
+ * rolls here (murder.mjs `crisisVariant`), the project a Work or a Sabotage names, a clean-up's
+ * step - through Tamper's door Tamper's first, which cleanup.mjs `cleanupTrait` rolls whatever
+ * the step - or an action of the table, whole or the part its key is told for (`TOLD_AS`). `[]`
+ * for none this GM knows.
+ */
+async function listedFor(actor, key, context) {
     const { listedTraits } = await import("./trait-ruling.mjs");
-    if (actionKey === "crisis") {
+    if (key === "crisis") {
         const { crisisVariant } = await import("./murder.mjs");
-        const key = context.crisis ?? null;
-        return listedTraits({ kind: "crisis", key, variant: crisisVariant(actor, key) }).length > 1;
+        const crisis = context.crisis ?? null;
+        return listedTraits({ kind: "crisis", key: crisis, variant: crisisVariant(actor, crisis) });
     }
-    if (actionKey === "project" || actionKey === "sabotage") return listedTraits({ kind: "project", key: projectNamed(actionKey, context) }).length > 1;
-    if (actionKey === "cleanup") return context.cleanupVia !== true && listedTraits({ kind: "cleanup", key: cleanupStepOf(context) }).length > 1;
-    return listedTraits({ kind: "generic", key: actionKey }).length > 1;
+    if (key === "project" || key === "sabotage") return listedTraits({ kind: "project", key: projectNamed(key, context) });
+    if (key === "cleanup" && context.cleanupVia === true) return (ACTIONS.tamper?.traits ?? []).slice(0, 1);
+    if (key === "cleanup") return listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
+    return listedTraits({ kind: "action", ...(Object.hasOwn(TOLD_AS, key ?? "") ? TOLD_AS[key] : { key }) });
 }
 
 /** The clean-up's step a packet's context names (cleanup.mjs `cleanupKey`): one of Stage 6's actions, else the clean-up itself. */
@@ -1072,36 +1088,68 @@ function gmPickOf(actor, kind) {
     return null;
 }
 
-/** The statistic a roll is held to, `{ trait, traitFrom, pick }` - the `trait` row; see the note above. `traitFrom` says which rule gave it. */
-async function traitReading(actor, { key, applied, context }) {
-    const none = { trait: null, traitFrom: null, pick: null };
-    if (applied.some(call => call?.grants === "trait")) return { ...none, traitFrom: "resolve" };
-    if (key === "murderOpening") {
+/*
+ * WHERE A ROLL'S STATISTIC COMES FROM IS ONE TABLE (E29 fix r1-G10, 05.10.2026; audit S18-01, the
+ * auditor's own correction of that day, which lands here). The GM expected the statistic of a
+ * Search, a project, the opening, a pick card and Stage 6's single-statistic steps (C9), and of
+ * nothing else: an action whose definition lists ONE statistic - Observe, Analyze, Listen, a
+ * Palm's hand and its cover, a crisis action such as Pin - was held to none, "any statistic
+ * stands", so a console rolled it on a better one and nothing noticed, against D2 (tier 2, "every
+ * definition and part that lists one statistic ...", at 9b5b72a's runtime: ten of the thirteen
+ * expected nothing - Observe, Analyze, Listen, a Palm's two rolls, five crisis actions - and of
+ * eight rolls drawn on another statistic five went unflagged). Now the rows are read in order and
+ * the first that answers decides; `traitFrom` is its name, `trait` null where any statistic stands:
+ *   - `resolve`: an armed Resolve's roll is the player's pick;
+ *   - `opening`: the opening's statistic as the GM picked it, for the side this GM sees rolling it;
+ *   - `search`: Search's one statistic - the `fixed` rule's case under the name its record has
+ *     carried since E08+E28 C12b, which a later stage gives a rule of its own (S18-09);
+ *   - `project`: the project's own, for a Work on it or a Sabotage of it;
+ *   - `gm`: where the definition lists several, the newest pick card for this character no drawn
+ *     roll has used yet (`gmPickOf`), waited for a moment as the card's meta can land after the
+ *     answer - and where there is none, no statistic, which `checkRoll` flags (`pick`);
+ *   - `fixed`: where it lists one, that one - an action of the table, a crisis action, a clean-up's
+ *     step, Tamper's door, a part of an action told under a key of its own (`TOLD_AS`).
+ * The definition is this GM's config (`listedFor`); the packet names only which. S18-01 has the
+ * packet say which part of an action a roll is (`part`), for parts told under their action's own
+ * key: none is at 1.2.68 - a Palm's two rolls are two keys - so no packet carries one yet. A roll
+ * that names no action - a statistic from the sheet, a concealment, a discard - is held to none.
+ */
+const TRAIT_SOURCES = Object.freeze([
+    { from: "resolve", read: (actor, { applied }) => (applied.some(call => call?.grants === "trait") ? { trait: null } : null) },
+    { from: "opening", read: async (actor, { key, context }) => {
+        if (key !== "murderOpening") return null;
         const { murderState } = await import("./murder.mjs");
-        const state = murderState(), side = openingSideOf(actor, context, state);
-        return side ? { ...none, trait: traitKeyOf(state.openingTrait), traitFrom: "opening" } : none;
-    }
-    if (key === "search" && (ACTIONS.search?.traits ?? []).length === 1) return { ...none, trait: ACTIONS.search.traits[0], traitFrom: "search" };
-    if (key === "project" || key === "sabotage") {
-        const id = projectNamed(key, context);
+        const state = murderState();
+        return openingSideOf(actor, context, state) ? { trait: traitKeyOf(state.openingTrait) } : null;
+    } },
+    { from: "search", read: (actor, { key, listed }) => (key === "search" && listed.length === 1 ? { trait: listed[0] } : null) },
+    { from: "project", read: async (actor, { key, context }) => {
+        if (key !== "project" && key !== "sabotage") return null;
         const { allProjects } = await import("./projects.mjs");
-        const project = allProjects().find(p => p.id === id);
-        if (project?.trait) return { ...none, trait: traitKeyOf(project.trait), traitFrom: "project" };
+        const project = allProjects().find(p => p.id === projectNamed(key, context));
+        return project?.trait ? { trait: traitKeyOf(project.trait) } : null;
+    } },
+    { from: "gm", read: async (actor, { key, listed }) => {
+        if (listed.length < 2) return null;
+        const kind = pickKindOf(key);
+        let found = gmPickOf(actor, kind);
+        for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            found = gmPickOf(actor, kind);
+        }
+        return found?.trait ? found : { trait: null };
+    } },
+    { from: "fixed", read: (actor, { listed }) => (listed.length === 1 ? { trait: listed[0] } : null) }
+]);
+
+/** The statistic a roll is held to, `{ trait, traitFrom, pick }` - the `trait` row: the first of `TRAIT_SOURCES` that answers, or none. */
+async function traitReading(actor, draw) {
+    const listed = await listedFor(actor, draw.key, draw.context);
+    for (const { from, read } of TRAIT_SOURCES) {
+        const got = await read(actor, { ...draw, listed });
+        if (got) return { trait: got.trait ?? null, traitFrom: from, pick: got.pick ?? null };
     }
-    if (key === "cleanup") {
-        const { listedTraits } = await import("./trait-ruling.mjs");
-        const listed = context.cleanupVia === true ? (ACTIONS.tamper?.traits ?? []).slice(0, 1) : listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
-        if (listed.length === 1) return { ...none, trait: listed[0], traitFrom: "cleanup" };
-    }
-    if (!key || !await pickDue(actor, key, context)) return none;
-    const kind = pickKindOf(key);
-    let found = gmPickOf(actor, kind);
-    for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        found = gmPickOf(actor, kind);
-    }
-    // A pick due and none made: `traitFrom` "gm" with no statistic, which `checkRoll` flags (`pick`).
-    return found?.trait ? { trait: found.trait, traitFrom: "gm", pick: found.pick } : { ...none, traitFrom: "gm" };
+    return { trait: null, traitFrom: null, pick: null };
 }
 
 /** The side whose opening roll this is, as the GM sees the incident now (`killer`, `victim`), or null. */

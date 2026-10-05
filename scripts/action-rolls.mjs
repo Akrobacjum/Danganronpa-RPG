@@ -79,8 +79,8 @@ export const DRAWN_ROLL = "drpgDrawn";
  * The trait on this roll is a GM's pick (E32+E07 C11b; trait-ruling.mjs): the roll
  * window keeps its Statistic select locked and says who chose it (roll-dialog.mjs
  * `lockTrait`). A string key for the reason above. The GM that draws the roll does not
- * read it: whether a GM picked is that GM's own reading (roll-draw.mjs `pickDue`, E08+E28
- * fix r2-H8).
+ * read it: whether a GM picked is that GM's own reading (E08+E28 fix r2-H8; roll-draw.mjs
+ * `TRAIT_SOURCES`, its `gm` row, since E29 fix r1-G10).
  */
 export const TRAIT_BY_GM = "drpgTraitByGm";
 
