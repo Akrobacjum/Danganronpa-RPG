@@ -2959,7 +2959,12 @@
         "actions": "Actions",
         "hitPoints": "Health",
         "stress": "Sanity",
-        "grant": "Free actions and moves"
+        "grant": "Free actions and moves",
+        "itemFlag": "An item's record",
+        "itemQuantity": "An item's count",
+        "itemLocation": "Where an item is kept",
+        "itemDeleted": "An item taken off the sheet",
+        "itemCreated": "An item added to the sheet"
       },
       "credit": "Given back from what was paid before: {what}",
       "flagged": "{player} changed {name}'s sheet by hand, and nothing the module knows of covers it. It stands until a GM decides:",

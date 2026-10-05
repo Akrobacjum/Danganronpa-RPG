@@ -3071,7 +3071,12 @@
         "actions": "Akcje",
         "hitPoints": "Health",
         "stress": "Sanity",
-        "grant": "Darmowe akcje i ruchy"
+        "grant": "Darmowe akcje i ruchy",
+        "itemFlag": "Zapis przedmiotu",
+        "itemQuantity": "Liczba sztuk przedmiotu",
+        "itemLocation": "Miejsce przechowywania przedmiotu",
+        "itemDeleted": "Przedmiot usunięty z karty",
+        "itemCreated": "Przedmiot dodany do karty"
       },
       "credit": "Zwrócone z tego, co zapłacono wcześniej: {what}",
       "flagged": "Ręczna zmiana karty postaci {name} od {player}, której nie pokrywa nic, o czym wie moduł. Zostaje, dopóki GM nie zdecyduje:",

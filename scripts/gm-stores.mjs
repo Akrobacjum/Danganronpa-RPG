@@ -898,7 +898,8 @@ export const rollStore = defineGmStore({
  * A row per character, keyed by its actor id: the values its last judged write left - `traits`,
  * `experiences`, `resources` (each value and maximum), `rules`, `bonuses`, the module `flags` only
  * a GM writes and `pendingCall`, and `effects` (each one's data, so a deleted one can be made
- * again under its id). Written by the primary after every verdict and every GM's write, and filled
+ * again under its id); since C6 `items` (each module item's data, likewise) and `finds` (the
+ * Search records a find stood on, each with the item: one find a record). Written by the primary after every verdict and every GM's write, and filled
  * from the documents when its stores hydrate and a character has none (sheet-audit.mjs). Synced
  * between the GMs, so the next primary judges against the same marks; not backed up - the
  * documents a restore brings back are the marks' source, and a backup's would judge them against
@@ -918,7 +919,8 @@ export const sheetMarkStore = defineGmStore({
  * keyed by a random id: `actorId`, `itemId`, `userId` (the writer), `reason` and `ref` (what the
  * write's stamp claimed, resource-guard.mjs `WRITE_STAMP`), `change` (`{ path: [before, after] }`),
  * `verdict` ("putBack", "flagged" or "listed"), `messageId` (the GMs' whisper, or their card of a flagged write),
- * `decided` (a flagged write's Undo or Keep, C5: `{ by, at, how, undone, moved }`) and `at`. Written by
+ * `decided` (a flagged write's Undo or Keep, C5: `{ by, at, how, undone, moved }`) and `at`; a write on an item
+ * names it in `itemId`, and a deleted one keeps its data in `data` for an Undo (C6). Written by
  * the primary as it judges, read by `game.drpg.sheetWrites()`. Synced, not backed up, and swept
  * past a day as the next is written; cut by the reset's "actions" group, beside the rolls. Its
  * `exists` answers no for every key, as the rolls' does: a row's key is no document. No player

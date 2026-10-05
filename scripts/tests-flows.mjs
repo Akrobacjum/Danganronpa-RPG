@@ -162,9 +162,12 @@ export const FLOWS = Object.freeze([
     // relay and before a Call; 20 has p1's own Daggerheart roll cover its Hope through the relay once; 40's
     // day takes a Rest in a rest room. C5 (05.10.2026): Health and actions p1 raises from the console are
     // flagged on the GMs' card, and 30 undoes them from it; 61 has two GMs undo one write at once
-    // (`audit.decide`, decided on the primary). Partial: the items are C6's, with 10-murder (C6) to come.
+    // (`audit.decide`, decided on the primary). C6 (05.10.2026): the module's items - 30 raises a count and stashes
+    // from a room with no stash of Aiko's, both put back; 10 unbreaks a knife (put back) and deletes it (flagged,
+    // the GMs' Undo makes it again under its id); 40's day stashes, retrieves and discards with no alarm.
+    // Partial: a write with no GM watching is C7's.
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed",
-        entry: { calls: ["sheet-audit.mjs#judgeWrite"], bridge: ["audit.decide"] }, scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope"], status: "partial", stage: "E29" },
+        entry: { calls: ["sheet-audit.mjs#judgeWrite"], bridge: ["audit.decide"] }, scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder"], status: "partial", stage: "E29" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",

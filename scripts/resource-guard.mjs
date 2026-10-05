@@ -219,8 +219,8 @@ export const WRITE_REASONS = Object.freeze([
 export const WRITE_STAMP = "drpgWrite";
 
 /*
- * The options every road stamps. `ref` names the evidence the reason's judge reads - a
- * Search's roll message, the item a use spent, "relief" for a Relief's free rest - or
+ * The options every road stamps. `ref` names the evidence the reason's judge reads - the
+ * GMs' record of a Search's roll (its `rollId`, E29 C6), the item a use spent, "relief" for a Relief's free rest - or
  * null. It travels with the update to every browser that receives the document, so it
  * names nothing that browser may not know: no price's action and no Call's key, which a
  * spend, a price and a refund do not need (they are judged on what was paid). `refund`

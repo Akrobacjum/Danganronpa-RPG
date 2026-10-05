@@ -2109,7 +2109,9 @@ async function searchDraw(room, category, tier, goalKey, actor = null) {
 }
 
     // The item actually goes into the inventory, subject to the carry limits.
-async function grantDrawn(actor, drawn, { category, tier, goalKey }) {
+    // Named after the GMs' record of the roll (`rollId`, E29 C6): the find stands on a GM as far as
+    // that record's total reaches (sheet-audit.mjs `searchFind`). A roll the GM did not draw has none.
+async function grantDrawn(actor, drawn, { category, tier, goalKey, rollId = null }) {
     let granted = null;
     if (drawn?.name) {
         const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
@@ -2118,7 +2120,7 @@ async function grantDrawn(actor, drawn, { category, tier, goalKey }) {
         // exactly what `grantItem` already treats as "use the category icon and
         // the tier line".
         granted = await grantItem(actor, {
-            reason: "searchFind", ref: rollInHand(actor)?.messageId ?? null,
+            reason: "searchFind", ref: rollId,
             name: drawn.name, category, tier, goal: goalKey,
             img: drawn.img ?? null, description: drawn.description ?? "",
             // What else it can do, from the table entry it came out of.
@@ -2300,7 +2302,7 @@ async function performSearch(actor, def, options) {
     if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot, extra, stash });
 
     const drawn = await searchDraw(room, category, tier, goalKey, actor);
-    const granted = await grantDrawn(actor, drawn, { category, tier, goalKey });
+    const granted = await grantDrawn(actor, drawn, { category, tier, goalKey, rollId: roll.raw?.[DRAWN_ROLL]?.rollId ?? null });
     const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier });
 
     const outcome = {

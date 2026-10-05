@@ -40,9 +40,9 @@
  * delta - the GMs' value moves by what was covered, so a forged Hope spent at once
  * still costs real Hope - and told as a statistic is; with `lockPlayerResources` off
  * it is listed and stands. Health, Sanity, actions and grants are judged the same way
- * and flagged (below). A `restsTaken` stamp no Rest covers is put back. The module's
- * items are C6's. The relay asks the same of a gain Daggerheart writes for a player
- * (`relayGainRefusal`, relay-guard.mjs).
+ * and flagged (below). A `restsTaken` stamp no Rest covers is put back. The relay
+ * asks the same of a gain Daggerheart writes for a player (`relayGainRefusal`,
+ * relay-guard.mjs).
  *
  * WHAT IS FLAGGED (C5, 05.10.2026; the plan's 2.4, 2.8, 2.9). A gain in Health, Sanity
  * or actions that nothing covers stands, and the GMs get one card per write - who,
@@ -56,21 +56,37 @@
  * two GMs' clicks write once. Undo writes a field back only while it still holds what
  * the write left; a field that moved since is not written over, and the card says so.
  *
+ * THE MODULE'S ITEMS (C6, 05.10.2026; audit S08-57; the plan's 2.6). The mark holds each
+ * module item of a student (one with a `category`) whole, as a GM's write or the last
+ * verdict left it. A `category`, `tier` or `drpgItemId` changed is put back; so is a
+ * `broken` cleared, a `wear` lowered or a count raised - each one's other way stands, as
+ * a use or a break spends it. A move into or out of a stash (`location`, `stashRoom`)
+ * stands when the student stands, as this GM sees it, in a room with a stash of theirs
+ * (vault.mjs `myStashHere`'s rule), the stash holds fewer than `VAULT_LIMIT` besides it,
+ * a retrieve takes from that room's stash and the carry cap has room for it; else it is
+ * put back. A module item a player deletes stands when it is a `discard` of an item broken
+ * on the GMs' copy; an item a player creates stands when it is a Search's find - its
+ * `ref` the record of a Search of that student by that player, not yet used for a find,
+ * and its tier at most what the record's total earns on the Search's table. Anything else
+ * deleted or created is flagged: Undo makes a deleted item again under its id, from the
+ * row's copy, or deletes a created one. The setting `lockPlayerResources` does not govern
+ * items (the owner's Q2 (a)).
+ *
  * ONE WRITE AFTER ANOTHER, PER STUDENT. Each write is queued behind the ones before
  * it on that student (`inOrder`), so a put-back is computed against the writes
  * that landed before it, and a GM's write is the baseline only once the player's
  * writes before it have been judged.
  */
 
-import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL } from "./config.mjs";
+import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL, VAULT_LIMIT } from "./config.mjs";
 import { SETTINGS, getSetting, getClock } from "./settings.mjs";
 import { isPrimaryGm, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
 import { onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, stableJson } from "./gm-store.mjs";
-import { sheetMarkStore, sheetWriteStore } from "./gm-stores.mjs";
+import { sheetMarkStore, sheetWriteStore, rollStore } from "./gm-stores.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
 import { tellRefused, bridgeRequest } from "./bridge-guards.mjs";
 import { cardFlag, cardWriter, updateSecret } from "./secret.mjs";
-import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
+import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry } from "./inventory.mjs";
 import { readDuality } from "./despair-award.mjs";
 
 /** The module flags only a GM writes (the plan's 2.4), held in the mark and put back. */
@@ -122,6 +138,15 @@ export const AUDIT_ASIDE = "drpgAuditAside";
 /** The flag of the GMs' card of a flagged write (C5): the id of the row it asks about. */
 const FLAGGED_CARD = "sheetFlagged";
 
+/** The item hooks (C6): a module item's flags and count, a deletion, a creation. */
+const ITEM_WRITES = new Set(["updateItem", "createItem", "deleteItem"]);
+
+/** A module item's flags only a GM changes, whichever way (the plan's 2.6). */
+const ITEM_FIXED = [ITEM_FLAGS.category, ITEM_FLAGS.tier, ITEM_FLAGS.identity];
+
+/** Where a module item is kept: carried, or which stash. */
+const ITEM_PLACE = [ITEM_FLAGS.location, ITEM_FLAGS.stashRoom];
+
 /** How long a row of `sheetWrites` is kept (the plan's 2.3, chosen): a day, swept as the next is written. */
 const ROW_KEPT_MS = 24 * 60 * 60_000;
 
@@ -135,9 +160,9 @@ const isPlain = value => {
 };
 const clone = value => value === undefined ? undefined : foundry.utils.deepClone(value);
 
-/** An effect's data as the mark keeps it: its source, without Foundry's write stamp, which moves on every write. */
-function effectData(effect) {
-    const { _stats, ...data } = effect?.toObject?.() ?? effect ?? {};
+/** An effect's or an item's data as the mark keeps it: its source, without Foundry's write stamp, which moves on every write. */
+function docData(doc) {
+    const { _stats, ...data } = doc?.toObject?.() ?? doc ?? {};
     return data;
 }
 
@@ -159,8 +184,28 @@ function markFrom(actor) {
         traits: clone(system.traits ?? {}), experiences: clone(system.experiences ?? {}), resources: clone(system.resources ?? {}),
         rules: clone(system.rules ?? {}), bonuses: clone(system.bonuses ?? {}),
         flags: Object.fromEntries(MARKED_FLAGS.filter(key => flags[key] !== undefined).map(key => [key, clone(flags[key])])),
-        effects: Object.fromEntries((actor.effects?.contents ?? []).map(effect => [effect.id, effectData(effect)]))
+        effects: Object.fromEntries((actor.effects?.contents ?? []).map(effect => [effect.id, docData(effect)])),
+        items: Object.fromEntries((actor.items?.contents ?? []).map(item => [item.id, docData(item)]).filter(([, data]) => isModuleItem(data)))
     };
+}
+
+/** Whether an item's data is the module's: one with a category (vault.mjs `vaultContents` reads the same). */
+function isModuleItem(data) {
+    return Boolean(data?.flags?.[MODULE_ID]?.[ITEM_FLAGS.category]);
+}
+
+/** An item's data read as the module's readers read an item (`getFlag`, `id`, `system`), with no document behind it. */
+function itemLike(src) {
+    return { id: src._id, name: src.name, system: src.system,
+        getFlag: (scope, key) => foundry.utils.getProperty(src.flags ?? {}, `${scope}.${key}`) };
+}
+
+/** A student's module items in the mark with one item's write taken in: its data as it now stands, or gone. */
+function itemsAfter(mark, item, data) {
+    const items = { ...(mark?.items ?? {}) };
+    if (data && isModuleItem(data)) items[item.id] = data;
+    else delete items[item.id];
+    return items;
 }
 
 /** The GMs' value of each of a student's means: the mark's (nothing held is 0), or the document's where there is no mark. */
@@ -313,13 +358,17 @@ export async function sheetAuditIdle() {
  * back - patches nothing. Answers whether it wrote. The means (`LEDGER`) and the credit are
  * not read off the document: they are the GMs', kept as the mark holds them unless the
  * judgement hands new ones (`ledger`) - a document read while a write waits to be judged
- * would make that write's value the GMs' before it was judged.
+ * would make that write's value the GMs' before it was judged. The items likewise (C6):
+ * each moves only with its own write's judgement (`items`), as the hook saw it.
  */
-async function refreshMark(actor, ledger = null) {
+async function refreshMark(actor, ledger = null, items = null) {
     if (!gmStoresHydrated() || !game.actors?.has(actor?.id)) return false;
     const held = sheetMarkStore.get(actor.id) ?? {};
     const now = markFrom(actor);
-    if (sheetMarkStore.has(actor.id)) withLedger(now, ledger?.values ?? ledgerOf(held, actor), ledger?.credit ?? held.credit ?? {});
+    if (sheetMarkStore.has(actor.id)) {
+        withLedger(now, ledger?.values ?? ledgerOf(held, actor), ledger?.credit ?? held.credit ?? {});
+        now.items = items ?? held.items ?? now.items;
+    }
     const moved = Object.fromEntries(Object.entries(now).filter(([field, value]) => stableJson(value) !== stableJson(held[field] ?? null)));
     if (!Object.keys(moved).length) return false;
     await sheetMarkStore.patch(actor.id, moved);
@@ -348,7 +397,7 @@ function fillMarks() {
  * hooks below hand it every write on the primary). `kind` is the hook's name:
  * `updateActor` with the student and its changes, or `createActiveEffect`,
  * `updateActiveEffect`, `deleteActiveEffect` with the effect (and the changes of an
- * update). A GM's write - `game.users.get(userId).isGM` - is the new mark. Answers
+ * update), or `updateItem`, `createItem`, `deleteItem` with the item (C6). A GM's write - `game.users.get(userId).isGM` - is the new mark. Answers
  * `{ verdict, change }` (`putBack`, `listed`, `stands`, `mark`), or null for a write
  * on no character. Queued behind the writes before it on that student. `priors` is
  * what the hook heard before this write (`noteWrite`); a write handed in without
@@ -357,7 +406,9 @@ function fillMarks() {
 export function judgeWrite(kind, doc, changes, userId, options = {}, priors = null) {
     const actor = kind === "updateActor" ? doc : doc?.parent;
     if (actor?.documentName !== "Actor" || actor.type !== "character") return Promise.resolve(null);
-    const seen = kind === "updateActor" ? seenNow(actor, changes, options, priors) : null;
+    // An item as the hook saw it: by the time its judgement comes, a later write may have moved it.
+    const seen = kind === "updateActor" ? seenNow(actor, changes, options, priors)
+        : ITEM_WRITES.has(kind) ? { at: Date.now(), item: kind === "deleteItem" ? null : docData(doc) } : null;
     return inOrder(actor.id, () => judgeNow(kind, doc, actor, changes, userId, options, seen));
 }
 
@@ -366,7 +417,9 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     if (user?.isGM) {
         // The GMs' own put-back moves nothing they hold; any other GM's write is their value of what it names.
         const reason = options?.drpgWrite?.reason, own = reason === "auditPutBack";
-        if (!options?.[AUDIT_ASIDE]) await refreshMark(actor, seen && !own ? gmLedger(actor, seen, { credit: reason !== "auditUndo" }) : null);
+        if (options?.[AUDIT_ASIDE]) return { verdict: "mark", change: {} };
+        if (ITEM_WRITES.has(kind)) await refreshMark(actor, null, itemsAfter(sheetMarkStore.get(actor.id), doc, seen.item));
+        else await refreshMark(actor, seen && !own ? gmLedger(actor, seen, { credit: reason !== "auditUndo" }) : null);
         return { verdict: "mark", change: {} };
     }
     const mark = sheetMarkStore.get(actor.id);
@@ -377,10 +430,12 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     }
     // A Monokuma is no student; the mark's flag decides, so a write that makes one is still judged.
     if (mark.flags?.[FLAGS.monokuma]) {
-        await refreshMark(actor);
+        await refreshMark(actor, null, ITEM_WRITES.has(kind) ? itemsAfter(mark, doc, seen.item) : null);
         return { verdict: "stands", change: {} };
     }
-    const found = kind === "updateActor" ? await updateFindings(actor, mark, changes, user, options, seen) : effectFindings(kind, doc, mark, changes);
+    const found = kind === "updateActor" ? await updateFindings(actor, mark, changes, user, options, seen)
+        : ITEM_WRITES.has(kind) ? await itemFindings(kind, doc, actor, mark, changes, user, options, seen)
+            : effectFindings(kind, doc, mark, changes);
     if (found.back.length || found.fix) {
         try {
             await found.undo();
@@ -390,7 +445,8 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
         }
     }
     await record(actor, user, found, options);
-    await refreshMark(actor, found.ledger ?? null);
+    if (found.finds) await sheetMarkStore.patch(actor.id, { finds: found.finds });
+    await refreshMark(actor, found.ledger ?? null, found.items ?? null);
     const verdict = found.back.length ? "putBack" : found.flagged?.length ? "flagged" : found.listed.length ? "listed" : "stands";
     return { verdict, change: found.change };
 }
@@ -641,8 +697,7 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
 async function itemCovers(gains, ref, user, seen) {
     const src = seen.item;
     if (!src || src._id !== ref || !user) return null;
-    const item = { id: src._id, name: src.name, system: src.system,
-        getFlag: (scope, key) => foundry.utils.getProperty(src.flags ?? {}, `${scope}.${key}`) };
+    const item = itemLike(src);
     const { isUsable, tierOf, usableKindOf } = await import("./use-items.mjs");
     if (!isUsable(item) || isBroken(item) || isStashed(item)) return null;
     const effect = USABLE_EFFECTS[tierOf(item)];
@@ -688,7 +743,7 @@ function consumedBy(itemId, userId, from) {
 /**
  * WHAT A GM'S HOOK HEARS OF AN ITEM (exported for tier 2, as `onSheetWrite`): on the primary, a
  * module item of a character whose count was written or which was broken is a consumption the
- * item-use judge waits for. The items' own judgement is C6's.
+ * item-use judge waits for. The write itself is judged as any other (`itemFindings`, C6).
  */
 export function onItemWrite(item, changes, options, userId, { primary = isPrimaryGm() } = {}) {
     if (!primary || item?.parent?.type !== "character") return;
@@ -744,9 +799,142 @@ export function relayGainRefusal(actor, flat, sender) {
     return null;
 }
 
+/* ---------------------------------------------------------------------------
+ * The module's items (C6)
+ * ------------------------------------------------------------------------- */
+
+/** The module flag an item's path writes (`flags.<module>.broken.at` is `broken`'s, `-=wear` is `wear`'s), or null. */
+function itemFlagOf(path) {
+    const prefix = `flags.${MODULE_ID}.`;
+    return path.startsWith(prefix) ? path.slice(prefix.length).split(".")[0].replace(/^-=/, "") : null;
+}
+
+/** A path of an item's update this file judges, as the flag or the count it names, or null. */
+function itemPathOf(path) {
+    if (path === "system.quantity") return path;
+    const flag = itemFlagOf(path);
+    return [...ITEM_FIXED, ITEM_FLAGS.broken, ITEM_FLAGS.wear, ...ITEM_PLACE].includes(flag) ? `flags.${MODULE_ID}.${flag}` : null;
+}
+
+/** An item's data with `paths` as they were in `before` (absent where they were absent). */
+function withPaths(data, before, paths) {
+    const out = clone(data);
+    for (const path of paths) {
+        const value = foundry.utils.getProperty(before, path);
+        if (value !== undefined) {
+            foundry.utils.setProperty(out, path, clone(value));
+            continue;
+        }
+        const parts = path.split("."), key = parts.pop(), parent = foundry.utils.getProperty(out, parts.join("."));
+        if (parent && typeof parent === "object") delete parent[key];
+    }
+    return out;
+}
+
+/*
+ * A WRITE ON AN ITEM OF A STUDENT (the plan's 2.6), answered as `updateFindings` answers, with
+ * the items the mark holds after it (`items`), the item's id for the row, a deleted item's data
+ * for an Undo (`data`) and a Search's finds (`finds`). A row names the item itself as
+ * `items.<id>` and a field of it as `items.<id>.<path>`. A module item is judged against its
+ * copy in the mark; an item the GMs hold no copy of is not the module's, and only a category
+ * written onto it - which would make it one - is put back.
+ */
+async function itemFindings(kind, item, actor, mark, changes, user, options, seen) {
+    const id = item.id, held = mark.items?.[id] ?? null, now = seen?.item ?? null, stamp = options?.drpgWrite ?? {};
+    const whole = `items.${id}`;
+    const out = { back: [], listed: [], flagged: [], change: {}, itemId: id, items: itemsAfter(mark, item, now), undo: async () => null };
+    if (kind === "deleteItem") {
+        if (!held || (stamp.reason === "discard" && isBroken(itemLike(held)))) return out;
+        out.flagged.push({ path: whole, kind: "itemDeleted" });
+        out.change[whole] = [held.name ?? null, null];
+        out.data = held;
+        return out;
+    }
+    if (kind === "createItem") {
+        const finds = now ? await searchFind(actor, mark, now, stamp, user) : null;
+        if (finds) return { ...out, finds };
+        out.flagged.push({ path: whole, kind: "itemCreated" });
+        out.change[whole] = [null, now?.name ?? item.name ?? null];
+        return out;
+    }
+    if (!now) return out;
+    const CATEGORY = `flags.${MODULE_ID}.${ITEM_FLAGS.category}`;
+    const before = held ?? withPaths(now, {}, [CATEGORY]);
+    const moved = [...new Set(pathsOf(changes).map(itemPathOf).filter(Boolean))].filter(path => (held || path === CATEGORY)
+        && stableJson(foundry.utils.getProperty(before, path) ?? null) !== stableJson(foundry.utils.getProperty(now, path) ?? null));
+    const back = [];
+    for (const path of moved) {
+        const flag = itemFlagOf(path), was = foundry.utils.getProperty(before, path), is = foundry.utils.getProperty(now, path);
+        if (ITEM_PLACE.includes(flag)) continue;
+        // The ways a use, a break and wear spend an item: broken (or broken again), worn further, fewer left.
+        if (flag === ITEM_FLAGS.broken && is) continue;
+        if (flag === ITEM_FLAGS.wear && Number(is ?? 0) > Number(was ?? 0)) continue;
+        if (path === "system.quantity" && Number(is) < Number(was)) continue;
+        back.push({ path, kind: path === "system.quantity" ? "itemQuantity" : "itemFlag" });
+    }
+    if (moved.some(path => ITEM_PLACE.includes(itemFlagOf(path))) && !await placeStands(actor, item, before, now)) {
+        back.push(...moved.filter(path => ITEM_PLACE.includes(itemFlagOf(path))).map(path => ({ path, kind: "itemLocation" })));
+    }
+    if (!back.length) return out;
+    const paths = back.map(entry => entry.path);
+    for (const path of paths) out.change[`${whole}.${path}`] = [clone(foundry.utils.getProperty(before, path)) ?? null, clone(foundry.utils.getProperty(now, path)) ?? null];
+    out.back = back.map(entry => ({ ...entry, path: `${whole}.${entry.path}` }));
+    const patch = putBackPatch(before, paths);
+    out.undo = () => trustedWrite(item, patch, { reason: "auditPutBack" });
+    out.items = itemsAfter(mark, item, withPaths(now, before, paths));
+    return out;
+}
+
+/*
+ * A STASH OR A RETRIEVE (the plan's 2.6), read on this GM. The student stands in a room with a
+ * stash of theirs (vault.mjs `myStashHere`, as `stow` and `retrieve` ask it on the player's
+ * browser); a thing put away goes into that room's stash, is no Truth Bullet, and the stash holds
+ * fewer than `VAULT_LIMIT` besides it; a thing taken out comes from that room's stash, and the carry
+ * cap has room for it besides. Which stash an item is in is read as `stashRoomOfItem` reads it (an
+ * unaddressed one is in the primary). A move from one stash to another is no road of the module's.
+ */
+async function placeStands(actor, item, before, now) {
+    const V = await import("./vault.mjs");
+    const stashOf = data => isStashed(itemLike(data)) ? V.stashRoomOfItem(itemLike(data), actor) : null;
+    const was = stashOf(before), is = stashOf(now);
+    if (was === is) return true;
+    const room = await V.myStashHere(actor);
+    if (!room) return false;
+    const category = foundry.utils.getProperty(now, `flags.${MODULE_ID}.${ITEM_FLAGS.category}`);
+    if (is !== null) {
+        return was === null && is === room && category !== "truthBullet"
+            && V.stashItemsIn(actor, room).filter(other => other.id !== item.id).length < VAULT_LIMIT;
+    }
+    if (was !== room) return false;
+    const cap = canCarry(actor, category);
+    return cap.limit === null || cap.held - (isStashed(item) ? 0 : 1) < cap.limit;
+}
+
+/*
+ * A SEARCH'S FIND (the plan's 2.6): an item created `searchFind`, its `ref` the GMs' record of a
+ * Search (roll-draw.mjs `rollRecord`; action-rolls.mjs `grantDrawn` names it) of this student by
+ * this player that hit, not used for a find before, and the item's tier at most what the record's
+ * total - with the hidden stash's step the GM drew - earns on the Search's table (action-rolls.mjs
+ * `searchTier`, the reading the Search itself makes). Answers the student's finds with this one in
+ * them, or null. A find whose record is swept is forgotten with it: a record past a Reroll's reach
+ * names no find any more.
+ */
+async function searchFind(actor, mark, data, stamp, user) {
+    if (stamp.reason !== "searchFind" || typeof stamp.ref !== "string" || !user || !isModuleItem(data)) return null;
+    const { rollRecord } = await import("./roll-draw.mjs");
+    const record = rollRecord(stamp.ref);
+    if (record?.actorId !== actor.id || record.userId !== user.id || record.actionKey !== "search" || mark.finds?.[stamp.ref]) return null;
+    const { searchTier } = await import("./action-rolls.mjs");
+    const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical }, record.used?.stash?.change ?? 0);
+    const found = foundry.utils.getProperty(data, `flags.${MODULE_ID}.${ITEM_FLAGS.tier}`);
+    if ((!hit && !record.isCritical) || !Number.isInteger(found) || found > tier) return null;
+    const kept = Object.entries(mark.finds ?? {}).filter(([rollId]) => rollStore.has(rollId));
+    return { ...Object.fromEntries(kept), [stamp.ref]: data._id };
+}
+
 /** An effect created, changed or deleted on a student: put back when it carries what a roll is built from, before or after. */
 function effectFindings(kind, effect, mark, changes) {
-    const actor = effect.parent, id = effect.id, held = mark.effects?.[id] ?? null, now = kind === "deleteActiveEffect" ? null : effectData(effect);
+    const actor = effect.parent, id = effect.id, held = mark.effects?.[id] ?? null, now = kind === "deleteActiveEffect" ? null : docData(effect);
     const summary = data => data ? { name: data.name ?? null, statuses: [...(data.statuses ?? [])],
         changes: [...(data.system?.changes ?? []), ...(data.changes ?? [])].map(c => `${c?.key}=${c?.value}`) } : null;
     const path = `effects.${id}`;
@@ -794,7 +982,7 @@ async function record(actor, user, found, options) {
     const at = Date.now();
     const rows = {};
     const row = (verdict, entries, messageId) => ({
-        actorId: actor.id, itemId: null, userId: user?.id ?? null, reason: stamp.reason ?? null, ref: stamp.ref ?? null,
+        actorId: actor.id, itemId: found.itemId ?? null, userId: user?.id ?? null, reason: stamp.reason ?? null, ref: stamp.ref ?? null,
         change: Object.fromEntries(entries.map(entry => [entry.path, found.change[entry.path]]).filter(([, v]) => v !== undefined)),
         covered: Object.keys(found.covered ?? {}).length ? found.covered : null,
         verdict, messageId, decided: null, at
@@ -815,7 +1003,8 @@ async function record(actor, user, found, options) {
         rows[foundry.utils.randomID()] = row("putBack", found.back, message?.id ?? null);
     }
     if (found.flagged?.length) {
-        const id = foundry.utils.randomID(), flagged = row("flagged", found.flagged, null);
+        // A deleted item's data goes with its row, for an Undo to make it again (C6).
+        const id = foundry.utils.randomID(), flagged = { ...row("flagged", found.flagged, null), ...(found.data ? { data: found.data } : {}) };
         let message = null;
         try {
             message = await whisperToGms(flaggedCard(flagged), { flags: { [MODULE_ID]: { sheetAudit: actor.id, [FLAGGED_CARD]: id } } });
@@ -836,8 +1025,12 @@ async function record(actor, user, found, options) {
  * The GMs' card: Undo and Keep (C5)
  * ------------------------------------------------------------------------- */
 
-/** The kind of field a row's path is, for its label: a means by its ledger's kind, anything else as `kindOf` reads it. */
-function fieldKind(path) {
+/**
+ * The kind of field a row's path is, for its label: an item deleted or created (C6) by its change, a
+ * means by its ledger's kind, anything else as `kindOf` reads it.
+ */
+function fieldKind(path, [, now] = []) {
+    if (/^items\.[^.]+$/.test(path)) return now === null ? "itemDeleted" : "itemCreated";
     return Object.values(LEDGER).find(entry => entry.path === path)?.kind ?? kindOf(path) ?? "flag";
 }
 
@@ -848,7 +1041,7 @@ function fieldKind(path) {
  */
 function flaggedCard(row) {
     const name = game.actors.get(row.actorId)?.name ?? "?", player = game.users.get(row.userId ?? "")?.name ?? "?";
-    const label = path => game.i18n.localize(`DRPG.Audit.field.${fieldKind(path)}`);
+    const label = path => game.i18n.localize(`DRPG.Audit.field.${fieldKind(path, row.change?.[path])}`);
     const lines = Object.entries(row.change ?? {}).map(([path, [was, now] = []]) =>
         `<li>${esc(label(path))} (${esc(path)}): ${esc(shown(was))} -> ${esc(shown(now))}</li>`).join("");
     const decided = row.decided;
@@ -877,6 +1070,10 @@ let decisions = Promise.resolve();
  * behind the writes on that student (`inOrder`), so a later change is the document's by the time
  * it reads. The card is written again for every GM. Answers the decision, or null where there
  * was none to make. Exported for tier 2, as `judgeWrite`.
+ *
+ * AN ITEM (C6): a deleted one still gone is made again under its id from the row's copy - the
+ * carry cap does not refuse what was there - and a created one still there is deleted; one made
+ * again or deleted since is the field that moved.
  */
 export function decideWrite(rowId, keep, by = game.user?.id ?? null) {
     const run = decisions.then(() => decideNow(rowId, keep === true, by));
@@ -889,12 +1086,17 @@ async function decideNow(rowId, keep, by) {
     if (!game.user?.isGM || row?.verdict !== "flagged" || row.decided) return null;
     return inOrder(row.actorId, async () => {
         const actor = game.actors.get(row.actorId) ?? null, src = actor?._source ?? {};
-        const paths = Object.keys(row.change ?? {});
-        const holds = path => stableJson(foundry.utils.getProperty(src, path) ?? null) === stableJson(row.change[path]?.[1] ?? null);
+        const paths = Object.keys(row.change ?? {}), whole = row.itemId ? `items.${row.itemId}` : null;
+        const deleted = whole && row.change[whole]?.[1] === null;
+        const holds = path => path === whole ? Boolean(actor.items?.get(row.itemId)) !== deleted && (!deleted || Boolean(row.data))
+            : stableJson(foundry.utils.getProperty(src, path) ?? null) === stableJson(row.change[path]?.[1] ?? null);
         const undone = keep || !actor ? [] : paths.filter(holds);
         const decided = { by, at: Date.now(), how: keep ? "keep" : "undo", undone, moved: keep ? [] : paths.filter(path => !undone.includes(path)) };
         await sheetWriteStore.patch(rowId, { decided });
-        if (undone.length) await trustedWrite(actor, Object.fromEntries(undone.map(path => [path, row.change[path][0]])), { reason: "auditUndo" });
+        const fields = undone.filter(path => path !== whole);
+        if (fields.length) await trustedWrite(actor, Object.fromEntries(fields.map(path => [path, row.change[path][0]])), { reason: "auditUndo" });
+        if (undone.includes(whole) && deleted) await trustedCreate(actor, [row.data], { reason: "auditUndo", keepId: true, [CAP_OVERRIDE]: true });
+        else if (undone.includes(whole)) await trustedDelete(actor.items.get(row.itemId), { reason: "auditUndo" });
         const card = game.messages.get(row.messageId ?? "");
         if (card) await updateSecret(card, flaggedCard({ ...row, decided }), null, { sheetAudit: row.actorId, [FLAGGED_CARD]: rowId });
         return decided;
@@ -981,7 +1183,12 @@ export function registerSheetAudit() {
     Hooks.on("createActiveEffect", (effect, options, userId) => { onSheetWrite("createActiveEffect", effect, {}, options, userId); });
     Hooks.on("updateActiveEffect", (effect, changes, options, userId) => { onSheetWrite("updateActiveEffect", effect, changes, options, userId); });
     Hooks.on("deleteActiveEffect", (effect, options, userId) => { onSheetWrite("deleteActiveEffect", effect, {}, options, userId); });
-    Hooks.on("updateItem", (item, changes, options, userId) => { onItemWrite(item, changes, options, userId); });
+    Hooks.on("updateItem", (item, changes, options, userId) => {
+        onItemWrite(item, changes, options, userId);
+        onSheetWrite("updateItem", item, changes, options, userId);
+    });
+    Hooks.on("createItem", (item, options, userId) => { onSheetWrite("createItem", item, {}, options, userId); });
+    Hooks.on("deleteItem", (item, options, userId) => { onSheetWrite("deleteItem", item, {}, options, userId); });
     Hooks.on("renderChatMessageHTML", onRenderFlagged);
     Hooks.on("deleteActor", actor => {
         heard.delete(actor.id);

@@ -97,11 +97,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     /* The GMs' audit of a sheet (E29 C3, the plan's section 6): every write on a student patches its mark on
        the primary when it moves it. Counted from here to the end of the day, with the rows it writes (below). */
     await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
-        globalThis.__markPatches = 0; globalThis.__auditFrom = Date.now();
+        globalThis.__markPatches = 0; globalThis.__itemPatches = 0; globalThis.__auditFrom = Date.now();
         const store = S.sheetMarkStore;
         if (store && !store.__counted) {
             const patch = store.patch;
-            store.patch = (...args) => { globalThis.__markPatches++; return patch.apply(store, args); };
+            // Those that move a student's module items (E29 C6) counted apart as well: they are the C6 share of the traffic.
+            store.patch = (...args) => { globalThis.__markPatches++; if ("items" in (args[1] ?? {})) globalThis.__itemPatches++; return patch.apply(store, args); };
             store.__counted = true;
         }
         return true;`);
@@ -1504,29 +1505,81 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     }
 
     /*
+     * A STASH, A RETRIEVE AND A DISCARD OF THE DAY (E29 C6, 05.10.2026; the plan's 2.6). The GM gives Aiko a
+     * stash in the room she stands in, a Tool and a broken one. p1 stows the Tool, discards the broken one and
+     * takes the Tool out again - the window, the roll, the trace - as a player does from the sheet. Each is a
+     * write on a module item from p1's browser that the GMs' audit judges: none may be put back or flagged
+     * (the day's check below reads that), and here each must have done what it says.
+     */
+    phase("a stash, a retrieve and a discard of the day", { flow: "sheet-audit" });
+    const dayItems = await gm.eval(`const INV = await import("${REPO}/scripts/inventory.mjs");
+        const V = await import("${REPO}/scripts/vault.mjs"); const M = await import("${REPO}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), room = M.roomOfActor(aiko), had = room ? Boolean(V.stashIn(room, aiko.id)) : null;
+        if (room && !had) await V.setStash(room, aiko.id, { present: true });
+        const tool = await INV.grantItem(aiko, { name: "Scenario 40 stashed tool", category: "tool", tier: 1, override: true, quiet: true });
+        const broken = await INV.grantItem(aiko, { name: "Scenario 40 broken tool", category: "tool", tier: 1, override: true, quiet: true });
+        if (broken) await INV.breakItem(broken);
+        await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { room, had, tool: tool?.id ?? null, broken: broken?.id ?? null, patches: globalThis.__markPatches };`, { timeout: 30000 });
+    let dayRun = null;
+    try {
+        await settle(400);
+        dayRun = await p1.eval(`const V = await import("${REPO}/scripts/vault.mjs"); const U = await import("${REPO}/scripts/use-items.mjs");
+            const aiko = game.actors.get("${ids.aiko}"), item = id => aiko.items.get(id ?? "");
+            const stowed = await V.stow(aiko, item(${JSON.stringify(dayItems.tool)}));
+            const inStash = item(${JSON.stringify(dayItems.tool)})?.getFlag("${MOD}", "location") ?? null;
+            // The broken one goes before the Tool comes out: a broken Tool still takes a slot of the two (Gear).
+            await U.discardBroken(aiko, item(${JSON.stringify(dayItems.broken)}));
+            const retrieved = await V.retrieve(aiko, item(${JSON.stringify(dayItems.tool)}));
+            return { stowed, inStash, retrieved, discarded: !item(${JSON.stringify(dayItems.broken)}) };`, { timeout: 90000 });
+        await settle(800);
+    } finally {
+        dayRun = { ...(dayRun ?? {}), gm: await gm.eval(`const R = await import("${REPO}/scripts/remnants.mjs"); const V = await import("${REPO}/scripts/vault.mjs");
+            await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const aiko = game.actors.get("${ids.aiko}");
+            const out = { tool: aiko.items.get(${JSON.stringify(dayItems.tool)})?.getFlag("${MOD}", "location") ?? null, broken: aiko.items.has(${JSON.stringify(dayItems.broken)}) };
+            const left = R.remnantsOn(canvas.scene).filter(t => R.remnantData(t)?.subject === "Scenario 40 broken tool");
+            out.traces = left.length;
+            for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
+            for (const id of [${JSON.stringify(dayItems.tool)}, ${JSON.stringify(dayItems.broken)}]) await aiko.items.get(id ?? "")?.delete();
+            if (${JSON.stringify(dayItems.room)} && !${dayItems.had}) await V.setStash(${JSON.stringify(dayItems.room)}, aiko.id, { present: false });
+            await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            out.patches = globalThis.__markPatches;
+            return out;`, { timeout: 30000 }) };
+    }
+    check("p1: a Tool stowed in a stash of Aiko's where she stands and taken out again, and a broken Tool discarded, each do what they say on the GM",
+        Boolean(dayItems.room) && Boolean(dayItems.tool) && Boolean(dayItems.broken) && dayRun.stowed === true && dayRun.inStash === "vault"
+            && dayRun.retrieved === true && dayRun.discarded === true && dayRun.gm.tool === "carried" && dayRun.gm.broken === false && dayRun.gm.traces === 1,
+        JSON.stringify({ dayItems, dayRun }), { flow: "sheet-audit" });
+
+    /*
      * THE DAY, AS THE GMS' AUDIT SAW IT (E29 C3, 05.10.2026; the plan's section 6, "store traffic"). Every write
-     * above - the GM's and the players' own, a Search, a Rest, Calls, projects, a stash - went past the judge on
+     * above - the GM's and the players' own, a Search and its find, a Rest, Calls, projects, a stash, a retrieve and
+     * a discard - went past the judge on
      * the primary. None may be put back: a module road that writes what a roll is built from on a player's browser
      * would be a false alarm at every table, and none flagged (C5: a refund, a Rest or an item no judge covered
      * would put a card with Undo before the GMs). What is listed is a Call a player's browser armed (`pendingCall`,
      * until C8). And the marks' traffic: 76 patches of `sheetMarks` in this day, measured on the harness on
      * 05.10.2026 (e29run/c3a1, one run; one listed row, a Call armed) - the plan's section 6 asked for the
      * number. The bound allows a quarter more: a write judged after the next one has landed reads both in
-     * the document, so two writes can move a mark once or twice.
+     * the document, so two writes can move a mark once or twice. C6 (05.10.2026) puts each module item in the
+     * mark, and every write on one moves it: 111 patches in each of two runs on the harness (e29run/c6a1, with
+     * the stash, the retrieve and the discard above), 35 of them moving items in the second - the first did not
+     * count them apart - and the other 76 the number C3 measured.
      */
     phase("the day's writes, as the GMs' audit saw them", { flow: "sheet-audit" });
     const auditDay = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
         await (await import("${REPO}/scripts/sheet-audit.mjs").catch(() => ({}))).sheetAuditIdle?.();
         const rows = Object.values(S.sheetWriteStore?.entries?.() ?? {}).filter(r => r?.at >= globalThis.__auditFrom);
-        return { store: Boolean(S.sheetMarkStore), patches: globalThis.__markPatches,
+        return { store: Boolean(S.sheetMarkStore), patches: globalThis.__markPatches, itemPatches: globalThis.__itemPatches,
             putBack: rows.filter(r => r.verdict === "putBack").map(r => Object.keys(r.change ?? {})),
             listed: rows.filter(r => r.verdict === "listed").flatMap(r => Object.keys(r.change ?? {})),
             flagged: rows.filter(r => r.verdict === "flagged").map(r => Object.keys(r.change ?? {})) };`);
-    const MARK_PATCHES_MEASURED = 76;
+    const MARK_PATCHES_MEASURED = 111;
     check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed, and patches its marks within a quarter of the measured count",
         auditDay.store && auditDay.putBack.length === 0 && auditDay.flagged.length === 0 && auditDay.listed.every(path => path === `flags.${MOD}.pendingCall`)
             && auditDay.patches > 0 && auditDay.patches <= Math.ceil(MARK_PATCHES_MEASURED * 1.25),
-        JSON.stringify(auditDay).slice(0, 1500), { flow: "sheet-audit" });
+        JSON.stringify({ ...auditDay, c6Phase: [dayItems.patches, dayRun?.gm?.patches] }).slice(0, 1500), { flow: "sheet-audit" });
 
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");

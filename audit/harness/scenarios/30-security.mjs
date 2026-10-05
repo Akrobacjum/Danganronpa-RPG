@@ -2274,6 +2274,62 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ undone: consoleMeans?.undone ?? null, after: consoleMeans?.after ?? null }), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S ITEMS (E29 C6, 05.10.2026; audit S08-57; the plan's 2.6). The GM gives Aiko a bandage (one
+     * of it), a Tool, and a stash in a room she does not stand in. p1's console raises the bandage's count to 3,
+     * and writes the Tool into that stash - its location and its room, as `stow` writes them - past its own
+     * browser's checks. Expected: both put back on every client that holds the items, with a row each on the
+     * GMs and p1 told once for each. Before C6 both stood.
+     */
+    phase("a console's items", { flow: "sheet-audit" });
+    const itemsSet = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const V = await import("${repoUrl}/scripts/vault.mjs"); const M = await import("${repoUrl}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), here = M.roomOfActor(aiko);
+        const room = M.allRooms().find(name => name !== here && !V.stashIn(name, aiko.id)) ?? null;
+        if (room) await V.setStash(room, aiko.id, { present: true });
+        const bandage = await INV.grantItem(aiko, { name: "E29 C6 30 bandage", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+        const tool = await INV.grantItem(aiko, { name: "E29 C6 30 tool", category: "tool", tier: 1, override: true, quiet: true });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { here, hereMine: here ? Boolean(V.stashIn(here, aiko.id)) : null, room, mine: room ? Boolean(V.stashIn(room, aiko.id)) : false, bandage: bandage?.id ?? null, tool: tool?.id ?? null, from: Date.now() };`,
+        { timeout: 30000 });
+    const readItems = `const a = game.actors.get("${ids.aiko}"), b = a?.items.get("${itemsSet.bandage}"), t = a?.items.get("${itemsSet.tool}");
+        return b && t ? [b.system.quantity, t.getFlag("${MOD}", "location") ?? "carried", t.getFlag("${MOD}", "stashRoom") ?? null] : null;`;
+    let consoleItems = null;
+    try {
+        await settle(400);
+        await p1.eval(`globalThis.__itemsTold = [];
+            if (!globalThis.__itemsToldHook) {
+                globalThis.__itemsToldHook = true;
+                game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused") globalThis.__itemsTold.push(payload.reason); });
+            }
+            const a = game.actors.get("${ids.aiko}");
+            await a.items.get("${itemsSet.bandage}")?.update({ "system.quantity": 3 }, { drpgAutomated: true });
+            await a.items.get("${itemsSet.tool}")?.update({ "flags.${MOD}.location": "vault", "flags.${MOD}.stashRoom": ${JSON.stringify(itemsSet.room)} }, { drpgAutomated: true });
+            return true;`);
+        const judged = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            const rows = () => Object.values(S.sheetWriteStore?.entries?.() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${itemsSet.from}
+                && ["${itemsSet.bandage}", "${itemsSet.tool}"].includes(r.itemId));
+            const end = Date.now() + 8000;
+            while (rows().length < 2 && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await A.sheetAuditIdle?.();
+            return rows().map(r => r.verdict + ":" + Object.keys(r.change ?? {}).map(k => k.split(".").slice(2).join(".")).sort().join(",")).sort();`);
+        await settle(800);
+        consoleItems = { judged, after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readItems))), told: await p1.eval(`return globalThis.__itemsTold.slice();`) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            for (const id of ["${itemsSet.bandage}", "${itemsSet.tool}"]) await a.items.get(id)?.delete();
+            if (${JSON.stringify(itemsSet.room)}) await (await import("${repoUrl}/scripts/vault.mjs")).setStash(${JSON.stringify(itemsSet.room)}, a.id, { present: false });
+            return true;`);
+    }
+    check("SECURITY: a player's console raising a bandage's count, and stashing a Tool from a room with no stash of its student's, is put back on every client, with a row each and the player told",
+        Boolean(consoleItems) && Boolean(itemsSet.here) && itemsSet.hereMine === false && Boolean(itemsSet.room) && itemsSet.mine && Boolean(itemsSet.bandage) && Boolean(itemsSet.tool)
+            && JSON.stringify(consoleItems.judged) === JSON.stringify([`putBack:flags.${MOD}.location,flags.${MOD}.stashRoom`, "putBack:system.quantity"])
+            && consoleItems.after[0] !== null && consoleItems.after[1] !== null
+            && consoleItems.after.every(v => v === null || JSON.stringify(v) === JSON.stringify([1, "carried", null]))
+            && JSON.stringify(consoleItems.told) === JSON.stringify(["sheetPutBack", "sheetPutBack"]),
+        JSON.stringify({ itemsSet, consoleItems }), { flow: "sheet-audit" });
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

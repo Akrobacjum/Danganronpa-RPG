@@ -309,6 +309,55 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("p2: remnant truth NOT in token flags", !truthStr.includes(secret.note) && !truthStr.includes(secret.subject), truthStr.slice(0, 300));
     await canary.scan({ phase: "traces" });
 
+    // -- 5b. a knife on a student's sheet, from its player's console ----------
+    /*
+     * A BROKEN KNIFE, MENDED AND THROWN AWAY BY HAND (E29 C6, 05.10.2026; audit S08-57; the plan's 2.6).
+     * The GM gives Aiko a broken, bloodied knife. p1's console unsets `broken`: the GMs put it back, and the
+     * knife is broken again on every client that holds it. Then p1's console deletes it - no discard, no
+     * roll, no trace: the GMs get one card, and their Undo makes it again under its id with its flags. Before
+     * C6 the knife stayed mended, and once deleted it was gone.
+     */
+    phase("a knife mended and thrown away from a console", { flow: "sheet-audit" });
+    const knifeSet = await gm.eval(`const [k] = await game.actors.get("${ids.aiko}").createEmbeddedDocuments("Item", [{ name: "E29 C6 10 bloodied knife",
+            type: "loot", system: { quantity: 1 }, flags: { "${MOD}": { category: "crimeTool", tier: 2, drpgItemId: "E29C6BLOODKNIFE1", broken: { at: Date.now() } } } }],
+            { drpgIgnoreCarryLimit: true });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { id: k?.id ?? null, from: Date.now() };`, { timeout: 30000 });
+    const readKnife = `const k = game.actors.get("${ids.aiko}")?.items.get("${knifeSet.id}");
+        return k ? { broken: Boolean(k.getFlag("${MOD}", "broken")), identity: k.getFlag("${MOD}", "drpgItemId") ?? null, category: k.getFlag("${MOD}", "category") ?? null } : null;`;
+    const knifeRows = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const rows = verdict => Object.entries(S.sheetWriteStore?.entries?.() ?? {}).filter(([, r]) => r?.itemId === "${knifeSet.id}" && r.verdict === verdict && r.at >= ${knifeSet.from});
+        const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+    let knife = null;
+    try {
+        await p1.eval(`await game.actors.get("${ids.aiko}").items.get("${knifeSet.id}")?.unsetFlag("${MOD}", "broken"); return true;`);
+        const mended = await gm.eval(`${knifeRows} await until(() => rows("putBack").length > 0); await A.sheetAuditIdle();
+            return { rows: rows("putBack").length };`, { timeout: 30000 });
+        await settle(800);
+        const mendedOn = await Promise.all([gm, p1, p2, p3].map(c => c.eval(readKnife)));
+        await p1.eval(`await game.actors.get("${ids.aiko}").items.get("${knifeSet.id}")?.delete(); return true;`);
+        const asked = await gm.eval(`${knifeRows} await until(() => rows("flagged").length > 0); await A.sheetAuditIdle();
+            const [id, row] = rows("flagged")[0] ?? [];
+            const gone = !game.actors.get("${ids.aiko}").items.has("${knifeSet.id}"), card = Boolean(game.messages.get(row?.messageId ?? ""));
+            const decided = id ? await A.askToDecideWrite(id, false) : null;
+            await until(() => game.actors.get("${ids.aiko}").items.has("${knifeSet.id}"));
+            await A.sheetAuditIdle();
+            return { gone, card, undone: decided?.undone ?? null };`, { timeout: 30000 });
+        await settle(800);
+        knife = { mended, mendedOn, asked, back: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readKnife))) };
+    } finally {
+        await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await game.actors.get("${ids.aiko}")?.items.get("${knifeSet.id}")?.delete(); return true;`);
+    }
+    const KNIFE = JSON.stringify({ broken: true, identity: "E29C6BLOODKNIFE1", category: "crimeTool" });
+    check("p1: a broken knife mended from a console is broken again on every client that holds it, put back by the GMs",
+        Boolean(knife) && Boolean(knifeSet.id) && knife.mended.rows === 1 && knife.mendedOn[0] !== null && knife.mendedOn[1] !== null
+            && knife.mendedOn.every(v => v === null || JSON.stringify(v) === KNIFE), JSON.stringify({ knifeSet, knife }), { flow: "sheet-audit" });
+    check("p1: a knife deleted from a console is flagged to the GMs on one card, and their Undo makes it again under its id with its flags on every client",
+        Boolean(knife) && knife.asked.gone && knife.asked.card && JSON.stringify(knife.asked.undone) === JSON.stringify([`items.${knifeSet.id}`])
+            && knife.back[0] !== null && knife.back[1] !== null && knife.back.every(v => v === null || JSON.stringify(v) === KNIFE),
+        JSON.stringify({ knifeSet, knife }), { flow: "sheet-audit" });
+
     // -- 6. vote --------------------------------------------------------------
     phase("trial", { flow: "class-trial" });
     /*

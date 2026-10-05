@@ -318,6 +318,28 @@ async function asPlayerWrite(student, write, player, stamp = null) {
     return judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id, stamp ? { drpgWrite: { ref: null, ...stamp } } : {});
 }
 
+/**
+ * A player's write on a student's item, as tier 2 makes one (E29 C6), the way `asPlayerWrite` makes
+ * one on the student: done here by the GM with the option the audit leaves out of the mark, then
+ * handed to the judge with the player's id and a road's stamp. `kind` is the hook's: "createItem"
+ * (`target` the new item's data), "updateItem" (`target` the item, `write` its changes) or
+ * "deleteItem" (`target` the item). Answers the item and the verdict.
+ */
+async function asPlayerItemWrite(kind, student, target, player, stamp = null, write = {}) {
+    const { judgeWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+    const { CAP_OVERRIDE } = await import("./inventory.mjs");
+    let item = target;
+    if (kind === "createItem") [item] = await student.createEmbeddedDocuments("Item", [target], { [AUDIT_ASIDE]: true, [CAP_OVERRIDE]: true });
+    else if (kind === "updateItem") await item.update(write, { [AUDIT_ASIDE]: true });
+    else await item.delete({ [AUDIT_ASIDE]: true });
+    const judged = await judgeWrite(kind, item, foundry.utils.expandObject(write), player.id, stamp ? { drpgWrite: { ref: null, ...stamp } } : {});
+    return { item, verdict: judged?.verdict ?? null };
+}
+
+/** A module item's data for a test (E29 C6): a Tool of tier 1 unless `flags` say otherwise. */
+const moduleItemData = (name, flags = {}) => ({ name, type: "loot", system: { quantity: 1 },
+    flags: { [MODULE_ID]: { category: "tool", tier: 1, ...flags } } });
+
 /** A room marked, or not, for a Short Rest for one test; answers what puts its flag back as it was, an absent one absent. */
 async function markRestRoom(room, short) {
     const { regionsByName } = await import("./vault.mjs");
@@ -24534,6 +24556,95 @@ const SCENARIOS = [
         equal(stableJson([first?.verdict ?? null, undone?.undone ?? null, after, refund?.verdict ?? null]),
             stableJson(["flagged", [ACT], 1, "flagged"]),
             "a forged rise was not flagged and undone, or the Undo left credit a refund then stood on (first verdict, written back, actions, the refund's verdict)");
+    }],
+
+    /*
+     * THE MODULE'S ITEMS: A FIND, A DISCARD (E29 C6, 05.10.2026; audit S08-57; the plan's 2.6). Each
+     * write is a player's, made as `asPlayerItemWrite` says; a Search's record is the suite's own
+     * (`recordFor`), with the fields `drawOnGm` writes that the find's judge reads. The rest of the
+     * plan's 2.6 - a broken knife mended and a knife deleted from a player's console, a count raised,
+     * a stash from a room with no stash of the student's, and the day's own find, stash and discard -
+     * is driven from a player's browser in 10-murder, 30-security and 40-flow.
+     */
+    ["a Search's find stands; a second item on the same record, or one above the tier its total earns, is flagged", async () => {
+        /* A record of 13 earns tier 1 on the Search's table (12 and up). A tier-1 find on it stands and
+           uses it; a second tier-1 item named after the same record is flagged; a tier-2 item named after
+           a fresh record of 13 is flagged too. At HEAD a creation was judged as an effect, and all three stood. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore, sheetMarkStore } = await import("./gm-stores.mjs");
+        const { searchTier } = await import("./action-rolls.mjs");
+        must(searchTier({ total: 13 }).tier === 1 && searchTier({ total: 13 }).hit, "the Search's table gives no tier-1 hit at 13 any more - the totals below measure nothing");
+        const from = Date.now();
+        const first = await recordFor({ id: null }, player, student, "search", { total: 13 });
+        const fresh = await recordFor({ id: null }, player, student, "search", { total: 13 });
+        const made = [];
+        let read = null;
+        try {
+            const find = async (name, tier, rollId) => {
+                const out = await asPlayerItemWrite("createItem", student, moduleItemData(name, { tier }), player, { reason: "searchFind", ref: rollId });
+                made.push(out.item);
+                return out;
+            };
+            const one = await find("E29 C6 a find", 1, first.rollId);
+            const two = await find("E29 C6 a second find on one record", 1, first.rollId);
+            const high = await find("E29 C6 a find above its tier", 2, fresh.rollId);
+            await sheetAuditIdle();
+            const named = id => id === two.item.id ? "second" : id === high.item.id ? "high" : id;
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from);
+            read = [one.verdict, two.verdict, high.verdict, rows.map(row => `${row.verdict}:${named(row.itemId)}`).sort(),
+                sheetMarkStore.get(student.id)?.finds?.[first.rollId] === one.item.id];
+        } finally {
+            await sheetAuditIdle();
+            for (const item of made) if (student.items.get(item.id)) await item.delete();
+            await sheetAuditIdle();
+            await first.putBack();
+            await fresh.putBack();
+        }
+        equal(stableJson(read), stableJson(["stands", "flagged", "flagged", ["flagged:high", "flagged:second"], true]),
+            "a Search's find did not stand on its record, or a second item on that record or one above its tier was not flagged "
+                + "(the three verdicts, the rows, the record kept as used)");
+    }],
+
+    ["a broken item discarded raises no card; an unbroken one deleted is flagged, and Undo makes it again under its id", async () => {
+        /* The GM gives the student two Tools, one broken. The player's discard of the broken one stands with
+           no row and no card; the same discard of the whole one is flagged on one card, and the GMs' Undo
+           makes it again under its id with its flags. At HEAD a deletion was judged as an effect: both stood. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle, decideWrite } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { CAP_OVERRIDE } = await import("./inventory.mjs");
+        const from = Date.now();
+        const [broken, whole] = await student.createEmbeddedDocuments("Item", [
+            moduleItemData("E29 C6 a broken tool", { broken: { at: from } }),
+            moduleItemData("E29 C6 a whole tool", { drpgItemId: "E29C6WHOLETOOL01" })], { [CAP_OVERRIDE]: true });
+        let read = null;
+        try {
+            await sheetAuditIdle();
+            const thrown = await asPlayerItemWrite("deleteItem", student, broken, player, { reason: "discard" });
+            const kept = await asPlayerItemWrite("deleteItem", student, whole, player, { reason: "discard" });
+            await sheetAuditIdle();
+            const rows = Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.actorId === student.id && row.at >= from);
+            const cards = game.messages.contents.filter(m => (m.timestamp ?? 0) >= from && typeof cardFlag(m, "sheetFlagged") === "string").length;
+            const [rowId] = rows.find(([, row]) => row.verdict === "flagged") ?? [];
+            const undone = rowId ? await decideWrite(rowId, false) : null;
+            await sheetAuditIdle();
+            const back = student.items.get(whole.id);
+            read = [thrown.verdict, kept.verdict, rows.map(([, row]) => `${row.verdict}:${row.itemId === whole.id ? "whole" : row.itemId}`), cards,
+                undone?.undone ?? null, Boolean(back), back?.getFlag(MODULE_ID, "drpgItemId") ?? null, back?.getFlag(MODULE_ID, "category") ?? null];
+        } finally {
+            await sheetAuditIdle();
+            for (const id of [broken.id, whole.id]) await student.items.get(id)?.delete();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson(["stands", "flagged", ["flagged:whole"], 1, [`items.${whole.id}`], true, "E29C6WHOLETOOL01", "tool"]),
+            "a discard of a broken item raised a row or a card, or a whole item deleted was not flagged once, or Undo did not make it "
+                + "again under its id with its flags (the two verdicts, the rows, the cards, written back, the item back, its identity, its category)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
