@@ -799,6 +799,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
 
     /* ------------------------------------------------------- C. no GM at all */
 
+    // C's Resolve below needs the Hope p1's browser counts before it asks (E29 C8): 3, written by the Assistant while it is here.
+    await ag.eval(`await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": 3 }); return true;`);
     await disconnect("ag");
     await settle(800);
     phase("no GM at the table");
@@ -832,6 +834,16 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("C: with no GM connected, p1's pre-session note settles at once as kept in p1's browser, sends nothing, and says so once",
         settledAtOnce(c4) && c4.answer === "kept" && keptC.unsent === true && keptC.text === "E05 33 C kept note"
         && keptC.status === keptC.kept && !keptC.kept.startsWith("DRPG."), JSON.stringify({ c4, keptC }), { flow: "pre-session-note" });
+    /* E29 C8 (05.10.2026; the plan's 3.3): a Call on p1's own character - a Resolve, 3 Hope, all Aiko holds - is bought on
+       the GM now, so with no GM connected it settles at once, sends nothing, and arms and pays nothing; the bridge says there
+       is no GM, and the Call's own line that nothing was taken follows it. Until C8 p1's browser paid and armed it itself. */
+    const c5 = await offline("call.arm", `(await import("${repoUrl}/scripts/calls.mjs")).spendHopeCall(game.actors.get("${IDS.aiko}"), "determination")`);
+    const c5After = await p1.eval(`const a = game.actors.get("${IDS.aiko}"), f = a.getFlag("${MOD}", "pendingCall");
+        return { hope: a.system.resources.hope.value, resolve: (Array.isArray(f) ? f : f ? [f] : []).some(e => e?.grants === "trait"),
+            noGm: game.i18n.localize("DRPG.Bridge.why.noGm") };`);
+    check("C: with no GM connected, p1's Resolve on its own character settles at once, sends nothing, arms and pays nothing, and says there is no GM",
+        c5.answer === null && c5.ms < 1000 && c5.sent === 0 && c5After.hope === 3 && c5After.resolve === false
+        && c5.said.some(m => m.includes(c5.label) && m.includes(c5After.noGm)), JSON.stringify({ c5, c5After }), { flow: "call-arm" });
     const sentence = [c1, c2, c3].map(c => (c.said[0] ?? "").split(c.label).join("{what}"));
     check("C: the three say the same sentence apart from what they name", sentence.every(s => s && s === sentence[0]), JSON.stringify(sentence));
 

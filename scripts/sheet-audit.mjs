@@ -27,7 +27,13 @@
  * whispered once, with each field before and after. With the setting off, the
  * fields its text names - the statistics and the maxima of actions, Hope, Health
  * and Sanity - are listed in `sheetWrites` and left standing (the owner's Q2 (a));
- * the rest is put back either way. A Call added to `pendingCall` is listed until C8.
+ * the rest is put back either way.
+ *
+ * AN ARMED CALL IS THE GMS' (C8, 05.10.2026; the plan's 2.4, 3.3). A player's Call is armed on
+ * the primary GM (gm-bridge.mjs `call.arm`), on any character, so an entry a player's browser
+ * adds to `pendingCall` is put back whatever the setting says - the entries it took away stand,
+ * as a roll spends them - and a drawn roll applies only the entries the mark holds
+ * (`armedCallsHeld`, roll-draw.mjs `throwDrawn`), once this student's writes are judged.
  *
  * HOPE, AND WHAT A GAIN NEEDS (C4, 05.10.2026; the plan's 2.4, 2.5). The mark keeps
  * each resource as the GMs hold it - Hope, actions, Health and Sanity marks, the
@@ -76,8 +82,8 @@
  * while no GM is connected, nor one the primary had not judged when it reloaded. So when
  * the primary's stores hydrate (`compareAtReady`) every student's document is compared
  * with its mark, each difference judged as a write naming it would be: a statistic, an
- * experience, a maximum, a rule, a bonus, a GM-only flag or an effect a roll is built from
- * is put back at once, and so is a module item's protected flag; every other difference
+ * experience, a maximum, a rule, a bonus, a GM-only flag, a Call armed (since C8) or an effect a
+ * roll is built from is put back at once, and so is a module item's protected flag; every other difference
  * that a write would have had to account for - a gain in Hope, Health, Sanity, actions or
  * the grants, a Rest stamp, a module item deleted or created - goes on one card, "Sheet
  * changes made while no GM was watching", a row per field and per item with Undo and Keep
@@ -126,8 +132,9 @@ const LEDGER = Object.freeze({
 });
 const LEDGER_FLAGS = [FLAGS.freeActionGrants, FLAGS.freeMoveGrants];
 const RESTS_PATH = `flags.${MODULE_ID}.${FLAGS.restsTaken}`;
+const CALLS_PATH = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
 
-/** Every module flag the mark holds: the GM-only ones, `pendingCall`, whose additions are listed, the Rest stamps and the grants. */
+/** Every module flag the mark holds: the GM-only ones, `pendingCall`, whose additions are put back (C8), the Rest stamps and the grants. */
 const MARKED_FLAGS = [...GM_FLAGS, FLAGS.pendingCall, FLAGS.restsTaken, ...LEDGER_FLAGS];
 
 /** The reasons whose gain is a refund (the plan's 2.5): it takes credit and never more. A concealment's Sanity comes back as a refund too. */
@@ -349,6 +356,18 @@ function addedEntries(before, after) {
     return list(after).filter(entry => !had.has(stableJson(entry)));
 }
 
+/*
+ * The armed list put back (C8): what the document holds now, without the entries the mark did not
+ * have. The entries the write took away stay away - a roll on the player's browser spends its Calls
+ * with such a write - so the mark's list is not written back whole. Nothing left takes the flag off.
+ */
+function armedPutBack(before, src) {
+    const now = foundry.utils.getProperty(src, CALLS_PATH);
+    const added = new Set(addedEntries(foundry.utils.getProperty(before, CALLS_PATH), now).map(stableJson));
+    const kept = (Array.isArray(now) ? now : now ? [now] : []).filter(entry => !added.has(stableJson(entry)));
+    return kept.length ? clone(kept) : forcedDeletion();
+}
+
 /** Whether `lockPlayerResources` is on (its default, and what an unreadable setting counts as). */
 function locked() {
     try { return getSetting(SETTINGS.lockPlayerResources) !== false; } catch { return true; }
@@ -376,6 +395,30 @@ export async function sheetAuditIdle() {
     while (chains.size) await Promise.all([...chains.values()]);
 }
 
+/** Resolves once every write queued on these students has been judged (C8: a Call's purchase and a drawn roll). Anything else in `ids` is passed over. */
+export async function judgedFor(...ids) {
+    const named = ids.filter(id => typeof id === "string" && id);
+    for (let queued = named.filter(id => chains.has(id)); queued.length; queued = named.filter(id => chains.has(id))) {
+        await Promise.all(queued.map(id => chains.get(id)));
+    }
+}
+
+/**
+ * The nonces of the Calls the GMs hold armed on this student (C8): its mark's `pendingCall`, once
+ * every write queued on it has been judged - so an entry a player's browser added is not among
+ * them, whether its put-back has landed or failed (`heldCalls`). Null where there is no mark to
+ * ask (this browser's stores not hydrated, a character never marked) or the mark is a Monokuma's:
+ * the document is then the record, as it was before C8.
+ */
+export async function armedCallsHeld(actor) {
+    await judgedFor(actor?.id);
+    const mark = gmStoresHydrated() ? sheetMarkStore.get(actor?.id ?? "") : null;
+    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
+    if (!mark || mark.flags?.[FLAGS.monokuma]) return null;
+    const stored = mark.flags?.[FLAGS.pendingCall] ?? null;
+    return new Set((Array.isArray(stored) ? stored : stored ? [stored] : []).map(entry => entry?.nonce).filter(nonce => typeof nonce === "string"));
+}
+
 /**
  * The student's mark brought up to its document, field by field: only the fields that
  * differ are written, so a write the mark already holds - a put-back, a GM writing a value
@@ -383,20 +426,39 @@ export async function sheetAuditIdle() {
  * not read off the document: they are the GMs', kept as the mark holds them unless the
  * judgement hands new ones (`ledger`) - a document read while a write waits to be judged
  * would make that write's value the GMs' before it was judged. The items likewise (C6):
- * each moves only with its own write's judgement (`items`), as the hook saw it.
+ * each moves only with its own write's judgement (`items`), as the hook saw it. And the
+ * armed list (C8): `heldCalls`, with `calls` the list a GM's own write left.
  */
-async function refreshMark(actor, ledger = null, items = null) {
+async function refreshMark(actor, ledger = null, items = null, calls = undefined) {
     if (!gmStoresHydrated() || !game.actors?.has(actor?.id)) return false;
     const held = sheetMarkStore.get(actor.id) ?? {};
     const now = markFrom(actor);
     if (sheetMarkStore.has(actor.id)) {
         withLedger(now, ledger?.values ?? ledgerOf(held, actor), ledger?.credit ?? held.credit ?? {});
         now.items = items ?? held.items ?? now.items;
+        heldCalls(now, held, calls);
     }
     const moved = Object.fromEntries(Object.entries(now).filter(([field, value]) => stableJson(value) !== stableJson(held[field] ?? null)));
     if (!Object.keys(moved).length) return false;
     await sheetMarkStore.patch(actor.id, moved);
     return true;
+}
+
+/*
+ * THE MARK'S ARMED LIST (C8, 05.10.2026). The document's entries the mark held already - a roll
+ * spends them, and that stands - and those a GM's own write left (`calls`, as its hook saw them).
+ * Not the document's others: this refresh reads the document when a judgement ends, and a write a
+ * player's browser made meanwhile has landed on it and is not judged yet - the mark would take its
+ * entry as the GMs', and its own judgement would then find nothing added. Read, not measured: the
+ * same holds of every other field `markFrom` reads off the document, which this does not change.
+ */
+function heldCalls(now, held, calls) {
+    const list = value => value === undefined || value === null ? [] : Array.isArray(value) ? value : [value];
+    const ours = new Set([...list(held.flags?.[FLAGS.pendingCall]), ...list(calls)].map(stableJson));
+    const there = list(now.flags[FLAGS.pendingCall]), kept = there.filter(entry => ours.has(stableJson(entry)));
+    if (kept.length === there.length) return;
+    if (kept.length) now.flags[FLAGS.pendingCall] = kept;
+    else delete now.flags[FLAGS.pendingCall];
 }
 
 /*
@@ -444,7 +506,7 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
         const reason = options?.drpgWrite?.reason, own = reason === "auditPutBack";
         if (options?.[AUDIT_ASIDE]) return { verdict: "mark", change: {} };
         if (ITEM_WRITES.has(kind)) await refreshMark(actor, null, itemsAfter(sheetMarkStore.get(actor.id), doc, seen.item));
-        else await refreshMark(actor, seen && !own ? gmLedger(actor, seen, { credit: reason !== "auditUndo" }) : null);
+        else await refreshMark(actor, seen && !own ? gmLedger(actor, seen, { credit: reason !== "auditUndo" }) : null, null, seen?.calls);
         return { verdict: "mark", change: {} };
     }
     const mark = sheetMarkStore.get(actor.id);
@@ -497,9 +559,8 @@ function actorFindings(actor, mark, changes) {
         const was = foundry.utils.getProperty(before, path), now = foundry.utils.getProperty(src, path);
         if (stableJson(was ?? null) === stableJson(now ?? null)) continue;
         if (kind === "pendingCall") {
-            const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
-            const all = [foundry.utils.getProperty(before, flag), foundry.utils.getProperty(src, flag)];
-            if (addedEntries(...all).length && !(flag in change)) { listed.push({ path: flag, kind }); change[flag] = all.map(v => clone(v) ?? null); }
+            const all = [foundry.utils.getProperty(before, CALLS_PATH), foundry.utils.getProperty(src, CALLS_PATH)];
+            if (addedEntries(...all).length && !(CALLS_PATH in change)) { back.push({ path: CALLS_PATH, kind }); change[CALLS_PATH] = all.map(v => clone(v) ?? null); }
             continue;
         }
         change[path] = [clone(was) ?? null, clone(now) ?? null];
@@ -507,7 +568,9 @@ function actorFindings(actor, mark, changes) {
         if (!lock && (kind === "traits" || LOCK_NAMED_MAX.has(path))) listed.push({ path, kind });
         else back.push({ path, kind });
     }
-    return { back, listed, change, patch: putBackPatch(before, back.map(entry => entry.path)) };
+    const patch = putBackPatch(before, back.filter(entry => entry.kind !== "pendingCall").map(entry => entry.path));
+    if (back.some(entry => entry.kind === "pendingCall")) patch[CALLS_PATH] = armedPutBack(before, src);
+    return { back, listed, change, patch };
 }
 
 /* ---------------------------------------------------------------------------
@@ -553,9 +616,11 @@ function seenNow(actor, changes, options, priors) {
     const values = Object.fromEntries(Object.entries(LEDGER).filter(([, { path }]) => names(changes, path))
         .map(([key, { path }]) => [key, Number(foundry.utils.getProperty(src, path)) || 0]));
     const rests = names(changes, RESTS_PATH) ? clone(foundry.utils.getProperty(src, RESTS_PATH)) ?? null : undefined;
+    // The armed list a write left (C8): a GM's is the GMs' (`heldCalls`).
+    const calls = names(changes, CALLS_PATH) ? clone(foundry.utils.getProperty(src, CALLS_PATH)) ?? null : undefined;
     const stamp = options?.drpgWrite;
     const item = stamp?.reason === "itemUse" && stamp.ref ? actor.items?.get(stamp.ref)?.toObject?.() ?? null : null;
-    return { at: Date.now(), values, rests, item, priors };
+    return { at: Date.now(), values, rests, calls, item, priors };
 }
 
 /*
@@ -1239,7 +1304,9 @@ async function compareOne(actor) {
     if (!mark || !game.actors?.has(actor.id)) return null;
     const early = [...(unmarked.get(actor.id) ?? [])];
     const byGm = path => early.some(seen => path === seen || path.startsWith(`${seen}.`) || seen.startsWith(`${path}.`));
-    const settle = () => refreshMark(actor, { values: ledgerOf(null, actor), credit: creditOf(mark) }, markFrom(actor).items);
+    // An armed list a GM wrote before the stores hydrated is the GMs' (C8, `heldCalls`).
+    const settle = () => refreshMark(actor, { values: ledgerOf(null, actor), credit: creditOf(mark) }, markFrom(actor).items,
+        byGm(CALLS_PATH) ? foundry.utils.getProperty(actor._source ?? {}, CALLS_PATH) ?? null : undefined);
     // A Monokuma is no student (`judgeNow`): what it holds stands.
     if (mark.flags?.[FLAGS.monokuma]) {
         await settle();

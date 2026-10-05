@@ -245,9 +245,17 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
          * pay it. The GM now takes the Hope when it arms the Call (`handleArm`),
          * and refuses when there is not enough; this client charges nothing and,
          * when the Call does not land, has nothing to give back.
+         *
+         * AND SO IS EVERY CALL THAT ARMS A ROLL (E29 C8, 05.10.2026; the plan's 3.3).
+         * Experience, Ultimate, Resolve and the Loaded Die arm the buyer's own
+         * character, which this client can write, so they were paid and armed here
+         * - and a console armed them for nothing. A player's Call that `grants`
+         * anything is bought on the primary GM now, whoever it is for
+         * (call-effects.mjs `armCall`); with no GM connected the bridge says so and
+         * nothing is paid. The Ultimate's and the Experience's yes is still the card
+         * above, asked first.
          */
-        const gmPays = !game.user.isGM && call.target === "player" && Boolean(call.grants)
-            && Boolean(choice?.target) && !choice.target.isOwner;
+        const gmPays = !game.user.isGM && Boolean(call.grants);
         if (!gmPays) await trustedWrite(actor, { "system.resources.hope.value": held - call.cost }, { reason: "call" });
 
         // Do the thing, not just charge for it.

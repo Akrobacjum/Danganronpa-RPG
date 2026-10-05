@@ -1142,7 +1142,7 @@ async function handleLoot(payload, sender, ctx) {
 }
 
 async function handleArm(payload, sender, ctx, prepared) {
-    // What a player may arm on somebody else, and who pays - see `guardArmPlayerCall`.
+    // What a player may arm on somebody else or on their own character (E29 C8), and who pays - see `guardArmPlayerCall`.
     // The beneficiary was read once, in the declaration's `prepare` - before any
     // guard imports - and is handed down, so a character deleted in between fails
     // the write (and the player's Hope goes back) instead of being re-read as nobody.
@@ -1200,10 +1200,12 @@ async function tellBeneficiary(actor, kind, grants) {
 }
 
 /**
- * A player's Support on somebody else's character: checked, charged and armed on
- * this side, in that order, and refunded if the arming itself fails. Asks its own
- * guards (the declaration's `runGuards`): the player's road has checks the GM's
- * does not, and the replayed purchase below answers "armed" between them.
+ * A player's Call - a Support on somebody else's character, or since E29 C8 a Call on
+ * their own: checked, charged and armed on this side, in that order, and refunded if
+ * the arming itself fails. Asks its own guards (the declaration's `runGuards`): the
+ * player's road has checks the GM's does not, and the replayed purchase below answers
+ * "armed" between them. The buyer is told by the answer; only somebody else is
+ * whispered to.
  */
 async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     const who = await firstRefusal(sender, payload, ctx, guardArmBuyer, guardArmOtherCharacter);
@@ -1238,7 +1240,7 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
         return { refused: "the Call could not be armed" };
     }
     debug(`Armed ${payload.call.key} on ${actor.name}, paid by ${buyer.name} on this side.`);
-    void tellBeneficiary(actor, "hope", call.grants);
+    if (buyer.id !== actor.id) void tellBeneficiary(actor, "hope", call.grants);
     return { reply: { ok: true, left: held - call.cost } };
 }
 
@@ -1786,11 +1788,15 @@ export const BRIDGE_ACTIONS = table({
         // answered rather than refused (`armPaidByPlayer`); `guardArmLiving` last of all.
         runGuards: [guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmLiving],
         // The beneficiary read once, and every import the two roads make, before
-        // the guards - never later than the handler made them.
+        // the guards - never later than the handler made them. And the buyer's and
+        // the beneficiary's writes this GM has heard judged first (E29 C8): the
+        // guards read the Hope and the armed list the GMs hold, not a forged value
+        // the audit has not put back yet (sheet-audit.mjs `judgedFor`).
         prepare: async payload => {
             const effects = await import("./call-effects.mjs");
             const calls = await import("./calls.mjs");
             const guard = await import("./resource-guard.mjs");
+            await (await import("./sheet-audit.mjs")).judgedFor(payload?.actorId, payload?.call?.from);
             return {
                 actor: game.actors.get(payload?.actorId ?? ""),
                 appendArmedCall: effects.appendArmedCall, pendingCalls: effects.pendingCalls,

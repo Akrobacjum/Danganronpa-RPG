@@ -799,8 +799,10 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     roll.data = actor.getRollData?.() ?? {};
     const told = { trait: typeof trait === "string" ? trait : null, experiences: strings(experiences), context: contextSent(context),
         situational: Number.isFinite(Number(situational)) ? Math.trunc(Number(situational)) : 0 };
-    // What the roll applied, as this GM holds it: read before the dice, and spent after them.
-    const applied = appliedCalls(actor, calls);
+    // What the roll applied, as this GM holds it: read before the dice, and spent after them. Held means
+    // the GMs' mark of the armed list (E29 C8): an entry a player's browser wrote itself is not a Call.
+    const { armedCallsHeld } = await import("./sheet-audit.mjs");
+    const applied = appliedCalls(actor, calls, await armedCallsHeld(actor));
     const expected = await expectedFor(actor, { actionKey: key, applied, ...told });
     // The Loaded Die (forced-roll.mjs): loaded here only while the character's armed Calls
     // hold the mark and the roll applied it.
@@ -886,10 +888,19 @@ const CALLS_KEPT = 16;
 /** How long a roll a GM picked the statistic for waits for the pick card's meta. Chosen, not measured. */
 const PICK_WAIT_MS = 2000;
 
-/** The Calls the roll applied: the ones the packet names that are armed on the character as this GM holds them. */
-function appliedCalls(actor, nonces) {
+/**
+ * The Calls the roll applied: the ones the packet names that are armed on the character as this GM
+ * holds them - on the flag and in the GMs' mark of it (`held`, sheet-audit.mjs `armedCallsHeld`), or
+ * a Confusion of the GMs' store. AN ARMED CALL IS THE GMS' (E29 C8, 05.10.2026; the plan's 1.5 item 5,
+ * fix r2-H8's H8-6): until 1.2.68 a Call on one's own character was written by the player's browser,
+ * and this read the flag alone, so a console's entry, paid for by nothing, counted - a Loaded Die's
+ * 12 included, by the plan's reading. Every player's Call is bought on the GM now (gm-bridge.mjs `call.arm`), the audit
+ * puts back an entry a player adds, and this waits for that student's writes to be judged before it
+ * reads. Where the GMs keep no mark the flag is read alone, as before.
+ */
+function appliedCalls(actor, nonces, held = null) {
     const named = new Set(strings(nonces).slice(0, CALLS_KEPT));
-    return named.size ? armedCallsShown(actor).filter(call => named.has(call?.nonce)) : [];
+    return named.size ? armedCallsShown(actor, { held }).filter(call => named.has(call?.nonce)) : [];
 }
 
 /** Daggerheart's roll bonuses from the character's active effects, `[lowest, highest]` they can add up to. */

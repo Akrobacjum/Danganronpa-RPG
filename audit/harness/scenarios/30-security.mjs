@@ -1856,6 +1856,42 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a roll.draw holding a term that is neither a die, a number nor + or - is refused, and the GM writes no message and keeps no record",
         JSON.stringify(parenthesis.after) === JSON.stringify(parenthesis.before)
         && parenthesis.reasons.some(r => /holds a term no roll of this game is built of/.test(r)) && parenthesis.told === 1, JSON.stringify(parenthesis));
+    /* AN ARMED CALL IS THE GMS' (E29 C8, 05.10.2026; the plan's 1.5 item 5 and 3.3). p1's console writes a Loaded Die onto
+       Aiko's armed list itself - a Call nobody paid for, past its own browser's courtesy - pays one of Aiko's actions and asks
+       a Search's draw naming it, among its Calls and as its loaded mark. Read on the GM once its audit has judged Aiko's
+       writes: whether the list still holds the entry, and the newest record's Calls used and whether it was loaded; on p1,
+       whether it was told of a put-back. Until C8 the entry stood (listed by the audit since C3) and the GM loaded its 12. */
+    const forgedDie = { key: "freeCrit", kind: "hope", grants: "critical", amount: null, nonce: "SECFORGEDDIE0001" };
+    const dieFrom = await gm.eval(`return Date.now();`);
+    await p1.eval(`globalThis.__refused.length = 0;
+        if (!globalThis.__dieToldHook) {
+            globalThis.__dieToldHook = true; globalThis.__dieTold = [];
+            game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused") globalThis.__dieTold.push(payload.reason); });
+        }
+        globalThis.__dieTold.length = 0;
+        ${payFor(ids.aiko)}
+        const a = game.actors.get("${ids.aiko}"), had = a.getFlag("${MOD}", "pendingCall");
+        await a.update({ "flags.${MOD}.pendingCall": [...(Array.isArray(had) ? had : had ? [had] : []), ${JSON.stringify(forgedDie)}] }, { drpgAutomated: true });
+        game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "forged-die-draw", actorId: "${ids.aiko}", nonce: "SECDIEDRAWNONCE",
+            actionKey: "search", claimed: true, loaded: "${forgedDie.nonce}", calls: ["${forgedDie.nonce}"], costs: [],
+            roll: ${JSON.stringify({ ...unthrown, options: { ...unthrown.options, drpgRollNonce: "SECDIEDRAWNONCE" } })} }, ${toGms});
+        return true;`);
+    const readDieDraw = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        const row = Object.values(S.rollStore?.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${dieFrom})
+            .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0] ?? null;
+        const f = game.actors.get("${ids.aiko}").getFlag("${MOD}", "pendingCall");
+        return { armed: (Array.isArray(f) ? f : f ? [f] : []).some(e => e?.nonce === "${forgedDie.nonce}"),
+            row: row ? { calls: row.used?.calls ?? null, loaded: row.used?.loaded ?? null, hope: row.hope } : null };`;
+    let dieDraw = null;
+    for (let i = 0; i < 60 && !dieDraw?.row; i++) {
+        dieDraw = await gm.eval(readDieDraw);
+        if (!dieDraw.row) await settle(100);
+    }
+    dieDraw.told = await p1.eval(`return globalThis.__dieTold.slice();`);
+    check("SECURITY: a Loaded Die a console writes on its own student is put back, and a drawn roll naming it is not loaded",
+        Boolean(dieDraw.row) && dieDraw.armed === false && dieDraw.row.loaded === false && !(dieDraw.row.calls ?? []).includes(forgedDie.nonce)
+        && dieDraw.told.includes("sheetPutBack"), JSON.stringify(dieDraw), { flow: "call-arm" });
     // The draws above are this check's alone: their records and messages go.
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const ids = Object.entries(S.rollStore?.entries() ?? {}).filter(([, r]) => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom});
@@ -2171,11 +2207,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         const relayed = { after: await gm.eval(readHope), told: await p1.eval(`return globalThis.__hopeTold.slice();`) };
         const bought = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
             const a = game.actors.get("${ids.aiko}");
+            globalThis.__hopeTold.length = 0;
             await a.update({ "system.resources.hope.value": 6 });
             return Boolean(await C.spendHopeCall(a, "determination"));`, { timeout: 30000 });
-        await untilHope(0);
+        await untilHope(2);
         await settle(1200);
-        const spent = { bought, after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readHope))) };
+        const spent = { bought, after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readHope))),
+            told: await p1.eval(`return globalThis.__hopeTold.slice();`) };
         consoleHope = { raised, relayed, spent };
     } finally {
         await gm.eval(`const a = game.actors.get("${ids.aiko}");
@@ -2191,8 +2229,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("RELAY: a player's Hope raised through Daggerheart's relay with no roll behind it is refused, nothing written, and the player told",
         Boolean(consoleHope) && consoleHope.relayed.after === 2 && consoleHope.relayed.told.includes("relay"),
         JSON.stringify(consoleHope?.relayed ?? null), { flow: "sheet-audit" });
-    check("SECURITY: a forged Hope spent at once on a 3-Hope Call is paid out of the Hope really held - 0 on every client, not 3",
-        Boolean(consoleHope) && consoleHope.spent.bought === true && consoleHope.spent.after.every(n => n === 0),
+    /* E29 C8 (05.10.2026): the Resolve is bought on the GM now, which asks the Hope it holds once the audit has judged the
+       forged write (gm-bridge.mjs `call.arm`'s `prepare`): 2 of 3, refused, nothing paid. Until C8 p1's browser paid it out
+       of its own 6 and the audit's put-back by a delta left 0 - or, when the put-back landed before the Call read the Hope,
+       p1's browser refused it with 2, and C4's check came out red (1 run of 2 at C7, 05.10.2026). Either road now refuses
+       it - p1's browser when the put-back is there first, the GM otherwise (`told` says which) - and pays nothing. */
+    check("SECURITY: a forged Hope spent at once on a 3-Hope Call is refused - nothing paid, 2 on every client",
+        Boolean(consoleHope) && consoleHope.spent.bought === false && consoleHope.spent.after.every(n => n === 2),
         JSON.stringify(consoleHope?.spent ?? null), { flow: "sheet-audit" });
 
     /*

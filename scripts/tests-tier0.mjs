@@ -5468,6 +5468,8 @@ const REGRESSIONS = [
             searchTheftOf: "why", traceBandOf: "why", progressOf: "why",
             // E08+E28 fix r2-H1: the draw of a player's roll, held to the action it is for before it is thrown.
             drawOnGm: "refused", drawRefusal: "returns",
+            // E29 C8: a Call on the buyer's own character, the other half of `guardArmPlayerCall`.
+            ownArmRefusal: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);

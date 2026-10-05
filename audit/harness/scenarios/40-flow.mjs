@@ -374,6 +374,67 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     const gmNotifs = await notifs(gm);
     console.log("[qa] gm notifications after Ultimate:", JSON.stringify(gmNotifs));
 
+    /* A CALL ON ONE'S OWN CHARACTER IS BOUGHT ON THE GM (E29 C8, 05.10.2026; the plan's 3.3). p1 buys an Experience for
+       Aiko from her sheet's own road (calls.mjs `spendHopeCall`), the GM says yes on the card in p1's thread, and p1 then
+       throws a statistic of Aiko's, drawn by the GM. Read on the GM: who wrote Aiko's Hope and her armed list from the ask
+       to the end of the roll, her Hope paid, the entry armed and its time, and the roll's record - the Calls it used. Aiko's
+       list is emptied first and put back after, her Hope too. Until C8 p1's browser paid the Hope and armed the Call itself. */
+    phase("a Call on one's own character", { flow: "call-arm" });
+    const ownWas = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await a.update({ "system.resources.hope.value": 3 });
+        await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        const w = globalThis.__ownCallWrites = { hope: [], calls: [], from: Date.now() };
+        w.hook = Hooks.on("updateActor", (d, c, o, u) => {
+            if (d.id !== a.id) return;
+            if (foundry.utils.hasProperty(c, "system.resources.hope")) w.hope.push(u ?? null);
+            if (foundry.utils.hasProperty(c, "flags.${MOD}.pendingCall") || foundry.utils.hasProperty(c, "flags.${MOD}.-=pendingCall")) w.calls.push(u ?? null);
+        });
+        return was;`);
+    let ownCall = null;
+    try {
+        const ownAsk = p1.eval(`const C = await import("${REPO}/scripts/calls.mjs");
+            const r = await C.spendHopeCall(game.actors.get("${ids.aiko}"), "experience", { note: "E29 C8 an Experience of Aiko's own" });
+            return r === null ? null : typeof r;`, { timeout: 90000 });
+        await settle(1500);
+        const ownCard = await gm.eval(`
+            const S = await import("${REPO}/scripts/secret.mjs"), B = await import("${REPO}/scripts/gm-bridge.mjs");
+            for (const m of game.drpg.messengerThreadMessages("${p1.userId}").slice().reverse()) {
+                const hit = S.contentOf(m).match(/data-drpg-call="approveCall"([^>]*)>/);
+                if (!hit) continue;
+                const rid = hit[1].match(/data-rid="([^"]+)"/)?.[1], asker = hit[1].match(/data-asker="([^"]+)"/)?.[1];
+                return { found: true, sent: B.answerHopeCall(rid, asker, true) };
+            }
+            return { found: false };`, { timeout: 30000 });
+        const bought = await ownAsk;
+        const armed = await gm.eval(`const a = game.actors.get("${ids.aiko}"), w = globalThis.__ownCallWrites;
+            const f = a.getFlag("${MOD}", "pendingCall"), e = (Array.isArray(f) ? f : f ? [f] : []).find(x => x?.key === "experience") ?? null;
+            return { hope: a.system.resources.hope.value, nonce: e?.nonce ?? null, at: typeof e?.at === "number" && e.at >= w.from };`);
+        const rolled = await p1.eval(`const A = await import("${REPO}/scripts/action-rolls.mjs");
+            globalThis.__forceRoll = { hope: 7, fear: 4 };
+            try { return (await A.rollTrait(game.actors.get("${ids.aiko}"), "eye", {}))?.total ?? null; } finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+        await settle(800);
+        const counted = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs"), w = globalThis.__ownCallWrites;
+            const row = Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.at >= w.from).sort((a, b) => b.at - a.at)[0] ?? null;
+            return { used: row?.used?.calls ?? null, total: row?.total ?? null, hopeBy: [...new Set(w.hope)], callsBy: [...new Set(w.calls)], gm: game.user.id };`);
+        ownCall = { card: ownCard, bought, armed, rolled, counted };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"), w = globalThis.__ownCallWrites, was = ${JSON.stringify(ownWas)};
+            if (w?.hook) Hooks.off("updateActor", w.hook);
+            delete globalThis.__ownCallWrites;
+            await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hope.value": was.hope });
+            if (was.calls) await a.setFlag("${MOD}", "pendingCall", was.calls); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("gm: p1's Experience on Aiko is paid and armed by the GM after its yes - every write of her Hope and armed list the GM's - and her drawn roll counts it",
+        Boolean(ownCall) && ownCall.card.found && ownCall.bought === "object" && ownCall.armed.hope === 2 && Boolean(ownCall.armed.nonce)
+            && ownCall.armed.at === true && ownCall.counted.hopeBy.length > 0 && ownCall.counted.hopeBy.every(u => u === ownCall.counted.gm)
+            && ownCall.counted.callsBy.length > 0 && ownCall.counted.callsBy.every(u => u === ownCall.counted.gm)
+            && (ownCall.counted.used ?? []).includes(ownCall.armed.nonce) && ownCall.counted.total === ownCall.rolled,
+        JSON.stringify(ownCall), { flow: "call-arm" });
+
     // ---- 4. messenger both ways -------------------------------------------------------------
     phase("the messenger", { flow: "messenger" });
     await clearLogs();

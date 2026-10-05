@@ -2455,7 +2455,7 @@
         "monocub.meddle": "Confusion",
         "body.loot": "Take from the body",
         "advancement.apply": "Level Up",
-        "call.arm": "A Call for somebody else",
+        "call.arm": "A Call bought for a roll",
         "daggerheart": "A Daggerheart change",
         "remnant.tieForItem": "Tie a trace to the crime",
         "observe.target": "Choose what to Observe",
@@ -2964,7 +2964,8 @@
         "itemQuantity": "An item's count",
         "itemLocation": "Where an item is kept",
         "itemDeleted": "An item taken off the sheet",
-        "itemCreated": "An item added to the sheet"
+        "itemCreated": "An item added to the sheet",
+        "pendingCall": "Calls armed for the next roll"
       },
       "credit": "Given back from what was paid before: {what}",
       "flagged": "{player} changed {name}'s sheet by hand, and nothing the module knows of covers it. It stands until a GM decides:",

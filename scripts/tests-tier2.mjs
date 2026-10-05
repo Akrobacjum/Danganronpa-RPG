@@ -5245,6 +5245,87 @@ const SCENARIOS = [
             "the GM did not load an armed Loaded Die, loaded one nothing armed, or left the one it loaded armed (per draw: Hope, Fear, loaded, still armed)");
     }],
 
+    ["a Call bought with too little Hope is refused before anything is paid, and one paid for is armed by the GM on the buyer's own character", async () => {
+        /*
+         * E29 C8, 05.10.2026; the plan's 3.3. A player's Call on their own character is bought on the
+         * GM now, as a Support on somebody else's is (gm-bridge.mjs `call.arm`). A player's Resolve (3
+         * Hope) for their own character, as their browser asks it, handed to the bridge's runner with
+         * the player's id: at 2 Hope, then at 3. The packet says it was armed at 1 (a time the GM did
+         * not write is a claim). Read: the reply, the character's Hope, and the entry the GM armed with
+         * its time. Until C8 the GM refused the own character's Call as no Support whatever the Hope
+         * (the player's browser armed and paid for it itself).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the purchase is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const E = await import("./call-effects.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = theirs.system.resources.hope.value;
+        must(!E.armedCallsShown(theirs).some(c => c.grants === "trait"), `${theirs.name} already holds a Resolve - a second is refused for that, and this would measure it`);
+        const t0 = Date.now(), read = [], nonces = ["E29C8RESOLVE0001", "E29C8RESOLVE0002"];
+        try {
+            for (const [hope, nonce] of [[2, nonces[0]], [3, nonces[1]]]) {
+                await trustedWrite(theirs, { [HOPE]: hope }, { reason: "gmRuling" });
+                const sent = [];
+                await G.judge(BRIDGE_ACTIONS, { action: "call.arm", requestId: `E29C8${nonce}`, actorId: theirs.id,
+                    call: { key: "determination", kind: "hope", grants: "trait", from: theirs.id, nonce, at: 1 } }, player.id,
+                { send: (to, reply) => sent.push(reply) });
+                await settle();
+                const entry = E.armedCallsShown(theirs).find(c => c.nonce === nonce) ?? null;
+                const answer = sent.find(r => r?.action === "bridge.refused" || r?.action === "bridge.done") ?? null;
+                read.push([answer?.action ?? null, answer?.reason ?? null, theirs.system.resources.hope.value,
+                    entry ? [entry.grants, entry.at >= t0 && entry.at <= Date.now()] : null]);
+            }
+        } finally {
+            await E.consumeCallsByNonce(theirs, nonces);
+            if (theirs.system.resources.hope.value !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+        }
+        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 2, null], ["bridge.done", null, 0, ["trait", true]]]),
+            "a Call on the buyer's own character was paid or armed with too little Hope, not paid and armed by the GM with enough, or kept the packet's time (per ask: answer, reason, Hope after, entry armed and its time the GM's)");
+    }],
+
+    ["a drawn roll applies only the Calls the GMs hold armed: a Loaded Die a player's browser wrote is put back and not loaded", async () => {
+        /*
+         * E29 C8, 05.10.2026; the plan's 1.5 item 5, fix r2-H8's H8-6. The GM drew a roll with every
+         * armed entry the packet named that the character's flag held - and the flag was the owner's to
+         * write, so a console's Loaded Die, paid for by nothing, had its 12 forced. Two readings. A
+         * player's write adding a Loaded Die to their character's armed list, judged as theirs
+         * (`asPlayerWrite`): the verdict, and whether the list still holds it and the entry that was
+         * there. Then the same entry written where the GMs' mark does not take it (the audit's aside)
+         * and a draw naming it as its Calls and its loaded mark, the harness's faces 3 and 5: the
+         * record's Hope die and `used.loaded`. Until C8 the write was listed and stood, and the GM
+         * loaded the die (12).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
+        const listOf = () => { const f = theirs.getFlag(MODULE_ID, FLAGS.pendingCall); return Array.isArray(f) ? f : f ? [f] : []; };
+        const honest = "E29C8HONESTSUPP1", forged = { key: "freeCrit", kind: "hope", grants: "critical", amount: null, nonce: "E29C8FORGEDDIE01" };
+        const read = [];
+        try {
+            await E.appendArmedCall(theirs, { key: "support", kind: "hope", grants: "advantage", amount: null, nonce: honest });
+            must(listOf().some(c => c.nonce === honest), "the GM's own Support was not armed - this would measure nothing");
+            const judged = await asPlayerWrite(theirs, { [flag]: [...listOf(), forged] }, player);
+            read.push([judged?.verdict ?? null, listOf().map(c => c.nonce).filter(n => n === honest || n === forged.nonce)]);
+            await theirs.update({ [flag]: [...listOf(), forged] }, { [AUDIT_ASIDE]: true });
+            must(listOf().some(c => c.nonce === forged.nonce), "the entry the mark does not hold is not on the flag - this would measure nothing");
+            const F = await drawnForPlayer(player, theirs, { faces: { hope: 3, fear: 5 }, edit: p => ({ ...p, loaded: forged.nonce, calls: [forged.nonce] }) });
+            try {
+                read.push([F.record?.hope ?? null, F.record?.used?.loaded ?? null, F.record?.used?.calls ?? null]);
+            } finally {
+                await F.putBack();
+            }
+        } finally {
+            await E.spendCallsByNonce(theirs, [honest, forged.nonce]);
+        }
+        equal(stableJson(read), stableJson([["putBack", [honest]], [3, false, []]]),
+            "a Loaded Die a player's browser wrote stood, took the GMs' own entry with it, or was loaded on a drawn roll (the write's verdict and the list after; the record's Hope die, loaded, Calls used)");
+    }],
+
     ["a Confusion reported spent without a roll naming it stays armed", async () => {
         /*
          * E08+E28 C12b, 04.10.2026; the owner's note of 28.09.2026 on E06 fix r2-G4. A player's ask

@@ -230,6 +230,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["notASupport", /^".*" is not a Hope Call a player can buy for somebody else$/],
     ["notASupport", /^".*" is not aimed at another player$/],
     ["notASupport", /^a Call for somebody else, aimed at the buyer$/],
+    // E29 C8: a Call on the buyer's own character that is not one (call-effects.mjs ownArmRefusal).
+    ["notASupport", /^".*" is not a Hope Call a player can buy for their own character$/],
+    ["notASupport", /^".*" is aimed at somebody else$/],
     ["hopeBarred", /^the buyer may not spend a Hope Call now \(.*\)$/],
     ["notEnoughHope", /^the buyer holds .+ Hope, the Call costs .+$/],
     // E08+E28 C8: what only the GM's own Reroll takes back, asked by a player (guardUndoIsTheGms, gmOnly in gm-bridge.mjs).
@@ -724,8 +727,21 @@ export function guardArmCharacter(sender, payload, ctx) {
  */
 export async function guardArmPlayerCall(sender, payload, ctx) {
     if (sender.isGM) return null;
-    const { playerArmRefusal } = await import("./call-effects.mjs");
-    return playerArmRefusal(payload.call);
+    const { playerArmRefusal, ownArmRefusal } = await import("./call-effects.mjs");
+    return armedOnBuyer(payload) ? ownArmRefusal(payload.call) : playerArmRefusal(payload.call);
+}
+
+/*
+ * AND ON THE BUYER'S OWN CHARACTER (E29 C8, 05.10.2026; the plan's 3.3). A Call that arms the
+ * buyer's own next roll - Experience, Ultimate, Resolve, a Loaded Die - was written and paid on
+ * the player's browser until 1.2.68; it comes here now as a Support does, and is checked, paid
+ * and armed on the same road (gm-bridge.mjs `armPaidByPlayer`). Which of the two roads a packet
+ * is on is read from the packet's two ids, the buyer's and the beneficiary's: the same character,
+ * and only a Call aimed at nobody else passes (`ownArmRefusal`); two, and only one aimed at
+ * another player (`playerArmRefusal`). `owns` has tied the buyer to the sender before either.
+ */
+function armedOnBuyer(payload) {
+    return armBuyerId(payload) === payload.actorId;
 }
 
 /*
@@ -778,9 +794,9 @@ export function guardArmBuyer(sender, payload, ctx) {
     return game.actors.get(armBuyerId(payload)) ? null : "the paying character does not exist";
 }
 
-/** And be somebody other than the character the Call is armed on. */
+/** And, for a Call aimed at another player, be somebody other than the character it is armed on (E29 C8: any other is the buyer's own). */
 export function guardArmOtherCharacter(sender, payload, ctx) {
-    if (sender.isGM) return null;
+    if (sender.isGM || HOPE_CALLS[payload.call?.key]?.target !== "player") return null;
     const buyer = game.actors.get(armBuyerId(payload));
     return buyer && buyer.id === game.actors.get(payload.actorId)?.id
         ? "a Call for somebody else, aimed at the buyer" : null;

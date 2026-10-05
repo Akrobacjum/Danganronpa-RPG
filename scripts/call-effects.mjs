@@ -154,9 +154,14 @@ export function pendingCalls(actor) {
     return [...pendingCallsRaw(actor), ...armedConfusions(actor)];
 }
 
-/** Every Call armed on this character as this browser holds it, the shield aside: the sheet's badges. */
-export function armedCallsShown(actor) {
-    return [...pendingCallsRaw(actor), ...armedConfusions(actor)];
+/**
+ * Every Call armed on this character as this browser holds it, the shield aside: the sheet's badges.
+ * `held`, where given, is the nonces of the armed list the GMs hold (sheet-audit.mjs `armedCallsHeld`,
+ * E29 C8): an entry of the flag outside it is left out. A Confusion is the GMs' store already.
+ */
+export function armedCallsShown(actor, { held = null } = {}) {
+    const listed = pendingCallsRaw(actor);
+    return [...(held ? listed.filter(entry => held.has(entry.nonce)) : listed), ...armedConfusions(actor)];
 }
 
 /** The first Call armed on this character, for the readers that want just one. */
@@ -186,6 +191,21 @@ export function playerArmRefusal(call) {
     return null;
 }
 
+/**
+ * Why a player's client may not arm this Call on the buyer's own character, or null when it may
+ * (E29 C8, 05.10.2026; the plan's 3.3): a Hope Call aimed at nobody else (`target: "none"`) with
+ * the `grants` the table gives it - Experience, Ultimate, Resolve, the Loaded Die. The rules
+ * `refusalBeforePaying` states for them are the other guards' (a second copy, the buyer's Hope,
+ * a Hope Call barred). Pure, for the suite.
+ */
+export function ownArmRefusal(call) {
+    const def = HOPE_CALLS[call?.key];
+    if (!def) return `"${call?.key}" is not a Hope Call a player can buy for their own character`;
+    if (def.target !== "none") return `"${call.key}" is aimed at somebody else`;
+    if (!def.grants || def.grants !== call.grants) return `"${call.key}" does not grant "${call?.grants}"`;
+    return null;
+}
+
 /** Is this Call already armed on this character, in a way a second copy adds nothing to? */
 export function alreadyArmed(actor, call) {
     if (!call?.grants || DICE_GRANTS.has(call.grants)) return false;
@@ -195,10 +215,17 @@ export function alreadyArmed(actor, call) {
 /**
  * Arm a Call so the next roll can use what it bought.
  *
- * Support and Approval arm someone *else*, and a player has no write access
- * to another player's actor - the flag write throws "lacks permission". Those go
- * through the GM, who does have it. The Monokuma side never needs the detour:
- * a GM can write to anyone.
+ * A PLAYER'S CALL IS ARMED BY THE GM, ON ANY CHARACTER (E29 C8, 05.10.2026; decision D2, the plan's
+ * 3.3; left to E29 by E08+E28 fix r2-H8, H8-6). Support arms somebody else's character, which a
+ * player cannot write, so it went through the GM from the start, and the GM took its price there
+ * (E03). A Call on the buyer's own character - Experience, Ultimate, Resolve, a Loaded Die - was
+ * written here, on the player's own flag, and paid here: a console armed a Loaded Die it never paid
+ * for, and the GM forced its 12 on the roll it drew (the plan's 1.5, item 5, by reading). Every
+ * player's Call goes the bridge's way now, `call.arm`, where the GM checks it, takes the buyer's
+ * Hope and appends the entry; an entry a player's browser adds itself is put back by the GMs' audit
+ * (sheet-audit.mjs), and a drawn roll applies only what the GMs hold (roll-draw.mjs `throwDrawn`).
+ * With no GM connected the bridge says so (`noGm`), and nothing is armed or paid. A GM - a
+ * Monokuma, a Monocub's Meddle resolved on the GM - writes it directly.
  */
 export async function armCall(actor, { key, kind, grants, amount = null, from = null }) {
     if (!actor || !grants) return null;
@@ -212,7 +239,7 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     // name - see `LOADED_DIE` in forced-roll.mjs.
     const payload = { key, kind, grants, amount, from, nonce: foundry.utils.randomID() };
 
-    if (!actor.isOwner) {
+    if (!game.user?.isGM) {
         // Answered now, not just sent (E03): the GM charges the buyer and may
         // refuse, and null here is "not armed, and nothing was charged".
         const { requestArmCall } = await import("./gm-bridge.mjs");
@@ -330,13 +357,19 @@ export async function unsignArmedCalls() {
 
 /**
  * Add one ready payload to the armed list. GM-side, and the one writer: the
- * bridge arms Support and Approval on somebody else's sheet through here, so
- * stacking (CALL-02) holds on that road too.
+ * bridge arms every player's Call through here (E29 C8; Support on somebody
+ * else's sheet since E03), so stacking (CALL-02) holds on that road too.
+ *
+ * `at` is when this GM armed it, by this GM's clock, written over whatever the
+ * payload says (E29 C8, for C9's reading of a hostile Call: the owner's Q3 (a),
+ * applied when armed more than 60 s before the draw). An entry armed before
+ * 1.2.68 has none.
  */
 export async function appendArmedCall(actor, payload) {
-    if (!actor || !payload?.grants) return null;
-    if (payload.key === CONFUSION) return armConfusion(actor, payload);
-    await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), payload].map(unsigned));
+    if (!actor || !payload?.grants || !game.user?.isGM) return null;
+    const entry = { ...payload, at: Date.now() };
+    if (entry.key === CONFUSION) return armConfusion(actor, entry);
+    await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), entry].map(unsigned));
     return true;
 }
 

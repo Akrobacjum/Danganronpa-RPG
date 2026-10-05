@@ -2545,7 +2545,7 @@
           "offer": "Oferta Level Up",
           "ask": "Twoje oferty Level Up"
         },
-        "call.arm": "Call dla kogoś innego",
+        "call.arm": "Call kupiony na rzut",
         "daggerheart": "Zmiana w Daggerheart",
         "remnant.tieForItem": "Powiązanie śladu ze zbrodnią",
         "observe.target": "Wybór celu Observe",
@@ -3076,7 +3076,8 @@
         "itemQuantity": "Liczba sztuk przedmiotu",
         "itemLocation": "Miejsce przechowywania przedmiotu",
         "itemDeleted": "Przedmiot usunięty z karty",
-        "itemCreated": "Przedmiot dodany do karty"
+        "itemCreated": "Przedmiot dodany do karty",
+        "pendingCall": "Calle uzbrojone na następny rzut"
       },
       "credit": "Zwrócone z tego, co zapłacono wcześniej: {what}",
       "flagged": "Ręczna zmiana karty postaci {name} od {player}, której nie pokrywa nic, o czym wie moduł. Zostaje, dopóki GM nie zdecyduje:",

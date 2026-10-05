@@ -70,8 +70,10 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
         entry: { api: ["discoverBody"] }, scenarios: ["10-murder"], status: "covered", stage: "<=1.2.50" },
-    { id: "call-arm", what: "A Call armed on a character: paid on the caller's side, armed by the GM",
-        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
+    // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
+    // one on the flag and draws a roll naming it, 33 asks for one with no GM connected.
+    { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
+        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask"], sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E40" },
