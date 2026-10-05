@@ -6585,8 +6585,10 @@ const REGRESSIONS = [
          * suite then names one (the suite's own calls take their default, "gmRuling"); and outside
          * the suite no `update`, `setFlag`, `unsetFlag` or embedded write names a protected flag of
          * inventory.mjs's ITEM_FLAGS (category, tier, drpgItemId, wear, broken, location,
-         * stashRoom). It reads a call's own text: flags built elsewhere and handed in by name are
-         * not seen. The reader is run first on a fixture with seven planted faults. Red before C1:
+         * stashRoom, and since E29 fix r1-G2 roles and usableKind - though not `"roles"` as a bare
+         * string: tables.mjs writes a table entry's flag of that name, which this reader cannot
+         * tell from an item's). It reads a call's own text: flags built elsewhere and handed in by
+         * name are not seen. The reader is run first on a fixture with nine planted faults. Red before C1:
          * 37 `automatedUpdate` calls in 17 files, 37 more in tier 2, eight bare writes of a
          * protected item flag (wear, broken, the creation, a stash and a retrieve, a Reroll's two
          * give-backs, the bullets' migration). E33 extends it.
@@ -6601,7 +6603,7 @@ const REGRESSIONS = [
             ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false],
             // E29 C4: the Burst and Sprint grants go through the road, their reason the caller's (a Call, or a refund).
             ["actions.mjs", "grantFreeActions", true], ["actions.mjs", "grantFreeMoves", true]];
-        const PROTECTED = /\bITEM_FLAGS\s*\.\s*(?:category|tier|identity|wear|broken|location|stashRoom)\b|\$\{MODULE_ID\}\.(?:-=)?(?:category|tier|drpgItemId|wear|broken|location|stashRoom)\b|^\s*"(?:category|tier|drpgItemId|wear|broken|location|stashRoom)"\s*$/m;
+        const PROTECTED = /\bITEM_FLAGS\s*\.\s*(?:category|tier|identity|wear|broken|location|stashRoom|roles|kind)\b|\$\{MODULE_ID\}\.(?:-=)?(?:category|tier|drpgItemId|wear|broken|location|stashRoom|roles|usableKind)\b|^\s*"(?:category|tier|drpgItemId|wear|broken|location|stashRoom|usableKind)"\s*$/m;
         const named = text => text.match(/\breason\s*:\s*"([^"\n]*)"/)?.[1] ?? null;
         const forwarding = (file, blank, at) => {
             const fn = [...blank.slice(0, at).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].pop()?.[1];
@@ -6652,11 +6654,13 @@ const REGRESSIONS = [
             "await item.update({ [`flags.${MODULE_ID}.wear`]: forcedDeletion(), \"system.quantity\": 1 });",
             "await grantItem(actor, { name: \"x\", category: \"tool\", tier: 1 });",
             "// await automatedUpdate(actor, {}); and \"trustedWrite(a, b)\" in a string",
-            "await item.update({ \"system.quantity\": 1 }); await breakItem(item, { reason: \"itemUse\" });"
+            "await item.update({ \"system.quantity\": 1 }); await breakItem(item, { reason: \"itemUse\" });",
+            "await item.setFlag(MODULE_ID, ITEM_FLAGS.roles, [\"crimeTool\"]);",
+            "await item.update({ [`flags.${MODULE_ID}.usableKind`]: \"stress\" });"
         ].join("\n");
         equal(JSON.stringify(problemsIn("planted.mjs", PLANTED, false).map(p => Number(p.match(/^planted\.mjs:(\d+) /)?.[1]))),
-            JSON.stringify([1, 2, 4, 5, 8, 6, 7]),
-            "the reader does not see the planted writes as they are - a call past the roads, the marker by hand, an unlisted reason, none, a forwarder's call without one, a protected flag set and unset, a comment and a string");
+            JSON.stringify([1, 2, 4, 5, 8, 6, 7, 11, 12]),
+            "the reader does not see the planted writes as they are - a call past the roads, the marker by hand, an unlisted reason, none, a forwarder's call without one, a protected flag set and unset, a comment and a string, an item's roles and usable kind written by hand");
         read.roads = read.calls = read.writes = 0;
         const others = new Set((await otherSources()).map(([file]) => file));
         const problems = [];

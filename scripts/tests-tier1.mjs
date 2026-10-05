@@ -5696,9 +5696,10 @@ const LITERAL_KEYS = [
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
     // sheet-audit.mjs names a field put back by its kind (E29 C3), and bridge-guards.mjs `requestLabel` the same;
-    // a flagged one too (C5: actions, Health, Sanity, the grants), an item's (C6), and an armed Call (C8).
+    // a flagged one too (C5: actions, Health, Sanity, the grants), an item's (C6), an armed Call (C8), and
+    // Daggerheart's level-up selections (E29 fix r1-G2).
     ...["traits", "experience", "max", "rules", "bonuses", "flag", "effect", "hope", "actions", "hitPoints", "stress", "grant",
-        "itemFlag", "itemQuantity", "itemLocation", "itemDeleted", "itemCreated", "pendingCall"]
+        "itemFlag", "itemQuantity", "itemLocation", "itemDeleted", "itemCreated", "pendingCall", "levelData"]
         .map(kind => `DRPG.Audit.field.${kind}`)
 ];
 

@@ -11,16 +11,19 @@
  *
  * WHAT THE GMS HOLD (`sheetMarks`, gm-stores.mjs). Per student, the last judged
  * values: its statistics (`system.traits`), experiences, each resource's value and
- * maximum, `system.rules` and `system.bonuses`, the module flags below and its
- * effects. A GM's write is never judged, and what it names is the new mark; so is
+ * maximum, `system.rules` and `system.bonuses`, Daggerheart's level-up selections
+ * (`system.levelData`, since E29 fix r1-G2), the module flags below and its effects.
+ * A GM's write is never judged, and what it names is the new mark; so is
  * whatever a verdict leaves standing of what a player's write named. Either is taken
  * as the write's hook saw it, never read off the document when its judgement ends
- * (E29 fix r1-G1: `pathsSeen`, `markAfter`). Filled from the documents when the
- * primary's stores hydrate and a student has none.
+ * (E29 fix r1-G1: `pathsSeen`, `markAfter`). A write that replaces or deletes a whole
+ * part - `system.resources`, the module's flags, an item's `flags` - is judged on every
+ * leaf under it, as the comparison at ready reads a sheet (G2: `reachOf`). Filled from
+ * the documents when the primary's stores hydrate and a student has none.
  *
  * WHAT IS PUT BACK, with the world setting `lockPlayerResources` on (its default):
- * any change to a statistic, an experience, a maximum, `system.rules` or
- * `system.bonuses`; any change to a GM-only flag (`GM_FLAGS`); an effect that
+ * any change to a statistic, an experience, a maximum, `system.rules`,
+ * `system.bonuses` or `system.levelData`; any change to a GM-only flag (`GM_FLAGS`); an effect that
  * carries a statistic, an experience, a maximum, a rule or a bonus, or is one of
  * the module's own statuses - created (deleted), changed (written back) or deleted
  * (made again under its id). A statistic or a maximum goes back to its mark, not by a
@@ -66,7 +69,9 @@
  *
  * THE MODULE'S ITEMS (C6, 05.10.2026; audit S08-57; the plan's 2.6). The mark holds each
  * module item of a student (one with a `category`) whole, as a GM's write or the last
- * verdict left it. A `category`, `tier` or `drpgItemId` changed is put back; so is a
+ * verdict left it, and since G2 each of its classes, whose hit points Daggerheart adds to
+ * the Health maximum: those are put back as a maximum is. A `category`, `tier`,
+ * `drpgItemId`, `roles` or `usableKind` (the last two since G2) changed is put back; so is a
  * `broken` cleared, a `wear` lowered or a count raised - each one's other way stands, as
  * a use or a break spends it. A move into or out of a stash (`location`, `stashRoom`)
  * stands when the student stands, as this GM sees it, in a room with a stash of theirs
@@ -171,17 +176,44 @@ const FLAGGED_CARD = "sheetFlagged";
 /** The item hooks (C6): a module item's flags and count, a deletion, a creation. */
 const ITEM_WRITES = new Set(["updateItem", "createItem", "deleteItem"]);
 
-/** A module item's flags only a GM changes, whichever way (the plan's 2.6). */
-const ITEM_FIXED = [ITEM_FLAGS.category, ITEM_FLAGS.tier, ITEM_FLAGS.identity];
+/*
+ * A module item's flags only a GM changes, whichever way (the plan's 2.6). Since E29 fix r1-G2 also
+ * what it serves as besides its category (`roles`: inventory.mjs `servesAs`, which murder.mjs reads
+ * for a swung weapon and use-items.mjs `equippedFor` for a role's tool) and what a usable restores
+ * (`usableKind`). `grantItem` sets them on the item it makes, which is judged as an item created,
+ * and only migrate.mjs writes `roles` on one that exists, on the primary GM (review round 1 sec M3
+ * = cor M5, which measured a console's `roles` making a carried item serve as a crime tool, no row).
+ */
+const ITEM_FIXED = [ITEM_FLAGS.category, ITEM_FLAGS.tier, ITEM_FLAGS.identity, ITEM_FLAGS.roles, ITEM_FLAGS.kind];
 
 /** Where a module item is kept: carried, or which stash. */
 const ITEM_PLACE = [ITEM_FLAGS.location, ITEM_FLAGS.stashRoom];
 
+/*
+ * A student's class (G2; review round 1 sec B4): Daggerheart 2.10.5 adds the first class item's
+ * `system.hitPoints` to the Health maximum (data/actor/character.mjs, `prepareBaseData`, read
+ * 05.10.2026), so the mark holds a student's class items whole beside its module items, and a
+ * player's change of their hit points is put back as a maximum is. Which class item counts
+ * (`isMulticlass`) is not judged: a second one comes only as an item created, which the GMs are
+ * asked about (C6).
+ */
+const CLASS_HIT_POINTS = "system.hitPoints";
+
+/** Every path of an item's write this file judges (the plan's 2.6): its count and the flags above, and a class's hit points. */
+const ITEM_JUDGED = ["system.quantity", ...[...ITEM_FIXED, ITEM_FLAGS.broken, ITEM_FLAGS.wear, ...ITEM_PLACE].map(flag => `flags.${MODULE_ID}.${flag}`)];
+
 /** The flag of the GMs' card of the changes made with no GM watching (C7): the ids of the rows it asks about. */
 const AWAY_CARD = "sheetAway";
 
-/** The parts of a student's document the mark holds and the comparison at ready reads, besides `MARKED_FLAGS`. */
-const MARK_ROOTS = ["system.traits", "system.experiences", "system.resources", "system.rules", "system.bonuses"];
+/*
+ * The parts of a student's document the mark holds and the comparison at ready reads, besides
+ * `MARKED_FLAGS`. `system.levelData` since G2 (review round 1 sec B4): Daggerheart's level-up
+ * selections, which with its `levelupAuto` on - its default, which the module never sets - add to
+ * a statistic, an experience, the Health and Sanity maxima and a roll's dice (character.mjs
+ * `prepareBaseData`, read 05.10.2026). No player road writes them: the module's Level Up is
+ * `applyAdvancement`, on a GM (R79), and the module writes no `levelData` at all.
+ */
+const MARK_ROOTS = ["system.traits", "system.experiences", "system.resources", "system.rules", "system.bonuses", "system.levelData"];
 
 /** Every root of a student's document the mark keeps: the five above and each marked flag. */
 const MARKED_PATHS = [...MARK_ROOTS, ...MARKED_FLAGS.map(key => `flags.${MODULE_ID}.${key}`)];
@@ -224,10 +256,10 @@ function markFrom(actor) {
     const flags = src.flags?.[MODULE_ID] ?? {};
     return {
         traits: clone(system.traits ?? {}), experiences: clone(system.experiences ?? {}), resources: clone(system.resources ?? {}),
-        rules: clone(system.rules ?? {}), bonuses: clone(system.bonuses ?? {}),
+        rules: clone(system.rules ?? {}), bonuses: clone(system.bonuses ?? {}), levelData: clone(system.levelData ?? {}),
         flags: Object.fromEntries(MARKED_FLAGS.filter(key => flags[key] !== undefined).map(key => [key, clone(flags[key])])),
         effects: Object.fromEntries((actor.effects?.contents ?? []).map(effect => [effect.id, docData(effect)])),
-        items: Object.fromEntries((actor.items?.contents ?? []).map(item => [item.id, docData(item)]).filter(([, data]) => isModuleItem(data)))
+        items: Object.fromEntries((actor.items?.contents ?? []).map(item => [item.id, docData(item)]).filter(([, data]) => heldItem(data)))
     };
 }
 
@@ -236,16 +268,22 @@ function isModuleItem(data) {
     return Boolean(data?.flags?.[MODULE_ID]?.[ITEM_FLAGS.category]);
 }
 
+/** Whether an item's data is a Daggerheart class (`CLASS_HIT_POINTS`). */
+const isClassItem = data => data?.type === "class";
+
+/** Whether the mark holds an item whole: a module item, or a class (G2). */
+const heldItem = data => isModuleItem(data) || isClassItem(data);
+
 /** An item's data read as the module's readers read an item (`getFlag`, `id`, `system`), with no document behind it. */
 function itemLike(src) {
     return { id: src._id, name: src.name, system: src.system,
         getFlag: (scope, key) => foundry.utils.getProperty(src.flags ?? {}, `${scope}.${key}`) };
 }
 
-/** A student's module items in the mark with one item's write taken in: its data as it now stands, or gone. */
+/** A student's module items and classes in the mark with one item's write taken in: its data as it now stands, or gone. */
 function itemsAfter(mark, item, data) {
     const items = { ...(mark?.items ?? {}) };
-    if (data && isModuleItem(data)) items[item.id] = data;
+    if (data && heldItem(data)) items[item.id] = data;
     else delete items[item.id];
     return items;
 }
@@ -296,7 +334,7 @@ const takeAll = (credit, key, n) => creditHeld(credit, key) >= n && takeCredit(c
 function markAsDocument(mark) {
     return {
         system: { traits: mark.traits ?? {}, experiences: mark.experiences ?? {}, resources: mark.resources ?? {},
-            rules: mark.rules ?? {}, bonuses: mark.bonuses ?? {} },
+            rules: mark.rules ?? {}, bonuses: mark.bonuses ?? {}, levelData: mark.levelData ?? {} },
         flags: { [MODULE_ID]: mark.flags ?? {} }
     };
 }
@@ -314,6 +352,7 @@ function pathsOf(changes, at = "") {
 function kindOf(path) {
     if (/^system\.traits(?:\.|$)/.test(path)) return "traits";
     if (/^system\.experiences(?:\.|$)/.test(path)) return "experience";
+    if (/^system\.levelData(?:\.|$)/.test(path)) return "levelData";
     if (/^system\..+\.max$/.test(path)) return "max";
     if (/^system\.rules(?:\.|$)/.test(path)) return "rules";
     if (/^system\.bonuses(?:\.|$)/.test(path)) return "bonuses";
@@ -439,6 +478,29 @@ export async function armedCallsHeld(actor) {
 const plainPath = path => path.replace(/(^|\.)[-=]=/g, "$1");
 
 /*
+ * WHAT A WRITE REACHES (E29 fix r1-G2, 05.10.2026; review round 1 sec B2). Each leaf a write names
+ * (`pathsOf`), as the path it writes: a key spelled the old way, `==key` or `-=key`, replaces or
+ * deletes all of that key, so the path is cut there and stripped (`system.==resources.hope.value`
+ * reaches `system.resources`). A leaf is everything under it that it was written over - v14's
+ * forced replacement or deletion is a leaf (`isPlain`), and so is any value but a plain object
+ * with keys - and each judgement reads it so: `names` takes a means under it as named, `judgedPaths` every leaf
+ * under it the mark and the write's hook disagree on, `itemPathsOf` every judged path of an item.
+ * Until this fix such a write was judged as the one path it named, which no judgement reads:
+ * measured on the harness by the review's probe on 69deef0, `system.resources` replaced whole raised
+ * Hope 2 to 6 and its maximum 6 to 8 and healed two Health marks, the module's flags replaced whole
+ * made the student a Monokuma, and all of it stood with no row. What v14 hands a hook for an operator
+ * - the instance, a plain value, or nothing at that key - is LIVE-E30-03: the harness hands the
+ * instance (lib/operators.mjs), and there a key spelled the old way changes nothing; Foundry is not
+ * measured.
+ */
+function reachOf(changes) {
+    return [...new Set(pathsOf(changes).map(raw => {
+        const parts = raw.split("."), cut = parts.findIndex(part => /^[-=]=/.test(part));
+        return plainPath(cut < 0 ? raw : parts.slice(0, cut + 1).join("."));
+    }))];
+}
+
+/*
  * A WRITE AS ITS HOOK SAW IT (E29 fix r1-G1, 05.10.2026; review round 1 sec B1 = cor B1). The value
  * of every path a write names, read off the document while its hook runs - a path the write left
  * absent as undefined - and, for a named ancestor of what the mark keeps (`system` written whole),
@@ -453,7 +515,7 @@ const plainPath = path => path.replace(/(^|\.)[-=]=/g, "$1");
  */
 function pathsSeen(src, changes) {
     const seen = {};
-    for (const named of pathsOf(changes).map(plainPath)) {
+    for (const named of reachOf(changes)) {
         const roots = MARKED_PATHS.filter(root => root.startsWith(`${named}.`));
         for (const path of roots.length ? roots : [named]) seen[path] = clone(foundry.utils.getProperty(src, path));
     }
@@ -496,7 +558,7 @@ function setMarked(mark, path, value) {
  * (`ledger`) or as held - never as written: the GMs' means are the ledger's alone (C4).
  */
 function markAfter(actor, held, { paths = {}, back = [], calls = null, effect = null, items = null, ledger = null } = {}) {
-    const next = Object.fromEntries(["traits", "experiences", "resources", "rules", "bonuses", "flags", "effects", "items"]
+    const next = Object.fromEntries(["traits", "experiences", "resources", "rules", "bonuses", "levelData", "flags", "effects", "items"]
         .map(field => [field, clone(held[field] ?? {})]));
     for (const [path, value] of Object.entries(paths)) setMarked(next, path, value);
     const was = markAsDocument(held);
@@ -639,7 +701,7 @@ function actorFindings(mark, changes, src) {
     const before = markAsDocument(mark);
     const lock = locked(), back = [], listed = [], change = {};
     let calls = null;
-    for (const path of pathsOf(changes)) {
+    for (const path of judgedPaths(before, changes, src)) {
         const kind = kindOf(path);
         if (!kind || (kind === "experience" && !experienceCounts(path, before))) continue;
         const was = foundry.utils.getProperty(before, path), now = foundry.utils.getProperty(src, path);
@@ -660,6 +722,20 @@ function actorFindings(mark, changes, src) {
         else back.push({ path, kind });
     }
     return { back, listed, change, calls };
+}
+
+/*
+ * The leaves a student's update is judged on (G2): what it reaches (`reachOf`), each read as the
+ * comparison at ready reads a sheet (`differing`) - every leaf under it, or under each root of the
+ * mark below it, that the mark (`before`) and `src` hold differently. A path outside what the mark
+ * keeps is judged as it is named. On a write of plain values the leaves are the paths it names.
+ */
+function judgedPaths(before, changes, src) {
+    return [...new Set(reachOf(changes).flatMap(path => {
+        const roots = MARKED_PATHS.filter(root => root.startsWith(`${path}.`));
+        if (roots.length) return differing(before, src, roots);
+        return MARKED_PATHS.some(root => path === root || path.startsWith(`${root}.`)) ? differing(before, src, [path]) : [path];
+    }))];
 }
 
 /*
@@ -686,9 +762,13 @@ function putBackNow(actor, mark, was, back, calls, patch = {}) {
  * The means: Hope, actions, marks and grants (C4)
  * ------------------------------------------------------------------------- */
 
-/** Whether a write names a path: a value, or v14's forced deletion of it (an operator is a value here). */
+/**
+ * Whether a write names a path: a value at it or under it, v14's forced deletion of it (an operator
+ * is a value here), or anything written over an ancestor of it - `system.resources` replaced whole
+ * names Hope and Health (G2, `reachOf`).
+ */
 function names(changes, path) {
-    return foundry.utils.hasProperty(changes ?? {}, path);
+    return reachOf(changes).some(at => at === path || at.startsWith(`${path}.`) || path.startsWith(`${at}.`));
 }
 
 /**
@@ -1042,11 +1122,15 @@ function itemFlagOf(path) {
     return path.startsWith(prefix) ? path.slice(prefix.length).split(".")[0].replace(/^-=/, "") : null;
 }
 
-/** A path of an item's update this file judges, as the flag or the count it names, or null. */
-function itemPathOf(path) {
-    if (path === "system.quantity") return path;
-    const flag = itemFlagOf(path);
-    return [...ITEM_FIXED, ITEM_FLAGS.broken, ITEM_FLAGS.wear, ...ITEM_PLACE].includes(flag) ? `flags.${MODULE_ID}.${flag}` : null;
+/*
+ * The paths of an item's update this file judges (`ITEM_JUDGED`; a class's hit points on a class), as
+ * far as the write reaches (`reachOf`, G2): a path under one of them is that one's, and a path over
+ * them - `flags.<module>` or `system` replaced whole - is each of them below it.
+ */
+function itemPathsOf(changes, data) {
+    const judged = isClassItem(data) ? [...ITEM_JUDGED, CLASS_HIT_POINTS] : ITEM_JUDGED;
+    return [...new Set(reachOf(changes).flatMap(path =>
+        judged.filter(each => each === path || each.startsWith(`${path}.`) || path.startsWith(`${each}.`))))];
 }
 
 /** An item's data with `paths` as they were in `before` (absent where they were absent). */
@@ -1093,7 +1177,7 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
     if (!now) return out;
     const CATEGORY = `flags.${MODULE_ID}.${ITEM_FLAGS.category}`;
     const before = held ?? withPaths(now, {}, [CATEGORY]);
-    const moved = [...new Set(pathsOf(changes).map(itemPathOf).filter(Boolean))].filter(path => (held || path === CATEGORY)
+    const moved = itemPathsOf(changes, held ?? now).filter(path => (held || path === CATEGORY)
         && stableJson(foundry.utils.getProperty(before, path) ?? null) !== stableJson(foundry.utils.getProperty(now, path) ?? null));
     const back = [];
     for (const path of moved) {
@@ -1103,7 +1187,7 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
         if (flag === ITEM_FLAGS.broken && is) continue;
         if (flag === ITEM_FLAGS.wear && Number(is ?? 0) > Number(was ?? 0)) continue;
         if (path === "system.quantity" && Number(is) < Number(was)) continue;
-        back.push({ path, kind: path === "system.quantity" ? "itemQuantity" : "itemFlag" });
+        back.push({ path, kind: path === "system.quantity" ? "itemQuantity" : path === CLASS_HIT_POINTS ? "max" : "itemFlag" });
     }
     if (moved.some(path => ITEM_PLACE.includes(itemFlagOf(path))) && !await placeStands(actor, item, before, now)) {
         back.push(...moved.filter(path => ITEM_PLACE.includes(itemFlagOf(path))).map(path => ({ path, kind: "itemLocation" })));
@@ -1279,7 +1363,7 @@ function fieldKind(path, [, now] = []) {
     // A field of an item or an effect put back at ready (C7), as `itemFindings` and `effectFindings` name theirs.
     if (/^effects\./.test(path)) return "effect";
     const inItem = /^items\.[^.]+\.(.+)$/.exec(path)?.[1];
-    if (inItem) return inItem === "system.quantity" ? "itemQuantity" : ITEM_PLACE.includes(itemFlagOf(inItem)) ? "itemLocation" : "itemFlag";
+    if (inItem) return inItem === "system.quantity" ? "itemQuantity" : inItem === CLASS_HIT_POINTS ? "max" : ITEM_PLACE.includes(itemFlagOf(inItem)) ? "itemLocation" : "itemFlag";
     return Object.values(LEDGER).find(entry => entry.path === path)?.kind ?? kindOf(path) ?? "flag";
 }
 
@@ -1407,25 +1491,26 @@ const unmarked = new Map();
  */
 function noteUnmarked(kind, doc, actor, changes) {
     const held = unmarked.get(actor.id) ?? new Set();
-    if (kind === "updateActor") for (const path of pathsOf(changes)) held.add(plainPath(path));
+    if (kind === "updateActor") for (const path of reachOf(changes)) held.add(path);
     else held.add(`${ITEM_WRITES.has(kind) ? "items" : "effects"}.${doc.id}`);
     unmarked.set(actor.id, held);
 }
 
 /*
- * Every leaf the mark and the document hold differently in what the mark keeps, the shallowest where
- * one holds an object and the other a value. An empty object is nothing: the mark keeps `rules` and
+ * Every leaf the mark and the document hold differently in what the mark keeps (or under `roots`: a
+ * write's reach, G2), the shallowest where one holds an object and the other a value. An empty
+ * object is nothing: the mark keeps `rules` and
  * `bonuses` as `{}` where the document has none (`markFrom`), and read as a difference that put an
  * empty object onto every student of the harness's world at every ready - the first run of the
  * suite's "finds nothing on an untouched world" (05.10.2026, e29run/c7a1: 8 put-backs, 4 students).
  */
-function differing(before, src) {
+function differing(before, src, roots = MARKED_PATHS) {
     const read = (doc, path) => {
         const value = foundry.utils.getProperty(doc, path);
         return isPlain(value) && !Object.keys(value).length ? null : value ?? null;
     };
     const leaves = new Set();
-    for (const root of MARKED_PATHS) {
+    for (const root of roots) {
         for (const doc of [before, src]) {
             const value = foundry.utils.getProperty(doc, root);
             if (isPlain(value) && Object.keys(value).length) for (const path of pathsOf(value, root)) leaves.add(path);

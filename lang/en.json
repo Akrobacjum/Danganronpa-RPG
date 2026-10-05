@@ -2953,6 +2953,7 @@
         "max": "A maximum",
         "rules": "Roll rules",
         "bonuses": "Bonuses",
+        "levelData": "Level Up choices",
         "flag": "The module's records",
         "effect": "An effect",
         "hope": "Hope",

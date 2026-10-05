@@ -25173,6 +25173,125 @@ const SCENARIOS = [
                 + "(put back at ready, the write's verdict, the first statistic, the second, the mark's second, the penalties left)");
     }],
 
+    /*
+     * A WRITE OVER A WHOLE PART OF A SHEET (E29 fix r1-G2, 05.10.2026; review round 1 sec B2, B4). A
+     * player's write that replaces `system.resources` whole - v14's forced replacement, as the harness
+     * models it - raising Hope and its maximum and healing Health; one that replaces the module's flags
+     * whole with the Monokuma flag among them; Daggerheart's level-up selections written by hand. Each
+     * is judged on every leaf under what it wrote: the maximum and Hope put back and the healing
+     * flagged, the flag put back, the selections put back, each with its row and the GMs' mark as it
+     * was. At d7bf69d (05.10.2026, e29run/r1g2red) all three stood with no row: Hope 4 and its maximum
+     * 8 on the sheet, the maximum 8 in the mark too; the Monokuma flag on the sheet and in the mark;
+     * the selections.
+     */
+    ["a write over a whole part of a sheet is judged on every leaf under it", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const HOPE = "system.resources.hope.value", MAX = "system.resources.hope.max", HEALTH = "system.resources.hitPoints.value";
+        const MONOKUMA = `flags.${MODULE_ID}.${FLAGS.monokuma}`, LEVEL = "system.levelData.levelups.7";
+        const read = path => foundry.utils.getProperty(student._source, path) ?? null;
+        const max = read(MAX), [trait] = Object.keys(student.system.traits ?? {});
+        must(trait && Number(max) >= 4 && Number(student.system.resources?.hitPoints?.max) >= 2, "the student has no traits, or cannot hold 4 Hope or 2 Health marks");
+        const was = { hope: read(HOPE), health: read(HEALTH), level: student._source.system?.levelData !== undefined };
+        // A write as the player's: made aside on the GM, then handed to the judge with the player's id, as its hook would be.
+        const judged = async changes => {
+            const from = Date.now();
+            await student.update(changes, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateActor", student, foundry.utils.expandObject(changes), player.id);
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from);
+            return [verdict?.verdict ?? null, rows.map(row => `${row.verdict}:${Object.keys(row.change ?? {}).sort().join(",")}`).sort()];
+        };
+        const marked = () => sheetMarkStore.get(student.id) ?? {};
+        let seen = null;
+        try {
+            await student.update({ [HOPE]: 2, [HEALTH]: 2 });
+            await sheetAuditIdle();
+            must(marked().resources?.hope?.max === max && marked().resources?.hitPoints?.value === 2,
+                "the student's mark is not its sheet before the test - this would measure nothing");
+            const resources = foundry.utils.deepClone(student._source.system.resources);
+            Object.assign(resources.hope, { value: 4, max: max + 2 });
+            resources.hitPoints.value = 0;
+            const whole = await judged({ "system.resources": replaced(resources) });
+            const wholeAfter = [read(HOPE), read(MAX), read(HEALTH), marked().resources?.hope?.max ?? null, marked().resources?.hope?.value ?? null];
+            const flags = { ...foundry.utils.deepClone(student._source.flags?.[MODULE_ID] ?? {}), [FLAGS.monokuma]: true };
+            const monokuma = await judged({ [`flags.${MODULE_ID}`]: replaced(flags) });
+            const monokumaAfter = [read(MONOKUMA), marked().flags?.[FLAGS.monokuma] ?? null];
+            const level = await judged({ [LEVEL]: { achievements: {}, selections: [{ tier: 2, level: 7, type: "trait", data: [trait], value: 1 }] } });
+            seen = [whole, wholeAfter, monokuma, monokumaAfter, level, read(LEVEL)];
+        } finally {
+            await sheetAuditIdle();
+            const fix = Object.fromEntries([[HOPE, was.hope], [HEALTH, was.health], [MAX, max]].filter(([path, value]) => read(path) !== value));
+            if (Object.keys(fix).length) await student.update(fix);
+            if (student.getFlag(MODULE_ID, FLAGS.monokuma) !== undefined) await student.unsetFlag(MODULE_ID, FLAGS.monokuma);
+            if (!was.level && student._source.system?.levelData !== undefined) await student.update({ "system.levelData": forcedDeletion() });
+            else if (read(LEVEL) !== null) await student.update({ [LEVEL]: forcedDeletion() });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([
+            ["putBack", [`flagged:${HEALTH}`, `putBack:${MAX},${HOPE}`]], [2, max, 0, max, 2],
+            ["putBack", [`putBack:${MONOKUMA}`]], [null, null],
+            ["putBack", [`putBack:${LEVEL}.selections`]], null]),
+            "a write over a whole part of the sheet was judged as the one path it named (each round: the verdict and the rows, then the sheet - "
+                + "system.resources replaced: Hope, its maximum, Health, the mark's maximum and Hope; the module's flags replaced: the Monokuma "
+                + "flag and the mark's; a level-up's selections written)");
+    }],
+
+    /*
+     * AN ITEM'S RECORDS AND A CLASS'S HIT POINTS (E29 fix r1-G2, 05.10.2026; review round 1 sec M3 = cor M5,
+     * sec B2, B4). A player's write of a carried Tool's `roles` and `usableKind` - what it serves as, what a
+     * usable restores; its module flags replaced whole with another category and tier; a class's hit
+     * points, which Daggerheart adds to the Health maximum, raised. Each is put back with its row. At
+     * d7bf69d (05.10.2026, e29run/r1g2red) all three stood with no row: the Tool served as a crime
+     * tool, then as a tier-3 weapon, and the class held 9 hit points, with no copy of it in the mark.
+     */
+    ["a player's writes of an item's records and of a class's hit points are put back", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { grantItem, servesAs, ITEM_FLAGS } = await import("./inventory.mjs");
+        const judged = async (item, changes) => {
+            const from = Date.now();
+            await item.update(changes, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateItem", item, foundry.utils.expandObject(changes), player.id);
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from);
+            return [verdict?.verdict ?? null, rows.map(row => `${row.verdict}:${Object.keys(row.change ?? {}).map(path => path.split(".").pop()).sort().join(",")}`).sort()];
+        };
+        let tool = null, klass = null, seen = null;
+        try {
+            tool = await grantItem(student, { name: "Tier 2 G2 tool", category: "tool", tier: 1, override: true, quiet: true });
+            [klass] = await student.createEmbeddedDocuments("Item", [{ name: "Tier 2 G2 class", type: "class", system: { hitPoints: 6 } }]);
+            await sheetAuditIdle();
+            const items = sheetMarkStore.get(student.id)?.items ?? {};
+            must(tool && klass && items[tool.id], "the Tool is not in the student's mark, or no class was made - this would measure nothing");
+            const records = await judged(tool, { [`flags.${MODULE_ID}.${ITEM_FLAGS.roles}`]: ["crimeTool", "cleaningTool"], [`flags.${MODULE_ID}.${ITEM_FLAGS.kind}`]: "stress" });
+            const recordsAfter = [tool.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? null, tool.getFlag(MODULE_ID, ITEM_FLAGS.kind) ?? null, servesAs(tool, "crimeTool")];
+            const flags = { ...foundry.utils.deepClone(tool._source.flags[MODULE_ID]), [ITEM_FLAGS.category]: "weapon", [ITEM_FLAGS.tier]: 3 };
+            const whole = await judged(tool, { [`flags.${MODULE_ID}`]: replaced(flags) });
+            const wholeAfter = [tool.getFlag(MODULE_ID, ITEM_FLAGS.category), tool.getFlag(MODULE_ID, ITEM_FLAGS.tier)];
+            const hitPoints = await judged(klass, { "system.hitPoints": 9 });
+            seen = [records, recordsAfter, whole, wholeAfter, hitPoints, klass.system.hitPoints, sheetMarkStore.get(student.id)?.items?.[klass.id]?.system?.hitPoints ?? null];
+        } finally {
+            await sheetAuditIdle();
+            const left = [tool, klass].filter(item => item && student.items.has(item.id)).map(item => item.id);
+            if (left.length) await student.deleteEmbeddedDocuments("Item", left);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([
+            ["putBack", [`putBack:${ITEM_FLAGS.roles},${ITEM_FLAGS.kind}`]], [null, null, false],
+            ["putBack", [`putBack:${ITEM_FLAGS.category},${ITEM_FLAGS.tier}`]], ["tool", 1],
+            ["putBack", ["putBack:hitPoints"]], 6, 6]),
+            "a player's write of an item's records or a class's hit points stood (each round: the verdict and the rows, then the item - "
+                + "roles and usableKind written: both, and whether it serves as a crime tool; its module flags replaced: category and tier; "
+                + "the class's hit points raised: the class's and the mark's)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

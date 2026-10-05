@@ -2373,6 +2373,55 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ itemsSet, consoleItems }), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S ITEM RECORDS (E29 fix r1-G2, 05.10.2026; review round 1 sec M3 = cor M5, sec B2). p1's
+     * console writes `roles` and `usableKind` on a Tool Aiko carries - what it serves as, what a usable
+     * restores - and, once that is put back on its browser, replaces the Tool's module flags whole with
+     * another category and tier (v14's forced replacement, as the harness models it). Expected: both put
+     * back on every client that holds the Tool (the GM's and p1's at least, as the items check above reads
+     * them), a row each, and none reads it as a crime tool. The review's probe
+     * on 69deef0 measured the first standing with no row and the GM reading a crime tool; here at
+     * d7bf69d (05.10.2026, e29run/r1g2red) both stood on every client with no row - a crime tool, then
+     * a tier-3 weapon.
+     */
+    phase("a console's item records", { flow: "sheet-audit" });
+    const recordsSet = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const tool = await INV.grantItem(game.actors.get("${ids.aiko}"), { name: "E29 G2 30 tool", category: "tool", tier: 1, override: true, quiet: true });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { tool: tool?.id ?? null, from: Date.now() };`);
+    const readRecords = `const INV = await import("${repoUrl}/scripts/inventory.mjs"), t = game.actors.get("${ids.aiko}")?.items.get("${recordsSet.tool}");
+        return t ? [t.getFlag("${MOD}", "roles") ?? null, t.getFlag("${MOD}", "usableKind") ?? null, t.getFlag("${MOD}", "category"), t.getFlag("${MOD}", "tier"),
+            INV.servesAs(t, "crimeTool")] : null;`;
+    const recordRows = n => `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const rows = () => Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.itemId === "${recordsSet.tool}" && r.at >= ${recordsSet.from});
+        const end = Date.now() + 8000;
+        while (rows().length < ${n} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await A.sheetAuditIdle();
+        return rows().map(r => r.verdict + ":" + Object.keys(r.change ?? {}).map(k => k.split(".").pop()).sort().join(",")).sort();`;
+    let consoleRecords = null;
+    try {
+        await settle(400);
+        await p1.eval(`await game.actors.get("${ids.aiko}").items.get("${recordsSet.tool}")?.update({ "flags.${MOD}.roles": ["crimeTool", "cleaningTool"],
+            "flags.${MOD}.usableKind": "stress" }, { drpgAutomated: true }); return true;`);
+        const first = await gm.eval(recordRows(1));
+        await p1.eval(`const t = game.actors.get("${ids.aiko}").items.get("${recordsSet.tool}"), end = Date.now() + 6000;
+            while (t?.getFlag("${MOD}", "roles") !== undefined && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            const f = foundry.utils.deepClone(t._source.flags["${MOD}"]); f.category = "weapon"; f.tier = 3;
+            await t.update({ "flags.${MOD}": foundry.data.operators.ForcedReplacement.create(f) }, { drpgAutomated: true }); return true;`);
+        const judged = await gm.eval(recordRows(2));
+        await settle(800);
+        consoleRecords = { first, judged, after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readRecords))) };
+    } finally {
+        await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await game.actors.get("${ids.aiko}").items.get("${recordsSet.tool}")?.delete(); return true;`);
+    }
+    check("SECURITY: a player's console writing a Tool's roles and usable kind, then replacing its module flags whole with another category and tier, is put back on every client with a row each",
+        Boolean(consoleRecords) && Boolean(recordsSet.tool) && JSON.stringify(consoleRecords.first) === JSON.stringify(["putBack:roles,usableKind"])
+            && JSON.stringify(consoleRecords.judged) === JSON.stringify(["putBack:category,tier", "putBack:roles,usableKind"])
+            && consoleRecords.after[0] !== null && consoleRecords.after[1] !== null
+            && consoleRecords.after.every(v => v === null || JSON.stringify(v) === JSON.stringify([null, null, "tool", 1, false])),
+        JSON.stringify({ recordsSet, consoleRecords }), { flow: "sheet-audit" });
+
+    /*
      * A CONSOLE'S WRITES IN A ROW (E29 fix r1-G1, 05.10.2026; review round 1 sec B1 = cor B1, cor M6). p1's
      * console sends its writes back to back, so the later ones land on the GM while the judge is still
      * putting the first back: a forged Hope, then Agility raised; a forged Hope, then the Monokuma flag, then
@@ -2472,6 +2521,86 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a GM's Hope written while a player's spend waits behind a statistic being put back stands on every client and in the GMs' mark",
         Boolean(inRow) && everyClient(inRow.spent.after, { hope: 6, agility: rowWas.agility }) && inRow.spent.mark.hope === 6,
         JSON.stringify(inRow?.spent ?? null), { flow: "sheet-audit" });
+
+    /*
+     * A CONSOLE'S WRITES OVER A WHOLE PART (E29 fix r1-G2, 05.10.2026; review round 1 sec B2, B4). p1's console
+     * replaces Aiko's `system.resources` whole (v14's forced replacement, as the harness models it): Hope 2
+     * to 4, its maximum up 2, two Health marks healed; then her module flags whole, with the Monokuma flag
+     * in them, and raises Agility alone after it; then writes Daggerheart's level-up selections - Agility
+     * twice - and raises the hit points of a class the GM gave her. Expected: Hope and its maximum put back
+     * on every client and in the GMs' mark, the healing flagged to the GMs; the flag put back, then Agility;
+     * the selections and the class's hit points put back - each with its row. The review's probes on
+     * 69deef0 measured every one of these standing with no row, the mark taking the maximum; so did
+     * this at d7bf69d (05.10.2026, e29run/r1g2red): Hope 4 and its maximum 8 on every client and 8 in
+     * the mark, the flag and then Agility 4, the selections and 9 hit points - and no row.
+     */
+    phase("a console's writes over a whole part", { flow: "sheet-audit" });
+    const readWhole = `const a = game.actors.get("${ids.aiko}"), c = a.items.find(i => i.name === "E29 G2 30 class"), r = a._source.system.resources;
+        return { hope: r.hope.value, hopeMax: r.hope.max, hp: r.hitPoints.value, monokuma: a.getFlag("${MOD}", "monokuma") ?? null,
+            agility: a.system.traits.agility.value, level: Boolean(a._source.system?.levelData?.levelups?.["7"]), classHp: c?.system?.hitPoints ?? null };`;
+    const wholeWas = await gm.eval(`${audited} const a = game.actors.get("${ids.aiko}"), r = a._source.system.resources;
+        const was = { hope: r.hope.value, hp: r.hitPoints.value, hopeMax: r.hope.max, agility: a.system.traits.agility.value, level: a._source.system?.levelData !== undefined };
+        await a.update({ "system.resources.hope.value": 2, "system.resources.hitPoints.value": 2 });
+        await a.createEmbeddedDocuments("Item", [{ name: "E29 G2 30 class", type: "class", system: { hitPoints: 6 } }]);
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { ...was, from: Date.now() };`);
+    const wholeRows = from => `${audited} return Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${from})
+        .map(r => r.verdict + ":" + Object.keys(r.change ?? {}).map(k => k.replace(/^items\\.[^.]+/, "items.<id>")).sort().join(",")).sort();`;
+    // Up to 6 s for the GM's reading to come out as `test` says, every judgement finished, then every client's.
+    const settledWhole = async test => {
+        await gm.eval(`const end = Date.now() + 6000; const read = async () => { ${readWhole} };
+            while (!(${test})(await read()) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        await settle(800);
+        return Promise.all([gm, p1, p2, p3].map(c => c.eval(readWhole)));
+    };
+    let overWhole = null;
+    try {
+        await settle(400);
+        await p1.eval(`const a = game.actors.get("${ids.aiko}"), r = foundry.utils.deepClone(a._source.system.resources);
+            r.hope.value = 4; r.hope.max += 2; r.hitPoints.value = 0;
+            await a.update({ "system.resources": foundry.data.operators.ForcedReplacement.create(r) }, { drpgAutomated: true }); return true;`);
+        const resources = { after: await settledWhole(`s => s.hope === 2 && s.hopeMax === ${wholeWas.hopeMax}`),
+            mark: await gm.eval(`${audited} const m = S.sheetMarkStore.get("${ids.aiko}"); return { hope: m?.resources?.hope?.value, hopeMax: m?.resources?.hope?.max };`),
+            rows: await gm.eval(wholeRows(wholeWas.from)) };
+        const fromF = await gm.eval(`return Date.now();`);
+        await p1.eval(`const a = game.actors.get("${ids.aiko}"), f = foundry.utils.deepClone(a._source.flags?.["${MOD}"] ?? {}); f.monokuma = true;
+            await a.update({ "flags.${MOD}": foundry.data.operators.ForcedReplacement.create(f) }, { drpgAutomated: true }); return true;`);
+        const flagged = await settledWhole(`s => s.monokuma === null`);
+        await p1.eval(`await game.actors.get("${ids.aiko}").update({ "system.traits.agility.value": ${wholeWas.agility + 3} }, { drpgAutomated: true }); return true;`);
+        const flags = { flagged, alone: await settledWhole(`s => s.agility === ${wholeWas.agility}`), rows: await gm.eval(wholeRows(fromF)) };
+        const fromL = await gm.eval(`return Date.now();`);
+        await p1.eval(`const a = game.actors.get("${ids.aiko}"), pick = { tier: 2, level: 7, type: "trait", data: ["agility"], value: 1 };
+            await a.update({ "system.levelData.levelups.7": { achievements: {}, selections: [pick, { ...pick }] } }, { drpgAutomated: true });
+            await a.items.find(i => i.name === "E29 G2 30 class")?.update({ "system.hitPoints": 9 }, { drpgAutomated: true }); return true;`);
+        const level = { after: await settledWhole(`s => !s.level && s.classHp === 6`), rows: await gm.eval(wholeRows(fromL)) };
+        overWhole = { resources, flags, level };
+    } finally {
+        await gm.eval(`${audited} const a = game.actors.get("${ids.aiko}"), U = await import("${repoUrl}/scripts/utils.mjs"), was = ${JSON.stringify(wholeWas)};
+            if (a.getFlag("${MOD}", "monokuma") !== undefined) await a.unsetFlag("${MOD}", "monokuma");
+            const fix = { "system.resources.hope.value": was.hope, "system.resources.hitPoints.value": was.hp, "system.resources.hope.max": was.hopeMax,
+                "system.traits.agility.value": was.agility };
+            if (!was.level && a._source.system?.levelData !== undefined) fix["system.levelData"] = U.forcedDeletion();
+            else if (a._source.system?.levelData?.levelups?.["7"]) fix["system.levelData.levelups.7"] = U.forcedDeletion();
+            await a.update(fix);
+            const left = a.items.filter(i => i.name === "E29 G2 30 class").map(i => i.id);
+            if (left.length) await a.deleteEmbeddedDocuments("Item", left);
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    }
+    check("SECURITY: Hope and its maximum a player's console raises by replacing system.resources whole are put back on every client and in the GMs' mark, and the Health it heals so is flagged to the GMs",
+        Boolean(overWhole) && everyClient(overWhole.resources.after, { hope: 2, hopeMax: wholeWas.hopeMax, hp: 0 })
+            && overWhole.resources.mark.hopeMax === wholeWas.hopeMax && overWhole.resources.mark.hope === 2
+            && JSON.stringify(overWhole.resources.rows) === JSON.stringify(["flagged:system.resources.hitPoints.value", "putBack:system.resources.hope.max,system.resources.hope.value"]),
+        JSON.stringify(overWhole?.resources ?? null), { flow: "sheet-audit" });
+    check("SECURITY: the Monokuma flag a player's console writes by replacing the module's flags whole is put back on every client, and Agility raised alone after it is put back too",
+        Boolean(overWhole) && everyClient(overWhole.flags.flagged, { monokuma: null }) && everyClient(overWhole.flags.alone, { monokuma: null, agility: wholeWas.agility })
+            && JSON.stringify(overWhole.flags.rows) === JSON.stringify([`putBack:flags.${MOD}.monokuma`, "putBack:system.traits.agility.value"]),
+        JSON.stringify(overWhole?.flags ?? null), { flow: "sheet-audit" });
+    check("SECURITY: Daggerheart's level-up selections and a class's hit points a player's console writes are put back on every client, a row each",
+        Boolean(overWhole) && everyClient(overWhole.level.after, { level: false }) && overWhole.level.after[0].classHp === 6 && overWhole.level.after[1].classHp === 6
+            && overWhole.level.after.every(s => s.classHp === null || s.classHp === 6)
+            && JSON.stringify(overWhole.level.rows) === JSON.stringify(["putBack:items.<id>.system.hitPoints", "putBack:system.levelData.levelups.7.selections"]),
+        JSON.stringify(overWhole?.level ?? null), { flow: "sheet-audit" });
 
     /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
