@@ -48,7 +48,7 @@
 
 import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP, LEGAL_ROLL_MODIFIERS } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { primaryGmId, isPrimaryGm, whisperToGms, warn, error, esc } from "./utils.mjs";
+import { primaryGmId, isPrimaryGm, announce, whisperToGms, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
 import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { rollStore } from "./gm-stores.mjs";
@@ -349,18 +349,49 @@ export function drawPacketOf(roll, config, claim) {
 }
 
 /**
- * The GM's faces, played into this browser's copy of the roll. The Loaded Die is the GM's
+ * The GM's roll, played back here. The Loaded Die is the GM's
  * to load on its own throw (forced-roll.mjs `onConfigured` stands aside for a drawn roll,
- * C12b), and this copy only repeats what fell. Each face f is drawn as `u = 1 - (f - 0.5) / faces` - the
- * middle of the band Foundry's `ceil((1 - u) * faces)` maps to f - in the order the GM's
- * dice drew them, then the randomiser again for anything the GM did not draw. A total
+ * C12b), and this copy only repeats what fell. A total
  * this copy reads differently is the GM's (the record stands) and is logged. What the
  * GM decided beside the dice rides on the config with the record's id (`DRAWN_ROLL`):
  * the hidden stash's step it drew (`stash`, action-rolls.mjs `stashStepOf`) and whether
  * it loaded the die (`loaded`).
  */
-async function playBack(cls, roll, config, message, { rollId, messageId, faces, total, stash = null, loaded = false }, subject) {
+async function playBack(cls, roll, config, message, answer, subject) {
+    const { rollId, messageId, total, stash = null, loaded = false } = answer;
     config[DRAWN_ROLL] = { rollId, messageId, stash: stash && typeof stash === "object" ? stash : null, loaded: loaded === true };
+    const played = await rollerCopyOf(cls, roll, config, message, answer);
+    if (typeof total === "number" && played.total !== total) {
+        warn(`The GM drew ${total} for roll ${rollId}; this browser read ${played.total} from the same faces. The GM's stands.`);
+        if (config.roll && typeof config.roll === "object") config.roll.total = total;
+    }
+    const { messageArrives } = await import("./secret.mjs");
+    config.message = game.messages.get(messageId) ?? await messageArrives(messageId);
+    // Whose roll it is, kept here as for a roll this browser threw, so `reportRollSubject`
+    // asks nothing: the GM kept it as it wrote the message. And the message is this browser's
+    // to read from here on (C13), as it was while the GM drew it (`awaitDrawn`) - after a
+    // reload too (`keep`, fix r2-H7).
+    if (subject?.id) keepSubject(messageId, subject.id, game.user?.id ?? null);
+    readHere(messageId, { keep: true });
+    await playDice(played);
+}
+
+/*
+ * THE ROLLER'S COPY IS THE GM'S ROLL (E29 C10, 05.10.2026; the stage plan's 3.6). Until C10 this
+ * browser evaluated the roll its own window configured, on the GM's faces: the dice matched the
+ * GM's, and everything beside them - the statistic, the modifiers, the advantage dice - was this
+ * window's, so where the GM did not count a modifier (`legalRollOf`) the roller's `config.roll`
+ * read the claim's numbers and only its total was put right. The answer carries the roll the GM
+ * built, unevaluated (`roll`); this browser rebuilds it (`rollFromLegal`) and plays the GM's faces
+ * into it, each face f drawn as `u = 1 - (f - 0.5) / faces` - the middle of the band Foundry's
+ * `ceil((1 - u) * faces)` maps to f - in the order the GM's dice drew them, then the randomiser
+ * again for anything the GM did not draw. So `config.roll` and every reading here are the GM's
+ * numbers, and Dice So Nice throws the advantage dice the GM decided. An answer without the
+ * roll (none is sent today) plays into the configured roll, as before C10. Exported for the
+ * suite, which plays a draw's answer back on the GM's browser.
+ */
+export async function rollerCopyOf(cls, configured, config, message, { faces = [], roll: legal = null } = {}) {
+    const roll = legal && typeof legal === "object" ? rollFromLegal(cls, foundry.utils.deepClone(legal), configured?.data) : configured;
     const script = (Array.isArray(faces) ? faces : [])
         .map(face => 1 - (Number(face?.result) - 0.5) / Number(face?.faces))
         .filter(u => Number.isFinite(u));
@@ -372,19 +403,30 @@ async function playBack(cls, roll, config, message, { rollId, messageId, faces, 
     } finally {
         dice.randomUniform = real;
     }
-    if (typeof total === "number" && roll.total !== total) {
-        warn(`The GM drew ${total} for roll ${rollId}; this browser read ${roll.total} from the same faces. The GM's stands.`);
-        if (config.roll && typeof config.roll === "object") config.roll.total = total;
+    return roll;
+}
+
+/**
+ * A roll rebuilt from the JSON the GM wrote (`legalRollOf`), on either side. Daggerheart's
+ * constructor, which `fromData` runs first, writes `options.roll.modifiers` again from the roll's
+ * data and its window's choices (d20Roll.mjs `configureModifiers`, :96-124, read in 2.10.5), and a
+ * drawn roll's data is emptied (private-rolls.mjs `neutralRollOf`): the GM's statistic, modifiers,
+ * advantage and experiences are put back on the instance after it. Not measured at a table
+ * (LIVE-E28-12 reads `fromData` there); the harness's constructor leaves the options alone.
+ * `json` is consumed - Daggerheart's `fromData` names the dice's classes in it.
+ */
+function rollFromLegal(cls, json, data = null) {
+    const said = foundry.utils.deepClone(json?.options?.roll ?? {});
+    const experiences = Array.isArray(json?.options?.experiences) ? [...json.options.experiences] : [];
+    const roll = cls.fromData(json);
+    roll.options.roll = roll.options.roll && typeof roll.options.roll === "object" ? roll.options.roll : {};
+    for (const key of ["trait", "modifiers", "advantage"]) {
+        if (said[key] === undefined) delete roll.options.roll[key];
+        else roll.options.roll[key] = said[key];
     }
-    const { messageArrives } = await import("./secret.mjs");
-    config.message = game.messages.get(messageId) ?? await messageArrives(messageId);
-    // Whose roll it is, kept here as for a roll this browser threw, so `reportRollSubject`
-    // asks nothing: the GM kept it as it wrote the message. And the message is this browser's
-    // to read from here on (C13), as it was while the GM drew it (`awaitDrawn`) - after a
-    // reload too (`keep`, fix r2-H7).
-    if (subject?.id) keepSubject(messageId, subject.id, game.user?.id ?? null);
-    readHere(messageId, { keep: true });
-    await playDice(roll);
+    roll.options.experiences = experiences;
+    if (data) roll.data = data;
+    return roll;
 }
 
 /*
@@ -791,7 +833,9 @@ function formulaOf(terms) {
 /**
  * The roll's JSON, its dice, its critical and its kind written by this GM - see the note above. The
  * faces and the kind are the list's (config.mjs `LEGAL_ROLL_MODIFIERS`, E29 C9): `hopeDie`,
- * `fearDie`, `advantageDie` and `kind`, read by their readers below.
+ * `fearDie`, `advantageDie` and `kind`, read by their readers below. Since E29 C10 a student's roll
+ * is built whole from the list (`legalRollOf`), and this writes only the roll of a character
+ * nothing is expected of - a Monokuma's - whose numbers and advantage dice stay its window's.
  */
 async function onGmTerms(json, actor, { key = null, claimed = true } = {}) {
     const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
@@ -822,14 +866,175 @@ async function onGmTerms(json, actor, { key = null, claimed = true } = {}) {
     return json;
 }
 
+/*
+ * THE GM THROWS ITS OWN LIST (E29 C10, 05.10.2026; audit S17-12; decision D2, option 2: "a
+ * modifier outside the GM's record is enforced from E29"; the stage plan's 3.4 and 3.5). Until
+ * C10 the GM threw the packet's roll on its own dice and kind (`onGmTerms`): what the roll added up
+ * to beyond them - the statistic's value, the experiences, the bonuses, how many advantage dice -
+ * was the roller's window's, held against the list and flagged where it differed, and counted all
+ * the same. Measured at C9's runtime (tier 2, then "a roll with a bonus the GM did not expect is
+ * flagged to the GMs and scored as drawn", green in e29run/c9): a Search's packet with 3 added to
+ * its formula was recorded, answered and written with the 3. Now the GM writes the whole roll from
+ * what it read (`expectedFor`), as Daggerheart's window would have built it:
+ *   - the Hope and the Fear die at the list's faces, and fifth the advantage or disadvantage dice of
+ *     the GM's own sum (`advantage`, capped as roll-dialog.mjs `advantageSources` caps it), the
+ *     highest kept of several, at the list's faces - `applyAdvantage`'s shape (dualityRoll.mjs:143-168);
+ *   - one number per flat source, each labelled in `options.roll.modifiers` as Daggerheart labels
+ *     its own (dualityRoll.mjs `applyBaseBonus`, d20Roll.mjs `configureModifiers`): the statistic's
+ *     value off the character as this GM holds it - the statistic the list names, else the one the
+ *     roller chose (a statistic from the sheet, after a Resolve, where a pick was due and none was
+ *     made); the experiences an Experience Call bought, at their value here; the Calls' bonus; a
+ *     hindering Call's; and the part of the claim the list cannot read - the effects a window toggles
+ *     - clamped into the range the character's effects allow (`effectRange`);
+ *   - `options.roll.trait`, `.advantage` and `options.experiences` to match, its kind and critical as
+ *     `onGmTerms` writes them, no `skips`, no `extraFormula`, no `baseModifiers`.
+ * The packet keeps only what the GM cannot know and the list lets it say: the statistic of a roll
+ * whose action names none, the experiences named (counted as far as a Call bought one) and the
+ * effects' part, clamped. Its numbers are the claim (`claimOf`), recorded beside what was thrown
+ * (`scored`) and held against it (`checkRoll`): a difference changes nothing of the roll, is flagged
+ * to the GMs and, where the claim had something the GM did not count, told to the roller in one line
+ * (`rollerLine`, the owner's Q1 (a) of 05.10.2026). The switch rests on the harness's explanation of
+ * each flag kind it raises (E29 C9's note), not on a table's reading of `game.drpg.rollFlags()` (the
+ * owner's Q5 (b); LIVE-E29-03). The formula is written again where the dice or the numbers differ
+ * from the packet's; an honest roll keeps its own, as `onGmTerms` keeps it. A Monokuma's roll, of
+ * which nothing is expected, is written as before (`onGmTerms`).
+ */
+
+/** A die, a sign and a number as Foundry writes their JSON, unevaluated. */
+const dieJson = (cls, faces, number = 1, modifiers = []) => ({ class: cls, options: {}, evaluated: false, number, faces, modifiers, results: [] });
+const signJson = op => ({ class: "OperatorTerm", options: {}, evaluated: false, operator: op });
+const numberJson = n => ({ class: "NumericTerm", options: {}, evaluated: false, number: n });
+
+/** The plain numbers of a roll's terms with their signs, smallest first - what a formula adds beyond its dice. */
+const numbersOf = terms => JSON.stringify(terms.flatMap((term, i) => (typeof term?.number === "number" && !("faces" in term)
+    ? [(terms[i - 1]?.operator === "-" ? -1 : 1) * term.number] : [])).sort((a, b) => a - b));
+/** A statistic's value and an experience's, off the character as this GM holds it. */
+const traitValueOf = (actor, key) => Number(actor.system?.traits?.[TRAITS[key]?.dh ?? ""]?.value) || 0;
+const experienceValueOf = (actor, key) => Number(actor.system?.experiences?.[key]?.value) || 0;
+
+/** The packet's numbers: its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice. */
+function claimOf(terms, actor, told) {
+    const fifth = ADVANTAGE_DICE[terms[4]?.class] ?? 0;
+    const trait = traitKeyOf(told.trait);
+    return { trait, traitValue: trait ? traitValueOf(actor, trait) : 0,
+        experiences: told.experiences.filter(key => actor.system?.experiences?.[key]),
+        flat: flatOf({ terms }), advantage: fifth * (Math.max(1, Math.trunc(Number(terms[4]?.number)) || 1)),
+        dice: Math.max(0, terms.filter(term => "faces" in (term ?? {})).length - 2 - (fifth ? 1 : 0)) };
+}
+
 /**
- * The draw itself. The roll is rebuilt with Daggerheart's `fromData` - never the constructor,
- * which builds the advantage die again from the options (reroll.mjs `rerollKeepingDice`) -
- * from its JSON as this GM writes it (`onGmTerms`, fix r2-H8),
- * thrown here, written, settled, held against what this GM expects (`expectedFor`,
- * `checkRoll`), its Calls spent and recorded, with the incident's turn it was thrown in
- * (`incident`); answered `{ rollId, messageId, faces, total, stash, loaded }`. `claimed` false is
- * a statistic from the sheet, whose message keeps Daggerheart's card (C13).
+ * What the GM throws of its list for this roll - see the note above: the statistic, the experiences
+ * counted, each flat source `{ key, label, value }` (a statistic's or an experience's own name as its
+ * label; the list's line for the rest), their sum, the advantage dice, and what of the claim's flat
+ * sum was not counted (`uncounted`: experiences no Call bought, and the effects' part past its range).
+ */
+function scoredOf(actor, expected, claim) {
+    const { read } = expected;
+    const trait = expected.trait ?? claim.trait;
+    const experiences = claim.experiences.slice(0, expected.experiences);
+    const valueOf = keys => keys.reduce((sum, key) => sum + experienceValueOf(actor, key), 0);
+    // The claim's flat sum past its statistic, its experiences and the Calls' bonus is the effects' part.
+    const rest = claim.flat - claim.traitValue - valueOf(claim.experiences) - read.callBonus;
+    const [low, high] = expected.effects;
+    const effects = Math.min(high, Math.max(low, rest));
+    const modifiers = [
+        ...(trait ? [{ key: "trait", name: trait, label: TRAITS[trait]?.label ?? trait, value: traitValueOf(actor, trait) }] : []),
+        ...experiences.map(name => ({ key: "experience", name, label: actor.system.experiences[name]?.name ?? name, value: experienceValueOf(actor, name) })),
+        { key: "callBonus", value: read.callBonus },
+        { key: "hostile", value: read.hostile.bonus },
+        { key: "effects", value: effects }
+    ].filter(m => m.key === "trait" || m.value);
+    return { trait, traitValue: trait ? traitValueOf(actor, trait) : 0, experiences, modifiers,
+        flat: modifiers.reduce((sum, m) => sum + m.value, 0), advantage: expected.advantage,
+        uncounted: rest - effects + valueOf(claim.experiences.slice(experiences.length)) };
+}
+
+/** A flat source's label as Daggerheart's card reads it: a statistic by Daggerheart's own key, an experience by its name, the rest by the list's line. */
+function modifierLabel(m) {
+    if (m.key === "trait") return `DAGGERHEART.CONFIG.Traits.${TRAITS[m.name]?.dh ?? m.name}.name`;
+    return m.key === "experience" ? m.label : game.i18n.localize(LEGAL[m.key]?.label ?? "");
+}
+
+/**
+ * The roll this GM throws, as JSON for `fromData`, with what it scored (`scored`) and the packet's
+ * numbers (`claim`) - see the note above. `scored` is null for a roll nothing is expected of.
+ */
+async function legalRollOf(packetRoll, actor, expected, told, { key = null, claimed = true } = {}) {
+    const json = foundry.utils.deepClone(packetRoll && typeof packetRoll === "object" ? packetRoll : {});
+    const sent = Array.isArray(json.terms) ? json.terms : [];
+    const claim = claimOf(sent, actor, told);
+    if (!expected.checked) return { json: await onGmTerms(json, actor, { key, claimed }), scored: null, claim };
+    const scored = scoredOf(actor, expected, claim);
+    const { read } = expected;
+    const terms = [dieJson("HopeDie", read.hopeDie), signJson("+"), dieJson("FearDie", read.fearDie)];
+    if (scored.advantage) {
+        const up = scored.advantage > 0, number = Math.abs(scored.advantage);
+        terms.push(signJson(up ? "+" : "-"),
+            dieJson(up ? "AdvantageDie" : "DisadvantageDie", read.advantageDie[up ? "advantage" : "disadvantage"], number, number > 1 ? ["kh"] : []));
+    }
+    for (const m of scored.modifiers) terms.push(signJson(m.value < 0 ? "-" : "+"), numberJson(Math.abs(m.value)));
+    if (diceShape(terms) !== diceShape(sent) || numbersOf(terms) !== numbersOf(sent)) json.formula = formulaOf(terms);
+    json.terms = terms;
+    const options = json.options && typeof json.options === "object" ? json.options : (json.options = {});
+    if (read.kind.critical) options.guaranteedCritical = true;
+    else delete options.guaranteedCritical;
+    options.actionType = read.kind.actionType;
+    options.skips = {};
+    delete options.extraFormula;
+    options.experiences = [...scored.experiences];
+    const roll = { ...(options.roll && typeof options.roll === "object" ? options.roll : {}), advantage: Math.sign(scored.advantage),
+        modifiers: scored.modifiers.map(m => ({ label: modifierLabel(m), value: m.value })) };
+    delete roll.baseModifiers;
+    if (scored.trait) roll.trait = TRAITS[scored.trait]?.dh ?? scored.trait;
+    else delete roll.trait;
+    options.roll = roll;
+    return { json, scored, claim };
+}
+
+/**
+ * The roller's one line (the owner's Q1 (a), 05.10.2026): what the GM counted, and what of the claim
+ * it did not - a statistic other than the one thrown, a modifier past the list's, dice beyond
+ * Daggerheart's, advantage dice past the GM's sum in their own direction. Null where the claim had
+ * nothing the GM did not count: a source the GM counted and the window lacked is the GMs' to see
+ * (`checkRoll`), not the roller's to be told of. Exported for the suite.
+ */
+export function rollerLine({ scored = null, claim = null } = {}) {
+    if (!scored || !claim) return null;
+    const kind = what => game.i18n.localize(FLAG_KINDS[what]);
+    const missed = [];
+    if (claim.trait && claim.trait !== scored.trait) missed.push(`${kind("trait")} ${TRAITS[claim.trait]?.label ?? claim.trait}`);
+    if (scored.uncounted) missed.push(`${kind("modifier")} ${signed(scored.uncounted)}`);
+    if (claim.dice > 0) missed.push(`${kind("dice")} ${claim.dice}`);
+    if ((claim.advantage > 0 && claim.advantage > scored.advantage) || (claim.advantage < 0 && claim.advantage < scored.advantage)) {
+        missed.push(`${kind("advantage")} ${signed(claim.advantage)}`);
+    }
+    if (!missed.length) return null;
+    const counted = scored.modifiers.map(m => `${m.label ?? game.i18n.localize(LEGAL[m.key]?.label ?? "")} ${signed(m.value)}`);
+    if (scored.advantage) counted.push(`${kind("advantage")} ${signed(scored.advantage)}`);
+    return game.i18n.format("DRPG.Rolls.notCounted", {
+        counted: game.i18n.format("DRPG.Rolls.counted", { list: counted.join(", ") || signed(0) }), list: missed.join(", ") });
+}
+
+/** The roller's line, to the roller alone, where there is one. A private card the GM posts, naming nobody. */
+async function tellRoller(sender, legal) {
+    const line = rollerLine(legal);
+    if (!line || !sender?.id) return;
+    try {
+        await announce({ content: `<p>${esc(line)}</p>`, whisper: [sender.id] });
+    } catch (err) {
+        error("Could not tell the roller what the GM counted of their roll", err);
+    }
+}
+
+/**
+ * The draw itself. What this GM holds legal for the roll is read first (`expectedFor`), and the
+ * roll is built from it (`legalRollOf`, E29 C10) and rebuilt with Daggerheart's `fromData` - never
+ * the constructor, which builds the advantage die again from the options (reroll.mjs
+ * `rerollKeepingDice`) - thrown here, written, settled, its claim held against it (`checkRoll`),
+ * its Calls spent and recorded, with the incident's turn it was thrown in (`incident`); answered
+ * `{ rollId, messageId, faces, total, stash, loaded, roll }`, `roll` the JSON it was built from
+ * (`rollerCopyOf`). `claimed` false is a statistic from the sheet, whose message keeps
+ * Daggerheart's card (C13).
  */
 async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
     trait = null, experiences = [], calls = [], context = {} }, sender, incident = null) {
@@ -837,7 +1042,19 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
     const key = typeof actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(actionKey) ? actionKey : null;
-    const roll = cls.fromData(await onGmTerms(foundry.utils.deepClone(json), actor, { key, claimed }));
+    const told = { trait: typeof trait === "string" ? trait : null, experiences: strings(experiences), context: contextSent(context) };
+    // What the roll applied, as this GM holds it: read before the dice, and spent after them. Held means
+    // the GMs' mark of the armed list (E29 C8): an entry a player's browser wrote itself is not a Call.
+    // And the hostile Calls it did not name, armed long enough before it (`hostileCalls`, E29 C9).
+    const { armedCallsHeld } = await import("./sheet-audit.mjs");
+    const held = await armedCallsHeld(actor);
+    const applied = appliedCalls(actor, calls, held);
+    const hostile = hostileCalls(actor, applied, held, { key, claimed });
+    const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded,
+        actionType: json?.options?.actionType ?? null });
+    // The roll this GM throws is the one it builds from its list (`legalRollOf`, E29 C10); the packet's is a claim.
+    const legal = await legalRollOf(json, actor, expected, told, { key, claimed });
+    const roll = rollFromLegal(cls, foundry.utils.deepClone(legal.json));
     // A Daggerheart roll's options are its config (dhRoll.mjs:45). What the GM's own steps
     // read is put back in memory: the character's uuid for the resource step, its roll data
     // for the triggers (dualityRoll.mjs:253-276), and its own resource map; `mute` is
@@ -848,15 +1065,6 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     config.costs = paidCosts(costs);
     config.resourceUpdates = new DrawnResources(actor);
     roll.data = actor.getRollData?.() ?? {};
-    const told = { trait: typeof trait === "string" ? trait : null, experiences: strings(experiences), context: contextSent(context) };
-    // What the roll applied, as this GM holds it: read before the dice, and spent after them. Held means
-    // the GMs' mark of the armed list (E29 C8): an entry a player's browser wrote itself is not a Call.
-    // And the hostile Calls it did not name, armed long enough before it (`hostileCalls`, E29 C9).
-    const { armedCallsHeld } = await import("./sheet-audit.mjs");
-    const held = await armedCallsHeld(actor);
-    const applied = appliedCalls(actor, calls, held);
-    const hostile = hostileCalls(actor, applied, held, { key, claimed });
-    const expected = await expectedFor(actor, { actionKey: key, applied, hostile, context: told.context, claimed, loaded, actionType: config.actionType });
     // The Loaded Die (forced-roll.mjs): loaded here only while the character's armed Calls
     // hold the mark and the roll applied it (`loadedDie`).
     const loads = expected.read.loadedDie;
@@ -872,7 +1080,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     // where the room the GM sees the searcher in holds one; the searcher takes this step and
     // draws none of its own (`stashStepOf`).
     const stash = expected.stashDie && told.context.stashDie === true ? await stashStepFor(roll, actor) : null;
-    const flags = checkRoll(roll, actor, told, expected);
+    const flags = checkRoll(legal, told, expected);
     const used = [...applied, ...hostile].map(call => call.nonce);
     if (used.length) await spendCallsByNonce(actor, used);
     await keepRecord({
@@ -886,7 +1094,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         total: roll.total, hope: roll.dHope?.total ?? null, fear: roll.dFear?.total ?? null,
         isCritical: Boolean(roll.isCritical), withHope: Boolean(roll.withHope), withFear: Boolean(roll.withFear),
         modifiers: (Array.isArray(config.roll?.modifiers) ? config.roll.modifiers : []).map(m => Number(m?.value) || 0),
-        legal: recordOf(expected), flags, used: { calls: used, stash, loaded: loads }, versions: [],
+        // What the GM read (`legal`), what it threw of it (`scored`) and the packet's numbers (`claim`), E29 C10.
+        legal: recordOf(expected), scored: legal.scored, claim: legal.claim, flags, used: { calls: used, stash, loaded: loads }, versions: [],
         // What the roll was drawn for beyond its action (fix r2-H1): the crisis action it names, the
         // incident's turn it was thrown in, and the later roll of its action that replaced it, if one does;
         // and the project a Work's or a Sabotage's names, null where it named none (fix r2-H2); a
@@ -896,7 +1105,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         incident, superseded: null, at: Date.now()
     });
     if (flags.length) await tellUnexpected(actor, flags);
-    return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, stash, loaded: loads } };
+    await tellRoller(sender, legal);
+    return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, stash, loaded: loads, roll: legal.json } };
 }
 
 /* ==========================================================================
@@ -908,7 +1118,9 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
  * it): a modifier outside the GM's record is at least flagged in 1.2.67, enforced from E29.
  * So this GM reads, for each roll it draws, what it expects from what it holds, and a
  * difference is a `flags` entry on the record, one whisper to the GMs per roll
- * (`DRPG.Rolls.unexpected`) and a line in `game.drpg.rollFlags()`. The roll stands as drawn.
+ * (`DRPG.Rolls.unexpected`) and a line in `game.drpg.rollFlags()`. The roll stood as drawn until
+ * E29 C10; since then the GM throws what it reads ("THE GM THROWS ITS OWN LIST" above), and the
+ * difference is the claim's.
  *
  * WHAT IT READS IS ONE LIST, ALL OF IT THE GM'S (E29 C9, 05.10.2026; audit S17-12, its second
  * half; the stage plan's 3.2). Until C9 this note listed what the GM read, and half of it was the
@@ -953,8 +1165,10 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
  * a roll there is built without the dice and the bonus the window would impose: a drawn roll
  * that applied a dice or bonus Call, or whose situation the GM reads as a die - a tool in hand, a
  * crisis weapon, a trap's victim, the Night's opening, Breakdown - is flagged there, truthfully: its
- * dice lack it, where a table's window would have put it on. The suite's packets put the dice on
- * as a window would. Not measured at a table: LIVE-E28.
+ * dice lack it, where a table's window would have put it on. Since E29 C10 the GM throws that die
+ * all the same (its face is the GM's randomiser's: a scenario's `__forceRoll` names the Hope and the
+ * Fear die alone), and the roller is told nothing, the claim having nothing the GM did not count.
+ * The suite's packets put the dice on as a window would. Not measured at a table: LIVE-E28.
  * ========================================================================== */
 
 /** The most Calls a packet may name; more is no roll's. */
@@ -1270,13 +1484,6 @@ function flatOf(roll) {
     return flat;
 }
 
-/** The roll's advantage dice as a signed count, read as Daggerheart's `dAdvantage` / `dDisadvantage` hold them. */
-function advantageOf(roll) {
-    const die = roll.dAdvantage ?? roll.dDisadvantage ?? null;
-    const count = Number(die?.number) || (die ? 1 : 0);
-    return roll.dAdvantage ? count : -count;
-}
-
 /** What each row adds to the flat sum or to the advantage dice, from its reading - the rows a flag says the GM counted. */
 const COUNTED = Object.freeze({
     flat: Object.freeze({ experience: n => n, callBonus: n => n, hostile: h => h?.bonus, effects: range => (range?.[0] || range?.[1] ? 1 : 0) }),
@@ -1289,33 +1496,27 @@ function countedIn(expected, part) {
 }
 
 /**
- * The roll against the expectation: `[{ kind, expected, claimed }]`, empty when nothing differs.
+ * The claim against what the GM threw (E29 C10: `scored` and `claim`, `legalRollOf`; until C10 the
+ * roll as thrown against the expectation): `[{ kind, expected, claimed }]`, empty when nothing differs.
  * Kinds: `trait`, `pick` (a statistic a GM was to pick, and no pick was made; fix r2-H8),
- * `modifier` (the flat sum), `dice` (a die beyond Hope, Fear and the advantage die),
- * `advantage`, `stash` (a hidden stash the packet did not name). A `modifier` or an `advantage`
- * flag names the list's rows that made the GM's number (`from`, E29 C9).
+ * `modifier` (the flat sum past the statistic, which `trait` says), `dice` (a die beyond Hope,
+ * Fear and the advantage die), `advantage`, `stash` (a hidden stash the packet did not name). A
+ * `modifier` or an `advantage` flag names the list's rows that made the GM's number (`from`, E29 C9),
+ * and its `expected` is the GM's number as thrown.
  */
-function checkRoll(roll, actor, told, expected) {
+function checkRoll({ scored, claim }, told, expected) {
     const flags = [];
     if (expected.stashDie && told.context.stashDie !== true) flags.push({ kind: "stash", expected: "1", claimed: "0" });
-    if (!expected.checked) return flags;
-    const said = traitKeyOf(told.trait);
-    if (expected.trait && said !== expected.trait) flags.push({ kind: "trait", expected: expected.trait, claimed: said ?? "-" });
+    if (!expected.checked || !scored) return flags;
+    if (expected.trait && claim.trait !== expected.trait) flags.push({ kind: "trait", expected: expected.trait, claimed: claim.trait ?? "-" });
     if (expected.traitFrom === "gm" && !expected.trait) flags.push({ kind: "pick", expected: "1", claimed: "0" });
-    const traitValue = Number(actor.system?.traits?.[TRAITS[said]?.dh ?? ""]?.value) || 0;
-    const owned = told.experiences.filter(key => actor.system?.experiences?.[key]);
-    const fromExperiences = owned.slice(0, expected.experiences)
-        .reduce((sum, key) => sum + (Number(actor.system.experiences[key].value) || 0), 0);
-    const base = traitValue + fromExperiences + expected.bonus;
-    const off = flatOf(roll) - base;
-    const [low, high] = expected.effects;
-    if (off < low || off > high || owned.length > expected.experiences) {
-        flags.push({ kind: "modifier", expected: signed(base), claimed: signed(flatOf(roll)), from: countedIn(expected, "flat") });
+    if (claim.flat - claim.traitValue !== scored.flat - scored.traitValue || claim.experiences.length > scored.experiences.length) {
+        flags.push({ kind: "modifier", expected: signed(scored.flat), claimed: signed(claim.flat), from: countedIn(expected, "flat") });
     }
-    const extra = (roll.dice?.length ?? 0) - 2 - (roll.dAdvantage || roll.dDisadvantage ? 1 : 0);
-    if (extra > 0) flags.push({ kind: "dice", expected: "0", claimed: String(extra) });
-    const dice = advantageOf(roll);
-    if (dice !== expected.advantage) flags.push({ kind: "advantage", expected: signed(expected.advantage), claimed: signed(dice), from: countedIn(expected, "dice") });
+    if (claim.dice > 0) flags.push({ kind: "dice", expected: "0", claimed: String(claim.dice) });
+    if (claim.advantage !== scored.advantage) {
+        flags.push({ kind: "advantage", expected: signed(scored.advantage), claimed: signed(claim.advantage), from: countedIn(expected, "dice") });
+    }
     return flags;
 }
 

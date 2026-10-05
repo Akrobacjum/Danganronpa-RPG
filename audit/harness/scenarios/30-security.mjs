@@ -1892,6 +1892,54 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a Loaded Die a console writes on its own student is put back, and a drawn roll naming it is not loaded",
         Boolean(dieDraw.row) && dieDraw.armed === false && dieDraw.row.loaded === false && !(dieDraw.row.calls ?? []).includes(forgedDie.nonce)
         && dieDraw.told.includes("sheetPutBack"), JSON.stringify(dieDraw), { flow: "call-arm" });
+    /* THE GM THROWS ITS OWN LIST (E29 C10, 05.10.2026; D2 option 2; the stage plan's 3.4 and 3.5). p1's console pays one of
+       Aiko's actions and asks a Search's draw of a roll that adds 5 after her Eye's value, which no Call, experience or
+       effect of hers explains. Read on the GM: the newest record's total against its Hope and Fear and Aiko's Eye, its
+       flags, the claim's and the thrown flat sums, and the GMs' whispers that say its modifier flag; on p1 and on p2,
+       whether the words of a card since the draw say the roller's line (roll-draw.mjs `rollerLine`). Until C10 the GM
+       counted the 5 - flagged, and scored as drawn. The other forged rolls of this phase claim nothing the GM does not
+       count beyond their dice, and are told nothing. */
+    const fiveHad = { gm: await gm.eval(`return game.messages.contents.map(m => m.id);`), p1: await p1.eval(`return game.messages.contents.map(m => m.id);`),
+        p2: await p2.eval(`return game.messages.contents.map(m => m.id);`) };
+    const fiveFrom = await gm.eval(`return Date.now();`);
+    const eye = await gm.eval(`return Number(game.actors.get("${ids.aiko}")?.system?.traits?.instinct?.value) || 0;`);
+    const plusFive = { ...unthrown, formula: `1d12 + 1d12 + ${eye} + 5`,
+        terms: [...unthrown.terms.slice(0, 4), { class: "NumericTerm", number: eye, evaluated: true }, unthrown.terms[3], { class: "NumericTerm", number: 5, evaluated: true }],
+        options: { ...unthrown.options, drpgRollNonce: "SECFIVEDRAWNONCE" } };
+    await p1.eval(`${payFor(ids.aiko)}
+        game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "plus-five-draw", actorId: "${ids.aiko}", nonce: "SECFIVEDRAWNONCE",
+            actionKey: "search", claimed: true, loaded: null, costs: [], trait: "instinct", roll: ${JSON.stringify(plusFive)} }, ${toGms});
+        return true;`);
+    const readFive = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"), D = await import("${repoUrl}/scripts/roll-draw.mjs");
+        const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const row = Object.values(S.rollStore?.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${fiveFrom})
+            .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0] ?? null;
+        if (!row) return null;
+        const flag = (row.flags ?? []).find(f => f.kind === "modifier"), line = flag ? D.flagText(flag) : null;
+        let toGms = 0;
+        for (const m of game.messages.contents.filter(m => !${JSON.stringify(fiveHad.gm)}.includes(m.id) && m.id !== row.messageId)) {
+            if (line && String(await wordsOf(m, 500) ?? "").includes(line)) toGms++;
+        }
+        return { total: row.total, hope: row.hope, fear: row.fear, flags: (row.flags ?? []).map(f => f.kind), claim: row.claim?.flat ?? null,
+            scored: row.scored?.flat ?? null, toGms, told: typeof D.rollerLine === "function" ? D.rollerLine(row) : null };`;
+    // The record is kept before the GMs are told and the roller's card is written (roll-draw.mjs `throwDrawn`): read until both are.
+    let five = null;
+    for (let i = 0; i < 60 && !(five?.toGms >= 1); i++) {
+        five = await gm.eval(readFive);
+        if (!(five?.toGms >= 1)) await settle(100);
+    }
+    await settle(300);
+    const heardFive = (client, had) => client.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const told = ${JSON.stringify(five?.told ?? null)};
+        if (!told) return null;
+        for (const m of game.messages.contents.filter(m => !${JSON.stringify(had)}.includes(m.id))) {
+            if (String(await wordsOf(m, 1500) ?? "").includes(foundry.utils.escapeHTML(told))) return true;
+        }
+        return false;`);
+    if (five) Object.assign(five, { p1: await heardFive(p1, fiveHad.p1), p2: await heardFive(p2, fiveHad.p2) });
+    check("SECURITY: a console's roll.draw is thrown on the GM's own list - a 5 nothing of Aiko's explains is not counted, is flagged to the GMs, and its roller alone is told",
+        Boolean(five) && five.total === five.hope + five.fear + eye && five.flags.includes("modifier") && five.claim === eye + 5 && five.scored === eye
+        && five.toGms === 1 && five.p1 === true && five.p2 === false, JSON.stringify({ eye, five }), { flow: "gm-rolls-total" });
     // The draws above are this check's alone: their records and messages go.
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const ids = Object.entries(S.rollStore?.entries() ?? {}).filter(([, r]) => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom});

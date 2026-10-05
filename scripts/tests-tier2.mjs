@@ -796,6 +796,23 @@ async function payAction(actor) {
     return { back: async () => { if (actionsLeft(actor) !== left) await trustedWrite(actor, { [path]: left }, { reason: "gmRuling" }); } };
 }
 
+/**
+ * A NUMBER A ROLL WINDOW PUT ON (E29 C10, 05.10.2026): `n` added to a packet's roll after its last
+ * term, as a bonus field adds one, and - where `label` is given - to its modifiers as Daggerheart's
+ * window lists one (dhRoll.mjs `addModifiers`). The packet's formula says it too. Answers the packet.
+ */
+function addedToPacket(packet, n, label = null) {
+    const roll = packet.roll;
+    roll.terms = [...roll.terms, { class: "OperatorTerm", options: {}, evaluated: false, operator: n < 0 ? "-" : "+" },
+        { class: "NumericTerm", options: {}, evaluated: false, number: Math.abs(n) }];
+    roll.formula = `${roll.formula} ${n < 0 ? "-" : "+"} ${Math.abs(n)}`;
+    if (label) {
+        roll.options = roll.options ?? {};
+        roll.options.roll = { ...(roll.options.roll ?? {}), modifiers: [...(roll.options.roll?.modifiers ?? []), { label, value: n }] };
+    }
+    return packet;
+}
+
 /** A connected player and a character they play, and one they do not; ask `connectedPlayersWithCharacter` first. */
 function playerAndCharacters() {
     const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
@@ -4929,16 +4946,20 @@ const SCENARIOS = [
         ], before]), "a forged draw was carried out, refused with another code, or left a message or a record (verdict and answers per forgery; drawn messages and records)");
     }],
 
-    ["a roll with a bonus the GM did not expect is flagged to the GMs and scored as drawn", async () => {
+    ["a roll with a bonus the GMs do not hold is flagged to the GMs, told to its roller, and scored without it", async () => {
         /*
          * E08+E28 C12b, 04.10.2026; the plan's 3.3; D2's observation for 1.2.67. What a drawn roll
          * adds up to beyond its dice is configured in the roller's browser; the GM reads what it
-         * expects (roll-draw.mjs `expectedFor`) and a difference is flagged, not refused, until E29.
+         * expects (roll-draw.mjs `expectedFor`) and a difference is flagged. Until E29 C10 it was
+         * counted all the same ("... and scored as drawn", this test's name until C10, green at C9's
+         * runtime with the 3 in all three totals); since C10 the GM throws its own list
+         * (`legalRollOf`) and tells the roller what it did not count (`rollerLine`, the owner's Q1 (a)).
          * The packet of a player's Search with three added to its formula, as a bonus field would
          * add it, with no Call that buys one. Read: the total three ways (the record's, the answer's,
-         * the message's) against the faces and the three, the record's flags, the whispers to the
-         * GMs that say the flag's line, and `game.drpg.rollFlags()`. Until C12b the GM kept
-         * `flags: []` and said nothing.
+         * the message's) against the faces and the statistic, the record's flags, the whispers to the
+         * GMs that say the flag's line, `game.drpg.rollFlags()`, the cards to the player alone that
+         * say the roller's line, and the claim's and the thrown flat sums on the record. Until C12b
+         * the GM kept `flags: []` and said nothing.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -4955,24 +4976,159 @@ const SCENARIOS = [
             packet.roll.formula = `${packet.roll.formula} + 3`;
             return packet;
         };
-        const F = await drawnForPlayer(player, theirs, { edit });
+        // The roller's card is the player's alone: its words leave this GM by the socket, and are read there (`wordsSent`).
+        let F = null;
+        const cards = await wordsSent(async () => { F = await drawnForPlayer(player, theirs, { edit }); });
         try {
             must(F.record, "the GM kept no record of the draw - this measured nothing");
             const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
             const line = F.record.flags?.length ? D.flagText(F.record.flags[0]) : "C12B NO FLAG";
+            const told = (typeof D.rollerLine === "function" ? D.rollerLine(F.record) : null) ?? "C10 NO ROLLER LINE";
             const said = [];
             for (const m of game.messages.contents.filter(x => !had.has(x.id) && x.id !== F.message?.id)) {
                 if (String(await wordsOf(m, 1000) ?? "").includes(line)) said.push([...(m.whisper ?? [])].sort().join());
             }
+            const toRoller = cards.filter(card => card.html.includes(foundry.utils.escapeHTML(told))).map(card => [...card.to].sort().join());
             const listed = typeof D.rollFlags === "function" ? D.rollFlags({ quiet: true }).filter(row => row.rollId === F.value?.rollId).map(row => row.flags) : [];
             equal(stableJson([F.record.total, F.value?.total, F.message?.rolls?.[0]?.total, (F.record.flags ?? []).map(f => f.kind), said.length,
-                said[0] === [...gmIds()].sort().join(), listed.length === 1 && listed[0].includes(line)]),
-            stableJson([9 + 4 + mod + 3, 9 + 4 + mod + 3, 9 + 4 + mod + 3, ["modifier"], 1, true, true]),
-                "a bonus the GM did not expect changed the drawn total, was not flagged, was told other than once to the GMs, or is not in rollFlags (record, answer and message totals; flags; whispers; to the GMs; listed)");
+                said[0] === [...gmIds()].sort().join(), listed.length === 1 && listed[0].includes(line), toRoller, F.record.claim?.flat ?? null, F.record.scored?.flat ?? null]),
+            stableJson([9 + 4 + mod, 9 + 4 + mod, 9 + 4 + mod, ["modifier"], 1, true, true, [player.id], mod + 3, mod]),
+                "a bonus the GMs do not hold was counted, was not flagged, was told other than once to the GMs, is not in rollFlags, or was not told to the roller alone (record, answer and message totals; flags; whispers; to the GMs; listed; the roller's cards; claimed and thrown flat sums)");
         } finally {
             await F.putBack();
             for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
         }
+    }],
+    ["a drawn roll's copy on its roller's browser is the GM's roll - its total, its statistic and its modifiers, whatever its window claimed", async () => {
+        /*
+         * E29 C10, 05.10.2026; the stage plan's 3.6. The roller's browser played the GM's faces into
+         * the roll its own window configured (roll-draw.mjs `playBack`), so where the GM did not count
+         * a modifier the roller's `config.roll` read the window's numbers - only its total was put
+         * right. The suite is the GM's browser, whose rolls are not drawn: the player's half is played
+         * here on the draw's answer - the packet's roll as the configured one, the answer's roll played
+         * back (`rollerCopyOf`) on a config marked drawn (`DRAWN_ROLL`, so the harness's scripted
+         * faces stand aside). A Search whose packet names Leg and adds 5. Read: the copy's total, `config.roll`'s
+         * total, statistic and modifiers' values, and the record's total. Scenario 12 plays the same
+         * on a real player's browser. At C9's runtime there is no copy to read, and the record's total
+         * held the packet's numbers, the 5 among them (by reading: a Search is held to Eye, so the
+         * Leg is flagged there, and the packet's numbers carry Eye's value).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const { DRAWN_ROLL } = await import("./action-rolls.mjs");
+        const cls = game.system.api.dice.DualityRoll;
+        const F = await drawnForPlayer(player, theirs, { edit: packet => addedToPacket({ ...packet, trait: "agility" }, 5) });
+        try {
+            must(F.record && F.value, "the GM kept no record of the draw or answered nothing - this would measure nothing");
+            const configured = cls.fromData(foundry.utils.deepClone(F.packet.roll));
+            const config = { roll: { trait: "instinct" }, [DRAWN_ROLL]: { rollId: F.value.rollId, messageId: F.value.messageId } };
+            const copy = typeof D.rollerCopyOf === "function" ? await D.rollerCopyOf(cls, configured, config, {}, F.value) : null;
+            const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
+            equal(stableJson([copy?.total ?? null, config.roll?.total ?? null, config.roll?.trait ?? null, (config.roll?.modifiers ?? []).map(m => m?.value), F.record.total]),
+                stableJson([9 + 4 + mod, 9 + 4 + mod, "instinct", [mod], 9 + 4 + mod]),
+                "the roller's copy of a drawn roll read the window's claim, not the GM's roll (the copy's total; config.roll's total, statistic and modifiers; the record's total)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a drawn statistic's card carries the GM's modifiers, not the ones its window put on", async () => {
+        /*
+         * E29 C10, 05.10.2026; the stage plan's 3.6. A statistic from the sheet keeps Daggerheart's
+         * card, which lists the roll's modifiers (`options.roll.modifiers`), and the GM wrote its
+         * message from the packet's roll, so the card listed what the roller's window put on. Read by
+         * value: every drawn roll's message empties its modifiers' labels (private-rolls.mjs
+         * `neutralRollOf`; measured here on 05.10.2026, the statistic's label "" on the message). The packet of a player's statistic from the sheet with 5 added to its formula and
+         * to its modifiers, as a window's bonus field would add it. Read: the GM's message's
+         * modifiers and total against the faces and the statistic. The harness's message keeps the
+         * roll's modifiers since C10, as Daggerheart's keeps the roll whole (client-entry.mjs
+         * `toMessage`); at C9's runtime with that kept, the message's modifiers are the packet's
+         * (the window's 5) and its total holds the 5.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const sheet = packet => addedToPacket({ ...packet, actionKey: null, claimed: false }, 5, "C10 a window's bonus");
+        const F = await drawnForPlayer(player, theirs, { actionKey: null, edit: sheet });
+        try {
+            must(F.message, "the GM wrote no message for the draw - this would measure nothing");
+            const mod = Number(theirs.system?.traits?.instinct?.value) || 0;
+            const roll = F.message.rolls?.[0];
+            equal(stableJson([(roll?.options?.roll?.modifiers ?? []).map(m => m?.value), roll?.total ?? null]),
+                stableJson([[mod], 9 + 4 + mod]),
+                "a drawn statistic's card listed the window's modifiers or counted them (the message's modifiers; its total)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a roll its window built right scores as the window built it: an experience, a Support, a Meddle's help, its hinder, its bonus", async () => {
+        /*
+         * E29 C10, 05.10.2026; the stage plan's risk "a missing legal source is a false subtraction",
+         * now that the GM throws its own list (roll-draw.mjs `legalRollOf`). The sources of E29 C9's
+         * "a roll built from what the GMs hold raises no flag ...", each armed by a GM, named by the
+         * packet and put on it as Daggerheart's window would: an Experience Call's experience at its
+         * value, a Support's advantage die, a Confusion's advantage die, its disadvantage die, its +1
+         * and its -1. Read, per draw: the record's flags, and whether its total is its dice - the Hope
+         * and the Fear die, the advantage die's kept face with its sign - and the packet's own numbers.
+         * A guard: green at C9's runtime, where the GM counted the packet's numbers, and green since,
+         * where it counts its own and they agree.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const experience = Object.keys(theirs.system?.experiences ?? {})[0] ?? null;
+        must(experience, `${theirs.name} has no experience - this would measure nothing of one`);
+        const die = sign => p => {
+            p.roll.terms.splice(3, 0, { class: "OperatorTerm", operator: sign > 0 ? "+" : "-", evaluated: false },
+                { class: sign > 0 ? "AdvantageDie" : "DisadvantageDie", number: 1, faces: 6, modifiers: [], results: [], evaluated: false });
+            p.roll.formula = p.roll.formula.replace(/^1d12 \+ 1d12/, `1d12 + 1d12 ${sign > 0 ? "+" : "-"} 1d6`);
+            return p;
+        };
+        const arm = async (entry, byStore) => {
+            const had = new Set(E.armedCallsShown(theirs).map(c => c.nonce));
+            if (byStore) await E.armCall(theirs, entry);
+            else await E.appendArmedCall(theirs, { amount: null, ...entry, nonce: `E29C10${entry.key.toUpperCase()}${foundry.utils.randomID(6)}` });
+            const nonce = E.armedCallsShown(theirs).find(c => !had.has(c.nonce))?.nonce ?? null;
+            must(nonce, `the ${entry.key} was not armed - this would measure nothing`);
+            return nonce;
+        };
+        const sources = [
+            ["experience", { key: "experience", kind: "hope", grants: "experience" }, false,
+                p => addedToPacket({ ...p, experiences: [experience] }, Number(theirs.system.experiences[experience]?.value) || 0)],
+            ["support", { key: "support", kind: "hope", grants: "advantage" }, false, die(1)],
+            ["meddle help", { key: "meddle", grants: "advantage" }, true, die(1)],
+            ["meddle hinder", { key: "meddle", grants: "disadvantage" }, true, die(-1)],
+            ["meddle +1", { key: "meddle", grants: "bonus", amount: 1 }, true, p => addedToPacket(p, 1)],
+            ["meddle -1", { key: "meddle", grants: "bonus", amount: -1 }, true, p => addedToPacket(p, -1)]
+        ];
+        // What the packet's roll adds up to on the GM's faces: its Hope and Fear die, its advantage die's kept face, its numbers.
+        const asBuilt = F => {
+            const terms = F.packet.roll.terms;
+            const sign = terms[4]?.class === "AdvantageDie" ? 1 : terms[4]?.class === "DisadvantageDie" ? -1 : 0;
+            const kept = sign ? Math.max(...(F.record.dice?.[2]?.results ?? []).filter(r => r.active).map(r => r.result)) : 0;
+            const numbers = terms.reduce((sum, t, i) => sum + (typeof t?.number === "number" && !("faces" in t) ? (terms[i - 1]?.operator === "-" ? -1 : 1) * t.number : 0), 0);
+            return F.record.hope + F.record.fear + sign * kept + numbers;
+        };
+        const read = [], armed = [];
+        try {
+            for (const [label, entry, byStore, edit] of sources) {
+                const nonce = await arm(entry, byStore);
+                armed.push(nonce);
+                const F = await drawnForPlayer(player, theirs, { faces: { hope: 7, fear: 4 }, edit: p => edit({ ...p, calls: [nonce] }) });
+                try {
+                    must(F.record, `the GM kept no record of the ${label} draw - this would measure nothing`);
+                    read.push([label, (F.record.flags ?? []).map(f => f.kind), F.record.total === asBuilt(F)]);
+                } finally {
+                    await F.putBack();
+                }
+            }
+        } finally {
+            const left = E.armedCallsShown(theirs).map(c => c.nonce).filter(n => armed.includes(n));
+            if (left.length) await E.spendCallsByNonce(theirs, left);
+        }
+        equal(stableJson(read), stableJson(sources.map(([label]) => [label, [], true])),
+            "a roll its window built from what the GMs hold was flagged, or scored other than as built (per source: flags, total as built)");
     }],
 
     ["the trait the GM picked: another one is flagged", async () => {
@@ -5074,6 +5230,9 @@ const SCENARIOS = [
          * record's dice (faces, how many thrown) and whether its formula names a die of one face; the
          * second's critical and Fear. At 33bc497's runtime (with the harness's roll taking
          * `guaranteedCritical` as Daggerheart's does): [[[[1,2],[1,1]],true],[true,false],[[12,1],[12,1],[20,3]]].
+         * Until E29 C10 the advantage dice's count was the packet's (three, at the list's six faces);
+         * since C10 it is the GM's own sum (roll-draw.mjs `legalRollOf`), none for this Search, whose
+         * packet names no Call and whose room the GM reads as no die.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -5107,7 +5266,7 @@ const SCENARIOS = [
             // Last drawn first: each puts the GM's Fear back as it found it, and a Fear result's write lands after its draw.
             for (const F of drawn.reverse()) await F.putBack();
         }
-        equal(stableJson(read), stableJson([[[[12, 1], [12, 1]], false], [false, true], [[12, 1], [12, 1], [6, 3]]]),
+        equal(stableJson(read), stableJson([[[[12, 1], [12, 1]], false], [false, true], [[12, 1], [12, 1]]]),
             "a drawn roll was thrown on the packet's dice or a critical the packet named (per draw: dice and a one-faced die in the formula; critical and Fear; dice)");
     }],
 

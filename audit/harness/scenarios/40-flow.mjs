@@ -1037,8 +1037,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * because the trace's packet leaves before `noteRollContext` tells the GMs the relief. p1 sabotages
      * a project in Aiko's room holding a tier-1 tool readied (any tool she held put down for it), on
      * forced dice with Fear that come to 11 with her Eye - the first band only with the tool's relief
-     * of 1. The harness's drawn total is the dice and the statistic: the +1 the tool arms in the roll
-     * window does not reach it (05.10.2026, at a75e3f1: 4 and 6 came to 10 with an Eye of 0). "Rolls
+     * of 1. From E29 C10 the GM throws the tool's advantage die its own list holds (roll-draw.mjs
+     * `legalRollOf`), which the harness's roll window never put on: its face is scripted to 1 here
+     * (`advantage`, client-entry.mjs `buildEvaluate`), so the dice and the Eye still come to 11 -
+     * unscripted, its face was the randomiser's (C10's first run: a total of 14, not the 11 asked). "Rolls
      * grant Despair" is off for it, and Daggerheart's Fear put back after it. Read on the GM: the
      * roll's record, the tool, the freeze and its repair, and the band of the trace. Red at a75e3f1:
      * the trace "hidden", a miss's band.
@@ -1059,8 +1061,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         return { project, tool: tool?.id ?? null, readied: U.equippedFor(actor, "tool")?.id ?? null, put, despair,
             fear: game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear), eye: Number(actor.system.traits?.instinct?.value ?? 0) };`, { timeout: 30000 });
     await settle(600);
-    // 11 = hope + fear + Eye, Fear the higher die and never a critical.
-    const toolSum = 11 - toolSetup.eye, toolDice = { hope: Math.floor((toolSum - 1) / 2), fear: toolSum - Math.floor((toolSum - 1) / 2) };
+    // 11 = hope + fear + the tool's die (a 1) + Eye, Fear the higher die and never a critical.
+    const toolSum = 10 - toolSetup.eye, toolDice = { hope: Math.floor((toolSum - 1) / 2), fear: toolSum - Math.floor((toolSum - 1) / 2), advantage: 1 };
     const toolSab = await p1.eval(`globalThis.__forceRoll = ${JSON.stringify(toolDice)};
         const actor = game.actors.get("${ids.aiko}"); let r = null, err = null;
         try { r = await game.drpg.performAction(actor, "sabotage", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }

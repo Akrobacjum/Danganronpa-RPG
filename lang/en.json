@@ -2986,7 +2986,7 @@
       "rewritePutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",
       "rewriteNotPutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; this browser did not see that roll thrown, so its dice could not be put back.",
       "notDrawnHere": "Daggerheart {version} builds its rolls in a way this module was not written for, so the players' rolls are thrown in their own browsers and not drawn by the GM. Said once for this version.",
-      "unexpected": "The GM drew {name}'s roll, and it carried what the GM did not expect: {list}. The roll stands as drawn; game.drpg.rollFlags() lists it.",
+      "unexpected": "The GM drew {name}'s roll and counted it as the GMs hold it; not counted as the roll claimed: {list}. game.drpg.rollFlags() lists it.",
       "flagLine": "{what} {claimed}, expected {expected}",
       "flagsTitle": "Drawn rolls with something the GM did not expect: {n}",
       "flagKind": {
@@ -2998,6 +2998,8 @@
         "stash": "hidden stash not named"
       },
       "flagFrom": "{line} (the GM counted: {list})",
+      "counted": "The GM counted {list}",
+      "notCounted": "{counted}; not counted: {list}.",
       "legal": {
         "hopeDie": "the Hope die's faces",
         "fearDie": "the Despair die's faces",

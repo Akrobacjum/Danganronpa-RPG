@@ -897,8 +897,8 @@ export async function guardRollAuthor(sender, payload, ctx) {
  * packet's. Daggerheart's own dice only where `fromData` reads them (dualityRoll.mjs:122-129) -
  * the Hope die first, the Fear die third, an advantage or disadvantage die fifth - since a throw
  * reads its advantage die as the third die it holds (`dAdvantage`), and the GM writes those dice
- * itself (roll-draw.mjs `onGmTerms`); any other die is a whole number of dice of a whole number
- * of faces.
+ * itself (roll-draw.mjs `onGmTerms`; since E29 C10 the whole roll, `legalRollOf`); any other die is
+ * a whole number of dice of a whole number of faces.
  */
 const DRAWN_TERMS_MAX = 64;
 const DRAWN_FORMULA_MAX = 512;

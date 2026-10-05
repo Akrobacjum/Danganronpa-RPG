@@ -582,12 +582,15 @@ class DualityRollMock extends RollImpl {
      * `CONFIG.Dice.randomUniform` for this one evaluation: the next draws, in the order the dice
      * ask for them, then the randomiser again - as a scripted randomiser is at a table. So a
      * Loaded Die, which answers the first draw itself (forced-roll.mjs), hands the script's first
-     * face to the Fear die: `{ hope: 5, fear: 3 }` with a Loaded Die throws 12 and 5.
+     * face to the Fear die: `{ hope: 5, fear: 3 }` with a Loaded Die throws 12 and 5. An
+     * `advantage` face scripts the third draw, the one advantage die a roll throws after its two
+     * (E29 C10: from then the GM throws the die its own list holds - a tool in hand, a trap's
+     * victim - which no window of the harness put on, and a scenario reading a band names its face).
      */
     static async buildEvaluate(roll, config = {}, message = {}) {
         const D = globalThis.CONFIG.Dice;
         const forced = config?.drpgDrawn ? null : relayedFacesOf(roll) ?? globalThis.__forceRoll;
-        const script = forced ? [forced.hope, forced.fear].map((face, i) => typeof face === "number" ? uniformFor(face, roll.dice[i]?.faces ?? 12) : null) : null;
+        const script = forced ? [forced.hope, forced.fear, forced.advantage].map((face, i) => typeof face === "number" ? uniformFor(face, roll.dice[i]?.faces ?? 12) : null) : null;
         const real = D.randomUniform;
         if (script) D.randomUniform = () => script.shift() ?? real();
         try {
@@ -673,8 +676,12 @@ class DualityRollMock extends RollImpl {
             options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
                 data: config.data, effects: [...(actor?.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
                 experiences: [...(config.experiences ?? [])],
+                // The roll's own modifiers where its options hold them, as Daggerheart's message keeps the
+                // roll whole (a roll the GM drew, whose modifiers it wrote, E29 C10); else the statistic's,
+                // the one the harness's formula adds.
                 roll: { trait: traitKey, type: config.actionType,
-                    modifiers: traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
+                    modifiers: Array.isArray(roll.options?.roll?.modifiers) ? JSON.parse(JSON.stringify(roll.options.roll.modifiers))
+                        : traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
                 actionType: config.actionType }
         };
         const message = await classes.ChatMessage.create({
