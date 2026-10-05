@@ -2525,7 +2525,10 @@
         "rollUsed": "That roll has already been scored.",
         "rollStale": "The roll it names is too old to be scored.",
         "rollMissed": "The roll it names did not earn that.",
-        "projectFrozen": "That project is frozen by a sabotage until its repair is finished."
+        "projectFrozen": "That project is frozen by a sabotage until its repair is finished.",
+        "rollReplaced": "A later roll of the same action replaced the roll it names.",
+        "notPaid": "The GM's client saw no action paid for that roll. Take the action again.",
+        "rollThrown": "That action's roll has been thrown already."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",

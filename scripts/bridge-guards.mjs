@@ -157,7 +157,7 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "rollMissed", "projectFrozen", "relay", "failed", "refused", "noGm", "noAnswer"
+    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "relay", "failed", "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -303,7 +303,16 @@ export const REASON_PATTERNS = Object.freeze([
     // E08+E28 C16: a Work on a Project's roll that earned nothing (gm-bridge.mjs `progressOf`), and a frozen project (guardProjectFrozen).
     ["rollMissed", /^that roll earned no progress$/],
     ["projectFrozen", /^that project is frozen until its repair is finished$/],
-    ["missing", /^no ruling of a GM's sets that roll's band$/]
+    ["missing", /^no ruling of a GM's sets that roll's band$/],
+    // E08+E28 fix r2-H1: a settlement takes the newest roll of its action (rollRefusal), and a draw is an
+    // action's, made once (roll-draw.mjs `drawRefusal`, `drawOnGm`), its window's costs its experiences' Hope (guardDrawnCosts).
+    ["rollReplaced", /^a later roll of that action has replaced that roll$/],
+    ["notPaid", /^no payment of that character's stands for that roll$/],
+    ["rollThrown", /^that character's roll of that action has been thrown already$/],
+    ["rollThrown", /^a roll of that action is being thrown already$/],
+    ["badRequest", /^no crisis action that throws a roll is named$/],
+    ["cannotNow", /^that character has no opening roll to throw now$/],
+    ["badRequest", /^that roll's window asks a cost no roll of this game pays$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -828,6 +837,32 @@ export async function guardDrawnRoll(sender, payload, ctx) {
     return fits ? null : "that is not a duality roll nobody has thrown";
 }
 
+/*
+ * WHAT A DRAWN ROLL'S WINDOW MAY CHARGE (E08+E28 fix r2-H1, 04.10.2026; review M2). The GM pays
+ * the costs a drawn roll's packet names on its own client (roll-draw.mjs `drawOnGm`), and until
+ * this fix paid any key, negated: the review's packet of eight Fear costs of 12 moved the GM's
+ * Fear 10 -> -86, answered as done and flagging nothing. The one cost Daggerheart's window adds
+ * to a trait roll is a Hope for each experience it selects (d20RollDialog.mjs
+ * `selectExperience`, read in 2.10.5), and the module's window takes even those off on every
+ * render (roll-dialog.mjs `stripExperienceCosts`). So a cost is an enabled Hope of 1, at most one
+ * for each experience the packet names that the sender's own character holds; a packet asking
+ * anything else - Fear above all - is refused, and the refusal is logged on the GM.
+ */
+export function guardDrawnCosts(sender, payload, ctx) {
+    const costs = Array.isArray(payload?.costs) ? payload.costs : [];
+    if (!costs.length) return null;
+    const held = actorExperiences(game.actors.get(payload.actorId ?? ""));
+    const named = new Set((Array.isArray(payload.experiences) ? payload.experiences : []).filter(name => typeof name === "string" && held.has(name)));
+    const hope = costs.every(c => c?.key === "hope" && c.value === 1 && c.enabled === true);
+    return hope && costs.length <= named.size ? null : "that roll's window asks a cost no roll of this game pays";
+}
+
+/** The keys of a character's experiences, as Daggerheart's window names them in a roll's `experiences`. */
+function actorExperiences(actor) {
+    const experiences = actor?.system?.experiences;
+    return new Set(experiences && typeof experiences === "object" ? Object.keys(experiences) : []);
+}
+
 /** A relay is about the sender's own character, or it is refused - see the note above `relay` in traps.mjs. */
 export async function guardRelayOwner(sender, payload, ctx) {
     return ownsActor(sender, payload.actorId) ? null : "not their character";
@@ -1099,13 +1134,23 @@ function rollKindOf(rolled, payload) {
     return [].concat(rolled.kind).includes(named) ? named : null;
 }
 
-/** Why `record` cannot settle the declaration's action for this packet, or null. */
+/**
+ * Why `record` cannot settle the declaration's action for this packet, or null. Since fix r2-H1
+ * (04.10.2026; review S2-1) a roll is also held to what its draw named beyond its action -
+ * `named`, a record field and the packet path that must say the same (a crisis roll's crisis
+ * action, gm-bridge.mjs `murder.crisis`; a record written without the field, before the fix,
+ * is not asked) - and one a later roll of its action replaced settles nothing
+ * (roll-draw.mjs `keepRecord`).
+ */
 export function rollRefusal(record, rolled, payload, sender, now = Date.now()) {
     if (!record) return "no roll the GM drew is named";
     if (record.actorId !== valueAt(payload, rolled.actor) || (record.userId !== sender?.id && !sender?.isGM)) return "that roll is not the sender's character's";
     const kind = rollKindOf(rolled, payload);
-    if (record.actionKey !== kind) return "that roll was not thrown for that action";
+    const namedOtherwise = Object.entries(rolled.named ?? {})
+        .some(([field, path]) => typeof record[field] === "string" && record[field] !== valueAt(payload, path));
+    if (record.actionKey !== kind || namedOtherwise) return "that roll was not thrown for that action";
     if (!(now - (record.at ?? 0) <= TIMING.rerollWindowMinutes * 60_000)) return "that roll is too old to settle anything";
+    if (record.superseded) return "a later roll of that action has replaced that roll";
     const settles = rolled.settles ?? kind;
     if (settledHere.has(`${record.rollId}:${settles}`) || (Array.isArray(record.resolved) && record.resolved.includes(settles))) {
         return "that roll has already settled that action";

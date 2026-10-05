@@ -79,6 +79,13 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await new Promise(r => setTimeout(r, 200));
         await m.update({ rolls: [JSON.stringify(roll(${fearAfter}))] });
         return m.id;`, { timeout: 30000 });
+    /** An action of `actorId`'s paid on its player's browser, as an action pays before its roll - since E08+E28 fix r2-H1 the
+        GM draws a roll only for an action whose payment it saw (roll-draw.mjs `drawRefusal`). Code for that player's eval. */
+    const payFor = actorId => `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const who = game.actors.get("${actorId}");
+        if (actionsLeft(who) < 1) await automatedUpdate(who, { "system.resources.actions.value": 1 });
+        await spendAction(who, 1, { quiet: true }); }`;
     /** One packet from p1 that its own client never sends: another player's character, in another player's name. */
     const forgeFromP1 = (action, requestId, fields) => p1.eval(`game.socket.emit("${SOCKET}",
         { action: "${action}", userId: "${IDS.p2}", requestId: "${requestId}", ...${JSON.stringify(fields)} }, ${toGms}); return true;`);
@@ -87,6 +94,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
        of that roll earned (gm-bridge.mjs `repairOf`). Code that throws a Sabotage of `actorId`'s the GM
        draws, on faces that earn a repair, and leaves the message it wrote in `rollId`. */
     const sabotageRoll = actorId => `const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        ${payFor(actorId)}
         globalThis.__forceRoll = { hope: 9, fear: 5 };
         let thrown = null;
         try { thrown = await A.rollTrait(game.actors.get("${actorId}"), "eye", { actionKey: "sabotage", remember: false }); }
@@ -178,6 +186,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     /* The first find names an Observe roll of Aiko's the GM drew (E08+E28 C14: a result is the GMs'
        record of the roll a packet names, bridge-guards.mjs `rollRefusal`); the faces beat the trace. */
     const observeRoll = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        ${payFor(IDS.aiko)}
         globalThis.__forceRoll = { hope: 12, fear: 11 };
         let out = null;
         try { out = await A.rollTrait(game.actors.get("${IDS.aiko}"), "eye", { actionKey: "observe", remember: false }); }
@@ -402,6 +411,7 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     await clearFailures(gm);
     mark = await refusedCount(p1);
     const a12roll = await p1.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        ${payFor(IDS.aiko)}
         globalThis.__forceRoll = { hope: 9, fear: 4 };
         try {
             const out = await A.rollTrait(game.actors.get("${IDS.aiko}"), "eye", { actionKey: "search",

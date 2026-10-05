@@ -2613,7 +2613,10 @@
         "rollUsed": "Ten rzut został już rozliczony.",
         "rollStale": "Wskazany rzut jest za stary, by go rozliczyć.",
         "rollMissed": "Wskazany rzut tego nie przyniósł.",
-        "projectFrozen": "Ten projekt jest zamrożony sabotażem, dopóki nie skończy się jego naprawa."
+        "projectFrozen": "Ten projekt jest zamrożony sabotażem, dopóki nie skończy się jego naprawa.",
+        "rollReplaced": "Wskazany rzut został zastąpiony późniejszym rzutem tej samej akcji.",
+        "notPaid": "Klient GM-a nie widział zapłaty za akcję tego rzutu. Wykonaj akcję jeszcze raz.",
+        "rollThrown": "Rzut tej akcji już padł."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",

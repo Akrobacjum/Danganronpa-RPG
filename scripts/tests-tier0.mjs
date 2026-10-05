@@ -5351,12 +5351,13 @@ const REGRESSIONS = [
             const r = payloadReads(decl, lookup);
             // The runner reads the roll a result comes from in the run's copy (E08+E28 C14, bridge-guards.mjs `judge`):
             // since C15 each of a list, and the fields a path, `when` and `kindAt` start from; since C16 what a
-            // `derive` reads of the copy it is handed (gm-bridge.mjs `progressOf`), read as a run's reads are.
+            // `derive` reads of the copy it is handed (gm-bridge.mjs `progressOf`), read as a run's reads are; since
+            // fix r2-H1 the paths a `named` field is compared with (a crisis roll's `key`).
             for (const rolled of G.rollsOf(decl)) {
                 const derived = rolled.derive ? payloadReads({ run: rolled.derive }, lookup) : { fields: [], unreadable: [] };
                 r.unreadable.push(...derived.unreadable);
                 r.fields = [...new Set([...r.fields, rolled.field, ...derived.fields,
-                    ...[rolled.actor, rolled.when, rolled.kindAt].filter(Boolean).map(path => path.split(".")[0])])];
+                    ...[rolled.actor, rolled.when, rolled.kindAt, ...Object.values(rolled.named ?? {})].filter(Boolean).map(path => path.split(".")[0])])];
             }
             const listed = Object.keys(decl.sanitize?.fields ?? {}).sort();
             const out = [];
@@ -5465,6 +5466,8 @@ const REGRESSIONS = [
             rollRefusal: "returns",
             // E08+E28 C15: what a roll earned, read off its record by a declaration's `derive` (C16: a Work on a Project's).
             searchTheftOf: "why", traceBandOf: "why", progressOf: "why",
+            // E08+E28 fix r2-H1: the draw of a player's roll, held to the action it is for before it is thrown.
+            drawOnGm: "refused", drawRefusal: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);

@@ -225,9 +225,12 @@ statistic clicked on the sheet, thrown while a GM is connected, are drawn on the
 primary GM's browser (`roll-draw.mjs`): the dice are the GM's, the resolutions
 the GM runs read their result off the GMs' record of the roll (the store
 `rolls`), and only the GM's own Reroll takes a result back. So a player can no
-longer lie about the dice of those rolls. What a roll adds to its dice - the
-statistic, the experiences, the bonus, the advantage dice - is still configured
-in the roller's browser: one outside the GM's record is flagged
+longer lie about the dice of those rolls. A roll is drawn for an action its
+character is taking - one whose payment the GM saw the player make, the crisis
+turn, the opening - and once; a resolution takes only the newest roll of its
+action, and a roll's window costs nothing but its experiences' Hope. What a roll adds to
+its dice - the statistic, the experiences, the bonus, the advantage dice - is
+still configured in the roller's browser: one outside the GM's record is flagged
 (`game.drpg.rollFlags()`, a whisper to the GMs), not refused, until E29.
 
 What stays open: a roll thrown with no GM connected (an action waits; any other
@@ -240,7 +243,9 @@ a player's own character's Hope, Stress and Health within each resource's bounds
 actor that is not a student (companions included), Fear one step at a time, and
 the countdowns the rules tick or the GM gave them - all through the relay, which
 no module roll needs any more and which E29 may refuse; `relay-guard.mjs` lists
-the rest. And three readings still made on the roller's browser: the Search's
+the rest. A player's own action budget is the owner's to write as well, so a
+console that hands itself back the action it paid for has paid, as far as the GM
+can see. And three readings still made on the roller's browser: the Search's
 item, drawn and granted on the roller's own sheet (its tier from a drawn total,
 the grant still the player's); a concealment roll's reading; and Listen's lines,
 since every browser holds the tokens.

@@ -46,8 +46,8 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS } from "./config.mjs";
+import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, whisperToGms, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
 import { readDuality, awardRollDespair } from "./despair-award.mjs";
@@ -55,6 +55,7 @@ import { rollStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, TRAIT_BY_GM, searchOdds, stashStepFor } from "./action-rolls.mjs";
+import { actionsLeft, freeActionsLeft } from "./actions.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -138,6 +139,9 @@ export function registerRollDraw() {
     cls.build = drawnBuild;
     seam = { state: "ok", why: "" };
     standAsideFor(drawnByGm);
+    Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
+    Hooks.on("createActor", actor => notePayments(actor));
+    Hooks.on("updateActor", notePayments);
 }
 
 /**
@@ -260,12 +264,13 @@ async function drawAndPlay(cls, config, message) {
  * And what the GM holds the roll against (E08+E28 C12b), each the roller's word: the statistic
  * and the experiences, which the neutral roll drops; the Calls the roll applied (the claim's
  * `facts`, the roll window's list, private-rolls.mjs `noteWindowCalls`); the action's context a
- * check reads (a Search's category and stash, a project's id, an opening's side, `CONTEXT_SENT`);
+ * check reads (a Search's category and stash, a project's id, an opening's side, the crisis action
+ * a crisis roll is thrown for - fix r2-H1 - `CONTEXT_SENT`);
  * and the situation's dice as this browser armed them (call-effects.mjs `situationalAdvantage`),
  * which the GM reads for itself where it can.
  */
 const SENT_WITHOUT = new Set(["resourceUpdates", "message", "messageRoll", "data", "effects", "bonusEffects"]);
-const CONTEXT_SENT = Object.freeze({ category: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text" });
+const CONTEXT_SENT = Object.freeze({ category: "text", stashDie: "bool", projectId: "id", targetProjectId: "id", side: "text", crisis: "text" });
 const LISTED_MAX = 16;
 
 /** The context fields a check on the GM reads, plain; nothing else of the action's context leaves. */
@@ -402,30 +407,227 @@ class DrawnResources extends Map {
 
 /*
  * WHAT A ROLL'S WINDOW SAYS IT COSTS. A cost is taken off the roller's own character
- * (`commitResources`, action-rolls.mjs, took it there until now): whole numbers from 1
- * to 12, enabled, at most eight - so a cost can only be paid, never turned into a gain.
- * The bounds are this function's, not a table's largest window, measured.
+ * (`commitResources`, action-rolls.mjs, took it there until C12a), and the one cost
+ * Daggerheart's window adds to a trait roll is a Hope for each experience it selects
+ * (d20RollDialog.mjs `selectExperience`, read in 2.10.5) - which the module's window takes off
+ * again on every render (roll-dialog.mjs `stripExperienceCosts`), so a roll it configured sends
+ * none. Until fix r2-H1 (04.10.2026; review M2) this kept any key of up to 32 characters,
+ * negated: the review's packet of eight Fear costs of 12 moved the GM's Fear 10 -> -86
+ * (Daggerheart's `modifyResource` sends `fear` to the Fear tracker), and by the review's
+ * reading, not run here, a `stress` cost would have cleared a Sanity mark. A packet asking
+ * anything but those Hopes is refused before the draw (bridge-guards.mjs `guardDrawnCosts`);
+ * this keeps the Hopes again, one each.
  */
 const COSTS_KEPT = 8;
 function paidCosts(costs) {
     return (Array.isArray(costs) ? costs : [])
-        .filter(c => c && c.enabled === true && typeof c.key === "string" && c.key.length > 0 && c.key.length <= 32
-            && Number.isInteger(c.value) && c.value >= 1 && c.value <= 12)
+        .filter(c => c?.key === "hope" && c.value === 1 && c.enabled === true)
         .slice(0, COSTS_KEPT)
-        .map(c => ({ key: c.key, value: c.value, enabled: true }));
+        .map(() => ({ key: "hope", value: 1, enabled: true }));
+}
+
+/* ==========================================================================
+ * A DRAW IS AN ACTION'S, MADE ONCE (E08+E28 fix r2-H1, 04.10.2026; review S2-1)
+ * --------------------------------------------------------------------------
+ * A record's `actionKey` is the roller's word at the draw, and until this fix a draw asked
+ * nothing more of it: a console drew rolls of an action it never took or paid, as many as it
+ * liked, and settled with whichever unsettled row of that action it chose - the round-2
+ * review's probe drew three Work rolls of Aiko's (21, 3, 4) with her actions 3 -> 3, and had
+ * the OLDEST, the 21, taken for progress. Now a player's draw belongs to an action being taken,
+ * and a settlement to the newest roll of it (`keepRecord` below, bridge-guards.mjs
+ * `rollRefusal`):
+ *   - an action the roller pays for - the grid's, a Dynamic, a Tamper or a clean-up - is paid
+ *     on their browser before its roll (actions.mjs `spendAction`, price.mjs `payPrice`), and
+ *     this GM sees the payment land, written by the player: the character's actions or a Burst
+ *     going down, or the later step of the action's price chain, a Hope or a Sanity mark, where
+ *     PRICE_CHAINS offers it now (`paysFor`). Each payment is one ticket, which one draw takes; a
+ *     Palm's two rolls ride on one (`ROLLED_TOGETHER`). A rise the player writes - the refund of
+ *     a window closed before its roll - takes back as many tickets nobody drew on, newest first,
+ *     and none outlives the Reroll's window. A GM's write is neither: Sanity marks dealt in an
+ *     incident, a Reroll's Hope or an Objection charged on the primary pay for no roll;
+ *   - a crisis action's roll is its character's turn's (`crisisRefusal`, at the draw as at its
+ *     packet), for the crisis action it names - the record keeps it, and the packet that settles
+ *     it has to name the same (gm-bridge.mjs `murder.crisis`) - and one stands unsettled a turn;
+ *     an opening's is the opening roller's, once an incident; a free clean-up attempt (a
+ *     critical Finishing blow's) is the grant's, one unsettled at a time;
+ *   - a roll that names no action - a concealment, a statistic from the sheet - settles
+ *     nothing, and is drawn as before;
+ *   - two draws of one character's action at once are one too many (`drawing`).
+ * WHAT THIS DOES NOT CLOSE. A payment is the roller's own write to their own character, which
+ * Foundry lets an owner make - and so is the rise that gives it back: a console that pays, draws
+ * and then hands itself the action back has paid, as far as this GM can see (CLAUDE.md, layer
+ * two). A Move or a Rest lowers the actions too, and is a ticket nobody honest draws on. The
+ * tickets are each GM's own memory, and a draw takes one on the GM that draws it: a payment made
+ * before a GM loaded is not seen there, and its roll is refused as a closed window is - the
+ * action hands the payment back (action-rolls.mjs `abort`) unless a roll of it has landed
+ * already (`spentAfterRoll`), and the next try pays again.
+ * ========================================================================== */
+
+/** How long a draw waits for its payment to reach this GM. The roller's browser pays before the roll's window opens, so this is a margin. Chosen, not measured. */
+const PAY_WAIT_MS = 1500;
+/** The rolls one payment buys together: a Palm's unseen roll and its hand (action-rolls.mjs `performPalm`). */
+const ROLLED_TOGETHER = Object.freeze([Object.freeze(["palm", "steal"])]);
+/** The price chain an action's roll is paid by, where it has one (PRICE_CHAINS; cleanup.mjs `chargeTamper`). */
+const CHAIN_OF = Object.freeze({ analyze: "analyze", cleanup: "tamper" });
+/** Each character's tickets on this GM: `{ at, pay, kinds }`, `kinds` the rolls drawn on it. */
+const payments = new Map();
+/**
+ * The option a GM's write of a character's budget carries to count as that character's player's
+ * payment: the suite's (tests-tier2.mjs `payAction`), which runs on a GM's browser and pays there.
+ * A GM may write anything to a character, so it opens nothing a GM could not do already.
+ */
+export const PAID_AS_PLAYER = "drpgPaidAsPlayer";
+/** Each character's actions, Bursts, Hope and Sanity marks as this GM last saw them. */
+const budgets = new Map();
+/** The draws under way on this GM, `actorId:actionKey`. */
+const drawing = new Set();
+
+/** What a payment is read from on a character. */
+function budgetOf(actor) {
+    const r = actor?.system?.resources ?? {};
+    return { action: actionsLeft(actor), grant: freeActionsLeft(actor), hope: Number(r.hope?.value) || 0, stress: Number(r.stress?.value) || 0 };
+}
+
+/** A character's tickets, those past the Reroll's window dropped. */
+function ticketsOf(actorId) {
+    const since = Date.now() - TIMING.rerollWindowMinutes * 60_000;
+    const kept = (payments.get(actorId) ?? []).filter(ticket => ticket.at >= since);
+    payments.set(actorId, kept);
+    return kept;
+}
+
+/**
+ * On `updateActor` (and `createActor`, and at `ready` for every character), on every GM: what a
+ * player's own write took down is a payment, what it put back takes back as many undrawn tickets
+ * of its kind. Any other write - a GM's, or one before this GM had a reading - only moves the
+ * reading the next is measured from.
+ */
+function notePayments(actor, changes = null, options = null, userId = null) {
+    if (!game.user?.isGM || actor?.type !== "character") return;
+    const now = budgetOf(actor), was = budgets.get(actor.id);
+    budgets.set(actor.id, now);
+    const writer = game.users?.get(userId ?? "");
+    if (!was || !writer || (writer.isGM && options?.[PAID_AS_PLAYER] !== true)) return;
+    const tickets = ticketsOf(actor.id);
+    const paid = pay => tickets.push({ at: Date.now(), pay, kinds: [] });
+    const undo = (pay, n) => {
+        for (let i = tickets.length - 1; i >= 0 && n > 0; i--) {
+            if (tickets[i].pay === pay && !tickets[i].kinds.length) { tickets.splice(i, 1); n--; }
+        }
+    };
+    const rise = Math.max(0, now.action - was.action) + Math.max(0, now.grant - was.grant);
+    if (rise) undo("action", rise);
+    else if (now.action < was.action || now.grant < was.grant) paid("action");
+    if (now.hope < was.hope) paid("hope");
+    else if (now.hope > was.hope) undo("hope", now.hope - was.hope);
+    if (now.stress > was.stress) paid("stress");
+    else if (now.stress < was.stress) undo("stress", was.stress - now.stress);
+}
+
+/** What can pay for a roll of `key` now: an action, or a later step of its price chain where the chain offers it in this phase. */
+function paysFor(key) {
+    const chain = PRICE_CHAINS[CHAIN_OF[key]];
+    if (!chain) return ["action"];
+    const steps = chain.stepsBeyondFirst && getClock()?.phase !== chain.stepsBeyondFirst ? chain.steps.slice(0, 1) : chain.steps;
+    return steps.map(step => step.pay);
+}
+
+/** The ticket a draw of `key` would take: one its partner was drawn on, else the oldest undrawn one it can be paid by; or null. */
+function ticketFor(actorId, key) {
+    const tickets = ticketsOf(actorId);
+    const partners = ROLLED_TOGETHER.find(set => set.includes(key)) ?? [];
+    const riding = [...tickets].reverse().find(t => t.kinds.length && !t.kinds.includes(key) && t.kinds.every(k => partners.includes(k)));
+    if (riding) return riding;
+    const pays = paysFor(key);
+    return tickets.find(t => !t.kinds.length && pays.includes(t.pay)) ?? null;
+}
+
+/** This character's records of `key`. */
+const rowsOf = (actorId, key) => Object.values(rollStore.entries() ?? {}).filter(row => row?.actorId === actorId && row.actionKey === key);
+/** A record that has settled nothing, and that no later roll of its action replaced. */
+const unsettled = row => !row?.superseded && !(Array.isArray(row?.resolved) && row.resolved.length);
+/** The incident's turn, as a draw made in it is stamped (the record's `incident`). */
+const turnOf = state => ({ openedAt: state?.openedAt ?? null, turn: state?.turn ?? null, turnSide: state?.turnSide ?? null,
+    killerTurnId: state?.killerTurnId ?? null });
+const sameTurn = (a, b) => ["openedAt", "turn", "turnSide", "killerTurnId"].every(field => (a?.[field] ?? null) === (b?.[field] ?? null));
+
+/**
+ * Why this GM draws no roll of `actor`'s for the action `key` now, or null - see the note above.
+ * Asked of a player's draw; the ticket a roll is let through on is taken here, in the same tick
+ * as the last look at it.
+ */
+async function drawRefusal(actor, key, context) {
+    if (!key) return null;
+    await rollStore.whenHydrated();
+    const { murderState, crisisRefusal } = await import("./murder.mjs");
+    const state = murderState();
+    if (key === "crisis") {
+        const crisis = typeof context.crisis === "string" && Object.hasOwn(CRISIS_ACTIONS, context.crisis) ? context.crisis : null;
+        if (!crisis || CRISIS_ACTIONS[crisis].noRoll) return "no crisis action that throws a roll is named";
+        const why = crisisRefusal(actor, crisis, state)?.why;
+        if (why) return why;
+        return rowsOf(actor.id, key).some(row => unsettled(row) && sameTurn(row.incident, turnOf(state)))
+            ? "that character's roll of that action has been thrown already" : null;
+    }
+    if (key === "murderOpening") {
+        const side = state?.active && state.stage === "openingRoll" ? (state.indirect ? "victim" : "killer") : null;
+        if (!side || context.side !== side || state[`${side}Id`] !== actor.id) return "that character has no opening roll to throw now";
+        return rowsOf(actor.id, key).some(row => row.incident?.openedAt === state.openedAt)
+            ? "that character's roll of that action has been thrown already" : null;
+    }
+    if (key === "cleanup" && state?.active && state.freeCleanup === actor.id
+        && !rowsOf(actor.id, key).some(row => unsettled(row) && row.incident?.openedAt === state.openedAt)) return null;
+    for (const end = Date.now() + PAY_WAIT_MS; !ticketFor(actor.id, key) && Date.now() < end;) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    const ticket = ticketFor(actor.id, key);
+    if (!ticket) return "no payment of that character's stands for that roll";
+    ticket.kinds.push(key);
+    return null;
+}
+
+/** For the suite: the tickets this GM holds for a character (a copy), and forgetting them. */
+export function paymentsOf(actorId) {
+    return ticketsOf(actorId).map(ticket => ({ ...ticket, kinds: [...ticket.kinds] }));
+}
+export function forgetPayments(actorId) {
+    payments.delete(actorId);
 }
 
 /**
  * The run of `roll.draw` on the primary GM (private-rolls.mjs `drawRollOnGm`). The guards
- * have tied the character to the sender and the roll to a duality roll nobody threw. The
- * roll is rebuilt with Daggerheart's `fromData` - never the constructor, which builds the
- * advantage die again from the options (reroll.mjs `rerollKeepingDice`) - thrown here,
- * written, settled, held against what this GM expects (`expectedFor`, `checkRoll`), its Calls
- * spent and recorded; answered `{ rollId, messageId, faces, total, stash, loaded }`. `claimed` false
- * is a statistic from the sheet, whose message keeps Daggerheart's card (C13).
+ * have tied the character to the sender, the roll to a duality roll nobody threw and its
+ * costs to its experiences' Hope. A player's roll is then held to the action it is for
+ * (`drawRefusal`, fix r2-H1) - refused, `{ refused }`, before anything is thrown - and only
+ * then thrown (`throwDrawn`).
  */
-export async function drawOnGm({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
-    trait = null, experiences = [], calls = [], context = {}, situational = 0 }, sender) {
+export async function drawOnGm(packet, sender) {
+    const actor = game.actors.get(packet?.actorId ?? "");
+    const key = typeof packet?.actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(packet.actionKey) ? packet.actionKey : null;
+    const lock = actor && key ? `${actor.id}:${key}` : null;
+    if (lock && drawing.has(lock)) return { refused: "a roll of that action is being thrown already" };
+    if (lock) drawing.add(lock);
+    try {
+        const why = actor && !sender?.isGM ? await drawRefusal(actor, key, contextSent(packet.context)) : null;
+        if (why) return { refused: why };
+        const { murderState } = await import("./murder.mjs");
+        const state = murderState();
+        return await throwDrawn(packet, sender, state?.active ? turnOf(state) : null);
+    } finally {
+        if (lock) drawing.delete(lock);
+    }
+}
+
+/**
+ * The draw itself. The roll is rebuilt with Daggerheart's `fromData` - never the constructor,
+ * which builds the advantage die again from the options (reroll.mjs `rerollKeepingDice`) -
+ * thrown here, written, settled, held against what this GM expects (`expectedFor`,
+ * `checkRoll`), its Calls spent and recorded, with the incident's turn it was thrown in
+ * (`incident`); answered `{ rollId, messageId, faces, total, stash, loaded }`. `claimed` false is
+ * a statistic from the sheet, whose message keeps Daggerheart's card (C13).
+ */
+async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
+    trait = null, experiences = [], calls = [], context = {}, situational = 0 }, sender, incident = null) {
     const actor = game.actors.get(actorId ?? "");
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
@@ -475,7 +677,10 @@ export async function drawOnGm({ actorId, actionKey, nonce, claimed, loaded, cos
         total: roll.total, hope: roll.dHope?.total ?? null, fear: roll.dFear?.total ?? null,
         isCritical: Boolean(roll.isCritical), withHope: Boolean(roll.withHope), withFear: Boolean(roll.withFear),
         modifiers: (Array.isArray(config.roll?.modifiers) ? config.roll.modifiers : []).map(m => Number(m?.value) || 0),
-        expected: recordOf(expected), flags, used: { calls: used, stash, loaded: loads }, versions: [], at: Date.now()
+        expected: recordOf(expected), flags, used: { calls: used, stash, loaded: loads }, versions: [],
+        // What the roll was drawn for beyond its action (fix r2-H1): the crisis action it names, the
+        // incident's turn it was thrown in, and the later roll of its action that replaced it, if one does.
+        crisis: key === "crisis" ? told.context.crisis ?? null : null, incident, superseded: null, at: Date.now()
     });
     if (flags.length) await tellUnexpected(actor, flags);
     return { reply: { rollId, messageId: message.id, faces: facesOf(roll), total: roll.total, stash, loaded: loads } };
@@ -771,12 +976,23 @@ async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, send
  * THE RECORD (the plan's 3.3), on the primary: keyed by `rollId`, synced to the other GMs.
  * Swept as each is written - a row older than a Reroll can reach is worth nothing, and the
  * record of a draw whose answer never arrived goes with it (the plan's 3.8).
+ *
+ * AND IT REPLACES ITS ACTION'S OLDER ROLL (fix r2-H1, 04.10.2026; review S2-1). A row of the
+ * same character and action, older and unsettled - it settled nothing yet - is marked
+ * `superseded` with this roll's id as this one is written, and settles nothing from then on
+ * (bridge-guards.mjs `rollRefusal`): a settlement takes the newest roll of an action. A row
+ * that settled anything is left alone - its trace, its theft may follow it still - and so is
+ * a roll that names no action. Palm's two rolls are two actions (`palm`, `steal`).
  */
 async function keepRecord(record) {
     await rollStore.whenHydrated();
     const cutoff = record.at - TIMING.rerollWindowMinutes * 60_000;
-    const old = Object.entries(rollStore.entries()).filter(([, row]) => !(row?.at >= cutoff)).map(([id]) => id);
+    const rows = Object.entries(rollStore.entries());
+    const old = rows.filter(([, row]) => !(row?.at >= cutoff)).map(([id]) => id);
+    const replaced = record.actionKey ? rows.filter(([id, row]) => id !== record.rollId && row?.at >= cutoff && row.at <= record.at
+        && row.actorId === record.actorId && row.actionKey === record.actionKey && unsettled(row)).map(([id]) => id) : [];
     if (old.length) await rollStore.dropMany(old);
+    for (const id of replaced) await rollStore.patch(id, { superseded: record.rollId });
     await rollStore.patch(record.rollId, record);
 }
 

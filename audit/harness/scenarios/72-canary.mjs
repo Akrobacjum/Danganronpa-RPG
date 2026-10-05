@@ -412,7 +412,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        roll is thrown, and the GM rules the blow as before. Until 1.2.64 the bookmark was Chie's
        actor flag, which this phase's world scan found on p1 and p2 (measured on the C6 tree with
        this roll); E05 C7 made it p3's own client setting, and E08+E28 C4a the GMs' row, which
-       p3's browser reports the roll to (action-rolls.mjs `tellGmsOfRoll`). */
+       p3's browser reports the roll to (action-rolls.mjs `tellGmsOfRoll`). Since E08+E28 fix
+       r2-H1 the GM draws a crisis roll only at its character's turn, so the turn is passed to
+       Chie, the killer, first: the incident opens on the victim's. */
+    const chieTurn = await gm.eval(`for (let i = 0; i < 4 && game.drpg.murderState()?.turnSide !== "killer"; i++) await game.drpg.passTurn();
+        return game.drpg.murderState()?.turnSide ?? null;`, { timeout: 60000 });
     await p3.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         globalThis.__forceRoll = { hope: 8, fear: 3 };
         try { await A.rollTrait(game.actors.get("${IDS.chie}"), "body", { actionKey: "crisis", context: { crisis: "finishingBlow" } }); }
@@ -423,7 +427,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         const row = rerollBookmarkStore.get("${IDS.chie}");
         return row ? { actionKey: row.actionKey, by: row.by } : null;`, { timeout: 60000 });
     check("gm: Chie's crisis roll is kept for a Reroll on the GMs, as p3 threw it", crisisMark?.actionKey === "crisis" && crisisMark.by === IDS.p3,
-        JSON.stringify({ crisisMark }));
+        JSON.stringify({ crisisMark, chieTurn }));
     /* THE GM'S MESSAGE OF A DRAWN ROLL, IN A BYSTANDER'S BROWSER (E08+E28 C12a, 04.10.2026). Chie's
        crisis roll above was thrown on p3's client and drawn by the GM (roll-draw.mjs): the GM wrote
        its message, the record's id and `drawn` beside the claim's flag. p1 holds the document, as

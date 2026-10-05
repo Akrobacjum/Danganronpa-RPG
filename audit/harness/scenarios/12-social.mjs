@@ -115,10 +115,16 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
        kept Daggerheart's. The window is held by Aiko's `rollTrait` standing in for it, the sheet
        roll thrown meanwhile, then the window let go; both cards read as the GM's browser holds
        them: the sheet's kept, the project's claimed and emptied. Since E08+E28 C13 the GM draws
-       the sheet's roll too, and writes it naming nobody - its card kept, not hidden. */
+       the sheet's roll too, and writes it naming nobody - its card kept, not hidden. The Work is
+       paid for first, as the action pays before its roll: since fix r2-H1 the GM draws a roll
+       only for an action whose payment it saw. */
     const twoRolls = await p1.eval(`
         const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         const actor = game.actors.get("${ids.aiko}");
+        const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        if (actionsLeft(actor) < 1) await automatedUpdate(actor, { "system.resources.actions.value": 1 });
+        await spendAction(actor, 1, { quiet: true });
         const thrown = actor.rollTrait;
         let held = false, letGo = null;
         const shut = new Promise(resolve => { letGo = resolve; });

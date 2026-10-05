@@ -50,7 +50,7 @@ import { MODULE_ID, FLAGS, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting, isDeadForGm, incidentSeats } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, warn, debug, isPrimaryGm, MESSAGE_FLAG } from "./utils.mjs";
-import { judge, table, pick, as, knownSender, owns, guardRollAuthor, guardDrawnRoll, bridgeRequest } from "./bridge-guards.mjs";
+import { judge, table, pick, as, knownSender, owns, guardRollAuthor, guardDrawnRoll, guardDrawnCosts, bridgeRequest } from "./bridge-guards.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 // Who is in the incident, read on the primary GM for the incident's dice (E06 C6). Static
 // and safe: nothing in murder.mjs's own import closure leads back to this file (R161).
@@ -1083,11 +1083,13 @@ export const ROLL_ACTIONS = table({
      * nobody has thrown, carrying the claim's nonce (`guardDrawnRoll`). What the roll adds up
      * to beyond its dice is observed from C12b on, not refused (D2's allowance for 1.2.67):
      * the statistic, the experiences, the Calls and the stash the packet names are the
-     * roller's word, held against what the GM knows (roll-draw.mjs `expectedFor`).
+     * roller's word, held against what the GM knows (roll-draw.mjs `expectedFor`). What it
+     * costs is its experiences' Hope (`guardDrawnCosts`), and the action it is for one its
+     * character is taking now, drawn once (roll-draw.mjs `drawRefusal`; fix r2-H1).
      */
     "roll.draw": {
         label: "DRPG.Bridge.what.roll.draw",
-        guards: [knownSender, owns("actorId", "sender does not own that character"), guardDrawnRoll],
+        guards: [knownSender, owns("actorId", "sender does not own that character"), guardDrawnRoll, guardDrawnCosts],
         sanitize: pick({ actorId: as.id, actionKey: as.maybeText, nonce: as.id, claimed: as.bool, loaded: as.id, costs: as.raw, roll: as.raw,
             trait: as.maybeText, experiences: as.raw, calls: as.raw, context: as.raw, situational: as.num }),
         run: drawRollOnGm,
@@ -1095,11 +1097,12 @@ export const ROLL_ACTIONS = table({
         claims: {
             roll: guardDrawnRoll,
             nonce: guardDrawnRoll,
-            costs: "only what the sender's own character pays: drawOnGm (roll-draw.mjs) keeps up to eight enabled costs of a whole number from 1 to 12, each taken off that character",
+            costs: "a Hope of 1 for each experience the roll names that the sender's own character holds, the cost Daggerheart's window adds for one, else the draw is refused (guardDrawnCosts); drawOnGm (roll-draw.mjs) takes those Hopes off that character",
+            actionKey: "an action that character is taking now: one whose payment the GM saw and no draw has used, its crisis turn or its opening, drawn once (roll-draw.mjs drawRefusal); a roll naming none settles nothing",
             loaded: "the Loaded Die is loaded on the GM only while that character's armed Calls hold this nonce and the roll applied it (roll-draw.mjs drawOnGm)",
             experiences: "only the sender's own character's experiences count, at the value the GM holds; one beyond what an armed Call allows is flagged to the GMs (roll-draw.mjs checkRoll)",
             calls: "only Calls armed on the sender's own character as the GM holds them count; the GM spends those and reads its expectation from them (roll-draw.mjs appliedCalls)",
-            context: "a Search's category and stash as the roller saw them: the room is the GM's, its favour and its hidden stash read by the GM (roll-draw.mjs expectedFor)"
+            context: "a Search's category and stash as the roller saw them: the room is the GM's, its favour and its hidden stash read by the GM (roll-draw.mjs expectedFor); a crisis roll's crisis action, judged against the incident at the draw (drawRefusal) and kept on the record its packet must match (bridge-guards.mjs rollRefusal)"
         }
     }
 });

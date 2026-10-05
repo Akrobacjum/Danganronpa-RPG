@@ -609,11 +609,15 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * packet first (a forged one); `faces` are the GM's throw where the harness scripts it
  * (`__forceRoll`; a table throws for real); `watch` is started just before the GM judges the packet
  * and its answer stopped once that has settled, so it sees the draw and not the roll thrown here
- * to cut the packet from. Answers the verdict, what was sent back, the
- * answer's value, the GM's message and record, and `putBack`, which deletes both messages and
- * the record and puts Daggerheart's Fear back as found. Ask the world's rows first - it writes.
+ * to cut the packet from. A roll is drawn for an action being taken (fix r2-H1, roll-draw.mjs
+ * `drawRefusal`): unless `pay` is false, a packet naming an action that is paid for has one of
+ * the character's actions paid just before it is judged (`payAction`), a crisis action's and an
+ * opening's nothing - their turn and their stage are the test's. Answers the verdict, what was
+ * sent back, the answer's value, the GM's message and record, and `putBack`, which deletes both
+ * messages and the record, puts Daggerheart's Fear back as found and the payment's actions as
+ * they were. Ask the world's rows first - it writes.
  */
-async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null } = {}) {
+async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -633,6 +637,7 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
     made.push(thrown.message?.id);
     must(packet, `no roll of ${actor.name} reached Daggerheart's configuration hook - this would measure nothing`);
     if (edit) packet = edit(foundry.utils.deepClone(packet));
+    const paid = pay && packet.actionKey && !["crisis", "murderOpening"].includes(packet.actionKey) ? await payAction(actor) : null;
     const sent = [];
     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
     let verdict;
@@ -656,7 +661,26 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
             for (const id of made) await game.messages.get(id ?? "")?.delete();
             if (value?.rollId && rollStore.has(value.rollId)) await rollStore.drop(value.rollId);
             if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+            await paid?.back();
         } };
+}
+
+/**
+ * AN ACTION PAID, AS THE ROLLER'S BROWSER PAYS IT (E08+E28 fix r2-H1, 04.10.2026). A player's roll
+ * is drawn for an action whose payment the GM saw the player make (roll-draw.mjs `drawRefusal`):
+ * one of the character's actions going down (actions.mjs `spendAction`). Written here, on the
+ * GM's browser where the suite runs, as the player's (`PAID_AS_PLAYER`), with one action handed
+ * first to a character that has none; `back` puts the actions as they were.
+ */
+async function payAction(actor) {
+    const { automatedUpdate } = await import("./resource-guard.mjs");
+    const { actionsLeft } = await import("./actions.mjs");
+    const { PAID_AS_PLAYER } = await import("./roll-draw.mjs");
+    const path = "system.resources.actions.value";
+    const left = actionsLeft(actor);
+    if (left < 1) await automatedUpdate(actor, { [path]: 1 });
+    await automatedUpdate(actor, { [path]: Math.max(1, left) - 1 }, { [PAID_AS_PLAYER]: true });
+    return { back: async () => { if (actionsLeft(actor) !== left) await automatedUpdate(actor, { [path]: left }); } };
 }
 
 /** A connected player and a character they play, and one they do not; ask `connectedPlayersWithCharacter` first. */
@@ -4866,40 +4890,75 @@ const SCENARIOS = [
          * Hand, a roll of Hand; after a card picking Body, a roll of Eye; then a roll of Eye with no
          * new card - the newest is used already. And a Search, which rolls Eye, rolled with Hand.
          * Read: each record's flags and the statistic it expected. Until C12b nothing was expected.
+         * IN A FIGHT, AT THE ROLLER'S OWN TURNS (fix r2-H1, 05.10.2026). A crisis roll is drawn only
+         * as its crisis action could be taken - the character's turn in a running incident, for a
+         * crisis action open to them that the packet names - and one stands unsettled a turn
+         * (roll-draw.mjs `drawRefusal`; the round-2 review's S2-1). This test drew its three with no
+         * incident and named no crisis action, so on fix r2-H1's first build the GM refused each
+         * ("no crisis action that throws a roll is named", three times in the GM's log) and the test
+         * read no record at all: [[], null] for each. The premise changed, not what is measured: the
+         * character is the killer of a direct murder (`fightOpen`), each crisis draw names a Strike
+         * at a turn of theirs, the turn passed round between them, and the Search is drawn once the
+         * fight is closed. Read and expected as before; the two fighters' Hope, Sanity and Health are
+         * put back as the test found them.
          */
-        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
-        const { player, theirs } = playerAndCharacters();
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [theirs, victim] = livingStudents().filter(playerOf);
+        const player = playerOf(theirs);
         const { TRAITS } = await import("./config.mjs");
         const { whisperToGms } = await import("./utils.mjs");
         const { settleCall } = await import("./gm-bridge.mjs");
         const { TRAIT_BY_GM } = await import("./action-rolls.mjs");
         const had = new Set(game.messages.contents.map(m => m.id));
+        const found = [theirs, victim].map(a => [a, ["hope", "stress", "hitPoints"].map(k => [k, a.system.resources[k]?.value])]);
         const card = async trait => {
             const m = await whisperToGms("<p>SUITE C12b pick</p>");
             must(m, "no card to settle a pick on - this would measure nothing");
-            await settleCall(m, "SUITE C12b", { type: "trait", actorId: theirs.id, kind: "crisis", key: "attack", variant: null, trait });
+            await settleCall(m, "SUITE C12b", { type: "trait", actorId: theirs.id, kind: "crisis", key: "strike", variant: null, trait });
             return m.id;
         };
         // The records are kept until the last draw: a pick a record names is used.
         const drawn = [];
         const draw = async (actionKey, trait, byGm) => {
             const F = await drawnForPlayer(player, theirs, { actionKey,
-                edit: p => ({ ...p, trait: TRAITS[trait].dh, roll: { ...p.roll, options: { ...p.roll.options, ...(byGm ? { [TRAIT_BY_GM]: true } : {}) } } }) });
+                edit: p => ({ ...p, trait: TRAITS[trait].dh, roll: { ...p.roll, options: { ...p.roll.options, ...(byGm ? { [TRAIT_BY_GM]: true } : {}) } },
+                    ...(actionKey === "crisis" ? { context: { ...p.context, crisis: "strike" } } : {}) }) });
             drawn.push(F);
             // The statistic's flag alone: the packet's formula still carries Eye's value, which the modifier's flag reads.
             return [(F.record?.flags ?? []).filter(f => f.kind === "trait").map(f => [f.kind, f.expected, f.claimed]), F.record?.expected?.trait ?? null];
         };
+        // The killer's next turn: passed to the victim (a new round) and back.
+        const nextTurn = async () => {
+            await M.passTurn();
+            await turnFor(M, theirs, "strike");
+        };
         const read = [];
         try {
+            await fightOpen(M, theirs, victim);
+            await turnFor(M, theirs, "strike");
             await card("hand");
             read.push(await draw("crisis", "hand", true));
             await card("body");
+            await nextTurn();
             read.push(await draw("crisis", "eye", true));
+            await nextTurn();
             read.push(await draw("crisis", "eye", true));
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
             read.push(await draw("search", "hand", false));
         } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             for (const F of drawn) await F.putBack();
             for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const [a, values] of found) {
+                const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
+                if (changed.length) await automatedUpdate(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])));
+            }
         }
         equal(stableJson(read), stableJson([
             [[], "hand"],
@@ -5576,6 +5635,252 @@ const SCENARIOS = [
         } finally {
             await D.putBack();
         }
+    }],
+
+    ["a drawn roll's window costs only a Hope for each experience it names: a Fear cost, or a Hope with no experience, refuses the draw", async () => {
+        /*
+         * E08+E28 fix r2-H1, 04.10.2026; review M2. The GM pays the costs a drawn roll's packet names
+         * on its own client (roll-draw.mjs `drawOnGm`), and until this fix it paid any key, negated:
+         * eight Fear costs of 12 moved the GM's Fear 10 -> -86 (the review's EXP-R2b), answered as
+         * done - and no test sent a cost at all. A cost is now the Hope Daggerheart's window adds for
+         * an experience it selects, one each, at most one an experience the character holds
+         * (bridge-guards.mjs `guardDrawnCosts`). Judged as from a player (`drawnForPlayer`), the GM
+         * throwing 4 and 9 (Fear): a packet with a Fear cost of 12 naming an experience the character
+         * holds (the key alone is wrong); one with a Hope of 1 naming no experience (the count alone);
+         * one with a Hope of 1 naming that experience. Read, across
+         * each judgement: the code it was refused with (else null), the change in the GM's Fear and
+         * in the character's Hope, whether a record was kept; and the GM's log lines refusing a
+         * "roll.draw". Red at a63256f's runtime: the first is drawn and its Fear cost goes to the
+         * tracker, the second takes a Hope, and nothing is refused.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = () => game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const { player, theirs } = playerAndCharacters();
+        const experience = Object.keys(theirs.system?.experiences ?? {})[0];
+        must(experience, `${theirs.name} holds no experience - this would measure nothing`);
+        const hope = () => theirs.system.resources.hope.value;
+        const hopeAt = hope();
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const log = watchLog();
+        const out = [];
+        try {
+            await automatedUpdate(theirs, { "system.resources.hope.value": 3 });
+            for (const [costs, experiences] of [[[{ key: "fear", value: 12, enabled: true }], [experience]],
+                [[{ key: "hope", value: 1, enabled: true }], []], [[{ key: "hope", value: 1, enabled: true }], [experience]]]) {
+                let moved = null;
+                const watch = () => {
+                    const at = [fear(), hope()];
+                    return () => { moved = [fear() - at[0], hope() - at[1]]; };
+                };
+                const F = await drawnForPlayer(player, theirs, { faces: { hope: 4, fear: 9 }, watch, edit: p => ({ ...p, costs, experiences }) });
+                try {
+                    out.push([F.sent.find(r => r.action === "bridge.refused")?.reason ?? null, ...(moved ?? [null, null]), Boolean(F.record)]);
+                } finally {
+                    await F.putBack();
+                }
+            }
+        } finally {
+            log.stop();
+            await automatedUpdate(theirs, { "system.resources.hope.value": hopeAt });
+        }
+        equal(stableJson([out, log.count('Refused a "roll.draw"')]), stableJson([[["badRequest", 0, 0, false], ["badRequest", 0, 0, false],
+            [null, 1, -1, true]], 2]), "a Fear cost or a Hope with no experience is not refused, or moves something, or the Hope an experience "
+            + "costs is not paid once (each: code, Fear, Hope, record; the GM's refusals logged)");
+    }],
+
+    ["a settlement takes the newest roll of an action: an older one its character left unsettled is refused as replaced", async () => {
+        /*
+         * E08+E28 fix r2-H1, 04.10.2026; review S2-1: the round-2 probe drew three Work rolls of
+         * Aiko's (21, 3, 4) and had the OLDEST, the 21, taken for progress - any unsettled row of the
+         * action from the last 30 minutes settled. A row of the same character and action that has
+         * settled nothing is marked replaced as the next is kept (roll-draw.mjs `keepRecord`), and
+         * refused (bridge-guards.mjs `rollRefusal`). A table of the suite's own, a declaration that
+         * settles a Search, as the C14 test's; three Search rolls of a player's character the GM
+         * drew, each paid for (`drawnForPlayer`), on 11 and 10, 2 and 1, 3 and 1. Judged as from the
+         * player, a packet saying 30 naming each in turn. Read: the code each was refused with, else
+         * the total its run was handed; and what each record says replaced it. Red at a63256f's
+         * runtime: the first runs on its 21.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const seen = [];
+        const T = G.table({ "suite.search": { label: "DRPG.Bridge.what.suite.search",
+            guards: [G.knownSender, G.owns("actorId", "sender does not own that character")],
+            sanitize: G.pick({ actorId: G.as.id, total: G.as.num, rollId: G.as.id }), run: async payload => { seen.push(payload.total); },
+            answer: "ack", rolled: { field: "rollId", actor: "actorId", kind: "search" } } });
+        const drawn = [];
+        try {
+            for (const faces of [{ hope: 11, fear: 10 }, { hope: 2, fear: 1 }, { hope: 3, fear: 1 }]) drawn.push(await drawnForPlayer(player, theirs, { faces }));
+            must(drawn.every(D => D.record && D.message), `the GM kept no record of a roll it drew - this would measure nothing: ${stableJson(drawn.map(D => D.sent))}`);
+            const answers = [];
+            for (const D of drawn) {
+                const told = [], before = seen.length;
+                await G.judge(T, { action: "suite.search", requestId: `H1${foundry.utils.randomID(8)}`, actorId: theirs.id, total: 30, rollId: D.message.id },
+                    player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                answers.push(seen.length > before ? seen.at(-1) : told.at(-1) ?? null);
+            }
+            equal(stableJson([answers, drawn.map(D => rollStore.get(D.record.rollId)?.superseded ?? null)]),
+                stableJson([["rollReplaced", "rollReplaced", drawn[2].record.total], [drawn[1].record.rollId, drawn[2].record.rollId, null]]),
+                "an older unsettled roll of the action still settles, or the newest does not, or a record does not say which roll replaced it");
+        } finally {
+            for (const D of [...drawn].reverse()) await D.putBack();
+        }
+    }],
+
+    ["a player's roll is drawn only for an action whose payment the GM saw: none refuses it, one draws once, a Palm's two rolls ride on one", async () => {
+        /*
+         * E08+E28 fix r2-H1, 04.10.2026; review S2-1: a draw asked for no action taken or paid - the
+         * round-2 probe drew three Work rolls of Aiko's with her actions 3 -> 3. The GM keeps a ticket
+         * for each payment it sees - the character's actions going down - and a draw takes one
+         * (roll-draw.mjs `drawRefusal`). Judged as from a player (`drawnForPlayer`, its own payment
+         * off), the GM's tickets for their character forgotten first (`forgetPayments`): an
+         * Observe's roll with nothing paid; one action taken off by the GM's own write (damage, a
+         * correction), then an Observe's roll; one action paid, then an Observe's roll and another; one
+         * paid, a Palm's unseen roll, its hand and a second hand; one paid and handed back (a window
+         * closed before its roll), then an Observe's roll; and, with nothing paid, two Observe
+         * packets at once, the second judged while the first waits for its payment (`drawing`). A
+         * payment, and its refund, is the actions written down and up by one as the roller's
+         * browser writes them (actions.mjs `spendAction`, `refundAction`), here on the GM's browser
+         * as the player's (`PAID_AS_PLAYER`). Read: the code each draw was refused
+         * with, else whether the GM kept its record, and the tickets left that no draw took. Red at
+         * a63256f's runtime: every draw is made.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const D = await import("./roll-draw.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const P = await import("./private-rolls.mjs");
+        const { player, theirs } = playerAndCharacters();
+        const path = "system.resources.actions.value";
+        const left = actionsLeft(theirs), top = Math.max(1, left);
+        const draw = async actionKey => {
+            const F = await drawnForPlayer(player, theirs, { actionKey, pay: false });
+            try {
+                return F.sent.find(r => r.action === "bridge.refused")?.reason ?? Boolean(F.record);
+            } finally {
+                await F.putBack();
+            }
+        };
+        const asPlayer = { [D.PAID_AS_PLAYER]: true };
+        const pay = async () => {
+            await automatedUpdate(theirs, { [path]: top }, asPlayer);
+            await automatedUpdate(theirs, { [path]: top - 1 }, asPlayer);
+        };
+        const out = [];
+        try {
+            await automatedUpdate(theirs, { [path]: top });
+            D.forgetPayments?.(theirs.id);
+            out.push(await draw("observe"));
+            await automatedUpdate(theirs, { [path]: top - 1 });
+            out.push(await draw("observe"));
+            await automatedUpdate(theirs, { [path]: top });
+            await pay();
+            out.push(await draw("observe"), await draw("observe"));
+            await pay();
+            out.push(await draw("palm"), await draw("steal"), await draw("steal"));
+            await pay();
+            await automatedUpdate(theirs, { [path]: top }, asPlayer);
+            out.push(await draw("observe"));
+            let packet = null, second = null;
+            const told = [];
+            const F = await drawnForPlayer(player, theirs, { actionKey: "observe", pay: false, edit: p => (packet = p),
+                watch: () => {
+                    second = new Promise(resolve => setTimeout(resolve, 100)).then(() => G.judge(P.ROLL_ACTIONS, { action: "roll.draw",
+                        requestId: `H1${foundry.utils.randomID(8)}`, ...packet }, player.id, { send: (to, reply) => told.push(reply?.reason ?? null) }));
+                    return null;
+                } });
+            try {
+                await second;
+                out.push(F.sent.find(r => r.action === "bridge.refused")?.reason ?? Boolean(F.record), told.at(-1) ?? null);
+            } finally {
+                await F.putBack();
+            }
+            out.push((D.paymentsOf?.(theirs.id) ?? []).filter(ticket => !ticket.kinds.length).length);
+        } finally {
+            await automatedUpdate(theirs, { [path]: left });
+        }
+        equal(stableJson(out), stableJson(["notPaid", "notPaid", true, "notPaid", true, true, "notPaid", "notPaid", "notPaid", "rollThrown", 0]),
+            "a roll is drawn with nothing paid, or on the GM's own write, or twice on one payment, or a Palm's hand cannot ride on its "
+            + "unseen roll's payment, or a payment handed back still pays, or a second draw of the action is judged while the first is "
+            + "under way (each draw in turn; the two at once; the tickets left)");
+    }],
+
+    ["an incident's roll is drawn only at its turn or stage, for what it names, once: an opening, a crisis action, a free clean-up attempt", async () => {
+        /*
+         * E08+E28 fix r2-H1, 04.10.2026; review S2-1: a console pre-drew crisis and opening rolls
+         * before its turn - the guards judged the turn at the packet, not at the draw - and a crisis
+         * record did not keep its action, so the best of them could be spent on a Finishing blow.
+         * Now the draw is judged as the packet is (roll-draw.mjs `drawRefusal`): the opening's
+         * stage and roller, once an incident; the crisis action's turn and offer, one unsettled a
+         * turn, kept on the record, which the packet that settles it has to name
+         * (gm-bridge.mjs `murder.crisis` `named`). A direct murder between two students with
+         * players, opened with its invitation held (`heldInvitations`); each draw judged as from the
+         * character's player (`drawnForPlayer`). At the opening: the victim's opening roll, the killer's naming the victim's side, the
+         * killer's, and the killer's again. The opening resolved as the GM resolves it, so the victim
+         * acts first: the killer's roll for a Strike, the victim's naming no crisis action, the
+         * victim's for an action open to them, and again; then that roll's packet naming another
+         * action open to them. Then the killer's critical Finishing blow as the GM rules it, which
+         * buys the striker a free clean-up attempt (murder.mjs `freeCleanup`), and the killer's
+         * clean-up roll with nothing paid, twice: the grant's road takes one roll while it stands
+         * unsettled. Read: the code each draw was refused with, else whether the GM kept its record;
+         * the packet's code, and whose turn it was after it. Red at a63256f's runtime: every draw is
+         * made, and the packet scored.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { CRISIS_ACTIONS } = await import("./config.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(playerOf);
+        const made = [], out = [];
+        const draw = async (actor, actionKey, context, pay = true) => {
+            const F = await drawnForPlayer(playerOf(actor), actor, { actionKey, pay, edit: p => ({ ...p, context }) });
+            made.push(F);
+            return F.sent.find(r => r.action === "bridge.refused")?.reason ?? Boolean(F.record);
+        };
+        try {
+            // The invitation swallowed (`heldInvitations`): the killer's player's browser would throw the opening itself.
+            await heldInvitations(async () => {
+                await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+                must(M.murderState()?.stage === "openingRoll", `the fixture's murder is not at its opening: ${stableJson(M.murderState())}`);
+                out.push(await draw(victim, "murderOpening", { side: "killer" }), await draw(killer, "murderOpening", { side: "victim" }),
+                    await draw(killer, "murderOpening", { side: "killer" }), await draw(killer, "murderOpening", { side: "killer" }));
+                await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+                await settle();
+            });
+            must(M.murderState()?.stage === "incident" && M.murderState()?.turnSide === "victim",
+                `the fixture's fight is not at the victim's turn: ${stableJson(M.murderState())}`);
+            const open = Object.keys(CRISIS_ACTIONS).filter(key => !CRISIS_ACTIONS[key].noRoll && !M.crisisRefusal(victim, key));
+            must(open.length >= 2, `the victim has ${open.length} crisis action(s) open - this would measure nothing`);
+            out.push(await draw(killer, "crisis", { crisis: "strike" }), await draw(victim, "crisis", {}),
+                await draw(victim, "crisis", { crisis: open[0] }), await draw(victim, "crisis", { crisis: open[0] }));
+            const told = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId: `H1${foundry.utils.randomID(8)}`, actorId: victim.id, key: open[1],
+                total: 0, isCritical: false, withHope: false, rollId: made.at(-2).message?.id ?? null }, playerOf(victim).id,
+            { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+            out.push(told.at(-1) ?? null, M.murderState()?.turnSide ?? null);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: true, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && M.murderState()?.freeCleanup === killer.id,
+                `the fixture's Stage 6 with the striker's free clean-up did not come: ${stableJson(M.murderState())}`);
+            // The blow's own Sanity is a payment this GM saw, which a Tamper's chain could take: not the clean-up's.
+            (await import("./roll-draw.mjs")).forgetPayments?.(killer.id);
+            out.push(await draw(killer, "cleanup", {}, false), await draw(killer, "cleanup", {}, false));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const F of [...made].reverse()) await F.putBack();
+        }
+        equal(stableJson(out), stableJson(["cannotNow", "cannotNow", true, "rollThrown", "notYourTurn", "badRequest", true, "rollThrown",
+            "rollOtherAction", "victim", true, "notPaid"]), "an opening or crisis roll is drawn out of its stage or turn, or for no action, "
+            + "or twice, or settles another crisis action, or a free clean-up is not drawn once (each draw in turn; the packet's code; whose turn after)");
     }],
 
     ["a console's Analyze that says 30 and a critical is refused without its roll, and scored on the GMs' record of the roll it names", async () => {

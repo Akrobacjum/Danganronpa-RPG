@@ -1498,8 +1498,10 @@ export const BRIDGE_ACTIONS = table({
         answer: "reply",
         /* A crisis action's roll, on the GMs' record of it (E08+E28 C17). A packet that names
            none threw none - a third party's decision, a free take - and `guardCrisisRoll`
-           refuses any other; the run scores it on no dice. */
-        rolled: { field: "rollId", actor: "actorId", kind: "crisis", when: "rollId" },
+           refuses any other; the run scores it on no dice. The roll settles the crisis action
+           it was drawn for and no other (fix r2-H1; roll-draw.mjs `drawRefusal`): the record's
+           `crisis` is the packet's `key`. */
+        rolled: { field: "rollId", actor: "actorId", kind: "crisis", when: "rollId", named: { crisis: "key" } },
         claims: {
             usedItemId: "narrowed in the run to an item the acting character holds, else null",
             swungId: "narrowed in the run to an item the acting character holds, else null",

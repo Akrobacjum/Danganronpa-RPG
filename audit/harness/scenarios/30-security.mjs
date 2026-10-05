@@ -109,11 +109,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        and a search for a hidden stash are scored on the GMs' record of the roll their packet names
        (bridge-guards.mjs `rollRefusal`), so a packet of this scenario's names one: `client` throws
        `actorId`'s statistic for `actionKey` on `faces`, the GM draws it, and the message the GM wrote
-       for it is read off the roll (action-rolls.mjs `DRAWN_ROLL`) - null when it was not drawn. */
-    const drawnRoll = (client, actorId, actionKey, trait, faces) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+       for it is read off the roll (action-rolls.mjs `DRAWN_ROLL`) - null when it was not drawn. A roll is drawn for
+       an action being taken (E08+E28 fix r2-H1, roll-draw.mjs `drawRefusal`): unless `pay` is false, `client` first pays
+       one action as an action's own code does (actions.mjs `spendAction`), handing the character one if it has none;
+       a crisis action's roll is its turn's and names its crisis action (`context`), and pays nothing. */
+    const payFor = actorId => `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const who = game.actors.get("${actorId}");
+        if (actionsLeft(who) < 1) await automatedUpdate(who, { "system.resources.actions.value": 1 });
+        await spendAction(who, 1, { quiet: true }); }`;
+    const drawnRoll = (client, actorId, actionKey, trait, faces, { context = null, remember = false, pay = actionKey !== "crisis" } = {}) => client.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        ${pay ? payFor(actorId) : ""}
         globalThis.__forceRoll = ${JSON.stringify(faces)};
         let out = null, err = null;
-        try { out = await A.rollTrait(game.actors.get("${actorId}"), "${trait}", { actionKey: "${actionKey}", remember: false }); }
+        try { out = await A.rollTrait(game.actors.get("${actorId}"), "${trait}", { actionKey: "${actionKey}", remember: ${remember},
+            context: ${JSON.stringify(context)} }); }
         catch (e) { err = String(e?.message ?? e).slice(0, 200); }
         finally { delete globalThis.__forceRoll; }
         return { messageId: out?.raw?.[A.DRAWN_ROLL]?.messageId ?? null, total: out?.total ?? null, err };`, { timeout: 60000 });
@@ -193,6 +203,20 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         reasons: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures().filter(e => e.message.includes('Refused a "murder.crisis"')).map(e => e.message) };`);
     check("SECURITY: a finishing blow thrown out of turn by the killer's own player kills nobody and is refused",
         victimTurn === "victim" && early.dead === false && early.reasons.some(r => /not their turn/.test(r)), JSON.stringify({ victimTurn, ...early }));
+    /* AND ITS ROLL IS NOT DRAWN OUT OF TURN (E08+E28 fix r2-H1, 04.10.2026; review S2-1). The GM judged the
+       turn at the packet only, so a console drew crisis rolls ahead of its turn and spent the best. At the
+       victim's turn Botan's own player throws Botan's Finishing blow roll: the GM refuses it as it would
+       refuse the blow, and writes no message and keeps no record. */
+    const aheadRows = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Object.values(S.rollStore?.entries() ?? {}).filter(r => r?.actorId === "${ids.botan}" && r.actionKey === "crisis").length;`;
+    const aheadBefore = await gm.eval(aheadRows);
+    const ahead = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 12, fear: 11 }, { context: { crisis: "finishingBlow" } });
+    await settle(900);
+    const aheadAfter = { rows: await gm.eval(aheadRows), reasons: await gm.eval(`return (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+        .filter(e => e.message.includes('Refused a "roll.draw"')).map(e => e.message);`) };
+    check("SECURITY: a crisis roll thrown at the other side's turn is not drawn, and the GM keeps no record of it",
+        ahead.messageId === null && aheadAfter.rows === aheadBefore && aheadAfter.reasons.some(r => /not their turn/.test(r)),
+        JSON.stringify({ ahead, aheadBefore, aheadAfter }));
     await toSide("killer");
     await settle(500);
     const readCrisis = `return { stage: game.drpg.murderState()?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")) };`;
@@ -223,7 +247,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     const unnamed = { answer: await blowFrom(99, null) };
     await settle(1200);
     Object.assign(unnamed, await gm.eval(readCrisis), await crisisSaid());
-    const lowRoll = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 2, fear: 1 });
+    const lowRoll = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 2, fear: 1 }, { context: { crisis: "finishingBlow" } });
     await gm.eval(`(await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures(); return true;`);
     const onRecord = { answer: await blowFrom(99, lowRoll.messageId) };
     await settle(2200);
@@ -234,7 +258,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ unnamed, lowRoll, onRecord }), { flow: "murder-incident" });
     await toSide("killer");
     await settle(500);
-    const critRoll = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 6, fear: 6 });
+    /* Thrown as a crisis action throws it, kept for a Reroll (`remember`): the Reroll asked below is of this blow. */
+    const critRoll = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 6, fear: 6 }, { context: { crisis: "finishingBlow" }, remember: true });
     const critAnswer = await blowFrom(0, critRoll.messageId);
     await settle(2200);
     const blowOk = await gm.eval(readCrisis);
@@ -273,17 +298,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        killed (the incident's receipt), so the GM refuses it for the death before anything is
        paid, and tells p2. The harness's roll message has no `Roll#reroll`; on the GM it reads
        as one of the scenario's (`REROLLABLE`), so the refusal is the death's, not the roll's.
-       Both checks carry the `reroll` flow inside the crisis actions' phase. */
+       Both checks carry the `reroll` flow inside the crisis actions' phase. Since fix r2-H1 the
+       roll is the killing blow's own (`critRoll`, kept for a Reroll): a crisis roll is drawn only
+       at its character's turn, and the incident is at Stage 6 by now. */
     const readReroll = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const row = S.rerollBookmarkStore?.get("${ids.botan}");
         return { hope: game.actors.get("${ids.botan}").system.resources.hope.value, row: row ? { messageId: row.messageId, total: row.total } : null,
             journal: Boolean(S.rerollJournalStore?.has("${ids.botan}")), dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")),
             receipt: JSON.stringify(game.drpg.murderState()?.lastCrisis ?? null) };`;
-    const botanRoll = await p2.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
-        globalThis.__forceRoll = { hope: 9, fear: 4 };
-        try { const out = await A.rollTrait(game.actors.get("${ids.botan}"), "body", { actionKey: "crisis", context: { crisis: "finishingBlow" } });
-            return out?.raw?.message?.id ?? null; }
-        finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+    const botanRoll = critRoll.messageId;
     await settle(900);
     const REROLLABLE = `const m = game.messages.get("${botanRoll}");
         class Thrown {
@@ -781,21 +804,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     phase("projects", { flow: "projects" });
     /* A PLAYER'S SABOTAGE IS THE REPAIR ITS ROLL EARNED (E08+E28 C16, 04.10.2026): the GM reads it off
        its record of the roll the packet names (gm-bridge.mjs `repairOf`), and a roll settles one. So p2
-       throws three Sabotages of Botan's the GM draws, on faces that earn a repair, before p1's chat is
+       throws a Sabotage of Botan's the GM draws, on faces that earn a repair, before p1's chat is
        marked - this phase scans what p1 is shown of the sabotages, not of a roll thrown for the test -
-       and each of p2's freezes below names one. */
-    const p2Sabotages = [];
-    for (let i = 0; i < 3; i++) p2Sabotages.push((await drawnRoll(p2, ids.botan, "sabotage", "eye", { hope: 9, fear: 5 })).messageId);
-    const sabotageFromP2 = targetId => p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
-        const r = await P.sabotageProject("${targetId}", 3, { rollId: ${JSON.stringify(p2Sabotages.shift() ?? null)}, actorId: "${ids.botan}" });
-        return r?.repair?.id ?? null;`, { timeout: 60000 });
+       and the first freeze below names it; each later one throws its own just before (since fix r2-H1
+       a settlement takes the newest roll of an action, so a roll thrown ahead of a newer one of its
+       action settles nothing). */
+    const firstSabotage = (await drawnRoll(p2, ids.botan, "sabotage", "eye", { hope: 9, fear: 5 })).messageId;
+    const sabotageFromP2 = async (targetId, rollId = null) => {
+        const named = rollId ?? (await drawnRoll(p2, ids.botan, "sabotage", "eye", { hope: 9, fear: 5 })).messageId;
+        return p2.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+            const r = await P.sabotageProject("${targetId}", 3, { rollId: ${JSON.stringify(named)}, actorId: "${ids.botan}" });
+            return r?.repair?.id ?? null;`, { timeout: 60000 });
+    };
     await canary.chatMark({ who: ["p1"] });
     const projects = await gm.eval(`
         const P = await import("${repoUrl}/scripts/projects.mjs");
         const pub = await P.createProject({ name: "SEC public", target: 6, room: "Cafeteria", secret: false });
         const sec = await P.createProject({ name: "SEC secret", target: 6, room: "Gym", secret: true });
         return { pub: pub.id, sec: sec.id };`, { timeout: 60000 });
-    const sabotaged = { repair: await sabotageFromP2(projects.pub) };
+    const sabotaged = { repair: await sabotageFromP2(projects.pub, firstSabotage) };
     const readPair = `const P = await import("${repoUrl}/scripts/projects.mjs");
         const ids = P.allProjects().map(p => p.id);
         return { secret: ids.includes("${projects.sec}"), repair: ids.includes("${sabotaged.repair}"), frozen: P.isFrozen("${projects.pub}") };`;
@@ -873,8 +900,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        public project in Aiko's room and one in a room nobody stands in; p1's console asks +12 on the
        first, naming one roll, and +1 on the second, naming the other. Read: each bar before and after,
        against the band of ACTIONS.project the roll's total reaches, and the GM's reasons. */
-    const workRolls = [await drawnRoll(p1, ids.aiko, "project", "eye", { hope: 9, fear: 5 }),
-        await drawnRoll(p1, ids.aiko, "project", "eye", { hope: 9, fear: 5 })];
+    const workRolls = [await drawnRoll(p1, ids.aiko, "project", "eye", { hope: 9, fear: 5 })];
     const worked = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
         const M = await import("${repoUrl}/scripts/movement.mjs"), C = await import("${repoUrl}/scripts/config.mjs");
         const here = M.locateActor(game.actors.get("${ids.aiko}"))?.room ?? null;
@@ -896,6 +922,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a console's +12 on a project adds what the roll it names earned on the GMs' record, and no more",
         Boolean(worked.here && worked.near && workRolls[0].messageId) && earned > 0
         && settled - plus12.before.current === earned && !plus12.reasons.length, JSON.stringify({ workRolls, worked, earned, plus12, settled }));
+    // Thrown once the first has settled: a newer Work roll of Aiko's would have replaced it (fix r2-H1).
+    workRolls.push(await drawnRoll(p1, ids.aiko, "project", "eye", { hope: 9, fear: 5 }));
     const farOff = await forge("project.progress", { countdownId: worked.far, amount: 1, actorId: ids.aiko, rollId: workRolls[1].messageId }, barOf(worked.far));
     check("SECURITY: a console's progress on a project in a room its character does not stand in is refused and moves nothing",
         Boolean(worked.far && workRolls[1].messageId) && farOff.unchanged && farOff.reasons.some(r => /the character is not in that room/.test(r))
@@ -1703,6 +1731,47 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         loaded: null, costs: [], roll: thrownAlready }, readDraws);
     check("SECURITY: a roll.draw carrying a roll already thrown is refused, and the GM writes no message and keeps no record",
         forgedThrown.unchanged && forgedThrown.reasons.some(r => /that is not a duality roll nobody has thrown/.test(r)), JSON.stringify(forgedThrown));
+    /* A DRAW IS AN ACTION'S, AND ITS WINDOW COSTS ITS EXPERIENCES' HOPE (E08+E28 fix r2-H1, 04.10.2026; the
+       round-2 reviews' S2-1 and M2). p1's console asks a draw of a Work on a Project roll of Aiko's, its own
+       character's, with no action paid - the GM drew it until the fix (the review's probe drew three with Aiko's
+       actions 3 -> 3) and refuses it now, once the payment it waits for has not come (roll-draw.mjs
+       `drawRefusal`). Then a draw naming no action whose window asks a Fear cost of 12 - drawn until the fix,
+       the 12 taken off the GM's Fear (bridge-guards.mjs `guardDrawnCosts`). Each is refused and logged, told to
+       p1, and the GM writes no message and keeps no record, and its Fear stays where it was. */
+    const readDrawsFear = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { drawn: game.messages.filter(m => m.getFlag("${MOD}", "drawn")).length, rows: Object.keys(S.rollStore?.entries() ?? {}).length,
+            fear: game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear) };`;
+    const askedDraw = async (requestId, fields) => {
+        // No payment of Aiko's this GM saw earlier in the scenario - a crossing's - may stand for this one.
+        await gm.eval(`(await import("${repoUrl}/scripts/roll-draw.mjs")).forgetPayments?.("${ids.aiko}"); return true;`);
+        await clearFailures();
+        const before = await gm.eval(readDrawsFear);
+        await p1.eval(`globalThis.__refused.length = 0;
+            game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "${requestId}", actorId: "${ids.aiko}", nonce: "SECDRAWNONCE",
+                claimed: true, loaded: null, roll: ${JSON.stringify(unthrown)}, ...${JSON.stringify(fields)} }, ${toGms});
+            return true;`);
+        for (let i = 0; i < 40 && !(await refusedFor("roll.draw")).length; i++) await settle(100);
+        await settle(300);
+        return { before, after: await gm.eval(readDrawsFear), reasons: await refusedFor("roll.draw"),
+            told: (await p1.eval(`return globalThis.__refused.slice();`)).filter(t => t.what === "roll.draw" && t.requestId === requestId).length };
+    };
+    const unpaid = await askedDraw("unpaid-draw", { actionKey: "project", costs: [] });
+    check("SECURITY: a roll.draw for an action its character has not paid for is refused, and the GM writes no message and keeps no record",
+        JSON.stringify(unpaid.after) === JSON.stringify(unpaid.before) && unpaid.reasons.some(r => /no payment of that character's stands for that roll/.test(r))
+        && unpaid.told === 1, JSON.stringify(unpaid));
+    /* The Fear cost names an experience Aiko holds, so the cost's key is the one thing the guard refuses: with none
+       named, one cost is already one more than the experiences allow, and the check stayed green with the key's test
+       taken out of `guardDrawnCosts` (fix r2-H1's mutant h1-any-cost, 131/131 on 05.10.2026). */
+    const aikoExperience = await gm.eval(`return Object.keys(game.actors.get("${ids.aiko}")?.system?.experiences ?? {})[0] ?? null;`);
+    const fearCost = await askedDraw("fear-cost-draw", { actionKey: null, experiences: [aikoExperience],
+        costs: [{ key: "fear", value: 12, enabled: true }] });
+    check("SECURITY: a roll.draw whose window asks a Fear cost is refused, and the GM's Fear does not move",
+        aikoExperience !== null && JSON.stringify(fearCost.after) === JSON.stringify(fearCost.before)
+        && fearCost.reasons.some(r => /asks a cost no roll of this game pays/.test(r)) && fearCost.told === 1, JSON.stringify({ aikoExperience, ...fearCost }));
+    // Put back if it moved, so a later check of Fear reads its own (at a63256f's runtime the 12 came off: 0 -> -11, the roll's own Fear added).
+    if (fearCost.after.fear !== fearCost.before.fear) {
+        await gm.eval(`await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, ${Number(fearCost.before.fear) || 0}); return true;`);
+    }
 
     phase("a trace the GM's Reroll meets", { flow: "reroll" });
     /*
@@ -1803,7 +1872,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
      */
     const rooms = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         return { here: M.roomOfActor(game.actors.get("${ids.aiko}")), there: M.roomOfActor(game.actors.get("${ids.botan}")) };`);
-    const listened = await p1.eval(`globalThis.__forceRoll = { hope: 9, fear: 4 };
+    // A Listen paid for, as the action pays before its roll (a roll is an action's since fix r2-H1).
+    const listened = await p1.eval(`${payFor(ids.aiko)}
+        globalThis.__forceRoll = { hope: 9, fear: 4 };
         try { const A = await import("${repoUrl}/scripts/action-rolls.mjs");
             const o = await A.rollTrait(game.actors.get("${ids.aiko}"), "shadow", { actionKey: "listen",
                 context: { room: "${rooms.here}", target: "${rooms.there}" } });
