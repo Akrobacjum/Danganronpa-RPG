@@ -877,7 +877,7 @@ export class OperatorTerm {
 }
 
 /* A term rebuilt from its JSON: by its class, from those registered at `CONFIG.Dice.termTypes`
-   (Daggerheart's HopeDie and FearDie, client-entry.mjs), else a die, a number or an operator. */
+   (Daggerheart's dice classes, client-entry.mjs), else a die, a number or an operator. */
 function termFromData(data) {
     const known = { Die, NumericTerm, OperatorTerm, ...(globalThis.CONFIG?.Dice?.termTypes ?? {}) };
     const cls = known[data?.class] ?? (data?.operator ? OperatorTerm : "faces" in (data ?? {}) ? Die : NumericTerm);

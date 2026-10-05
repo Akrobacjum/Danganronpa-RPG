@@ -251,7 +251,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             actionKey: r?.actionKey ?? null, total: r?.total ?? null, faces: [r?.hope ?? null, r?.fear ?? null],
             same: Boolean(r) && r.hope === roll?.dHope?.total && r.fear === roll?.dFear?.total && r.total === roll?.total,
             hoped: Boolean(r?.withHope || r?.isCritical), hope: globalThis.__c12aHope,
-            flags: r?.flags ?? null, expected: r ? { trait: r.expected?.trait, from: r.expected?.traitFrom, situation: r.expected?.situationFrom } : null };`);
+            flags: r?.flags ?? null, expected: r ? { trait: r.legal?.trait, from: r.legal?.traitFrom, situation: r.legal?.situationFrom } : null };`);
     const p1Drawn = await p1.eval(`const P = await import("${REPO}/scripts/private-rolls.mjs");
         const m = game.messages.get(${JSON.stringify(drawnSearch.id)});
         return { me: game.user.id, subject: P.keptRollSubject(m), shown: globalThis.__dsnShown.filter(s => s.user === game.user.id && !s.synchronize).map(s => s.total) };`);

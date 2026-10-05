@@ -4984,7 +4984,7 @@ const SCENARIOS = [
                     ...(actionKey === "crisis" ? { context: { ...p.context, crisis: "strike" } } : {}) }) });
             drawn.push(F);
             // The statistic's flag alone: the packet's formula still carries Eye's value, which the modifier's flag reads.
-            return [(F.record?.flags ?? []).filter(f => f.kind === "trait").map(f => [f.kind, f.expected, f.claimed]), F.record?.expected?.trait ?? null];
+            return [(F.record?.flags ?? []).filter(f => f.kind === "trait").map(f => [f.kind, f.expected, f.claimed]), F.record?.legal?.trait ?? null];
         };
         // The killer's next turn: passed to the victim (a new round) and back.
         const nextTurn = async () => {
@@ -5184,7 +5184,7 @@ const SCENARIOS = [
             drawn.push(F);
             must(F.record, "the GM kept no record of the crisis draw - this would measure nothing");
             return [(F.record.flags ?? []).filter(f => f.kind === "trait" || f.kind === "pick").map(f => [f.kind, f.expected, f.claimed]),
-                F.record.expected?.trait ?? null];
+                F.record.legal?.trait ?? null];
         };
         const read = [];
         try {
@@ -5207,6 +5207,187 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[[["trait", "body", "eye"]], "body"], [[["pick", "1", "0"]], null]]),
             "a crisis roll's statistic was not held to the GM's pick without the packet's word, or a pick never made went unflagged (per draw: flags, expected statistic)");
+    }],
+
+    ["a crisis roll's weapon die is the GM's reading: a packet that names none is expected it, and flagged", async () => {
+        /*
+         * E29 C9, 05.10.2026; audit S17-12, the stage plan's 3.2. What a drawn crisis roll's situation
+         * gave it in dice - a weapon in hand, a second try, a trap's victim - was the packet's
+         * `situational`, as the roller's browser armed it (murder.mjs `crisisSituational`), so a packet
+         * that said 0 was expected 0. The GM reads it now (roll-draw.mjs `LEGAL_READERS.situation`). A
+         * direct murder between two students with players (`fightOpen`), the victim's Self-defence - which
+         * a weapon in hand helps - at a turn of theirs, a weapon put in their hand and a GM's pick of Body
+         * settled for it; the draw's packet names no situation (0) and carries no advantage die. Read: the
+         * advantage the GM expected (the record's `legal`, `expected` before C9) and the record's
+         * advantage flags.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, theirs] = livingStudents().filter(playerOf);
+        const player = playerOf(theirs);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const found = [killer, theirs].map(a => [a, ["hope", "stress", "hitPoints"].map(k => [k, a.system.resources[k]?.value])]);
+        let weapon = null, F = null, read = null;
+        try {
+            await fightOpen(M, killer, theirs);
+            await turnFor(M, theirs, "selfDefence");
+            weapon = await inHand(theirs, "crimeTool", "SUITE E29 C9 weapon in hand");
+            const m = await whisperToGms("<p>SUITE E29 C9 pick</p>");
+            must(m, "no card to settle a pick on - this would measure nothing");
+            await settleCall(m, "SUITE E29 C9", { type: "trait", actorId: theirs.id, kind: "crisis", key: "selfDefence", variant: null, trait: "body" });
+            F = await drawnForPlayer(player, theirs, { actionKey: "crisis",
+                edit: p => ({ ...p, trait: TRAITS.body.dh, situational: 0, context: { ...p.context, crisis: "selfDefence" } }) });
+            must(F.record, "the GM kept no record of the crisis draw - this would measure nothing");
+            const legal = F.record.legal ?? F.record.expected ?? null;
+            read = [legal?.advantage ?? null, (F.record.flags ?? []).filter(f => f.kind === "advantage").map(f => [f.expected, f.claimed])];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(theirs)) await reviveCharacter(theirs, { quiet: true });
+            await F?.putBack();
+            await weapon?.delete();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const [a, values] of found) {
+                const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
+                if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
+            }
+        }
+        equal(stableJson(read), stableJson([1, [["+1", "0"]]]),
+            "a crisis roll's weapon die was taken from its packet, not read by the GM, or a roll without it went unflagged (expected advantage; advantage flags)");
+    }],
+
+    ["a hindering Call armed before the grace counts whether the roll names it or not, and one armed later waits for the next roll", async () => {
+        /*
+         * E29 C9, 05.10.2026; the owner's Q3 (a) of the same day. A drawn roll applied the Calls its
+         * packet named, so a packet that left out an Obstacle shed the disadvantage and kept it armed.
+         * The GM applies and spends every hostile Call - a disadvantage, a bonus below nothing - armed
+         * more than `HOSTILE_GRACE` (60 s) before the draw, named or not; one armed later waits, as one
+         * armed while a window stood open does (roll-draw.mjs `hostileCalls`). Two Obstacles written on a
+         * player's character by a GM, one armed two graces ago and one now; a Search drawn with a packet
+         * naming no Call. Read: the advantage the GM expected, the record's advantage flags, which of the
+         * two the record spent and which are still armed.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { HOSTILE_GRACE } = await import("./config.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
+        const listOf = () => { const f = theirs.getFlag(MODULE_ID, FLAGS.pendingCall); return Array.isArray(f) ? f : f ? [f] : []; };
+        const obstacle = (nonce, at) => ({ key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce, at });
+        const old = obstacle("E29C9OLDOBSTACLE", Date.now() - 2 * (HOSTILE_GRACE ?? 60_000)), fresh = obstacle("E29C9NEWOBSTACLE", Date.now());
+        const ours = [old.nonce, fresh.nonce];
+        let read = null;
+        try {
+            must(!E.armedCallsShown(theirs).some(c => c?.grants === "disadvantage" || c?.grants === "advantage"),
+                `${theirs.name} has a Call of dice armed already - this would measure something else`);
+            await theirs.update({ [flag]: [...listOf(), old, fresh] });
+            must(ours.every(n => E.armedCallsShown(theirs).some(c => c.nonce === n)), "the two Obstacles were not armed - this would measure nothing");
+            const F = await drawnForPlayer(player, theirs, { edit: p => ({ ...p, calls: [] }) });
+            try {
+                must(F.record, "the GM kept no record of the draw - this would measure nothing");
+                const legal = F.record.legal ?? F.record.expected ?? null;
+                read = [legal?.advantage ?? null, (F.record.flags ?? []).filter(f => f.kind === "advantage").map(f => [f.expected, f.claimed]),
+                    (F.record.used?.calls ?? []).filter(n => ours.includes(n)), E.armedCallsShown(theirs).map(c => c.nonce).filter(n => ours.includes(n))];
+            } finally {
+                await F.putBack();
+            }
+        } finally {
+            await E.spendCallsByNonce(theirs, ours);
+        }
+        equal(stableJson(read), stableJson([-1, [["-1", "0"]], [old.nonce], [fresh.nonce]]),
+            "an Obstacle armed before the grace was shed by a packet that left it out, or one armed within it was taken (expected advantage; advantage flags; spent; still armed)");
+    }],
+
+    ["a roll built from what the GMs hold raises no flag: an experience, a Support, a Meddle's help, its hinder, its bonus, a Loaded Die", async () => {
+        /*
+         * E29 C9, 05.10.2026; the stage plan's 3.2 and its risk "a missing legal source is a false
+         * subtraction". Every source the list (config.mjs `LEGAL_ROLL_MODIFIERS`) counts, each on a roll
+         * whose window put it on as Daggerheart's would: an Experience Call's experience at its value; a
+         * Support's advantage die; a Confusion's advantage die (a Meddle's help), its disadvantage die (its
+         * hinder) and its +1 and -1; a Loaded Die. Each armed by a GM, named by the packet, and one Search
+         * drawn for it. The harness's roll carries no die and no bonus of its own (no roll window): each
+         * packet is edited to carry what the window would. Read, per draw: the record's flags and whether
+         * it spent the Call. A flag here is a source the GM does not count.
+         * The hinder and the -1 - Meddles, so rows of the GMs' Confusion store (gm-stores.mjs
+         * `confusionStore`) - are dated two graces back (`HOSTILE_GRACE`) once armed: a hostile Call the
+         * roll names AND that counts unnamed (roll-draw.mjs `hostileCalls`) must count once. Armed now,
+         * neither is hostile yet, and a list that took a named one twice passed here (C9's A2, 05.10.2026:
+         * the mutant c9-hostile-double came out 4 passed, 0 failed against the test armed at once).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const experience = Object.keys(theirs.system?.experiences ?? {})[0] ?? null;
+        must(experience, `${theirs.name} has no experience - this would measure nothing of one`);
+        const plus = n => p => {
+            const terms = p.roll.terms;
+            const op = terms.find(t => t?.operator === "+"), num = terms.find(t => typeof t?.number === "number" && t.faces === undefined);
+            must(op && num, "the packet's formula has no plain number to add beside - this would measure nothing");
+            p.roll.terms = [...terms, { ...foundry.utils.deepClone(op), operator: n < 0 ? "-" : "+" }, { ...foundry.utils.deepClone(num), number: Math.abs(n) }];
+            p.roll.formula = `${p.roll.formula} ${n < 0 ? "-" : "+"} ${Math.abs(n)}`;
+            return p;
+        };
+        // The advantage die where Daggerheart's `applyAdvantage` puts it: fifth, after its sign.
+        const die = sign => p => {
+            p.roll.terms.splice(3, 0, { class: "OperatorTerm", operator: sign > 0 ? "+" : "-", evaluated: false },
+                { class: sign > 0 ? "AdvantageDie" : "DisadvantageDie", number: 1, faces: 6, modifiers: [], results: [], evaluated: false });
+            p.roll.formula = p.roll.formula.replace(/^1d12 \+ 1d12/, `1d12 + 1d12 ${sign > 0 ? "+" : "-"} 1d6`);
+            return p;
+        };
+        const arm = async (entry, byStore = false) => {
+            const had = new Set(E.armedCallsShown(theirs).map(c => c.nonce));
+            if (byStore) await E.armCall(theirs, entry);
+            else await E.appendArmedCall(theirs, { amount: null, ...entry, nonce: `E29C9${entry.key.toUpperCase()}${foundry.utils.randomID(6)}` });
+            const nonce = E.armedCallsShown(theirs).find(c => !had.has(c.nonce))?.nonce ?? null;
+            must(nonce, `the ${entry.key} was not armed - this would measure nothing`);
+            return nonce;
+        };
+        const { HOSTILE_GRACE } = await import("./config.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const age = async nonce => {
+            const calls = confusionStore.get(theirs.id)?.calls;
+            must(Array.isArray(calls) && calls.some(c => c?.nonce === nonce), `the ${nonce} is not in the GMs' Confusion row - this would measure nothing`);
+            const at = Date.now() - 2 * (HOSTILE_GRACE ?? 60_000);
+            await confusionStore.patch(theirs.id, { calls: calls.map(c => (c?.nonce === nonce ? { ...c, at } : c)) });
+            must(Number(E.armedCallsShown(theirs).find(c => c.nonce === nonce)?.at) === at, `the ${nonce} was not dated before the grace - this would measure nothing`);
+        };
+        const hinders = entry => entry.grants === "disadvantage" || (entry.grants === "bonus" && Number(entry.amount) < 0);
+        const sources = [
+            ["experience", { key: "experience", kind: "hope", grants: "experience" }, false,
+                p => plus(Number(theirs.system.experiences[experience]?.value) || 0)({ ...p, experiences: [experience] })],
+            ["support", { key: "support", kind: "hope", grants: "advantage" }, false, die(1)],
+            ["meddle help", { key: "meddle", grants: "advantage" }, true, die(1)],
+            ["meddle hinder", { key: "meddle", grants: "disadvantage" }, true, die(-1)],
+            ["meddle +1", { key: "meddle", grants: "bonus", amount: 1 }, true, plus(1)],
+            ["meddle -1", { key: "meddle", grants: "bonus", amount: -1 }, true, plus(-1)],
+            ["loaded die", { key: "freeCrit", kind: "hope", grants: "critical" }, false, null]
+        ];
+        const read = [], armed = [];
+        try {
+            for (const [label, entry, byStore, edit] of sources) {
+                const nonce = await arm(entry, byStore);
+                armed.push(nonce);
+                if (hinders(entry)) await age(nonce);
+                const F = await drawnForPlayer(player, theirs, { faces: { hope: 7, fear: 4 },
+                    edit: p => (edit ?? (x => x))({ ...p, calls: [nonce], ...(entry.grants === "critical" ? { loaded: nonce } : {}) }) });
+                try {
+                    must(F.record, `the GM kept no record of the ${label} draw - this would measure nothing`);
+                    read.push([label, (F.record.flags ?? []).map(f => [f.kind, f.expected, f.claimed]), (F.record.used?.calls ?? []).includes(nonce)]);
+                } finally {
+                    await F.putBack();
+                }
+            }
+        } finally {
+            const left = E.armedCallsShown(theirs).map(c => c.nonce).filter(n => armed.includes(n));
+            if (left.length) await E.spendCallsByNonce(theirs, left);
+        }
+        equal(stableJson(read), stableJson(sources.map(([label]) => [label, [], true])),
+            "a roll carrying only what the GMs hold was flagged, or did not spend the Call it applied (per source: flags, spent)");
     }],
 
     ["a Loaded Die bought and armed forces the first face on the GM and is spent there; one not armed does not", async () => {

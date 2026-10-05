@@ -2995,6 +2995,23 @@
         "advantage": "advantage dice",
         "stash": "hidden stash not named"
       },
+      "flagFrom": "{line} (the GM counted: {list})",
+      "legal": {
+        "hopeDie": "the Hope die's faces",
+        "fearDie": "the Despair die's faces",
+        "advantageDie": "the advantage die's faces",
+        "trait": "the statistic",
+        "experience": "an experience an Experience Call bought",
+        "callBonus": "a Call's bonus",
+        "effects": "bonuses from active effects",
+        "calls": "a Call's dice",
+        "hostile": "a hindering Call armed before the roll",
+        "breakdown": "Breakdown",
+        "situation": "the situation",
+        "loadedDie": "the Loaded Die",
+        "stashStep": "the hidden stash's step",
+        "kind": "the roll's kind"
+      },
       "waitsForGm": "An action roll waits for a GM: no GM is connected, so the action was not taken and nothing was paid.",
       "unwitnessed": "Thrown with no GM connected - the GM will see it.",
       "awayTitle": "Rolls made while no GM was connected",

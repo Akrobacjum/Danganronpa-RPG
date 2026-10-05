@@ -3107,6 +3107,23 @@
         "advantage": "kości przewagi",
         "stash": "niezgłoszona ukryta skrytka"
       },
+      "flagFrom": "{line} (GM policzył: {list})",
+      "legal": {
+        "hopeDie": "ścianki kości Hope",
+        "fearDie": "ścianki kości Despair",
+        "advantageDie": "ścianki kości przewagi",
+        "trait": "statystyka",
+        "experience": "doświadczenie kupione Callem Experience",
+        "callBonus": "premia z Calla",
+        "effects": "premie z aktywnych efektów",
+        "calls": "kości z Calli",
+        "hostile": "utrudniający Call uzbrojony przed rzutem",
+        "breakdown": "Breakdown",
+        "situation": "sytuacja",
+        "loadedDie": "Loaded Die",
+        "stashStep": "krok ukrytej skrytki",
+        "kind": "rodzaj rzutu"
+      },
       "waitsForGm": "Rzut akcji czeka na GM-a: żaden GM nie jest połączony, więc akcja się nie odbyła i nic nie zapłacono.",
       "unwitnessed": "Rzucono bez połączonego GM-a - GM to zobaczy.",
       "awayTitle": "Rzuty wykonane bez połączonego GM-a",

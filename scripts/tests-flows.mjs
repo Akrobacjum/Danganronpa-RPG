@@ -104,8 +104,10 @@ export const FLOWS = Object.freeze([
     // E08+E28 C18 (04.10.2026): 15-held drops the GM - an action refused, a statistic stamped - and a GM's
     // return grants it on the GMs' card. Fix r2-H7 (05.10.2026): another GM's click on that card asks the
     // primary (`roll.grant`); the harness has one GM, so 15 clicks it on the primary and R219 reads the waiter.
+    // E29 C9 (05.10.2026): what a drawn roll may add up to is the GM's list (config.mjs LEGAL_ROLL_MODIFIERS); 13 reads
+    // what the GM counted on every roll of its incidents.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
-        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held"], status: "covered", stage: "1.2.67" },
+        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals"], status: "covered", stage: "1.2.67" },
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
         entry: { bridge: ["call.approve"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",

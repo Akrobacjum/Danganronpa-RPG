@@ -3861,6 +3861,44 @@ export const CLEANUP = {
     }
 };
 
+/*
+ * WHAT MAY ADD TO A DRAWN ROLL (E29 C9, 05.10.2026; audit S17-12, its second half; the stage plan's 3.2).
+ * Until 1.2.68 what a roll the GM draws for a player may add up to lived in two functions'
+ * bodies (roll-draw.mjs `expectedFor` and `checkRoll`), and half of it was the roller's word: a
+ * crisis roll's weapon die, a tool in hand, a clean-up's tool, the dice a Call or the situation
+ * gave were whatever the roller's browser had armed. This is the one list of it, each row read on
+ * the GM by one reader of the same name (roll-draw.mjs `LEGAL_READERS`) from what that GM holds:
+ *   - `kind` says how it reaches the roll: the faces of a die, a flat number, advantage dice, the
+ *     face a die is forced to, a step taken after the dice, or the roll's own kind;
+ *   - `reader` names where the GM reads it (a path on the character or the store it comes from);
+ *   - `bound` is the number the reader holds it to: a die's faces where the rules say none, one
+ *     experience, Breakdown's one die, the hostile Call's grace;
+ *   - `label` is the line a flag names it by (`DRPG.Rolls.legal.*`).
+ * The advantage dice of every row are summed and capped at roll-dialog.mjs `ADVANTAGE_CAP`, as the
+ * roll window sums them (`advantageSources`). Monokuma's rolls are a GM's and are not drawn. From
+ * C9 the GM reads the list and still only observes: a roll that differs is flagged to the GMs and
+ * stands as drawn.
+ */
+/** How long before a draw a hostile Call - a disadvantage, a negative bonus - is armed to count whether the roll names it or not (the owner's Q3 (a), 05.10.2026), in ms. */
+export const HOSTILE_GRACE = 60_000;
+
+export const LEGAL_ROLL_MODIFIERS = Object.freeze([
+    { key: "hopeDie", kind: "faces", reader: "system.rules.dualityRoll.defaultHopeDice", bound: 12, label: "DRPG.Rolls.legal.hopeDie" },
+    { key: "fearDie", kind: "faces", reader: "system.rules.dualityRoll.defaultFearDice", bound: 12, label: "DRPG.Rolls.legal.fearDie" },
+    { key: "advantageDie", kind: "faces", reader: "system.rules.roll.advantageFaces", bound: 6, label: "DRPG.Rolls.legal.advantageDie" },
+    { key: "trait", kind: "flat", reader: "system.traits", bound: null, label: "DRPG.Rolls.legal.trait" },
+    { key: "experience", kind: "flat", reader: "system.experiences", bound: 1, label: "DRPG.Rolls.legal.experience" },
+    { key: "callBonus", kind: "flat", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.callBonus" },
+    { key: "effects", kind: "flat", reader: "appliedEffects", bound: null, label: "DRPG.Rolls.legal.effects" },
+    { key: "calls", kind: "dice", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.calls" },
+    { key: "hostile", kind: "dice", reader: "pendingCall", bound: HOSTILE_GRACE, label: "DRPG.Rolls.legal.hostile" },
+    { key: "breakdown", kind: "dice", reader: "system.resources.stress", bound: -1, label: "DRPG.Rolls.legal.breakdown" },
+    { key: "situation", kind: "dice", reader: "actionKey", bound: null, label: "DRPG.Rolls.legal.situation" },
+    { key: "loadedDie", kind: "face", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.loadedDie" },
+    { key: "stashStep", kind: "after", reader: "vault", bound: null, label: "DRPG.Rolls.legal.stashStep" },
+    { key: "kind", kind: "kind", reader: "appliedEffects", bound: null, label: "DRPG.Rolls.legal.kind" }
+].map(row => Object.freeze(row)));
+
 /**
  * The playlist the GM's "put a track on now" control draws from.
  *

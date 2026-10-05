@@ -1115,8 +1115,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             .sort((a, b) => b.at - a.at)[0] ?? null;
         for (let i = 0; i < 60 && !newest(); i++) await new Promise(r => setTimeout(r, 100));
         const r = newest();
-        return r ? { trait: r.expected?.trait ?? null, from: r.expected?.traitFrom ?? null, situation: r.expected?.situationFrom ?? null,
-            advantage: r.expected?.advantage ?? null, flags: r.flags ?? null } : null;`, { timeout: 30000 });
+        return r ? { trait: r.legal?.trait ?? null, from: r.legal?.traitFrom ?? null, situation: r.legal?.situationFrom ?? null,
+            advantage: r.legal?.advantage ?? null, flags: r.flags ?? null } : null;`, { timeout: 30000 });
     check("trap: the victim's opening roll is drawn and held to the GM's pick (Eye) and to the opening's own die, read by the GM - nothing flagged",
         openingDrawn?.trait === "eye" && openingDrawn.from === "opening" && openingDrawn.situation === "gm" && openingDrawn.advantage === 0
         && Array.isArray(openingDrawn.flags) && openingDrawn.flags.length === 0, JSON.stringify(openingDrawn), { flow: "murder-incident" });
@@ -1509,4 +1509,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             && sixPlaced.stage === "resolution" && sixPlaced.moved && trail.rolled && carried.rolled && carried.here === true
             && JSON.stringify(settled) === JSON.stringify({ trail: { actionKey: "cleanup", resolved: ["cleanup"] }, carried: { actionKey: "cleanup", resolved: ["cleanup"] } }),
         JSON.stringify({ honestOpening, sixPlaced, trail, carried, settled }), { flow: "murder-incident" });
+
+    /* WHAT THE GM COUNTED ON THE INCIDENT'S ROLLS (E29 C9, 05.10.2026; the stage plan's 3.2). Every roll
+       of this file's incidents a player's browser threw - the openings, the crisis actions, the trail and
+       the body move - was drawn on the GM, which reads what each may add up to from its own list
+       (config.mjs `LEGAL_ROLL_MODIFIERS`): the statistic, the situation's dice per action (the Night,
+       a weapon, a trap's victim, a Cleaning Tool), the Calls. Read on the GM: each record's action, the
+       situation it read and the flags it raised. One roll is flagged, and for two reasons this file
+       gives it: the trap victim's roll of the fight above is thrown straight at `rollTrait`, past the
+       crisis menu, so no GM was asked its statistic (`pick`, fix r2-H8's), and it lacks the die a trap's
+       victim is owed (murder.mjs `crisisSituational`), which the GM counts since C9 and the harness's
+       roll, with no roll window, cannot carry (`advantage`, +1 against 0, from the situation). Measured
+       on C9's tree (e29run/c9a1): those two flags on that roll, none on the eight others. */
+    phase("what the GM counted on the incident's rolls", { flow: "gm-rolls-total" });
+    const counted = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Object.values(S.rollStore.entries()).filter(r => ["murderOpening", "crisis", "cleanup"].includes(r?.actionKey)).sort((a, b) => a.at - b.at)
+            .map(r => ({ action: r.actionKey, crisis: r.crisis ?? null, actor: game.actors.get(r.actorId)?.name ?? r.actorId, messageId: r.messageId ?? null,
+                from: r.legal?.situationFrom ?? null,
+                situation: r.legal?.read?.situation ?? null, trait: r.legal?.trait ?? null, traitFrom: r.legal?.traitFrom ?? null,
+                flags: (r.flags ?? []).map(f => [f.kind, f.expected, f.claimed, f.from ?? []]) }));`, { timeout: 30000 });
+    const pastTheMenu = counted.filter(r => r.messageId === trapRoll.id);
+    check("the GM read every incident roll's situation itself, and flagged none of the openings, crisis actions and Stage 6 rolls but the trap victim's thrown past the crisis menu: no pick asked, and a trap's victim's die its roll cannot carry here",
+        counted.length > 1 && counted.every(r => r.from === "gm") && pastTheMenu.length === 1
+            && JSON.stringify(pastTheMenu[0].flags) === JSON.stringify([["pick", "1", "0", []], ["advantage", "+1", "0", ["situation"]]])
+            && counted.every(r => r.messageId === trapRoll.id || r.flags.length === 0),
+        JSON.stringify(counted), { flow: "gm-rolls-total" });
 }

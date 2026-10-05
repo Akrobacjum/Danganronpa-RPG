@@ -437,6 +437,15 @@ for (const { id, version } of versions.modules) addModule(id, { title: COMPANION
    knows which is which (dualityRoll.mjs `createBaseDice`, `fromData`, 2.10.5). */
 class HopeDie extends Die {}
 class FearDie extends Die {}
+/* And its advantage dice (die/advantageDie.mjs, die/disadvantageDie.mjs, 2.10.5): the fifth term a roll
+   rebuilt from its JSON names (E29 C9, 05.10.2026). Until C9 the harness had no class for them, so a
+   packet carrying one was rebuilt as a plain die, read by the GM as a die beyond Hope, Fear and the
+   advantage die (roll-draw.mjs `checkRoll`, kind `dice`) and as no advantage at all: the suite could
+   not hand the GM a roll whose window had put a Call's die on. Daggerheart's constructor adds its
+   letter (`a`, `d`) to the modifiers; these do not, as the HopeDie and FearDie above add no `h`, `f`
+   (roll-draw.mjs `diceShape` reads a die without its class's letter). */
+class AdvantageDie extends Die {}
+class DisadvantageDie extends Die {}
 
 /* A face the harness was told to show, as the `randomUniform` that draws it: Foundry maps u to
    `ceil((1 - u) * faces)`, so the middle of the face's band, u = 1 - (f - 0.5) / faces, lands on f
@@ -483,8 +492,9 @@ class DualityRollMock extends RollImpl {
      * postRoll hooks and the message; dualityRoll.mjs:246-251, :318-334: `dualityUpdate`). Not
      * modelled: the keybindings and the temporary modifiers (nothing headless presses a key),
      * the countdowns `dualityUpdate` ticks and `handleTriggers` (the harness has neither), the
-     * advantage dice `fromData` re-classes (the harness's formula has none), `toMessage`'s item
-     * actions and reload. The message is the harness's as before C10 (`toMessage` below).
+     * advantage dice the roll window puts on (the harness's formula has none; a packet the suite
+     * edits may carry one, which `fromData` and `dAdvantage` below read as Daggerheart's do, E29 C9),
+     * `toMessage`'s item actions and reload. The message is the harness's as before C10 (`toMessage` below).
      */
     static JSON_CLASS = "DualityRoll";
     /* A critical the options guarantee, as Daggerheart's constructor takes it (dualityRoll.mjs:13,
@@ -512,6 +522,9 @@ class DualityRollMock extends RollImpl {
     }
     get dHope() { return this.dice[0]; }
     get dFear() { return this.dice[1]; }
+    /* dualityRoll.mjs:49-55: the third die, where it is of the advantage dice's classes. */
+    get dAdvantage() { return this.dice[2] instanceof AdvantageDie ? this.dice[2] : null; }
+    get dDisadvantage() { return this.dice[2] instanceof DisadvantageDie ? this.dice[2] : null; }
     get isCritical() {
         if (this.guaranteedCritical) return true;
         return Boolean(this.dHope?._evaluated && this.dFear?._evaluated) && this.dHope.total === this.dFear.total;
@@ -629,10 +642,13 @@ class DualityRollMock extends RollImpl {
         return addDualityResourceUpdates(config);
     }
 
-    /* dualityRoll.mjs:122-129: the first and the third term are the Hope and the Fear die. */
+    /* dualityRoll.mjs:122-129: the first and the third term are the Hope and the Fear die, and the fifth
+       the advantage die its options say it is (E29 C9) - a fifth term named one already stays it. */
     static fromData(data) {
         if (data?.terms?.[0]) data.terms[0].class = "HopeDie";
         if (data?.terms?.[2]) data.terms[2].class = "FearDie";
+        const type = data?.options?.roll?.advantage?.type;
+        if (type && data.terms[4]?.faces) data.terms[4].class = type === 1 ? "AdvantageDie" : "DisadvantageDie";
         return super.fromData(data);
     }
 
@@ -1148,7 +1164,7 @@ globalThis.CONFIG = {
     Region: { documentClass: classes.Region },
     /* Foundry's randomiser, which every die draws from (lib/shim.mjs `Die`): `Math.random` here,
        a Mersenne Twister at a table. A test may script it, as forced-roll.mjs does (E08+E28 C10). */
-    Dice: { rolls: [RollImpl], types: [], terms: {}, termTypes: { HopeDie, FearDie }, randomUniform: () => Math.random() },
+    Dice: { rolls: [RollImpl], types: [], terms: {}, termTypes: { HopeDie, FearDie, AdvantageDie, DisadvantageDie }, randomUniform: () => Math.random() },
     queries: {},
     canvasTextStyle: {},
     fontDefinitions: {},
