@@ -2603,6 +2603,82 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify(overWhole?.level ?? null), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S EFFECTS (E29 fix r1-G3, 05.10.2026; review round 1 sec B3 = cor M4, cor M3). p1's console puts
+     * an effect on a Tool Aiko carries - +5 to every roll and Agility up 3, which Daggerheart 2.10.5 applies to
+     * the student carrying it; then three on Aiko herself - Hope's value up 5, Health's overridden to 0, the
+     * Monokuma flag set; then makes an item on her carrying an Agility rise. Expected: the Tool's effect and
+     * Aiko's three taken off on every client, the item deleted on every client, a put-back row each, and p1
+     * told once a write. The review's probe on 69deef0 measured Aiko's three standing with no row; the Tool's
+     * could not be made here until this fix modelled an effect on an actor's item (lib/shim.mjs `_embeddedOp`).
+     * At b5769e7 (05.10.2026, e29run/r1g3red) all of it stood on every client: the Tool's effect and Aiko's three
+     * with no row, the item with a flagged row only, and p1 was told nothing.
+     */
+    phase("a console's effects", { flow: "sheet-audit" });
+    const readEffects = `const a = game.actors.get("${ids.aiko}"), t = a.items.find(i => i.name === "E29 G3 30 tool");
+        return { tool: t ? t.effects.contents.filter(e => e.name === "SEC G3 tool bonus").length : null,
+            own: a.effects.contents.filter(e => e.name.startsWith("SEC G3 own")).length, gift: a.items.filter(i => i.name === "E29 G3 30 gift").length };`;
+    const effectsWas = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), a = game.actors.get("${ids.aiko}");
+        const tool = await INV.grantItem(a, { name: "E29 G3 30 tool", category: "tool", tier: 1, override: true, quiet: true });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { tool: tool?.id ?? null, from: Date.now() };`);
+    const effectRows = from => `${audited} return Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${from})
+        .map(r => r.verdict + ":" + (r.itemId === "${effectsWas.tool}" ? "tool:" : "") + Object.keys(r.change ?? {}).map(k => k.split(".")[0]).sort().join(",")).sort();`;
+    // Up to 6 s for the GM's reading to come out as `test` says, every judgement finished, then every client's.
+    const settledEffects = async test => {
+        await gm.eval(`const end = Date.now() + 6000; const read = async () => { ${readEffects} };
+            while (!(${test})(await read()) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        await settle(800);
+        return Promise.all([gm, p1, p2, p3].map(c => c.eval(readEffects)));
+    };
+    const toldSince = () => p1.eval(`const n = globalThis.__sheetTold; globalThis.__sheetTold = 0; return n;`);
+    let consoleEffects = null;
+    try {
+        await settle(400);
+        await p1.eval(`globalThis.__sheetTold = 0;
+            if (!globalThis.__sheetToldHook) {
+                globalThis.__sheetToldHook = true;
+                game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused" && payload.reason === "sheetPutBack") globalThis.__sheetTold++; });
+            }
+            await game.actors.get("${ids.aiko}").items.get("${effectsWas.tool}").createEmbeddedDocuments("ActiveEffect", [{ name: "SEC G3 tool bonus",
+                system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: 5 }, { key: "system.traits.agility.value", type: "add", value: 3 }] } }]);
+            return true;`);
+        const tool = { after: await settledEffects(`s => s.tool === 0`), rows: await gm.eval(effectRows(effectsWas.from)), told: await toldSince() };
+        const fromOwn = await gm.eval(`return Date.now();`);
+        await p1.eval(`await game.actors.get("${ids.aiko}").createEmbeddedDocuments("ActiveEffect", [
+            { name: "SEC G3 own Hope", system: { changes: [{ key: "system.resources.hope.value", type: "add", value: 5 }] } },
+            { name: "SEC G3 own Health", system: { changes: [{ key: "system.resources.hitPoints.value", type: "override", value: 0 }] } },
+            { name: "SEC G3 own Monokuma", system: { changes: [{ key: "flags.${MOD}.monokuma", type: "override", value: "true" }] } }]); return true;`);
+        const own = { after: await settledEffects(`s => s.own === 0`), rows: await gm.eval(effectRows(fromOwn)), told: await toldSince() };
+        const fromGift = await gm.eval(`return Date.now();`);
+        await p1.eval(`await game.actors.get("${ids.aiko}").createEmbeddedDocuments("Item", [{ name: "E29 G3 30 gift", type: "loot", system: { quantity: 1 },
+            effects: [{ name: "SEC G3 gift Agility", system: { changes: [{ key: "system.traits.agility.value", type: "add", value: 3 }] } }] }], { drpgAutomated: true });
+            return true;`);
+        const gift = { after: await settledEffects(`s => s.gift === 0`), rows: await gm.eval(effectRows(fromGift)), told: await toldSince() };
+        consoleEffects = { tool, own, gift };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const own = a.effects.contents.filter(e => e.name.startsWith("SEC G3 own")).map(e => e.id);
+            if (own.length) await a.deleteEmbeddedDocuments("ActiveEffect", own);
+            const items = a.items.filter(i => ["E29 G3 30 tool", "E29 G3 30 gift"].includes(i.name)).map(i => i.id);
+            if (items.length) await a.deleteEmbeddedDocuments("Item", items);
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    }
+    check("SECURITY: an effect a player's console puts on an item its student carries - a roll bonus and an Agility rise, which Daggerheart applies to the student - is taken off on every client, its row naming the item, the player told",
+        Boolean(consoleEffects) && Boolean(effectsWas.tool) && everyClient(consoleEffects.tool.after, { tool: 0 })
+            && JSON.stringify(consoleEffects.tool.rows) === JSON.stringify(["putBack:tool:itemEffects"]) && consoleEffects.tool.told === 1,
+        JSON.stringify({ effectsWas, tool: consoleEffects?.tool ?? null }), { flow: "sheet-audit" });
+    check("SECURITY: effects a player's console puts on its student's Hope, Health and Monokuma flag are taken off on every client, a row each, the player told each time",
+        Boolean(consoleEffects) && everyClient(consoleEffects.own.after, { own: 0 })
+            && JSON.stringify(consoleEffects.own.rows) === JSON.stringify(["putBack:effects", "putBack:effects", "putBack:effects"]) && consoleEffects.own.told === 3,
+        JSON.stringify(consoleEffects?.own ?? null), { flow: "sheet-audit" });
+    check("SECURITY: an item a player's console makes carrying an Agility rise is put back - deleted on every client - with a row naming it and its effect, the player told",
+        Boolean(consoleEffects) && everyClient(consoleEffects.gift.after, { gift: 0 })
+            && JSON.stringify(consoleEffects.gift.rows) === JSON.stringify(["putBack:itemEffects,items"]) && consoleEffects.gift.told === 1,
+        JSON.stringify(consoleEffects?.gift ?? null), { flow: "sheet-audit" });
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

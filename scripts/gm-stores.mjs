@@ -899,7 +899,8 @@ export const rollStore = defineGmStore({
  * `experiences`, `resources` (each value and maximum), `rules`, `bonuses`, the module `flags` only
  * a GM writes and `pendingCall`, and `effects` (each one's data, so a deleted one can be made
  * again under its id); since C6 `items` (each module item's data, likewise - and since E29 fix
- * r1-G2 each class's, and `levelData`, Daggerheart's level-up selections) and `finds` (the
+ * r1-G2 each class's, and `levelData`, Daggerheart's level-up selections), since G3 `itemEffects`
+ * (the effects on each of its items, by item - an item's copy in `items` holds none) and `finds` (the
  * Search records a find stood on, each with the item: one find a record). Written by the primary after every verdict and every GM's write, and filled
  * from the documents when its stores hydrate and a character has none (sheet-audit.mjs). Synced
  * between the GMs, so the next primary judges against the same marks; not backed up - the

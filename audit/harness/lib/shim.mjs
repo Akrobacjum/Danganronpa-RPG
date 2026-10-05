@@ -408,9 +408,21 @@ export function buildDocumentClasses(ctx) {
             await this._embeddedOp("delete", embeddedName, ids, context);
             return [];
         }
+        /*
+         * A DOCUMENT'S OWN CHILDREN WHEN IT IS ITSELF EMBEDDED (E29 fix r1-G3, 05.10.2026): an effect on an
+         * actor's item. The op names the world document at the root and the step under it (`via`), and the
+         * cluster applies it there; until this fix it named the item as a world Item, which a GM's write
+         * found missing ("Item ... does not exist") and a player's was refused - the review's probe on
+         * 69deef0 met both, so no check could hold an effect on a student's item. The permission is the
+         * root actor's (cluster.mjs `canWrite`): Foundry gives an embedded item's effects the item's
+         * owner, and an embedded item takes its ownership from its actor - recalled, not read from v14.
+         */
         _embeddedOp(action, embeddedName, payload, context = {}, options = opts(context)) {
+            const via = this.parent && (EMBEDDED[this.parent.documentName] ?? {})[this.documentName]
+                ? { embeddedName: this.documentName, id: this.id } : null;
+            const root = via ? this.parent : this;
             return ctx.bus.op({
-                action: `embedded-${action}`, coll: this.documentName, docId: this.id,
+                action: `embedded-${action}`, coll: root.documentName, docId: root.id, ...(via ? { via } : {}),
                 embeddedName, payload, options
             });
         }

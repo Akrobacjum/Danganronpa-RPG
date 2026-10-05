@@ -25292,6 +25292,229 @@ const SCENARIOS = [
                 + "the class's hit points raised: the class's and the mark's)");
     }],
 
+    /*
+     * THE EFFECTS ON A STUDENT'S ITEMS (E29 fix r1-G3, 05.10.2026; review round 1 sec B3 = cor M4). Daggerheart
+     * 2.10.5 applies an item's transferred effects to the student carrying it, so a player's effect on a carried
+     * Tool is judged as one on the student: a +5 to every roll made on it is taken off; the GMs' penalty on it,
+     * deleted, is made again under its id, and changed, is written back; one that is not transferred is not put
+     * back - Daggerheart does not apply it - until it is made transferred, which is written back. A GM's write on
+     * the Tool that lands before the +5 is judged moves none of its effects; the mark holds them as the GMs left
+     * them. At b5769e7 (05.10.2026, e29run/r1g3red) the judge stood aside every round, no row: the +5 stayed,
+     * the penalty stayed deleted, the effect made transferred stood, and the mark held none of the Tool's effects.
+     */
+    ["an effect on a student's item is judged as one on the student: made, changed or deleted by a player it is put back", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const bonus = value => ({ system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value }] } });
+        let tool = null, seen = null;
+        // A write made aside on the GM, then handed to the judge with the player's id, as its hook would be: put back or not, and its rows.
+        const judged = async (kind, write, changes = {}) => {
+            const from = Date.now();
+            const effect = await write();
+            const verdict = await judgeWrite(kind, effect, changes, player.id);
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id
+                && row.at >= from && row.verdict === "putBack");
+            return [verdict?.verdict === "putBack", rows.map(row => `${row.itemId === tool.id}:${Object.keys(row.change ?? {})
+                .map(path => path.split(".").slice(0, 2).join(".").replace(tool.id, "T")).join(",")}`)];
+        };
+        const of = name => tool.effects.contents.filter(effect => effect.name === name);
+        try {
+            tool = await grantItem(student, { name: "Tier 2 G3 tool", category: "tool", tier: 1, override: true, quiet: true });
+            const [penalty] = tool ? await tool.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 G3 penalty", ...bonus(-2) }]) : [];
+            await sheetAuditIdle();
+            must(tool && penalty && tool.effects.has(penalty.id), "no Tool, or no penalty on it - this would measure nothing");
+            const held = Boolean(sheetMarkStore.get(student.id)?.itemEffects?.[tool.id]?.[penalty.id]);
+            // A GM's write on the Tool queued between the player's effect and its judgement moves none of its effects into the mark.
+            const made = await judged("createActiveEffect", async () => {
+                const [effect] = await tool.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 G3 bonus", ...bonus(5) }], { [AUDIT_ASIDE]: true });
+                await tool.update({ name: "Tier 2 G3 tool, renamed" });
+                return effect;
+            });
+            const madeAfter = of("Tier 2 G3 bonus").length;
+            const deleted = await judged("deleteActiveEffect", async () => {
+                await penalty.delete({ [AUDIT_ASIDE]: true });
+                return penalty;
+            });
+            const deletedAfter = tool.effects.has(penalty.id);
+            const changed = await judged("updateActiveEffect", async () => {
+                const live = tool.effects.get(penalty.id) ?? penalty;
+                await live.update(bonus(3), { [AUDIT_ASIDE]: true });
+                return live;
+            }, bonus(3));
+            const changedAfter = tool.effects.get(penalty.id)?.system?.changes?.[0]?.value ?? null;
+            const aside = await judged("createActiveEffect", async () => (await tool.createEmbeddedDocuments("ActiveEffect",
+                [{ name: "Tier 2 G3 aside", transfer: false, ...bonus(4) }], { [AUDIT_ASIDE]: true }))[0]);
+            const asideAfter = of("Tier 2 G3 aside").length;
+            const transferred = await judged("updateActiveEffect", async () => {
+                const live = of("Tier 2 G3 aside")[0];
+                await live.update({ transfer: true }, { [AUDIT_ASIDE]: true });
+                return live;
+            }, { transfer: true });
+            const transferredAfter = of("Tier 2 G3 aside")[0]?.transfer ?? null;
+            const marked = Object.values(sheetMarkStore.get(student.id)?.itemEffects?.[tool.id] ?? {})
+                .map(effect => `${effect.name}:${effect.transfer !== false}:${effect.system?.changes?.[0]?.value}`).sort();
+            seen = [held, made, madeAfter, deleted, deletedAfter, changed, changedAfter, aside, asideAfter, transferred, transferredAfter, marked];
+        } finally {
+            await sheetAuditIdle();
+            if (tool && student.items.has(tool.id)) await student.deleteEmbeddedDocuments("Item", [tool.id]);
+            await sheetAuditIdle();
+        }
+        const ROW = ["true:itemEffects.T"];
+        equal(stableJson(seen), stableJson([true, [true, ROW], 0, [true, ROW], true, [true, ROW], -2, [false, []], 1, [true, ROW], false,
+            ["Tier 2 G3 aside:false:4", "Tier 2 G3 penalty:true:-2"]]),
+            "an effect on the student's Tool was not judged as one on the student (the GMs' penalty in the mark; then each round - put back "
+                + "and its rows: a +5 made and how many are left, the penalty deleted and whether it is back, changed and its value, one not "
+                + "transferred and how many are left, made transferred and its transfer; the Tool's effects in the mark)");
+    }],
+
+    /*
+     * AN EFFECT ON WHAT THE GMS HOLD (E29 fix r1-G3, 05.10.2026; review round 1 cor M3). Daggerheart applies a
+     * student's effects to its prepared data, which the module reads - the Hope a Call spends, the Health an
+     * incident reads, the actions, the Monokuma and death flags - so a player's effect on a resource's value or
+     * a module flag is put back as one on a statistic is; one on what the GMs do not hold (Evasion) is not.
+     * At b5769e7 (05.10.2026, e29run/r1g3red) the four that count stood, with no row.
+     */
+    ["an effect a player puts on a resource's value or a module flag is put back, as one on a statistic is", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const EFFECTS = [["Tier 2 G3 Hope", { key: "system.resources.hope.value", type: "add", value: 5 }],
+            ["Tier 2 G3 Health", { key: "system.resources.hitPoints.value", type: "override", value: 0 }],
+            ["Tier 2 G3 actions", { key: `system.resources.${ACTIONS_RESOURCE}.value`, type: "add", value: 2 }],
+            ["Tier 2 G3 Monokuma", { key: `flags.${MODULE_ID}.${FLAGS.monokuma}`, type: "override", value: "true" }],
+            ["Tier 2 G3 Evasion", { key: "system.evasion", type: "add", value: 2 }]];
+        const ours = () => student.effects.contents.filter(effect => effect.name.startsWith("Tier 2 G3 "));
+        const seen = [];
+        try {
+            for (const [name, change] of EFFECTS) {
+                const from = Date.now();
+                const [effect] = await student.createEmbeddedDocuments("ActiveEffect", [{ name, system: { changes: [change] } }], { [AUDIT_ASIDE]: true });
+                const verdict = await judgeWrite("createActiveEffect", effect, {}, player.id);
+                await sheetAuditIdle();
+                const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id
+                    && row.at >= from && row.verdict === "putBack").map(row => Object.keys(row.change ?? {}).map(path => path.split(".")[0]).join(","));
+                seen.push([name, verdict?.verdict === "putBack", rows, ours().filter(each => each.name === name).length]);
+            }
+        } finally {
+            await sheetAuditIdle();
+            if (ours().length) await student.deleteEmbeddedDocuments("ActiveEffect", ours().map(effect => effect.id));
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson(EFFECTS.map(([name], i) => i < 4 ? [name, true, ["effects"], 0] : [name, false, [], 1])),
+            "an effect on a resource's value or a module flag stood, or one on Evasion was put back (each: put back, its rows, how many are left)");
+    }],
+
+    /*
+     * AN ITEM MADE OR DELETED WITH ITS EFFECTS (E29 fix r1-G3, 05.10.2026; review round 1 sec B3). An item a
+     * player makes carrying an effect Daggerheart applies to the student and that counts is put back whole -
+     * deleted, its row naming the item and the effect - where until this fix it was flagged as any item made and
+     * its effect stood until a GM's Undo; one carrying an effect that is not transferred is flagged as before. A
+     * Tool the GMs gave with a penalty on it, deleted by the player, is flagged, and Undo makes it again under its
+     * id with the penalty under its own. At b5769e7 (05.10.2026, e29run/r1g3red) the item made with an Agility
+     * rise was flagged and stayed, and the Tool came back without its penalty, which the mark did not hold.
+     */
+    ["an item a player makes carrying an effect that counts is put back whole, and a deleted one comes back with the GMs' effects on it", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, decideWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { grantItem, CAP_OVERRIDE } = await import("./inventory.mjs");
+        const agility = { name: "Tier 2 G3 Agility", system: { changes: [{ key: "system.traits.agility.value", type: "add", value: 3 }] } };
+        const NAMES = ["Tier 2 G3 gift", "Tier 2 G3 aside gift", "Tier 2 G3 given"];
+        const rowsSince = from => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from);
+        // An item made aside on the GM, then handed to the judge with the player's id: the verdict, its rows, and whether it is still there.
+        const made = async (name, effect) => {
+            const from = Date.now();
+            const [item] = await student.createEmbeddedDocuments("Item", [{ name, type: "loot", system: { quantity: 1 },
+                flags: { [MODULE_ID]: { category: "tool", tier: 1, location: "carried" } }, effects: [effect] }], { [AUDIT_ASIDE]: true, [CAP_OVERRIDE]: true });
+            const verdict = await judgeWrite("createItem", item, {}, player.id);
+            await sheetAuditIdle();
+            return [verdict?.verdict ?? null, rowsSince(from).map(row => `${row.verdict}:${Object.keys(row.change ?? {}).map(path => path.split(".")[0]).sort().join(",")}`),
+                student.items.has(item.id)];
+        };
+        let seen = null;
+        try {
+            const gift = await made(NAMES[0], agility);
+            const aside = await made(NAMES[1], { ...agility, transfer: false });
+            const given = await grantItem(student, { name: NAMES[2], category: "tool", tier: 1, override: true, quiet: true });
+            const [penalty] = given ? await given.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 G3 penalty",
+                system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: -2 }] } }]) : [];
+            await sheetAuditIdle();
+            must(given && penalty && given.effects.has(penalty.id), "no Tool, or no penalty on it - this would measure nothing");
+            const from = Date.now();
+            await given.delete({ [AUDIT_ASIDE]: true });
+            const deleted = (await judgeWrite("deleteItem", given, {}, player.id))?.verdict ?? null;
+            await sheetAuditIdle();
+            const [rowId] = Object.entries(sheetWriteStore.entries() ?? {}).find(([, row]) => row?.itemId === given.id && row.verdict === "flagged" && row.at >= from) ?? [];
+            const decided = rowId ? await decideWrite(rowId, false) : null;
+            await sheetAuditIdle();
+            const back = student.items.get(given.id);
+            seen = [gift, aside, deleted, decided?.how ?? null, Boolean(back), back?.effects?.has(penalty.id) ?? false,
+                Boolean(sheetMarkStore.get(student.id)?.itemEffects?.[given.id]?.[penalty.id])];
+        } finally {
+            await sheetAuditIdle();
+            const left = student.items.filter(item => NAMES.includes(item.name)).map(item => item.id);
+            if (left.length) await student.deleteEmbeddedDocuments("Item", left);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([["putBack", ["putBack:itemEffects,items"], false], ["flagged", ["flagged:items"], true],
+            "flagged", "undo", true, true, true]),
+            "an item made with an effect that counts stood, or a deleted one came back without the GMs' effect (each item made: the verdict, "
+                + "its rows, still there; then the GMs' Tool deleted: the verdict, the Undo, back, with its penalty, the penalty in the mark)");
+    }],
+
+    /*
+     * THE EFFECTS ON A STUDENT'S ITEMS AT READY (E29 fix r1-G3, 05.10.2026; review round 1 sec B3, cor M4). With
+     * no GM watching: a +5 to every roll made on a Tool the student carries, the GMs' penalty on it deleted, and
+     * a module item made carrying an Agility rise. The comparison at ready takes the +5 off, makes the penalty
+     * again under its id and deletes the item made - four put-back entries - and the mark holds the penalty
+     * alone. At b5769e7 (05.10.2026, e29run/r1g3red) nothing was put back: the Tool kept the +5 and lost the
+     * penalty, and the item made stayed, in the mark too.
+     */
+    ["the comparison at ready judges the effects on a student's items, and an item made carrying one that counts", async () => {
+        const [student] = cast(1);
+        const { compareAtReady, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { grantItem, CAP_OVERRIDE } = await import("./inventory.mjs");
+        const NAMES = ["Tier 2 G3 away tool", "Tier 2 G3 away gift"];
+        const bonus = (name, value) => ({ name, system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value }] } });
+        let seen = null;
+        try {
+            const tool = await grantItem(student, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            const [penalty] = tool ? await tool.createEmbeddedDocuments("ActiveEffect", [bonus("Tier 2 G3 away penalty", -2)]) : [];
+            await sheetAuditIdle();
+            must(tool && penalty && tool.effects.has(penalty.id), "no Tool, or no penalty on it - this would measure nothing");
+            await tool.createEmbeddedDocuments("ActiveEffect", [bonus("Tier 2 G3 away bonus", 5)], { [AUDIT_ASIDE]: true });
+            await penalty.delete({ [AUDIT_ASIDE]: true });
+            const [gift] = await student.createEmbeddedDocuments("Item", [{ name: NAMES[1], type: "loot", system: { quantity: 1 },
+                flags: { [MODULE_ID]: { category: "tool", tier: 1, location: "carried" } },
+                effects: [{ name: "Tier 2 G3 away Agility", system: { changes: [{ key: "system.traits.agility.value", type: "add", value: 3 }] } }] }],
+                { [AUDIT_ASIDE]: true, [CAP_OVERRIDE]: true });
+            const found = await compareAtReady();
+            await sheetAuditIdle();
+            const held = sheetMarkStore.get(student.id) ?? {};
+            seen = [found?.putBack ?? null, tool.effects.contents.map(effect => effect.name).sort(), tool.effects.has(penalty.id), student.items.has(gift.id),
+                Object.values(held.itemEffects?.[tool.id] ?? {}).map(effect => effect.name), Boolean(held.items?.[gift.id])];
+        } finally {
+            await sheetAuditIdle();
+            const left = student.items.filter(item => NAMES.includes(item.name)).map(item => item.id);
+            if (left.length) await student.deleteEmbeddedDocuments("Item", left);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([4, ["Tier 2 G3 away penalty"], true, false, ["Tier 2 G3 away penalty"], false]),
+            "the comparison at ready left an effect on a student's item, or an item made carrying one (put back at ready; the Tool's effects, "
+                + "the penalty under its id, the item made still there; the Tool's effects in the mark, the item made in the mark)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

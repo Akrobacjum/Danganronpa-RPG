@@ -1347,34 +1347,39 @@ function applyRemote(msg) {
         return;
     }
     if (action.startsWith("embedded-")) {
-        const parent = coll(collName).get(msg.docId);
+        const root = coll(collName).get(msg.docId);
+        /* An effect on an actor's item comes `via` that item (E29 fix r1-G3; lib/shim.mjs `_embeddedOp`): it lands
+           in the item's own list and collection, and in the actor's raw copy of the item where that is another object. */
+        const viaKey = msg.via ? findEmbKey(collName, msg.via.embeddedName) : null;
+        const parent = msg.via ? root?._collections[viaKey]?.get(msg.via.id) : root;
         if (!parent) return;
-        const embKey = findEmbKey(collName, msg.embeddedName);
+        const embKey = findEmbKey(parent.documentName, msg.embeddedName);
+        const held = msg.via ? (root._source[viaKey] ?? []).find(d => d._id === msg.via.id) : null;
+        const lists = [parent._source, ...(held && held !== parent._source ? [held] : [])];
         const cls = classes[msg.embeddedName] ?? classes.BaseDocument;
         const kind = action.slice("embedded-".length);
         if (kind === "create") {
-            parent._source[embKey] = parent._source[embKey] ?? [];
             for (const d of msg.docs) {
-                parent._source[embKey].push(U.deepClone(d));
+                for (const src of lists) (src[embKey] = src[embKey] ?? []).push(U.deepClone(d));
                 const doc = new cls(d, { parent });
                 parent._collections[embKey]?.set(doc.id, doc);
                 hooks.callAll(`create${msg.embeddedName}`, doc, options, userId);
             }
         } else if (kind === "update") {
             for (const u of msg.updates) {
-                const raw = (parent._source[embKey] ?? []).find(d => d._id === u._id);
+                const raws = lists.map(src => (src[embKey] ?? []).find(d => d._id === u._id)).filter(Boolean);
                 const doc = parent._collections[embKey]?.get(u._id);
-                if (!raw || !doc) continue;
+                if (!raws.length || !doc) continue;
                 const { _id, ...changes } = u;
-                U.applyUpdate(raw, changes);
+                for (const raw of raws) U.applyUpdate(raw, changes);
                 // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
-                if (doc._source !== raw) U.applyUpdate(doc._source, changes);
+                if (!raws.includes(doc._source)) U.applyUpdate(doc._source, changes);
                 hooks.callAll(`update${msg.embeddedName}`, doc, revive(U.expandObject(U.deepClone(changes))), options, userId);
             }
         } else if (kind === "delete") {
             for (const id of msg.ids) {
                 const doc = parent._collections[embKey]?.get(id);
-                parent._source[embKey] = (parent._source[embKey] ?? []).filter(d => d._id !== id);
+                for (const src of lists) src[embKey] = (src[embKey] ?? []).filter(d => d._id !== id);
                 parent._collections[embKey]?.delete(id);
                 if (doc) hooks.callAll(`delete${msg.embeddedName}`, doc, options, userId);
             }
