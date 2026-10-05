@@ -382,6 +382,28 @@ async function auditFromScratch(student) {
     await sheetMarkStore.patch(student.id, { credit: {} });
 }
 
+/** What the GMs' credit holds of a student's means `key` (E29 fix r2-H6): its entries summed. */
+async function creditHeld(student, key) {
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
+    return (sheetMarkStore.get(student.id)?.credit?.[key] ?? []).reduce((sum, entry) => sum + entry.n, 0);
+}
+
+/**
+ * A PLAYER'S REFUND OF WHAT A GM GAVE BACK (E29 fix r2-H6, 05.10.2026). Once the audit is idle: what
+ * the credit still holds of `key` ("stress", "hitPoints") - the payment a road's own give-back should
+ * have taken - then `player`'s write of one mark less, stamped `refund`, judged as a console's second
+ * refund of the same payment is. Answers [the credit left, the verdict].
+ */
+async function refundAfterGiveBack(student, key, player) {
+    const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+    const path = `system.resources.${key}.value`;
+    await sheetAuditIdle();
+    const left = await creditHeld(student, key);
+    const judged = await asPlayerWrite(student, { [path]: Number(foundry.utils.getProperty(student._source, path)) - 1 }, player, { reason: "refund" });
+    await sheetAuditIdle();
+    return [left, judged?.verdict ?? null];
+}
+
 /**
  * A student's actions able to reach `n` for one test (E29 fix r1-G9): its maximum raised to `n` by
  * the GM when it is lower; tier 2's restore puts the maximum back, as it does the actions. Scenario
@@ -26178,6 +26200,136 @@ const SCENARIOS = [
         equal(stableJson([left, forged?.verdict ?? null, hope(), rows.map(r => [r.verdict, r.change?.[HOPE] ?? null, r.covered])]),
             stableJson([0, "putBack", 3, [["putBack", [3, 5], null]]]),
             "a GM's refund left its payment in the credit, or a player's refund of the same stood on it (the credit left, the verdict, Hope, the rows)");
+    }],
+
+    /*
+     * A GM'S GIVE-BACK UNDER ANOTHER NAME (E29 fix r2-H6, 05.10.2026; review round 2 sec M6 = cor M3). Each road
+     * by which a Reroll takes an action back gives back what the action cost, named `reroll`, and since fix r1-G7
+     * a GM's write carries no reason: so each left its payment in the credit, and a console's refund of the same
+     * stood on it (the review's probe 97 G, with a Hope given back under that name). Each road now marks its write
+     * a give-back (resource-guard.mjs `GIVE_BACK`), which the audit reads as a refund. Per road: the payment and
+     * the Reroll made on the GM, then the player's refund of one mark (`refundAfterGiveBack`); Health and Sanity
+     * that nothing covers are flagged, not put back (`gainVerdict`). Red at 25e0e5c (05.10.2026, e29run/r2h6red):
+     * on each road the 1 the payment left still in the credit, and the player's refund standing on it - [1, "stands"].
+     */
+    ["a crisis action a Reroll takes back takes the credit its blow left, so the victim's refund of the same is flagged", async () => {
+        /* The killer's Weapon attack hits the victim - Health marks, the GMs' credit - and the Reroll's replay
+           misses: the marks the blow made come back through murder.mjs `restoreResource`. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player, the victim's refund judged");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const HP = "system.resources.hitPoints.value", marks = () => Number(foundry.utils.getProperty(victim._source, HP));
+        const had = new Set([...killer.items, ...victim.items].map(item => item.id)), health = marks();
+        let read = null;
+        try {
+            must(Number(victim.system.resources?.hitPoints?.max) >= 4, "the victim's Health cannot take a blow over one mark");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "weaponAttack");
+            await victim.update({ [HP]: 1 });
+            await auditFromScratch(victim);
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true });
+            await settle();
+            const hit = marks(), paid = await creditHeld(victim, "hitPoints");
+            must(hit > 1 && paid >= 1, `the fixture's blow made no Health marks the GMs' credit holds: ${stableJson({ hit, paid })}`);
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 0, isCritical: false, withHope: true, undo: true });
+            await settle();
+            must(marks() === 1, `the Reroll did not give the blow's Health back: ${marks()} marks`);
+            read = await refundAfterGiveBack(victim, "hitPoints", player(victim));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const actor of [killer, victim]) {
+                const made = actor.items.filter(item => !had.has(item.id)).map(item => item.id);
+                if (made.length) await actor.deleteEmbeddedDocuments("Item", made);
+            }
+            await victim.update({ [HP]: health });
+        }
+        equal(stableJson(read), stableJson([0, "flagged"]),
+            "a crisis action's Health given back by its Reroll left the blow in the credit, or the victim's refund of the same stood on it (the credit left, the verdict)");
+    }],
+
+    ["an Observe a Reroll takes back takes the credit its miss left, so the observer's refund of the same is flagged", async () => {
+        /* A trace where the player's character stands, the Observe aimed at it and missed on the GM - a mark of
+           Sanity, the GMs' credit - then rerolled into a hit: the miss's Sanity comes back through observe.mjs
+           `undoPrevious`. The GM's window that describes the find is closed at once. */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the player's character stands");
+        const observe = await import("./observe.mjs");
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(actor._source, STRESS));
+        const had = new Set(actor.items.map(item => item.id)), sanity = marks();
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        D.wait = () => Promise.resolve(null);
+        let trace = null, read = null;
+        try {
+            must(Number(actor.system.resources?.stress?.max) >= 3, "the observer's Sanity cannot take the miss's mark over one");
+            trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                x: where.tokenDoc.x, y: where.tokenDoc.y, note: "test fixture - the trace an Observe misses and rerolls" });
+            must(trace, "the trace was not placed");
+            const target = await observe.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            must(target?.ok, `the Observe found nothing to aim at where its trace lies: ${stableJson(target)}`);
+            await actor.update({ [STRESS]: 1 });
+            await auditFromScratch(actor);
+            await observe.resolveObserve({ key: target.key, total: 0, isCritical: false });
+            await settle();
+            const missed = marks(), paid = await creditHeld(actor, "stress");
+            must(missed > 1 && paid >= 1, `the fixture's miss took no Sanity the GMs' credit holds: ${stableJson({ missed, paid })}`);
+            await observe.resolveObserve({ key: target.key, total: 40, isCritical: false, undo: true });
+            await settle();
+            must(marks() === 1, `the Reroll did not give the miss's Sanity back: ${marks()} marks`);
+            read = await refundAfterGiveBack(actor, "stress", player);
+        } finally {
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+            if (trace) {
+                await remnants.dropRemnantSecret(trace);
+                if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+            }
+            await actor.update({ [STRESS]: sanity });
+        }
+        equal(stableJson(read), stableJson([0, "flagged"]),
+            "an Observe's Sanity given back by its Reroll left the miss in the credit, or the observer's refund of the same stood on it (the credit left, the verdict)");
+    }],
+
+    ["a clean-up a Reroll takes back takes the credit its price left, so the player's refund of the same is flagged", async () => {
+        /* A clean-up whose packet names no step paid, so the GM charges its Sanity (cleanup.mjs `spendStress`), then
+           its Reroll, whose replay names the step the fixture's client paid: the attempt's Sanity comes back through
+           `undoLastCleanup` and nothing is charged again. */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [who] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(who._source, STRESS));
+        const F = await cleanupFixture(who, "SUITE E29 H6 a trace scrubbed and rerolled");
+        let read = null;
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            must(Number(who.system.resources?.stress?.max) >= 3, "the student's Sanity cannot take the attempt's mark over one");
+            await who.update({ [STRESS]: 1 });
+            await auditFromScratch(who);
+            await F.scrub(0, { price: null });
+            await settle();
+            const charged = marks(), paid = await creditHeld(who, "stress");
+            must(charged > 1 && paid >= 1, `the fixture's attempt took no Sanity the GMs' credit holds: ${stableJson({ charged, paid })}`);
+            await F.scrub(30, { undo: true });
+            await settle();
+            must(marks() === 1, `the Reroll did not give the attempt's Sanity back, or charged it again: ${marks()} marks`);
+            read = await refundAfterGiveBack(who, "stress", player);
+        } finally {
+            await F.putBack();
+        }
+        equal(stableJson(read), stableJson([0, "flagged"]),
+            "a clean-up's Sanity given back by its Reroll left the price in the credit, or the player's refund of the same stood on it (the credit left, the verdict)");
     }],
 
     ["an item used whose consumption is its count raised by hand is no use: Hope put back, Health flagged, the count put back", async () => {

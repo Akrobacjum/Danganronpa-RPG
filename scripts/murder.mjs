@@ -2903,11 +2903,17 @@ function marksBack(actor, field, was, claimed) {
     return max > 0 ? Math.min(claimed, max) : claimed;
 }
 
+/**
+ * A resource put back as it stood before the action taken back. A give-back (fix r2-H6,
+ * resource-guard.mjs `stampOf`): what it returns - the marks the action made on either side -
+ * takes the credit the action left in the GMs' audit. What it takes away - the Hope a use gave -
+ * is a fall, which the marker leaves as it was: credit, as every fall but an Undo's (`gmLedger`).
+ */
 async function restoreResource(actor, field, value) {
     if (!actor || typeof value !== "number") return;
     if (resourceValue(actor, field) === value) return;
     try {
-        await trustedWrite(actor, { [`system.resources.${field}.value`]: value }, { reason: "reroll" });
+        await trustedWrite(actor, { [`system.resources.${field}.value`]: value }, { reason: "reroll", giveBack: true });
     } catch (err) {
         error(`Could not restore ${field} while taking a crisis action back`, err);
     }

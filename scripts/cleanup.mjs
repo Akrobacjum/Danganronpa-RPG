@@ -2526,7 +2526,9 @@ async function undoLastCleanup(actor, tokenId) {
                earned since the attempt - so an undo sent long after, with other
                marks in between, wiped those too. Now the undo takes back what the
                attempt moved; a receipt from before `stressAfter` existed still
-               writes the old value, which is what it recorded. */
+               writes the old value, which is what it recorded. A give-back, so the
+               GMs' audit takes the credit the attempt left (fix r2-H6,
+               resource-guard.mjs `stampOf`). */
             const moved = typeof receipt.stressAfter === "number"
                 ? receipt.stressAfter - receipt.stressBefore : null;
             const ceiling = resourceMax(actor, "stress") || Infinity;
@@ -2535,7 +2537,7 @@ async function undoLastCleanup(actor, tokenId) {
                 : Math.min(ceiling, Math.max(0, resourceValue(actor, "stress") - moved));
             await trustedWrite(actor, {
                 "system.resources.stress.value": value
-            }, { reason: "reroll" });
+            }, { reason: "reroll", giveBack: true });
         } catch (err) {
             error("Could not refund the Sanity a rerolled clean-up spent", err);
         }

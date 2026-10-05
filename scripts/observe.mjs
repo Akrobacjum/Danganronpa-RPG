@@ -740,13 +740,14 @@ async function undoPrevious(actor, entry) {
     }
 
     // Sanity taken for a miss that is no longer a miss has to come back, or a
-    // Reroll would charge for a failure it just erased.
+    // Reroll would charge for a failure it just erased. A give-back, so the GMs'
+    // audit takes the credit the miss left (fix r2-H6, resource-guard.mjs `stampOf`).
     if (previous.stress) {
         const marks = resourceValue(actor, "stress");
         const next = Math.max(0, marks - previous.stress);
         if (next !== marks) {
             try {
-                await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "reroll" });
+                await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "reroll", giveBack: true });
             } catch (err) {
                 error("Could not return the Sanity a reroll undid", err);
             }

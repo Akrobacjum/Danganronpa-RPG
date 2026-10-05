@@ -137,7 +137,7 @@ import { SETTINGS, getSetting, getClock } from "./settings.mjs";
 import { isPrimaryGm, primaryGmId, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
 import { onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, stableJson } from "./gm-store.mjs";
 import { sheetMarkStore, sheetWriteStore, rollStore } from "./gm-stores.mjs";
-import { trustedWrite, trustedCreate, trustedDelete, HOPE_REFUND } from "./resource-guard.mjs";
+import { trustedWrite, trustedCreate, trustedDelete, HOPE_REFUND, GIVE_BACK } from "./resource-guard.mjs";
 import { tellRefused, bridgeRequest } from "./bridge-guards.mjs";
 import { cardFlag, cardWriter, updateSecret } from "./secret.mjs";
 import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry } from "./inventory.mjs";
@@ -815,9 +815,11 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
            `gmLedger` reads a refund off that reason: merged as they were, a GM's refund took no credit, and
            tier 2's "a refund a GM writes takes the credit" and 30's console refund stood on the payment
            (Hope 5 and 4; e29run/mergee29fixy-run1). `HOPE_REFUND` still travels on every write that names
-           `refund`, a GM's included, so it stands for the reason here. A GM's write named `reroll` - a
-           crisis action's or a clean-up's resources taken back - goes unnamed and takes no credit. */
-        const reason = options?.drpgWrite?.reason ?? (options?.[HOPE_REFUND] ? "refund" : null);
+           `refund`, a GM's included, so it stands for the reason here; and since fix r2-H6 a GM's give-back
+           under another name - a Reroll's take-back of an Observe's, a clean-up's or a crisis action's
+           Sanity and Health, named `reroll` - carries `GIVE_BACK` (resource-guard.mjs `stampOf`), which
+           stands for it too. */
+        const reason = options?.drpgWrite?.reason ?? (options?.[HOPE_REFUND] || options?.[GIVE_BACK] ? "refund" : null);
         if (options?.[AUDIT_ASIDE] || reason === "auditPutBack") return { verdict: "mark", change: {} };
         const moves = stood(sheetMarkStore.get(actor.id));
         if (kind === "updateActor") moves.ledger = gmLedger(actor, seen, reason);
@@ -1067,7 +1069,8 @@ function seenNow(actor, changes, options, priors) {
  *
  * A GM'S REFUND TAKES WHAT IT GIVES BACK (E29 fix r1-G4, 05.10.2026; review round 1 cor M1). A gain a
  * GM writes with a reason of `REFUNDS` - a Reroll that did not stand (reroll.mjs `giveBack`), an
- * Objection's floor taken back (trial.mjs), a Call the bridge could not arm (gm-bridge.mjs) - takes
+ * Objection's floor taken back (trial.mjs), a Call the bridge could not arm (gm-bridge.mjs), and since
+ * fix r2-H6 what a Reroll's take-back gives back under its own name (`GIVE_BACK`, `judgeNow`) - takes
  * the credit its payment left, oldest first, as a player's refund does; it stands whatever the
  * credit holds, being a GM's. Until this fix the payment stayed in the credit after it was given
  * back, and a console's "refund" of the same amount stood on it: measured by the review's probe on
