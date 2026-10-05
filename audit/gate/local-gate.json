@@ -3,25 +3,25 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.66"
+    "version": "1.2.67"
   },
-  "commit": "2e6a3494bdb1d8c34c5b5090d16301617717b226",
+  "commit": "c35daf7e4b371e5df4f38ecec2bee71c3de8d54d",
   "bound": {
-    "scripts": "2c19378764c5933b80f88d25e227ce00914c2f58",
-    "styles": "1d651ca2b015c2746d2b60c17cbcdb20a5d3e030",
-    "lang": "5a1163a9d7ebaea4ec41bffabee030c0d133bea7",
+    "scripts": "ba869a6c8407f1fc34f89cd7696ce8a484167a3c",
+    "styles": "dcc1a35a02ae52a67423c01c53f314c3d2ae0759",
+    "lang": "b6bf1770bf5940be4262998748a621d6d5571d56",
     "fonts": "285990edcaa5a47a91f00390ecf70c59630da540",
     "icons": "61fff800a2dc045b02f681d4aa217e43110eab84",
-    "module.json": "fbe24de29b1bebd2a816f2d07360d41a797a01e2",
+    "module.json": "df143ec57a611883a90f567d9f3a2c6364608669",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "1990fd1ad45cf2b35898e92ef399abee1d4f9316",
     "audit/live": "45ce138875b15d3427bbb3068444421b55d95129",
     "audit/harness/lib/seed.mjs": "fe42c733fd9e801157a1b1700a2c18e2ebfbb9c3",
     "audit/harness/scenarios/14-quiet.mjs": "33fe577903cd8a2670667fe4c83e95b0664eeb5f",
-    "audit/harness/scenarios/60-ledger.mjs": "e2b37bfb4091a1d1167c9d80d6913d87592f72f3"
+    "audit/harness/scenarios/60-ledger.mjs": "873190ececfea53e4e784788ccc1287ed53581ad"
   },
-  "startedAt": "2026-10-03T13:21:28.900Z",
-  "finishedAt": "2026-10-03T13:21:29.121Z",
+  "startedAt": "2026-10-05T08:45:17.437Z",
+  "finishedAt": "2026-10-05T08:45:17.556Z",
   "host": {
     "node": "v22.22.2",
     "platform": "linux-x64",
@@ -95,6 +95,6 @@
     "notRun": 5
   },
   "verdict": "incomplete",
-  "digest": "sha256:85b41fce9ae4b6a6144be490523638694a51684d5c2aa05aecbebb22ac4ddf78",
+  "digest": "sha256:9ecdf193a06f1b9a8f5e1211c0d232fff57bc9c980912595c3e29bc6c5446610",
   "hmac": null
 }
