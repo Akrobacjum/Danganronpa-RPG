@@ -160,10 +160,11 @@ export const FLOWS = Object.freeze([
     // a GM-only flag and an effect from p1's console; 40 reads a day's writes for false alarms; 61 a statistic
     // with two GMs and a late one. C4 (05.10.2026): Hope - 30 raises p1's by hand, through Daggerheart's
     // relay and before a Call; 20 has p1's own Daggerheart roll cover its Hope through the relay once; 40's
-    // day takes a Rest in a rest room. Partial: Health, Sanity and actions flagged, and the items, are
-    // C5-C6's, with 10-murder (C6) to come.
-    { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back or listed",
-        entry: { calls: ["sheet-audit.mjs#judgeWrite"] }, scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope"], status: "partial", stage: "E29" },
+    // day takes a Rest in a rest room. C5 (05.10.2026): Health and actions p1 raises from the console are
+    // flagged on the GMs' card, and 30 undoes them from it; 61 has two GMs undo one write at once
+    // (`audit.decide`, decided on the primary). Partial: the items are C6's, with 10-murder (C6) to come.
+    { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed",
+        entry: { calls: ["sheet-audit.mjs#judgeWrite"], bridge: ["audit.decide"] }, scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope"], status: "partial", stage: "E29" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",

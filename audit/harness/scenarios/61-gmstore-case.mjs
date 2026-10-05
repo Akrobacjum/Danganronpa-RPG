@@ -115,6 +115,8 @@
  *      second GM, whose discovery breaks the gloves and takes the row off both.
  *   U  a player's write on their own student (E29 C3): a statistic raised from the console is put
  *      back once by the primary, and the row reaches the second GM and a GM who joins late.
+ *   V  two GMs' Undo of one flagged write (E29 C5): p1's console raises its actions, the primary and
+ *      the second GM click Undo at once, and the write is undone once and the row decided once.
  */
 export const layers = ["ci"];
 /* Its own bound, not a raise of run-all's shared five minutes (E29 C1, 05.10.2026): this
@@ -2027,5 +2029,48 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
             && u2.mark === u0.agility && u3 === 1 && u4.rows === 1 && u4.mark === u0.agility,
         J({ u0, u1, u2, u3, u4 }), { flow: "sheet-audit" });
 
-    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U"], gm: IDS.gm };
+    /* V (E29 C5, 05.10.2026; the plan's 2.9): a flagged write is decided once, on the primary. With gma the
+       primary and gmb a second GM, p1's console raises Aiko's actions from 1 to 3 past its own browser's guard;
+       the write is flagged, and both GMs ask Undo at once (sheet-audit.mjs `askToDecideWrite`, the road the
+       card's button takes): gmb's asks the primary, gma's is made there, one after the other. p1 must see
+       exactly one Undo write, exactly one of the two asks answer a decision, and both GMs hold the row decided
+       with the actions written back - a second decision would find the actions moved and say so. */
+    phase("V: two GMs' Undo of one flagged write writes once", { flow: "sheet-audit" });
+    const ACTV = "system.resources.actions.value";
+    const flaggedRows = `Object.entries(S.sheetWriteStore?.entries?.() ?? {}).filter(([, r]) => r?.actorId === "${IDS.aiko}" && r.verdict === "flagged" && r.at >= from)`;
+    const v0 = await gma.eval(`${SA} const was = { actions: aiko.system.resources.actions.value, max: aiko.system.resources.actions.max };
+        await aiko.update({ "${ACTV}": 1 }); await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { ...was, primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), from: Date.now() };`);
+    let v1 = null, v2 = null, v3 = null, v4 = null;
+    try {
+        await p1.eval(`globalThis.__undos = 0;
+            if (!globalThis.__undoHook) {
+                globalThis.__undoHook = true;
+                Hooks.on("updateActor", (a, c, o) => { if (a.id === "${IDS.aiko}" && o?.drpgWrite?.reason === "auditUndo") globalThis.__undos++; });
+            }
+            await game.actors.get("${IDS.aiko}").update({ "${ACTV}": 3 }, { drpgAutomated: true });
+            return true;`);
+        const rowOn = c => c.eval(`${SA} ${untilP} const from = ${v0.from}; await until(() => ${flaggedRows}.length > 0, 8000);
+            return ${flaggedRows}[0]?.[0] ?? null;`, { timeout: 30000 });
+        v1 = { gma: await rowOn(gma), gmb: await rowOn(gmb) };
+        const ask = `const A = await import("${repoUrl}/scripts/sheet-audit.mjs"); return (await A.askToDecideWrite?.(${JSON.stringify(v1.gma)}, false)) ?? null;`;
+        v2 = await Promise.all([gma.eval(ask, { timeout: 30000 }), gmb.eval(ask, { timeout: 30000 })]);
+        v3 = await p1.eval(`${untilP} const a = game.actors.get("${IDS.aiko}");
+            await until(() => globalThis.__undos > 0 && a.system.resources.actions.value === 1);
+            await new Promise(r => setTimeout(r, 1500));
+            return { undos: globalThis.__undos, actions: a.system.resources.actions.value };`);
+        const decidedOn = c => c.eval(`${SA} ${untilP} await until(() => S.sheetWriteStore?.get?.(${JSON.stringify(v1.gma)})?.decided);
+            return S.sheetWriteStore?.get?.(${JSON.stringify(v1.gma)})?.decided ?? null;`);
+        v4 = { gma: await decidedOn(gma), gmb: await decidedOn(gmb) };
+    } finally {
+        await gma.eval(`${SA} await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await aiko.update({ "${ACTV}": ${v0.actions} }); return true;`);
+    }
+    const decidedOnce = d => d?.how === "undo" && J(d.undone) === J([ACTV]) && J(d.moved) === "[]";
+    check("V1: two GMs' Undo of one flagged write of p1's actions writes once, answers one decision, and both GMs hold the row decided",
+        v0.primary === true && v0.max >= 3 && typeof v1?.gma === "string" && v1.gmb === v1.gma && v2?.filter(Boolean).length === 1
+            && v3?.undos === 1 && v3.actions === 1 && decidedOnce(v4?.gma) && J(v4?.gmb) === J(v4?.gma),
+        J({ v0, v1, v2, v3, v4 }), { flow: "sheet-audit" });
+
+    return { phases: ["A", "C", "C2", "B", "D", "E", "F", "F9", "G", "I", "H1", "K", "J1", "J2", "J3", "H2", "H3", "J4", "Z", "M", "N", "O", "Q", "R", "S", "T", "U", "V"], gm: IDS.gm };
 }

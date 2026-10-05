@@ -917,7 +917,8 @@ export const sheetMarkStore = defineGmStore({
  * THE WRITES THE GMS PUT BACK OR LISTED (E29 C3, 05.10.2026; the plan's 2.3). A row per write,
  * keyed by a random id: `actorId`, `itemId`, `userId` (the writer), `reason` and `ref` (what the
  * write's stamp claimed, resource-guard.mjs `WRITE_STAMP`), `change` (`{ path: [before, after] }`),
- * `verdict` ("putBack" or "listed"), `messageId` (the GMs' whisper), `decided` and `at`. Written by
+ * `verdict` ("putBack", "flagged" or "listed"), `messageId` (the GMs' whisper, or their card of a flagged write),
+ * `decided` (a flagged write's Undo or Keep, C5: `{ by, at, how, undone, moved }`) and `at`. Written by
  * the primary as it judges, read by `game.drpg.sheetWrites()`. Synced, not backed up, and swept
  * past a day as the next is written; cut by the reset's "actions" group, beside the rolls. Its
  * `exists` answers no for every key, as the rolls' does: a row's key is no document. No player

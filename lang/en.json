@@ -2470,6 +2470,7 @@
         "roll.bookmark": "What a roll did, kept for a Reroll",
         "roll.draw": "A roll for the GM to throw",
         "roll.grant": "A grant of rolls thrown with no GM connected",
+        "audit.decide": "A GM's decision on a sheet change flagged to the GMs",
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
         "searchTokens.spend": "Spend a search token",
@@ -2954,9 +2955,19 @@
         "bonuses": "Bonuses",
         "flag": "The module's records",
         "effect": "An effect",
-        "hope": "Hope"
+        "hope": "Hope",
+        "actions": "Actions",
+        "hitPoints": "Health",
+        "stress": "Sanity",
+        "grant": "Free actions and moves"
       },
-      "credit": "Given back from what was paid before: {what}"
+      "credit": "Given back from what was paid before: {what}",
+      "flagged": "{player} changed {name}'s sheet by hand, and nothing the module knows of covers it. It stands until a GM decides:",
+      "undo": "Undo",
+      "keep": "Keep",
+      "undone": "{gm} undid it.",
+      "kept": "{gm} kept it.",
+      "changedSince": "{gm} chose Undo, but {fields} changed again since; that was not written over."
     },
     "Rolls": {
       "rewritePutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",

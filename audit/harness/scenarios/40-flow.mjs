@@ -1507,7 +1507,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * THE DAY, AS THE GMS' AUDIT SAW IT (E29 C3, 05.10.2026; the plan's section 6, "store traffic"). Every write
      * above - the GM's and the players' own, a Search, a Rest, Calls, projects, a stash - went past the judge on
      * the primary. None may be put back: a module road that writes what a roll is built from on a player's browser
-     * would be a false alarm at every table. What is listed is a Call a player's browser armed (`pendingCall`,
+     * would be a false alarm at every table, and none flagged (C5: a refund, a Rest or an item no judge covered
+     * would put a card with Undo before the GMs). What is listed is a Call a player's browser armed (`pendingCall`,
      * until C8). And the marks' traffic: 76 patches of `sheetMarks` in this day, measured on the harness on
      * 05.10.2026 (e29run/c3a1, one run; one listed row, a Call armed) - the plan's section 6 asked for the
      * number. The bound allows a quarter more: a write judged after the next one has landed reads both in
@@ -1519,10 +1520,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const rows = Object.values(S.sheetWriteStore?.entries?.() ?? {}).filter(r => r?.at >= globalThis.__auditFrom);
         return { store: Boolean(S.sheetMarkStore), patches: globalThis.__markPatches,
             putBack: rows.filter(r => r.verdict === "putBack").map(r => Object.keys(r.change ?? {})),
-            listed: rows.filter(r => r.verdict === "listed").flatMap(r => Object.keys(r.change ?? {})) };`);
+            listed: rows.filter(r => r.verdict === "listed").flatMap(r => Object.keys(r.change ?? {})),
+            flagged: rows.filter(r => r.verdict === "flagged").map(r => Object.keys(r.change ?? {})) };`);
     const MARK_PATCHES_MEASURED = 76;
-    check("a Daily Life day: the GMs' audit puts back nothing a module road wrote, lists only Calls armed, and patches its marks within a quarter of the measured count",
-        auditDay.store && auditDay.putBack.length === 0 && auditDay.listed.every(path => path === `flags.${MOD}.pendingCall`)
+    check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed, and patches its marks within a quarter of the measured count",
+        auditDay.store && auditDay.putBack.length === 0 && auditDay.flagged.length === 0 && auditDay.listed.every(path => path === `flags.${MOD}.pendingCall`)
             && auditDay.patches > 0 && auditDay.patches <= Math.ceil(MARK_PATCHES_MEASURED * 1.25),
         JSON.stringify(auditDay).slice(0, 1500), { flow: "sheet-audit" });
 

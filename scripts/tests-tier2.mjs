@@ -24410,6 +24410,132 @@ const SCENARIOS = [
             "with the setting off a forged Hope rise was put back, or not listed");
     }],
 
+    /*
+     * HEALTH, SANITY AND ACTIONS FLAGGED, AND THE GMS' UNDO AND KEEP (E29 C5, 05.10.2026; audit S02-41;
+     * the plan's 2.4, 2.8, 2.9). Each write is a player's, made as `asPlayerWrite` says, with nothing to
+     * cover it; each decision is `decideWrite`, the primary's own, as a click on the card makes it on
+     * the primary (tier 2 runs there). Two GMs deciding one row at once is 61-gmstore-case's (V): the
+     * suite has one GM.
+     */
+    ["Undo does not overwrite a later change, and the GMs' card says so", async () => {
+        /* The plan's red first: actions 1 raised to 3 by hand is flagged; a GM then writes 2; Undo finds
+           the field no longer holding 3, writes nothing, and the row and the card name the field. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle, decideWrite } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const ACT = "system.resources.actions.value", acts = () => foundry.utils.getProperty(student._source, ACT);
+        must(Number(student.system.resources?.actions?.max) >= 3, "the student's actions cannot reach 3 - the write would be clamped and measure nothing");
+        const from = Date.now();
+        await student.update({ [ACT]: 1 });
+        await auditFromScratch(student);
+        const verdict = await asPlayerWrite(student, { [ACT]: 3 }, player);
+        await sheetAuditIdle();
+        const [rowId, row] = Object.entries(sheetWriteStore.entries() ?? {})
+            .find(([, r]) => r?.actorId === student.id && r.verdict === "flagged" && r.at >= from) ?? [];
+        await student.update({ [ACT]: 2 });
+        await sheetAuditIdle();
+        const decided = rowId ? await decideWrite(rowId, false) : null;
+        await sheetAuditIdle();
+        const words = contentOf(game.messages.get(row?.messageId ?? ""));
+        equal(stableJson([verdict?.verdict ?? null, row?.change?.[ACT] ?? null, acts(), decided?.how ?? null, decided?.undone ?? null,
+            decided?.moved ?? null, sheetWriteStore.get(rowId ?? "")?.decided?.by ?? null, words.includes("drpg-audit-moved"), words.includes("data-drpg-audit")]),
+        stableJson(["flagged", [1, 3], 2, "undo", [], [ACT], game.user.id, true, false]),
+        "a forged rise of actions was not flagged, or Undo wrote over a later change, or the row or the card did not say so "
+            + "(verdict, change, actions, decision, written back, moved, by, the card's line, its buttons)");
+    }],
+
+    ["Keep leaves the write and decides the row, and a second click decides nothing", async () => {
+        /* Two Health marks healed by hand are flagged; Keep writes nothing and marks the row decided by
+           this GM; an Undo after it finds the row decided and does nothing - one decision per row. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle, decideWrite } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const HP = "system.resources.hitPoints.value", marks = () => foundry.utils.getProperty(student._source, HP);
+        must(Number(student.system.resources?.hitPoints?.max) >= 2, "the student cannot hold two Health marks - the heal would measure nothing");
+        const from = Date.now();
+        await student.update({ [HP]: 2 });
+        await auditFromScratch(student);
+        const verdict = await asPlayerWrite(student, { [HP]: 0 }, player);
+        await sheetAuditIdle();
+        const [rowId, row] = Object.entries(sheetWriteStore.entries() ?? {})
+            .find(([, r]) => r?.actorId === student.id && r.verdict === "flagged" && r.at >= from) ?? [];
+        const kept = rowId ? await decideWrite(rowId, true) : null;
+        const again = rowId ? await decideWrite(rowId, false) : null;
+        await sheetAuditIdle();
+        const held = sheetWriteStore.get(rowId ?? "")?.decided ?? null, words = contentOf(game.messages.get(row?.messageId ?? ""));
+        equal(stableJson([verdict?.verdict ?? null, row?.change?.[HP] ?? null, marks(), kept?.how ?? null, kept?.undone ?? null, again,
+            held?.how ?? null, held?.by ?? null, words.includes("drpg-audit-kept"), words.includes("data-drpg-audit")]),
+        stableJson(["flagged", [2, 0], 0, "keep", [], null, "keep", game.user.id, true, false]),
+        "a heal by hand was not flagged, or Keep wrote, or the row was not decided once by this GM, or the card did not say so "
+            + "(verdict, change, marks, decision, written back, a second click, the row's decision, by, the card's line, its buttons)");
+    }],
+
+    ["with lockPlayerResources off Health and actions raised by hand are listed with no card, and a Burst's grant is still flagged", async () => {
+        /* The owner's Q2 (a), 05.10.2026: off, the fields the setting's text names are listed and stand,
+           and no card is posted; the grants are flags it does not name, flagged either way. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const ACT = "system.resources.actions.value", HP = "system.resources.hitPoints.value", GRANT = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        const r = student.system.resources;
+        must(Number(r?.actions?.max) >= 3 && Number(r?.hitPoints?.max) >= 2, "the student's actions cannot reach 3 or it cannot hold two Health marks");
+        const lock = getSetting(SETTINGS.lockPlayerResources), from = Date.now();
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, false);
+            await student.update({ [ACT]: 1, [HP]: 2, [GRANT]: 0 });
+            await auditFromScratch(student);
+            const named = await asPlayerWrite(student, { [ACT]: 3, [HP]: 0 }, player);
+            const grant = await asPlayerWrite(student, { [GRANT]: 1 }, player);
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.at >= from);
+            const cards = game.messages.contents.filter(m => (m.timestamp ?? 0) >= from && cardFlag(m, "sheetAudit") === student.id
+                && typeof cardFlag(m, "sheetFlagged") === "string").length;
+            read = [named?.verdict ?? null, grant?.verdict ?? null, rows.map(row => `${row.verdict}:${Object.keys(row.change ?? {}).sort().join(",")}`).sort(),
+                cards, foundry.utils.getProperty(student._source, ACT), foundry.utils.getProperty(student._source, HP)];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, lock);
+        }
+        equal(stableJson(read), stableJson(["listed", "flagged", [`flagged:${GRANT}`, `listed:${[ACT, HP].sort().join(",")}`].sort(), 1, 3, 0]),
+            "with the setting off Health or actions were flagged or put back, or a grant was not flagged (verdicts, rows, cards, actions, marks)");
+    }],
+
+    ["an Undo is no credit: the same rise handed in next as a refund is flagged again", async () => {
+        /* The GMs' Undo lowers what the write raised. Taken as a GM's spend, it would leave credit,
+           and the same rise written next as a refund would stand on it. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle, decideWrite } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const ACT = "system.resources.actions.value", acts = () => foundry.utils.getProperty(student._source, ACT);
+        must(Number(student.system.resources?.actions?.max) >= 3, "the student's actions cannot reach 3 - the write would be clamped and measure nothing");
+        const from = Date.now();
+        await student.update({ [ACT]: 1 });
+        await auditFromScratch(student);
+        const first = await asPlayerWrite(student, { [ACT]: 3 }, player);
+        await sheetAuditIdle();
+        const [rowId] = Object.entries(sheetWriteStore.entries() ?? {})
+            .find(([, r]) => r?.actorId === student.id && r.verdict === "flagged" && r.at >= from) ?? [];
+        const undone = rowId ? await decideWrite(rowId, false) : null;
+        await sheetAuditIdle();
+        const after = acts();
+        const refund = await asPlayerWrite(student, { [ACT]: 3 }, player, { reason: "refund" });
+        await sheetAuditIdle();
+        equal(stableJson([first?.verdict ?? null, undone?.undone ?? null, after, refund?.verdict ?? null]),
+            stableJson(["flagged", [ACT], 1, "flagged"]),
+            "a forged rise was not flagged and undone, or the Undo left credit a refund then stood on (first verdict, written back, actions, the refund's verdict)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

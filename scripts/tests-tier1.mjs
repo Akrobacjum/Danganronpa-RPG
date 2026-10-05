@@ -5695,8 +5695,10 @@ const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
-    // sheet-audit.mjs names a field put back by its kind (E29 C3), and bridge-guards.mjs `requestLabel` the same.
-    ...["traits", "experience", "max", "rules", "bonuses", "flag", "effect", "hope"].map(kind => `DRPG.Audit.field.${kind}`)
+    // sheet-audit.mjs names a field put back by its kind (E29 C3), and bridge-guards.mjs `requestLabel` the same;
+    // a flagged one too (C5: actions, Health, Sanity, the grants).
+    ...["traits", "experience", "max", "rules", "bonuses", "flag", "effect", "hope", "actions", "hitPoints", "stress", "grant"]
+        .map(kind => `DRPG.Audit.field.${kind}`)
 ];
 
 export { INVARIANTS };

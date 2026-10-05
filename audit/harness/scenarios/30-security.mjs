@@ -2196,6 +2196,84 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify(consoleHope?.spent ?? null), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S HEALTH AND ACTIONS (E29 C5, 05.10.2026; audit S02-41; the plan's 2.4, 2.8). Aiko at two
+     * Health marks and 1 action; p1's console heals both marks and raises the actions by 2, past its own
+     * browser's guard. Expected: the write stands on every client, one card reaches the GMs with Undo and
+     * Keep, and p1 is told nothing and holds neither the card's words nor its row; the GM's Undo, clicked on the card as its browser
+     * draws it, brings the marks and the actions back on every client and decides the row. Before C5 the
+     * write stood, listed, with no card.
+     */
+    phase("a console's Health and actions", { flow: "sheet-audit" });
+    const readMeans = `const r = game.actors.get("${ids.aiko}").system.resources; return [r.hitPoints.value, r.actions.value];`;
+    const meansWas = await gm.eval(`const a = game.actors.get("${ids.aiko}"); const r = a.system.resources;
+        const was = { hp: r.hitPoints.value, hpMax: r.hitPoints.max, actions: r.actions.value, actionsMax: r.actions.max };
+        await a.update({ "system.resources.hitPoints.value": 2, "system.resources.actions.value": 1 }); return was;`);
+    // The flagged row of this phase, on the GM, once the audit has judged what it heard; and the card as the GM's chat draws it.
+    const flaggedOnGm = from => `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const rows = () => Object.entries(S.sheetWriteStore?.entries?.() ?? {}).filter(([, r]) => r?.actorId === "${ids.aiko}" && r.verdict === "flagged" && r.at >= ${from});
+        const end = Date.now() + 8000;
+        while (!rows().length && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await A.sheetAuditIdle?.();
+        const [id, row] = rows()[0] ?? [];
+        const card = game.messages.get(row?.messageId ?? "");
+        const drawn = () => {
+            const el = document.createElement("li");
+            el.innerHTML = '<div class="message-content"><p class="notes" data-drpg-secret>-</p></div>';
+            if (card) Hooks.callAll("renderChatMessageHTML", card, el);
+            return el;
+        };`;
+    let consoleMeans = null;
+    try {
+        await settle(400);
+        const from = await gm.eval(`return Date.now();`);
+        await p1.eval(`globalThis.__meansTold = [];
+            if (!globalThis.__meansToldHook) {
+                globalThis.__meansToldHook = true;
+                game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused") globalThis.__meansTold.push(payload.reason); });
+            }
+            await game.actors.get("${ids.aiko}").update({ "system.resources.hitPoints.value": 0, "system.resources.actions.value": 3 }, { drpgAutomated: true });
+            return true;`);
+        const asked = await gm.eval(`${flaggedOnGm(from)}
+            return { rows: rows().length, id: id ?? null, change: row?.change ?? null, card: row?.messageId ?? null,
+                buttons: [...drawn().querySelectorAll("[data-drpg-audit]")].map(b => b.dataset.drpgAudit) };`);
+        await settle(800);
+        const stood = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readMeans))),
+            told: await p1.eval(`return globalThis.__meansTold.slice();`),
+            // Every browser receives a whisper's document (utils.mjs `gmReport`'s note); its words and its flags are the GMs'.
+            p1Card: await p1.eval(`const S = await import("${repoUrl}/scripts/secret.mjs"); const m = game.messages.get(${JSON.stringify(asked.card ?? "")});
+                return { words: m ? S.contentOf(m).includes("drpg-audit") : false, row: m ? S.cardFlag(m, "sheetFlagged") ?? null : null };`) };
+        const undone = await gm.eval(`${flaggedOnGm(from)}
+            drawn().querySelector('[data-drpg-audit="undo"]')?.click();
+            const read = () => { ${readMeans} };
+            const done = Date.now() + 8000;
+            while (!(read()[0] === 2 && read()[1] === 1 && S.sheetWriteStore.get(id)?.decided) && Date.now() < done) await new Promise(r => setTimeout(r, 100));
+            await A.sheetAuditIdle?.();
+            const words = (await import("${repoUrl}/scripts/secret.mjs")).contentOf(card);
+            return { decided: S.sheetWriteStore.get(id)?.decided ?? null, me: game.user.id, undoneLine: words.includes("drpg-audit-undone"),
+                buttonsLeft: words.includes("data-drpg-audit") };`);
+        await settle(800);
+        consoleMeans = { meansWas, asked, stood, undone, after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readMeans))) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hitPoints.value": ${meansWas.hp}, "system.resources.actions.value": ${meansWas.actions} });
+            return true;`);
+    }
+    const HPV = "system.resources.hitPoints.value", ACTV = "system.resources.actions.value";
+    check("SECURITY: a player's console healing its student's two Health marks and raising its actions by 2 stands, flagged to the GMs on one card with Undo and Keep, and nothing reaches the player",
+        Boolean(consoleMeans) && meansWas.hpMax >= 2 && meansWas.actionsMax >= 3 && consoleMeans.asked.rows === 1
+            && JSON.stringify(consoleMeans.asked.change?.[HPV]) === "[2,0]" && JSON.stringify(consoleMeans.asked.change?.[ACTV]) === "[1,3]"
+            && JSON.stringify(consoleMeans.asked.buttons) === JSON.stringify(["undo", "keep"])
+            && consoleMeans.stood.after.every(v => JSON.stringify(v) === "[0,3]") && consoleMeans.stood.told.length === 0
+            && consoleMeans.stood.p1Card?.words === false && consoleMeans.stood.p1Card.row === null,
+        JSON.stringify({ meansWas, asked: consoleMeans?.asked ?? null, stood: consoleMeans?.stood ?? null }), { flow: "sheet-audit" });
+    check("SECURITY: Undo on the GMs' card puts the Health marks and the actions back on every client and decides the row, by that GM",
+        Boolean(consoleMeans) && consoleMeans.after.every(v => JSON.stringify(v) === "[2,1]") && consoleMeans.undone.decided?.how === "undo"
+            && consoleMeans.undone.decided.by === consoleMeans.undone.me && JSON.stringify([...(consoleMeans.undone.decided.undone ?? [])].sort()) === JSON.stringify([ACTV, HPV].sort())
+            && consoleMeans.undone.decided.moved?.length === 0 && consoleMeans.undone.undoneLine === true && consoleMeans.undone.buttonsLeft === false,
+        JSON.stringify({ undone: consoleMeans?.undone ?? null, after: consoleMeans?.after ?? null }), { flow: "sheet-audit" });
+
+    /*
      * 7i. ownership raised past the window's back, and a player's edit of their own bullet.
      *
      * The harness's `noHook` silences the `updateActor` hook as well as the `pre`

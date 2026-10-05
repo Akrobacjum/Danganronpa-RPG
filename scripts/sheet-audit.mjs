@@ -40,9 +40,21 @@
  * delta - the GMs' value moves by what was covered, so a forged Hope spent at once
  * still costs real Hope - and told as a statistic is; with `lockPlayerResources` off
  * it is listed and stands. Health, Sanity, actions and grants are judged the same way
- * and only listed until C5. A `restsTaken` stamp no Rest covers is put back. The
- * module's items are C6's. The relay asks the same of a gain Daggerheart writes for
- * a player (`relayGainRefusal`, relay-guard.mjs).
+ * and flagged (below). A `restsTaken` stamp no Rest covers is put back. The module's
+ * items are C6's. The relay asks the same of a gain Daggerheart writes for a player
+ * (`relayGainRefusal`, relay-guard.mjs).
+ *
+ * WHAT IS FLAGGED (C5, 05.10.2026; the plan's 2.4, 2.8, 2.9). A gain in Health, Sanity
+ * or actions that nothing covers stands, and the GMs get one card per write - who,
+ * which student, each field before and after - with Undo and Keep, which only a GM's
+ * browser wires (`onRenderFlagged`). The player is told nothing. With
+ * `lockPlayerResources` off those three are listed instead, and no card is posted; the
+ * Burst and Sprint grants are flags the setting does not name, flagged either way (the
+ * owner's Q2 (a)). A click is decided on the primary GM, as Grant all is since
+ * E08+E28 fix r2-H7: another GM's asks it (`audit.decide`, gm-bridge.mjs), its decisions
+ * run one after another, and the row is marked decided before anything is written, so
+ * two GMs' clicks write once. Undo writes a field back only while it still holds what
+ * the write left; a field that moved since is not written over, and the card says so.
  *
  * ONE WRITE AFTER ANOTHER, PER STUDENT. Each write is queued behind the ones before
  * it on that student (`inOrder`), so a put-back is computed against the writes
@@ -56,7 +68,8 @@ import { isPrimaryGm, whisperToGms, esc, error, debug, forcedDeletion } from "./
 import { onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, stableJson } from "./gm-store.mjs";
 import { sheetMarkStore, sheetWriteStore } from "./gm-stores.mjs";
 import { trustedWrite, trustedCreate, trustedDelete } from "./resource-guard.mjs";
-import { tellRefused } from "./bridge-guards.mjs";
+import { tellRefused, bridgeRequest } from "./bridge-guards.mjs";
+import { cardFlag, cardWriter, updateSecret } from "./secret.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { readDuality } from "./despair-award.mjs";
 
@@ -105,6 +118,9 @@ const MODULE_STATUSES = new Set(["dead", ...Object.values(STATES).map(state => s
 
 /** A write by a GM carrying this is not taken as the mark: tier 2 writes as the GM and hands it to `judgeWrite`. */
 export const AUDIT_ASIDE = "drpgAuditAside";
+
+/** The flag of the GMs' card of a flagged write (C5): the id of the row it asks about. */
+const FLAGGED_CARD = "sheetFlagged";
 
 /** How long a row of `sheetWrites` is kept (the plan's 2.3, chosen): a day, swept as the next is written. */
 const ROW_KEPT_MS = 24 * 60 * 60_000;
@@ -349,8 +365,8 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const user = game.users?.get(userId ?? "");
     if (user?.isGM) {
         // The GMs' own put-back moves nothing they hold; any other GM's write is their value of what it names.
-        const own = options?.drpgWrite?.reason === "auditPutBack";
-        if (!options?.[AUDIT_ASIDE]) await refreshMark(actor, seen && !own ? gmLedger(actor, seen) : null);
+        const reason = options?.drpgWrite?.reason, own = reason === "auditPutBack";
+        if (!options?.[AUDIT_ASIDE]) await refreshMark(actor, seen && !own ? gmLedger(actor, seen, { credit: reason !== "auditUndo" }) : null);
         return { verdict: "mark", change: {} };
     }
     const mark = sheetMarkStore.get(actor.id);
@@ -375,7 +391,8 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     }
     await record(actor, user, found, options);
     await refreshMark(actor, found.ledger ?? null);
-    return { verdict: found.back.length ? "putBack" : found.listed.length ? "listed" : "stands", change: found.change };
+    const verdict = found.back.length ? "putBack" : found.flagged?.length ? "flagged" : found.listed.length ? "listed" : "stands";
+    return { verdict, change: found.change };
 }
 
 /** A student's update: what it changed of what a roll is built from (`actorFindings`) and of its means (`meansFindings`), put back in one write. */
@@ -383,7 +400,8 @@ async function updateFindings(actor, mark, changes, user, options, seen) {
     const sheet = actorFindings(actor, mark, changes);
     const means = await meansFindings(actor, mark, user, options, seen);
     const patch = { ...sheet.patch, ...means.patch };
-    return { back: [...sheet.back, ...means.back], listed: [...sheet.listed, ...means.listed], change: { ...sheet.change, ...means.change },
+    return { back: [...sheet.back, ...means.back], listed: [...sheet.listed, ...means.listed], flagged: means.flagged,
+        change: { ...sheet.change, ...means.change },
         covered: means.covered, ledger: means.ledger, fix: means.fix,
         undo: () => trustedWrite(actor, patch, { reason: "auditPutBack" }) };
 }
@@ -459,14 +477,18 @@ function seenNow(actor, changes, options, priors) {
     return { at: Date.now(), values, rests, item, priors };
 }
 
-/** A GM's write: the GMs' value of each means it names, and what it spent added to the credit ("by anyone", the plan's 2.5). */
-function gmLedger(actor, seen) {
+/*
+ * A GM's write: the GMs' value of each means it names, and what it spent added to the credit ("by
+ * anyone", the plan's 2.5). An Undo (`auditUndo`, C5) adds none: it takes back a gain nothing paid
+ * for, and as credit the same gain would stand again as the next refund.
+ */
+function gmLedger(actor, seen, { credit: credits = true } = {}) {
     const mark = sheetMarkStore.get(actor.id);
     if (!mark || !Object.keys(seen.values).length) return null;
     const values = ledgerOf(mark, actor), credit = creditOf(mark, seen.at);
     for (const [key, value] of Object.entries(seen.values)) {
         const spent = (value - values[key]) * LEDGER[key].cost;
-        if (spent > 0) (credit[key] ??= []).push({ n: spent, at: seen.at });
+        if (spent > 0 && credits) (credit[key] ??= []).push({ n: spent, at: seen.at });
         values[key] = value;
     }
     return { values, credit };
@@ -500,14 +522,14 @@ function movesOf(seen, values, stamp) {
  * stands and is credit; each gain stands as far as the write's reason covers it (`coverOf`). What
  * nothing covers in Hope is put back as a delta with `lockPlayerResources` on: the GMs' Hope moves
  * by what was covered only, and the document is written to it - so a forged Hope spent at once
- * still costs real Hope. With the setting off it is listed and stands (the owner's Q2 (a)), as
- * Health, Sanity, actions and the grants are either way until C5 flags them. A Rest stamp nothing
- * covers is put back. A legal payment that crossed a put-back brings the document to the GMs' Hope
- * too (`fix`), without a word: the put-back was told already.
+ * still costs real Hope. What nothing covers of the others stands and is flagged (`gainVerdict`),
+ * its change the part uncovered: from the value the cover allowed - what Undo writes back - to the
+ * value written. A Rest stamp nothing covers is put back. A legal payment that crossed a put-back
+ * brings the document to the GMs' Hope too (`fix`), without a word: the put-back was told already.
  */
 async function meansFindings(actor, mark, user, options, seen) {
     const stamp = options?.drpgWrite ?? {}, lock = locked();
-    const out = { back: [], listed: [], change: {}, patch: {}, covered: {}, ledger: null, fix: false };
+    const out = { back: [], listed: [], flagged: [], change: {}, patch: {}, covered: {}, ledger: null, fix: false };
     const restsMoved = seen.rests !== undefined && stableJson(seen.rests ?? null) !== stableJson(mark.flags?.[FLAGS.restsTaken] ?? null);
     if (!Object.keys(seen.values).length && !restsMoved) return out;
     const values = ledgerOf(mark, actor), credit = creditOf(mark, seen.at);
@@ -525,12 +547,13 @@ async function meansFindings(actor, mark, user, options, seen) {
     const judged = Object.keys(gains).length || restsMoved
         ? await coverOf(actor, mark, credit, gains, moves, stamp, user, seen) : { covers: {}, rest: false, taken: {} };
     for (const [key, gain] of Object.entries(gains)) {
-        const covered = Math.min(gain, judged.covers[key] ?? 0), enforced = key === "hope" && lock;
-        values[key] = bounded(actor, key, values[key] - LEDGER[key].cost * (enforced ? covered : gain));
+        const covered = Math.min(gain, judged.covers[key] ?? 0), verdict = gainVerdict(key, lock);
+        values[key] = bounded(actor, key, values[key] - LEDGER[key].cost * (verdict === "back" ? covered : gain));
         if (covered === gain) continue;
-        const { path, kind } = LEDGER[key];
-        out.change[path] = [moves[key].base, moves[key].value];
-        (enforced ? out.back : out.listed).push({ path, kind });
+        const { path, kind, cost } = LEDGER[key];
+        const from = verdict === "flagged" ? moves[key].value + (gain - covered) * cost : moves[key].base;
+        out.change[path] = [from, moves[key].value];
+        out[verdict].push({ path, kind });
     }
     if (restsMoved && !judged.rest) {
         out.back.push({ path: RESTS_PATH, kind: "flag" });
@@ -545,6 +568,18 @@ async function meansFindings(actor, mark, user, options, seen) {
     out.covered = judged.taken;
     out.ledger = { values, credit };
     return out;
+}
+
+/*
+ * What becomes of a gain nothing covers (the plan's 2.4; the owner's Q2 (a), 05.10.2026): `back`,
+ * `flagged` or `listed`. With `lockPlayerResources` on, Hope is put back and Health, Sanity and
+ * actions are flagged; off, the fields its text names are listed and stand. The Burst and Sprint
+ * grants are flags the setting does not name: flagged either way.
+ */
+function gainVerdict(key, lock) {
+    if (LEDGER[key].kind === "grant") return "flagged";
+    if (!lock) return "listed";
+    return key === "hope" ? "back" : "flagged";
 }
 
 /** What a write's reason covers of its gains (the plan's 2.5's judges): `{ covers, rest, taken }`, `taken` the credit a refund took. */
@@ -751,7 +786,8 @@ function shown(value) {
 /**
  * A put-back is told to its writer once (`sheetPutBack`, its first field's kind named in
  * their language: bridge-guards.mjs `requestLabel`) and whispered to the GMs once, each
- * field before and after; a row for it, and one for what was listed, go into `sheetWrites`.
+ * field before and after; what is flagged gets the GMs' card (`flaggedCard`) and nothing
+ * for the writer; a row for each, and one for what was listed, go into `sheetWrites`.
  */
 async function record(actor, user, found, options) {
     const stamp = options?.drpgWrite ?? {};
@@ -778,12 +814,125 @@ async function record(actor, user, found, options) {
         }
         rows[foundry.utils.randomID()] = row("putBack", found.back, message?.id ?? null);
     }
+    if (found.flagged?.length) {
+        const id = foundry.utils.randomID(), flagged = row("flagged", found.flagged, null);
+        let message = null;
+        try {
+            message = await whisperToGms(flaggedCard(flagged), { flags: { [MODULE_ID]: { sheetAudit: actor.id, [FLAGGED_CARD]: id } } });
+        } catch (err) {
+            error("Could not ask the GMs about a write flagged to them", err);
+        }
+        rows[id] = { ...flagged, messageId: message?.id ?? null };
+    }
     if (found.listed.length) rows[foundry.utils.randomID()] = row("listed", found.listed, null);
     if (!Object.keys(rows).length) return;
     const old = Object.entries(sheetWriteStore.entries() ?? {}).filter(([, kept]) => !(kept?.at >= at - ROW_KEPT_MS)).map(([id]) => id);
     if (old.length) await sheetWriteStore.dropMany(old);
     await sheetWriteStore.patchMany(rows);
     debug(`The GMs' audit: ${user?.name ?? "?"} on ${actor.name}: ${Object.values(rows).map(r => r.verdict).join(", ")}.`);
+}
+
+/* ---------------------------------------------------------------------------
+ * The GMs' card: Undo and Keep (C5)
+ * ------------------------------------------------------------------------- */
+
+/** The kind of field a row's path is, for its label: a means by its ledger's kind, anything else as `kindOf` reads it. */
+function fieldKind(path) {
+    return Object.values(LEDGER).find(entry => entry.path === path)?.kind ?? kindOf(path) ?? "flag";
+}
+
+/**
+ * THE CARD OF A FLAGGED WRITE (the plan's 2.8): who, which student, each field before and after,
+ * and Undo and Keep while nobody has decided - then, in their place, what was decided and by
+ * whom. Built from the row alone, so the primary writes it whole again once a GM decides.
+ */
+function flaggedCard(row) {
+    const name = game.actors.get(row.actorId)?.name ?? "?", player = game.users.get(row.userId ?? "")?.name ?? "?";
+    const label = path => game.i18n.localize(`DRPG.Audit.field.${fieldKind(path)}`);
+    const lines = Object.entries(row.change ?? {}).map(([path, [was, now] = []]) =>
+        `<li>${esc(label(path))} (${esc(path)}): ${esc(shown(was))} -> ${esc(shown(now))}</li>`).join("");
+    const decided = row.decided;
+    let foot = `<div class="drpg-audit-actions"><button type="button" data-drpg-audit="undo">${esc(game.i18n.localize("DRPG.Audit.undo"))}</button>`
+        + `<button type="button" data-drpg-audit="keep">${esc(game.i18n.localize("DRPG.Audit.keep"))}</button></div>`;
+    if (decided) {
+        const gm = game.users.get(decided.by ?? "")?.name ?? "?", said = [];
+        if (decided.how === "keep") said.push(["drpg-audit-kept", game.i18n.format("DRPG.Audit.kept", { gm })]);
+        if (decided.undone?.length) said.push(["drpg-audit-undone", game.i18n.format("DRPG.Audit.undone", { gm })]);
+        if (decided.moved?.length) said.push(["drpg-audit-moved", game.i18n.format("DRPG.Audit.changedSince", { gm, fields: decided.moved.map(label).join(", ") })]);
+        foot = said.map(([cls, text]) => `<p class="${cls}">${esc(text)}</p>`).join("");
+    }
+    return `<div class="drpg-audit-card"><p class="drpg-warning">${esc(game.i18n.format("DRPG.Audit.flagged", { player, name }))}</p><ul>${lines}</ul>${foot}</div>`;
+}
+
+/** This GM's decisions, one after another (`decideWrite`). */
+let decisions = Promise.resolve();
+
+/**
+ * UNDO OR KEEP, DECIDED ONCE (the plan's 2.8, 2.9). Made on the primary GM - a click on another
+ * GM's browser asks it (`askToDecideWrite`) - one decision after another, so a second click, from
+ * this GM or another, finds the row decided and does nothing. The row is marked decided - who,
+ * when, which, what was written back and what had moved - before anything is written. Keep writes
+ * nothing. Undo writes each field back to its before-value only while the field still holds the
+ * value the write left: a field moved since is not written over, and the card names it. Queued
+ * behind the writes on that student (`inOrder`), so a later change is the document's by the time
+ * it reads. The card is written again for every GM. Answers the decision, or null where there
+ * was none to make. Exported for tier 2, as `judgeWrite`.
+ */
+export function decideWrite(rowId, keep, by = game.user?.id ?? null) {
+    const run = decisions.then(() => decideNow(rowId, keep === true, by));
+    decisions = run.catch(() => null);
+    return run;
+}
+
+async function decideNow(rowId, keep, by) {
+    const row = typeof rowId === "string" ? sheetWriteStore.get(rowId) : null;
+    if (!game.user?.isGM || row?.verdict !== "flagged" || row.decided) return null;
+    return inOrder(row.actorId, async () => {
+        const actor = game.actors.get(row.actorId) ?? null, src = actor?._source ?? {};
+        const paths = Object.keys(row.change ?? {});
+        const holds = path => stableJson(foundry.utils.getProperty(src, path) ?? null) === stableJson(row.change[path]?.[1] ?? null);
+        const undone = keep || !actor ? [] : paths.filter(holds);
+        const decided = { by, at: Date.now(), how: keep ? "keep" : "undo", undone, moved: keep ? [] : paths.filter(path => !undone.includes(path)) };
+        await sheetWriteStore.patch(rowId, { decided });
+        if (undone.length) await trustedWrite(actor, Object.fromEntries(undone.map(path => [path, row.change[path][0]])), { reason: "auditUndo" });
+        const card = game.messages.get(row.messageId ?? "");
+        if (card) await updateSecret(card, flaggedCard({ ...row, decided }), null, { sheetAudit: row.actorId, [FLAGGED_CARD]: rowId });
+        return decided;
+    });
+}
+
+/**
+ * A GM's click on the card, decided on the primary GM (`audit.decide`, gm-bridge.mjs): here when
+ * this is the primary, asked of it otherwise - the shape roll-draw.mjs `askToDecide` gives Grant
+ * all (E08+E28 fix r2-H7). Answers the decision, or null.
+ */
+export async function askToDecideWrite(rowId, keep) {
+    const res = await bridgeRequest("audit.decide", { rowId, keep: keep === true }, {
+        settle: "reply", onPrimary: true, local: () => decideWrite(rowId, keep) });
+    return res.ok ? res.value ?? null : null;
+}
+
+/**
+ * The card's two buttons, wired on a GM's browser for a card a GM posted, as roll-draw.mjs
+ * `onRenderUnwitnessed` wires Grant all; taken off once the row every GM holds is decided. A row
+ * not here yet - the card can arrive before the store's sync - leaves them on.
+ */
+function onRenderFlagged(message, element) {
+    try {
+        if (!game.user?.isGM || !cardWriter(message)?.isGM) return;
+        const rowId = cardFlag(message, FLAGGED_CARD);
+        if (typeof rowId !== "string") return;
+        if (sheetWriteStore.get(rowId)?.decided) return void element.querySelector(".drpg-audit-actions")?.remove();
+        element.addEventListener("click", async event => {
+            const button = event.target?.closest?.("[data-drpg-audit]");
+            if (!button) return;
+            event.preventDefault();
+            element.querySelector(".drpg-audit-actions")?.remove();
+            await askToDecideWrite(rowId, button.dataset.drpgAudit === "keep");
+        });
+    } catch (err) {
+        error("Could not draw the GMs' card of a flagged write", err);
+    }
 }
 
 /**
@@ -800,7 +949,9 @@ export function sheetWrites({ quiet = false } = {}) {
             player: game.users.get(row.userId)?.name ?? row.userId, verdict: row.verdict, reason: row.reason ?? "-",
             change: Object.entries(row.change ?? {}).map(([path, [was, now] = []]) => `${path}: ${shown(was)} -> ${shown(now)}`).join("; "),
             // What a refund took back of what was paid before it (C4); the rest of its gain is what the row is for.
-            credit: row.covered ? game.i18n.format("DRPG.Audit.credit", { what: Object.entries(row.covered).map(([key, n]) => `${key} ${n}`).join(", ") }) : "-"
+            credit: row.covered ? game.i18n.format("DRPG.Audit.credit", { what: Object.entries(row.covered).map(([key, n]) => `${key} ${n}`).join(", ") }) : "-",
+            // A flagged write's decision (C5): which, and the GM who made it.
+            decided: row.decided ? `${row.decided.how} (${game.users.get(row.decided.by ?? "")?.name ?? row.decided.by ?? "?"})` : "-"
         }));
     if (!quiet) {
         console.log(game.i18n.format("DRPG.Audit.listTitle", { n: rows.length }));
@@ -831,6 +982,7 @@ export function registerSheetAudit() {
     Hooks.on("updateActiveEffect", (effect, changes, options, userId) => { onSheetWrite("updateActiveEffect", effect, changes, options, userId); });
     Hooks.on("deleteActiveEffect", (effect, options, userId) => { onSheetWrite("deleteActiveEffect", effect, {}, options, userId); });
     Hooks.on("updateItem", (item, changes, options, userId) => { onItemWrite(item, changes, options, userId); });
+    Hooks.on("renderChatMessageHTML", onRenderFlagged);
     Hooks.on("deleteActor", actor => {
         heard.delete(actor.id);
         if (isPrimaryGm() && gmStoresHydrated() && sheetMarkStore.has(actor.id)) void sheetMarkStore.drop(actor.id);

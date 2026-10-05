@@ -2558,6 +2558,7 @@
         "roll.bookmark": "Co zrobił rzut, zapisane na Reroll",
         "roll.draw": "Rzut do wykonania przez GM-a",
         "roll.grant": "Przyznanie rzutów rzuconych bez GM-a",
+        "audit.decide": "Decyzja GM-a o zmianie karty zgłoszonej GM-om",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "searchTokens.spend": "Wydanie Search Tokena",
@@ -3066,9 +3067,19 @@
         "bonuses": "Premie",
         "flag": "Zapisy modułu",
         "effect": "Efekt",
-        "hope": "Hope"
+        "hope": "Hope",
+        "actions": "Akcje",
+        "hitPoints": "Health",
+        "stress": "Sanity",
+        "grant": "Darmowe akcje i ruchy"
       },
-      "credit": "Zwrócone z tego, co zapłacono wcześniej: {what}"
+      "credit": "Zwrócone z tego, co zapłacono wcześniej: {what}",
+      "flagged": "Ręczna zmiana karty postaci {name} od {player}, której nie pokrywa nic, o czym wie moduł. Zostaje, dopóki GM nie zdecyduje:",
+      "undo": "Cofnij",
+      "keep": "Zostaw",
+      "undone": "Cofnięte przez: {gm}.",
+      "kept": "Zostawione przez: {gm}.",
+      "changedSince": "Cofnij od {gm} - nie nadpisano tego, co od tamtej pory znów się zmieniło: {fields}."
     },
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",

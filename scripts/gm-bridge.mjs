@@ -45,6 +45,8 @@ const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
 const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
+/** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
+const ACTION_AUDIT_DECIDE = "audit.decide";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
 const ACTION_TRAIT_RULING = "trait.ruling";
 /** player -> GM: "may I spend this Call, and here is what for". */
@@ -1303,6 +1305,12 @@ async function handleReroll(payload, sender) {
     return { reply: { lines: out?.lines ?? [] } };
 }
 
+/** The run of `audit.decide` (E29 C5): the primary's own decision (sheet-audit.mjs `decideWrite`), recorded as the asking GM's. */
+async function handleAuditDecide(payload, sender) {
+    const { decideWrite } = await import("./sheet-audit.mjs");
+    return { reply: await decideWrite(payload.rowId, payload.keep, sender.id) };
+}
+
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
 async function handleCardPost(payload, sender) {
     const { postAsked, cardTooLong } = await import("./secret.mjs");
@@ -1862,6 +1870,21 @@ export const BRIDGE_ACTIONS = table({
      * of this world, and it weighs what a player's words may. Not resent to a GM who reloads: a
      * card posted before the reload would be posted twice.
      */
+    /*
+     * UNDO OR KEEP, DECIDED ON THE PRIMARY GM (E29 C5, 05.10.2026; the plan's 2.9). A player's
+     * write the GMs' audit flagged is decided once: another GM's click on the card asks the
+     * primary (sheet-audit.mjs `askToDecideWrite`), whose decisions run one after another and
+     * mark the row decided before they write - the shape `roll.grant` (private-rolls.mjs) gives
+     * Grant all. A GM's alone: a player has nothing to decide.
+     */
+    [ACTION_AUDIT_DECIDE]: {
+        label: "DRPG.Bridge.what.audit.decide",
+        guards: [gmOnly("only a GM decides a write flagged to the GMs")],
+        sanitize: pick({ rowId: as.id, keep: as.bool }),
+        run: handleAuditDecide,
+        answer: "reply",
+        claims: { rowId: "decideWrite (sheet-audit.mjs) decides only a row the GMs flagged and nobody has decided, once, on the primary" }
+    },
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",
         guards: [knownSender, guardCardSpeaker, guardCardReaders],
