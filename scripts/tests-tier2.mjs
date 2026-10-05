@@ -4950,6 +4950,192 @@ const SCENARIOS = [
         ]), "a drawn roll's statistic was not held to the GM's newest unused pick, a used pick was held again, or a Search's Hand went unflagged (per draw: flags, expected statistic)");
     }],
 
+    ["a drawn roll is thrown on the GM's dice: the faces, the keep and the critical a packet names are not the roll's", async () => {
+        /*
+         * E08+E28 fix r2-H8, 05.10.2026 (H8-1, H8-2). The GM rebuilt a player's roll from the packet
+         * with `fromData` and threw it as written, so the dice's faces, their number and keep, and
+         * Daggerheart's `guaranteedCritical` were the packet's (roll-draw.mjs `onGmTerms`). Three
+         * draws of a player's character, each packet edited: the duality pair of one face, the Hope
+         * die two of them kept high, thrown on the harness's randomiser; a critical the options
+         * guarantee, on a 3 and a 9; three advantage dice of twenty faces, on a 9 and a 4. Read: each
+         * record's dice (faces, how many thrown) and whether its formula names a die of one face; the
+         * second's critical and Fear. At 33bc497's runtime (with the harness's roll taking
+         * `guaranteedCritical` as Daggerheart's does): [[[[1,2],[1,1]],true],[true,false],[[12,1],[12,1],[20,3]]].
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const dice = F => (F.record?.dice ?? []).map(d => [d.faces, d.results.length]);
+        const drawn = [];
+        const draw = async (faces, edit) => {
+            const F = await drawnForPlayer(player, theirs, { faces, edit });
+            drawn.push(F);
+            must(F.record, "the GM kept no record of the draw - this would measure nothing");
+            return F;
+        };
+        const read = [];
+        try {
+            const one = await draw(null, p => {
+                const t = p.roll.terms;
+                t[0] = { ...t[0], number: 2, faces: 1, modifiers: ["kh"] };
+                t[2] = { ...t[2], faces: 1 };
+                p.roll.formula = p.roll.formula.replace(/^1d12 \+ 1d12/, "2d1kh + 1d1");
+                return p;
+            });
+            read.push([dice(one), /\dd1(?!\d)/.test(one.record.formula ?? "")]);
+            const sure = await draw({ hope: 3, fear: 9 }, p => ({ ...p, roll: { ...p.roll, options: { ...p.roll.options, guaranteedCritical: true } } }));
+            read.push([sure.record.isCritical, sure.record.withFear]);
+            const advantage = await draw({ hope: 9, fear: 4 }, p => {
+                p.roll.terms.splice(3, 0, { class: "OperatorTerm", operator: "+", evaluated: false },
+                    { class: "AdvantageDie", number: 3, faces: 20, modifiers: [], results: [], evaluated: false });
+                return p;
+            });
+            read.push(dice(advantage));
+        } finally {
+            // Last drawn first: each puts the GM's Fear back as it found it, and a Fear result's write lands after its draw.
+            for (const F of drawn.reverse()) await F.putBack();
+        }
+        equal(stableJson(read), stableJson([[[[12, 1], [12, 1]], false], [false, true], [[12, 1], [12, 1], [6, 3]]]),
+            "a drawn roll was thrown on the packet's dice or a critical the packet named (per draw: dice and a one-faced die in the formula; critical and Fear; dice)");
+    }],
+
+    ["a drawn roll is the kind its action makes it and runs every one of Daggerheart's steps, whatever the packet says", async () => {
+        /*
+         * E08+E28 fix r2-H8, 05.10.2026 (H8-3). The roll's `actionType` and `skips` were the packet's:
+         * a Search's roll sent as a reaction, or with Daggerheart's resource step skipped, gave the GM
+         * no Fear on a roll with Fear (dualityRoll.mjs `addDualityResourceUpdates`, the harness's copy
+         * in lib/daggerheart.mjs). Now an action's roll is an action, and a student's statistic from
+         * the sheet the reaction its window makes it (roll-draw.mjs `onGmTerms`). Three draws of a
+         * player's character, each with Fear (3 and 9), Daggerheart's Hope and Fear automation on for
+         * players and the GM's Fear set to 0 first: a Search sent as a reaction; a Search with its
+         * resource step, countdowns and triggers skipped; a statistic from the sheet sent as an action.
+         * Read: the GM's Fear after each, and the kind its message keeps. The countdowns and the
+         * triggers are not in the harness: their skips are read, not run. At 33bc497's runtime:
+         * [["reaction",0,"reaction"],["skips",0,"action"],["sheet",1,"action"]].
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = () => game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const withOptions = (p, extra) => ({ ...p, roll: { ...p.roll, options: { ...p.roll.options, ...extra } } });
+        const cases = [
+            ["reaction", "search", p => withOptions(p, { actionType: "reaction" })],
+            ["skips", "search", p => withOptions(p, { skips: { resources: true, updateCountdowns: true, triggers: true } })],
+            ["sheet", null, p => withOptions({ ...p, actionKey: null, claimed: false }, { actionType: "action" })]
+        ];
+        const read = await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+            const out = [];
+            for (const [label, actionKey, edit] of cases) {
+                await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, 0);
+                const F = await drawnForPlayer(player, theirs, { actionKey, faces: { hope: 3, fear: 9 }, edit });
+                try {
+                    must(F.record, `the GM kept no record of the ${label} draw - this would measure nothing`);
+                    await settle();
+                    out.push([label, fear(), F.message?.rolls?.[0]?.options?.actionType ?? null]);
+                } finally {
+                    await F.putBack();
+                }
+            }
+            return out;
+        });
+        equal(stableJson(read), stableJson([["reaction", 1, "action"], ["skips", 1, "action"], ["sheet", 0, "reaction"]]),
+            "a drawn roll's kind or its steps were the packet's (per draw: the GM's Fear from 0, the kind its message keeps)");
+    }],
+
+    ["a drawn roll holding a term that is neither a die, a number nor + or - is refused, and nothing is thrown", async () => {
+        /*
+         * E08+E28 fix r2-H8, 05.10.2026 (H8-4). A term of any other kind was thrown as the packet wrote
+         * it, adding to the total what `checkRoll` neither counts nor flags, and an advantage die out of
+         * the place Daggerheart reads it kept the packet's faces (bridge-guards.mjs `guardDrawnRoll`).
+         * Four draws of a player's character naming no action, each packet with two terms added: a
+         * parenthesis `(10)`, a function `abs(10)`, a `*` by 10, and an advantage die of twenty faces
+         * seventh. Read: what the GM answered (its code), and whether it kept a record. The harness's
+         * roll reads a parenthesis or a function as 0 and a `*` as a `+` (lib/shim.mjs): what each adds
+         * at a table is Foundry's, read, not measured here. At 33bc497's runtime each of the four was
+         * acknowledged, drawn and recorded.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const plus = { class: "OperatorTerm", operator: "+", evaluated: false };
+        const cases = [
+            ["parenthesis", [plus, { class: "ParentheticalTerm", term: "10", evaluated: false }]],
+            ["function", [plus, { class: "FunctionTerm", fn: "abs", terms: ["10"], evaluated: false }]],
+            ["times", [{ class: "OperatorTerm", operator: "*", evaluated: false }, { class: "NumericTerm", number: 10, evaluated: false }]],
+            ["advantage seventh", [plus, { class: "AdvantageDie", number: 1, faces: 20, modifiers: [], results: [], evaluated: false }]]
+        ];
+        const read = [];
+        for (const [label, extra] of cases) {
+            const F = await drawnForPlayer(player, theirs, { actionKey: null, edit: p => ({ ...p, roll: { ...p.roll, terms: [...p.roll.terms, ...extra] } }) });
+            try {
+                read.push([label, F.sent.map(r => [r.action, r.reason]), Boolean(F.record)]);
+            } finally {
+                await F.putBack();
+            }
+        }
+        equal(stableJson(read), stableJson(cases.map(([label]) => [label, [["bridge.refused", "badRequest"]], false])),
+            "a drawn roll holding a term no roll of this game is built of was thrown (per draw: the answer and its code, a record kept)");
+    }],
+
+    ["a crisis roll's statistic is held to the GM's pick whatever its packet says, and one never picked is flagged", async () => {
+        /*
+         * E08+E28 fix r2-H8, 05.10.2026 (H8-5). The GM looked for a pick card only where the roll's
+         * window said a GM had picked (`TRAIT_BY_GM`), which is the packet's to say: a crisis roll sent
+         * without it was held to no pick at all (roll-draw.mjs `pickDue`). Two crisis draws of a
+         * player's character, a Strike - whose definition lists several statistics - at turns of theirs
+         * in a fight (C12b's pick test's setting), neither packet saying a GM picked: after a card
+         * picking Body, a roll of Eye; a turn later, a roll of Hand, with no card made for it. Read:
+         * each record's statistic and pick flags and the statistic it expected. At 33bc497's runtime:
+         * [[[],null],[[],null]].
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [theirs, victim] = livingStudents().filter(playerOf);
+        const player = playerOf(theirs);
+        const { TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const found = [theirs, victim].map(a => [a, ["hope", "stress", "hitPoints"].map(k => [k, a.system.resources[k]?.value])]);
+        const card = async trait => {
+            const m = await whisperToGms("<p>SUITE r2-H8 pick</p>");
+            must(m, "no card to settle a pick on - this would measure nothing");
+            await settleCall(m, "SUITE r2-H8", { type: "trait", actorId: theirs.id, kind: "crisis", key: "strike", variant: null, trait });
+            return m.id;
+        };
+        const drawn = [];
+        const draw = async trait => {
+            const F = await drawnForPlayer(player, theirs, { actionKey: "crisis",
+                edit: p => ({ ...p, trait: TRAITS[trait].dh, context: { ...p.context, crisis: "strike" } }) });
+            drawn.push(F);
+            must(F.record, "the GM kept no record of the crisis draw - this would measure nothing");
+            return [(F.record.flags ?? []).filter(f => f.kind === "trait" || f.kind === "pick").map(f => [f.kind, f.expected, f.claimed]),
+                F.record.expected?.trait ?? null];
+        };
+        const read = [];
+        try {
+            await fightOpen(M, theirs, victim);
+            await turnFor(M, theirs, "strike");
+            await card("body");
+            read.push(await draw("eye"));
+            await M.passTurn();
+            await turnFor(M, theirs, "strike");
+            read.push(await draw("hand"));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const F of drawn) await F.putBack();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const [a, values] of found) {
+                const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
+                if (changed.length) await automatedUpdate(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])));
+            }
+        }
+        equal(stableJson(read), stableJson([[[["trait", "body", "eye"]], "body"], [[["pick", "1", "0"]], null]]),
+            "a crisis roll's statistic was not held to the GM's pick without the packet's word, or a pick never made went unflagged (per draw: flags, expected statistic)");
+    }],
+
     ["a Loaded Die bought and armed forces the first face on the GM and is spent there; one not armed does not", async () => {
         /*
          * E08+E28 C12b, 04.10.2026; the plan's 3.3. The Loaded Die's 12 is the GM's to put on the

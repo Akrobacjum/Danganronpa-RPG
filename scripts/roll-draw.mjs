@@ -46,7 +46,7 @@
  * There is no world switch: the owner's Q2 (a), 03.10.2026.
  */
 
-import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS } from "./config.mjs";
+import { MODULE_ID, TIMING, ACTIONS, TRAITS, TRAIT_BY_DH, MURDER_OPENING, CRITICAL, CRISIS_ACTIONS, PRICE_CHAINS, CLEANUP } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, whisperToGms, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
@@ -54,7 +54,7 @@ import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { rollStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
-import { DRPG_ACTION_ROLL, DRAWN_ROLL, TRAIT_BY_GM, searchOdds, stashStepFor } from "./action-rolls.mjs";
+import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
 import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call-effects.mjs";
 import { isBrokenDown } from "./character.mjs";
@@ -675,9 +675,106 @@ export async function drawOnGm(packet, sender) {
     }
 }
 
+/*
+ * THE ROLL IS THROWN ON THE GM'S TERMS (E08+E28 fix r2-H8, 05.10.2026; found reading E29's design).
+ * Until this fix the GM threw the roll `fromData` rebuilt from the packet, and so took from the
+ * packet what makes a roll what it is: its dice's faces, numbers and keep modifiers (`checkRoll`
+ * counts dice, not faces); Daggerheart's `guaranteedCritical`, a critical whatever the dice
+ * (dualityRoll.mjs:13, :89-101, read in 2.10.5); and the roll's kind and steps - a `reaction`, or
+ * `skips.resources`, `updateCountdowns` and `triggers`, give the GM no Fear on a roll with Fear
+ * and tick no countdown (:256-321). Measured at 33bc497's runtime (tier 2, "a drawn roll is
+ * thrown on the GM's dice ..." and "... is the kind its action makes it ..."): a Hope and a Fear
+ * die of one face, the Hope die two of them kept high, drew 1 and 1 - a critical every time; a 3
+ * and a 9 with a critical guaranteed were recorded a critical, with no Fear; three advantage dice
+ * of twenty faces were thrown as such; a Search's roll sent as a reaction, or with its resource
+ * step skipped, left the GM's Fear at 0 on a Fear result, and a statistic from the sheet sent as
+ * an action gave it 1. So the GM writes those parts of the roll itself, before `fromData`, as
+ * Daggerheart builds them where its window runs:
+ *   - the Hope and the Fear die, one each, at the faces the character's rules give
+ *     (`rules.dualityRoll`, character.mjs; dualityRoll.mjs `createBaseDice`), 12 by default;
+ *   - the advantage or disadvantage die where the roll has one, fifth, where `fromData` looks for
+ *     it (:122-129): its count is the window's - a modifier, held against what the GM expects
+ *     (`checkRoll`) - up to `ADVANTAGE_CAP`; its faces the rules', read as the window reads them
+ *     (roll-dialog.mjs `forceAdvantage`), 6 by default; the highest kept of several and its sign
+ *     the die's (`applyAdvantage`, :143-168); and `roll.advantage` said as the die is;
+ *   - a critical guaranteed only by the character's own effects, read as Daggerheart's
+ *     `buildConfigure` reads them (:194-198) - a death move's Blaze of Glory is one;
+ *   - the kind: the roll of an action, or one of the module's, is an action; a student's
+ *     statistic from the sheet is the reaction the roll window makes it (roll-dialog.mjs
+ *     `forceReaction`, despair-award.mjs) - also when the window was skipped, which until now
+ *     threw it as an action; a Monokuma's statistic, whichever of the two its window said. And
+ *     every one of Daggerheart's steps runs: no `skips`.
+ * Where the dice are not what the packet sent, the formula is written again from them:
+ * Daggerheart's constructor builds the roll's own formula - which its message keeps and a
+ * Reroll is built from - out of the formula's dice and the options, not out of the terms
+ * `fromData` then puts in (d20Roll.mjs:6-9, :81-86, read). Any other die is a modifier, thrown on
+ * the GM's randomness at the packet's size and flagged (`dice`); what a drawn roll may be built
+ * of at all is the guard's (bridge-guards.mjs `guardDrawnRoll`). Foundry's own `fromData` is not
+ * on this machine: the harness models it (lib/shim.mjs), and Daggerheart's constructor is
+ * modelled as far as `guaranteedCritical` (client-entry.mjs `DualityRollMock`).
+ */
+
+/** Daggerheart's advantage dice, by the class `fromData` gives the fifth term, and the sign each is thrown with. */
+const ADVANTAGE_DICE = Object.freeze({ AdvantageDie: 1, DisadvantageDie: -1 });
+/** The letter Daggerheart's constructor of each of its dice adds to the die's modifiers (die/hopeDie.mjs and its siblings). */
+const DIE_LETTER = Object.freeze({ HopeDie: "h", FearDie: "f", AdvantageDie: "a", DisadvantageDie: "d" });
+
+/** A whole number of faces above zero from a rule's value (`12`, `"d20"`), else `fallback`. */
+function facesFrom(value, fallback) {
+    const faces = Number.parseInt(String(value ?? "").replace(/^d/, ""), 10);
+    return Number.isInteger(faces) && faces > 0 ? faces : fallback;
+}
+
+/** The first five terms as a throw reads them: each die's number, faces and modifiers but its class's own letter; each sign. */
+function diceShape(terms) {
+    return JSON.stringify(terms.slice(0, 5).map(term => ("faces" in (term ?? {})
+        ? [term.number, term.faces, (term.modifiers ?? []).filter(m => m !== DIE_LETTER[term.class])]
+        : term?.operator ?? term?.number ?? null)));
+}
+
+/** A formula written from terms the way Foundry writes one (`Roll.getFormula`): a sign spaced, a die `XdY` and its modifiers. */
+function formulaOf(terms) {
+    return terms.map(term => (term?.operator ? ` ${term.operator} `
+        : "faces" in (term ?? {}) ? `${term.number}d${term.faces}${(term.modifiers ?? []).join("")}` : String(term?.number ?? ""))).join("");
+}
+
+/** The roll's JSON, its dice, its critical and its kind written by this GM - see the note above. */
+async function onGmTerms(json, actor, { key = null, claimed = true } = {}) {
+    const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
+    const rules = actor.getRollData?.()?.rules ?? actor.system?.rules ?? {};
+    const die = (cls, faces, number = 1, modifiers = []) => ({ class: cls, options: {}, evaluated: false, number, faces, modifiers, results: [] });
+    const sign = op => ({ class: "OperatorTerm", options: {}, evaluated: false, operator: op });
+    const terms = Array.isArray(json.terms) ? json.terms : (json.terms = []);
+    const sent = diceShape(terms);
+    terms[0] = die("HopeDie", facesFrom(rules.dualityRoll?.defaultHopeDice, 12));
+    terms[1] = sign("+");
+    terms[2] = die("FearDie", facesFrom(rules.dualityRoll?.defaultFearDice, 12));
+    const advantage = ADVANTAGE_DICE[terms[4]?.class] ?? 0;
+    if (advantage) {
+        const number = Math.min(ADVANTAGE_CAP, Math.max(1, Math.trunc(Number(terms[4].number)) || 1));
+        const faces = facesFrom(advantage > 0 ? rules.roll?.defaultAdvantageDice : rules.roll?.defaultDisadvantageDice,
+            facesFrom(rules.roll?.advantageFaces, 6));
+        terms[3] = sign(advantage > 0 ? "+" : "-");
+        terms[4] = die(terms[4].class, faces, number, number > 1 ? ["kh"] : []);
+    }
+    if (diceShape(terms) !== sent) json.formula = formulaOf(terms);
+    const options = json.options && typeof json.options === "object" ? json.options : (json.options = {});
+    const critical = [...(actor.appliedEffects ?? [])].some(effect => (effect?.system?.changes ?? effect?.changes ?? [])
+        .some(change => change?.key === "system.rules.roll.guaranteedCritical"));
+    if (critical) options.guaranteedCritical = true;
+    else delete options.guaranteedCritical;
+    options.actionType = key || claimed !== false ? "action"
+        : !isMonokuma(actor) ? "reaction" : options.actionType === "reaction" ? "reaction" : "action";
+    options.skips = {};
+    options.roll = options.roll && typeof options.roll === "object" ? options.roll : {};
+    if (typeof options.roll.advantage === "object" || (options.roll.advantage ?? 0) !== advantage) options.roll.advantage = advantage;
+    return json;
+}
+
 /**
  * The draw itself. The roll is rebuilt with Daggerheart's `fromData` - never the constructor,
  * which builds the advantage die again from the options (reroll.mjs `rerollKeepingDice`) -
+ * from its JSON as this GM writes it (`onGmTerms`, fix r2-H8),
  * thrown here, written, settled, held against what this GM expects (`expectedFor`,
  * `checkRoll`), its Calls spent and recorded, with the incident's turn it was thrown in
  * (`incident`); answered `{ rollId, messageId, faces, total, stash, loaded }`. `claimed` false is
@@ -688,7 +785,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     const actor = game.actors.get(actorId ?? "");
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
-    const roll = cls.fromData(foundry.utils.deepClone(json));
+    const key = typeof actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(actionKey) ? actionKey : null;
+    const roll = cls.fromData(await onGmTerms(foundry.utils.deepClone(json), actor, { key, claimed }));
     // A Daggerheart roll's options are its config (dhRoll.mjs:45). What the GM's own steps
     // read is put back in memory: the character's uuid for the resource step, its roll data
     // for the triggers (dualityRoll.mjs:253-276), and its own resource map; `mute` is
@@ -699,9 +797,8 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     config.costs = paidCosts(costs);
     config.resourceUpdates = new DrawnResources(actor);
     roll.data = actor.getRollData?.() ?? {};
-    const key = typeof actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(actionKey) ? actionKey : null;
     const told = { trait: typeof trait === "string" ? trait : null, experiences: strings(experiences), context: contextSent(context),
-        situational: Number.isFinite(Number(situational)) ? Math.trunc(Number(situational)) : 0, byGm: config[TRAIT_BY_GM] === true };
+        situational: Number.isFinite(Number(situational)) ? Math.trunc(Number(situational)) : 0 };
     // What the roll applied, as this GM holds it: read before the dice, and spent after them.
     const applied = appliedCalls(actor, calls);
     const expected = await expectedFor(actor, { actionKey: key, applied, ...told });
@@ -759,11 +856,12 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
  * What it reads, and from where:
  *   - the statistic: Eye for a Search (ACTIONS.search), the project's own for a Work on it or
  *     a Sabotage of it (projects.mjs, C11d), the opening's as the GM picked it (the incident's
- *     `openingTrait`, C11c), and, for a roll whose window says a GM picked it, the newest pick
- *     card for this character no drawn roll has used yet (gm-bridge.mjs `settleCall`'s
- *     `ruling`, C11b), waited for a moment, as the card's meta can land after the answer; an
- *     armed Resolve's roll is the player's pick, and any statistic stands. Any other roll's
- *     statistic is not checked here: its action is the roller's word (E29);
+ *     `openingTrait`, C11c), and, for a roll whose statistic a GM picks (`pickDue`), the newest
+ *     pick card for this character no drawn roll has used yet (gm-bridge.mjs `settleCall`'s
+ *     `ruling`, C11b), waited for a moment, as the card's meta can land after the answer, and
+ *     flagged (`pick`) when there is none; an armed Resolve's roll is the player's pick, and any
+ *     statistic stands. Any other roll's statistic is not checked here: its action is the
+ *     roller's word (E29);
  *   - the flat modifier: the statistic's value off the character as this GM holds it, each
  *     experience's value - one, and only where an Experience Call bought it, since the module's
  *     window locks them otherwise and strips their Hope cost - the Calls' bonus, and
@@ -815,6 +913,36 @@ function traitKeyOf(trait) {
     return TRAIT_BY_DH[trait] ?? (Object.hasOwn(TRAITS, trait) ? trait : null);
 }
 
+/*
+ * WHOSE WORD SAYS A GM PICKED THE STATISTIC (E08+E28 fix r2-H8, 05.10.2026). Until this fix the
+ * GM looked for a pick card only where the roll window said a GM had picked (`TRAIT_BY_GM`),
+ * which is the packet's to say: at 33bc497's runtime (tier 2, "a crisis roll's statistic is held
+ * to the GM's pick whatever ..."), two crisis rolls of a Strike sent without it - one after a card
+ * picking Body, rolled with Eye; one with no card made for it - were held to nothing and flagged
+ * nothing. Now this GM
+ * reads the action's own definition, as the ruling reads it (trait-ruling.mjs `listedTraits`):
+ * a crisis action at the variant the character rolls here (murder.mjs `crisisVariant`), a project
+ * given no statistic, an action of the generic table - a pick is due where it lists several. The
+ * clean-up's step and road are not in the packet's context, so there a statistic one of its
+ * single-statistic roads rolls - Tamper's, or a Stage 6 action's own - asks no pick, and any
+ * other does: a clean-up rolled with one of those two is held to no pick (E29 reads the action).
+ */
+async function pickDue(actor, actionKey, context, said) {
+    const { listedTraits } = await import("./trait-ruling.mjs");
+    if (actionKey === "crisis") {
+        const { crisisVariant } = await import("./murder.mjs");
+        const key = context.crisis ?? null;
+        return listedTraits({ kind: "crisis", key, variant: crisisVariant(actor, key) }).length > 1;
+    }
+    if (actionKey === "project" || actionKey === "sabotage") return listedTraits({ kind: "project", key: projectNamed(actionKey, context) }).length > 1;
+    if (actionKey === "cleanup") {
+        const single = [...(ACTIONS.tamper?.traits ?? []).slice(0, 1),
+            ...Object.keys(CLEANUP.actions ?? {}).map(key => listedTraits({ kind: "cleanup", key })).filter(list => list.length === 1).flat()];
+        return listedTraits({ kind: "cleanup", key: "cleanup" }).length > 1 && !single.includes(said);
+    }
+    return listedTraits({ kind: "generic", key: actionKey }).length > 1;
+}
+
 /** The pick kind of a GM's statistic card (trait-ruling.mjs) an action's roll is held to. */
 function pickKindOf(actionKey) {
     if (actionKey === "crisis" || actionKey === "cleanup") return actionKey;
@@ -843,11 +971,11 @@ function gmPickOf(actor, kind) {
 
 /**
  * What this GM expects of a roll of `actor` for `actionKey` - see the note above. `applied` are
- * the Calls it applied (`appliedCalls`); `context`, `situational` and `byGm` the packet's word.
+ * the Calls it applied (`appliedCalls`); `context`, `situational` and `trait` the packet's word.
  * `trait` null where any statistic stands or none is known here; `traitFrom` says which.
  * Exported for the suite.
  */
-export async function expectedFor(actor, { actionKey = null, applied = [], context = {}, situational = 0, byGm = false } = {}) {
+export async function expectedFor(actor, { actionKey = null, applied = [], context = {}, situational = 0, trait = null } = {}) {
     const grants = applied.map(call => call?.grants);
     const out = { checked: !isMonokuma(actor), trait: null, traitFrom: null, pick: null, advantage: 0, situationFrom: "roller",
         bonus: 0, experiences: grants.includes("experience") ? 1 : 0, effects: effectRange(actor), stashDie: false };
@@ -877,14 +1005,15 @@ export async function expectedFor(actor, { actionKey = null, applied = [], conte
         const project = allProjects().find(p => p.id === id);
         if (project?.trait) Object.assign(out, { trait: traitKeyOf(project.trait), traitFrom: "project" });
     }
-    if (!out.trait && !out.traitFrom && byGm && actionKey !== "murderOpening") {
+    if (!out.trait && !out.traitFrom && actionKey !== "murderOpening" && await pickDue(actor, actionKey, context, traitKeyOf(trait))) {
         const kind = pickKindOf(actionKey);
         let found = gmPickOf(actor, kind);
         for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
             await new Promise(resolve => setTimeout(resolve, 100));
             found = gmPickOf(actor, kind);
         }
-        if (found?.trait) Object.assign(out, { trait: found.trait, traitFrom: "gm", pick: found.pick });
+        // A pick due and none made: `traitFrom` "gm" with no statistic, which `checkRoll` flags (`pick`).
+        Object.assign(out, found?.trait ? { trait: found.trait, traitFrom: "gm", pick: found.pick } : { traitFrom: "gm" });
     }
     const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
     const dice = grants.reduce((sum, g) => sum + (g === "advantage" ? 1 : g === "disadvantage" ? -1 : 0), 0)
@@ -922,8 +1051,9 @@ function advantageOf(roll) {
 
 /**
  * The roll against the expectation: `[{ kind, expected, claimed }]`, empty when nothing differs.
- * Kinds: `trait`, `modifier` (the flat sum), `dice` (a die beyond Hope, Fear and the advantage
- * die), `advantage`, `stash` (a hidden stash the packet did not name).
+ * Kinds: `trait`, `pick` (a statistic a GM was to pick, and no pick was made; fix r2-H8),
+ * `modifier` (the flat sum), `dice` (a die beyond Hope, Fear and the advantage die),
+ * `advantage`, `stash` (a hidden stash the packet did not name).
  */
 function checkRoll(roll, actor, told, expected) {
     const flags = [];
@@ -931,6 +1061,7 @@ function checkRoll(roll, actor, told, expected) {
     if (!expected.checked) return flags;
     const said = traitKeyOf(told.trait);
     if (expected.trait && said !== expected.trait) flags.push({ kind: "trait", expected: expected.trait, claimed: said ?? "-" });
+    if (expected.traitFrom === "gm" && !expected.trait) flags.push({ kind: "pick", expected: "1", claimed: "0" });
     const traitValue = Number(actor.system?.traits?.[TRAITS[said]?.dh ?? ""]?.value) || 0;
     const owned = told.experiences.filter(key => actor.system?.experiences?.[key]);
     const fromExperiences = owned.slice(0, expected.experiences)
@@ -953,6 +1084,7 @@ const signed = n => (n > 0 ? `+${n}` : String(n));
 /** The line each kind is said as - written out, so each key is a literal the lang check can find. */
 const FLAG_KINDS = Object.freeze({
     trait: "DRPG.Rolls.flagKind.trait",
+    pick: "DRPG.Rolls.flagKind.pick",
     modifier: "DRPG.Rolls.flagKind.modifier",
     dice: "DRPG.Rolls.flagKind.dice",
     advantage: "DRPG.Rolls.flagKind.advantage",

@@ -2951,6 +2951,7 @@
       "flagsTitle": "Drawn rolls with something the GM did not expect: {n}",
       "flagKind": {
         "trait": "statistic",
+        "pick": "statistic picked by a GM",
         "modifier": "modifier",
         "dice": "extra dice",
         "advantage": "advantage dice",

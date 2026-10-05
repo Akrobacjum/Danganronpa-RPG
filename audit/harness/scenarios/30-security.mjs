@@ -1820,6 +1820,48 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     if (fearCost.after.fear !== fearCost.before.fear) {
         await gm.eval(`await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, ${Number(fearCost.before.fear) || 0}); return true;`);
     }
+    /* A DRAWN ROLL IS THROWN ON THE GM'S TERMS (E08+E28 fix r2-H8, 05.10.2026). The GM threw the roll a packet wrote:
+       its dice's faces and keep, a critical its options guarantee, its kind and Daggerheart's steps it skips
+       (roll-draw.mjs `onGmTerms`), and any term at all (bridge-guards.mjs `guardDrawnRoll`). p1's console pays one of
+       Aiko's actions and asks a Search's draw of a roll it wrote: a Hope and a Fear die of one face, two Hope dice
+       kept high, a critical guaranteed, a reaction with its resource step, countdowns and triggers skipped. Read on the
+       GM: the newest record's dice (faces, how many thrown), its critical against its dice, and the kind and the skips
+       its message keeps. Then a draw naming no action whose roll adds `(10)`: refused, told, and nothing written.
+       At 33bc497's runtime the GM's record read dice [[1,2],[1,1]], a critical, a reaction and the three skips, and the
+       `(10)` draw was written (drawn messages 19 -> 20, records 22 -> 23). */
+    const termsFrom = await gm.eval(`return Date.now();`);
+    const readNewest = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const row = Object.values(S.rollStore?.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom})
+            .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))[0] ?? null;
+        const m = row ? game.messages.get(row.messageId) : null;
+        return row ? { dice: row.dice.map(d => [d.faces, d.results.length]), critical: row.isCritical, sameDice: row.hope === row.fear,
+            kind: m?.rolls?.[0]?.options?.actionType ?? null, skips: m?.rolls?.[0]?.options?.skips ?? null } : null;`;
+    const forgedDice = { ...unthrown, formula: "2d1kh + 1d1 + 0",
+        terms: [die("HopeDie", { number: 2, faces: 1, modifiers: ["kh"] }), unthrown.terms[1], die("FearDie", { faces: 1 }), ...unthrown.terms.slice(3)],
+        options: { ...unthrown.options, guaranteedCritical: true, actionType: "reaction", skips: { resources: true, updateCountdowns: true, triggers: true } } };
+    await p1.eval(`${payFor(ids.aiko)}
+        game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "gm-terms-draw", actorId: "${ids.aiko}", nonce: "SECDRAWNONCE",
+            actionKey: "search", claimed: true, loaded: null, costs: [], roll: ${JSON.stringify(forgedDice)} }, ${toGms});
+        return true;`);
+    let onGmTerms = null;
+    for (let i = 0; i < 60 && !onGmTerms; i++) {
+        onGmTerms = await gm.eval(readNewest);
+        if (!onGmTerms) await settle(100);
+    }
+    check("SECURITY: a console's roll.draw is thrown on the GM's dice and kind - d12s, one Hope die, a critical only of equal dice, an action with every step",
+        Boolean(onGmTerms) && JSON.stringify(onGmTerms.dice) === JSON.stringify([[12, 1], [12, 1]]) && onGmTerms.critical === onGmTerms.sameDice
+        && onGmTerms.kind === "action" && JSON.stringify(onGmTerms.skips) === "{}", JSON.stringify(onGmTerms), { flow: "gm-rolls-total" });
+    const parenthesis = await askedDraw("parenthesis-draw", { actionKey: null, costs: [],
+        roll: { ...unthrown, terms: [...unthrown.terms, unthrown.terms[1], { class: "ParentheticalTerm", term: "10", evaluated: false }] } });
+    check("SECURITY: a roll.draw holding a term that is neither a die, a number nor + or - is refused, and the GM writes no message and keeps no record",
+        JSON.stringify(parenthesis.after) === JSON.stringify(parenthesis.before)
+        && parenthesis.reasons.some(r => /holds a term no roll of this game is built of/.test(r)) && parenthesis.told === 1, JSON.stringify(parenthesis));
+    // The draws above are this check's alone: their records and messages go.
+    await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const ids = Object.entries(S.rollStore?.entries() ?? {}).filter(([, r]) => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom});
+        for (const [, r] of ids) await game.messages.get(r.messageId ?? "")?.delete();
+        if (ids.length) await S.rollStore.dropMany(ids.map(([id]) => id));
+        return true;`);
 
     phase("a trace the GM's Reroll meets", { flow: "reroll" });
     /*

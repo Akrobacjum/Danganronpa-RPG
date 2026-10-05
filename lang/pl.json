@@ -3063,6 +3063,7 @@
       "flagsTitle": "Wylosowane rzuty z czymś, czego GM się nie spodziewał: {n}",
       "flagKind": {
         "trait": "statystyka",
+        "pick": "statystyka wybrana przez GM-a",
         "modifier": "modyfikator",
         "dice": "dodatkowe kości",
         "advantage": "kości przewagi",

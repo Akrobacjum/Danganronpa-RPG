@@ -294,6 +294,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["cannotNow", /^that roll message is too old to report$/],
     // E08+E28 C12a: a roll sent for the GM to draw that is not one (guardDrawnRoll).
     ["badRequest", /^that is not a duality roll nobody has thrown$/],
+    // E08+E28 fix r2-H8: one with a term that is neither a die, a number nor + or - (guardDrawnRoll).
+    ["badRequest", /^that roll holds a term no roll of this game is built of$/],
     // E08+E28 C14: a result taken from the GMs' record of its roll (rollRefusal).
     ["rollUnknown", /^no roll the GM drew is named$/],
     ["rollNotYours", /^that roll is not the sender's character's$/],
@@ -858,9 +860,34 @@ export async function guardRollAuthor(sender, payload, ctx) {
  * (private-rolls.mjs `ROLL_NONCE`). The class is read as Foundry writes it, the constructor's
  * name: Daggerheart's own and the name of the class this client holds, in case a build renames
  * it. The bounds on its size are this guard's, not measured on a table's largest roll.
+ *
+ * AND IT IS BUILT OF DICE, NUMBERS AND SIGNS (E08+E28 fix r2-H8, 05.10.2026). Any other term (a
+ * parenthesis, a function, a string, a pool, a sign that is not + or -) was thrown as the
+ * packet wrote it, adding to the total what `checkRoll` neither counts nor flags (its flat
+ * sum reads numbers alone), so it escaped the promise that a modifier outside the GM's record is
+ * at least flagged. At 33bc497's runtime (tier 2, "a drawn roll holding a term that is neither
+ * ...") a `(10)`, an `abs(10)`, a `*` by 10 and an advantage die of twenty faces seventh were each
+ * drawn and recorded, and in 30-security a console's `(10)` was written (the GM's drawn messages
+ * 19 -> 20, its records 22 -> 23). Refused rather than counted: the
+ * roll window builds none for a drawn roll - Daggerheart's modifiers are numbers (dhRoll.mjs
+ * `formatModifier`, `getBonus`; d20Roll.mjs's experiences, read in 2.10.5) and a student's extra
+ * formula is locked but for a Meddle's signed number (roll-dialog.mjs `lockBonus`) - and counting
+ * one would mean the GM evaluating a formula the packet wrote, whose dice inside it are the
+ * packet's. Daggerheart's own dice only where `fromData` reads them (dualityRoll.mjs:122-129) -
+ * the Hope die first, the Fear die third, an advantage or disadvantage die fifth - since a throw
+ * reads its advantage die as the third die it holds (`dAdvantage`), and the GM writes those dice
+ * itself (roll-draw.mjs `onGmTerms`); any other die is a whole number of dice of a whole number
+ * of faces.
  */
 const DRAWN_TERMS_MAX = 64;
 const DRAWN_FORMULA_MAX = 512;
+/** The dice a drawn roll may hold, and where Daggerheart's own may stand. */
+const DRAWN_DICE = Object.freeze({ Die: null, HopeDie: 0, FearDie: 2, AdvantageDie: 4, DisadvantageDie: 4 });
+const drawnTermFits = (term, i) => (Object.hasOwn(DRAWN_DICE, term?.class)
+    ? (DRAWN_DICE[term.class] === null || DRAWN_DICE[term.class] === i) && Number.isInteger(term.number) && term.number > 0
+        && Number.isInteger(term.faces) && term.faces > 0
+    : term?.class === "NumericTerm" ? Number.isFinite(term.number)
+        : term?.class === "OperatorTerm" && (term.operator === "+" || term.operator === "-"));
 export async function guardDrawnRoll(sender, payload, ctx) {
     const { ROLL_NONCE } = await import("./private-rolls.mjs");
     const roll = payload?.roll;
@@ -871,6 +898,7 @@ export async function guardDrawnRoll(sender, payload, ctx) {
         && typeof roll.formula === "string" && roll.formula.length <= DRAWN_FORMULA_MAX
         && !terms.some(term => Array.isArray(term?.results) && term.results.length)
         && typeof payload.nonce === "string" && payload.nonce.length > 0 && roll.options?.[ROLL_NONCE] === payload.nonce;
+    if (fits && !terms.every(drawnTermFits)) return "that roll holds a term no roll of this game is built of";
     return fits ? null : "that is not a duality roll nobody has thrown";
 }
 

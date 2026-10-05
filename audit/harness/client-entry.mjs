@@ -487,9 +487,14 @@ class DualityRollMock extends RollImpl {
      * actions and reload. The message is the harness's as before C10 (`toMessage` below).
      */
     static JSON_CLASS = "DualityRoll";
+    /* A critical the options guarantee, as Daggerheart's constructor takes it (dualityRoll.mjs:13,
+       2.10.5, re-read 05.10.2026 for E08+E28 fix r2-H8): a critical whatever the dice, with neither
+       Hope nor Fear (:89-101). Until then the mock read the dice alone, so a roll whose options
+       named one could not be told from any other here. */
     constructor(formula, data = {}, options = {}) {
         super(formula, data, options);
         this.createBaseDice();
+        this.guaranteedCritical = options?.guaranteedCritical;
     }
     get advantageNumber() { return this._adv ?? 1; }
     set advantageNumber(v) { this._adv = v; }
@@ -507,9 +512,12 @@ class DualityRollMock extends RollImpl {
     }
     get dHope() { return this.dice[0]; }
     get dFear() { return this.dice[1]; }
-    get isCritical() { return Boolean(this.dHope?._evaluated && this.dFear?._evaluated) && this.dHope.total === this.dFear.total; }
-    get withHope() { return this._evaluated && this.dHope.total > this.dFear.total; }
-    get withFear() { return this._evaluated && this.dHope.total < this.dFear.total; }
+    get isCritical() {
+        if (this.guaranteedCritical) return true;
+        return Boolean(this.dHope?._evaluated && this.dFear?._evaluated) && this.dHope.total === this.dFear.total;
+    }
+    get withHope() { return this._evaluated && !this.guaranteedCritical && this.dHope.total > this.dFear.total; }
+    get withFear() { return this._evaluated && !this.guaranteedCritical && this.dHope.total < this.dFear.total; }
 
     static getHooks(hooks) { return [...(hooks ?? []), "Duality"]; }
     /* Daggerheart's dialog stands in as pressed at once, unchanged: the window is not in the

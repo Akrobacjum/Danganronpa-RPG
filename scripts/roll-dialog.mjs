@@ -288,7 +288,12 @@ function forceReaction(root, app) {
     if (!isStudentRoll(actor)) return;
     // An action declared it. Leave the chip alone - a player may legitimately
     // want a reaction roll for an action in some corner the guide has not
-    // reached, and this is not the place to decide they cannot.
+    // reached, and this is not the place to decide they cannot. Where the GM
+    // draws the roll it is decided there instead: an action's roll, and the
+    // module's, is thrown as an action whatever the chip says, and a statistic
+    // from the sheet as a reaction even when this window was skipped
+    // (roll-draw.mjs `onGmTerms`, E08+E28 fix r2-H8). The chip still decides
+    // on a Daggerheart build the draw was not written for.
     if (app?.config?.[DRPG_ACTION_ROLL]) return;
 
     // The dialog's own state, set the way its own handler sets it. Not through

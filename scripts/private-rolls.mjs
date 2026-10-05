@@ -1085,7 +1085,9 @@ export const ROLL_ACTIONS = table({
      * - and sends it unevaluated (roll-draw.mjs `drawnBuild`); the GM throws it, writes its
      * message, settles its Hope, Stress and Fear, records it (`rollStore`) and answers with the
      * faces it drew. The roll is the sender's own character's (`owns`) and a duality roll
-     * nobody has thrown, carrying the claim's nonce (`guardDrawnRoll`). What the roll adds up
+     * nobody has thrown, carrying the claim's nonce and built of dice, numbers and + or -
+     * (`guardDrawnRoll`); its dice, its critical and its kind are the GM's (roll-draw.mjs
+     * `onGmTerms`, fix r2-H8). What the roll adds up
      * to beyond its dice is observed from C12b on, not refused (D2's allowance for 1.2.67):
      * the statistic, the experiences, the Calls and the stash the packet names are the
      * roller's word, held against what the GM knows (roll-draw.mjs `expectedFor`). What it

@@ -225,11 +225,17 @@ statistic clicked on the sheet, thrown while a GM is connected, are drawn on the
 primary GM's browser (`roll-draw.mjs`): the dice are the GM's, the resolutions
 the GM runs read their result off the GMs' record of the roll (the store
 `rolls`), and only the GM's own Reroll takes a result back. So a player can no
-longer lie about the dice of those rolls. A roll is drawn for an action its
+longer lie about the dice of those rolls: the GM throws the Hope and Fear dice
+and the advantage die at the faces the character's rules give, a critical only
+as the dice or the character's own effects make one, the roll's kind (an
+action's roll an action, a student's statistic from the sheet a reaction) and
+every one of Daggerheart's steps, and refuses a roll built of anything but dice,
+numbers and + or -. A roll is drawn for an action its
 character is taking - one whose payment the GM saw the player make, the crisis
 turn, the opening - and once; a resolution takes only the newest roll of its
 action, and a roll's window costs nothing but its experiences' Hope. What a roll adds to
-its dice - the statistic, the experiences, the bonus, the advantage dice - is
+its dice - the statistic, the experiences, the bonus, how many advantage dice,
+a die beyond those - is
 still configured in the roller's browser: one outside the GM's record is flagged
 (`game.drpg.rollFlags()`, a whisper to the GMs), not refused, until E29.
 
@@ -246,7 +252,9 @@ no module roll needs any more and which E29 may refuse; `relay-guard.mjs` lists
 the rest. A player's own action budget is the owner's to write as well, so a
 console that hands itself back the action it paid for has paid, as far as the GM
 can see; so is a Hope Call's price, and a Call's progress, added once for each
-payment of it the GM saw, is paid on the roller's browser. A trace an action
+payment of it the GM saw, is paid on the roller's browser. So is a Call a player
+arms on their own character: a drawn roll that names one is thrown with it - a
+Loaded Die's 12 included - until E29 has those Calls bought on the GM. A trace an action
 leaves is placed at the roller's browser's request: the GM holds a Search's,
 Sabotage's or Dynamic action's to the band its drawn roll reaches, but a console
 that asks for none leaves no trace at all, and a Work's trace on an indirect
