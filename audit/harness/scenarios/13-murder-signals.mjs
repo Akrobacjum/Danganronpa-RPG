@@ -42,6 +42,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     for (const c of [p1, p2, p3].filter(Boolean)) {
         await c.eval(`globalThis.__dialogAuto = false; return true;`);
     }
+    /* Every document the bystander's browser is sent while its world half says an incident runs, and its
+       author as Foundry stamped it - read at the end (E08+E28 fix r2-H5). */
+    await p2.eval(`globalThis.__incidentDocs = [];
+        Hooks.on("createChatMessage", m => { if (game.settings.get("${MOD}", "murderState")?.active) globalThis.__incidentDocs.push({ id: m.id, author: m._source?.author ?? null }); });
+        return true;`);
 
     const ids = await gm.eval(`return {
         chie: game.actors.getName("Chie Mori").id,
@@ -738,6 +743,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         bought.broke === "Suite tool a bystander breaks" && clean(["drunk", "broke"])
         && useSeen.p2.held.drunk && useSeen.p2.held.broke && [useSeen.p1, useSeen.p3].every(r => !r.held.drunk && !r.held.broke),
         JSON.stringify({ bought, cardIds, useSeen }));
+    /* A WORD TO THE GM IN THE FIGHT (E08+E28 fix r2-H5, 05.10.2026; review S2-3). The killer's player writes in
+       the messenger; while an incident runs the primary GM posts it at the player's asking (secret.mjs `askGm`), as
+       every private card of a player's then is, and the messenger reads its writer where it read its author
+       (`cardWriter`): it is unread for the GMs and not for the player who wrote it. Red at b9c9629's runtime for the
+       author (p3's). */
+    const UNREAD = `return (await import("${repoUrl}/scripts/messenger.mjs")).unreadCount("${p3.userId}");`;
+    const unreadBefore = { gm: await gm.eval(UNREAD), killer: await p3.eval(UNREAD) };
+    const word = await p3.eval(`const M = await import("${repoUrl}/scripts/messenger.mjs");
+        const m = await M.sendMessage("${p3.userId}", "Suite r2-H5: a word to the GM in the fight");
+        return m ? { id: m.id, author: m.toObject().author ?? null } : null;`, { timeout: 60000 });
+    await settle(900);
+    const unreadAfter = { gm: await gm.eval(UNREAD), killer: await p3.eval(UNREAD) };
+    check("fight: a message the killer's player writes to the GM is posted by the GM, unread for the GMs and not for its writer",
+        Boolean(word?.id) && word.author === gm.userId && unreadAfter.gm === unreadBefore.gm + 1 && unreadAfter.killer === unreadBefore.killer,
+        JSON.stringify({ word, unreadBefore, unreadAfter }), { flow: "messenger" });
 
     const FORCED = on => `const { SETTINGS } = await import("${repoUrl}/scripts/settings.mjs"); await game.settings.set("${MOD}", SETTINGS.forcePrivateRolls, ${on}); return true;`;
     await gm.eval(FORCED(false));
@@ -1394,4 +1414,21 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         if (C.isDeadForGm(aiko)) await C.reviveCharacter(aiko, { quiet: true });
         return true;`, { timeout: 60000 });
     await settle(700);
+
+    /* NO DOCUMENT OF A RUNNING INCIDENT IS WRITTEN BY A PLAYER (E08+E28 fix r2-H5, 05.10.2026; review S2-3; E06's Q2).
+       Foundry stamps a message's author on the server - the user whose browser created it - and every browser holds
+       it. Since C12a a player's roll is the GM's message, so the author of a card a player's browser posted after it
+       - an item used in the fight, Stage 6's concealment card after the killer's roll - was the one field that said
+       who had just acted. While an incident runs a player's browser asks the primary GM to post its private cards
+       (secret.mjs `askGm`). Read on p2, the first fight's bystander (Botan walks into the second, and is the
+       accomplice of the last): every document its browser was sent while an incident ran, by author. The cards the
+       players' browsers asked for in the first fight are among them - the tool snapped on p3's, the item used on
+       p1's, the kit drunk and the tool broken on p2's own - so the check is red for an author, not for cards that
+       were never posted. */
+    const incidentDocs = await p2.eval(`return globalThis.__incidentDocs ?? [];`);
+    const playersAsked = [...broke.ids, cardIds.used, cardIds.drunk, cardIds.broke].filter(Boolean);
+    const byPlayers = incidentDocs.filter(d => [p1.userId, p2.userId, p3.userId].includes(d.author));
+    check("the bystander's browser holds no document of a running incident written by a player - the cards the fight's players asked for are the GM's",
+        playersAsked.length === 4 && playersAsked.every(id => incidentDocs.some(d => d.id === id)) && byPlayers.length === 0,
+        JSON.stringify({ held: incidentDocs.length, playersAsked, byPlayers: byPlayers.slice(0, 12) }), { flow: "murder-incident" });
 }

@@ -2558,6 +2558,7 @@
         "roll.bookmark": "Co zrobił rzut, zapisane na Reroll",
         "roll.draw": "Rzut do wykonania przez GM-a",
         "reroll.ask": "Reroll",
+        "card.post": "Karta do wystawienia przez GM-a",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu"

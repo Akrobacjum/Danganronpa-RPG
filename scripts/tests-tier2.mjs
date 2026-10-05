@@ -5290,6 +5290,77 @@ const SCENARIOS = [
         }
     }],
 
+    ["a private card a player asks the GM to post in an incident is the GM's, and carries no more than the player's own could", async () => {
+        /*
+         * E08+E28 fix r2-H5, 05.10.2026; review S2-3. While an incident runs a player's browser asks
+         * the primary GM to post its private cards (secret.mjs `askGm`), so that no document of the
+         * incident names the player as its author, and the GM posts what the player could have posted
+         * and nothing more (`postAsked`). Judged here as the primary's listener judges `card.post` from
+         * a player, with the world half saying an incident runs: a card speaking as the player's
+         * character to them and the GMs, whose words carry an `onerror`, and whose flags ask the GMs
+         * for a notice, a ruling's buttons and the safeword's siren, name the GM as the one who asked
+         * and put it in a thread that is not the player's. Read: the verdict and the answer, the
+         * document (author, speaker, whisper list, module flags, rolls), what this GM holds of it
+         * (words, meta), its writer (`cardWriter`) and the sound it asks of the GMs (sfx.mjs
+         * `soundFromMessage`, which a GM's card may ring and a player's may not). Then three packets that must be refused with nothing posted: a card speaking
+         * as a character the player does not own, one read by a user who is not of this world, one
+         * heavier than a player's words may be. That a player's browser asks at all is
+         * 13-murder-signals' (the bystander holds no document of a running incident a player wrote).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the card is asked by a player, and Foundry names only a connected one");
+        const G = await import("./bridge-guards.mjs");
+        const S = await import("./secret.mjs");
+        const { soundFromMessage } = await import("./sfx.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "no character the player does not own - the refused speaker would measure nothing");
+        // Put back by tier 2's restore, as every murder test's state is.
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident" });
+        const sent = [], made = [];
+        const before = new Set(game.messages.contents.map(m => m.id));
+        const ask = fields => G.judge(BRIDGE_ACTIONS, {
+            action: "card.post", requestId: `suite-r2h5-${foundry.utils.randomID(8)}`,
+            content: '<p>Suite r2-H5 kit used<img src="x" onerror="globalThis.__suiteR2h5 = 1"></p>',
+            whisper: [player.id, ...gmIds()], speaker: { actor: theirs.id, alias: "Suite r2-H5 alias" }, veiled: false,
+            flags: { drpgMessage: true, popupTone: "hope", popupForce: true, callCard: true, sfx: { key: "safeword", gm: true },
+                askedBy: game.user.id, thread: game.user.id },
+            ...fields
+        }, player.id, { send: (to, reply) => sent.push([reply?.action ?? null, reply?.reason ?? null, reply?.value?.id ?? null]) });
+        try {
+            const verdict = await ask({});
+            const id = sent.find(([action]) => action === "bridge.done")?.[2] ?? null;
+            const m = id ? game.messages.get(id) : null;
+            if (m) made.push(m.id);
+            must(m, `the GM posted no card for the player (${stableJson(sent)}) - this measured nothing`);
+            const doc = m.toObject();
+            const words = String(S.secretHtml(m) ?? "");
+            equal(stableJson([verdict, doc.author ?? null, doc.speaker?.actor ?? null, doc.speaker?.alias ?? null, (doc.whisper ?? []).length,
+                Object.keys(doc.flags?.[MODULE_ID] ?? {}).sort(), (doc.rolls ?? []).length]),
+            stableJson([true, game.user.id, null, game.i18n.localize("DRPG.Secret.speaker"), game.users.size, ["drpgMessage", "secret", "veiled"], 0]),
+                "the card a player asked for is not the GM's, or its document names somebody (verdict, author, speaker actor, alias, readers, module flags, rolls)");
+            equal(stableJson([words.includes("Suite r2-H5 kit used"), /onerror/i.test(words),
+                ["popupTone", "popupForce", "callCard", "thread"].map(key => S.cardFlag(m, key) ?? null), S.cardFlag(m, "askedBy") ?? null, S.cardWriter(m)?.id ?? null,
+                soundFromMessage(m)]),
+            stableJson([true, false, ["hope", null, null, null], player.id, player.id, null]),
+                "the GM's copy of a player's card is not cleaned, keeps what only the GMs may ask, does not say the player wrote it, or rings a GM's sound (words, onerror, meta, who asked, writer, sound)");
+
+            sent.length = 0;
+            const refused = [
+                await ask({ speaker: { actor: other.id } }),
+                await ask({ whisper: [player.id, "suiteNobody00000"] }),
+                await ask({ content: `<p>${"x".repeat(33 * 1024)}</p>` })
+            ];
+            const fresh = game.messages.contents.filter(m => !before.has(m.id) && !made.includes(m.id)).map(m => m.id);
+            made.push(...fresh);
+            equal(stableJson([refused, sent.filter(([action]) => action === "bridge.refused").map(([, reason]) => reason), fresh.length]),
+                stableJson([[null, null, null], ["notYours", "badRequest", "badRequest"], 0]),
+                "a card speaking as another's character, read by a stranger or too heavy is posted, or refused for another reason (verdicts, reasons, cards made)");
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+        }
+    }],
+
     ["the GM's bookmark of a player's Search names the trace it placed", async () => {
         /*
          * E08+E28 C2, 03.10.2026; audit S05-08. A player's trace is placed by the GM

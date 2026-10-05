@@ -46,7 +46,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
-import { postSecret, cardFlag, isVeiled, secretHtml, wordsOf } from "./secret.mjs";
+import { postSecret, cardFlag, cardWriter, isVeiled, secretHtml, wordsOf } from "./secret.mjs";
 
 /**
  * Whether this browser hears the messenger at all.
@@ -158,7 +158,7 @@ export async function markThreadRead(playerUserId) {
 export function unreadCount(playerUserId) {
     const since = lastReadAt(playerUserId);
     return threadMessages(playerUserId)
-        .filter(m => m.timestamp > since && (m.author?.id ?? m.user?.id) !== game.user.id)
+        .filter(m => m.timestamp > since && cardWriter(m)?.id !== game.user.id)
         .length;
 }
 
@@ -299,7 +299,8 @@ async function onCreateChatMessage(message) {
         return;
     }
 
-    const authorId = message.author?.id ?? message.user?.id;
+    // Its writer: in an incident a GM posts a player's message for them (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
+    const authorId = cardWriter(message)?.id;
     if (authorId === game.user.id) return; // do not ping yourself
 
     // Was a hard-coded chime. It is a mapped event now, and NOT a mapped event

@@ -69,7 +69,7 @@ import { ownsActor, guardRelayOwner, guardRelayActor, guardRelayRoom, judge, tab
 // into this file through dynamic imports, which is not a cycle.
 import { allProjects, secretsOf, patchTrigger } from "./projects.mjs";
 import { newItemIdentity } from "./inventory.mjs";
-import { cardFlag, wordsOf, SECRET_FLAG } from "./secret.mjs";
+import { cardFlag, cardWriter, wordsOf, SECRET_FLAG } from "./secret.mjs";
 
 /* ==========================================================================
  * THE ARMED MAP - trap 157
@@ -953,9 +953,11 @@ async function onChatMessage(message) {
 
         const actor = game.actors.get(used.actorId ?? "")
             ?? game.actors.get(message.speaker?.actor ?? "");
-        const why = usedItemRefusal({ author: message.author, actor, used, trap, owns: ownsActor });
+        // Its writer, not its author: in an incident the GM posts a player's card for them (E08+E28 fix r2-H5).
+        const writer = cardWriter(message);
+        const why = usedItemRefusal({ author: writer, actor, used, trap, owns: ownsActor });
         if (why) {
-            warn(`A "used an item" card from ${message.author?.name ?? "?"} did not set off ${trap.name}: ${why}.`);
+            warn(`A "used an item" card from ${writer?.name ?? "?"} did not set off ${trap.name}: ${why}.`);
             return;
         }
         if (!passesModifiers(trap, actor)) return;

@@ -44,11 +44,13 @@
  * is posted so, whoever posts it (`incidentVeils`). What a veiled card still
  * tells a reader of the database is that a private card was posted at that
  * moment by that user - the author is the one field Foundry stamps
- * server-side. A card a player's browser posts - among an incident's, a Loaded
- * Die's notice, a tool worn in the fight, an item used, a Call's receipt,
- * Stage 6's reshape card - carries that player as its author, veiled or not,
- * and the owner's answer Q2 (a) of 27.09.2026 leaves the author as it is until
- * E28. The GM handbook's section 1 lists what the chat still says.
+ * server-side. So while an incident runs a player's browser posts no private
+ * card itself: it asks the primary GM to (`askGm`, E08+E28 fix r2-H5), and the
+ * card's author is that GM - a Loaded Die's notice, a tool worn in the fight,
+ * an item used, a Call's receipt, Stage 6's concealment and reshape cards
+ * among them. Outside an incident a card a player's browser posts carries that
+ * player as its author, veiled or not. The GM handbook's section 1 lists what
+ * the chat still says.
  *
  * WHAT IT COSTS. A GM who was not connected when a secret was posted will never
  * see that sentence: there is no server-side copy to catch up from. Before this,
@@ -194,6 +196,8 @@ export function plainSummary(raw) {
 const DOCUMENT_FLAGS = Object.freeze([SECRET_FLAG, VEILED_FLAG, MESSAGE_FLAG]);
 /** The messenger's (messenger.mjs `MESSENGER_FLAGS`): on an ordinary thread card's document, in a veiled one's meta. */
 const PLACEMENT_FLAGS = Object.freeze(["thread", "kind", "gmAsk"]);
+/** The meta of a card a GM posted at a player's asking (`postAsked`): that player's id. Read through `cardWriter`. */
+const ASKED_BY = "askedBy";
 /**
  * What a player's meta may not say, judged where it arrives as a player's summary is: a
  * card that interrupts the GMs (`gmPopup`, `popupForce`) or carries a ruling's buttons
@@ -203,8 +207,9 @@ const PLACEMENT_FLAGS = Object.freeze(["thread", "kind", "gmAsk"]);
  * (E06 fix r1-G5, 28.09.2026; the round-1 review's m3 - sfx.mjs reads it off the
  * document now as well). Nor what a GM ruled on a card (`ruling`, gm-bridge.mjs
  * `settleCall`, E32+E07 C11b): the record of a statistic the GM picked is the GM's to write.
+ * Nor who asked a GM to post a card (`ASKED_BY`): that is the GM's to say (E08+E28 fix r2-H5).
  */
-const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling"]);
+const GM_META = Object.freeze(["gmPopup", "popupForce", "callCard", "safeword", "ruling", ASKED_BY]);
 
 /** A card's meta as a plain object without the document's own flags, or null. Pure. */
 function plainMeta(raw) {
@@ -272,6 +277,11 @@ export function veilOldCard(message) {
 
 /** How much a player's packet weighs: its words and its meta, against `MAX_PLAYER_BYTES`. */
 const packetBytes = (html, meta) => new Blob([String(html ?? ""), meta ? JSON.stringify(meta) : ""]).size;
+
+/** A card a player asked a GM to post (gm-bridge.mjs `card.post`) weighs more than a player's own words may. */
+export function cardTooLong(content, flags) {
+    return packetBytes(content, plainMeta(flags)) > MAX_PLAYER_BYTES;
+}
 
 /*
  * THE GMS' PROSE STAYS THEIRS (E06 C7b, 27.09.2026; audit L17, S11-05). A ruling card
@@ -348,13 +358,14 @@ export function wordsFor(userId, html) {
 
 /**
  * A card's packet to the other readers, each sent the words `wordsFor` cuts for them -
- * one packet to every reader whose words are the same.
+ * one packet to every reader whose words are the same. `clean`: each copy cleaned as it is
+ * cut, for a card a player asked a GM to post (`postAsked`).
  */
-function sendWords(readers, packet) {
+function sendWords(readers, packet, { clean = false } = {}) {
     const html = String(packet.html ?? "");
     const byWords = new Map();
     for (const id of readers) {
-        const words = wordsFor(id, html);
+        const words = clean ? sanitize(wordsFor(id, html)) : wordsFor(id, html);
         byWords.set(words, [...(byWords.get(words) ?? []), id]);
     }
     for (const [words, recipients] of byWords) {
@@ -465,6 +476,23 @@ export function cardFlag(message, key) {
     const entry = read()[message.id];
     if (!entry || (entry.user && entry.user !== game.user?.id)) return own;
     return entry.meta?.[key] ?? own;
+}
+
+/**
+ * WHO WROTE A CARD (E08+E28 fix r2-H5, 05.10.2026; review S2-3). Its author, as Foundry
+ * stamped it - but a card a GM posted at a player's asking while an incident ran
+ * (`postAsked`) has that GM for its author, and the player in the meta its readers hold
+ * (`ASKED_BY`). A reader asking whether a card is a GM's own (its sound, its notice, the
+ * away card's buttons) or whose it is (a messenger's bubble, a trap's "used an item", the
+ * card a Reroll replaced) asks here rather than of `message.author`, so that the GM's name
+ * on such a card gives it nothing a player's own card would not have. A browser that holds
+ * none of the card's words knows only its author.
+ */
+export function cardWriter(message) {
+    const author = message?.author ?? message?.user ?? null;
+    if (!author?.isGM) return author;
+    const asked = cardFlag(message, ASKED_BY);
+    return (typeof asked === "string" && game.users?.get(asked)) || author;
 }
 
 /**
@@ -624,17 +652,23 @@ async function forget(ids = []) {
  * participant's are, and the flag says only that an incident was running, which the table
  * knows. A card to the GMs alone that speaks as no character names nobody else and stays as
  * it is - a ruling card with no thread among them, which `settleCall` rewrites for every GM
- * (`readersOf`; a veiled one only on the browser that settles it). The author stays (Q2 (a)).
+ * (`readersOf`; a veiled one only on the browser that settles it). Its author is a GM's since
+ * E08+E28 fix r2-H5: a player's browser asks the primary GM to post it (`askGm`).
  * Pure but for the setting and the users it reads.
  */
 function incidentVeils({ speaker = null, whisper = [] } = {}) {
+    if (!incidentRuns()) return false;
+    if (speaker?.actor || speaker?.token) return true;
+    return (whisper ?? []).some(id => !game.users?.get(id)?.isGM);
+}
+
+/** An incident is running, as every browser's world half says (murder.mjs `PUBLIC_INCIDENT`). */
+function incidentRuns() {
     try {
-        if (!getSetting(SETTINGS.murderState)?.active) return false;
+        return Boolean(getSetting(SETTINGS.murderState)?.active);
     } catch {
         return false;
     }
-    if (speaker?.actor || speaker?.token) return true;
-    return (whisper ?? []).some(id => !game.users?.get(id)?.isGM);
 }
 
 /**
@@ -658,6 +692,14 @@ function incidentVeils({ speaker = null, whisper = [] } = {}) {
  * @returns {Promise<ChatMessage|null>}
  */
 export async function postSecret(data = {}) {
+    return post(data);
+}
+
+/**
+ * `postSecret`, and `postAsked`'s card with `clean`: each reader's copy of the words is
+ * cleaned as it is cut (`sanitize`), since its readers keep a GM's words as written.
+ */
+async function post(data, { clean = false } = {}) {
     const { veiled: asked = false, summary: rawSummary = null, ...rest } = data ?? {};
     const veiled = Boolean(asked) || incidentVeils(rest);
     const summary = plainSummary(rawSummary);
@@ -679,6 +721,7 @@ export async function postSecret(data = {}) {
         ui.notifications?.warn(game.i18n.format("DRPG.Secret.tooLong", { kb: MAX_PLAYER_BYTES / 1024 }));
         return null;
     }
+    if (!game.user.isGM && incidentRuns()) return askGm({ ...rest, whisper: recipients, veiled: Boolean(asked), summary: rawSummary });
     const message = await ChatMessage.create({
         ...rest,
         ...(veiled ? { speaker: { alias: game.i18n.localize("DRPG.Secret.speaker") } } : {}),
@@ -695,7 +738,8 @@ export async function postSecret(data = {}) {
     // recipient of should never be waiting on their own network round trip to
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
-        await remember(message.id, wordsFor(game.user.id, html), at, pin, game.user.isGM, summary, meta);
+        const own = wordsFor(game.user.id, html);
+        await remember(message.id, clean ? sanitize(own) : own, at, pin, game.user.isGM, summary, meta);
         refresh(message);
     }
 
@@ -703,7 +747,8 @@ export async function postSecret(data = {}) {
     if (others.length) {
         try {
             sendWords(others,
-                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(summary ? { summary } : {}), ...(meta ? { meta } : {}) });
+                { action: ACTION_SECRET, id: message.id, html, at, pin, ...(summary ? { summary } : {}), ...(meta ? { meta } : {}) },
+                { clean });
         } catch (err) {
             // The card exists and says nothing. Better than the reverse.
             error("Could not deliver a private card's words", err);
@@ -711,6 +756,73 @@ export async function postSecret(data = {}) {
     }
 
     return message;
+}
+
+/*
+ * A PLAYER'S CARD IN AN INCIDENT IS POSTED BY THE PRIMARY GM (E08+E28 fix r2-H5, 05.10.2026;
+ * review S2-3; E06's option (b) of its Q2). Foundry stamps a message's author on the server -
+ * the user whose browser created it - and every browser holds it. E06 veiled an incident's
+ * cards (a neutral speaker, the whole table addressed) and left the author to E28 (the owner's
+ * Q2 (a)), whose draw made a GM the author of every roll of a player's (C12a, C13): so the
+ * author of the card a player's browser posted after such a roll - Stage 6's concealment card
+ * after the killer's, an item used in the fight - was the one field on every browser that
+ * said who had just acted. Measured with 13-murder-signals at b9c9629's runtime: of the 73
+ * documents the bystander's browser was sent while an incident ran, seven were written by the
+ * three players - an item used, a kit drunk, two tools broken on a Despair, a Hope Call's card
+ * twice, a word to the GM in the messenger.
+ *
+ * So while an incident runs, a player's browser posts no private card itself: it asks the
+ * primary GM (`card.post`, gm-bridge.mjs), who posts it as its author (`postAsked`) and answers
+ * its id, and this browser waits for the document and, when it reads the card, its words - what
+ * follows the card finds both, as it did. Asked of every player, in the cast or not, as the
+ * veil is. Nothing is posted with no GM connected - the player is told (the bridge's `noGm`),
+ * and no GM would have read the words either - nor on a refusal, which the bridge tells, nor
+ * when no answer comes. A card with no whisper list is public and is not this file's
+ * (utils.mjs `privately`).
+ */
+async function askGm(card) {
+    const { requestCardPost } = await import("./gm-bridge.mjs");
+    const actorId = card.speaker?.actor;
+    const own = card.flags?.[MODULE_ID];
+    const res = await requestCardPost({
+        content: String(card.content ?? ""), whisper: card.whisper, veiled: card.veiled,
+        speaker: typeof actorId === "string" && actorId ? { actor: actorId } : null,
+        flags: own && typeof own === "object" ? own : null,
+        summary: card.summary ?? null
+    });
+    const id = res.ok ? res.value?.id : null;
+    if (typeof id !== "string") return null;
+    const message = game.messages.get(id) ?? await messageArrives(id);
+    if (message && card.whisper.includes(game.user.id)) await wordsOf(message);
+    return message;
+}
+
+/**
+ * The card a player's browser asked this GM to post (`askGm`; gm-bridge.mjs `card.post`, whose
+ * guards hold its speaker to a character the sender owns and its readers to users of this
+ * world, and whose run its weight to a player's words'). Posted as `postSecret` posts a card,
+ * with this GM as its author, and carrying what the player's own card could and nothing more:
+ * each reader's copy of its words cleaned as it is cut (a player's words are cleaned where they
+ * arrive; a GM's are kept as written); its meta without what only the module asks of the GMs
+ * (`GM_META`), a thread only the sender's own (`pinned`'s rule for a player's words), its facts
+ * only of a character the sender owns (the rule `secret.card` applies), no rolls; and who
+ * asked, for its readers (`cardWriter`). Null when nothing was posted.
+ */
+export async function postAsked(sender, { content, whisper, speaker, flags, summary, veiled } = {}) {
+    const given = flags && typeof flags === "object" && !Array.isArray(flags) ? flags : {};
+    const own = Object.fromEntries(Object.entries(given).filter(([key]) => !GM_META.includes(key) && !DOCUMENT_FLAGS.includes(key)
+        && (!PLACEMENT_FLAGS.includes(key) || given.thread === sender.id)));
+    const facts = plainSummary(summary);
+    const actor = game.actors.get(typeof speaker?.actor === "string" ? speaker.actor : "");
+    return post({
+        content: String(content ?? ""),
+        whisper: Array.isArray(whisper) ? whisper : [],
+        ...(actor ? { speaker: ChatMessage.getSpeaker({ actor }) } : {}),
+        rolls: [],
+        veiled: veiled === true,
+        summary: facts && (!facts.actorId || ownsActor(sender, facts.actorId)) ? facts : null,
+        flags: { [MODULE_ID]: { ...own, ...(given[MESSAGE_FLAG] === true ? { [MESSAGE_FLAG]: true } : {}), [ASKED_BY]: sender.id } }
+    }, { clean: true });
 }
 
 /**

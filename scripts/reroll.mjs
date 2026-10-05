@@ -668,7 +668,7 @@ async function keepRerolledRow(actor, row, patch, after, message) {
 async function markReplacedCard(row, before, after) {
     const card = game.messages.get(row.reportMessageId ?? "") ?? null;
     if (!card) return;
-    const { cardFlag, secretHtml, updateSecret, isVeiled, SECRET_FLAG } = await import("./secret.mjs");
+    const { cardFlag, cardWriter, secretHtml, updateSecret, isVeiled, SECRET_FLAG } = await import("./secret.mjs");
     const held = cardFlag(card, "rerolled") ?? null;
     const rerolled = { from: held?.from ?? before.total ?? null, to: after.total ?? null, tone: rollTone(after), at: Date.now() };
     try {
@@ -681,7 +681,8 @@ async function markReplacedCard(row, before, after) {
             log(`The card a Reroll replaced (${card.id}) is not marked: this GM holds none of its words.`);
             return;
         }
-        const author = card.author?.id ?? card.user?.id ?? null;
+        // Its writer: a card the GM posted at the roller's asking in an incident is read by the roller (E08+E28 fix r2-H5).
+        const author = cardWriter(card)?.id ?? null;
         await updateSecret(card, words, isVeiled(card) ? [author, ...gmIds()] : null, { rerolled });
     } catch (err) {
         // The Reroll stands without it: the Reroll's own card says what changed.

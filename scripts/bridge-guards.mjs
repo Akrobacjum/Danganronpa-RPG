@@ -200,6 +200,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that plant was handed to somebody else$/],
     // E05: a pre-session note past the player text cap (gm-bridge.mjs handleNoteSave).
     ["badRequest", /^the note is longer than a player's words may be$/],
+    // E08+E28 fix r2-H5: a card a player asks the GM to post (gm-bridge.mjs `card.post`).
+    ["badRequest", /^the card is longer than a player's words may be$/],
+    ["badRequest", /^the card's readers are not users of this world$/],
     // Two patterns, not one with an optional group: R22 reads `range(` in a regex literal as a call.
     ["outOfRange", /^(?:amount|difficulty|delta) .+ is out of range$/],
     ["outOfRange", /^difficulty .+ is out of range \(.*\)$/],
@@ -928,6 +931,25 @@ export async function guardRelayRoom(sender, payload, ctx) {
         passedThrough: field === "to", sceneId: sender?.viewedScene ?? null
     });
     return there ? null : `the character is not in "${named}": ${actor.name}`;
+}
+
+/*
+ * A CARD A PLAYER ASKS THE PRIMARY GM TO POST (E08+E28 fix r2-H5, 05.10.2026; gm-bridge.mjs
+ * `card.post`, secret.mjs `askGm`). The GM writes it as its author, so it is held to what the
+ * sender could have written themselves: it speaks as no character, or as one the sender owns -
+ * the GM speaks as that character, and only as it (`postAsked` reads the actor and nothing
+ * else of the speaker) - and every reader it names is a user of this world.
+ */
+export function guardCardSpeaker(sender, payload, ctx) {
+    const actorId = payload?.speaker?.actor;
+    if (actorId === undefined || actorId === null || actorId === "") return null;
+    return ownsActor(sender, actorId) ? null : "sender does not own the character the card speaks as";
+}
+
+export function guardCardReaders(sender, payload, ctx) {
+    const readers = payload?.whisper;
+    return Array.isArray(readers) && readers.length && readers.every(id => typeof id === "string" && game.users?.get(id))
+        ? null : "the card's readers are not users of this world";
 }
 
 /** A table of declarations, frozen with every declaration and guard list in it: nothing edits one at run time. */

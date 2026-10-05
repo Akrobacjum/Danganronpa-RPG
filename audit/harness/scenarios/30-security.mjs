@@ -554,13 +554,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
        travels with its words now, and the GM's popup and ruling wiring read it there - so a
        player's meta is judged as a player's facts are: it cannot ask the GMs for a notice
        (`gmPopup`, `popupForce`) or put a ruling's buttons on a card (`callCard`); what else
-       it says of the player's own card is kept. p1's own card, its packet as a console would
-       write it. */
+       it says of the player's own card is kept. Nor, since E08+E28 fix r2-H5, name somebody as
+       the one who asked a GM to post it (`askedBy`, which `cardWriter` reads on a GM's card).
+       p1's own card, its packet as a console would write it. */
     const metaCard = await p1.eval(`
         const msg = await ChatMessage.create({ content: '<p class="notes" data-drpg-secret>-</p>',
             whisper: ["${gm.userId}"], flags: { "${MOD}": { secret: true } } });
         game.socket.emit("${SOCKET}", { action: "secret.card", id: msg.id, html: "<p>SEC meta</p>", at: Date.now(),
-            meta: { gmPopup: true, popupForce: true, callCard: true, popupTitle: "SEC meta title" } });
+            meta: { gmPopup: true, popupForce: true, callCard: true, askedBy: "${gm.userId}", popupTitle: "SEC meta title" } });
         return msg.id;
     `, { timeout: 30000 });
     await settle(1200);
@@ -568,7 +569,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         const store = game.settings.get("${MOD}", "secretCards") ?? {};
         return { words: Boolean(store[${JSON.stringify(metaCard)}]?.html), meta: store[${JSON.stringify(metaCard)}]?.meta ?? null };
     `);
-    check("SECURITY: a player's card cannot ask the GMs for a notice or carry a ruling's buttons, and keeps its own title",
+    check("SECURITY: a player's card cannot ask the GMs for a notice, carry a ruling's buttons or name who asked for it, and keeps its own title",
         metaKept.words && JSON.stringify(metaKept.meta) === JSON.stringify({ popupTitle: "SEC meta title" }), JSON.stringify(metaKept));
 
     /* THE SAFEWORD'S SIREN FROM A PLAYER'S PRIVATE CARD (E06 fix r1-G5, 28.09.2026; the

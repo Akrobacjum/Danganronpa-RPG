@@ -62,7 +62,7 @@ import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_K
     SFX_VARIATION, GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, warn, error, clamp, ownerOf, esc} from "./utils.mjs";
-import { cardFlag, wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
+import { cardFlag, cardWriter, wordsOf, secretHtml, isVeiled, SECRET_FLAG } from "./secret.mjs";
 
 
 /**
@@ -738,7 +738,8 @@ export function soundFromMessage(message) {
     let forGm = typeof carried === "string" ? false : Boolean(carried?.gm);
     if (!key) return null;
 
-    const byPlayer = !message.author?.isGM;
+    // A card a GM posted at a player's asking is the player's (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
+    const byPlayer = !cardWriter(message)?.isGM;
     if (byPlayer && !message.getFlag?.(MODULE_ID, "safeword")) {
         if (SFX_EVENTS[key]?.ignoresVolume) return null;
         forGm = false;

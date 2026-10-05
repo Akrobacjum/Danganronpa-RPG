@@ -60,7 +60,7 @@ import { armedCallsShown, situationalAdvantage, spendCallsByNonce } from "./call
 import { isBrokenDown } from "./character.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { roomOfActor } from "./movement.mjs";
-import { cardFlag } from "./secret.mjs";
+import { cardFlag, cardWriter } from "./secret.mjs";
 
 /** Marks the wrapper, so a second registration is a no-op and patches.mjs can recognise it. */
 const SEAM = Symbol.for("drpgRollDraw");
@@ -1292,8 +1292,9 @@ function onRenderUnwitnessed(message, element) {
         if (message.getFlag?.(MODULE_ID, UNWITNESSED_FLAG) && !body.querySelector(".drpg-unwitnessed")) {
             body.insertAdjacentHTML("beforeend", `<p class="drpg-warning drpg-unwitnessed">${esc(game.i18n.localize("DRPG.Rolls.unwitnessed"))}</p>`);
         }
-        // A GM's card only: a player's card to the GMs may carry any buttons it likes.
-        if (!game.user?.isGM || !message.author?.isGM || !cardFlag(message, "awayCard")) return;
+        // A GM's card only: a player's card to the GMs may carry any buttons it likes - one a GM posted
+        // for a player in an incident included (secret.mjs `cardWriter`, E08+E28 fix r2-H5).
+        if (!game.user?.isGM || !cardWriter(message)?.isGM || !cardFlag(message, "awayCard")) return;
         const ids = cardFlag(message, "awayRolls");
         const open = Array.isArray(ids) && ids.some(id => awayRowOf(game.messages.get(id)));
         if (!open) return void element.querySelector(".drpg-away-actions")?.remove();

@@ -1131,10 +1131,11 @@ const REPORT_CARD_MS = 60_000;
 
 async function reportCardOf(id, roll, by) {
     if (typeof id !== "string" || !id || !by?.id) return null;
-    const { messageArrives } = await import("./secret.mjs");
+    const { messageArrives, cardWriter } = await import("./secret.mjs");
     const card = game.messages.get(id) ?? await messageArrives(id);
     if (!card || card.id === roll.id || !card.getFlag?.(MODULE_ID, MESSAGE_FLAG) || isClaimedRoll(card)) return null;
-    if ((card.author?.id ?? card.user?.id) !== by.id) return null;
+    // Its writer: in an incident the GM posts the roller's card for them (E08+E28 fix r2-H5).
+    if (cardWriter(card)?.id !== by.id) return null;
     const at = card.timestamp ?? 0;
     return at >= (roll.timestamp ?? 0) && Date.now() - at <= REPORT_CARD_MS ? card.id : null;
 }

@@ -22,7 +22,7 @@ import {
     guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
-    guardProjectRoom, guardSabotageRoom, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
+    guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
@@ -86,6 +86,8 @@ const ACTION_NOTE_SAVE = "note.save";
 const ACTION_ROLL_BOOKMARK = "roll.bookmark";
 /** player -> GM: make my character's Reroll (E08+E28 C4a) - see reroll.mjs `rerollOnGm`. */
 const ACTION_REROLL = "reroll.ask";
+/** player -> GM: post the private card my browser would post while an incident runs (E08+E28 fix r2-H5) - see secret.mjs `askGm`. */
+const ACTION_CARD = "card.post";
 
 /**
  * A primary GM has finished loading and can answer questions again.
@@ -1297,6 +1299,16 @@ async function handleReroll(payload, sender) {
     return { reply: { lines: out?.lines ?? [] } };
 }
 
+/** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
+async function handleCardPost(payload, sender) {
+    const { postAsked, cardTooLong } = await import("./secret.mjs");
+    if (cardTooLong(payload.content, payload.flags)) return { refused: "the card is longer than a player's words may be" };
+    const message = await postAsked(sender, { content: payload.content, whisper: payload.whisper, speaker: payload.speaker,
+        flags: payload.flags, summary: payload.summary, veiled: payload.veiled });
+    if (!message) return { refused: "nothing was carried out: the card could not be posted" };
+    return { reply: { id: message.id } };
+}
+
 /**
  * WHAT THE PRIMARY GM ANSWERS, ONE DECLARATION PER REQUEST (E31, 25.09.2026;
  * audit S17-08).
@@ -1837,6 +1849,27 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ actorId: as.id }),
         run: handleReroll,
         answer: "reply"
+    },
+    /*
+     * A PLAYER'S PRIVATE CARD WHILE AN INCIDENT RUNS (E08+E28 fix r2-H5, 05.10.2026; review
+     * S2-3). Posted by this GM, as its author, so that no incident card names the player whose
+     * browser asked for it (secret.mjs `askGm`, `postAsked`). Held to what the player could have
+     * posted themselves: it speaks as no character or as one the sender owns, it is read by users
+     * of this world, and it weighs what a player's words may. Not resent to a GM who reloads: a
+     * card posted before the reload would be posted twice.
+     */
+    [ACTION_CARD]: {
+        label: "DRPG.Bridge.what.card.post",
+        guards: [knownSender, guardCardSpeaker, guardCardReaders],
+        sanitize: pick({ content: as.text, whisper: as.raw, speaker: as.raw, flags: as.raw, summary: as.raw, veiled: as.bool }),
+        run: handleCardPost,
+        answer: "reply",
+        claims: {
+            whisper: guardCardReaders,
+            speaker: guardCardSpeaker,
+            flags: "the card's own module flags, judged by postAsked (secret.mjs): none of GM_META, a thread only the sender's own, who asked written by this GM",
+            summary: "the card's facts, judged by postAsked (secret.mjs) as secret.card judges a player's: plain fields, and none about a character the sender does not own"
+        }
     }
 });
 
@@ -1895,6 +1928,17 @@ function ask(action, payload, opts = {}) {
         settle: decl.answer, patient: Boolean(decl.patient), resend: Boolean(decl.resend), quiet: Boolean(decl.quiet),
         ...(decl.timeoutMs ? { timeoutMs: decl.timeoutMs } : {}),
         ...opts
+    });
+}
+
+/**
+ * The private card a player's browser would post while an incident runs, asked of the primary GM
+ * (secret.mjs `askGm`); its value is `{ id }`. A GM's own browser posts its cards itself and never
+ * asks, but one that did would post it here (`local`: the card, whose `id` is the same).
+ */
+export function requestCardPost(card) {
+    return ask(ACTION_CARD, card, {
+        local: () => import("./secret.mjs").then(m => m.postAsked(game.user, card))
     });
 }
 
