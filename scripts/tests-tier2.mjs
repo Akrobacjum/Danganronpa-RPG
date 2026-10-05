@@ -6519,6 +6519,265 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Reroll of a Work or a Sabotage is scored on what its first throw could claim, not on its row's word", async () => {
+        /*
+         * E08+E28 fix r2-H3, 05.10.2026; the round-2 review's M1. C16 held what only the roller saw of a
+         * project's roll on its first throw (gm-bridge.mjs `progressOf`, `repairOf`), and the Reroll's
+         * replays read the same claims raw off the GMs' row (reroll.mjs `settleProgress`,
+         * `settleSabotage`): the review's EXP-R2 rerolled a Work claiming a bonus of 40 on a project that
+         * is no indirect murder into 13, and the project went 0 -> 41. The replays hold the row's claims
+         * as the first throw's were held now (action-rolls.mjs `projectExtrasHeld`, `sabotageExtrasHeld`).
+         * A connected player's character in a room; four rows of theirs (`playerRollBookmark`), each on
+         * its own public project of 12 in that room, written on the row as the first throw's packet
+         * writes it, and each rerolled on this GM as theirs (`rerollOnGm`): a Work claiming a bonus of 40,
+         * into 9 and 4; a Work claiming a relief of 30, into 2 and 1; a Sabotage that missed claiming a
+         * penalty of 30, and one claiming a relief of 30, each into 2 and 1. Read: whether each Reroll
+         * stood, each Work's bar after it and whether each Sabotage's target is frozen. Red at a75e3f1:
+         * 12 (the bonus filled the project's whole target), 2, frozen, frozen.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the projects stand in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the rolls are a connected player's, as Foundry names only those");
+        const R = await import("./reroll.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { toolRelief } = await import("./action-rolls.mjs");
+        const { equippedFor, tierOf } = await import("./use-items.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const { player, actor, where } = await playerInRoom();
+        must(toolRelief(equippedFor(actor, "tool"), tierOf) < 9, `${actor.name}'s readied tool would lift a 3 past 12 - this would measure another band`);
+        const F = await projectPackets(player, actor);
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id));
+        const read = [];
+        try {
+            for (const [actionKey, claims, next] of [["project", { bonus: 40 }, { hope: 9, fear: 4 }], ["project", { relief: 30 }, { hope: 2, fear: 1 }],
+                ["sabotage", { penalty: 30 }, { hope: 2, fear: 1 }], ["sabotage", { relief: 30 }, { hope: 2, fear: 1 }]]) {
+                const project = await F.project(where.room);
+                const B = await playerRollBookmark(player, actor, actionKey, claims);
+                const stand = rerollableRoll(B.message, { first: { hope: 9, fear: 4 }, next });
+                try {
+                    const facts = actionKey === "project" ? { projectId: project, progress: 0 } : { targetProjectId: project, repairId: null };
+                    await rerollBookmarkStore.patch(actor.id, { facts: { ...(B.row()?.facts ?? {}), ...facts } });
+                    await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+                    const out = await R.rerollOnGm(actor, player);
+                    await settle();
+                    read.push([Array.isArray(out?.lines), actionKey === "project" ? F.progress(project) : F.P.isFrozen(project)]);
+                } finally {
+                    stand.putBack();
+                    await B.putBack();
+                }
+            }
+            equal(stableJson(read), stableJson([[true, 1], [true, 0], [true, false], [true, false]]),
+                "a Reroll was scored on a claim its first throw could not have made (stood, and bar or frozen: a Work's bonus of 40 into 13, a Work's relief of 30 into 3, a Sabotage's penalty of 30 into 3, its relief of 30 into 3)");
+        } finally {
+            for (const t of scene.tokens.filter(t => !had.has(t.id) && remnantData(t)?.action === "sabotage")) await t.delete();
+            await F.putBack();
+        }
+    }],
+
+    ["a Dynamic action's Reroll is scored at the band a GM ruled, not the one its row claims", async () => {
+        /*
+         * E08+E28 fix r2-H3, 05.10.2026; the round-2 review's M1. A Dynamic action's trace is left at the
+         * band a GM ruled for it (gm-bridge.mjs `traceBandOf`, `dynamicRulingOf`; C15), and its Reroll's
+         * replay read the band off the row's claims (`bandIndex`, reroll.mjs `settleDynamic`): any of the
+         * four. The replay reads the GM's ruling now, as the trace's packet does, and `bandIndex` is no
+         * claim (action-rolls.mjs `ROLL_CLAIMS`). A connected player's character in a room; a GM's ruling
+         * of the second difficulty (13-15, "evident") kept on a card as `ruleSetDifficulty` keeps it (on
+         * the card's own flags, which `cardFlag` reads first); a row of theirs claiming the fourth
+         * (19-21, "hidden"), rerolled on this GM as theirs into 11 and 9. Read: whether the Reroll stood,
+         * and the band of the trace its replay left. Red at a75e3f1: "hidden".
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the replay's trace is placed where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const R = await import("./reroll.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id));
+        const card = await ChatMessage.create({ content: "<p>Suite r2-H3 ruling</p>", whisper: [game.user.id],
+            flags: { [MODULE_ID]: { ruling: { type: "dynamic", actorId: actor.id, tier: 1 } } } });
+        const F = await playerRollBookmark(player, actor, "dynamic", { bandIndex: 3, description: "Suite r2-H3 a Dynamic action" });
+        const stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 11, fear: 9 } });
+        try {
+            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            const out = await R.rerollOnGm(actor, player);
+            await settle();
+            const left = scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.action === "dynamic").map(d => d.visibility);
+            equal(stableJson([Array.isArray(out?.lines), left]), stableJson([true, ["evident"]]),
+                `the Reroll left its trace at the band its row claimed, not the one a GM ruled (stood, bands left): ${stableJson(out)}`);
+        } finally {
+            stand.putBack();
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            await game.messages.get(card.id)?.delete();
+            await F.putBack();
+        }
+    }],
+
+    ["a Sabotage's trace is banded with the relief its repair used, when a roll with Fear broke the readied tool", async () => {
+        /*
+         * E08+E28 fix r2-H3, 05.10.2026; the round-2 review's S2-9. The GM banded a player's Sabotage's
+         * trace with the tool readied on the sheet now (gm-bridge.mjs `traceBandOf`), and made its
+         * repair with the relief the roller claimed, held to every tool the character carries for a roll
+         * with Fear, whose Despair wears the readied one before the packets leave (`repairOf`): with the
+         * tool broken, the project froze at the first band and the trace was left at a miss's, which the
+         * roller's card did not say. Both hold the claim one way now (action-rolls.mjs
+         * `sabotageExtrasHeld`). A connected player's character in a room, any tool they held put down,
+         * carrying a tier-1 tool broken as a Despair leaves one; a public project of 12 in that room; a
+         * Sabotage roll of theirs with Fear on 11 - the first band only with the tool's relief of 1 - its
+         * row claiming that relief. Judged as the listener judges that player's packets: the Sabotage
+         * naming the roll, then its trace asking "subtle", the first band's. Read: the code, the freeze,
+         * the size of its repair and the band the trace was left at. Red at a75e3f1: "hidden".
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { remnantData } = await import("./remnants.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { equippedFor, EQUIPPED_FLAG } = await import("./use-items.mjs");
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id));
+        const readied = equippedFor(actor, "tool");
+        const F = await projectPackets(player, actor);
+        const B = await playerRollBookmark(player, actor, "sabotage", { penalty: 0, relief: 1 });
+        let tool = null, record = null;
+        try {
+            if (readied) await readied.setFlag(MODULE_ID, EQUIPPED_FLAG, false);
+            [tool] = await actor.createEmbeddedDocuments("Item", [{ name: "SUITE r2-H3 tool a Despair broke", type: "loot",
+                flags: { [MODULE_ID]: { category: "tool", tier: 1, [ITEM_FLAGS.broken]: true } } }]);
+            must(tool && !equippedFor(actor, "tool"), "the broken tool was not made, or a tool is still readied - this would measure nothing");
+            record = await recordFor(B.message, player, actor, "sabotage", { total: 11, withHope: false });
+            await rollStore.patch(record.rollId, { withFear: true });
+            const project = await F.project(where.room);
+            const code = await F.ask("project.sabotage", { targetId: project, difficulty: 3, rollId: B.message.id, penalty: 0, relief: 1 });
+            const repair = F.P.allProjects().find(p => F.P.repairs(p.id) === project) ?? null;
+            await B.ask({ action: "remnant.place", requestId: "suite-r2h3-trace", rollId: B.message.id,
+                data: { sourceActor: actor.id, action: "sabotage", type: "prep", visibility: "subtle", sceneId: scene.id, subject: "Suite r2-H3 Sabotage" } });
+            const left = scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.subject === "Suite r2-H3 Sabotage").map(d => d.visibility);
+            equal(stableJson([code, F.P.isFrozen(project), repair?.start ?? null, left]), stableJson([null, true, 3, ["subtle"]]),
+                "the trace of a Sabotage whose repair froze its project was banded without the relief its repair used (code, frozen, repair, trace's band)");
+        } finally {
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            if (tool) await actor.items.get(tool.id)?.delete();
+            if (readied) await readied.setFlag(MODULE_ID, EQUIPPED_FLAG, true);
+            await record?.putBack();
+            await B.putBack();
+            await F.putBack();
+        }
+    }],
+
+    ["a later Reroll holds a Work's relief to the tools its first throw could use", async () => {
+        /*
+         * E08+E28 fix r2-H3, 05.10.2026. A roller's relief is held to the tool in their hand or, for a
+         * roll with Fear, whose Despair wears the readied tool before the packets leave, to every tool
+         * they carry (action-rolls.mjs `projectExtrasHeld`). A Reroll writes the duality of the roll it
+         * threw on the GMs' record and on the row (roll-draw.mjs `keepRerolledVersion`, reroll.mjs
+         * `keepRerolledRow`) while the claim stays the first throw's, so a later Reroll is held with the
+         * throw the claim was made on: the draw, `versions[0]` (reroll.mjs `claimedOn`). A connected
+         * player's character in a room, any tool they held put down, carrying a tier-1 tool broken as a
+         * Despair leaves one; a public project of 12 in that room; a Work row of theirs claiming the
+         * tool's relief of 1, on a roll the GMs' record says was drawn with Fear and rerolled once since
+         * into one with Hope; rerolled again on this GM into 6 and 5 - 11, the first band only with the
+         * relief. Read: whether it stood and the project's bar. Green at a75e3f1, which scored the claim
+         * as it came; red with the record's newest duality read (the mutant r2h3-claimed-on-newest).
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const R = await import("./reroll.mjs");
+        const { rerollBookmarkStore, rollStore } = await import("./gm-stores.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { equippedFor, EQUIPPED_FLAG } = await import("./use-items.mjs");
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const readied = equippedFor(actor, "tool");
+        const F = await projectPackets(player, actor);
+        const B = await playerRollBookmark(player, actor, "project", { relief: 1 });
+        const stand = rerollableRoll(B.message, { first: { hope: 9, fear: 4 }, next: { hope: 6, fear: 5 } });
+        let tool = null, record = null;
+        try {
+            if (readied) await readied.setFlag(MODULE_ID, EQUIPPED_FLAG, false);
+            [tool] = await actor.createEmbeddedDocuments("Item", [{ name: "SUITE r2-H3 tool a Despair broke", type: "loot",
+                flags: { [MODULE_ID]: { category: "tool", tier: 1, [ITEM_FLAGS.broken]: true } } }]);
+            must(tool && !equippedFor(actor, "tool"), "the broken tool was not made, or a tool is still readied - this would measure nothing");
+            record = await recordFor(B.message, player, actor, "project", { total: 13 });
+            // The statistic and experiences a drawn roll is thrown again with are the record's (reroll.mjs `rollAsThrown`).
+            await rollStore.patch(record.rollId, { trait: "eye", experiences: [], withFear: false,
+                versions: [{ total: 11, withHope: false, withFear: true, isCritical: false }] });
+            await B.message.update({ [`flags.${MODULE_ID}.drawn`]: true, [`flags.${MODULE_ID}.rollId`]: record.rollId });
+            const project = await F.project(where.room);
+            await rerollBookmarkStore.patch(actor.id, { facts: { ...(B.row()?.facts ?? {}), projectId: project, progress: 0 } });
+            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            const out = await R.rerollOnGm(actor, player);
+            await settle();
+            equal(stableJson([Array.isArray(out?.lines), F.progress(project)]), stableJson([true, 1]),
+                `a later Reroll held the first throw's relief with the newest roll's duality (stood, bar): ${stableJson(out)}`);
+        } finally {
+            stand.putBack();
+            if (tool) await actor.items.get(tool.id)?.delete();
+            if (readied) await readied.setFlag(MODULE_ID, EQUIPPED_FLAG, true);
+            await record?.putBack();
+            await B.putBack();
+            await F.putBack();
+        }
+    }],
+
+    ["a GM's own Dynamic action's Reroll is scored at the band the GM picked for it", async () => {
+        /*
+         * E08+E28 fix r2-H3, 05.10.2026. A Dynamic action's Reroll reads its band off a GM: a player's
+         * from the ruling a GM made on their card (gm-bridge.mjs `dynamicRulingOf`), a GM's own from the
+         * pick its own window made (action-rolls.mjs `askDynamicDifficulty`), which leaves no card and is
+         * kept on the row as a GM fact (`OWN_FACTS`; reroll.mjs `settleDynamic`). The row's claim
+         * carried it before the fix; with the claim gone and nothing in its place, the GM's own Reroll
+         * would read whatever ruling a player's card holds for the character, or none. A player's
+         * character in a room, a ruling of the second difficulty (13-15, "evident") on a card for it;
+         * this GM takes a Dynamic action for it, free, its windows answered with the third difficulty
+         * (16-18, "subtle"), on forced dice that miss it (5 and 4), and rerolls it as its own into 11
+         * and 9. Read: whether the Reroll stood, and the band of the trace its replay left. Green at
+         * a75e3f1, which read the claim; red with `bandIndex` left out of `OWN_FACTS` (the mutant
+         * r2h3-own-band-unkept): "evident".
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the action's trace is placed where the character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the character is a connected player's, as the other tests' are");
+        const R = await import("./reroll.mjs");
+        const { performAction } = await import("./action-rolls.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { actor, where } = await playerInRoom();
+        const scene = where.scene, had = new Set(scene.tokens.map(t => t.id)), seen = new Set(game.messages.map(m => m.id));
+        const traces = () => scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.action === "dynamic").map(d => d.visibility);
+        await ChatMessage.create({ content: "<p>Suite r2-H3 a player's ruling</p>", whisper: [game.user.id],
+            flags: { [MODULE_ID]: { ruling: { type: "dynamic", actorId: actor.id, tier: 1 } } } });
+        const windows = answerWindows((cfg, root) => {
+            const request = root.querySelector("[name=request]"), tier = root.querySelector("select[name=tier]");
+            if (request) request.value = "Suite r2-H3 the GM's own Dynamic action";
+            if (tier) tier.value = "2";
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const forceBack = () => { if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll; };
+        let stand = null;
+        try {
+            globalThis.__forceRoll = { hope: 5, fear: 4 };
+            try { await performAction(actor, "dynamic", { free: true }); } finally { forceBack(); }
+            await settle();
+            const row = rerollBookmarkStore.get(actor.id);
+            const message = game.messages.get(row?.messageId ?? "");
+            must(row?.actionKey === "dynamic" && row?.by === game.user.id && message && !traces().length,
+                `the GM's own Dynamic action was not kept as its miss on its row - this would measure nothing: ${stableJson(row)}`);
+            stand = rerollableRoll(message, { first: { hope: 5, fear: 4 }, next: { hope: 11, fear: 9 } });
+            await automatedUpdate(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) });
+            const out = await R.rerollOnGm(actor, game.user);
+            await settle();
+            equal(stableJson([Array.isArray(out?.lines), traces()]), stableJson([true, ["subtle"]]),
+                `a GM's own Dynamic action was rerolled at another band than its own pick (stood, bands left): ${stableJson(out)}`);
+        } finally {
+            windows.restore();
+            stand?.putBack();
+            for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+            for (const m of game.messages.filter(m => !seen.has(m.id))) await m.delete();
+            if (rerollBookmarkStore.has(actor.id)) await rerollBookmarkStore.drop(actor.id);
+        }
+    }],
+
     ["a Finishing blow with a forged total 99 is scored on its record", async () => {
         /*
          * E08+E28 C17, 04.10.2026; audit S10-06; the plan's 3.5. A crisis action was scored on the

@@ -42,9 +42,10 @@
  * already made is re-asked rather than rewritten.
  */
 
-import { MODULE_ID, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
-import { resolveThreshold, easedBy, log, error, plural, esc, isPrimaryGm, gmIds, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
-import { searchTier, stashStepFor, stashText, rollTone, listenLabels } from "./action-rolls.mjs";
+import { MODULE_ID, ACTIONS, DYNAMIC_THRESHOLDS, CRITICAL, TIMING, TRAITS, TRAIT_BY_DH, HOPE_CALLS, STARTING } from "./config.mjs";
+import { resolveThreshold, log, error, plural, esc, isPrimaryGm, gmIds, ownerOf, whisperToOwner, whisperToOwnerOnly, whisperToGms } from "./utils.mjs";
+import { searchTier, stashStepFor, stashText, rollTone, listenLabels, projectProgress, sabotageHit, sabotageRepairScale, projectExtrasHeld,
+    sabotageExtrasHeld } from "./action-rolls.mjs";
 import { leavesTraceFor, ITEM_FLAGS } from "./inventory.mjs";
 import { isClaimedRoll, neutralRollOf, REROLL_SHOWN, relayRerolledDice } from "./private-rolls.mjs";
 import { rerollBookmarkStore, rerollJournalStore, trapLedgerStore } from "./gm-stores.mjs";
@@ -297,8 +298,26 @@ export function replayBookmark(row) {
         room: row.room ?? null, ...(row.claims ?? {}), ...(row.facts ?? {}),
         messageId: row.messageId ?? null, actionKey: row.actionKey ?? null, trait: row.trait ?? null,
         experiences: Array.isArray(row.experiences) ? [...row.experiences] : [],
-        total: row.total ?? null, withFear: Boolean(row.withFear), isCritical: Boolean(row.isCritical)
+        total: row.total ?? null, withFear: Boolean(row.withFear), isCritical: Boolean(row.isCritical), at: row.at ?? null
     };
+}
+
+/**
+ * THE THROW A ROLLER'S CLAIMS WERE MADE ON (E08+E28 fix r2-H3, 05.10.2026; the round-2 review's
+ * M1), which the replays of a Work, a Sabotage and a Dynamic action hold them to as the first
+ * throw was held (action-rolls.mjs `projectExtrasHeld`, `sabotageExtrasHeld`; gm-bridge.mjs
+ * `dynamicRulingOf`): the character, the duality - a roll with Fear may have worn the readied
+ * tool its relief was claimed for - and the time a ruling is looked for from. On the GMs' record
+ * of a roll they drew that is the draw itself, `versions[0]` once a Reroll has stood (roll-draw.mjs
+ * `keepRerolledVersion`), and the record's `at`, which stays the draw's. A roll nobody drew has
+ * only the row, whose duality a Reroll rewrites (`keepRerolledRow`): a second Reroll of one is
+ * held with the first Reroll's.
+ */
+async function claimedOn(actor, bookmark) {
+    const { drawnRecordOf } = await import("./roll-draw.mjs");
+    const record = drawnRecordOf(game.messages.get(bookmark.messageId ?? ""));
+    const first = record?.versions?.[0] ?? record ?? bookmark;
+    return { actorId: actor.id, withFear: Boolean(first.withFear), isCritical: Boolean(first.isCritical), at: record?.at ?? bookmark.at ?? null };
 }
 
 /**
@@ -1011,24 +1030,23 @@ async function settleProgress(actor, bookmark, after, done) {
         return {};
     }
 
-    const def = ACTIONS.project;
     // The same eased bands the first roll was scored against (ACT-11 / ROLL-04):
     // the readied tool's relief rides the bookmark. Scored against the bare
     // bands, a reroll took back progress the tool had earned the first roll.
-    const relief = bookmark.relief ?? 0;
-    const hit = after.isCritical
-        ? def.critical
-        : resolveThreshold(after.total, easedBy(def.thresholds, relief));
-
+    //
     // The bonus an indirect murder earned - for working alone, or for
     // concealing intent on a Despair roll - is not recomputable from the
     // dice, so it is carried on the bookmark and re-applied on top of the
     // new threshold result. Scoring the new roll on thresholds alone while
     // subtracting a stored total that included the bonus quietly destroyed
     // it: every reroll cost the killer progress they had already earned.
-    const bonus = bookmark.bonus ?? 0;
-    const threshold = hit?.progress ?? 0;
-    const now = threshold ? threshold + bonus : 0;
+    //
+    // Both are the roller's claims, held as the first throw's were and scored by
+    // the first throw's table (fix r2-H3; the round-2 review's M1: read raw, a
+    // bonus of 40 rerolled into 13 moved a project 0 -> 41).
+    const held = projectExtrasHeld(await claimedOn(actor, bookmark), bookmark, bookmark.projectId);
+    const { hit, progress: now } = projectProgress(after, held);
+    const bonus = held.bonus;
     const was = bookmark.progress ?? 0;
     const delta = now - was;
 
@@ -1232,15 +1250,16 @@ async function putPlantBack(plant) {
  * The freeze and the repair project the first roll created are removed, then the
  * new score decides whether - and how badly - the target breaks this time. The
  * concealment penalty the pre-roll earned still applies: it was not part of this
- * roll and is not undone by rerolling it.
+ * roll and is not undone by rerolling it. It and the tool's relief are the
+ * roller's claims, held as the first throw's were (fix r2-H3; the round-2 review's
+ * M1: read raw, a penalty of 30 froze a project on a Reroll into 3).
  */
 async function settleSabotage(actor, bookmark, after, done) {
     const def = ACTIONS.sabotage;
-    const penalty = bookmark.penalty ?? 0;
-    const relief = bookmark.relief ?? 0;
+    const { penalty, relief } = sabotageExtrasHeld(await claimedOn(actor, bookmark), bookmark);
     const score = after.total + penalty;
     // The same eased bands the first roll was scored against (ACT-11 / ROLL-04).
-    const hit = after.isCritical ? def.critical : resolveThreshold(score, easedBy(def.thresholds, relief));
+    const hit = sabotageHit(after, { penalty, relief }, def);
     const success = Boolean(hit);
 
     const { undoSabotage, sabotageProject, allProjects } = await import("./projects.mjs");
@@ -1257,13 +1276,11 @@ async function settleSabotage(actor, bookmark, after, done) {
     // 2. Break it again, at whatever the new roll is worth.
     let repairId = null;
     if (success && bookmark.targetProjectId) {
-        // Guide's Sabotage table, by the repair project it demands:
+        // Guide's Sabotage table, by the repair project it demands (the first throw's
+        // reading, action-rolls.mjs `sabotageRepairScale`):
         //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
         // The complex band is the last of the table, lowered by the same relief.
-        const complexAt = Math.max(...def.thresholds.map(t => t.min)) - relief;
-        const difficulty = after.isCritical
-            ? PROJECT_SCALE.desperate.progress
-            : score >= complexAt ? PROJECT_SCALE.complex.progress : PROJECT_SCALE.trivial.progress;
+        const difficulty = sabotageRepairScale(after, score, relief);
 
         const result = await sabotageProject(bookmark.targetProjectId, difficulty);
         repairId = result?.repair?.id ?? null;
@@ -1306,10 +1323,15 @@ async function settleSabotage(actor, bookmark, after, done) {
  * Take back a Dynamic action and run it again against the SAME difficulty band.
  *
  * The band is not re-asked: the GM ruled on what the player described, and that
- * description has not changed. Only the dice have.
+ * description has not changed. Only the dice have. It is a GM's: the band a GM's
+ * own action picked, kept on its row as a fact (action-rolls.mjs `OWN_FACTS`), else
+ * the ruling a GM made on a player's card, read as the first throw's trace reads it
+ * (gm-bridge.mjs `dynamicRulingOf`). Fix r2-H3 (the round-2 review's M1): the row's
+ * `bandIndex` was the roller's claim, and a Reroll was scored at any of the four bands.
  */
 async function settleDynamic(actor, bookmark, after, done) {
-    const band = DYNAMIC_THRESHOLDS[bookmark.bandIndex];
+    const { dynamicRulingOf } = await import("./gm-bridge.mjs");
+    const band = DYNAMIC_THRESHOLDS[bookmark.bandIndex ?? dynamicRulingOf(await claimedOn(actor, bookmark))?.tier];
     if (!band) {
         done.push(game.i18n.localize("DRPG.Reroll.noReplay"));
         return {};

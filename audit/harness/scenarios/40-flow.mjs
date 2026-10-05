@@ -954,6 +954,73 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         JSON.stringify({ missTarget, missed, arm: missArm.row, missBefore, missAfter, sentTo, gmIds, made: missAsk.made, paid: missReroll.paid, journal: missReroll.journal }),
         { flow: "reroll" });
 
+    // ---- 6c'''. a player's Sabotage with Fear whose readied tool breaks on the roll ----------------
+    /*
+     * ITS TRACE IS LEFT AT THE BAND ITS REPAIR WAS MADE AT (E08+E28 fix r2-H3, 05.10.2026; the round-2
+     * review's S2-9). The GM banded a player's Sabotage's trace with the tool readied on the sheet now
+     * (gm-bridge.mjs `traceBandOf`), and made its repair with the relief the roller claimed, held to
+     * every tool the character carries for a roll with Fear, whose Despair wears the readied one
+     * before the packets leave (`repairOf`): a tier-1 tool that broke on the roll froze the project at
+     * the first band and left the trace at a miss's. Both hold the claim one way now (action-rolls.mjs
+     * `sabotageExtrasHeld`), and the claim rides the roll's own bookmark (`performSabotage`'s context),
+     * because the trace's packet leaves before `noteRollContext` tells the GMs the relief. p1 sabotages
+     * a project in Aiko's room holding a tier-1 tool readied (any tool she held put down for it), on
+     * forced dice with Fear that come to 11 with her Eye - the first band only with the tool's relief
+     * of 1. The harness's drawn total is the dice and the statistic: the +1 the tool arms in the roll
+     * window does not reach it (05.10.2026, at a75e3f1: 4 and 6 came to 10 with an Eye of 0). "Rolls
+     * grant Despair" is off for it, and Daggerheart's Fear put back after it. Read on the GM: the
+     * roll's record, the tool, the freeze and its repair, and the band of the trace. Red at a75e3f1:
+     * the trace "hidden", a miss's band.
+     */
+    phase("a player's Sabotage whose tool breaks on the roll", { flow: "projects" });
+    const toolSetup = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs"), M = await import("${REPO}/scripts/movement.mjs");
+        const U = await import("${REPO}/scripts/use-items.mjs"), I = await import("${REPO}/scripts/inventory.mjs");
+        const actor = game.actors.get("${ids.aiko}");
+        await game.drpg.setActions(actor, game.drpg.actionsMax(actor));
+        const despair = game.settings.get("${MOD}", "despairFromRolls");
+        await game.settings.set("${MOD}", "despairFromRolls", false);
+        const put = U.readiedItems(actor).filter(i => I.servesAs(i, "tool")).map(i => i.id);
+        for (const id of put) await actor.items.get(id).setFlag("${MOD}", U.EQUIPPED_FLAG, false);
+        const [tool] = await actor.createEmbeddedDocuments("Item", [{ name: "QA tool that breaks", type: "loot",
+            flags: { "${MOD}": { category: "tool", tier: 1, [U.EQUIPPED_FLAG]: true } } }]);
+        const project = (await P.createProject({ name: "QA sabotage with a tool that breaks", target: 6, room: M.roomOfActor(actor), trait: "eye" }))?.id ?? null;
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        return { project, tool: tool?.id ?? null, readied: U.equippedFor(actor, "tool")?.id ?? null, put, despair,
+            fear: game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear), eye: Number(actor.system.traits?.instinct?.value ?? 0) };`, { timeout: 30000 });
+    await settle(600);
+    // 11 = hope + fear + Eye, Fear the higher die and never a critical.
+    const toolSum = 11 - toolSetup.eye, toolDice = { hope: Math.floor((toolSum - 1) / 2), fear: toolSum - Math.floor((toolSum - 1) / 2) };
+    const toolSab = await p1.eval(`globalThis.__forceRoll = ${JSON.stringify(toolDice)};
+        const actor = game.actors.get("${ids.aiko}"); let r = null, err = null;
+        try { r = await game.drpg.performAction(actor, "sabotage", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete globalThis.__forceRoll; }
+        return { err, success: r?.success ?? null, applied: r?.applied ?? null };`, { timeout: 120000 });
+    await settle(1500);
+    const toolRead = await gm.eval(`const P = await import("${REPO}/scripts/projects.mjs"), R = await import("${REPO}/scripts/remnants.mjs");
+        const D = await import("${REPO}/scripts/roll-draw.mjs"), I = await import("${REPO}/scripts/inventory.mjs");
+        const actor = game.actors.get("${ids.aiko}"), tool = actor.items.get("${toolSetup.tool}");
+        const m = game.messages.contents.filter(x => x.getFlag("${MOD}", "drawn")).at(-1) ?? null;
+        const r = D.rollRecord(m?.getFlag("${MOD}", "rollId") ?? null);
+        const repair = P.allProjects().find(p => P.repairs(p.id) === "${toolSetup.project}") ?? null;
+        const traces = canvas.scene.tokens.contents.filter(t => R.remnantData(t)?.subject === "QA sabotage with a tool that breaks");
+        const out = { record: r ? { actionKey: r.actionKey, total: r.total, withFear: r.withFear, isCritical: r.isCritical } : null,
+            broken: tool ? I.isBroken(tool) : null, frozen: P.isFrozen("${toolSetup.project}"), repair: repair?.start ?? null,
+            traces: traces.map(t => R.remnantData(t).visibility) };
+        for (const t of traces) await t.delete();
+        for (const id of [repair?.id, "${toolSetup.project}"].filter(Boolean)) await P.deleteProject(id).catch(() => {});
+        if (tool) await tool.delete();
+        for (const id of ${JSON.stringify(toolSetup.put)}) await actor.items.get(id)?.setFlag("${MOD}", "equipped", true);
+        await game.settings.set("${MOD}", "despairFromRolls", ${JSON.stringify(toolSetup.despair)});
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== ${JSON.stringify(toolSetup.fear)}) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, ${JSON.stringify(toolSetup.fear)});
+        return out;`, { timeout: 30000 });
+    check("p1: a Sabotage with Fear whose readied tool breaks on the roll leaves its trace at the band its repair was made at",
+        Boolean(toolSetup.project && toolSetup.tool) && toolSetup.readied === toolSetup.tool && !toolSab.err && toolSab.success === true
+            && toolRead.record?.actionKey === "sabotage" && toolRead.record?.total === 11 && toolRead.record?.withFear === true
+            && toolRead.broken === true && toolRead.frozen === true && toolRead.repair === 3
+            && toolRead.traces.length === 1 && toolRead.traces[0] === "subtle",
+        JSON.stringify({ toolSetup, toolDice, toolSab, toolRead }), { flow: "projects" });
+
     // ---- 6d. an indirect murder's work: the cover window closed ---------------------------------
     /*
      * A CLOSED WINDOW COVERS NOTHING (E32+E07 C13, 03.10.2026; audit S02-03). Every Work on an

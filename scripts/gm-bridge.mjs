@@ -14,7 +14,7 @@
 
 import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
-    LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS, SABOTAGE_CONCEAL
+    LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, error, cardHead, esc } from "./utils.mjs";
 import {
@@ -942,13 +942,16 @@ async function worksOwnMurder(projectId, actor, action) {
  * of it with the action's own table, as the roller's browser reads it:
  *   - a Search: the tier its total reaches with the hidden stash's step the GM drew, or the
  *     critical's band (action-rolls.mjs `searchTier`, `leaveSearchTrace`);
- *   - a Sabotage: the band its total reaches (`sabotageHit`), with the readied tool's relief as
- *     this GM reads the character's sheet, and the concealment's penalty the roller claimed for
- *     that roll (the GMs' bookmark, `ROLL_CLAIMS.sabotage`) held to what a concealment thrown with
- *     Despair takes, `SABOTAGE_CONCEAL.despairPenalty` to 0 - the concealment's own roll names no
- *     action, so its Despair is not on a record yet; a miss leaves the table's `failureRemnant`;
+ *   - a Sabotage: the band its total reaches (`sabotageHit`), with the concealment's penalty and
+ *     the readied tool's relief the roller claimed for that roll (the GMs' bookmark,
+ *     `ROLL_CLAIMS.sabotage`), held as its repair holds them (action-rolls.mjs
+ *     `sabotageExtrasHeld`) - the concealment's own roll names no action, so its Despair is not on
+ *     a record yet; a miss leaves the table's `failureRemnant`. The relief was the tool readied
+ *     on the sheet now until fix r2-H3 (the round-2 review's S2-9): a tool that broke on a roll
+ *     with Fear was in no hand, and the trace of a Sabotage whose repair froze the project was
+ *     left at a miss's band;
  *   - a Dynamic action: the difficulty a GM set on its card (`dynamicRulingOf`); a roll under it
- *     leaves no trace (`performDynamic`), and the roller's `bandIndex` is not read.
+ *     leaves no trace (`performDynamic`). The roller's band is no claim since fix r2-H3.
  * A roll that leaves no trace is refused, and a packet whose visibility differs is placed at the
  * GM's band and logged (bridge-guards.mjs `onRecord`).
  */
@@ -959,14 +962,10 @@ async function traceBandOf(record) {
         const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
         band = record.isCritical ? ACTIONS.search.critical?.remnant : hit?.remnant;
     } else if (record.actionKey === "sabotage") {
-        const { sabotageHit, toolRelief } = await import("./action-rolls.mjs");
-        const { equippedFor, tierOf } = await import("./use-items.mjs");
+        const { sabotageHit, sabotageExtrasHeld } = await import("./action-rolls.mjs");
         const { rerollBookmarkStore } = await import("./gm-stores.mjs");
         const row = rerollBookmarkStore.get(record.actorId);
-        const claimed = row?.messageId === record.messageId ? Number(row.claims?.penalty) || 0 : 0;
-        const penalty = Math.max(SABOTAGE_CONCEAL.despairPenalty, Math.min(0, claimed));
-        const actor = game.actors.get(record.actorId);
-        const hit = sabotageHit(record, { penalty, relief: actor ? toolRelief(equippedFor(actor, "tool"), tierOf) : 0 });
+        const hit = sabotageHit(record, sabotageExtrasHeld(record, row?.messageId === record.messageId ? row.claims : null));
         band = hit ? hit.remnant : ACTIONS.sabotage.failureRemnant;
     } else if (record.actionKey === "dynamic") {
         const ruled = DYNAMIC_THRESHOLDS[dynamicRulingOf(record)?.tier];
@@ -980,8 +979,9 @@ async function traceBandOf(record) {
  * The difficulty a GM set on a Dynamic action's card for this roll's character: the newest ruling
  * kept in a card's meta (messenger-app.mjs `ruleSetDifficulty`, `settleCall`) within a Reroll's
  * reach of the roll, as a GM's pick of a statistic is found (roll-draw.mjs `gmPickOf`), or null.
+ * `record` needs `actorId` and `at`; the Reroll's replay reads it too (reroll.mjs `settleDynamic`).
  */
-function dynamicRulingOf(record) {
+export function dynamicRulingOf(record) {
     const since = (record.at ?? 0) - TIMING.rerollWindowMinutes * 60_000;
     const messages = game.messages?.contents ?? [];
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -999,47 +999,26 @@ function dynamicRulingOf(record) {
  * that named a roll of 7 added 12. The packet names its roll now, and the GM reads what it earned
  * off its record with the action's own table, as the roller's browser reads it (action-rolls.mjs
  * `projectProgress`, `sabotageHit`, `sabotageRepairScale`). What only the roller saw rides on the
- * packet and is held to what the rules allow: an indirect murder's concealment adds at most
- * `PROJECT_BONUS_MOST`, and to nothing else; a Sabotage's concealment takes off at most what one
- * thrown with Despair takes; the readied tool's relief is at most the GM's reading of the sheet
- * (`reliefHeld`). Read off the packet, not the GMs' bookmark of the roll, because the packet can
- * arrive first (fix r1-G1 measured it so). A Work whose roll earned nothing is refused; a
- * Sabotage's miss is a repair of 0, which freezes nothing (`handleSabotage`).
+ * packet and is held to what the rules allow (action-rolls.mjs `projectExtrasHeld`,
+ * `sabotageExtrasHeld`, which the Reroll's replays and a Sabotage's trace read too since fix
+ * r2-H3): an indirect murder's concealment adds at most `PROJECT_BONUS_MOST`, and to nothing else;
+ * a Sabotage's concealment takes off at most what one thrown with Despair takes; the readied
+ * tool's relief is at most the GM's reading of the sheet. Read off the packet, not the GMs'
+ * bookmark of the roll, because the packet can arrive first (fix r1-G1 measured it so). A Work
+ * whose roll earned nothing is refused; a Sabotage's miss is a repair of 0, which freezes nothing
+ * (`handleSabotage`).
  */
 async function progressOf(record, payload) {
-    const { projectProgress, PROJECT_BONUS_MOST } = await import("./action-rolls.mjs");
-    const { isIndirectMurder } = await import("./projects.mjs");
-    const bonus = isIndirectMurder(payload.countdownId) ? heldTo(payload.bonus, 0, PROJECT_BONUS_MOST) : 0;
-    const { progress } = projectProgress(record, { relief: await reliefHeld(record, payload.relief), bonus });
+    const { projectProgress, projectExtrasHeld } = await import("./action-rolls.mjs");
+    const { progress } = projectProgress(record, projectExtrasHeld(record, { relief: payload.relief, bonus: payload.bonus }, payload.countdownId));
     return progress > 0 ? { fields: { amount: progress } } : { why: "that roll earned no progress" };
 }
 
 async function repairOf(record, payload) {
-    const { sabotageHit, sabotageRepairScale } = await import("./action-rolls.mjs");
-    const penalty = heldTo(payload.penalty, SABOTAGE_CONCEAL.despairPenalty, 0);
-    const relief = await reliefHeld(record, payload.relief);
+    const { sabotageHit, sabotageRepairScale, sabotageExtrasHeld } = await import("./action-rolls.mjs");
+    const { penalty, relief } = sabotageExtrasHeld(record, { penalty: payload.penalty, relief: payload.relief });
     const hit = sabotageHit(record, { penalty, relief });
     return { fields: { difficulty: hit ? sabotageRepairScale(record, (Number(record.total) || 0) + penalty, relief) : 0 } };
-}
-
-/** A whole number the roller claims, held to [low, high]. */
-function heldTo(claimed, low, high) {
-    return Math.max(low, Math.min(high, Math.trunc(Number(claimed) || 0)));
-}
-
-/**
- * The readied tool's relief a roller claims for a project's roll, held to the tool this GM sees in
- * the character's hand - or, for a roll a Despair wears a tool on (use-items.mjs `breakOnDespair`,
- * which runs before the packet leaves), to the best tool the character carries, broken or not.
- */
-async function reliefHeld(record, claimed) {
-    const { toolRelief } = await import("./action-rolls.mjs");
-    const { equippedFor, tierOf } = await import("./use-items.mjs");
-    const { carriedFor } = await import("./inventory.mjs");
-    const actor = game.actors.get(record.actorId ?? "");
-    if (!actor) return 0;
-    const tools = record.withFear && !record.isCritical ? carriedFor(actor, "tool") : [equippedFor(actor, "tool")].filter(Boolean);
-    return heldTo(claimed, 0, Math.max(0, ...tools.map(tool => toolRelief(tool, tierOf))));
 }
 
 async function handleTieTrace(payload, sender, ctx) {
@@ -1622,8 +1601,8 @@ export const BRIDGE_ACTIONS = table({
            guards bound it. */
         rolled: { field: "rollId", actor: "actorId", kind: "project", when: "rollId", named: { project: "countdownId" }, derive: progressOf },
         claims: { rollId: "the roll whose record the amount is read from (progressOf), and compared by noteProgressFact with the sender's own kept project roll; any other names no roll and writes no fact",
-            relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (reliefHeld)",
-            bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] and to an indirect murder's progress" }
+            relief: "the roller's word for its readied tool, held by progressOf to the tools the GM sees on the character (action-rolls.mjs projectExtrasHeld)",
+            bonus: "the roller's word for an indirect murder's concealment, held by progressOf to [0, PROJECT_BONUS_MOST] and to an indirect murder's progress (projectExtrasHeld)" }
     },
     [ACTION_SHARE]: {
         label: "DRPG.Bridge.what.project.share",
@@ -1718,8 +1697,8 @@ export const BRIDGE_ACTIONS = table({
         // Of the project its roll was drawn for (fix r2-H2: `named`).
         rolled: { field: "rollId", actor: "actorId", kind: "sabotage", named: { project: "targetId" }, derive: repairOf },
         claims: { rollId: "the roll whose record the repair is read from (repairOf), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own Sabotage row of that message",
-            penalty: "the roller's word for its concealment, held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0]",
-            relief: "the roller's word for its readied tool, held by repairOf to the tools the GM sees on the character (reliefHeld)" }
+            penalty: "the roller's word for its concealment, held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0] (action-rolls.mjs sabotageExtrasHeld)",
+            relief: "the roller's word for its readied tool, held by repairOf to the tools the GM sees on the character (sabotageExtrasHeld)" }
     },
     [ACTION_UNSABOTAGE]: {
         label: "DRPG.Bridge.what.project.unsabotage",

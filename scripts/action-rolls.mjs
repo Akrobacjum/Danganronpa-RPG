@@ -21,7 +21,7 @@ import {
     PRICE_CHAINS, MONOCUB
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
-import { leavesTraceFor } from "./inventory.mjs";
+import { leavesTraceFor, carriedFor } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 // The phase, from the file that owns the clock setting and imports nothing but
 // config.mjs. trial.mjs has `inClassTrial()`, and importing it here would drag
@@ -988,7 +988,12 @@ async function noteRollContext(actor, data) {
  * Search put on the roller's own sheet, the category, the relief a Project's tool
  * gave. Picked per action (`ROLL_CLAIMS`) on the GM, whatever the packet holds. The
  * rule: a claim touches only the roller's own sheet; anything else a Reroll's
- * replay touches comes from a GM fact.
+ * replay touches comes from a GM fact - or, for what only the roller saw of a
+ * project's roll (a Work's relief and bonus, a Sabotage's penalty and relief), from
+ * the claim held to what the GM sees, as the first throw's was (`projectExtrasHeld`,
+ * `sabotageExtrasHeld`; fix r2-H3). A Dynamic action's band is no claim since the
+ * same fix - a GM's ruling, or a GM's own pick kept as a fact (`OWN_FACTS`): the
+ * replay read the roller's `bandIndex`, any of four.
  *
  * The roll itself - its total, its duality, its rolls as first thrown - is read off
  * the message on the GM; the trait and the experiences are the roller's (the message
@@ -1023,7 +1028,7 @@ export const ROLL_CLAIMS = Object.freeze({
         gmRuled: "bool", label: "text", request: "text" }),
     project: Object.freeze({ relief: "num", bonus: "num", refunded: "bool", burst: "bool" }),
     sabotage: Object.freeze({ penalty: "num", relief: "num" }),
-    dynamic: Object.freeze({ bandIndex: "num", description: "text" }),
+    dynamic: Object.freeze({ description: "text" }),
     listen: Object.freeze({ target: "text" }),
     observe: Object.freeze({ gmRuled: "bool", label: "text", request: "text" }),
     analyze: Object.freeze({ gmRuled: "bool", label: "text", request: "text" }),
@@ -1053,8 +1058,12 @@ export function rollClaims(actionKey, context) {
     return out;
 }
 
-/** The facts a GM's own action wrote into its context, which a player's are written by the bridge's handlers. */
-const OWN_FACTS = ["remnantId", "remnantScene", "repairId", "targetProjectId", "projectId", "progress"];
+/**
+ * The facts a GM's own action wrote into its context, which a player's are written by the bridge's handlers.
+ * A Dynamic action's band is one since fix r2-H3: a GM's own picks it in its own window (`askDynamicDifficulty`)
+ * and leaves no ruling on a card, where a player's band is read (gm-bridge.mjs `dynamicRulingOf`).
+ */
+const OWN_FACTS = ["remnantId", "remnantScene", "repairId", "targetProjectId", "projectId", "progress", "bandIndex"];
 function ownFacts(data) {
     return Object.fromEntries(OWN_FACTS.filter(f => data?.[f] !== undefined).map(f => [f, data[f]]));
 }
@@ -3014,8 +3023,51 @@ export function projectProgress(roll, { relief = 0, bonus = 0 } = {}, def = ACTI
 
 /** A concealment of intent made with Despair adds this much (the guide); working alone adds `aloneBonus`. */
 const CONCEALED_WITH_DESPAIR = 1;
-/** The most a concealment adds to a Work's progress: the two never both apply (gm-bridge.mjs `progressOf`). */
+/** The most a concealment adds to a Work's progress: the two never both apply (`projectExtrasHeld`). */
 export const PROJECT_BONUS_MOST = Math.max(INDIRECT_MURDER.concealIntent.aloneBonus ?? 0, CONCEALED_WITH_DESPAIR);
+
+/*
+ * WHAT ONLY THE ROLLER SAW OF A PROJECT'S ROLL, HELD THE SAME WAY EVERYWHERE THE GM SCORES IT
+ * (E08+E28 C16, 04.10.2026; one reading since fix r2-H3, 05.10.2026 - the round-2 review's M1 and
+ * S2-9). A Work's tool relief and concealment bonus and a Sabotage's concealment penalty and tool
+ * relief are the roller's word: the GM sees the tools and the project, not the readied hand or the
+ * concealment roll, which names no action. C16 held them on the first throw (gm-bridge.mjs
+ * `progressOf`, `repairOf`), and two other readers did not: the Reroll's replays scored the row's
+ * claims raw (reroll.mjs `settleProgress`, `settleSabotage`) - the review's EXP-R2 rerolled a Work
+ * claiming a bonus of 40 on a project that is no indirect murder into 13 and moved it 0 -> 41 - and
+ * a Sabotage's trace was banded with the tool readied on the sheet now (gm-bridge.mjs
+ * `traceBandOf`), so a tool that broke on a roll with Fear froze the project at the first band and
+ * left the trace at a miss's. All four read the claims through these two now, each with the throw
+ * the claims were made on (`roll`: `actorId`, `withFear`, `isCritical`):
+ *   - a concealment's bonus only on an indirect murder, at most `PROJECT_BONUS_MOST`;
+ *   - a concealment's penalty from what one thrown with Despair takes, `SABOTAGE_CONCEAL.despairPenalty`, to 0;
+ *   - a tool's relief at most what the GM sees in the character's hand - or, for a roll with Fear
+ *     that is no critical, whose Despair wears the readied tool before the packets leave
+ *     (use-items.mjs `breakOnDespair`), the best tool the character carries, broken or not.
+ */
+function heldTo(claimed, low, high) {
+    return Math.max(low, Math.min(high, Math.trunc(Number(claimed) || 0)));
+}
+
+function reliefHeld(roll, claimed) {
+    const actor = game.actors.get(roll?.actorId ?? "");
+    if (!actor) return 0;
+    const tools = roll.withFear && !roll.isCritical ? carriedFor(actor, "tool") : [equippedFor(actor, "tool")].filter(Boolean);
+    return heldTo(claimed, 0, Math.max(0, ...tools.map(tool => toolRelief(tool, tierOf))));
+}
+
+/** A Work's `relief` and `bonus` as `claimed` says them, held to the rules for `projectId`. */
+export function projectExtrasHeld(roll, claimed, projectId) {
+    return {
+        relief: reliefHeld(roll, claimed?.relief),
+        bonus: isIndirectMurder(projectId) ? heldTo(claimed?.bonus, 0, PROJECT_BONUS_MOST) : 0
+    };
+}
+
+/** A Sabotage's `penalty` and `relief` as `claimed` says them, held to the rules. */
+export function sabotageExtrasHeld(roll, claimed) {
+    return { penalty: heldTo(claimed?.penalty, SABOTAGE_CONCEAL.despairPenalty, 0), relief: reliefHeld(roll, claimed?.relief) };
+}
 
 // Guide: with someone else in the room, the killer must hide their intent
 // first; alone, the project simply gains +1 progress.
@@ -3298,11 +3350,15 @@ async function performSabotage(actor, def, options, preset = null) {
 
     let roll;
     try {
+        /* The relief rides the roll's own bookmark with the penalty (fix r2-H3; the round-2 review's
+           S2-9): the GM bands this Sabotage's trace with the relief claimed for the roll, held as its
+           repair holds it (gm-bridge.mjs `traceBandOf`), and the trace's packet leaves before
+           `noteRollContext` below tells the GMs anything more. */
         roll = await rollTrait(actor, trait, {
             actionKey: "sabotage",
             byGm,
             dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief + penalty)).join(" / "),
-            context: { room, targetProjectId: project.id, penalty, witnesses: witnesses.length }
+            context: { room, targetProjectId: project.id, penalty, relief, witnesses: witnesses.length }
         });
     } finally {
         calls.clearSituational();
