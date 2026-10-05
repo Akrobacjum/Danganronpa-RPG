@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, cast
+    STANDING, stableJson, moduleSettingValues, watchLog, cast
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -738,32 +738,6 @@ async function heldRollBookmark(player, actor, actionKey, context = {}, { record
             await game.messages.get(message.id)?.delete();
             if (store.has(actor.id)) await store.drop(actor.id);
         } };
-}
-
-/**
- * WHAT THE GM'S CLIENT SAID WHILE A TEST RAN (E08+E28 C15, 04.10.2026). A test that reads "logged
- * on the GM" counts the lines `warn` and `error` (utils.mjs) write to the console from the watch
- * on, not the rows of `sessionFailures()`: that log keeps the first 60 wordings and drops every
- * new one after (`SESSION_LOG_CAP`), and a whole suite fills it. Measured on C15's first suite
- * run: the 60th wording arrived just before "a trace's band is the GM's, whatever the packet
- * names", which then counted none of its two lines, and "a bookmark note for another player's
- * character is refused" none of its two refusals - the first had passed on its named run, the
- * second on every suite before C15 (C14: its refusals were the log's 51st and 52nd wordings).
- * `count(test)` is how many lines since the watch match `test` (a string or a RegExp); `stop()`
- * puts the console back.
- */
-function watchLog() {
-    const lines = [], kept = { warn: console.warn, error: console.error };
-    for (const level of Object.keys(kept)) {
-        console[level] = function (...args) {
-            lines.push(args.map(a => (a instanceof Error ? a.message : String(a))).join(" "));
-            return kept[level].apply(this, args);
-        };
-    }
-    return {
-        count: test => lines.filter(line => (typeof test === "string" ? line.includes(test) : test.test(line))).length,
-        stop: () => Object.assign(console, kept)
-    };
 }
 
 /**
@@ -2237,14 +2211,14 @@ const SCENARIOS = [
         const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
         const G = await import("./bridge-guards.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const U = await import("./utils.mjs");
         const { M, killer, victim, putBack } = await swingFixture();
         const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
         const sent = [];
         const ask = (requestId, fields) => G.judge(BRIDGE_ACTIONS, { action: "murder.crisis", requestId, actorId: killer.id, key: "finishingBlow", ...fields },
             player.id, { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null, packet?.value ?? null]) });
-        const logged = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "murder.crisis"')
-            && String(e.message).includes("an undo is the GM's own Reroll's")).length;
+        // Counted from a watch, not off the session log's rows, which a second run in one page reads as 0 (fix r2-H6).
+        const log = watchLog();
+        const logged = () => log.count(/Refused a "murder\.crisis".*an undo is the GM's own Reroll's/);
         let roll = null, kept = null;
         try {
             await victim.update({ "system.resources.hitPoints.value": victim.system.resources.hitPoints.max - 1 });
@@ -2268,6 +2242,7 @@ const SCENARIOS = [
             stableJson([[["bridge.ack", null, null], ["bridge.done", null, { lethal: true }]], [["bridge.refused", "undoIsTheGms", null]], 1, null, true, "resolution", true]),
             "the undo of the blow that killed was let through, refused for another reason, or moved something (the blow's packets, the undo's, the GM's log, the GM's own undo, victim dead, stage, receipt kept)");
         } finally {
+            log.stop();
             await kept?.putBack();
             if (roll) await game.messages.get(roll.id)?.delete();
             await putBack();
@@ -2290,19 +2265,24 @@ const SCENARIOS = [
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected player who plays a character");
         const G = await import("./bridge-guards.mjs");
         const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
-        const U = await import("./utils.mjs");
         const player = game.users.find(u => !u.isGM && u.active && u.character);
         const actor = player.character;
         const bullets = () => actor.items.filter(i => i.getFlag(MODULE_ID, "isTruthBullet")).map(i => i.id);
-        const logged = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "observe.resolve"')
-            && String(e.message).includes("an undo is the GM's own Reroll's")).length;
-        const before = { bullets: bullets(), logged: logged() };
+        const before = { bullets: bullets() };
         const sent = [];
-        await G.judge(BRIDGE_ACTIONS, { action: "observe.resolve", requestId: "suite-e08c8-undo", actorId: actor.id,
-            key: "SUITEC8NOKEY0000", total: 0, isCritical: false, undo: true }, player.id,
-        { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null]) });
-        await settle();
-        equal(stableJson([sent, logged() - before.logged, bullets()]),
+        // Counted from a watch, not off the session log's rows, which a second run in one page reads as 0 (fix r2-H6).
+        const log = watchLog();
+        let logged = null;
+        try {
+            await G.judge(BRIDGE_ACTIONS, { action: "observe.resolve", requestId: "suite-e08c8-undo", actorId: actor.id,
+                key: "SUITEC8NOKEY0000", total: 0, isCritical: false, undo: true }, player.id,
+            { send: (to, packet) => sent.push([packet?.action ?? null, packet?.reason ?? null]) });
+            await settle();
+            logged = log.count(/Refused a "observe\.resolve".*an undo is the GM's own Reroll's/);
+        } finally {
+            log.stop();
+        }
+        equal(stableJson([sent, logged, bullets()]),
             stableJson([[["bridge.refused", "undoIsTheGms"]], 1, before.bullets]),
             "a player's Observe undo was let through, refused for another reason, unlogged, or moved a bullet (sent back, logged, bullets)");
     }],
@@ -4656,14 +4636,15 @@ const SCENARIOS = [
         const [who] = cast(1);
         const P = await import("./private-rolls.mjs");
         const G = await import("./bridge-guards.mjs");
-        const U = await import("./utils.mjs");
         const plays = (u, a) => a.type === "character" && a.testUserPermission(u, "OWNER");
         const player = game.users.find(u => !u.isGM && u.active && game.actors.some(a => plays(u, a)));
         const theirs = game.actors.find(a => plays(player, a));
         const other = game.actors.find(a => a.type === "character" && !plays(player, a));
         must(other, `${player.name} plays every character - a report of somebody else's cannot be made here`);
         const made = [];
-        const refusals = () => U.sessionFailures().filter(e => String(e.message).includes('Refused a "roll.subject"')).length;
+        // Counted from a watch, not off the session log's rows, which a second run in one page reads as 0 (fix r2-H6).
+        const log = watchLog();
+        const refusals = () => log.count('Refused a "roll.subject"');
         try {
             const { message } = await neutralRoll(who, { faces: { hope: 9, fear: 5 } });
             made.push(message?.id);
@@ -4686,6 +4667,7 @@ const SCENARIOS = [
                 stableJson([who.id, [null, null, null, true], 3, [], other.id]),
                 "the subject was not found, a report that is not the sender's to make was taken or told, or a GM's own was not kept");
         } finally {
+            log.stop();
             for (const id of made) await game.messages.get(id ?? "")?.delete();
         }
     }],
@@ -5290,7 +5272,98 @@ const SCENARIOS = [
         }
     }],
 
-    ["a private card a player asks the GM to post in an incident is the GM's, and carries no more than the player's own could", async () => {
+    ["a roll the GM has no record of yet is looked for once more before it is refused, and on a build the draw was not written for the packet's numbers stand and the GMs are told once", async () => {
+        /*
+         * E08+E28 fix r2-H6, 05.10.2026; review m3 and m4; the plan's 3.2 (D1's fallback) and 3.8.
+         * The primary GM reads a resolution's result off its record of the roll the packet names
+         * (bridge-guards.mjs `rollsFor`). A GM who has just become the primary may not hold that
+         * record yet: the plan promised one more look before `rollUnknown`, and it was not built
+         * (`TIMING.rollRecordRetryMs`). And on a Daggerheart the draw was not written for, nothing
+         * is drawn or recorded, so every packet's numbers stand and the primary says so to the GMs
+         * once per version (roll-draw.mjs `announceRollDraw`) - which no test ran: no table of the
+         * suite's has such a build. Judged as the primary's listener judges a player's packet
+         * (`judge`), on a declaration of the suite's own that takes a Search roll's total and
+         * notes it: a packet naming a roll whose record is written 150 ms after it arrives; one
+         * naming a roll nobody drew; then, with this client's seam stood in for as "changed"
+         * (`standInSeam`), one naming no roll, and the word to the GMs asked twice; and, the seam
+         * put back, the same packet again. Read: the totals the run was handed, what the player
+         * was sent, whether the refusal waited, the GMs' cards the word made and the version it
+         * keeps. Red before fix r2-H6: the late record was refused, and there was no stand-in.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a player's packet is judged, and Foundry names only a connected sender");
+        const G = await import("./bridge-guards.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const player = game.users.find(u => !u.isGM && u.active && u.character);
+        const actor = player.character;
+        const version = String(game.system?.version ?? "?");
+        const ran = [], sent = [], records = [], cards = [];
+        const TABLE = { "suite.h6.roll": { label: "x", guards: [G.knownSender], answer: "ack",
+            sanitize: G.pick({ actorId: G.as.id, rollId: G.as.id, total: G.as.num }),
+            rolled: { field: "rollId", actor: "actorId", kind: "search" }, run: payload => { ran.push(payload.total); } } };
+        const ask = rollId => G.judge(TABLE, { action: "suite.h6.roll", requestId: foundry.utils.randomID(), actorId: actor.id, total: 3,
+            ...(rollId ? { rollId } : {}) }, player.id, { send: (to, packet) => sent.push(packet?.action === "bridge.refused" ? packet.reason : packet?.action ?? null) });
+        const record = async messageId => {
+            const rollId = foundry.utils.randomID();
+            records.push(rollId);
+            await rollStore.patch(rollId, { rollId, actorId: actor.id, userId: player.id, actionKey: "search", messageId,
+                total: 17, isCritical: false, withHope: true, at: Date.now() });
+        };
+        const took = () => [ran.splice(0), sent.splice(0)];
+        const said = async () => {
+            const words = [];
+            for (const m of cards.splice(0)) words.push((await wordsOf(m, 2000) ?? "").includes(version));
+            return words;
+        };
+        const watch = Hooks.on("createChatMessage", m => { if (m.whisper?.length) cards.push(m); });
+        const warned = game.settings.get(MODULE_ID, SETTINGS.rollDrawWarned);
+        const out = {};
+        let putBack = null, lateWrite = null;
+        const made = [];
+        try {
+            const late = foundry.utils.randomID();
+            // Waited for before the records are dropped: a refusal that did not wait (red at 32ad908's runtime)
+            // reached the clean-up before this write, which then outlived the test.
+            lateWrite = new Promise(resolve => setTimeout(resolve, 150)).then(() => record(late));
+            await ask(late);
+            out.late = took();
+            let at = Date.now();
+            await ask(foundry.utils.randomID());
+            out.never = [...took(), Date.now() - at >= TIMING.rollRecordRetryMs];
+            putBack = D.standInSeam("changed");
+            await ask(null);
+            out.changed = took();
+            await game.settings.set(MODULE_ID, SETTINGS.rollDrawWarned, "");
+            made.push(...cards.splice(0));
+            await D.announceRollDraw();
+            made.push(...cards);
+            out.first = await said();
+            await D.announceRollDraw();
+            made.push(...cards);
+            out.second = await said();
+            out.kept = game.settings.get(MODULE_ID, SETTINGS.rollDrawWarned) === version;
+            putBack();
+            putBack = null;
+            at = Date.now();
+            await ask(null);
+            out.live = [...took(), Date.now() - at < TIMING.rollRecordRetryMs];
+        } finally {
+            Hooks.off("createChatMessage", watch);
+            putBack?.();
+            await lateWrite?.catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.rollDrawWarned, warned);
+            for (const id of records) if (rollStore.has(id)) await rollStore.drop(id);
+            for (const m of made) await game.messages.get(m.id)?.delete();
+        }
+        equal(stableJson([out, D.rollDrawState().state]),
+            stableJson([{ late: [[17], ["bridge.ack"]], never: [[], ["rollUnknown"], true], changed: [[3], ["bridge.ack"]],
+                first: [true], second: [], kept: true, live: [[], ["rollUnknown"], true] }, "ok"]),
+            "a record written late was not found, a missing one was refused at once, or the fallback did not let the packet's numbers stand and tell the GMs once (late, never, changed, the word twice, the version kept, the live seam again; the state after)");
+    }],
+
+    ["a private card a player asks the GM to post in an incident is the GM's, and carries no more than the player's owncould", async () => {
         /*
          * E08+E28 fix r2-H5, 05.10.2026; review S2-3. While an incident runs a player's browser asks
          * the primary GM to post its private cards (secret.mjs `askGm`), so that no document of the

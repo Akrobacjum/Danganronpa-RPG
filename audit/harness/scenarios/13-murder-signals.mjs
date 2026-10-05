@@ -1431,4 +1431,82 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("the bystander's browser holds no document of a running incident written by a player - the cards the fight's players asked for are the GM's",
         playersAsked.length === 4 && playersAsked.every(id => incidentDocs.some(d => d.id === id)) && byPlayers.length === 0,
         JSON.stringify({ held: incidentDocs.length, playersAsked, byPlayers: byPlayers.slice(0, 12) }), { flow: "murder-incident" });
+
+    /* THE KILLER'S PLAYER THROWS THE OPENING, AND STAGE 6'S TRAIL AND BODY MOVE (E08+E28 fix r2-H6, 05.10.2026;
+       review m2). Each names the roll the GM drew, and the GM reads its result off its record of it (C17) -
+       but every opening above is held on p3's browser and ruled on the GM, and no scenario sent a player's
+       trail or body move: C17's mutants that send them naming no roll survived every run, and a regression
+       there refuses every honest opening and both of those actions at a table with the suite green. Chie
+       murders Daichi, the opening's Body picked, and p3's browser answers the invitation as it does at a
+       table, on faces of 11 and 10; the GM swings the blow; Daichi's body lies where Chie stands; and p3
+       lays a trail at Aiko and carries the body off, each on 11 and 2 - to the first neighbouring room the
+       picker would offer, which here is none (measured 05.10: p3 reads no neighbour of Chie's room, so the
+       GM's own reach decides, cleanup.mjs `applyMoveBody`). Read on the GM:
+       the stage after the opening and what each roll's record settled. Last, since it opens an incident
+       the closing check above does not read. */
+    phase("the killer's player throws the opening, a trail and a body move", { flow: "murder-incident" });
+    await p3.eval(`globalThis.__h6Auto = globalThis.__dialogAuto; globalThis.__dialogAuto = true; globalThis.__forceRoll = { hope: 11, fear: 10 }; return true;`);
+    const honestOpening = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const D = await import("${repoUrl}/scripts/roll-draw.mjs");
+        for (const id of ["${ids.chie}", "${ids.daichi}", "${ids.aiko}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        const had = new Set(game.messages.contents.map(m => m.id));
+        await M.openMurder({ killerId: "${ids.chie}", victimId: "${ids.daichi}", openingTrait: "body" });
+        const end = Date.now() + 20000;
+        while (M.murderState()?.stage === "openingRoll" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        const drawn = game.messages.contents.filter(m => !had.has(m.id)).map(m => D.drawnRecordOf(m)).filter(r => r?.actionKey === "murderOpening");
+        return { stage: M.murderState()?.stage ?? null, records: drawn.map(r => ({ actorId: r.actorId, resolved: r.resolved ?? [] })) };`, { timeout: 60000 });
+    const sixPlaced = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const chie = game.actors.get("${ids.chie}"), floor = canvas.scene;
+        const mine = floor.tokens.find(t => t.actorId === "${ids.chie}"), body = floor.tokens.find(t => t.actorId === "${ids.daichi}");
+        globalThis.__h6Six = { body: body ? { id: body.id, x: body.x, y: body.y } : null,
+            was: { stress: chie.system.resources.stress.value, hope: chie.system.resources.hope.value } };
+        if (M.murderState()?.stage === "incident") {
+            for (let i = 0; i < 4 && M.crisisRefusal(chie, "finishingBlow")?.why === "not their turn"; i++) await M.passTurn();
+            await M.resolveCrisisAction({ actorId: chie.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+        }
+        if (mine && body) await body.update({ x: mine.x, y: mine.y });
+        await chie.update({ "system.resources.stress.value": 0 });
+        await automatedUpdate(chie, { "system.resources.hope.value": Math.max(3, globalThis.__h6Six.was.hope) });
+        await new Promise(r => setTimeout(r, 800));
+        return { stage: M.murderState()?.stage ?? null, moved: Boolean(mine && body) };`, { timeout: 60000 });
+    await settle(800);
+    const SIX = (key, target) => `const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
+        const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const Mv = await import("${repoUrl}/scripts/movement.mjs");
+        const chie = game.actors.get("${ids.chie}");
+        const room = Mv.locateActor(chie)?.room ?? "";
+        const target = ${target === "room" ? "Mv.neighbouringRooms(room).find(r => r !== room) ?? null" : JSON.stringify(target)};
+        globalThis.__forceRoll = { hope: 11, fear: 2 };
+        const before = A.rollInHand(chie)?.messageId ?? null, here = Cl.bodyIsHere(chie);
+        let r = null, err = null;
+        try { r = await Cl.attemptStageSix(chie, "${key}", target); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { delete globalThis.__forceRoll; }
+        const after = A.rollInHand(chie)?.messageId ?? null;
+        return { rolled: Boolean(r?.roll), messageId: after !== before ? after : null, here, target, err };`;
+    const trail = await p3.eval(SIX("misleadingTrail", ids.aiko), { timeout: 60000 });
+    await settle(1200);
+    const carried = await p3.eval(SIX("moveBody", "room"), { timeout: 60000 });
+    await settle(1200);
+    const SETTLED = id => `const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(id ?? "none")}));
+        return r ? { actionKey: r.actionKey, resolved: r.resolved ?? [] } : null;`;
+    const settled = { trail: await gm.eval(SETTLED(trail.messageId)), carried: await gm.eval(SETTLED(carried.messageId)) };
+    await p3.eval(`globalThis.__dialogAuto = globalThis.__h6Auto; delete globalThis.__h6Auto; return true;`);
+    await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { body, was } = globalThis.__h6Six ?? {};
+        delete globalThis.__h6Six;
+        await game.drpg.endMurder({ reason: "suite", followUp: false });
+        const chie = game.actors.get("${ids.chie}"), daichi = game.actors.get("${ids.daichi}");
+        if (C.isDeadForGm(daichi)) await C.reviveCharacter(daichi, { quiet: true });
+        const token = body ? canvas.scene.tokens.get(body.id) : null;
+        if (token) await token.update({ x: body.x, y: body.y });
+        if (was) { await chie.update({ "system.resources.stress.value": was.stress }); await automatedUpdate(chie, { "system.resources.hope.value": was.hope }); }
+        return true;`, { timeout: 60000 });
+    check("the killer's player's opening, trail and body move each name the roll the GM drew, which settles it: the incident begins, and both Stage 6 actions are carried out",
+        honestOpening.stage === "incident" && JSON.stringify(honestOpening.records) === JSON.stringify([{ actorId: ids.chie, resolved: ["murderOpening"] }])
+            && sixPlaced.stage === "resolution" && sixPlaced.moved && trail.rolled && carried.rolled && carried.here === true
+            && JSON.stringify(settled) === JSON.stringify({ trail: { actionKey: "cleanup", resolved: ["cleanup"] }, carried: { actionKey: "cleanup", resolved: ["cleanup"] } }),
+        JSON.stringify({ honestOpening, sixPlaced, trail, carried, settled }), { flow: "murder-incident" });
 }

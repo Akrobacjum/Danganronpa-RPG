@@ -1127,6 +1127,10 @@ export function pick(spec) {
  * past which the record is swept anyway), and it has not settled that action before. The
  * run then reads the record's `total`, `isCritical` and `withHope` in place of the
  * packet's (`onRecord`); a packet number that differs is logged here and never used.
+ * A player's packet naming a roll this GM holds no record of is asked again once, after
+ * `TIMING.rollRecordRetryMs` (the plan's 3.8; fix r2-H6, 05.10.2026): a GM who has just become
+ * the primary may not have been sent the record yet. Measured only in the suite, where the
+ * record is written late on purpose; the sync's time at a table is not.
  *
  * TWO PACKETS PASS WITH NO RECORD, AND THEIR NUMBERS STAND: a GM's that names none - a
  * GM's roll is its own and never drawn (roll-draw.mjs `drawsHere`) - and any packet on a
@@ -1231,9 +1235,16 @@ async function rollsFor(decl, payload, sender) {
         const kind = rollKindOf(rolled, payload);
         if (!kind) continue;
         const id = payload?.[rolled.field];
-        const record = typeof id === "string" && id
-            ? Object.values(rollStore.entries() ?? {}).find(row => row?.messageId === id) ?? null : null;
+        const named = () => (typeof id === "string" && id
+            ? Object.values(rollStore.entries() ?? {}).find(row => row?.messageId === id) ?? null : null);
+        let record = named();
         if (!record && sender?.isGM) continue;
+        // A player's packet that names a roll this GM has no record of is asked again once (the
+        // plan's 3.8, built in fix r2-H6): the record may still be on its way from the GM who drew it.
+        if (!record && typeof id === "string" && id) {
+            await pause(TIMING.rollRecordRetryMs);
+            record = named();
+        }
         rolls.push({ rolled, record, settles: rolled.settles ?? kind,
             earned: record && rolled.derive ? await rolled.derive(record, payload) : null });
     }

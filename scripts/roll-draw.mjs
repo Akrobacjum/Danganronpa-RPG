@@ -120,6 +120,29 @@ export function rollDrawState() {
     return { ...seam };
 }
 
+/**
+ * What `registerRollDraw` decides for `cls`, wrapping nothing: "ok" - to be wrapped - or
+ * "changed", with the review's reason. Split out in fix r2-H6 (05.10.2026; review m3) so R217
+ * reads the decision on a build that is not the reviewed one, not only the review.
+ */
+export function seamFor(cls) {
+    const review = reviewBuild(cls);
+    return review.ok ? { state: "ok", why: "" } : { state: "changed", why: review.why };
+}
+
+/**
+ * THE FALLBACK, STOOD IN FOR BY THE SUITE (fix r2-H6, 05.10.2026; review m3). No table of the
+ * suite's runs on a Daggerheart the draw was not written for, so what this client does on one -
+ * the primary's word to the GMs (`announceRollDraw`), every packet's numbers standing
+ * (bridge-guards.mjs `rollsFor`) - was run by nothing. This client's seam reads as `state` until
+ * the function answered is called, which puts the live one back. Nothing is wrapped or unwrapped.
+ */
+export function standInSeam(state) {
+    const live = seam;
+    seam = { state, why: "stood in by the suite" };
+    return () => { seam = live; };
+}
+
 /** At `setup`, beside critical.mjs: wrap the duality roll's build, or leave it and say why. */
 export function registerRollDraw() {
     const cls = game.system?.api?.dice?.DualityRoll;
@@ -129,10 +152,10 @@ export function registerRollDraw() {
     Hooks.once("ready", () => { for (const actor of game.actors ?? []) notePayments(actor); });
     Hooks.on("createActor", actor => notePayments(actor));
     Hooks.on("updateActor", notePayments);
-    const review = reviewBuild(cls);
-    if (!review.ok) {
-        seam = { state: "changed", why: review.why };
-        warn(`Rolls are not drawn by the GM on this Daggerheart (${game.system?.version ?? "?"}): ${review.why}.`);
+    const decided = seamFor(cls);
+    if (decided.state !== "ok") {
+        seam = decided;
+        warn(`Rolls are not drawn by the GM on this Daggerheart (${game.system?.version ?? "?"}): ${decided.why}.`);
         return;
     }
     const original = cls.build;

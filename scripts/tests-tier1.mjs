@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, bodyOf, fnSource, STANDING
+    moduleSources, otherSources, stripComments, bodyOf, fnSource, STANDING, watchLog
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -3022,7 +3022,6 @@ const INVARIANTS = [
          * R1b reads.
          */
         const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
-        const { sessionFailures } = await import("./utils.mjs");
         const me = game.user.id, sent = [], ran = [];
         const send = (to, packet) => sent.push({ to, ...packet });
         const decl = (run, more = {}) => ({ label: "x", guards: [knownSender], sanitize: pick({ n: as.num }), run, answer: "ack", ...more });
@@ -3108,12 +3107,19 @@ const INVARIANTS = [
 
         for (const where of ["Run", "Guard", "Prepare"]) {
             clear();
-            await ask(`r162.throws${where}`);
+            // The lines logged while it is judged, not the session log's rows: a second run in one page found the
+            // first run's row there, and a session past 60 wordings none (fix r2-H6, 05.10.2026; review m1).
+            const log = watchLog();
+            try {
+                await ask(`r162.throws${where}`);
+            } finally {
+                log.stop();
+            }
             const refusals = sent.filter(p => p.action === "bridge.refused");
             equal(refusals.length, 1, `an exception in the ${where.toLowerCase()} was not told as one refusal`);
             equal(refusals[0]?.reason, "failed", `an exception in the ${where.toLowerCase()} was not told as failed`);
-            ok(sessionFailures().some(e => e.message.includes(`Refused a "r162.throws${where}"`) && e.message.includes("the handler failed")),
-                `an exception in the ${where.toLowerCase()} was not logged as "the handler failed"`);
+            equal(log.count(new RegExp(`Refused a "r162\\.throws${where}".*the handler failed`)), 1,
+                `an exception in the ${where.toLowerCase()} was not logged once as "the handler failed"`);
             if (where !== "Run") {
                 ok(!sent.some(p => p.action === "bridge.ack") && !ran.length,
                     `an exception in the ${where.toLowerCase()} was acknowledged, or the run went on: ${JSON.stringify({ sent, ran })}`);
@@ -5572,8 +5578,12 @@ const INVARIANTS = [
          * the steps in another order, a configuration hook not by Daggerheart's template, no
          * Duality hooks, no `fromData` - are refused, each with its own reason. Reads only: the
          * fakes are never wrapped (`registerRollDraw` reads the world's class alone).
+         * Since fix r2-H6 (05.10.2026; review m3) also what is decided on them (`seamFor`, which
+         * `registerRollDraw` wraps by): the reviewed fake is to be wrapped and the reordered one
+         * left alone, its state "changed" with the review's reason. What the fallback then does on
+         * the GM is tier 2's ("a build the draw was not written for ...").
          */
-        const { reviewBuild, rollDrawState } = await import("./roll-draw.mjs");
+        const { reviewBuild, rollDrawState, seamFor } = await import("./roll-draw.mjs");
         const { PATCHES } = await import("./patches.mjs");
         const live = game.system?.api?.dice?.DualityRoll;
         must(typeof live === "function", "this world's Daggerheart has no DualityRoll to draw");
@@ -5611,6 +5621,9 @@ const INVARIANTS = [
         equal(JSON.stringify(verdicts.map(v => v.ok)), JSON.stringify([true, false, false, false, false]),
             "a build that differs from the reviewed one is wrapped, or the reviewed shape is refused (as read; order, template, hooks, fromData)");
         equal(new Set(verdicts.slice(1).map(v => v.why)).size, 4, "two different departures were refused with one reason");
+        equal(JSON.stringify([seamFor(live), seamFor(reviewed), seamFor(reordered)]),
+            JSON.stringify([{ state: "ok", why: "" }, { state: "ok", why: "" }, { state: "changed", why: verdicts[1].why }]),
+            "the seam would be put on a build that is not the reviewed one, or left off the reviewed one (this world's, the reviewed fake, the reordered fake)");
     }]
 ];
 

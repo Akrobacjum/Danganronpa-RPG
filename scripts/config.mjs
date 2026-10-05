@@ -332,6 +332,12 @@ export const TIMING = {
     diceSettleMs: 6000,
     /** How far back a Reroll's fallback scan looks for its roll, in real minutes. */
     rerollWindowMinutes: 30,
+    /** How long the primary GM waits once for the record of a roll a player's packet names
+     *  before refusing it `rollUnknown` (bridge-guards.mjs `rollsFor`; the plan's 3.8): a
+     *  resolution can reach a GM who became the primary before the GMs' store synced the
+     *  record to it. The Reroll receipts' 400 ms, kept; how long that sync takes at a table
+     *  has not been measured. */
+    rollRecordRetryMs: 400,
     /** How long after the primary GM posts a player's safeword card that player's next
      *  press is logged and not posted again (safeword.mjs `hearSafeword`, E06 C9). A choice,
      *  not a measurement: long enough to swallow a double press and a held key, short enough

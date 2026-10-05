@@ -13,6 +13,9 @@
  * no GM connected: p1's Search is refused before its price (A1); a statistic from p1's sheet is
  * thrown, stamped and moves nothing (A2); and back, the GM gets one card for it and Grant all
  * moves its Hope once (A3).
+ * Since fix r2-H6 (05.10.2026; review m2) also: an action's roll that reaches Daggerheart's build
+ * with no GM is not thrown (A4); A3's Grant all is a click on the card's button; and a stamped
+ * message created while the GM is back pays its Despair at the Grant, once, not at its creation (A5).
  */
 export const layers = ["ci"];
 
@@ -99,7 +102,25 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         typeof a2.id === "string" && a2.author === IDS.p1 && a2.stamp?.actorId === IDS.aiko && typeof a2.stamp?.nonce === "string"
         && typeof a2.stamp?.at === "number" && J(a2.owed) === "[]" && a2.after === a2.hope && sent.length === 0, J({ a2, sent }), { flow: "gm-rolls-total" });
 
-    // A3: a GM connects; the primary's card lists the roll, and Grant all twice moves its Hope once.
+    /* A4: an action's roll that reaches Daggerheart's build with no GM - a GM who left between the
+       action's start and its roll - is not thrown (roll-draw.mjs `drawOrThrow`): no message, and p1 is
+       told it waits for a GM. Every action refuses at its start (A1), so nothing reached this refusal
+       before fix r2-H6: C18's mutant `c18-draw-not-refused` survived every run. */
+    const a4 = await p1.eval(`${AIKO} const { DRPG_ACTION_ROLL } = await import("${repoUrl}/scripts/action-rolls.mjs");
+        globalThis.__notifications.length = 0;
+        const messages = game.messages.size;
+        let answer = "unset", threw = null;
+        try {
+            answer = await game.system.api.dice.DualityRoll.build({ [DRPG_ACTION_ROLL]: true, roll: { trait: "instinct" }, source: { actor: aiko.uuid },
+                hooks: ["roll", "Duality"], actionType: "action" });
+        } catch (e) { threw = String(e?.message ?? e).slice(0, 200); }
+        await new Promise(r => setTimeout(r, 500));
+        return { answer: answer ?? null, threw, made: game.messages.size - messages, said: globalThis.__notifications.map(n => n.msg),
+            text: game.i18n.localize("DRPG.Rolls.waitsForGm") };`, { timeout: 30000 });
+    check("A4: with no GM connected, an action's roll that reaches Daggerheart's build is not thrown: nothing made, and p1 is told it waits for a GM",
+        a4.answer === null && a4.threw === null && a4.made === 0 && a4.said.includes(a4.text), J(a4), { flow: "gm-rolls-total" });
+
+    // A3: a GM connects; the primary's card lists the roll, and Grant all - its button clicked, then asked again - moves its Hope once.
     let a3 = null;
     try {
         await connect("gm0");
@@ -110,20 +131,75 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
             await until(() => cards().length > 0 && Array.isArray(cardFlag(cards()[0], "awayRolls")));
             const listed = cards().map(m => cardFlag(m, "awayRolls"));
             const hope = aiko.system.resources.hope.value;
-            const first = await D.decideUnwitnessed(listed[0] ?? [], true);
-            const again = await D.decideUnwitnessed(listed[0] ?? [], true);
+            // The card as a GM's chat log draws it (roll-draw.mjs \`onRenderUnwitnessed\`), and its Grant all clicked.
+            const li = cards()[0] ? await cards()[0].renderHTML() : null;
+            const button = li?.querySelector('[data-drpg-away="grant"]') ?? null;
+            button?.click();
             await until(() => aiko.system.resources.hope.value !== hope, 4000);
+            const again = await D.decideUnwitnessed(listed[0] ?? [], true);
             await new Promise(r => setTimeout(r, 500));
             const message = game.messages.get(${J(a2.id)});
             return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), listed, hope, after: aiko.system.resources.hope.value,
-                first: first.length, again: again.length, granted: message?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null,
-                author: message?.author?.id ?? null };`, { timeout: 60000 });
+                button: Boolean(button), buttonsLeft: Boolean(li?.querySelector(".drpg-away-actions")), again: again.length,
+                granted: message?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null, author: message?.author?.id ?? null };`, { timeout: 60000 });
     } catch (err) {
         a3 = { error: String(err?.message ?? err) };
     }
     check("A3: back, the GM gets one card listing p1's stamped roll, and Grant all moves its Hope once and makes it the GM's",
-        a3?.primary === true && J(a3.listed) === J([[a2.id]]) && a3.first === 1 && a3.again === 0 && a3.after === a3.hope + 1
+        a3?.primary === true && J(a3.listed) === J([[a2.id]]) && a3.button && !a3.buttonsLeft && a3.again === 0 && a3.after === a3.hope + 1
         && a3.granted === true && a3.author === "USERGA0000000000", J(a3), { flow: "gm-rolls-total" });
+
+    /* A5: A STAMPED MESSAGE CREATED WHILE A GM IS HERE (fix r2-H6; review m2, C18's `c18-despair-not-aside`).
+       A stamp is its roller's word - a roll begun as the GM connected, or one a console wrote - so the
+       primary asks about it on a card (roll-draw.mjs `registerUnwitnessedRolls`) and its Despair waits for
+       that card (despair-award.mjs): awarded at its creation as well, a Grant paid it twice. p1 writes a
+       Fear result of Aiko's, stamped, with "Rolls grant Despair" on and her Monokuma's pool at 0; read on
+       gm0: the pool after the creation and after the new card's Grant all is clicked. */
+    let a5 = null;
+    if (a3?.primary === true) {
+        try {
+            const set = await gm0.eval(`${AIKO} const { monokumaFor } = await import("${repoUrl}/scripts/assignments.mjs");
+                const P = await import("${repoUrl}/scripts/despair.mjs");
+                const monokuma = monokumaFor(aiko);
+                globalThis.__a5 = { grant: game.settings.get("${MOD}", "despairFromRolls"), monokuma: monokuma?.id ?? null,
+                    pool: monokuma ? P.getDespair(monokuma.id) : null, cards: new Set(game.messages.contents.map(m => m.id)) };
+                await game.settings.set("${MOD}", "despairFromRolls", true);
+                if (monokuma) await P.setDespair(monokuma.id, 0);
+                return { monokuma: monokuma?.id ?? null };`, { timeout: 30000 });
+            const written = await p1.eval(`${AIKO} const m = await ChatMessage.create({ speaker: { actor: aiko.id }, content: "A5",
+                    rolls: [JSON.stringify({ class: "DualityRoll", formula: "1d12 + 1d12", total: 12, dHope: { total: 3 }, dFear: { total: 9 } })],
+                    flags: { "${MOD}": { unwitnessed: { nonce: foundry.utils.randomID(), actorId: aiko.id, at: Date.now() } } } });
+                return m?.id ?? null;`, { timeout: 30000 });
+            a5 = await gm0.eval(`${UNTIL} const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+                const P = await import("${repoUrl}/scripts/despair.mjs");
+                const { cards: had, monokuma } = globalThis.__a5;
+                const pool = () => P.getDespair(monokuma);
+                const card = () => game.messages.contents.find(m => !had.has(m.id) && cardFlag(m, "awayCard")
+                    && J(cardFlag(m, "awayRolls")) === J([${J(written)}]));
+                const J = v => JSON.stringify(v);
+                await until(() => card());
+                await new Promise(r => setTimeout(r, 500));
+                const atCreation = pool();
+                const li = card() ? await card().renderHTML() : null;
+                li?.querySelector('[data-drpg-away="grant"]')?.click();
+                await until(() => pool() !== atCreation, 4000);
+                await new Promise(r => setTimeout(r, 500));
+                return { card: Boolean(card()), atCreation, afterGrant: pool(), granted: game.messages.get(${J(written)})?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null };`, { timeout: 60000 });
+            a5 = { ...set, written, ...a5 };
+        } catch (err) {
+            a5 = { error: String(err?.message ?? err) };
+        } finally {
+            await gm0.eval(`const P = await import("${repoUrl}/scripts/despair.mjs");
+                const { grant, monokuma, pool, cards } = globalThis.__a5 ?? {};
+                delete globalThis.__a5;
+                if (monokuma && typeof pool === "number") await P.setDespair(monokuma, pool);
+                if (typeof grant === "boolean") await game.settings.set("${MOD}", "despairFromRolls", grant);
+                return true;`, { timeout: 30000 }).catch(() => null);
+        }
+    }
+    check("A5: a stamped Fear result written while the GM is here pays no Despair at its creation, and one when its card's Grant all is clicked",
+        Boolean(a5?.monokuma) && typeof a5.written === "string" && a5.card === true && a5.atCreation === 0 && a5.afterGrant === 1 && a5.granted === true,
+        J(a5), { flow: "gm-rolls-total" });
 
     for (const [who, client] of [["p1", p1], ["gm0", gm0]]) {
         const errs = await client.eval(`return globalThis.__errors.slice(0, 5);`).catch(err => [String(err?.message ?? err)]);

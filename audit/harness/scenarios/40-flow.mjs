@@ -1300,6 +1300,126 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         JSON.stringify({ anaAfter, paid: anaReroll.paid, made: anaAsk.made, journal: anaReroll.journal, anaBefore, anaSet, analysedP1, arm: anaArm.row }),
         { flow: "analyze" });
 
+    /*
+     * A PLAYER'S HONEST ROADS TO A STASH, AND A DYNAMIC ACTION THE GM RULES FROM ITS CARD (E08+E28 fix
+     * r2-H6, 05.10.2026; review m2). Each of these packets names the roll the GM drew, and the GM reads
+     * its result off its record of it - but no scenario sent one: C14's and C15's mutants that drop the
+     * roll's id from p1's Analyze at a hidden stash and from the theft a Search makes of a stash, and the
+     * one that keeps no ruling on a Dynamic action's card, each survived every run. A regression there
+     * refuses every honest packet of its kind at a table with the suite green. Daichi hides a kit in a
+     * hidden stash in Aiko's room; p1 locates it with an Analyze, then opens it with a Search, each on
+     * faces of 12 and 11; then p1 asks a Dynamic action, which the GM rules Trivial from its card's
+     * button, and throws it on 9 and 5. Read on the GM: whether Aiko found the stash, whether the kit
+     * is hers, the ruling the card keeps (gm-bridge.mjs `dynamicRulingOf`), and what each newest record
+     * of Aiko's settled.
+     */
+    phase("a player's stash, found and opened, and a Dynamic action ruled from its card", { flow: "give-take-stash" });
+    const honestSet = await gm.eval(`
+        const V = await import("${REPO}/scripts/vault.mjs");
+        const INV = await import("${REPO}/scripts/inventory.mjs");
+        const M = await import("${REPO}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
+        const room = M.roomOfActor(aiko);
+        const region = room ? V.regionsByName().get(room) : null;
+        if (!region) return { room, err: "no region" };
+        const path = k => "flags.${MOD}." + k;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        globalThis.__h6Stash = { room, keys, before: keys.map(k => foundry.utils.deepClone(region.getFlag("${MOD}", k))), actions: game.drpg.actionsLeft(aiko),
+            found: foundry.utils.deepClone(aiko.getFlag("${MOD}", V.VAULT_FLAGS.found) ?? null),
+            calls: foundry.utils.deepClone(aiko.getFlag("${MOD}", "pendingCall") ?? null), cards: game.messages.contents.length };
+        if (globalThis.__h6Stash.calls) await aiko.unsetFlag("${MOD}", "pendingCall");
+        await region.update({ [path(V.VAULT_FLAGS.stashes)]: [{ actorId: daichi.id, concealed: true }],
+            [path(V.VAULT_FLAGS.hinders)]: [], [path(V.VAULT_FLAGS.favours)]: [] });
+        const item = await INV.grantItem(daichi, { name: "Scenario 40 H6 stashed kit", category: "usable", tier: 1, override: true, quiet: true });
+        await item.update({ [path(INV.ITEM_FLAGS.location)]: INV.LOCATIONS.vault, [path(INV.ITEM_FLAGS.stashRoom)]: room });
+        globalThis.__h6Stash.item = item.id;
+        if (game.drpg.tokensLeft(room) <= 0) await game.drpg.resetTokens();
+        await game.drpg.setActions(aiko, game.drpg.actionsMax(aiko));
+        return { room, stashed: V.stashItemsIn(daichi, room).length };`, { timeout: 30000 });
+    await settle(600);
+    const NEWEST = action => `Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.actionKey === "${action}").sort((a, b) => b.at - a.at)[0] ?? null`;
+    const honestAnalyze = await p1.eval(`const actor = game.actors.get("${ids.aiko}");
+        globalThis.__forceRoll = { hope: 12, fear: 11 };
+        globalThis.__dialogAnswers.push(() => ({ value: "stash", form: document.createElement("form") }));
+        let err = null;
+        try { await game.drpg.performAction(actor, "analyze", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 1500));
+        return { err };`, { timeout: 120000 });
+    await settle(800);
+    const honestFound = await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs"); const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const row = ${NEWEST("analyze")};
+        return { found: V.hasFoundStash(game.actors.get("${ids.aiko}"), ${JSON.stringify(honestSet.room ?? "")}, "${ids.daichi}"), resolved: row?.resolved ?? null };`);
+    const honestSearch = await p1.eval(`const actor = game.actors.get("${ids.aiko}");
+        globalThis.__forceRoll = { hope: 12, fear: 11 };
+        let err = null;
+        try { await game.drpg.performAction(actor, "search", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        finally { delete globalThis.__forceRoll; }
+        await new Promise(r => setTimeout(r, 1500));
+        return { err };`, { timeout: 120000 });
+    await settle(800);
+    const honestTaken = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const row = ${NEWEST("search")};
+        const aiko = game.actors.get("${ids.aiko}"), daichi = game.actors.get("${ids.daichi}");
+        const name = "Scenario 40 H6 stashed kit";
+        return { aiko: aiko.items.filter(i => i.name === name).length, daichi: daichi.items.filter(i => i.name === name).length, resolved: row?.resolved ?? null };`);
+    check("p1: an Analyze at a hidden stash and a Search that opens it each name the roll the GM drew, which settles them: Aiko finds the stash and takes the kit",
+        !honestSet.err && honestSet.stashed === 1 && !honestAnalyze.err && !honestSearch.err
+            && honestFound.found === true && JSON.stringify(honestFound.resolved) === JSON.stringify(["analyze"])
+            && honestTaken.aiko === 1 && honestTaken.daichi === 0 && (honestTaken.resolved ?? []).includes("search"),
+        JSON.stringify({ honestSet, honestAnalyze, honestFound, honestSearch, honestTaken }), { flow: "give-take-stash" });
+
+    // The Dynamic action: p1 asks, and waits for the GM's ruling while the GM presses the card's button. The Analyze
+    // and the Search spent Aiko's actions (measured: "0 actions left and needs 1"), so they are refilled first.
+    await gm.eval(`const aiko = game.actors.get("${ids.aiko}"); await game.drpg.setActions(aiko, game.drpg.actionsMax(aiko)); return true;`, { timeout: 30000 });
+    await settle(400);
+    await p1.eval(`const actor = game.actors.get("${ids.aiko}");
+        globalThis.__forceRoll = { hope: 9, fear: 5 };
+        globalThis.__dialogAnswers.push("Scenario 40 H6: picks the archive's lock");
+        globalThis.__h6Dynamic = game.drpg.performAction(actor, "dynamic", {}).then(r => ({ r }), e => ({ err: String(e?.stack ?? e).slice(0, 300) }));
+        return true;`, { timeout: 30000 });
+    const ruled = await gm.eval(`const { contentOf, cardFlag } = await import("${REPO}/scripts/secret.mjs");
+        const { wireCallActions } = await import("${REPO}/scripts/messenger-app.mjs");
+        const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const find = () => game.messages.contents.slice(${Number(honestSet.cards) || 0}).find(m => String(contentOf(m) ?? "").includes('data-drpg-call="setDifficulty"')) ?? null;
+        await until(() => find());
+        const card = find();
+        if (!card) return { card: false };
+        const body = document.createElement("div");
+        body.innerHTML = contentOf(card);
+        wireCallActions(body, card);
+        globalThis.__dialogAnswers.push(() => ({ tier: 0, trait: "instinct" }));
+        body.querySelector('[data-drpg-call="setDifficulty"]')?.click();
+        await until(() => cardFlag(game.messages.get(card.id), "ruling"));
+        return { card: true, ruling: cardFlag(game.messages.get(card.id), "ruling") ?? null };`, { timeout: 60000 });
+    const thrownDynamic = await p1.eval(`const out = await Promise.race([globalThis.__h6Dynamic, new Promise(r => setTimeout(() => r({ err: "still waiting" }), 30000))]);
+        delete globalThis.__h6Dynamic; delete globalThis.__forceRoll;
+        await new Promise(r => setTimeout(r, 1500));
+        return { err: out.err ?? null, success: out.r?.success ?? null, leftTrace: out.r?.leftTrace ?? null };`, { timeout: 60000 });
+    await settle(800);
+    const dynamicGm = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
+        const { dynamicRulingOf } = await import("${REPO}/scripts/gm-bridge.mjs");
+        const row = ${NEWEST("dynamic")};
+        return { ruling: row ? dynamicRulingOf(row) : null, resolved: row?.resolved ?? null };`);
+    await gm.eval(`const V = await import("${REPO}/scripts/vault.mjs");
+        const { forcedDeletion } = await import("${REPO}/scripts/utils.mjs");
+        const { room, keys, before, found, actions, calls } = globalThis.__h6Stash ?? {};
+        delete globalThis.__h6Stash;
+        const region = room ? V.regionsByName().get(room) : null;
+        if (region) await region.update(Object.fromEntries(keys.map((k, i) => ["flags.${MOD}." + k, before[i] === undefined ? forcedDeletion() : before[i]])));
+        const aiko = game.actors.get("${ids.aiko}");
+        for (const a of [aiko, game.actors.get("${ids.daichi}")]) for (const i of a.items.filter(x => x.name === "Scenario 40 H6 stashed kit")) await i.delete();
+        if (found === null) await aiko.unsetFlag("${MOD}", V.VAULT_FLAGS.found);
+        else await aiko.setFlag("${MOD}", V.VAULT_FLAGS.found, found);
+        if (typeof actions === "number") await game.drpg.setActions(aiko, actions);
+        if (calls) await aiko.setFlag("${MOD}", "pendingCall", calls);
+        return true;`, { timeout: 30000 });
+    check("p1: a Dynamic action the GM rules Trivial from its card's button keeps the ruling on the card, and the roll's trace is left at the band the GM read off it",
+        ruled.card === true && ruled.ruling?.type === "dynamic" && ruled.ruling.actorId === ids.aiko && ruled.ruling.tier === 0
+            && !thrownDynamic.err && thrownDynamic.success === true
+            && dynamicGm.ruling?.tier === 0 && JSON.stringify(dynamicGm.resolved) === JSON.stringify(["trace"]),
+        JSON.stringify({ ruled, thrownDynamic, dynamicGm }), { flow: "action-roll" });
+
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");
     for (const c of [gm, ...players]) {
