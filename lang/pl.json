@@ -262,7 +262,7 @@
       },
       "lockPlayerResources": {
         "name": "Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk",
-        "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Health i Sanity też: obrażenia przychodzą z kryzysu, Calla, nieudanego rzutu albo odpoczynku, nigdy z kliknięcia w pole. GM-ów to nie dotyczy."
+        "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Włączone: ręczne zmiany gracza są cofane albo zgłaszane GM-om, a ich pola są dla graczy tylko do odczytu; wyłączone: są tylko odnotowywane dla GM-ów. Przedmioty i efekty są oceniane zawsze, tak samo jak to, co zmieniło się bez połączonego GM-a - gdy któryś wróci. GM-ów to nie dotyczy."
       },
       "chargeMovement": {
         "name": "Przejście między pokojami kosztuje Move",
@@ -3084,7 +3084,12 @@
       "keep": "Zostaw",
       "undone": "Cofnięte przez: {gm}.",
       "kept": "Zostawione przez: {gm}.",
-      "changedSince": "Cofnij od {gm} - nie nadpisano tego, co od tamtej pory znów się zmieniło: {fields}."
+      "changedSince": "Cofnij od {gm} - nie nadpisano tego, co od tamtej pory znów się zmieniło: {fields}.",
+      "awayTitle": "Zmiany na kartach postaci zrobione, gdy żaden GM nie patrzył",
+      "awayPutBack": "Cofnięte od razu, tak jak przy patrzącym GM-ie:",
+      "awayLine": "{name} - {field} ({path}): {before} -> {after}",
+      "undoAll": "Cofnij wszystko",
+      "acceptAll": "Zostaw wszystko"
     },
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",

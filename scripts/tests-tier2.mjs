@@ -24647,6 +24647,78 @@ const SCENARIOS = [
                 + "again under its id with its flags (the two verdicts, the rows, the cards, written back, the item back, its identity, its category)");
     }],
 
+    ["the comparison at ready finds nothing on an untouched world: no card, no write", async () => {
+        /* E29 C7 (the plan's 2.9). Every student's document against its mark, as the primary GM compares
+           them when its stores hydrate: on a world every write of which was judged, nothing differs - no
+           row, no card, nothing written. A difference here would be a card before the GMs at every load. */
+        cast(1);
+        const { compareAtReady, sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        await sheetAuditIdle();
+        must(game.actors.some(actor => actor.type === "character" && sheetMarkStore.has(actor.id)), "no student has a mark - the comparison would read nothing");
+        const from = Date.now();
+        let writes = 0;
+        const count = doc => { if ((doc?.parent ?? doc)?.type === "character") writes++; };
+        const hooks = ["updateActor", "createActiveEffect", "updateActiveEffect", "deleteActiveEffect", "createItem", "updateItem", "deleteItem"]
+            .map(name => [name, Hooks.on(name, count)]);
+        let found = null;
+        try {
+            found = await compareAtReady();
+            await sheetAuditIdle();
+            await settle();
+        } finally {
+            for (const [name, id] of hooks) Hooks.off(name, id);
+        }
+        const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.away && row.at >= from).length;
+        const cards = game.messages.contents.filter(m => (m.timestamp ?? 0) >= from && cardFlag(m, "sheetAway")).length;
+        equal(stableJson([found, rows, cards, writes]), stableJson([{ putBack: 0, flagged: 0, listed: 0, card: null }, 0, 0, 0]),
+            "the comparison at ready found a difference on a world whose writes were all judged, or wrote, or posted a card (its counts, rows, cards, writes)");
+    }],
+
+    ["a write judged by nobody before a reload is found at the next ready: a statistic put back at once, a healed Health mark on one card", async () => {
+        /* E29 C7 (the plan's 2.9). Written here by the GM with the option the audit leaves out of the mark -
+           a write the primary had not judged when it reloaded, or one made with no GM connected - and then
+           the comparison the primary makes at ready: Agility raised is put back at once, the Health mark
+           healed stands on one card with its own Undo, and Undo from it writes the mark back. */
+        const [student] = cast(1);
+        const { compareAtReady, sheetAuditIdle, decideWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { cardFlag, contentOf } = await import("./secret.mjs");
+        const AGI = "system.traits.agility.value", HP = "system.resources.hitPoints.value";
+        const read = path => foundry.utils.getProperty(student._source, path);
+        must(typeof read(AGI) === "number" && Number(student.system.resources?.hitPoints?.max) >= 1, "the student has no Agility, or cannot hold a Health mark");
+        const agility = read(AGI);
+        let seen = null, rowId = null;
+        try {
+            await student.update({ [HP]: 1 });
+            await sheetAuditIdle();
+            const from = Date.now();
+            await student.update({ [AGI]: agility + 1, [HP]: 0 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const found = await compareAtReady();
+            await sheetAuditIdle();
+            const rows = Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.away && row.actorId === student.id && row.at >= from);
+            const card = game.messages.contents.find(m => (m.timestamp ?? 0) >= from && Array.isArray(cardFlag(m, "sheetAway"))) ?? null;
+            rowId = rows.find(([, row]) => row.verdict === "flagged")?.[0] ?? null;
+            const atReady = [read(AGI), read(HP)];
+            const undone = rowId ? await decideWrite(rowId, false) : null;
+            await sheetAuditIdle();
+            const words = contentOf(game.messages.get(card?.id ?? ""));
+            seen = [found?.putBack ?? null, found?.flagged ?? null, rows.map(([, row]) => `${row.verdict}:${Object.keys(row.change ?? {}).join(",")}`).sort(),
+                cardFlag(card, "sheetAway") ?? null, rows.every(([, row]) => row.messageId === (card?.id ?? "?")), atReady, undone?.undone ?? null, read(HP),
+                words.includes("drpg-audit-away"), words.includes("drpg-audit-undone"), words.includes("data-drpg-audit=")];
+        } finally {
+            await sheetAuditIdle();
+            if (read(AGI) !== agility) await student.update({ [AGI]: agility });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([1, 1, [`flagged:${HP}`, `putBack:${AGI}`], [rowId ?? "?"], true, [agility, 0], [HP], 1, true, true, false]),
+            "a write nobody judged was not found at ready, or Agility was not put back at once, or the healed mark was not on one card, "
+                + "or Undo from it did not write it back (put back, flagged, the rows, the card's rows, the card named, Agility and Health at ready, "
+                + "written back, Health after, the card still the away card after the decision, its line, its buttons)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

@@ -61,12 +61,18 @@ export const HOPE_REFUND = "drpgHopeRefund";
 /**
  * Paths players may not set by hand.
  *
- * `hope.value` is deliberately NOT here. Daggerheart's own roll pipeline awards
- * Hope with a plain `actor.update()` carrying none of our flags, so guarding it
- * blocked every Hope a player earned from rolling - the resource simply never
- * moved. Hope is protected in the interface instead: the pips are display-only
- * for players (see danganronpa.css), which stops hand-editing without standing
- * in the way of the rules.
+ * `hope.value` is deliberately NOT here (reread in E29 C7, 05.10.2026; audit S02-41).
+ * It was left out because Daggerheart's roll pipeline awarded Hope with a plain
+ * `actor.update()` from the player's browser, carrying none of our flags, and
+ * guarding it blocked every Hope a player earned from rolling. Read in 2.10.5, a
+ * roll's Hope arrives another way - a drawn roll's is the GM's write (E28), and
+ * Daggerheart's own resource step goes through its GM relay, on the GM's client -
+ * so a strip here would no longer cost those. It stays out because Hope's protection
+ * is the GM's now: a gain nothing covers is put back on the primary GM
+ * (sheet-audit.mjs, E29 C4), which a console cannot step past; a strip on this
+ * browser would add a second judge that only a build writing Hope the old way would
+ * trip. The pips - the character sheet's and the Party sheet's - and the token HUD's
+ * bars are display-only for players (danganronpa.css, hud.mjs `stillTokenBars`).
  */
 const GUARDED = [
     `system.resources.${ACTIONS_RESOURCE}.value`,

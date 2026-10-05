@@ -16,6 +16,11 @@
  * Since fix r2-H6 (05.10.2026; review m2) also: an action's roll that reaches Daggerheart's build
  * with no GM is not thrown (A4); A3's Grant all is a click on the card's button; and a stamped
  * message created while the GM is back pays its Despair at the Grant, once, not at its creation (A5).
+ * Since E29 C7 (05.10.2026; the plan's 2.9, 2.10) also: a student's token HUD bars are display-only for
+ * its player (H1); and with no GM connected p1's console raises Aiko's Agility and heals one of her
+ * Health marks - back, the primary puts Agility back at once and asks about the Health mark on one card,
+ * whose own Undo heals it back (S1, S2). The GM who returns comes back with the browser the GM who left
+ * held (`storageOf`), as a GM's reload keeps it: the GMs' marks live in their browsers.
  */
 export const layers = ["ci"];
 
@@ -24,7 +29,7 @@ export const accounts = [{ who: "gm0", id: "USERGA0000000000", name: "Returning 
 const MOD = "danganronpa-rpg";
 const J = value => JSON.stringify(value);
 
-export async function run({ gm, gm0, p1, p2, check, phase, settle, connect, disconnect, socketTraffic, IDS, repoUrl }) {
+export async function run({ gm, gm0, p1, p2, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     for (const [who, client] of [["p1", p1], ["p2", p2]]) {
         const held = await client.eval(`
             const entry = game.settings.settings.get("isometric-perspective.showWelcome");
@@ -49,17 +54,47 @@ export async function run({ gm, gm0, p1, p2, check, phase, settle, connect, disc
     const after = await p1.eval(`return game.settings.get("isometric-perspective", "showWelcome");`);
     check("p1: switching the welcome back on by hand does not stick", after === false, String(after));
 
-    await awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconnect, socketTraffic, IDS, repoUrl });
+    await tokenBars({ gm, p1, check, phase, IDS });
+    const away = await awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl });
+    await sheetAtReady({ gm0, p1, check, phase, IDS, repoUrl, away });
+}
+
+/**
+ * THE TOKEN HUD'S BARS (E29 C7; the owner's Q4 (a)): on a player's browser a student's two bar inputs are
+ * display-only while `lockPlayerResources` is on, and on the GM's they are not. The harness has no canvas
+ * and draws no token HUD, so the check hands the hook (hud.mjs `stillTokenBars`) a HUD's shape: the app's
+ * actor and an element with Daggerheart 2.10.5's two inputs. The Party sheet's pips are CSS, which no
+ * client here computes - not checked.
+ */
+async function tokenBars({ gm, p1, check, phase, IDS }) {
+    phase("a student's token HUD bars", { flow: "sheet-audit" });
+    const read = `const el = document.createElement("form");
+        el.innerHTML = '<div class="attribute bar2"><input type="text" name="bar2" value="2"></div><div class="attribute bar1"><input type="text" name="bar1" value="1"></div>';
+        Hooks.callAll("renderTokenHUD", { actor: game.actors.get("${IDS.aiko}") }, el, {}, {});
+        return { locked: game.settings.get("${MOD}", "lockPlayerResources"), disabled: [...el.querySelectorAll("input")].map(i => i.disabled) };`;
+    const onP1 = await p1.eval(read), onGm = await gm.eval(read);
+    check("H1: a student's token HUD bar inputs are display-only for its player with the lock on, and stay editable for the GM",
+        onP1.locked === true && J(onP1.disabled) === J([true, true]) && J(onGm.disabled) === J([false, false]), J({ onP1, onGm }), { flow: "sheet-audit" });
 }
 
 /** A GM away, and back (E08+E28 C18): the header's A1-A3. */
-async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconnect, socketTraffic, IDS, repoUrl }) {
+async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconnect, storageOf, socketTraffic, IDS, repoUrl }) {
     phase("a GM away, and back", { flow: "gm-rolls-total" });
     const AIKO = `const aiko = game.actors.get("${IDS.aiko}");`;
     const UNTIL = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
-    // Hope below its maximum of 6 and actions to pay with, so "nothing moved" is a reading.
-    await gm.eval(`${AIKO} const A = await import("${repoUrl}/scripts/actions.mjs");
-        await aiko.update({ "system.resources.hope.value": 2 }); await A.setActions(aiko, 3); return true;`);
+    /* Hope below its maximum of 6 and actions to pay with, so "nothing moved" is a reading; and (C7) two Health
+       marks, one for p1 to heal - each judged into the GMs' marks before the GM leaves, so they leave in its
+       browser. The GM's stores are waited for first: read at this point of a run on 05.10.2026 (e29run/c7a1/probe)
+       they had not hydrated yet - no mark held, none in the browser it left with, so the GM who came back filled
+       its marks from the sheets as p1 had left them and found nothing. */
+    const marked = await gm.eval(`${AIKO} const A = await import("${repoUrl}/scripts/actions.mjs");
+        const G = await import("${repoUrl}/scripts/gm-store.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const end = Date.now() + 15000;
+        while (!(G.gmStoresHydrated() && S.sheetMarkStore.has(aiko.id)) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await aiko.update({ "system.resources.hope.value": 2, "system.resources.hitPoints.value": Math.min(2, aiko.system.resources.hitPoints.max) });
+        await A.setActions(aiko, 3);
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return G.gmStoresHydrated() && S.sheetMarkStore.get(aiko.id)?.resources?.hitPoints?.value === aiko._source.system.resources.hitPoints.value;`);
     await disconnect("gm");
     await settle(800);
 
@@ -120,10 +155,18 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
     check("A4: with no GM connected, an action's roll that reaches Daggerheart's build is not thrown: nothing made, and p1 is told it waits for a GM",
         a4.answer === null && a4.threw === null && a4.made === 0 && a4.said.includes(a4.text), J(a4), { flow: "gm-rolls-total" });
 
+    /* The sheet half (E29 C7): p1's console raises Aiko's Agility by one and heals one Health mark, past its
+       own browser's guard, with no GM to judge either. Read back on p1; judged at the GM's return (S1). */
+    const sheetAway = await p1.eval(`${AIKO} const src = () => aiko._source.system;
+        const was = { agility: src().traits.agility.value, hp: src().resources.hitPoints.value };
+        await aiko.update({ "system.traits.agility.value": was.agility + 1, "system.resources.hitPoints.value": was.hp - 1 }, { drpgAutomated: true });
+        return { ...was, written: [src().traits.agility.value, src().resources.hitPoints.value] };`, { timeout: 30000 });
+
     // A3: a GM connects; the primary's card lists the roll, and Grant all - its button clicked, then asked again - moves its Hope once.
     let a3 = null;
     try {
-        await connect("gm0");
+        // With the browser the GM who left closed with (E29 C7): its stores hold the marks the sheet half is judged against.
+        await connect("gm0", { storage: await storageOf("gm") });
         await settle(6000);
         a3 = await gm0.eval(`${AIKO} ${UNTIL} const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
             const D = await import("${repoUrl}/scripts/roll-draw.mjs");
@@ -204,5 +247,68 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
     for (const [who, client] of [["p1", p1], ["gm0", gm0]]) {
         const errs = await client.eval(`return globalThis.__errors.slice(0, 5);`).catch(err => [String(err?.message ?? err)]);
         check(`${who}: no uncaught errors with a GM away and back`, (errs ?? []).length === 0, J(errs).slice(0, 400), { flow: "gm-rolls-total" });
+    }
+    return { ...sheetAway, marked };
+}
+
+/**
+ * A SHEET CHANGED WITH NO GM WATCHING (E29 C7; the plan's 2.9), read after `awayAndBack`: the primary that
+ * returned (gm0) compared Aiko with its mark as its stores hydrated. Agility, raised by one, is put back at
+ * once on every client, and the Health mark p1 healed stands, the one row of one card of the GMs' (S1); that
+ * card's own Undo for the row, clicked as the GM's chat draws it, heals it back, decides the row and says so
+ * on the card (S2). At 1.2.67's code nothing was compared: Agility stood and no card came.
+ */
+async function sheetAtReady({ gm0, p1, check, phase, IDS, repoUrl, away }) {
+    phase("a sheet changed with no GM watching", { flow: "sheet-audit" });
+    const AIKO = `const aiko = game.actors.get("${IDS.aiko}"); const src = () => aiko._source.system;`;
+    const ON_GM = `${AIKO} const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const C = await import("${repoUrl}/scripts/secret.mjs");
+        const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const rows = () => Object.entries(S.sheetWriteStore.entries() ?? {}).filter(([, r]) => r?.away && r.actorId === aiko.id);
+        const cards = () => game.messages.contents.filter(m => Array.isArray(C.cardFlag(m, "sheetAway")));`;
+    let s1 = null, s2 = null;
+    try {
+        s1 = await gm0.eval(`${ON_GM}
+            await until(() => rows().some(([, r]) => r.verdict === "flagged") && cards().length > 0);
+            await A.sheetAuditIdle();
+            return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), agility: src().traits.agility.value, hp: src().resources.hitPoints.value,
+                rows: rows().map(([id, r]) => ({ id, verdict: r.verdict, change: r.change, card: r.messageId })),
+                cards: cards().map(m => ({ id: m.id, asks: C.cardFlag(m, "sheetAway") })) };`, { timeout: 30000 });
+        s1.p1 = await p1.eval(`${AIKO} const end = Date.now() + 6000;
+            while (src().traits.agility.value !== ${Number(away?.agility)} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            return src().traits.agility.value;`);
+        const flagged = s1.rows.find(r => r.verdict === "flagged");
+        s2 = await gm0.eval(`${ON_GM}
+            const card = cards()[0];
+            const el = document.createElement("li");
+            el.innerHTML = '<div class="message-content"><p class="notes" data-drpg-secret>-</p></div>';
+            if (card) Hooks.callAll("renderChatMessageHTML", card, el);
+            const button = el.querySelector('[data-drpg-audit="undo"][data-drpg-row="${flagged?.id ?? ""}"]');
+            button?.click();
+            await until(() => src().resources.hitPoints.value === ${Number(away?.hp)} && Boolean(S.sheetWriteStore.get("${flagged?.id ?? ""}")?.decided));
+            await A.sheetAuditIdle();
+            const words = card ? C.contentOf(card) : "";
+            return { button: Boolean(button), all: Boolean(el.querySelector('[data-drpg-audit-all="undo"]')), hp: src().resources.hitPoints.value,
+                decided: S.sheetWriteStore.get("${flagged?.id ?? ""}")?.decided ?? null, me: game.user.id,
+                undoneLine: words.includes("drpg-audit-undone"), buttonsLeft: words.includes("data-drpg-audit") };`, { timeout: 30000 });
+    } catch (err) {
+        s1 ??= { error: String(err?.message ?? err) };
+        s2 ??= { error: String(err?.message ?? err) };
+    }
+    const AGI = "system.traits.agility.value", HP = "system.resources.hitPoints.value";
+    const put = s1?.rows?.find(r => r.verdict === "putBack"), asked = s1?.rows?.find(r => r.verdict === "flagged");
+    check("S1: back, the primary puts back the Agility p1 raised with no GM watching on every client, and asks about the Health mark p1 healed on one card",
+        away?.marked === true && away.hp >= 1 && J(away.written) === J([away.agility + 1, away.hp - 1]) && s1?.primary === true && s1.agility === away.agility && s1.p1 === away.agility
+            && s1.hp === away.hp - 1 && s1.rows.length === 2 && J(put?.change) === J({ [AGI]: [away.agility, away.agility + 1] })
+            && J(asked?.change) === J({ [HP]: [away.hp, away.hp - 1] }) && s1.cards.length === 1 && J(s1.cards[0].asks) === J([asked?.id])
+            && put?.card === s1.cards[0].id && asked?.card === s1.cards[0].id,
+        J({ away, s1 }), { flow: "sheet-audit" });
+    check("S2: the card's own Undo for that row heals the mark back, decides the row by that GM, and the card says so with no buttons left",
+        s2?.button === true && s2.all === true && s2.hp === away?.hp && s2.decided?.how === "undo" && s2.decided.by === s2.me
+            && J(s2.decided.undone) === J([HP]) && s2.undoneLine === true && s2.buttonsLeft === false,
+        J(s2), { flow: "sheet-audit" });
+    for (const [who, client] of [["p1", p1], ["gm0", gm0]]) {
+        const errs = await client.eval(`return globalThis.__errors.slice(0, 5);`).catch(err => [String(err?.message ?? err)]);
+        check(`${who}: no uncaught errors after a sheet changed with no GM watching`, (errs ?? []).length === 0, J(errs).slice(0, 400), { flow: "sheet-audit" });
     }
 }

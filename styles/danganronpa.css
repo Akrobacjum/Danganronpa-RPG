@@ -1501,10 +1501,24 @@ body.drpg-hide-system-fear #resource-fear {
    edit..." is on (`drpg-resources-locked`, stamped by module.mjs and by the
    setting's onChange): with it off, resource-guard.mjs lets the edit through,
    and a click the stylesheet still swallowed made the switch look broken (E03;
-   audit S01-40). Health and Sanity are guarded by resource-guard.mjs, not here.
+   audit S01-40). Health and Sanity on the character sheet are guarded by
+   resource-guard.mjs, not here; on the Party sheet, here (below).
    ========================================================================== */
 
 body.drpg-player.drpg-resources-locked .character-header-sheet .hope-section .hope-value {
+    pointer-events: none;
+}
+
+/* The Party sheet's member pips (E29 C7; audit S02-41; the owner's Q4 (a), 05.10.2026). A click
+   on its Hope, Health or Sanity wrote the member straight from the player's browser (Daggerheart
+   2.10.5, party-sheet.mjs `#onToggleHope`, `#onToggleHitPoints`, `#onToggleStress`: a plain
+   `actor.update`), so for a player they are display-only too, under the same lock. The GMs'
+   audit judges such a write either way (sheet-audit.mjs); this is the courtesy half. Hiding
+   them from players is N5's. The armour slots are not the lock's and stay. Not measured in a
+   browser: the harness draws no Party sheet and computes no cascade. */
+body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="toggleHope"],
+body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="toggleHitPoints"],
+body.drpg-player.drpg-resources-locked .party .actor-resources [data-action="toggleStress"] {
     pointer-events: none;
 }
 

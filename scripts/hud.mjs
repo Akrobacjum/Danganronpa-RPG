@@ -31,7 +31,7 @@ import { isSyncedSetting } from "./sync.mjs";
 // be a private copy here "for the cycle" (audit C3) - the cycle was real, the
 // copy was the wrong cure. character.mjs was the other such reader, and it went
 // with the incident row when that moved to the Event panel (1.2.47).
-import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats } from "./settings.mjs";
+import { incomingTimeOfDay, incidentWitness, incidentCast, incidentSeats, SETTINGS, getSetting } from "./settings.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
 // would be a load-order problem rather than a lint complaint. None of these
@@ -198,6 +198,34 @@ export function registerHud() {
     // The Projects tray redrawing means a project was created, advanced,
     // finished or shared - any of which can change whether this room has one.
     Hooks.on("renderDhCountdowns", () => renderHud());
+
+    // Foundry's token HUD, not this one: a student's bars are display-only for a player (E29 C7).
+    Hooks.on("renderTokenHUD", stillTokenBars);
+}
+
+/**
+ * THE TOKEN HUD'S BARS, DISPLAY-ONLY FOR A PLAYER (E29 C7; audit S02-41; the owner's Q4 (a),
+ * 05.10.2026). Foundry's token HUD draws an input for each of the token's two bars, and a
+ * player who owns the token may type a new value there - a plain write on their student from
+ * their own browser. While `lockPlayerResources` is on, a student's two inputs are disabled
+ * for a player, as the sheet's pips are display-only (danganronpa.css); the GMs' audit judges
+ * such a write either way (sheet-audit.mjs). Hiding the bars from players is N5's. The inputs
+ * are read in Daggerheart 2.10.5's templates/hud/tokenHUD.hbs (`input[name="bar1"]`, `bar2`).
+ * Not measured on a canvas, which the harness has none of: its check (15-held) hands the hook a
+ * HUD's shape.
+ */
+export function stillTokenBars(app, element) {
+    try {
+        if (game.user?.isGM || getSetting(SETTINGS.lockPlayerResources) === false) return;
+        const actor = app?.actor ?? app?.document?.actor ?? null;
+        if (actor?.type !== "character") return;
+        for (const input of element?.querySelectorAll?.('input[name="bar1"], input[name="bar2"]') ?? []) {
+            input.disabled = true;
+            input.readOnly = true;
+        }
+    } catch (err) {
+        error("Could not hold a token's bars for a player", err);
+    }
 }
 
 /**

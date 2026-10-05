@@ -262,7 +262,7 @@
       },
       "lockPlayerResources": {
         "name": "Players cannot edit Actions, Hope, Health, Sanity or statistics",
-        "hint": "Those move through play - spend an action, take a rest, earn a Level Up. Health and Sanity are included: damage arrives from a crisis, a Call, a failed roll or a rest, never from clicking a pip. GMs are unaffected."
+        "hint": "Those move through play - spend an action, take a rest, earn a Level Up. On, a player's own edits of them are put back or flagged to the GMs, and their pips are display-only for players; off, they are only listed for the GMs. Items and effects are judged either way, and so is what changed while no GM was connected, when one returns. GMs are unaffected."
       },
       "chargeMovement": {
         "name": "Crossing rooms costs a Move",
@@ -2972,7 +2972,12 @@
       "keep": "Keep",
       "undone": "{gm} undid it.",
       "kept": "{gm} kept it.",
-      "changedSince": "{gm} chose Undo, but {fields} changed again since; that was not written over."
+      "changedSince": "{gm} chose Undo, but {fields} changed again since; that was not written over.",
+      "awayTitle": "Sheet changes made while no GM was watching",
+      "awayPutBack": "Put back at once, as it would have been with a GM watching:",
+      "awayLine": "{name} - {field} ({path}): {before} -> {after}",
+      "undoAll": "Undo all",
+      "acceptAll": "Accept all"
     },
     "Rolls": {
       "rewritePutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",

@@ -72,6 +72,24 @@
  * row's copy, or deletes a created one. The setting `lockPlayerResources` does not govern
  * items (the owner's Q2 (a)).
  *
+ * WITH NO GM WATCHING (C7, 05.10.2026; the plan's 2.9). Nothing judges a write that lands
+ * while no GM is connected, nor one the primary had not judged when it reloaded. So when
+ * the primary's stores hydrate (`compareAtReady`) every student's document is compared
+ * with its mark, each difference judged as a write naming it would be: a statistic, an
+ * experience, a maximum, a rule, a bonus, a GM-only flag or an effect a roll is built from
+ * is put back at once, and so is a module item's protected flag; every other difference
+ * that a write would have had to account for - a gain in Hope, Health, Sanity, actions or
+ * the grants, a Rest stamp, a module item deleted or created - goes on one card, "Sheet
+ * changes made while no GM was watching", a row per field and per item with Undo and Keep
+ * and Undo all / Accept all, decided once on the primary as the card of a flagged write
+ * is. A fall stands, as it does when judged live. `lockPlayerResources` off lists the
+ * fields its text names instead (the owner's Q2 (a)), as it does live. The marks are the
+ * GMs' browsers' (gm-stores.mjs: synced, not backed up), so the comparison is as good as
+ * the copy the returning GM's browser holds: a GM on a browser that never held them takes
+ * the sheets as it finds them, which is the limit of this design, not measured at a table.
+ * What a GM writes on this browser before its stores hydrate is the GM's, not a difference
+ * (`unmarked`).
+ *
  * ONE WRITE AFTER ANOTHER, PER STUDENT. Each write is queued behind the ones before
  * it on that student (`inOrder`), so a put-back is computed against the writes
  * that landed before it, and a GM's write is the baseline only once the player's
@@ -146,6 +164,12 @@ const ITEM_FIXED = [ITEM_FLAGS.category, ITEM_FLAGS.tier, ITEM_FLAGS.identity];
 
 /** Where a module item is kept: carried, or which stash. */
 const ITEM_PLACE = [ITEM_FLAGS.location, ITEM_FLAGS.stashRoom];
+
+/** The flag of the GMs' card of the changes made with no GM watching (C7): the ids of the rows it asks about. */
+const AWAY_CARD = "sheetAway";
+
+/** The parts of a student's document the mark holds and the comparison at ready reads, besides `MARKED_FLAGS`. */
+const MARK_ROOTS = ["system.traits", "system.experiences", "system.resources", "system.rules", "system.bonuses"];
 
 /** How long a row of `sheetWrites` is kept (the plan's 2.3, chosen): a day, swept as the next is written. */
 const ROW_KEPT_MS = 24 * 60 * 60_000;
@@ -414,6 +438,7 @@ export function judgeWrite(kind, doc, changes, userId, options = {}, priors = nu
 
 async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const user = game.users?.get(userId ?? "");
+    if (!gmStoresHydrated() && !options?.[AUDIT_ASIDE]) noteUnmarked(kind, doc, actor, changes);
     if (user?.isGM) {
         // The GMs' own put-back moves nothing they hold; any other GM's write is their value of what it names.
         const reason = options?.drpgWrite?.reason, own = reason === "auditPutBack";
@@ -1015,10 +1040,15 @@ async function record(actor, user, found, options) {
     }
     if (found.listed.length) rows[foundry.utils.randomID()] = row("listed", found.listed, null);
     if (!Object.keys(rows).length) return;
+    await keepRows(rows, at);
+    debug(`The GMs' audit: ${user?.name ?? "?"} on ${actor.name}: ${Object.values(rows).map(r => r.verdict).join(", ")}.`);
+}
+
+/** Rows into `sheetWrites`, every row older than a day swept as they go in. */
+async function keepRows(rows, at) {
     const old = Object.entries(sheetWriteStore.entries() ?? {}).filter(([, kept]) => !(kept?.at >= at - ROW_KEPT_MS)).map(([id]) => id);
     if (old.length) await sheetWriteStore.dropMany(old);
     await sheetWriteStore.patchMany(rows);
-    debug(`The GMs' audit: ${user?.name ?? "?"} on ${actor.name}: ${Object.values(rows).map(r => r.verdict).join(", ")}.`);
 }
 
 /* ---------------------------------------------------------------------------
@@ -1026,11 +1056,16 @@ async function record(actor, user, found, options) {
  * ------------------------------------------------------------------------- */
 
 /**
- * The kind of field a row's path is, for its label: an item deleted or created (C6) by its change, a
- * means by its ledger's kind, anything else as `kindOf` reads it.
+ * The kind of field a row's path is, for its label: an item deleted or created (C6) by its change, an
+ * item's field or an effect (C7) as their judges name them, a means by its ledger's kind, anything else
+ * as `kindOf` reads it.
  */
 function fieldKind(path, [, now] = []) {
     if (/^items\.[^.]+$/.test(path)) return now === null ? "itemDeleted" : "itemCreated";
+    // A field of an item or an effect put back at ready (C7), as `itemFindings` and `effectFindings` name theirs.
+    if (/^effects\./.test(path)) return "effect";
+    const inItem = /^items\.[^.]+\.(.+)$/.exec(path)?.[1];
+    if (inItem) return inItem === "system.quantity" ? "itemQuantity" : ITEM_PLACE.includes(itemFlagOf(inItem)) ? "itemLocation" : "itemFlag";
     return Object.values(LEDGER).find(entry => entry.path === path)?.kind ?? kindOf(path) ?? "flag";
 }
 
@@ -1044,17 +1079,19 @@ function flaggedCard(row) {
     const label = path => game.i18n.localize(`DRPG.Audit.field.${fieldKind(path, row.change?.[path])}`);
     const lines = Object.entries(row.change ?? {}).map(([path, [was, now] = []]) =>
         `<li>${esc(label(path))} (${esc(path)}): ${esc(shown(was))} -> ${esc(shown(now))}</li>`).join("");
-    const decided = row.decided;
-    let foot = `<div class="drpg-audit-actions"><button type="button" data-drpg-audit="undo">${esc(game.i18n.localize("DRPG.Audit.undo"))}</button>`
+    const foot = row.decided ? decidedWords(row.decided, label)
+        : `<div class="drpg-audit-actions"><button type="button" data-drpg-audit="undo">${esc(game.i18n.localize("DRPG.Audit.undo"))}</button>`
         + `<button type="button" data-drpg-audit="keep">${esc(game.i18n.localize("DRPG.Audit.keep"))}</button></div>`;
-    if (decided) {
-        const gm = game.users.get(decided.by ?? "")?.name ?? "?", said = [];
-        if (decided.how === "keep") said.push(["drpg-audit-kept", game.i18n.format("DRPG.Audit.kept", { gm })]);
-        if (decided.undone?.length) said.push(["drpg-audit-undone", game.i18n.format("DRPG.Audit.undone", { gm })]);
-        if (decided.moved?.length) said.push(["drpg-audit-moved", game.i18n.format("DRPG.Audit.changedSince", { gm, fields: decided.moved.map(label).join(", ") })]);
-        foot = said.map(([cls, text]) => `<p class="${cls}">${esc(text)}</p>`).join("");
-    }
     return `<div class="drpg-audit-card"><p class="drpg-warning">${esc(game.i18n.format("DRPG.Audit.flagged", { player, name }))}</p><ul>${lines}</ul>${foot}</div>`;
+}
+
+/** What a GM decided of a row, in the words both cards give it: kept, undone, and what had moved since. */
+function decidedWords(decided, label) {
+    const gm = game.users.get(decided.by ?? "")?.name ?? "?", said = [];
+    if (decided.how === "keep") said.push(["drpg-audit-kept", game.i18n.format("DRPG.Audit.kept", { gm })]);
+    if (decided.undone?.length) said.push(["drpg-audit-undone", game.i18n.format("DRPG.Audit.undone", { gm })]);
+    if (decided.moved?.length) said.push(["drpg-audit-moved", game.i18n.format("DRPG.Audit.changedSince", { gm, fields: decided.moved.map(label).join(", ") })]);
+    return said.map(([cls, text]) => `<p class="${cls}">${esc(text)}</p>`).join("");
 }
 
 /** This GM's decisions, one after another (`decideWrite`). */
@@ -1098,7 +1135,9 @@ async function decideNow(rowId, keep, by) {
         if (undone.includes(whole) && deleted) await trustedCreate(actor, [row.data], { reason: "auditUndo", keepId: true, [CAP_OVERRIDE]: true });
         else if (undone.includes(whole)) await trustedDelete(actor.items.get(row.itemId), { reason: "auditUndo" });
         const card = game.messages.get(row.messageId ?? "");
-        if (card) await updateSecret(card, flaggedCard({ ...row, decided }), null, { sheetAudit: row.actorId, [FLAGGED_CARD]: rowId });
+        // A row of the card of changes made with no GM watching (C7): that card, every row of it, as the store now holds them.
+        if (card && row.away) await updateSecret(card, awayCard(awayRowsOf(row.messageId)), null, { [AWAY_CARD]: cardFlag(card, AWAY_CARD) ?? [] });
+        else if (card) await updateSecret(card, flaggedCard({ ...row, decided }), null, { sheetAudit: row.actorId, [FLAGGED_CARD]: rowId });
         return decided;
     });
 }
@@ -1122,6 +1161,8 @@ export async function askToDecideWrite(rowId, keep) {
 function onRenderFlagged(message, element) {
     try {
         if (!game.user?.isGM || !cardWriter(message)?.isGM) return;
+        const away = cardFlag(message, AWAY_CARD);
+        if (Array.isArray(away)) return void wireAwayCard(away, element);
         const rowId = cardFlag(message, FLAGGED_CARD);
         if (typeof rowId !== "string") return;
         if (sheetWriteStore.get(rowId)?.decided) return void element.querySelector(".drpg-audit-actions")?.remove();
@@ -1134,6 +1175,238 @@ function onRenderFlagged(message, element) {
         });
     } catch (err) {
         error("Could not draw the GMs' card of a flagged write", err);
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * With no GM watching (C7)
+ * ------------------------------------------------------------------------- */
+
+/** actorId -> what the writes judged on this browser before its stores hydrated named: the mark could not take them then. */
+const unmarked = new Map();
+
+/**
+ * A write judged before this browser's stores hydrated (`refreshMark` waits for them): a GM's -
+ * the primary's own writes at its `ready` - or a player's, already judged. The comparison at
+ * ready takes what it names as it stands rather than as a difference nobody judged. An effect
+ * or an item is named whole.
+ */
+function noteUnmarked(kind, doc, actor, changes) {
+    const held = unmarked.get(actor.id) ?? new Set();
+    if (kind === "updateActor") for (const path of pathsOf(changes)) held.add(path.replace(/(^|\.)[-=]=/g, "$1"));
+    else held.add(`${ITEM_WRITES.has(kind) ? "items" : "effects"}.${doc.id}`);
+    unmarked.set(actor.id, held);
+}
+
+/*
+ * Every leaf the mark and the document hold differently in what the mark keeps, the shallowest where
+ * one holds an object and the other a value. An empty object is nothing: the mark keeps `rules` and
+ * `bonuses` as `{}` where the document has none (`markFrom`), and read as a difference that put an
+ * empty object onto every student of the harness's world at every ready - the first run of the
+ * suite's "finds nothing on an untouched world" (05.10.2026, e29run/c7a1: 8 put-backs, 4 students).
+ */
+function differing(before, src) {
+    const read = (doc, path) => {
+        const value = foundry.utils.getProperty(doc, path);
+        return isPlain(value) && !Object.keys(value).length ? null : value ?? null;
+    };
+    const leaves = new Set();
+    for (const root of [...MARK_ROOTS, ...MARKED_FLAGS.map(key => `flags.${MODULE_ID}.${key}`)]) {
+        for (const doc of [before, src]) {
+            const value = foundry.utils.getProperty(doc, root);
+            if (isPlain(value) && Object.keys(value).length) for (const path of pathsOf(value, root)) leaves.add(path);
+            else if (value !== undefined) leaves.add(root);
+        }
+    }
+    const moved = [...leaves].filter(path => stableJson(read(before, path)) !== stableJson(read(src, path)));
+    return moved.filter(path => !moved.some(other => path.startsWith(`${other}.`)));
+}
+
+/** Two copies of a document's data as one write naming every path either holds. */
+const bothPaths = (held, now) => foundry.utils.mergeObject(clone(held), now, { inplace: false });
+
+/**
+ * ONE STUDENT AT READY (the plan's 2.9): the document against its mark, each difference judged as
+ * a write naming it would be, with no writer and no stamp - `actorFindings`, `effectFindings` and
+ * `itemFindings` decide what is put back, and it is put back now - while a gain of the means
+ * (`LEDGER`), a Rest stamp and a module item deleted or created go to the card (`flagged`), or, the
+ * fields `lockPlayerResources` names with the setting off, to the list. A fall stands. What a write
+ * judged before the stores hydrated named is the mark's (`unmarked`). The mark then takes the
+ * document as the put-backs leave it, the GMs' means its values. Answers the findings, or null.
+ */
+async function compareOne(actor) {
+    const mark = sheetMarkStore.get(actor.id);
+    if (!mark || !game.actors?.has(actor.id)) return null;
+    const early = [...(unmarked.get(actor.id) ?? [])];
+    const byGm = path => early.some(seen => path === seen || path.startsWith(`${seen}.`) || seen.startsWith(`${path}.`));
+    const settle = () => refreshMark(actor, { values: ledgerOf(null, actor), credit: creditOf(mark) }, markFrom(actor).items);
+    // A Monokuma is no student (`judgeNow`): what it holds stands.
+    if (mark.flags?.[FLAGS.monokuma]) {
+        await settle();
+        return null;
+    }
+    const src = actor._source ?? actor.toObject(), lock = locked();
+    const paths = differing(markAsDocument(mark), src).filter(path => !byGm(path));
+    const sheet = actorFindings(actor, mark, foundry.utils.expandObject(Object.fromEntries(paths.map(path => [path, true]))));
+    const out = { actor, back: [...sheet.back], listed: [...sheet.listed], flagged: [], change: { ...sheet.change }, items: [] };
+    const values = ledgerOf(mark, actor), now = ledgerOf(null, actor);
+    for (const [key, { path, cost, kind }] of Object.entries(LEDGER)) {
+        if (byGm(path) || (now[key] - values[key]) * cost >= 0) continue;
+        out.change[path] = [values[key], now[key]];
+        out[lock || kind === "grant" ? "flagged" : "listed"].push({ path, kind });
+    }
+    const rests = [mark.flags?.[FLAGS.restsTaken] ?? null, foundry.utils.getProperty(src, RESTS_PATH) ?? null];
+    if (!byGm(RESTS_PATH) && stableJson(rests[0]) !== stableJson(rests[1])) {
+        out.change[RESTS_PATH] = rests.map(clone);
+        out.flagged.push({ path: RESTS_PATH, kind: "flag" });
+    }
+    const undos = sheet.back.length ? [() => trustedWrite(actor, sheet.patch, { reason: "auditPutBack" })] : [];
+    const effects = new Map((actor.effects?.contents ?? []).map(effect => [effect.id, effect]));
+    for (const id of new Set([...Object.keys(mark.effects ?? {}), ...effects.keys()])) {
+        const held = mark.effects?.[id] ?? null, effect = effects.get(id) ?? null, data = effect ? docData(effect) : null;
+        if (byGm(`effects.${id}`) || stableJson(held) === stableJson(data)) continue;
+        const kind = !effect ? "deleteActiveEffect" : held ? "updateActiveEffect" : "createActiveEffect";
+        const found = effectFindings(kind, effect ?? { id, parent: actor }, mark, held && data ? bothPaths(held, data) : {});
+        if (!found.back.length) continue;
+        out.back.push(...found.back);
+        Object.assign(out.change, found.change);
+        undos.push(found.undo);
+    }
+    const items = markFrom(actor).items;
+    for (const id of new Set([...Object.keys(mark.items ?? {}), ...Object.keys(items)])) {
+        const held = mark.items?.[id] ?? null, item = actor.items?.get(id) ?? null, whole = `items.${id}`;
+        if (byGm(whole) || stableJson(held) === stableJson(items[id] ?? null)) continue;
+        if (!item) out.items.push({ itemId: id, back: [], flagged: [{ path: whole, kind: "itemDeleted" }], change: { [whole]: [held.name ?? null, null] }, data: held });
+        else if (!held) out.items.push({ itemId: id, back: [], flagged: [{ path: whole, kind: "itemCreated" }], change: { [whole]: [null, item.name ?? null] } });
+        else {
+            const data = docData(item), found = await itemFindings("updateItem", item, actor, mark, bothPaths(held, data), null, {}, { item: data });
+            if (!found.back.length) continue;
+            out.items.push(found);
+            undos.push(found.undo);
+        }
+    }
+    for (const undo of undos) {
+        try {
+            await undo();
+        } catch (err) {
+            error(`The GMs' audit could not put back a change made on ${actor.name} with no GM watching`, err);
+        }
+    }
+    await settle();
+    return out.back.length || out.listed.length || out.flagged.length || out.items.length ? out : null;
+}
+
+/**
+ * The rows of the comparison, and its one card (`awayCard`): a put-back row per student and per
+ * item, a flagged row per field and per item deleted or created - so each has its own Undo and
+ * Keep - and a listed row per student. Rows carry `away` and no writer: nobody is known to have
+ * written them. Answers the card, or null.
+ */
+async function recordAway(found) {
+    const at = Date.now(), rows = [];
+    const row = (actor, verdict, entries, change, extra = {}) => [foundry.utils.randomID(), {
+        actorId: actor.id, itemId: null, userId: null, reason: null, ref: null,
+        change: Object.fromEntries(entries.map(entry => [entry.path, change[entry.path]]).filter(([, v]) => v !== undefined)),
+        covered: null, verdict, messageId: null, decided: null, at, away: true, n: rows.length, ...extra }];
+    for (const each of found) {
+        if (each.back.length) rows.push(row(each.actor, "putBack", each.back, each.change));
+        for (const entry of each.flagged) rows.push(row(each.actor, "flagged", [entry], each.change));
+        if (each.listed.length) rows.push(row(each.actor, "listed", each.listed, each.change));
+        for (const item of each.items) {
+            if (item.back.length) rows.push(row(each.actor, "putBack", item.back, item.change, { itemId: item.itemId }));
+            for (const entry of item.flagged) rows.push(row(each.actor, "flagged", [entry], item.change, { itemId: item.itemId, ...(item.data ? { data: item.data } : {}) }));
+        }
+    }
+    if (!rows.length) return null;
+    const told = rows.filter(([, r]) => r.verdict !== "listed");
+    let message = null;
+    if (told.length) {
+        try {
+            message = await whisperToGms(awayCard(told), { flags: { [MODULE_ID]: {
+                [AWAY_CARD]: told.filter(([, r]) => r.verdict === "flagged").map(([id]) => id) } } });
+        } catch (err) {
+            error("Could not tell the GMs of the changes made with no GM watching", err);
+        }
+    }
+    await keepRows(Object.fromEntries(rows.map(([id, r]) => [id, r.verdict === "listed" ? r : { ...r, messageId: message?.id ?? null }])), at);
+    debug(`The GMs' audit at ready: ${rows.map(([, r]) => `${game.actors.get(r.actorId)?.name ?? "?"} ${r.verdict}`).join(", ")}.`);
+    return message;
+}
+
+/** The rows a card of the comparison shows, from the store, in the order it first showed them. */
+function awayRowsOf(messageId) {
+    return Object.entries(sheetWriteStore.entries() ?? {})
+        .filter(([, row]) => row?.away && row.messageId === messageId && row.verdict !== "listed")
+        .sort(([, a], [, b]) => (a.n ?? 0) - (b.n ?? 0));
+}
+
+/**
+ * THE CARD OF THE CHANGES MADE WITH NO GM WATCHING (the plan's 2.9): what was put back, then each
+ * row asked about - student, field, before and after - with Undo and Keep while nobody has decided
+ * it and what was decided after, and Undo all / Accept all while any row is open. Built from the
+ * rows alone, so the primary writes it whole again after each decision (`decideNow`).
+ */
+function awayCard(rows) {
+    const label = (row, path) => game.i18n.localize(`DRPG.Audit.field.${fieldKind(path, row.change?.[path])}`);
+    const line = row => Object.entries(row.change ?? {}).map(([path, [was, now] = []]) => esc(game.i18n.format("DRPG.Audit.awayLine", {
+        name: game.actors.get(row.actorId)?.name ?? "?", field: label(row, path), path, before: shown(was), after: shown(now) }))).join("; ");
+    const button = (attr, how, key, id = null) => `<button type="button" data-drpg-${attr}="${how}"${id ? ` data-drpg-row="${esc(id)}"` : ""}>`
+        + `${esc(game.i18n.localize(key))}</button>`;
+    const back = rows.filter(([, row]) => row.verdict === "putBack"), asked = rows.filter(([, row]) => row.verdict === "flagged");
+    const open = asked.some(([, row]) => !row.decided);
+    return `<div class="drpg-audit-card drpg-audit-away"><h3>${esc(game.i18n.localize("DRPG.Audit.awayTitle"))}</h3>`
+        + (back.length ? `<p class="drpg-warning">${esc(game.i18n.localize("DRPG.Audit.awayPutBack"))}</p><ul>${back.map(([, row]) => `<li>${line(row)}</li>`).join("")}</ul>` : "")
+        + (asked.length ? `<ul>${asked.map(([id, row]) => `<li data-drpg-row="${esc(id)}">${line(row)}${row.decided
+            ? decidedWords(row.decided, path => label(row, path))
+            : `<span class="drpg-audit-actions">${button("audit", "undo", "DRPG.Audit.undo", id)}${button("audit", "keep", "DRPG.Audit.keep", id)}</span>`}</li>`).join("")}</ul>` : "")
+        + (open ? `<div class="drpg-audit-all">${button("audit-all", "undo", "DRPG.Audit.undoAll")}${button("audit-all", "keep", "DRPG.Audit.acceptAll")}</div>` : "")
+        + "</div>";
+}
+
+/**
+ * The card's buttons, wired on a GM's browser as `onRenderFlagged` wires a flagged write's: a row's
+ * Undo or Keep decides that row, Undo all or Accept all every row of the card still open, each on the
+ * primary GM (`askToDecideWrite`). Taken off once every row the card asks about is decided here.
+ */
+function wireAwayCard(ids, element) {
+    const open = () => ids.filter(id => !sheetWriteStore.get(id)?.decided);
+    if (!open().length) return void element.querySelectorAll(".drpg-audit-actions, .drpg-audit-all").forEach(el => el.remove());
+    element.addEventListener("click", async event => {
+        const button = event.target?.closest?.("[data-drpg-audit], [data-drpg-audit-all]");
+        if (!button) return;
+        event.preventDefault();
+        const one = button.dataset.drpgRow;
+        if (one) {
+            button.closest(".drpg-audit-actions")?.remove();
+            if (ids.includes(one)) await askToDecideWrite(one, button.dataset.drpgAudit === "keep");
+            return;
+        }
+        element.querySelectorAll(".drpg-audit-actions, .drpg-audit-all").forEach(el => el.remove());
+        const keep = button.dataset.drpgAuditAll === "keep";
+        for (const id of open()) await askToDecideWrite(id, keep);
+    });
+}
+
+/**
+ * THE COMPARISON AT READY (the plan's 2.9; exported for tier 2): on the primary GM once its stores
+ * hold the other GMs' copies (`registerSheetAudit`), every student with a mark compared with it
+ * (`compareOne`, queued behind the writes on that student), and one card for the GMs. Answers the
+ * rows' verdicts counted and the card's id, or null where this is not the primary or nothing could
+ * be read.
+ */
+export async function compareAtReady() {
+    if (!isPrimaryGm() || !gmStoresHydrated()) return null;
+    try {
+        const students = (game.actors?.contents ?? []).filter(actor => actor.type === "character" && sheetMarkStore.has(actor.id))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        const found = (await Promise.all(students.map(actor => inOrder(actor.id, () => compareOne(actor))))).filter(Boolean);
+        unmarked.clear();
+        const card = await recordAway(found);
+        const count = key => found.reduce((n, each) => n + each[key].length + each.items.reduce((m, item) => m + (item[key]?.length ?? 0), 0), 0);
+        return { putBack: count("back"), flagged: count("flagged"), listed: count("listed"), card: card?.id ?? null };
+    } catch (err) {
+        error("The GMs' audit could not compare the sheets with what it held", err);
+        return null;
     }
 }
 
@@ -1194,6 +1467,11 @@ export function registerSheetAudit() {
         heard.delete(actor.id);
         if (isPrimaryGm() && gmStoresHydrated() && sheetMarkStore.has(actor.id)) void sheetMarkStore.drop(actor.id);
     });
-    // Not while the suite holds the stores or stands them in another world: a hydration then is the suite's.
-    onGmStoresHydrated(() => { if (isPrimaryGm() && !gmStoresQuiet()) void fillMarks(); });
+    // Not while the suite holds the stores or stands them in another world: a hydration then is the suite's. The
+    // comparison reads only the students that have a mark and the filling writes only those that have none (C7).
+    onGmStoresHydrated(() => {
+        if (!isPrimaryGm() || gmStoresQuiet()) return;
+        void compareAtReady();
+        void fillMarks();
+    });
 }

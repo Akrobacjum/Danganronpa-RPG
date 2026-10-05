@@ -1829,6 +1829,12 @@ export function registerSettings() {
         }
     });
 
+    /* It governs both layers (the owner's Q2 (a), 05.10.2026; E29 C7 says so in its hint): on,
+       a player's own edit of Actions, Hope, Health, Sanity or a statistic is put back or flagged
+       on the primary GM (sheet-audit.mjs), at the write or, made with no GM watching, at the
+       primary's ready, and the pips and the token HUD's bars are display-only for players
+       (danganronpa.css, hud.mjs); off, those edits are listed and stand. Items and effects are
+       judged either way. */
     game.settings.register(MODULE_ID, SETTINGS.lockPlayerResources, {
         name: "DRPG.Settings.lockPlayerResources.name",
         hint: "DRPG.Settings.lockPlayerResources.hint",
