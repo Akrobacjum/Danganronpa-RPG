@@ -957,6 +957,39 @@ classes.Actor.prototype.diceRoll = async function diceRoll(config) {
     return game.system.api.dice.DualityRoll.build(config);
 };
 
+/*
+ * A CHAT CARD'S HEADER, AS DAGGERHEART 2.10.5 DRAWS IT (E08+E28 fix r2-H4, 05.10.2026; review S2-2).
+ * The harness drew no card: its log draws nothing (`postOne`), and a test drew a card's hooks onto a
+ * bare element. Who a card's header names is Daggerheart's: its `renderHTML` (chatMessage.mjs:26-36)
+ * hands the template the speaker's actor where the card is readable here, else the author's avatar
+ * (Daggerheart's mystery man where there is none) and no name; the template (chat-message.hbs:3-44)
+ * draws that portrait, then the message's title, else the author's name where the actor has none, else
+ * the alias, and under it the alias with "(GM)" for a GM's titled card, or the author's name again.
+ * Written here from that reading, the header and the content alone, and Foundry's
+ * `renderChatMessageHTML` called on it as core's `renderHTML` calls it, so a test reads the header a
+ * table's log draws - and at a table the suite calls the real one. Not drawn: the time, the delete
+ * button, the whisper's names, the system's enrichment and listeners. Foundry's `User#avatar` is not
+ * written here (no Foundry source on this machine): a user has none, so an author's portrait is the
+ * mystery man.
+ */
+classes.ChatMessage.prototype.renderHTML = async function renderHTML() {
+    const actor = game.actors.get(this.speaker?.actor ?? "");
+    const shown = actor && this.isContentVisible ? actor : { img: this.author?.avatar ? this.author.avatar : "icons/svg/mystery-man.svg", name: "" };
+    const li = document.createElement("li");
+    li.className = "chat-message message flexcol";
+    li.dataset.messageId = this.id;
+    li.innerHTML = '<header class="message-header flexrow"><div class="portrait"><img class="actor-img"></div>'
+        + '<div class="message-header-main"><h4></h4><span class="message-metadata"></span><div class="subtitle"><div class="name"></div></div></div>'
+        + '</header><div class="message-content"></div>';
+    li.querySelector(".actor-img").setAttribute("src", shown.img ?? "");
+    li.querySelector(".message-header-main > h4").textContent = this.title || (!shown.name ? this.author?.name ?? "" : this.alias);
+    li.querySelector(".subtitle .name").textContent = this.title ? `${this.alias} ${this.author?.isGM ? "(GM)" : ""}`.trim()
+        : !shown.name ? this.author?.name ?? "" : "";
+    li.querySelector(".message-content").innerHTML = this.content;
+    hooks.callAll("renderChatMessageHTML", this, li, {});
+    return li;
+};
+
 /* ------------------------------ canvas ----------------------------------- */
 
 const tokenWrappers = new Map();
@@ -1045,6 +1078,11 @@ class HarnessChatLog {
     notify(message) {
         (globalThis.__chatNotified ??= []).push(message?.id ?? null);
         if (message?.sound) (globalThis.__chatRung ??= []).push(message.id ?? null);
+    }
+    // Foundry's `ChatLog#updateMessage`, which draws a card in the log again: kept, not drawn, as
+    // this log draws nothing (`postOne`). A test draws the card itself (`renderHTML` below).
+    updateMessage(message) {
+        (globalThis.__chatRedrawn ??= []).push(message?.id ?? null);
     }
 }
 globalThis.ui = {

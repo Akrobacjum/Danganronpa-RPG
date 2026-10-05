@@ -5250,6 +5250,46 @@ const SCENARIOS = [
         }
     }],
 
+    ["a statistic the GM drew is headed by its roller's character in Daggerheart's card, never by the GM", async () => {
+        /*
+         * E08+E28 fix r2-H4, 05.10.2026; review S2-2; the owner's note of 27.09 (the card shows the
+         * roller's character to everyone allowed, and nobody is ever shown "the GM rolled"). A
+         * statistic from the sheet the GM drew keeps Daggerheart's card, whose message is the GM's and
+         * names no actor, so Daggerheart heads it with the GM: the GM's avatar, and the GM's name - or,
+         * under a title, the private cards' speaker with "(GM)". Each browser that reads the card draws
+         * its header again with the roll's character (private-rolls.mjs `signAsRoller`). Drawn here by
+         * `renderHTML` - at a table Daggerheart's own, on the harness its header as 2.10.5 draws it
+         * (client-entry.mjs) - once as written and once under a title, as Daggerheart's `toMessage`
+         * writes one (`title: roll.title`), with the character given a portrait of its own for the run,
+         * so that it cannot pass for the author's. Read: whether the card has a title, its portrait, its
+         * heading and the line under it. The roller's card is 12-social's on p1, as it arrives and after,
+         * and a reader the GM's dice packet names 12-social's on p2.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const img = theirs.img, portrait = "icons/svg/skull.svg";
+        await theirs.update({ img: portrait });
+        let F = null;
+        try {
+            F = await drawnForPlayer(player, theirs, { actionKey: null, edit: packet => ({ ...packet, actionKey: null, claimed: false }) });
+            const m = F.message;
+            must(m, "the GM wrote no message for the draw - this measured nothing");
+            const head = async title => {
+                m.updateSource({ title });
+                const li = await m.renderHTML();
+                const text = selector => li.querySelector(selector)?.textContent.trim() ?? null;
+                return [Boolean(m.title), li.querySelector(".message-header .portrait img")?.getAttribute("src") ?? null,
+                    text(".message-header-main > h4"), text(".message-header .subtitle .name")];
+            };
+            const read = [await head(""), await head("Duality Roll")];
+            equal(stableJson(read), stableJson(read.map(([titled]) => [titled, portrait, titled ? "Duality Roll" : theirs.name, titled ? theirs.name : ""])),
+                "a drawn statistic's card is headed by the GM's avatar, name or \"(GM)\" rather than its character's portrait and name (per drawing: titled, portrait, heading, line)");
+        } finally {
+            await F?.putBack();
+            await theirs.update({ img });
+        }
+    }],
+
     ["the GM's bookmark of a player's Search names the trace it placed", async () => {
         /*
          * E08+E28 C2, 03.10.2026; audit S05-08. A player's trace is placed by the GM

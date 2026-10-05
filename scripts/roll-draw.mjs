@@ -992,9 +992,10 @@ function facesOf(roll) {
  * hook, asks for it - and its dice are shown as the roller's (`by`) to the GMs and the roll's
  * audience, the roller left out: their dice are played from the answer (private-rolls.mjs
  * `relayDrawnDice`, C13). A statistic from the sheet keeps Daggerheart's card (`keepCard`): no
- * `supersededRoll` flag. `toMessage` then waits for Dice So Nice, which does not animate this
- * message and so answers at once (`keepDiceToReaders`); the draw does not wait for it either
- * (the plan's 3.3): it goes on as soon as the message exists.
+ * `supersededRoll` flag, and each browser that reads it heads it with the roll's character, not
+ * with this GM (private-rolls.mjs `signAsRoller`, fix r2-H4). `toMessage` then waits for Dice So
+ * Nice, which does not animate this message and so answers at once (`keepDiceToReaders`); the
+ * draw does not wait for it either (the plan's 3.3): it goes on as soon as the message exists.
  */
 async function writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard = false }) {
     let heard = null;

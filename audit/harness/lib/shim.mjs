@@ -632,6 +632,9 @@ export function buildDocumentClasses(ctx) {
         get whisper() { return this._source.whisper ?? []; }
         get blind() { return !!this._source.blind; }
         get content() { return this._source.content ?? ""; }
+        // The title Daggerheart's `toMessage` writes (dhRoll.mjs:148, 2.10.5) and its card's header
+        // reads (chat-message.hbs:8, :32) - the harness's `toMessage` writes none (E08+E28 fix r2-H4).
+        get title() { return this._source.title ?? ""; }
         get rolls() { return (this._source.rolls ?? []).map(r => typeof r === "string" ? JSON.parse(r) : r); }
         get isRoll() { return (this._source.rolls ?? []).length > 0; }
         get isAuthor() { return (this._source.author ?? this._source.user ?? null) === ctx.gameRef().user?.id; }

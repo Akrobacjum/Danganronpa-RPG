@@ -89,6 +89,9 @@ export function registerPrivateRolls() {
     // for why a chat card's border cannot be a stylesheet rule.
     Hooks.on("renderChatMessageHTML", paintChatCard);
 
+    // A statistic the GM drew is headed by its roller's character, not by the GM (`signAsRoller`).
+    Hooks.on("renderChatMessageHTML", signAsRoller);
+
     // Everything already in the log is history. Registered here rather than at
     // module scope because `game.messages` does not exist until the world is
     // ready, and `ready` fires before the chat log has rendered a single card.
@@ -1365,6 +1368,63 @@ function readableRule() {
     Object.defineProperty(proto, "isContentVisible", { ...core, get: drpgReadableHere });
 }
 
+/*
+ * A DRAWN STATISTIC IS HEADED BY ITS ROLLER'S CHARACTER (E08+E28 fix r2-H4, 05.10.2026; review S2-2; the
+ * owner's note of 27.09: the card shows the roller's character to everyone allowed, and nobody is ever
+ * shown "the GM rolled"). A statistic from the sheet the GM drew keeps Daggerheart's card (roll-draw.mjs
+ * `keepCard`), and its message is the GM's and names no actor (Q2 (a)) - so Daggerheart heads it with its
+ * author: `renderHTML` hands the template the author's avatar and no name where the speaker names no
+ * actor, and the template draws the author's name, or under the message's title the private cards'
+ * speaker with "(GM)" (chatMessage.mjs:26-36, chat-message.hbs:3-44, read in 2.10.5). Measured on the
+ * harness's model of that header (client-entry.mjs `renderHTML`, 05.10.2026) before this fix: on the
+ * roller's screen as the card arrived and after, on the GM's and on a reader's where rolls are not
+ * forced private, "GM" over "GM" and the GM's portrait (the harness's GM has no avatar, so Daggerheart's
+ * mystery man); on the GM's under a title, "Duality Roll" over "Monokuma (GM)". On a browser that reads
+ * the card its header is drawn again as Daggerheart heads a character's roll: the character's
+ * portrait, and its name under the title or, with none, as the heading. The character is the one this
+ * browser can tell (`drawnSubjectHere`); where it can tell none - after a reload, past the Reroll's
+ * reach, before a GM's packet arrives - the header names nobody: Daggerheart's mystery man and no name.
+ * A card this browser cannot read is hidden already (`enforceContentVisibility`), and an action's card
+ * everywhere, the module's own card speaking for it. A header of another shape than 2.10.5's is left as
+ * drawn; the suite reads the real one at a table (tests-tier2.mjs, "headed by its roller's character").
+ */
+const MYSTERY_MAN = "icons/svg/mystery-man.svg";
+
+function signAsRoller(message, element) {
+    try {
+        if (!isDrawnRoll(message) || isClaimedRoll(message) || !message.isContentVisible) return;
+        const header = (element instanceof HTMLElement ? element : element?.[0])?.querySelector?.(".message-header");
+        if (!header) return;
+        const subject = drawnSubjectHere(message);
+        const name = subject?.name ?? "";
+        header.querySelector(".portrait img")?.setAttribute("src", subject?.img || MYSTERY_MAN);
+        const heading = header.querySelector(".message-header-main > h4");
+        const line = header.querySelector(".subtitle .name");
+        if (message.title) {
+            if (line) line.textContent = name;
+            return;
+        }
+        if (heading) heading.textContent = name;
+        if (line) line.textContent = "";
+    } catch (err) {
+        error("Could not head a drawn roll with its roller", err);
+    }
+}
+
+/**
+ * The character a roll the GM drew is about, as this browser can tell it: the one it keeps for the
+ * roll - the primary GM as it drew it (`reportRollSubject`), the roller from the draw's answer
+ * (roll-draw.mjs `playBack`), any other reader from a GM's `dice.show` (`showRelayedDice`) - or,
+ * while the roll is still being drawn, its own open claim's: the roller's chat log draws the card
+ * the moment the GM's message arrives, before the answer. Null when none.
+ */
+function drawnSubjectHere(message) {
+    const kept = game.actors.get(keptRollSubject(message) ?? "");
+    if (kept) return kept;
+    const nonce = rollNonceOf(message);
+    return (nonce ? rollClaims.find(c => c.nonce === nonce)?.subject : null) ?? null;
+}
+
 /**
  * The incident's audience for this roll's dice, as user ids: `incidentAudienceIds`
  * at `state`, when the stage is `openingRoll` or `incident` and the character the
@@ -1412,14 +1472,18 @@ export function drawnDiceAudienceIds(message, by = null, state = murderState()) 
  * `drawnDiceAudienceIds` - the roller left out, who plays the draw's answer (roll-draw.mjs
  * `playDice`) - and the dice on this screen as `by`'s. Each receiver plays its own copy's rolls
  * as `by`'s dice (`showRelayedDice`). Not awaited: the draw does not wait for an animation.
- * How it looks at a real table, with and without Dice So Nice, is LIVE-E28-01 and -02.
+ * How it looks at a real table, with and without Dice So Nice, is LIVE-E28-01 and -02. A
+ * statistic from the sheet, whose Daggerheart card its readers draw, sends its character too
+ * (`subject`, fix r2-H4): each of them heads the card with it (`signAsRoller`). The packet
+ * reaches only those the roll's dice reach.
  */
 function relayDrawnDice(message, byId) {
     if (!message?.id || !isPrimaryGm()) return;
     const by = game.users.get(byId ?? "") ?? null;
     const recipients = drawnDiceAudienceIds(message, by?.id ?? null).filter(id => id !== game.user?.id && id !== by?.id);
+    const subject = isClaimedRoll(message) ? null : keptRollSubject(message);
     try {
-        if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null }, { recipients });
+        if (recipients.length) game.socket.emit(SOCKET_EVENT, { action: DICE_SHOW, id: message.id, by: by?.id ?? null, ...(subject ? { subject } : {}) }, { recipients });
     } catch (err) {
         error("Could not send the dice of a roll the GM drew", err);
     }
@@ -1516,9 +1580,11 @@ async function playRolls(message, user) {
  * a GM's screen the dice sound where Dice So Nice is not, as the roll's own sound was before the
  * GM wrote it muted, and on a player's nothing without it - the crisis and opening cards carry
  * what an incident roll came to (E06 C4). A statistic from the sheet (no card of the module's
- * stands for it) is made readable here, so its audience reads Daggerheart's card (`readHere`);
- * an action's roll is not - its card is hidden on every browser, and the card that says it does
- * its own notifying. The log's `updateMessage` draws a card hidden at its first render again:
+ * stands for it) is made readable here, so its audience reads Daggerheart's card (`readHere`),
+ * and the character the packet names is kept, so that card is headed by it (`subject`, fix r2-H4,
+ * `signAsRoller`); an action's roll is not - its card is hidden on every browser, and the card that
+ * says it does its own notifying. The log's `updateMessage` draws the card again when either changed
+ * - a card hidden at its first render, or one drawn before its character was known here:
  * Foundry's API as v13 names it, not read in v14's source, which is not on this machine.
  * Exported for the suite, which hands it a packet as the socket would (tests-tier2.mjs).
  */
@@ -1533,9 +1599,13 @@ export async function showRelayedDice(payload, senderId) {
         const drawn = isDrawnRoll(message);
         if (!message || (message.isContentVisible && !rewrite && !drawn)) return;
         const by = typeof payload.by === "string" ? game.users.get(payload.by) ?? null : null;
-        if (drawn && !isClaimedRoll(message) && !message.isContentVisible) {
-            readHere(message.id);
-            if (typeof ui.chat?.updateMessage === "function") void Promise.resolve(ui.chat.updateMessage(message)).catch(() => {});
+        if (drawn && !isClaimedRoll(message)) {
+            // The character the GM names heads the card here (fix r2-H4, `signAsRoller`); one this browser keeps stands.
+            const told = typeof payload.subject === "string" && !keptRollSubject(message) ? game.actors.get(payload.subject) ?? null : null;
+            if (told) keepSubject(message.id, told.id, senderId);
+            const unread = !message.isContentVisible;
+            if (unread) readHere(message.id);
+            if ((told || unread) && typeof ui.chat?.updateMessage === "function") void Promise.resolve(ui.chat.updateMessage(message)).catch(() => {});
         }
         if (rewrite || (drawn && game.user?.isGM)) return await playRolls(message, by ?? message.author);
         if (typeof game.dice3d?.showForRoll !== "function") return;

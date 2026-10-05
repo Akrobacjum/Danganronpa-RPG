@@ -150,6 +150,55 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
             && twoOnGm.project?.claimed === true && twoOnGm.project.actor === null,
         JSON.stringify({ twoRolls, twoOnGm }));
 
+    /* WHO HEADS A DRAWN STATISTIC'S CARD (E08+E28 fix r2-H4, 05.10.2026; review S2-2; the owner's note of
+       27.09: the card shows the roller's character to everyone allowed, and nobody is ever shown "the GM
+       rolled"). The GM's message names no actor, so Daggerheart heads its card with its author, the GM;
+       each browser that reads it draws the header again with Aiko (private-rolls.mjs `signAsRoller`). Cards
+       are drawn by `renderHTML`, the harness's model of Daggerheart 2.10.5's header (client-entry.mjs), with
+       Aiko given a portrait of her own for the phase. p1 draws her card the moment the GM's message arrives,
+       as her log does while the draw is still out (her open claim), and again after the answer; the GM and
+       p2 after it. Then with rolls not forced private every browser reads the card, and p2 learns whose it
+       is from the GM's `dice.show`, which asks p2's log to draw the card again (`__chatRedrawn`). */
+    phase("a drawn statistic's header");
+    const PORTRAIT = "icons/svg/skull.svg";
+    await gm.eval(`const a = game.actors.get("${ids.aiko}"); globalThis.__headImg = a.img; await a.update({ img: "${PORTRAIT}" }); return true;`);
+    await settle(200);
+    const HEAD = `async m => {
+        if (!m) return null;
+        const li = await m.renderHTML();
+        const text = s => li.querySelector(s)?.textContent.trim() ?? null;
+        return { hidden: li.style.display === "none", portrait: li.querySelector(".message-header .portrait img")?.getAttribute("src") ?? null,
+            heading: text(".message-header-main > h4"), line: text(".message-header .subtitle .name") };
+    }`;
+    const ROLL_HEADED = trait => `
+        const head = ${HEAD};
+        let first = null;
+        const hook = Hooks.on("createChatMessage", m => { if (!first && m.getFlag("${MOD}", "drawn")) first = head(m); });
+        try {
+            const cfg = await game.actors.get("${ids.aiko}").rollTrait("${trait}", {});
+            return { id: cfg?.message?.id ?? null, first: await first };
+        } finally { Hooks.off("createChatMessage", hook); }`;
+    const HEAD_OF = id => `return await (${HEAD})(game.messages.get(${JSON.stringify(id)}));`;
+    const headed = await p1.eval(ROLL_HEADED("presence"), { timeout: 60000 });
+    await settle(400);
+    const heads = { p1: await p1.eval(HEAD_OF(headed.id)), gm: await gm.eval(HEAD_OF(headed.id)), p2: await p2.eval(HEAD_OF(headed.id)) };
+    const aikos = h => h?.hidden === false && h.portrait === PORTRAIT && h.heading === "Aiko Hoshino" && h.line === "";
+    check("PRIVACY: Aiko's drawn statistic is headed by Aiko on her screen - as it arrives and after - and on the GM's, never by the GM; p2 is drawn no card (S2-2)",
+        Boolean(headed.id) && aikos(headed.first) && aikos(heads.p1) && aikos(heads.gm) && heads.p2?.hidden === true,
+        JSON.stringify({ headed, heads }));
+    await gm.eval(`await game.settings.set("${MOD}", "forcePrivateRolls", false); return true;`);
+    await p2.eval(`globalThis.__chatRedrawn = []; return true;`);
+    await settle(200);
+    const open = await p1.eval(ROLL_HEADED("finesse"), { timeout: 60000 });
+    await settle(400);
+    const onP2Open = await p2.eval(`const h = await (${HEAD})(game.messages.get(${JSON.stringify(open.id)}));
+        return { ...h, redrawn: (globalThis.__chatRedrawn ?? []).filter(id => id === ${JSON.stringify(open.id)}).length };`);
+    await gm.eval(`await game.settings.set("${MOD}", "forcePrivateRolls", true);
+        await game.actors.get("${ids.aiko}").update({ img: globalThis.__headImg }); return true;`);
+    await settle(200);
+    check("PRIVACY: with rolls not forced private p2 reads Aiko's drawn statistic headed by Aiko, as the GM's dice packet names her, and its log draws it again (S2-2)",
+        Boolean(open.id) && aikos(onP2Open) && onP2Open.redrawn === 1, JSON.stringify({ open, onP2Open }));
+
     // --- inventory carry limit (Gear = 2 shared slots) ---
     phase("inventory");
     const inv = await gm.eval(`
