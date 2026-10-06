@@ -176,21 +176,26 @@ export async function awardRollDespair(actor, delta) {
  * a crit stops being one.
  *
  * Clamped to [0, max] so neither direction overflows or goes negative.
+ *
+ * Moved from the Hope the GMs hold, as a job of the character's audit queue
+ * (sheet-audit.mjs `gmMeansWrite`, E29 fix r2-H5): read off the document, it
+ * moved a forged Hope the audit had not put back yet, and the GMs took the
+ * write as their value - reroll.mjs `makeReroll` says what that measured.
  */
 export async function adjustCritHopeTopUp(actor, delta) {
     if (!actor || !delta) return;
     try {
         const { STARTING } = await import("./config.mjs");
         const { trustedWrite } = await import("./resource-guard.mjs");
+        const { gmMeansWrite } = await import("./sheet-audit.mjs");
 
-        const hope = actor.system?.resources?.hope;
-        const held = hope?.value ?? 0;
-        const max = hope?.max || STARTING.hopeMax;
-        const next = Math.min(max, Math.max(0, held + delta));
-        if (next === held) return;
-
-        await trustedWrite(actor, { "system.resources.hope.value": next }, { reason: "gmRuling" });
-        debug(`${actor.name}: crit top-up ${delta > 0 ? "paid" : "reversed"}, now ${next}/${max}.`);
+        await gmMeansWrite(actor, async ({ hope: held }) => {
+            const max = actor.system?.resources?.hope?.max || STARTING.hopeMax;
+            const next = Math.min(max, Math.max(0, held + delta));
+            if (next === held) return;
+            await trustedWrite(actor, { "system.resources.hope.value": next }, { reason: "gmRuling" });
+            debug(`${actor.name}: crit top-up ${delta > 0 ? "paid" : "reversed"}, now ${next}/${max}.`);
+        });
     } catch (err) {
         error("Could not adjust the critical's second Hope", err);
     }

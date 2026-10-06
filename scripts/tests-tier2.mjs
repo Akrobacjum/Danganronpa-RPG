@@ -2708,6 +2708,149 @@ const SCENARIOS = [
         }
     }],
 
+    /*
+     * THE REROLL'S HOPE IS THE GMS' VALUE (E29 fix r2-H5, 06.10.2026; review round 2 sec M5 = cor M2), the
+     * twins of fix r1-G5's tests of a Call bought on the GM and of a drawn roll's Hope. A forged Hope is a
+     * player's write the judge has not put back yet: written here with the audit's aside, so the mark keeps
+     * the GMs' value under it - and, for "heard while", also handed to the judge as the player's from inside
+     * the GM's own write's `preUpdateActor`, before it leaves this browser (`heardWhilePaid`).
+     */
+    ["a Reroll asked of the GM is paid from the Hope the GMs hold once its character's writes are judged", async () => {
+        /* A player's roll of their character, bookmarked as a Search their browser reports never ran
+           (`playerRollBookmark`), and its Reroll (3 Hope) asked by the player as the primary's listener judges
+           `reroll.ask`, four times: the GMs at 2 under a forged 5; at 3 under a forged 5; at 3 under a forged 5
+           heard while the GM's payment leaves; at 3 with the player's spend to 2 heard and not judged yet - the
+           character's audit queue held half a second by a job of the test's (`gmMeansWrite`). Read per ask: the
+           answer and its reason, the character's Hope, the GMs' mark of it, whether the forged Hope was heard,
+           and whether the GMs' Reroll journal was written. At 5a29623 (06.10.2026, e29run/r2h5q) the GM paid
+           the first three from the forged 5: bought, with 2 left in the sheet and the mark; the same; bought
+           with the sheet back at 3 - the put-back, computed before the payment was heard, landed after it - and
+           2 in the mark. The fourth was refused before the journal there too: the sheet held the spend. */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packet is a connected player's, as Foundry names only those");
+        const { player, actor } = await playerInRoom();
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle, gmMeansWrite, judgeWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const HOPE = "system.resources.hope.value";
+        const hopeWas = actor.system.resources.hope.value;
+        must(Number(actor.system.resources.hope.max) >= 5, `${actor.name}'s Hope cannot reach 5 - the forged Hope would be clamped and measure nothing`);
+        must(!await hopeCallRefusal(actor), `${actor.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+        let journalled = 0, heard = null, release = () => {};
+        const journal = Hooks.on("clientSettingChanged", key => { if (key === `${MODULE_ID}.${SETTINGS.gmRerollJournal}`) journalled++; });
+        const read = [];
+        try {
+            for (const [n, held, sheet, meanwhile] of [[1, 2, 5, null], [2, 3, 5, null], [3, 3, 5, "heard"], [4, 3, 2, "queued"]]) {
+                const F = await playerRollBookmark(player, actor, "search", { claimed: false });
+                let stand = null;
+                try {
+                    must(F.verdict === true && F.row()?.by === player.id, `the player's roll was not bookmarked as theirs: ${stableJson([F.verdict, F.row()])}`);
+                    stand = rerollableRoll(F.message, { first: { hope: 9, fear: 4 }, next: { hope: 10, fear: 3 } });
+                    await trustedWrite(actor, { [HOPE]: held }, { reason: "gmRuling" });
+                    await sheetAuditIdle();
+                    if (meanwhile === "queued") {
+                        const gate = new Promise(resolve => { release = resolve; });
+                        void gmMeansWrite(actor, () => gate);
+                        await actor.update({ [HOPE]: sheet }, { [AUDIT_ASIDE]: true });
+                        void judgeWrite("updateActor", actor, foundry.utils.expandObject({ [HOPE]: sheet }), player.id);
+                        setTimeout(() => release(), 500);
+                    } else {
+                        await actor.update({ [HOPE]: sheet }, { [AUDIT_ASIDE]: true });
+                    }
+                    heard = meanwhile === "heard" ? await heardWhilePaid(actor, { [HOPE]: sheet }, player) : null;
+                    journalled = 0;
+                    const sent = [];
+                    try {
+                        await G.judge(BRIDGE_ACTIONS, { action: "reroll.ask", requestId: `suite-e29h5-pay${n}`, actorId: actor.id }, player.id,
+                            { send: (to, reply) => sent.push(reply) });
+                    } finally {
+                        heard?.stop();
+                        release();
+                    }
+                    await sheetAuditIdle();
+                    await settle();
+                    const answer = sent.find(r => r?.action === "bridge.refused" || r?.action === "bridge.done") ?? null;
+                    read.push([answer?.action ?? null, answer?.reason ?? null, foundry.utils.getProperty(actor._source, HOPE),
+                        sheetMarkStore.get(actor.id)?.resources?.hope?.value ?? null, heard ? heard.judged() : null, journalled > 0]);
+                } finally {
+                    stand?.putBack();
+                    await F.putBack();
+                }
+            }
+        } finally {
+            Hooks.off("clientSettingChanged", journal);
+            heard?.stop();
+            release();
+            await sheetAuditIdle();
+            if (foundry.utils.getProperty(actor._source, HOPE) !== hopeWas) await trustedWrite(actor, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([["bridge.refused", "notEnoughHope", 5, 2, null, false], ["bridge.done", null, 0, 0, null, true],
+            ["bridge.done", null, 0, 0, true, true], ["bridge.refused", "notEnoughHope", 2, 2, null, false]]),
+        "a Reroll was paid from a forged Hope, a forged Hope heard while it was paid was put back over the payment, or a Reroll was checked before "
+            + "its character's writes were judged (per ask: answer, reason, the sheet's Hope, the mark's, the forged Hope heard, the journal written)");
+    }],
+
+    ["a Reroll's roll step and critical Hope and refund move the Hope the GMs hold and not a forged one", async () => {
+        /* A student's roll, kept on the GMs (`thrownFresh`) and rerolled on this GM as its own (`rerollOnGm`)
+           from 4 Hope the GMs hold, with the players' Hope and Fear automation on and "Rolls grant Despair" off,
+           three times: a Hope result into a Fear result (Daggerheart's arithmetic takes a Hope, `modifyRollActor`);
+           into a critical (the second Hope, despair-award.mjs `adjustCritHopeTopUp`); and a Reroll that cannot be
+           thrown (given back whole, `giveBack`). In each a forged Hope - the GMs' 1 after the price, and 2 - is
+           written with the audit's aside a moment after the payment (`rerollableRoll`'s `onReroll`). Read per
+           Reroll: what it answered, and the sheet's Hope and the mark's less the 4 before it. At 5a29623
+           (06.10.2026, e29run/r2h5q) each moved the forged Hope, and the GM's write of it became the mark:
+           the sheet and the mark 2 over what they read here, in all three. */
+        const [who] = cast(1);
+        const R = await import("./reroll.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const HOPE = "system.resources.hope.value", marked = () => sheetMarkStore.get(who.id)?.resources?.hope?.value ?? NaN;
+        const hopeWas = who.system.resources.hope.value, messages = [];
+        must(Number(who.system.resources.hope.max) >= 5, `${who.name}'s Hope cannot reach 5 - a forged Hope given back the price would be clamped and measure less`);
+        must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+        must(Number.isFinite(marked()), `the GMs keep no mark of ${who.name} - this would measure nothing`);
+        try {
+            const read = await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, false);
+                const out = [], first = { hope: 9, fear: 4 };
+                for (const [next, fails] of [[{ hope: 2, fear: 10 }, false], [{ hope: 7, fear: 7 }, false], [{ hope: 10, fear: 3 }, true]]) {
+                    const message = await thrownFresh(who, first, () => null, { remember: true });
+                    messages.push(message.id);
+                    must(rerollBookmarkStore.get(who.id)?.messageId === message.id, "the roll to take back is not the one the GMs keep - this would measure nothing");
+                    await trustedWrite(who, { [HOPE]: 4 }, { reason: "gmRuling" });
+                    await sheetAuditIdle();
+                    const stand = rerollableRoll(message, { first, next, onReroll: async () => {
+                        await who.update({ [HOPE]: 3 }, { [AUDIT_ASIDE]: true });
+                        if (fails) throw new Error("SUITE E29 fix r2-H5: a Reroll that cannot be thrown");
+                    } });
+                    let made = null;
+                    try {
+                        made = await R.rerollOnGm(who, game.user);
+                    } finally {
+                        stand.putBack();
+                    }
+                    await sheetAuditIdle();
+                    await settle();
+                    out.push([Array.isArray(made?.lines) ? "made" : made?.say ?? made?.refused ?? null, foundry.utils.getProperty(who._source, HOPE) - 4, marked() - 4]);
+                }
+                return out;
+            });
+            equal(stableJson(read), stableJson([["made", -4, -4], ["made", -2, -2], ["DRPG.Reroll.failed", 0, 0]]),
+                "a Reroll's roll step, its critical's Hope or its refund moved a forged Hope, or the GM's write of it became the mark "
+                    + "(per Reroll: answer, the sheet's Hope and the mark's against the GMs' 4 before it)");
+        } finally {
+            for (const id of messages) await game.messages.get(id)?.delete();
+            await sheetAuditIdle();
+            if (foundry.utils.getProperty(who._source, HOPE) !== hopeWas) await trustedWrite(who, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+    }],
+
     ["a Reroll of a roll whose message is gone is refused before the Hope is paid", async () => {
         /*
          * E08+E28 C4a, 03.10.2026; audit S02-47. With its bookmarked message gone, the Reroll

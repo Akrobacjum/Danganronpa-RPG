@@ -1877,6 +1877,14 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_REROLL]: {
         label: "DRPG.Bridge.what.reroll.ask",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
+        // The character's writes this GM has heard judged first (E29 fix r2-H5), as `call.arm`'s are:
+        // the Reroll's checks read the Hope the GMs hold, and its payment asks it again where it pays
+        // (reroll.mjs `rerollRefusal`, `makeReroll`).
+        prepare: async payload => {
+            const { judgedFor } = await import("./sheet-audit.mjs");
+            await judgedFor(payload?.actorId);
+            return null;
+        },
         sanitize: pick({ actorId: as.id }),
         run: handleReroll,
         answer: "reply"

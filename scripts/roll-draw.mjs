@@ -510,27 +510,32 @@ class DrawnResources extends Map {
      * writes the GMs' value moved by the roll, not a forged Hope the judge has not put back yet; and
      * the student's queue waits until that write has been heard, or `GRANT_WAIT_MS` where none
      * comes. Where Daggerheart's own arithmetic says the write changes nothing (`dhWrites`) nothing
-     * is waited for: Foundry sends no such update (sheet.mjs's note, measured on 14.365).
+     * is waited for: Foundry sends no such update (sheet.mjs's note, measured on 14.365). A Reroll's
+     * resource step is written the same way since fix r2-H5 (reroll.mjs `modifyRollActor`).
      */
     async updateResources() {
         if (!this.size || !this.#actor) return;
-        const target = this.#actor.system?.partner ?? this.#actor;
-        const { gmMeansWrite } = await import("./sheet-audit.mjs");
-        await gmMeansWrite(target, async held => {
-            const changes = [...this.values()].map(change => fromHeld(target, change, held));
-            const before = Object.fromEntries(Object.entries(target.system?.resources ?? {})
-                .map(([key, resource]) => [key, { value: resource?.value, max: resource?.max, isReversed: resource?.isReversed }]));
-            let heard = null;
-            const landed = new Promise(resolve => { heard = resolve; });
-            const hook = Hooks.on("updateActor", (doc, data, options, userId) => { if (doc?.id === target.id && userId === game.user?.id) heard(); });
-            try {
-                await target.modifyResource(changes);
-                if (dhWrites(before, changes)) await Promise.race([landed, new Promise(resolve => setTimeout(resolve, GRANT_WAIT_MS))]);
-            } finally {
-                Hooks.off("updateActor", hook);
-            }
-        });
+        await modifyFromHeld(this.#actor.system?.partner ?? this.#actor, [...this.values()]);
     }
+}
+
+/** Daggerheart's `modifyResource` of `resources` on `target`, as a GM's write of its means from the GMs' value (`updateResources`' note). */
+export async function modifyFromHeld(target, resources) {
+    const { gmMeansWrite } = await import("./sheet-audit.mjs");
+    await gmMeansWrite(target, async held => {
+        const changes = resources.map(change => fromHeld(target, change, held));
+        const before = Object.fromEntries(Object.entries(target.system?.resources ?? {})
+            .map(([key, resource]) => [key, { value: resource?.value, max: resource?.max, isReversed: resource?.isReversed }]));
+        let heard = null;
+        const landed = new Promise(resolve => { heard = resolve; });
+        const hook = Hooks.on("updateActor", (doc, data, options, userId) => { if (doc?.id === target.id && userId === game.user?.id) heard(); });
+        try {
+            await target.modifyResource(changes);
+            if (dhWrites(before, changes)) await Promise.race([landed, new Promise(resolve => setTimeout(resolve, GRANT_WAIT_MS))]);
+        } finally {
+            Hooks.off("updateActor", hook);
+        }
+    });
 }
 
 /** A roll's change of a resource the GMs hold, moved so that Daggerheart's sum starts from their value (`updateResources`). */
