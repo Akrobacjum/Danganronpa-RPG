@@ -985,7 +985,7 @@ async function traceBandOf(record) {
         const { sabotageHit, sabotageExtrasHeld } = await import("./action-rolls.mjs");
         const { rerollBookmarkStore } = await import("./gm-stores.mjs");
         const row = rerollBookmarkStore.get(record.actorId);
-        const hit = sabotageHit(record, sabotageExtrasHeld(record, row?.messageId === record.messageId ? row.claims : null));
+        const hit = sabotageHit(record, await sabotageExtrasHeld(record, row?.messageId === record.messageId ? row.claims : null));
         band = hit ? hit.remnant : ACTIONS.sabotage.failureRemnant;
     } else if (record.actionKey === "dynamic") {
         const ruled = DYNAMIC_THRESHOLDS[dynamicRulingOf(record)?.tier];
@@ -1030,13 +1030,13 @@ export function dynamicRulingOf(record) {
  */
 async function progressOf(record, payload) {
     const { projectProgress, projectExtrasHeld } = await import("./action-rolls.mjs");
-    const { progress } = projectProgress(record, projectExtrasHeld(record, { relief: payload.relief, bonus: payload.bonus }, payload.countdownId));
+    const { progress } = projectProgress(record, await projectExtrasHeld(record, { relief: payload.relief, bonus: payload.bonus }, payload.countdownId));
     return progress > 0 ? { fields: { amount: progress } } : { why: "that roll earned no progress" };
 }
 
 async function repairOf(record, payload) {
     const { sabotageHit, sabotageRepairScale, sabotageExtrasHeld } = await import("./action-rolls.mjs");
-    const { penalty, relief } = sabotageExtrasHeld(record, { penalty: payload.penalty, relief: payload.relief });
+    const { penalty, relief } = await sabotageExtrasHeld(record, { penalty: payload.penalty, relief: payload.relief });
     const hit = sabotageHit(record, { penalty, relief });
     return { fields: { difficulty: hit ? sabotageRepairScale(record, (Number(record.total) || 0) + penalty, relief) : 0 } };
 }

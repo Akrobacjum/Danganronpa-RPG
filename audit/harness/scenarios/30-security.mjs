@@ -4072,6 +4072,105 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     h17Check("SECURITY: a player's console writing their Truth Bullet's text and at once asking for an Analyze of it has the description rebuilt from the GMs' text with the reading, the text put back on every client, the GMs told, and the GMs' copy holding the GMs' text and description", "analyze", "analyze.resolve", "analyze");
 
     /*
+     * A RECEIVER'S HANDS WHILE A WRITE OF THEIRS WAITS FOR ITS PUT-BACK (E29 fix r2-H18, 06.10.2026; H17's seam). Aiko,
+     * in Botan's room as above, has her slots for a Tool filled with the block's Tools, a blocker among them, and Botan a
+     * stash there, not concealed, with a Tool in it. p1's console writes the blocker's roles and puts another of those
+     * Tools in a stash Aiko has none of there - both put back by the audit - in one burst, and at once asks to take
+     * Botan's Tool out of his stash (`requestVaultSteal`, the free route to a stash not concealed): the copy is to land
+     * in no hand the GMs hold full. Read on each client, once the put-back was heard and the GM's audit is idle: the
+     * copies of Botan's Tool Aiko carries, and the block's Tools she carries, the copy among them. The GM's hooks record
+     * each write on the stashed Tool, each copy made on Aiko and the ask as they were heard; the case counts only where
+     * p1's write was heard before its ask and no put-back of it before the ask. At 0c75739 (e29run/r2h18red, 06.10.2026)
+     * the case was heard in its order - p1's stash, the ask, the GM's copy on Aiko, then the stash's put-back - and Aiko
+     * carried the copy and three Tools in her two slots on all four clients.
+     */
+    const h18Names = { blocker: "SEC H18 blocker", full: "SEC H18 full", loot: "SEC H18 loot" };
+    const h18Was = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), C = await import("${repoUrl}/scripts/config.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs"), V = await import("${repoUrl}/scripts/vault.mjs");
+        const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}"), token = canvas.scene.tokens.get("TOKAIKO000000000");
+        const at = M.sameRoom(aiko, a) ? null : { x: token.x, y: token.y };
+        if (at) await token.update({ x: 1500, y: 300 });
+        // Aiko's own Tools out of her hands, and her slots for one filled with the block's: the blocker and the rest.
+        const group = C.ITEM_CATEGORIES.tool?.limitGroup ?? null, gear = [];
+        const slot = i => i.getFlag("${MOD}", "category") === "tool" || (group !== null && C.ITEM_CATEGORIES[i.getFlag("${MOD}", "category")]?.limitGroup === group);
+        for (const i of aiko.items.contents.filter(i => slot(i) && !INV.isStashed(i))) {
+            gear.push([i.id, i.getFlag("${MOD}", "location") ?? null]);
+            await i.update({ "flags.${MOD}.location": INV.LOCATIONS.vault });
+        }
+        const limit = INV.canCarry(aiko, "tool").limit ?? 0, full = [];
+        const blocker = (await INV.grantItem(aiko, { name: "${h18Names.blocker}", category: "tool", tier: 1, override: true, quiet: true }))?.id ?? null;
+        for (let n = 1; n < limit; n++) full.push((await INV.grantItem(aiko, { name: "${h18Names.full}", category: "tool", tier: 1, override: true, quiet: true }))?.id ?? null);
+        // Botan's stash in his room, not concealed, and a Tool of his in it.
+        const where = M.locateActor(a), region = where?.room ? V.regionsByName(where.scene).get(where.room) : null;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const flags = region ? Object.fromEntries(keys.map(k => [k, foundry.utils.deepClone(region.getFlag("${MOD}", k) ?? null)])) : null;
+        if (region) await region.update({ ["flags.${MOD}." + V.VAULT_FLAGS.stashes]: [{ actorId: a.id, concealed: false }],
+            ["flags.${MOD}." + V.VAULT_FLAGS.hinders]: [], ["flags.${MOD}." + V.VAULT_FLAGS.favours]: [] });
+        const loot = await INV.grantItem(a, { name: "${h18Names.loot}", category: "tool", tier: 1, override: true, quiet: true });
+        if (loot && where?.room) await loot.update({ "flags.${MOD}.location": INV.LOCATIONS.vault, "flags.${MOD}.stashRoom": where.room });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), m = S.sheetMarkStore.get("${ids.aiko}")?.items ?? {};
+        return { blocker, full, loot: loot?.id ?? null, at, gear, flags, room: where?.room ?? null, limit, together: M.sameRoom(aiko, a),
+            filled: !INV.canCarry(aiko, "tool").ok, held: [blocker, ...full].every(id => id && m[id]) };`, { timeout: 30000 });
+    await settle(600);
+    await gm.eval(`globalThis.__h18Heard = [];
+        const by = (userId, options) => options?.drpgWrite?.reason === "auditPutBack" ? "back" : game.users.get(userId)?.isGM ? "gm" : "player";
+        const named = changes => Object.keys(foundry.utils.flattenObject(changes ?? {})).filter(k => !k.startsWith("_")).sort().join(",");
+        globalThis.__h18Asked = (payload, senderId) => payload?.action === "vault.steal"
+            && globalThis.__h18Heard.push(["asked", payload.action, senderId === "${p1.userId}" ? "p1" : senderId]);
+        game.socket._handlers.get("${SOCKET}").unshift(globalThis.__h18Asked);
+        globalThis.__h18Hooks = [
+            ["updateItem", Hooks.on("updateItem", (doc, changes, options, userId) => doc.id === ${JSON.stringify(h18Was.full?.[0] ?? null)}
+                && globalThis.__h18Heard.push(["full", by(userId, options), named(changes)]))],
+            ["createItem", Hooks.on("createItem", (doc, options, userId) => doc.parent?.id === "${ids.aiko}" && doc.name === "${h18Names.loot}"
+                && globalThis.__h18Heard.push(["aiko", by(userId, options), doc.name]))]];
+        return true;`);
+    let h18 = null;
+    try {
+        await p1.eval(`const a = game.actors.get("${ids.aiko}"), o = { drpgAutomated: true };
+            const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+            await Promise.all([a.items.get("${h18Was.blocker}").update({ "flags.${MOD}.roles": ${JSON.stringify(crimeRole)} }, o),
+                a.items.get(${JSON.stringify(h18Was.full?.[0] ?? null)}).update({ "flags.${MOD}.location": "vault", "flags.${MOD}.stashRoom": "SEC H18 nowhere" }, o)]);
+            void B.requestVaultSteal({ thiefId: "${ids.aiko}", ownerId: "${ids.botan}", itemId: "${h18Was.loot}" }).catch(() => null); return true;`);
+        await gm.eval(`const end = Date.now() + 8000;
+            while (!globalThis.__h18Heard.some(h => h[0] === "full" && h[1] === "back") && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await new Promise(r => setTimeout(r, 1500)); return true;`, { timeout: 15000 });
+        const want = [0, h18Was.limit];
+        const docs = await h16Docs(`const a = game.actors.get("${ids.aiko}"), carried = i => i.name.startsWith("SEC H18 ") && i.getFlag("${MOD}", "location") !== "vault";
+            return [a.items.filter(i => carried(i) && i.name === "${h18Names.loot}").length, a.items.filter(carried).length];`, want);
+        const heard = await gm.eval(`return globalThis.__h18Heard.splice(0);`);
+        h18 = { ok: docs.length === 4 && docs.every(seen => JSON.stringify(seen) === JSON.stringify(want)), want, docs, heard };
+    } finally {
+        await gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), V = await import("${repoUrl}/scripts/vault.mjs");
+            for (const [name, id] of globalThis.__h18Hooks ?? []) Hooks.off(name, id);
+            if (globalThis.__h18Asked) game.socket.off("${SOCKET}", globalThis.__h18Asked);
+            const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}");
+            await A.sheetAuditIdle();
+            for (const who of [a, aiko]) {
+                const made = who.items.filter(i => i.name.startsWith("SEC H18 ")).map(i => i.id);
+                if (made.length) await who.deleteEmbeddedDocuments("Item", made);
+            }
+            for (const [id, was] of ${JSON.stringify(h18Was.gear ?? [])}) {
+                await aiko.items.get(id)?.update({ "flags.${MOD}.location": was ?? foundry.data.operators.ForcedDeletion.create() });
+            }
+            const room = ${JSON.stringify(h18Was.room ?? null)}, flags = ${JSON.stringify(h18Was.flags ?? null)};
+            const region = room ? V.regionsByName(canvas.scene).get(room) : null;
+            if (region && flags) await region.update(Object.fromEntries(Object.entries(flags).map(([k, v]) => ["flags.${MOD}." + k, v ?? foundry.data.operators.ForcedDeletion.create()])));
+            ${h18Was.at ? `await canvas.scene.tokens.get("TOKAIKO000000000").update(${JSON.stringify(h18Was.at)});` : ""}
+            await A.sheetAuditIdle(); return true;`, { timeout: 30000 });
+    }
+    {
+        const heard = h18?.heard ?? [], asked = heard.findIndex(h => h[0] === "asked");
+        const ready = Boolean(h18 && h18Was.blocker && h18Was.full?.[0] && h18Was.loot && h18Was.room && h18Was.limit >= 2 && h18Was.together
+            && h18Was.filled && h18Was.held);
+        const ordered = h16InOrder(heard, { 0: "full", 1: "player" }, { 0: "asked", 1: "vault.steal", 2: "p1" })
+            && !heard.slice(0, asked).some(h => h[0] === "full" && h[1] === "back");
+        check("SECURITY: a player's console putting one of their Tools in a stash and at once asking to take a Tool out of another's stash has the copy in no hand the GMs hold full, on every client",
+            ready && ordered && Boolean(h18?.ok), JSON.stringify({ ready, ordered, ...(h18 ?? {}), heard: heard.map(row => row.join(" / ").split(`flags.${MOD}.`).join("")) }), { flow: "give-take-stash" });
+    }
+
+    /*
      * The load-time record ran on the GM, once (the E03 review measured it running
      * 0 times), and the GM holds a copy of every bullet in the world now - the ones
      * made during this scenario by a GM's write. The fixture world has no bullet at

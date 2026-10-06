@@ -2071,8 +2071,8 @@ function hasWeapon(actor) {
  * anyway (see `grantImprovisedWeapon`), so the broken one staying in the way is
  * not a reason to withhold it.
  */
-function carriesWeapon(actor) {
-    return carriedFor(actor, "crimeTool").some(i => !isBroken(i));
+function carriesWeapon(held) {
+    return carriedFor(held, "crimeTool").some(i => !isBroken(i));
 }
 
 /**
@@ -2116,9 +2116,9 @@ async function chooseWeapon(actor, weapon) {
  * (gm-bridge.mjs `handleCrisis`) it cannot name somebody else's. A Reroll's replay swings
  * what its receipt recorded (`recorded`), whatever became of it since.
  */
-function swungWeapon(actor, def, id, recorded = false) {
+function swungWeapon(held, def, id, recorded = false) {
     if (!id || !(def.weaponAdvantage || def.weaponDamage)) return null;
-    const item = actor.items?.get(id);
+    const item = held.items?.get(id);
     if (!item || !servesAs(item, "crimeTool") || isStashed(item)) return null;
     return recorded || isEquipped(item) ? item : null;
 }
@@ -2135,7 +2135,10 @@ function swungWeapon(actor, def, id, recorded = false) {
 async function wearSwing(actor, weapon, { withHope, isCritical, rolled }) {
     if (!weapon || !rolled || isBroken(weapon)) return null;
     const was = { itemId: weapon.id, wear: wearOf(weapon), equipped: isEquipped(weapon) };
-    await breakOnDespair(actor, weapon, { withFear: !withHope && !isCritical, isCritical });
+    // The document takes the wear, counted on from the GMs' (`weapon` is the item as they hold it, fix r2-H18).
+    const tool = actor.items?.get(weapon.id);
+    if (!tool) return null;
+    await breakOnDespair(actor, tool, { withFear: !withHope && !isCritical, isCritical }, weapon);
     const now = actor.items?.get(weapon.id) ?? weapon;
     return wearOf(now) !== was.wear || isBroken(now) ? was : null;
 }
@@ -2305,8 +2308,8 @@ function resourcesBefore(raw) {
  * Hope change of another kind that lands between the player's reading and this one is counted
  * in, up to that bound; not measured at a table.
  */
-function hopeTheUseGave(actor, usedItemId, before) {
-    const item = usedItemId ? actor?.items?.get(usedItemId) : null;
+function hopeTheUseGave(actor, held, usedItemId, before) {
+    const item = usedItemId ? held.items?.get(usedItemId) : null;
     const bonus = Number(USABLE_EFFECTS[tierOf(item)]?.bonus?.hope) || 0;
     const was = resourcesBefore(before)?.hope;
     if (!item || !bonus || typeof was !== "number") return 0;
@@ -2363,6 +2366,22 @@ async function applyCrisisAction({
         return null;
     }
 
+    /*
+     * THE ACTOR'S THINGS AS THE GMS HOLD THEM (E29 fix r2-H18, 06.10.2026; H17's seam). What this action decides by
+     * an item - the weapon it swung, which has to serve as a Crime Tool, lie in no stash and be readied (`swungWeapon`);
+     * the tier its damage reads (`chooseWeapon`); whether anything to swing is carried at all (`carriesWeapon`);
+     * whether the swing wears the weapon, and from what wear (`wearSwing`); the bonus a used item's tier pays
+     * (`hopeTheUseGave`) - is read off `held`: the actor's items once every write queued on them has been judged, the
+     * fields the sheet audit judges as its mark holds them (sheet-audit.mjs `actorAsHeld`). Read once, here: after a
+     * replay's rewind, which gave back what the first throw took, and before the incident's state is read, so that
+     * its wait falls before that read and not between it and its use. Writes go to the documents. Until this fix the
+     * action read the documents: at 0c75739 (e29run/r2h18red, 06.10.2026) a readied Tier 1 knife given tier 3 where
+     * the mark did not see it dealt 3 Health marks on a hit with Fear, not 2, and did not break; and with the knife
+     * put in a stash so, the unarmed swing improvised a weapon for the killer.
+     */
+    const { actorAsHeld } = await import("./sheet-audit.mjs");
+    const held = await actorAsHeld(game.actors.get(actorId));
+
     const state = murderState();
     const actor = game.actors.get(actorId);
     const def = CRISIS_ACTIONS[key];
@@ -2383,7 +2402,7 @@ async function applyCrisisAction({
     // fix r1-G3 (02.10.2026; review S-m3) a first throw that swung nothing fell through
     // to the packet's `swungId`, and a knife readied between the throw and the Reroll was
     // swung by the replay - its tier dealt, its wear taken, its name in the swing memo.
-    const weapon = undo ? swungWeapon(actor, def, replayed, true) : swungWeapon(actor, def, swungId);
+    const weapon = undo ? swungWeapon(held, def, replayed, true) : swungWeapon(held, def, swungId);
 
     // The swing memo, in the cast. Its own sub-key only (E04): two actors swinging
     // on two GMs' clients both stay.
@@ -2416,7 +2435,7 @@ async function applyCrisisAction({
     const receipt = openReceipt(actorId, key, state);
     receipt.swungId = weapon?.id ?? null;
     // A replay's use ran on this GM and said what it gave; a first throw's is read (fix r1-G6).
-    if (!undo) hopeGranted = hopeTheUseGave(actor, usedItemId, before);
+    if (!undo) hopeGranted = hopeTheUseGave(actor, held, usedItemId, before);
     if (roll) await noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId: weapon?.id ?? null, before, receipt });
 
     /*
@@ -2460,7 +2479,7 @@ async function applyCrisisAction({
     // 1.2.66 the player's browser wore the knife before this ran, a Tier 1 knife
     // broke on a Despair hit, and the hit counted as unarmed - 1 Health, not 2,
     // and an improvised weapon for the killer holding the knife.
-    const wasUnarmed = def.unarmedImprovises ? !weapon && !carriesWeapon(actor) : false;
+    const wasUnarmed = def.unarmedImprovises ? !weapon && !carriesWeapon(held) : false;
 
     if (success) {
         receipt.remnant = refOf(await applyRemnant(actor, def.remnant?.[band], def, band, done, false, side));

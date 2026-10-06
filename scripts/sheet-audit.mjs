@@ -706,6 +706,25 @@ export async function itemAsHeld(actor, id) {
     return (await itemsAsHeld(actor)).find(item => item.id === id) ?? null;
 }
 
+/*
+ * A STUDENT AS THE GMS HOLD ITS ITEMS, FOR A GM'S DECISION (E29 fix r2-H18, 06.10.2026; H17's seam). A GM's road
+ * that decides by a student's items through the readers a player's browser shares - inventory.mjs `canCarry` and
+ * `carriedFor`, use-items.mjs `equippedFor` - hands them this in the actor's place: its id, name and type, and its
+ * items as `itemsAsHeld` reads them, in a list read as an actor's collection (`filter`, `find`, `some`, `get`). The
+ * readers stay synchronous, and the player's browser's own reads stay on its document (its sheet and its quotes: the
+ * GM decides). Nothing is written through it - a road writes to the documents. The roads: the crisis on the GM
+ * (murder.mjs `applyCrisisAction`), a tool's relief on a project's roll (action-rolls.mjs `reliefHeld`), and the
+ * receiver's hands on the copy roads (handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`,
+ * `stealFromPerson`, `plantOnPerson`). The wait is `itemsAsHeld`'s, and on these roads, as on H17's, it holds up
+ * nothing that holds it up, by reading: a crisis action, a project's packet and a copy each come after the roll and
+ * the use they follow, and none writes what a judgement waits for (a use's consumption, a roll's card).
+ */
+export async function actorAsHeld(actor) {
+    const items = await itemsAsHeld(actor);
+    return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
+        items: Object.assign([...items], { get: id => items.find(item => item.id === id) }) };
+}
+
 /**
  * The GMs' value of each of a student's means (`hope`, `actions`, `hitPoints`, `stress` and the two
  * grants): their mark's, on the primary, where the judge keeps it current; the document's on any other

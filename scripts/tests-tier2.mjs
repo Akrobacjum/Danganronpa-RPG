@@ -2629,6 +2629,88 @@ const SCENARIOS = [
         }
     }],
 
+    ["a crisis swing on the GM deals and wears by the weapon as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H18, 06.10.2026; H17's seam. The GM's crisis action decided by the killer's items as they stood
+         * (murder.mjs `applyCrisisAction`) - the weapon swung, the tier its damage reads, the wear it takes - and a
+         * player's write the audit puts back stands on the item until its put-back lands, or for good where the
+         * put-back fails: the GMs' mark keeps their own then. It reads them as the GMs hold them now (sheet-audit.mjs
+         * `actorAsHeld`). At the killer's turn (`swingFixture`) the readied Tier 1 knife is given tier 3 where the GMs'
+         * mark does not see it (the audit's aside, a failed put-back's state), and the killer swings it on a hit with
+         * Fear. Read: whether the action stood, the victim's Health marks (a Tier 1 weapon deals 2, a Tier 3 one 3,
+         * config.mjs `weaponDamage`), and whether the knife broke (a Tier 1's one point of durability). Until this
+         * fix (0c75739, e29run/r2h18red, 06.10.2026): stood, 3 Health marks, and the knife not broken.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the crisis reads - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { M, killer, knife, putBack, health } = await swingFixture();
+        let read = null;
+        try {
+            await sheetAuditIdle();
+            await knife.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.tier}`]: 3 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[knife.id]?.flags?.[MODULE_ID] ?? null;
+            must(knife.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) === 3 && marked?.tier === 1,
+                "the tier did not stand on the knife alone, outside the GMs' mark - this would measure nothing");
+            const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: false, swungId: knife.id });
+            await settle();
+            read = [Boolean(done?.success), health(), INV.isBroken(killer.items.get(knife.id))];
+        } finally {
+            await putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, 2, true]),
+            "a crisis swing dealt or wore by a tier a write had left on the weapon outside the GMs' mark (stood, Health marks, knife broken)");
+    }],
+
+    ["a crisis's unarmed swing on the GM improvises nothing for a killer the GMs hold carrying a weapon", async () => {
+        /*
+         * E29 fix r2-H18, 06.10.2026. An unarmed swing that lands improvises a weapon for a killer who carries none
+         * (murder.mjs `carriesWeapon`), and that was read off the sheet as it stood: a Crime Tool the player's console
+         * put in a stash a moment before - a write the audit puts back - left the killer carrying nothing, and the GM
+         * handed them a weapon besides the one that came back. At the killer's turn (`swingFixture`) the GM puts the
+         * knife down and stows any other Crime Tool the killer carries, the knife is put in a stash where the GMs' mark
+         * does not see it (the audit's aside), and the killer swings with no weapon named, on a hit with Hope. Read:
+         * whether the action stood, and how many things the killer was handed. Until this fix (0c75739,
+         * e29run/r2h18red, 06.10.2026) the killer was handed one.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the crisis reads - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { M, killer, knife, putBack, handed } = await swingFixture();
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, stowed = [];
+        let read = null;
+        try {
+            await knife.update({ [`flags.${MODULE_ID}.equipped`]: false });
+            for (const i of killer.items.filter(i => i.id !== knife.id && INV.servesAs(i, "crimeTool") && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            await sheetAuditIdle();
+            await knife.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H18 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[knife.id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.isStashed(killer.items.get(knife.id)) && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the knife alone, outside the GMs' mark - this would measure nothing");
+            const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true });
+            await settle();
+            read = [Boolean(done?.success), handed()];
+        } finally {
+            for (const [i, was] of stowed) if (killer.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, 0]),
+            "an unarmed swing improvised a weapon for a killer whose Crime Tool a write had stashed outside the GMs' mark (stood, items handed)");
+    }],
+
     ["a Reroll's rewind that meets a close rewinds nothing, and the incident stays closed", async () => {
         /*
          * E32+E07 fix r1-G3, 02.10.2026; review C-M2. The rewind (`undoLastCrisis`) put the
@@ -7880,6 +7962,93 @@ const SCENARIOS = [
             "a copy took roles or a tier a write had left on the item outside the GMs' mark (per road: the copy's roles, its tier)");
     }],
 
+    ["an item handed over, planted or stolen counts the receiver's hands as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H18, 06.10.2026; H17's seam. The four roads above counted the receiver's hands for the carry cap on
+         * the sheet as it stood (handover.mjs `giveItem`'s own count, inventory.mjs `grantItem`'s): a slot the
+         * receiver's console emptied a moment before - a stash the audit puts back - let a copy in, and the put-back
+         * then left the receiver carrying one over the cap. They count them as the GMs hold them now (sheet-audit.mjs
+         * `actorAsHeld`). Two students stood alone together, a stash of each's in their room; the second's slots for a
+         * Tool filled with the suite's Tools, one of which is put in a stash where the GMs' mark does not see it (the
+         * audit's aside), afresh before each road; for each road a Tool of the first's - in the stash for the last - and
+         * the road run for the second, on a critical where it is rolled. Read, per road: the copies the second carries -
+         * every copy, for a hand-over, which full hands refuse outright (`theirHandsFull`), where the other roads put
+         * what a full hand cannot take in the receiver's stash (`grantItem`). Until this fix (0c75739,
+         * e29run/r2h18red, 06.10.2026) the second carried one on every road.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the roads read - this would measure nothing");
+        const H = await import("./handover.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [giver, taker] = cast(2);
+        const fixture = await aloneTogether(giver, taker);
+        const NAME = "Suite H18 a tool", FULL = "Suite H18 a full hand", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const where = locateActor(taker), region = where?.room ? V.regionsByName(where.scene).get(where.room) : null;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const stowed = [], read = {};
+        try {
+            must(region, `the room ${where?.room} has no region to hide a stash in`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: giver.id, concealed: false }, { actorId: taker.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            // Whatever takes a Tool's slot in the second's hands put in a stash, and back after; the slots filled with the suite's.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const { limit } = INV.canCarry(taker, "tool");
+            must(Number.isInteger(limit) && limit > 0, `a Tool's slots have no limit to fill (${limit}) - this would measure nothing`);
+            const full = [];
+            for (let n = 0; n < limit; n++) full.push(await INV.grantItem(taker, { name: FULL, category: "tool", tier: 1, override: true, quiet: true }));
+            must(full.every(Boolean) && !INV.canCarry(taker, "tool").ok, `${taker.name}'s hands could not be filled - this would measure nothing`);
+            // One of them put in a stash outside the GMs' mark, afresh for each road: the GM's write puts it in the hand first.
+            const emptied = async () => {
+                await full[0].update({ [flag("location")]: INV.LOCATIONS.carried, [flag("stashRoom")]: forcedDeletion() });
+                await sheetAuditIdle();
+                await full[0].update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: where.room }, { [AUDIT_ASIDE]: true });
+                await sheetAuditIdle();
+                const marked = sheetMarkStore.get(taker.id)?.items?.[full[0].id]?.flags?.[MODULE_ID] ?? null;
+                must(INV.canCarry(taker, "tool").ok && marked && marked.location !== INV.LOCATIONS.vault,
+                    "the stash did not stand on the full hand alone, outside the GMs' mark - this would measure nothing");
+            };
+            const given = async stashed => {
+                const item = await INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                must(item, `${giver.name} could not be handed a Tool - this would measure nothing`);
+                if (stashed) await item.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: where.room });
+                return item;
+            };
+            const roads = {
+                give: item => H.giveItem({ fromId: giver.id, toId: taker.id, itemId: item.id }),
+                plant: item => V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                steal: item => V.stealFromPerson({ thiefId: taker.id, victimId: giver.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                stash: item => V.stealFromVault({ thiefId: taker.id, ownerId: giver.id, itemId: item.id })
+            };
+            for (const [road, run] of Object.entries(roads)) {
+                const item = await given(road === "stash");
+                await emptied();
+                await run(item);
+                await settle();
+                read[road] = taker.items.filter(i => i.name === NAME && (road === "give" || !INV.isStashed(i))).length;
+                for (const i of taker.items.filter(i => i.name === NAME)) await i.delete();
+            }
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME || i.name === FULL)) await i.delete();
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ give: 0, plant: 0, steal: 0, stash: 0 }),
+            "a copy was carried into hands a write had emptied outside the GMs' mark (per road: the copies the receiver carries)");
+    }],
+
     ["a trace's band is the GM's, whatever the packet names", async () => {
         /*
          * E08+E28 C15, 04.10.2026; audit S10-06; the plan's "a packet asking hidden for a Search that
@@ -8408,6 +8577,54 @@ const SCENARIOS = [
             await B.putBack();
             await F.putBack();
         }
+    }],
+
+    ["a project's tool relief is held to the tools as the GMs hold them, not to a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H18, 06.10.2026. A Work's or a Sabotage's relief is held to what the GM sees of the roller's tools
+         * (action-rolls.mjs `projectExtrasHeld`, `sabotageExtrasHeld`; fix r2-H3), and that was the sheet as it stood: a
+         * tier the player's console wrote on the tool in hand stands there until its put-back lands, or for good where
+         * the put-back fails, and the relief was held to it. Both read the tools as the GMs hold them now
+         * (sheet-audit.mjs `actorAsHeld`). A student with every tool they carried stowed and a Tool of tier 1 readied,
+         * given tier 3 where the GMs' mark does not see it (the audit's aside); a Work's extras held on a roll with Hope
+         * and a Sabotage's on a roll with Fear (the hand, then everything carried), each claiming a relief of 3. Read:
+         * the relief each is held to. Until this fix (0c75739, e29run/r2h18red, 06.10.2026) both were held to 3.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the relief reads - this would measure nothing");
+        const A = await import("./action-rolls.mjs");
+        const INV = await import("./inventory.mjs");
+        const { equippedFor, EQUIPPED_FLAG } = await import("./use-items.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const [actor] = cast(1);
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, stowed = [];
+        let tool = null, read = null;
+        try {
+            for (const i of actor.items.filter(i => INV.servesAs(i, "tool") && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            tool = await INV.grantItem(actor, { name: "SUITE r2-H18 a tool in hand", category: "tool", tier: 1, override: true, quiet: true });
+            must(tool, `${actor.name} could not be handed a Tool - this would measure nothing`);
+            await tool.update({ [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: true });
+            await sheetAuditIdle();
+            await tool.update({ [flag("tier")]: 3 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(actor.id)?.items?.[tool.id]?.flags?.[MODULE_ID] ?? null;
+            must(equippedFor(actor, "tool")?.id === tool.id && tool.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) === 3 && marked?.tier === 1,
+                "the tier did not stand on the readied tool alone, outside the GMs' mark - this would measure nothing");
+            const roll = withFear => ({ actorId: actor.id, withFear, isCritical: false });
+            const work = await A.projectExtrasHeld(roll(false), { relief: 3, bonus: 0 }, "SUITE r2-H18 no project");
+            const sabotage = await A.sabotageExtrasHeld(roll(true), { penalty: 0, relief: 3 });
+            read = [work?.relief ?? null, sabotage?.relief ?? null];
+        } finally {
+            if (tool) await actor.items.get(tool.id)?.delete();
+            for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([1, 1]),
+            "a relief was held to a tier a write had left on the tool outside the GMs' mark (a Work's on Hope, a Sabotage's on Fear)");
     }],
 
     ["a GM's own Dynamic action's Reroll is scored at the band the GM picked for it", async () => {

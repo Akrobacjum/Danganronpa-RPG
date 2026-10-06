@@ -1131,10 +1131,13 @@ export async function stealFromVault({
      * `itemsAsHeld`, which says why the wait is enough here) - so neither a place nor roles, a tier or a mend the
      * owner's console wrote a moment before decide the theft or ride on the thief's copy. Read once, last, with no
      * await between the read and the grant: the two checks of where it lies moved down to it. The deletion is the
-     * document's.
+     * document's. The thief's hands are counted as the GMs hold them too, read with it after one wait for both
+     * (fix r2-H18, handover.mjs `giveItem`).
      */
-    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    await judgedFor(owner.id, thief.id);
     const held = await itemAsHeld(owner, item.id);
+    const counted = await actorAsHeld(thief);
     if (!held || !isStashed(held)) return null;
 
     // And the thing has to be in THAT stash, not merely in one of theirs
@@ -1153,7 +1156,8 @@ export async function stealFromVault({
         // Stealing a ruined thing out of somebody's drawer does not mend it -
         // and hiding one there and having it lifted was the obvious way to
         // launder a broken murder weapon back into a working one.
-        extraFlags: preservedFlags(held)
+        extraFlags: preservedFlags(held),
+        counted
     });
     if (!copy) {
         // The thief is told, or the Search card that follows says "what comes
@@ -1298,11 +1302,15 @@ export async function stealFromPerson({
      * audit's mark holds them (sheet-audit.mjs `itemsAsHeld`, which says why the
      * wait is enough here), in the order `carriedInCategory` gave. Read once,
      * with no await between the read and the grant; the deletion is the
-     * document's.
+     * document's. The thief's hands are counted as the GMs hold them too,
+     * read with them after one wait for both (fix r2-H18, handover.mjs
+     * `giveItem`).
      */
     const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { itemsAsHeld } = await import("./sheet-audit.mjs");
+    const { itemsAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    await judgedFor(victim.id, thief.id);
     const pockets = await itemsAsHeld(victim);
+    const counted = await actorAsHeld(thief);
     const pool = Object.keys(ITEM_CATEGORIES)
         .filter(c => c !== "truthBullet")
         .flatMap(c => pockets.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === c && !isStashed(i)));
@@ -1329,7 +1337,8 @@ export async function stealFromPerson({
             img: item.img,
             // A stolen broken thing stays broken, and a stolen crowbar is still
             // a weapon. Same reasoning as the stash theft directly above.
-            extraFlags: preservedFlags(item)
+            extraFlags: preservedFlags(item),
+            counted
         });
 
         if (copy) {
@@ -1468,11 +1477,15 @@ export async function plantOnPerson({
      * and something in a stash cannot be planted because it is not in a hand.
      * Out of the pockets as the GMs hold them, as a theft's (E29 fix r2-H17):
      * what lands on the victim is never roles, a tier or a mend the planter's
-     * console wrote a moment before asking.
+     * console wrote a moment before asking - and into the victim's as the GMs
+     * hold them, read with them after one wait for both (fix r2-H18,
+     * handover.mjs `giveItem`).
      */
     const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { itemsAsHeld } = await import("./sheet-audit.mjs");
+    const { itemsAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    await judgedFor(planter.id, victim.id);
     const pockets = await itemsAsHeld(planter);
+    const counted = await actorAsHeld(victim);
     const pool = Object.keys(ITEM_CATEGORIES)
         .filter(c => c !== "truthBullet")
         .flatMap(c => pockets.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === c && !isStashed(i)));
@@ -1507,6 +1520,7 @@ export async function plantOnPerson({
             // of your own pocket and into somebody else's, and it would be
             // worth nothing if the transfer mended it.
             extraFlags: preservedFlags(held),
+            counted,
             // The quiet half, and the mirror of the silent Steal: the victim's
             // sheet does not redraw FOR THIS. See `grantItem`.
             quiet: !seen

@@ -1066,7 +1066,7 @@ async function settleProgress(actor, bookmark, after, done) {
     // Both are the roller's claims, held as the first throw's were and scored by
     // the first throw's table (fix r2-H3; the round-2 review's M1: read raw, a
     // bonus of 40 rerolled into 13 moved a project 0 -> 41).
-    const held = projectExtrasHeld(await claimedOn(actor, bookmark), bookmark, bookmark.projectId);
+    const held = await projectExtrasHeld(await claimedOn(actor, bookmark), bookmark, bookmark.projectId);
     const { hit, progress: now } = projectProgress(after, held);
     const bonus = held.bonus;
     const was = bookmark.progress ?? 0;
@@ -1280,7 +1280,7 @@ async function putPlantBack(plant) {
  */
 async function settleSabotage(actor, bookmark, after, done) {
     const def = ACTIONS.sabotage;
-    const { penalty, relief } = sabotageExtrasHeld(await claimedOn(actor, bookmark), bookmark);
+    const { penalty, relief } = await sabotageExtrasHeld(await claimedOn(actor, bookmark), bookmark);
     const score = after.total + penalty;
     // The same eased bands the first roll was scored against (ACT-11 / ROLL-04).
     const hit = sabotageHit(after, { penalty, relief }, def);

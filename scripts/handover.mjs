@@ -398,8 +398,11 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
         }
     }
     // As the GMs hold it, from here to the grant (E29 fix r2-H17, `giveItem`): a body's owner can still write it.
-    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    // And the taker's hands as the GMs hold them, which `grantItem`'s cap counts (fix r2-H18, `giveItem`).
+    const { itemAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    await judgedFor(body.id, taker.id);
     const held = await itemAsHeld(body, item.id);
+    const counted = await actorAsHeld(taker);
     if (!held) return null;
     if (isTruthBullet(held)) {
         // They perish at death and should never be here to take.
@@ -426,7 +429,8 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
         img: held.img,
         // Roles included since E9 - see `preservedFlags`. A crowbar off a body
         // is still a crowbar that can be swung.
-        extraFlags: preservedFlags(held)
+        extraFlags: preservedFlags(held),
+        counted
     });
     // `grantItem` puts it in the stash when the hands are full and says so, so
     // "no room" is not a failure here - only a refusal is.
@@ -736,9 +740,20 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
      * (sheet-audit.mjs `itemsAsHeld`, which says why the wait is enough here). Read once, with no await between the
      * read and the grant: roles, a tier or a mend a player's console wrote a moment before asking stay off the copy,
      * which a GM makes and every client takes as the GMs'. The deletion is the document's.
+     *
+     * AND THE RECEIVER'S HANDS AS THE GMS HOLD THEM (E29 fix r2-H18, 06.10.2026): `counted`, the receiver's items
+     * as the mark holds them (sheet-audit.mjs `actorAsHeld`), is what the room below and `grantItem`'s cap count, so
+     * a slot the receiver's console emptied a moment before - a stash its put-back undoes - is no room. One wait
+     * for both students, then both reads, each of which finds its queue empty and so waits on nothing; the copy
+     * roads of vault.mjs and `lootBody` read their receiver the same way. At 0c75739 (e29run/r2h18red, 06.10.2026) a
+     * receiver whose slots for a Tool the mark held full, one of them stashed where the mark did not see it, took a
+     * carried copy on a hand-over, a plant and both thefts; and in scenario 30 a theft from a stash p1 asked for at once
+     * after stashing one of Aiko's two Tools left her carrying three on every client once the stash was put back.
      */
-    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    await judgedFor(from.id, to.id);
     const held = await itemAsHeld(from, item.id);
+    const counted = await actorAsHeld(to);
     if (!held) return null;
 
     // Something in a stash is not in a hand, and only a hand can give (ITEM-06).
@@ -767,7 +782,7 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
         return null;
     }
 
-    const room = canCarry(to, category);
+    const room = canCarry(counted, category);
     if (!room.ok) {
         await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.theirHandsFull", {
             who: foundry.utils.escapeHTML(to.name),
@@ -787,7 +802,8 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
         img: held.img,
         // A ruined thing stays ruined on the other side of the table. Without
         // this, handing the murder weapon to an accomplice repaired it.
-        extraFlags: preservedFlags(held)
+        extraFlags: preservedFlags(held),
+        counted
     });
 
     if (!copy) {

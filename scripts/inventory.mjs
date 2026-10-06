@@ -217,13 +217,19 @@ export function durabilityLeft(item) {
  * `reason` and `ref` are the write's (resource-guard.mjs `WRITE_REASONS`): every caller in
  * the module names its own (R220); "gmRuling" is what a GM's macro or the suite gets.
  *
+ * `held` is the item as the GMs hold it, where a GM's road read it so (E29 fix r2-H18: the
+ * crisis's swing, murder.mjs `wearSwing` through use-items.mjs `breakOnDespair`): whether it is
+ * broken, its durability and the wear counted on are read off it, and the wear is written to
+ * `item`, the document - so a mend or a tier a player's console wrote on the document a moment
+ * before neither spares the weapon nor stretches its durability.
+ *
  * @returns {Promise<{worn: number, left: number, broke: boolean}|null>}
  */
-export async function wearItem(item, { reason = "gmRuling", ref = null } = {}) {
-    if (!item || isBroken(item)) return null;
+export async function wearItem(item, { reason = "gmRuling", ref = null, held = item } = {}) {
+    if (!item || isBroken(held)) return null;
 
-    const total = durabilityOf(item);
-    const worn = Math.min(total, wearOf(item) + 1);
+    const total = durabilityOf(held);
+    const worn = Math.min(total, wearOf(held) + 1);
 
     if (worn >= total) {
         const broke = await breakItem(item, { reason, ref });
@@ -603,11 +609,17 @@ export function carriedFor(actor, role) {
  *   and patching them on afterwards would leave a moment - one database write
  *   long, but a real one - where a Truth Bullet exists with no type at all.
  * @param {string} [options.reason]  the creation's reason and `ref`, as `wearItem`'s
+ * @param {object} [options.counted]  the receiver as the GMs hold its items (sheet-audit.mjs
+ *   `actorAsHeld`), where a GM's copy road read it so (E29 fix r2-H18): the carry cap is
+ *   counted on it rather than on `actor`'s document, which a player's console can have
+ *   written a moment before - a slot emptied by a stash its put-back undoes. The item is
+ *   still created on `actor`.
  * @returns {Promise<Item|null>}
  */
 export async function grantItem(actor, {
     name, category, tier, goal = null, description = "", override = false, img = null,
-    roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false, reason = "gmRuling", ref = null
+    roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false, reason = "gmRuling", ref = null,
+    counted = null
 }) {
     if (!actor || !name) return null;
 
@@ -632,7 +644,7 @@ export async function grantItem(actor, {
         }
     }
 
-    const room = canCarry(actor, category);
+    const room = canCarry(counted ?? actor, category);
     if (!room.ok && location !== LOCATIONS.vault) {
         // A GM handing something over outranks the cap - they are making a
         // ruling, not finding something in a cupboard. Search never passes

@@ -197,12 +197,15 @@ export function readiedItem(actor) {
  * @param {Actor}     actor
  * @param {Item|null} tool  Captured BEFORE the roll.
  * @param {object}    roll  What `rollTrait` returned.
+ * @param {object}    [held]  The tool as the GMs hold it, where a GM's road read it so (the
+ *   crisis's swing, murder.mjs `wearSwing`; E29 fix r2-H18): whether it is broken and how much
+ *   it can take are read off it, and the wear is written to `tool` (inventory.mjs `wearItem`).
  * @returns {Promise<string|null>} the name of what broke, or null.
  */
-export async function breakOnDespair(actor, tool, roll) {
+export async function breakOnDespair(actor, tool, roll, held = tool) {
     if (!tool || !roll) return null;
     if (!roll.withFear || roll.isCritical) return null;
-    if (isBroken(tool)) return null;
+    if (isBroken(held)) return null;
 
     let outcome = null;
     try {
@@ -216,7 +219,7 @@ export async function breakOnDespair(actor, tool, roll) {
          * us to, which is what keeps the break on the roll that caused it: the
          * hand is emptied here, not by something sweeping up after the incident.
          */
-        outcome = await wearItem(tool, { reason: "itemWear", ref: tool.id });
+        outcome = await wearItem(tool, { reason: "itemWear", ref: tool.id, held });
         if (!outcome) return null;
     } catch (err) {
         // A tool that failed to wear is a great deal better than an action
@@ -229,7 +232,7 @@ export async function breakOnDespair(actor, tool, roll) {
         try {
             await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.woreOnDespair", {
                 item: foundry.utils.escapeHTML(tool.name),
-                left: outcome.left, total: durabilityOf(tool)
+                left: outcome.left, total: durabilityOf(held)
             })}</p>`, { flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
         } catch {
             // The wear is recorded; the sentence about it is a courtesy.
