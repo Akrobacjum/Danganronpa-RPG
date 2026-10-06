@@ -401,7 +401,7 @@ function judgeDocument(data, sender, world) {
     let why;
     if (kind === "Actor" && doc.type === "party") why = partyRefusal(doc, flat, sender, world);
     else if (kind === "Actor") why = actorRefusal(doc, flat, sender, world);
-    else if (kind === "Item") why = itemRefusal(doc, flat, sender);
+    else if (kind === "Item") why = itemRefusal(doc, flat, sender, world);
     else if (kind === "Scene") why = sceneRefusal(doc, flat);
     else why = `a change to a ${kind}`;
     // A string is a shape Daggerheart does not send; `{ refused }` is one it does.
@@ -447,7 +447,7 @@ function actorRefusal(doc, flat, sender, world = {}) {
 }
 
 /** An item's own charges or count, on an item a character of the sender's holds. */
-function itemRefusal(doc, flat, sender) {
+function itemRefusal(doc, flat, sender, world = {}) {
     if (doc.parent?.documentName !== "Actor" || !doc.testUserPermission(sender, "OWNER")) {
         return `${doc.name}, an item the sender does not hold`;
     }
@@ -459,8 +459,12 @@ function itemRefusal(doc, flat, sender) {
         }
         if (key === "system.quantity") {
             if (!Number.isInteger(number) || number < 0) return `the quantity of ${doc.name} set to ${value}`;
-            // E29 C4: a module item's count only falls here; what adds one is the GM's.
-            if (Object.keys(doc._source?.flags?.[MODULE_ID] ?? {}).length && number > Number(doc.system?.quantity ?? 0)) {
+            // E29 C4: a module item's count only falls here; what adds one is the GM's. E29 fix r2-H21: it falls
+            // from the item as the GMs hold it too (sheet-audit.mjs `itemsHeldNow`), where a write of the sender's
+            // own moved the document.
+            const held = world.itemHeld?.(doc) ?? null;
+            const ours = Object.keys(doc._source?.flags?.[MODULE_ID] ?? {}).length || held?.getFlag(MODULE_ID, "category");
+            if (ours && number > Math.min(Number(doc.system?.quantity ?? 0), Number((held ?? doc).system?.quantity ?? 0))) {
                 return { refused: `more of ${doc.name}` };
             }
             continue;
@@ -780,6 +784,8 @@ function liveWorld() {
         changedAt: id => changedAt.get(id) ?? 0,
         message: id => game.messages.get(id ?? "") ?? null,
         gainRefusal: (doc, flat, sender) => sheetAudit?.relayGainRefusal(doc, flat, sender) ?? null,
+        // E29 fix r2-H21: an item as the GMs hold it, for the count `itemRefusal` lets fall.
+        itemHeld: doc => sheetAudit?.itemsHeldNow(doc.parent)?.find(item => item.id === doc.id) ?? null,
         tokenFor,
         now: () => Date.now()
     };

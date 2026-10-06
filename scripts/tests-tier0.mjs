@@ -5483,6 +5483,9 @@ const REGRESSIONS = [
             drawOnGm: "refused", drawRefusal: "returns",
             // E29 C8: a Call on the buyer's own character, the other half of `guardArmPlayerCall`.
             ownArmRefusal: "returns",
+            // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
+            creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
+            stealFromPerson: "refused", stealFromVault: "refused",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);

@@ -261,6 +261,11 @@ export function isBroken(item) {
  *
  * Idempotent: breaking what is already broken changes nothing and reports
  * success, because the caller's intent - "this is used up now" - is satisfied.
+ * Already broken means broken as the GMs hold it as well (E29 fix r2-H21,
+ * sheet-audit.mjs `itemsHeldNow`, whose note names the callers): a `broken`
+ * a player's write put on the document and the GMs' mark does not hold is
+ * written over by this break, so the mark holds the break the caller reports.
+ * On a player's browser, which holds no mark, the document is the record.
  *
  * `reason` and `ref` as `wearItem`'s.
  *
@@ -268,7 +273,9 @@ export function isBroken(item) {
  */
 export async function breakItem(item, { reason = "gmRuling", ref = null } = {}) {
     if (!item) return false;
-    if (isBroken(item)) return true;
+    const { itemsHeldNow } = await import("./sheet-audit.mjs");
+    const held = item.parent ? itemsHeldNow(item.parent).find(each => each.id === item.id) : null;
+    if (isBroken(item) && isBroken(held ?? item)) return true;
 
     try {
         // One write, two facts. Written through `update` rather than two

@@ -399,11 +399,18 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
     }
     // As the GMs hold it, from here to the grant (E29 fix r2-H17, `giveItem`): a body's owner can still write it.
     // And the taker's hands as the GMs hold them, which `grantItem`'s cap counts (fix r2-H18, `giveItem`).
-    const { itemAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(body.id, taker.id);
     const held = await itemAsHeld(body, item.id);
     const counted = await actorAsHeld(taker);
     if (!held) return null;
+    // An item a player made on the body's sheet that no GM has decided on yet is taken by nobody, and the taker told
+    // (E29 fix r2-H21, sheet-audit.mjs `creationRefusal`).
+    const undecided = creationRefusal(body, held.id);
+    if (undecided) {
+        warn(`Refused to loot ${body.name}: ${undecided}.`);
+        return { refused: undecided };
+    }
     if (isTruthBullet(held)) {
         // They perish at death and should never be here to take.
         warn("Refused to loot a Truth Bullet from a body.");
@@ -750,11 +757,20 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
      * carried copy on a hand-over, a plant and both thefts; and in scenario 30 a theft from a stash p1 asked for at once
      * after stashing one of Aiko's two Tools left her carrying three on every client once the stash was put back.
      */
-    const { itemAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(from.id, to.id);
     const held = await itemAsHeld(from, item.id);
     const counted = await actorAsHeld(to);
     if (!held) return null;
+
+    // An item a player made on the giver's sheet that no GM has decided on yet changes no hands (E29 fix r2-H21,
+    // sheet-audit.mjs `creationRefusal`): asked before the stash, the bullet and the key, each of which would copy it,
+    // and the giver told.
+    const undecided = creationRefusal(from, held.id);
+    if (undecided) {
+        warn(`Handover refused: ${undecided}.`);
+        return { refused: undecided };
+    }
 
     // Something in a stash is not in a hand, and only a hand can give (ITEM-06).
     // The sheet hides the button on a stash row; the API and a hand-built

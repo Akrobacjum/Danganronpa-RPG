@@ -493,10 +493,12 @@ function palmRolls(actor) {
 }
 
     // And into them. Same guards as the theft, mirrored - the sender has to own
-    // the character whose pocket the item is leaving.
+    // the character whose pocket the item is leaving. An item no GM has decided on
+    // is refused out loud (E29 fix r2-H21); every other refusal of a plant, a theft
+    // or a stash theft is the GM's log, as it was.
 async function handlePlant(payload, sender, ctx) {
     const { plantOnPerson } = await import("./vault.mjs");
-    await plantOnPerson({
+    const out = await plantOnPerson({
         plannerId: payload.plannerId,
         victimId: payload.victimId,
         itemId: payload.itemId,
@@ -505,6 +507,7 @@ async function handlePlant(payload, sender, ctx) {
         unseenTotal: payload.unseenTotal,
         unseenCritical: payload.unseenCritical
     });
+    if (out?.refused) return { refused: out.refused };
 }
 
     // Looking for a hiding place. The finder owns their own sheet and could
@@ -525,7 +528,7 @@ async function handleFindStash(payload, sender, ctx) {
     // arithmetic wrong, so it does none of it.
 async function handleSteal(payload, sender, ctx) {
     const { stealFromPerson } = await import("./vault.mjs");
-    await stealFromPerson({
+    const out = await stealFromPerson({
         thiefId: payload.thiefId,
         victimId: payload.victimId,
         itemId: payload.itemId,
@@ -534,13 +537,14 @@ async function handleSteal(payload, sender, ctx) {
         unseenTotal: payload.unseenTotal,
         unseenCritical: payload.unseenCritical
     });
+    if (out?.refused) return { refused: out.refused };
 }
 
     // Taking something out of somebody else's stash writes to two sheets, one of
     // which the thief has no business writing to.
 async function handleVaultSteal(payload, sender, ctx) {
     const { stealFromVault } = await import("./vault.mjs");
-    await stealFromVault({
+    const out = await stealFromVault({
         thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
         // Set only by the Search action, which pays for the concealment it is
         // beating. See the note in `stealFromVault`. Since E08+E28 C15 a packet
@@ -554,6 +558,7 @@ async function handleVaultSteal(payload, sender, ctx) {
         // word again (bridge-guards.mjs, "TWO PACKETS PASS WITH NO RECORD").
         clumsy: payload.clumsy
     });
+    if (out?.refused) return { refused: out.refused };
 }
 
 /*
@@ -1151,10 +1156,12 @@ async function handleLoot(payload, sender, ctx) {
     // being a Truth Bullet - `lootBody` checks itself, because the GM's own
     // button goes through the same door. It answers null when it took nothing,
     // with its reason on the GM's console; the asker is told only that nothing
-    // was carried out, whichever reason it was (E31 review).
+    // was carried out, whichever reason it was (E31 review) - but for an item no
+    // GM has decided on, which it answers with its reason (E29 fix r2-H21).
     const taken = await lootBody({
         takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, askedBy: sender.isGM ? null : sender.id
     });
+    if (taken?.refused) return { refused: taken.refused };
     if (!taken) return { refused: "nothing was carried out: lootBody took nothing" };
 }
 

@@ -3779,6 +3779,58 @@ const SCENARIOS = [
         }
     }],
 
+    ["a close breaks the knife the GMs hold the killer swung, though a write of the player's has put it in a stash", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; fix r2-H20's "not measured". The close breaks each killer's swung weapon (murder.mjs
+         * `endMurder`, cleanup.mjs `endResolution` and `destroyTools`), chosen off the killer as the GMs hold them since
+         * fix r2-H20 - a choice H20's tests measured on the discovery alone. As the test above: the killer stabs the
+         * victim with a Tier 1 knife and the fight reaches Stage 6; then the knife is put in a stash where the GMs' mark
+         * does not see it (the audit's aside, a failed put-back's state), and the GM closes the incident. Read: whether
+         * the knife broke. Green at 4e5b868 (fix r2-H20's held read); red under the mutant that reads the document
+         * (e29run/r2h21m, m14): the knife stayed whole.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the close reads - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        let knife = null, read = null;
+        try {
+            knife = await inHand(killer, "crimeTool", "SUITE r2-H21 a swung knife stashed by a write");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "weaponAttack");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, swungId: knife.id });
+            if (M.murderState()?.stage === "incident") {
+                await turnFor(M, killer, "finishingBlow");
+                await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            }
+            await settle();
+            must(M.murderState()?.stage === "resolution" && M.swungWeaponOf(killer)?.id === knife.id && !INV.isBroken(killer.items.get(knife.id)),
+                `the fixture's Stage 6, with the knife written down as swung and still whole, did not come: ${stableJson(M.murderState())}`);
+            await sheetAuditIdle();
+            await knife.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H21 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = S.sheetMarkStore.get(killer.id)?.items?.[knife.id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.isStashed(killer.items.get(knife.id)) && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the knife alone, outside the GMs' mark - this would measure nothing");
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            read = INV.isBroken(killer.items.get(knife.id));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            try { await knife?.delete(); } catch { /* already gone */ }
+            await sheetAuditIdle();
+        }
+        equal(read, true, "the close spared the swung knife a write had put in a stash outside the GMs' mark");
+    }],
+
     ["a close before Stage 6 breaks nothing, a weapon swung in the fight included", async () => {
         /*
          * E32+E07 C12, 02.10.2026; audit S04-17. Every close broke the killer's crime tool, at any
@@ -4002,6 +4054,135 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([true, true]),
             "the discovery spared gloves a write had put in a stash outside the GMs' mark (broken, named)");
+    }],
+
+    ["a clean-up writes down and a discovery breaks the gloves the GMs hold, though the player's writes have stashed and broken them on the sheet", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; fix r2-H20's seam (d) and its "not measured". A GM's break (inventory.mjs
+         * `breakItem`) wrote nothing on an item its document showed broken already, and a `broken` a player's write put
+         * there stands on the sheet until its put-back lands, or for good where it fails: the discovery named the gloves
+         * broken and the GMs' mark kept them whole. A GM's break asks the break as the GMs hold it now (sheet-audit.mjs
+         * `itemsHeldNow`). And the clean-up's note of the gloves it used (cleanup.mjs `noteCleaningTool`), which reads
+         * them as the GMs hold them since fix r2-H20 and which H20's tests measured with nothing aside. As the test above,
+         * but the gloves put in a stash where the GMs' mark does not see it (the audit's aside) before the trace is
+         * scrubbed, and broken the same way before the body is found. Read: whether the clean-up wrote the gloves down,
+         * whether the GMs' mark holds them broken after the discovery, and whether the discovery named them. Until this
+         * fix (4e5b868, e29run/r2h21red, 06.10.2026): [true,false,true] - written down and named, and held whole by the
+         * mark, the GM's break having written nothing. The note's read is green there (fix r2-H20) and red under the
+         * mutant that reads the document (e29run/r2h21m, m13): [false,true,true].
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the clean-up and the discovery read - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        let gloves = null, trace = null, read = null;
+        const marked = () => S.sheetMarkStore.get(killer.id)?.items?.[gloves?.id]?.flags?.[MODULE_ID] ?? null;
+        try {
+            gloves = await inHand(killer, "cleaningTool", "SUITE r2-H21 gloves stashed and broken by writes");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE r2-H21 a trace the killer scrubs" });
+            must(trace, "the fixture's trace was not placed");
+            await sheetAuditIdle();
+            await gloves.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H21 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(INV.isStashed(killer.items.get(gloves.id)) && marked() && marked().location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the gloves alone, outside the GMs' mark - this would measure nothing");
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true });
+            await settle();
+            const noted = (S.usedToolStore?.get(killer.id)?.cleaning ?? []).includes(gloves.id);
+            await sheetAuditIdle();
+            await gloves.update({ [flag("broken")]: { at: Date.now() } }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(INV.isBroken(killer.items.get(gloves.id)) && marked() && !marked().broken,
+                "the break did not stand on the gloves alone, outside the GMs' mark - this would measure nothing");
+            const broke = await CL.destroyCleaningTools([victim.id]);
+            await sheetAuditIdle();
+            read = [noted, Boolean(marked()?.broken), broke.includes(gloves.name)];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            for (const doc of [gloves, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, true, true]),
+            "the clean-up passed over gloves a write had stashed, or the discovery left gloves a write had broken whole in the GMs' mark, or did not name them "
+                + "(written down, broken in the GMs' mark, named)");
+    }],
+
+    ["a tie of a trace to the crime is let through for an object a participant holds as the GMs hold it, not for an identity a write of the player's left", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; the class sweep of fixes r2-H17 to r2-H20. A player's ask to tie the traces of an
+         * object to the crime is let through by bridge-guards.mjs `guardTieTraceHolder` only where a participant of the
+         * running incident the sender plays holds the object - read off the sheets as they stood, where a player's write
+         * of an item's identity (`drpgItemId`, which the audit puts back) stands until its put-back lands, or for good
+         * where it fails. It reads the participants' items as the GMs hold them now (`itemsAsHeld`). A fight between two
+         * students played by two accounts; the killer holds a knife the GMs gave an identity, and the victim a Tool whose
+         * identity is written to the knife's where the GMs' mark does not see it (the audit's aside). Read: the guard's
+         * answer to the victim's player and to the killer's. Until this fix (4e5b868, e29run/r2h21red, 06.10.2026):
+         * [null,null] - the tie let through for the victim's player as well.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the guard reads - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { guardTieTraceHolder } = await import("./bridge-guards.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const killers = player(killer), victims = player(victim);
+        must(killers && victims && !killer.testUserPermission(victims, "OWNER") && !victim.testUserPermission(killers, "OWNER"),
+            "the killer's player plays the victim too, or the other way round - this would measure nothing");
+        const ID = "SUITEH21KNIFE001", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const made = [];
+        let read = null;
+        try {
+            const knife = await inHand(killer, "crimeTool", "SUITE r2-H21 a knife with an identity");
+            made.push(knife);
+            await knife.update({ [flag("identity")]: ID });
+            const tool = await INV.grantItem(victim, { name: "SUITE r2-H21 a tool a write names", category: "tool", tier: 1, override: true, quiet: true });
+            made.push(tool);
+            must(tool, `${victim.name} could not be handed a Tool - this would measure nothing`);
+            await sheetAuditIdle();
+            await tool.update({ [flag("identity")]: ID }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = S.sheetMarkStore.get(victim.id)?.items?.[tool.id]?.flags?.[MODULE_ID] ?? null;
+            must(tool.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === ID && marked && marked[INV.ITEM_FLAGS.identity] !== ID,
+                "the identity did not stand on the Tool alone, outside the GMs' mark - this would measure nothing");
+            await fightOpen(M, killer, victim);
+            read = [await guardTieTraceHolder(victims, { identity: ID }, {}), await guardTieTraceHolder(killers, { identity: ID }, {})];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const item of made) {
+                try { await item?.delete(); } catch { /* already gone */ }
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson(["no participant of the running incident the sender plays holds that object", null]),
+            "the tie was let through for an identity a write had left outside the GMs' mark, or refused for the knife the killer holds (the victim's player, the killer's)");
     }],
 
     ["a discovery breaks the gloves of the bodies it found, and a betrayer's stay while their victim is unfound", async () => {
@@ -8956,6 +9137,102 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson({ tool: ["putBack", null], loose: ["putBack", null], give: [false, true], giveLoose: false, plant: [null] }),
             "a key a player wrote stood, or a hand-over or a plant read it outside the GMs' mark (per write: the verdict, the key left; the receiver's key and Tool; the receiver's key; the plant's key)");
+    }],
+
+    ["an item a player made that no GM has decided on is handed over, planted or stolen by nobody; kept, or its row swept, it is, and undone it is gone", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; the orchestrator's decision (a), as for fixes r2-H7 and r2-H11. An item a player's
+         * browser makes on a student is flagged whole and stands until a GM decides (the plan's 2.8), and the copy roads
+         * read it as any item the GMs hold: a hand-over, a plant or a theft made a GM's copy of it on another sheet - a
+         * write that stands as the GMs' - and deleted the one made, whose card's Undo then found nothing to undo. The
+         * roads ask whether a GM has decided (sheet-audit.mjs `creationRefusal`) and refuse the item until one has, the
+         * asker told (`itemNotDecided`). Two students stood alone together, a stash of the first's in their room and a
+         * hand of the second's free for a Tool; for each road a Tool the first's player made (`asPlayerItemWrite`,
+         * flagged) - in the stash for the last - and the road run for the second, on a critical where it is rolled.
+         * Then three hand-overs more, each of a Tool made the same way: its row kept by a GM (`decideWrite`), its row
+         * gone from the store as a day's sweep or the reset's "actions" group takes it, its row undone. Read, per case:
+         * the refusal's reason (`reasonOf`) or null, the copies the second holds, whether the first still holds the
+         * Tool. Until this fix (4e5b868, e29run/r2h21red, 06.10.2026) each of the four roads moved the undecided
+         * Tool to the second, [null,1,false] apiece; the kept, swept and undone cases read as now.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose item is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose rows the roads read - this would measure nothing");
+        const H = await import("./handover.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { sheetAuditIdle, decideWrite } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [giver, taker] = cast(2);
+        const player = game.users.find(u => !u.isGM && giver.testUserPermission(u, "OWNER")) ?? game.users.find(u => !u.isGM);
+        const fixture = await aloneTogether(giver, taker);
+        const NAME = "Suite H21 a tool a player made", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const where = locateActor(taker), region = where?.room ? V.regionsByName(where.scene).get(where.room) : null;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const stowed = [], read = {};
+        try {
+            must(region, `the room ${where?.room} has no region to hide a stash in`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: giver.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            // What takes a Tool's slot in the second's hands put in a stash, and back after: a hand-over to full hands is refused.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            if (!INV.canCarry(taker, "tool").ok) for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            must(INV.canCarry(taker, "tool").ok, `${taker.name} has no hand free for a Tool - this would measure nothing`);
+            // A Tool the player made on the first, its row flagged and left to a GM; in the stash for the theft from one.
+            const made = async stashed => {
+                const from = Date.now();
+                const { item, verdict } = await asPlayerItemWrite("createItem", giver, moduleItemData(NAME, stashed
+                    ? { [INV.ITEM_FLAGS.location]: INV.LOCATIONS.vault, [INV.ITEM_FLAGS.stashRoom]: where.room } : {}), player);
+                await sheetAuditIdle();
+                const [rowId] = Object.entries(sheetWriteStore.entries() ?? {}).find(([, row]) => row?.itemId === item?.id
+                    && row.verdict === "flagged" && !row.decided && row.at >= from) ?? [];
+                must(item && verdict === "flagged" && rowId, `the made Tool was not flagged and left to a GM (${verdict}) - this would measure nothing`);
+                return { item, rowId };
+            };
+            // What a road did with it - the refusal's reason or null, the second's copies, whether the first holds it - then both cleared.
+            const seen = async (item, out) => {
+                await settle();
+                const what = [out?.refused ? reasonOf(out.refused) : null, taker.items.filter(i => i.name === NAME).length, giver.items.has(item.id)];
+                for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+                await sheetAuditIdle();
+                return what;
+            };
+            const roads = {
+                give: item => H.giveItem({ fromId: giver.id, toId: taker.id, itemId: item.id }),
+                plant: item => V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                steal: item => V.stealFromPerson({ thiefId: taker.id, victimId: giver.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                stash: item => V.stealFromVault({ thiefId: taker.id, ownerId: giver.id, itemId: item.id })
+            };
+            for (const [road, run] of Object.entries(roads)) {
+                const { item } = await made(road === "stash");
+                read[road] = await seen(item, await run(item));
+            }
+            const decisions = { kept: rowId => decideWrite(rowId, true), swept: rowId => sheetWriteStore.drop(rowId), undone: rowId => decideWrite(rowId, false) };
+            for (const [how, decide] of Object.entries(decisions)) {
+                const { item, rowId } = await made(false);
+                await decide(rowId);
+                await sheetAuditIdle();
+                read[how] = await seen(item, await roads.give(item));
+            }
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const refused = ["itemNotDecided", 0, true], copied = [null, 1, false];
+        equal(stableJson(read), stableJson({ give: refused, plant: refused, steal: refused, stash: refused, kept: copied, swept: copied, undone: [null, 0, false] }),
+            "an item no GM had decided on changed hands, or one kept or swept did not, or one undone did (per case: the refusal's reason, the second's copies, "
+                + "the first still holds it)");
     }],
 
     ["a trace's band is the GM's, whatever the packet names", async () => {
@@ -16104,6 +16381,97 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[], 1]),
             "a loot's copy took roles or a tier a write had left on the item outside the GMs' mark (the copy's roles, its tier)");
+    }],
+
+    ["a loot takes nothing a player made on the body that no GM has decided on, and counts the taker's hands as the GMs hold them", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026. A loot is a copy road as a hand-over is (handover.mjs `lootBody`; the test of the
+         * hand-over, the plant and the two thefts): a Tool a player made on the body, flagged and left to a GM, was copied
+         * to the taker and deleted off the body. It is refused now, the taker told (`itemNotDecided`, sheet-audit.mjs
+         * `creationRefusal`). And fix r2-H20's "not measured": the loot counts the taker's hands as the GMs hold them
+         * (`counted`, fix r2-H18), as H18's test counts the four other roads' - the taker's slots for a Tool filled, one
+         * of them put in a stash where the GMs' mark does not see it (the audit's aside), and a Tool the GMs gave the
+         * body looted. Read: the made Tool's loot (the refusal's reason or null, the taker's copies, whether the body
+         * still holds it), and the copies of the GMs' Tool the taker carries. Until this fix (4e5b868,
+         * e29run/r2h21red, 06.10.2026) the made Tool went to the taker, [null,1,false]. The count of the taker's hands
+         * is green there (fix r2-H18's `counted`) and red under the mutant that counts the document (e29run/r2h21m,
+         * m12): one copy carried.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the loot writes one");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose item is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose rows and mark the loot reads - this would measure nothing");
+        const [taker, body] = cast(2);
+        const player = game.users.find(u => !u.isGM && body.testUserPermission(u, "OWNER")) ?? game.users.find(u => !u.isGM);
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore, sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const remnants = await import("./remnants.mjs");
+        const had = new Set(taker.items.map(i => i.id));
+        const MADE = "SUITE H21 a crowbar a player made", GIVEN = "SUITE H21 a crowbar the GMs gave", FULL = "SUITE H21 a full hand";
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const stowed = [], read = {};
+        try {
+            // What takes a Tool's slot in the taker's hands put in a stash, and back after.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            ok(await killCharacter(body, { secret: false, keepBullets: true }), "the death was not recorded");
+            const from = Date.now();
+            const { item: made, verdict } = await asPlayerItemWrite("createItem", body, moduleItemData(MADE), player);
+            await sheetAuditIdle();
+            const row = Object.values(sheetWriteStore.entries() ?? {}).find(r => r?.itemId === made?.id && r.verdict === "flagged" && !r.decided && r.at >= from);
+            must(made && verdict === "flagged" && row, `the made Tool was not flagged and left to a GM (${verdict}) - this would measure nothing`);
+            const out = await lootBody({ takerId: taker.id, bodyId: body.id, itemId: made.id });
+            await settle();
+            read.made = [out?.refused ? reasonOf(out.refused) : null, taker.items.filter(i => i.name === MADE).length, body.items.has(made.id)];
+            for (const i of taker.items.filter(i => i.name === MADE)) await i.delete();
+            // The taker's slots for a Tool filled, and one of them put in a stash outside the GMs' mark.
+            const { limit } = INV.canCarry(taker, "tool");
+            must(Number.isInteger(limit) && limit > 0, `a Tool's slots have no limit to fill (${limit}) - this would measure nothing`);
+            const full = [];
+            for (let n = 0; n < limit; n++) full.push(await INV.grantItem(taker, { name: FULL, category: "tool", tier: 1, override: true, quiet: true }));
+            must(full.every(Boolean) && !INV.canCarry(taker, "tool").ok, `${taker.name}'s hands could not be filled - this would measure nothing`);
+            await sheetAuditIdle();
+            await full[0].update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H21 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(taker.id)?.items?.[full[0].id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.canCarry(taker, "tool").ok && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the full hand alone, outside the GMs' mark - this would measure nothing");
+            const given = await INV.grantItem(body, { name: GIVEN, category: "tool", tier: 1, override: true, quiet: true });
+            must(given, "the GMs' Tool was not put on the body - this would measure nothing");
+            await lootBody({ takerId: taker.id, bodyId: body.id, itemId: given.id });
+            await settle();
+            read.hands = taker.items.filter(i => i.name === GIVEN && !INV.isStashed(i)).length;
+        } finally {
+            for (const item of taker.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            const row = lootTraceStore.get(body.id);
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const item of body.items.filter(i => [MADE, GIVEN].includes(i.name))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            await reviveCharacter(body, { quiet: true });
+            await settle();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ made: ["itemNotDecided", 0, true], hands: 0 }),
+            "a loot took a Tool no GM had decided on, or carried a copy into hands a write had emptied outside the GMs' mark (the made Tool: the refusal's "
+                + "reason, the taker's copies, the body still holds it; the GMs' Tool's copies carried)");
     }],
 
     ["a body looted before anybody found it gives its taker no word of it until the death is published", async () => {
@@ -27303,6 +27671,57 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson(["refuse", "refused", "forward", "forward"]),
             "a module item's count rose through the relay, fell no more, or an item of Daggerheart's own was judged differently");
+    }],
+
+    ["Daggerheart's relay lowers a module item's count from the count the GMs hold, not from a write of the player's", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; the class sweep's relay row. The test above: a module item's count only falls
+         * through the relay - measured off the item as it stood, where a player's write of the count or of the module's
+         * flags stands until its put-back lands, or for good where it fails. A count the player's console raised was the
+         * one a fall was measured from, and an item whose module flags the console took off was judged as an item of
+         * Daggerheart's own. Measured from the item as the GMs hold it as well now (relay-guard.mjs `itemRefusal`,
+         * sheet-audit.mjs `itemsHeldNow`). A kit of the player's own student, its count raised by four where the GMs'
+         * mark does not see it (the audit's aside), asked to three above the GMs' count, then to the GMs' count; a second
+         * kit with the module's flags taken off the same way, asked to one more. The verdicts are asked, not run.
+         * Until this fix (4e5b868, e29run/r2h21red, 06.10.2026): ["forward","forward","forward"] - the rise above
+         * the GMs' count let through, and the kit without its flags judged as Daggerheart's own.
+         */
+        needs(world.atLeast("playersWithCharacter", 1), "a player whose own student the relay judges");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the relay's judge reads - this would measure nothing");
+        const player = game.users.find(u => !u.isGM && u.character?.type === "character");
+        const student = player.character;
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const made = [];
+        let read = null;
+        try {
+            const grant = name => grantItem(student, { name, category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+            const kit = await grant("Tier 2 H21 relay kit"), bare = await grant("Tier 2 H21 relay kit its flags taken off");
+            made.push(kit?.id, bare?.id);
+            must(kit && bare, "the two kits were not made");
+            await sheetAuditIdle();
+            const held = Number(kit.system?.quantity ?? 1);
+            await kit.update({ "system.quantity": held + 4 }, { [AUDIT_ASIDE]: true });
+            await bare.update({ [`flags.${MODULE_ID}`]: forcedDeletion() }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marks = sheetMarkStore.get(student.id)?.items ?? {};
+            must(Number(kit.system?.quantity) === held + 4 && Number(marks[kit.id]?.system?.quantity) === held
+                && !Object.keys(bare._source?.flags?.[MODULE_ID] ?? {}).length && marks[bare.id]?.flags?.[MODULE_ID]?.category === "usable",
+                "the writes did not stand on the kits alone, outside the GMs' mark - this would measure nothing");
+            const ask = (item, quantity) => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: item.uuid,
+                data: { "system.quantity": quantity } } }, player).verdict;
+            read = [ask(kit, held + 3), ask(kit, held), ask(bare, Number(bare.system?.quantity ?? 1) + 1)];
+        } finally {
+            const left = made.filter(id => id && student.items.get(id));
+            if (left.length) await student.deleteEmbeddedDocuments("Item", left);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson(["refuse", "forward", "refuse"]),
+            "a count rose above the GMs' through the relay, a fall to it was refused, or a kit whose flags a write took off was judged as Daggerheart's own "
+                + "(three above the GMs' count, at it; the kit without its flags, one more)");
     }],
 
     ["with lockPlayerResources off a forged Hope rise is listed, not put back", async () => {

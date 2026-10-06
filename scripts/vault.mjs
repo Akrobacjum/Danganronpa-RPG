@@ -1134,7 +1134,7 @@ export async function stealFromVault({
      * document's. The thief's hands are counted as the GMs hold them too, read with it after one wait for both
      * (fix r2-H18, handover.mjs `giveItem`).
      */
-    const { itemAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    const { itemAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(owner.id, thief.id);
     const held = await itemAsHeld(owner, item.id);
     const counted = await actorAsHeld(thief);
@@ -1144,6 +1144,13 @@ export async function stealFromVault({
     // somewhere on the map - the same distinction `retrieve` makes.
     if (stashRoomOfItem(held, owner, where.scene) !== where.room) {
         return refuse(`"${held.name}" is not in the stash in "${where.room}"`);
+    }
+    // An item the owner's player made that no GM has decided on yet is taken by nobody, and the thief told (E29 fix
+    // r2-H21, sheet-audit.mjs `creationRefusal`).
+    const undecided = creationRefusal(owner, held.id);
+    if (undecided) {
+        refuse(undecided);
+        return { refused: undecided };
     }
 
     const copy = await grantItem(thief, {
@@ -1307,7 +1314,7 @@ export async function stealFromPerson({
      * `giveItem`).
      */
     const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { itemsAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    const { itemsAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(victim.id, thief.id);
     const pockets = await itemsAsHeld(victim);
     const counted = await actorAsHeld(thief);
@@ -1319,6 +1326,17 @@ export async function stealFromPerson({
     if (success && pool.length) {
         const wanted = isCritical ? pool.find(i => i.id === itemId) : null;
         item = wanted ?? pool[Math.floor(Math.random() * pool.length)];
+    }
+    /*
+     * An item the victim's player made that no GM has decided on yet is taken by nobody (E29 fix r2-H21, sheet-audit.mjs
+     * `creationRefusal`): the theft is refused before anything is written - nobody told of a hand that was or was not
+     * seen - and the thief told, whether they named it on a critical or the draw took it. Left out of the draw instead,
+     * a hand in a pocket holding only that would come out empty, and the thief would be told of an empty pocket.
+     */
+    const undecided = item ? creationRefusal(victim, item.id) : null;
+    if (undecided) {
+        refuse(undecided);
+        return { refused: undecided };
     }
 
     // Nothing in their pockets is not a failure - the hand went in, and whether
@@ -1482,7 +1500,7 @@ export async function plantOnPerson({
      * handover.mjs `giveItem`).
      */
     const { preservedFlags, grantItem } = await import("./inventory.mjs");
-    const { itemsAsHeld, actorAsHeld, judgedFor } = await import("./sheet-audit.mjs");
+    const { itemsAsHeld, actorAsHeld, judgedFor, creationRefusal } = await import("./sheet-audit.mjs");
     await judgedFor(planter.id, victim.id);
     const pockets = await itemsAsHeld(planter);
     const counted = await actorAsHeld(victim);
@@ -1492,6 +1510,13 @@ export async function plantOnPerson({
     const held = pool.find(i => i.id === item.id);
     if (!held) {
         return refuse(`"${item.name}" is not something they are carrying`);
+    }
+    // An item the planter's player made that no GM has decided on yet goes into nobody's pocket, and the planter told
+    // (E29 fix r2-H21, sheet-audit.mjs `creationRefusal`) - before the rolls are read, so nobody is told of a hand seen.
+    const undecided = creationRefusal(planter, held.id);
+    if (undecided) {
+        refuse(undecided);
+        return { refused: undecided };
     }
 
     // THE PLANT BARS, NOT THE STEAL ONES (ACT-01, 17.09). The player's client

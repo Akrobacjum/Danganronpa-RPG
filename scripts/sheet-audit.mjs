@@ -708,6 +708,10 @@ export async function armedCallsHeld(actor) {
  * the mark did not see them (the mark: no roles, tier 1) was copied with both by a hand-over, a loot, a plant and
  * both thefts, and in scenario 30 a hand-over and a plant p2 asked for at once after writing a Tool's roles, or its
  * tier and a mend, left that write on Aiko's copy on every client and in her mark.
+ * READ HERE SINCE, each road saying why its wait holds up nothing: through `itemAsHeld` the Rot's wear (overflow.mjs
+ * `rotEverything`, fix r2-H19), a GM's ruling on an item used (use-items.mjs `grantItemEffect`, H19) and an
+ * Objection's evidence (trial.mjs `seizeFloor`, H20); and the object a tie of a trace to the crime names
+ * (bridge-guards.mjs `guardTieTraceHolder`, H21).
  */
 export async function itemsAsHeld(actor) {
     await judgedFor(actor?.id);
@@ -719,6 +723,13 @@ export async function itemsAsHeld(actor) {
  * draw (roll-draw.mjs `expectedFor`, through `actorHeldNow`; the merge of the side line's fix r2-H20 with the main
  * line's fix r2-H3, 06.10.2026). Read without the wait, a write heard and not judged yet is read as the mark held the
  * item before it - a write the judgement would keep included.
+ * And for two that take no wait of their own (fix r2-H21): a GM's break (inventory.mjs `breakItem`), whose callers
+ * on a GM have waited already (a discovery's and a close's `destroyTools`, a swing's and the Rot's wear, a ruling's
+ * consumption) and on a player's browser find no mark, and the count Daggerheart's relay may lower (relay-guard.mjs
+ * `itemRefusal`), whose judge answers at once, as it measures the Hope from the mark as it stands
+ * (`relayGainRefusal`). So a player's break not judged yet is read whole and the GM's break is written over it - the
+ * item broken either way - and a GM's rise of a count not judged yet is not counted, so a fall below it asked in
+ * that moment is refused.
  */
 export function itemsHeldNow(actor) {
     const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
@@ -769,6 +780,9 @@ export async function flagsAsHeld(actor) {
  * `stealFromPerson`, `plantOnPerson`). The wait is `itemsAsHeld`'s, and on these roads, as on H17's, it holds up
  * nothing that holds it up, by reading: a crisis action, a project's packet and a copy each come after the roll and
  * the use they follow, and none writes what a judgement waits for (a use's consumption, a roll's card).
+ * And since fix r2-H20, each saying the same of its own wait: a clean-up's and Stage 6's gloves (cleanup.mjs
+ * `resolveCleanup`, `resolveStageSix`), the gloves and the weapons the discovery and the close break (`destroyTools`),
+ * and the searcher's hands a Reroll's find is carried in (reroll.mjs `settleSearch`).
  */
 export async function actorAsHeld(actor) {
     await judgedFor(actor?.id);
@@ -780,6 +794,32 @@ export function actorHeldNow(actor) {
     const items = itemsHeldNow(actor);
     return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
         items: Object.assign([...items], { get: id => items.find(item => item.id === id) }) };
+}
+
+/*
+ * A PLAYER'S ITEM NO GM HAS DECIDED ON CHANGES NO HANDS (E29 fix r2-H21, 06.10.2026; the orchestrator's decision (a),
+ * as for fixes r2-H7 and r2-H11 - the owner may overrule it). An item a player's browser makes on a student is
+ * flagged whole (`itemFindings`, the plan's 2.6) and stands until a GM decides (2.8), and the mark takes it in as it
+ * stands - so a copy road read it as any item the GMs hold: a hand-over, a plant, a theft or a loot made a GM's copy
+ * of it on another sheet, a write that stands as the GMs', and deleted the original, whose card's Undo then found
+ * nothing to undo. The copy roads (handover.mjs `giveItem` - its key's and its bullet's branches included - and
+ * `lootBody`; vault.mjs `plantOnPerson`, `stealFromVault` and `stealFromPerson`) ask this after their wait, which
+ * has judged every write queued on the student and so written the creation's row, and before anything is written:
+ * an item whose creation row (`sheetWrites`, verdict "flagged", the change `items.<id>` from null) holds no decision
+ * is refused, and the asker told (`itemNotDecided`). The decision is read as the card's Undo and Keep write it
+ * (`decideNow`: `decided`, written before anything else, on a card's row and on a row of the card of changes made
+ * with no GM watching alike): kept, the item copies as any item; undone, it is gone, and there is nothing to copy.
+ * A row swept a day after it was written (`keepRows`) or cut by the reset's "actions" group (gm-stores.mjs
+ * `sheetWriteStore`) is a decision no GM can make any more - by the plan's 2.3 and 2.8 the window has closed and the
+ * write stands - so the item copies then too. A created item on its owner's own roads (an Objection with it, Use an
+ * item) stands until a GM decides, as 2.8 says, and is not asked here. Null on a browser that holds no rows.
+ */
+export function creationRefusal(actor, itemId) {
+    if (!game.user?.isGM || !gmStoresHydrated() || !actor?.id || !itemId) return null;
+    const whole = `items.${itemId}`;
+    const open = Object.values(sheetWriteStore.entries() ?? {}).some(row => row?.actorId === actor.id && row.itemId === itemId
+        && row.verdict === "flagged" && !row.decided && Array.isArray(row.change?.[whole]) && row.change[whole][0] === null);
+    return open ? `no GM has decided yet on an item a player made on a sheet: "${actor.items?.get(itemId)?.name ?? itemId}"` : null;
 }
 
 /**

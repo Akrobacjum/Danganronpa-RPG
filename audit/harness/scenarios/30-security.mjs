@@ -4445,6 +4445,105 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     }
 
     /*
+     * AN ITEM A PLAYER'S CONSOLE MAKES AND AT ONCE ASKS TO PLANT (E29 fix r2-H21, 06.10.2026; the orchestrator's decision
+     * (a)). p2's console makes a Crime Tool on Botan - an item no GM gave, which the audit flags whole and lets stand until
+     * a GM decides (the plan's 2.8) - and at once asks to plant it on Aiko, in Botan's room with a hand free for it, on
+     * the GMs' record of two critical palm rolls of Botan's. (The fix list named p1's console; p1 plays Aiko, the one it
+     * is planted on, so the planter here is p2's Botan.) Read: no copy on Aiko and the Tool still Botan's, on every
+     * client; p2 told the plant was refused, with the reason `itemNotDecided`; Botan's row of the making flagged and left
+     * to a GM. The GM's hooks record the making and the ask as they were heard; the case counts only where the making
+     * was heard before the ask. Until this fix (4e5b868, e29run/r2h21red, 06.10.2026) the Tool went to Aiko and
+     * left Botan on all four clients, and nobody was told. Red as well under the mutant that does not ask the row
+     * (e29run/r2h21m, m15), and under the one that refuses without telling (m16): the Tool stayed Botan's, untold.
+     */
+    const h21Name = "SEC H21 knife";
+    const h21Was = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), C = await import("${repoUrl}/scripts/config.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs");
+        const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}"), token = canvas.scene.tokens.get("TOKAIKO000000000");
+        const at = M.sameRoom(aiko, a) ? null : { x: token.x, y: token.y };
+        if (at) await token.update({ x: 1500, y: 300 });
+        // A hand of Aiko's freed for a Crime Tool, as H17's block frees one for a Tool.
+        const group = C.ITEM_CATEGORIES.crimeTool?.limitGroup ?? null, gear = [];
+        const slot = i => i.getFlag("${MOD}", "category") === "crimeTool" || (group !== null && C.ITEM_CATEGORIES[i.getFlag("${MOD}", "category")]?.limitGroup === group);
+        if (!INV.canCarry(aiko, "crimeTool").ok) for (const i of aiko.items.contents.filter(i => slot(i) && !INV.isStashed(i))) {
+            gear.push([i.id, i.getFlag("${MOD}", "location") ?? null]);
+            await i.update({ "flags.${MOD}.location": INV.LOCATIONS.vault });
+        }
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { at, gear, together: M.sameRoom(aiko, a), free: INV.canCarry(aiko, "crimeTool").ok, actions: a.system?.resources?.actions?.value ?? null };`, { timeout: 30000 });
+    await settle(600);
+    // The GM's own hooks: the making of the Tool and any copy of it on Aiko, by whom, and the ask, heard ahead of the
+    // module's own listener as H17's block hears it.
+    await gm.eval(`globalThis.__h21Heard = [];
+        globalThis.__h21Asked = (payload, senderId) => payload?.action === "action.plant"
+            && globalThis.__h21Heard.push(["asked", payload.action, senderId === "${p2.userId}" ? "p2" : senderId]);
+        game.socket._handlers.get("${SOCKET}").unshift(globalThis.__h21Asked);
+        globalThis.__h21Hooks = [["createItem", Hooks.on("createItem", (doc, options, userId) => doc.name === ${JSON.stringify(h21Name)}
+            && globalThis.__h21Heard.push([doc.parent?.id === "${ids.aiko}" ? "aiko" : "made", game.users.get(userId)?.isGM ? "gm" : "player"]))]];
+        return true;`);
+    await p2.eval(`globalThis.__h21Told = [];
+        globalThis.__h21Listen = payload => { if (payload?.action === "bridge.refused" && payload.userId === game.user.id) globalThis.__h21Told.push([payload.what, payload.reason ?? null]); };
+        game.socket.on("${SOCKET}", globalThis.__h21Listen); return true;`);
+    let h21 = null;
+    try {
+        // The hand's roll and the unseen one, both Botan's, drawn by the GM on a critical, as H17's plant: the plant would land, unseen.
+        const handRolled = await drawnRoll(p2, ids.botan, "steal", "hand", { hope: 7, fear: 7 });
+        const unseenRolled = await drawnRoll(p2, ids.botan, "palm", "shadow", { hope: 7, fear: 7 });
+        await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        const from = await gm.eval(`return Date.now();`);
+        const madeId = await p2.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+            const [item] = await game.actors.get("${ids.botan}").createEmbeddedDocuments("Item", [{ name: ${JSON.stringify(h21Name)}, type: "loot",
+                system: { quantity: 1 }, flags: { "${MOD}": { category: "crimeTool", tier: 1 } } }], { drpgAutomated: true, [INV.CAP_OVERRIDE]: true });
+            if (item) void B.requestPlant({ plannerId: "${ids.botan}", victimId: "${ids.aiko}", itemId: item.id, total: ${Number(handRolled.total ?? 0)},
+                isCritical: true, unseenTotal: ${Number(unseenRolled.total ?? 0)}, unseenCritical: true,
+                rollId: ${JSON.stringify(handRolled.messageId)}, unseenRollId: ${JSON.stringify(unseenRolled.messageId)} }).catch(() => null);
+            return item?.id ?? null;`);
+        // Up to 8 s for p2 to be told or for a copy on Aiko; then the GM's audit idle, and every client read.
+        const told = await p2.eval(`const end = Date.now() + 8000, copied = () => game.actors.get("${ids.aiko}").items.some(i => i.name === ${JSON.stringify(h21Name)});
+            while (!globalThis.__h21Told.length && !copied() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            return globalThis.__h21Told.slice();`, { timeout: 15000 });
+        await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        const want = [false, true];
+        const docs = await h16Docs(`const has = id => game.actors.get(id).items.some(i => i.name === ${JSON.stringify(h21Name)});
+            return [has("${ids.aiko}"), has("${ids.botan}")];`, want);
+        const rows = await gm.eval(`${audited} const whole = "items.${madeId}";
+            return Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.botan}" && r.itemId === "${madeId}" && r.at >= ${from})
+                .map(r => [r.verdict, Boolean(r.decided), Array.isArray(r.change?.[whole]) && r.change[whole][0] === null]);`);
+        h21 = { rolls: [handRolled?.messageId ?? null, unseenRolled?.messageId ?? null], madeId, want, docs, told, rows,
+            heard: await gm.eval(`return globalThis.__h21Heard.splice(0);`) };
+    } finally {
+        await p2.eval(`if (globalThis.__h21Listen) game.socket.off("${SOCKET}", globalThis.__h21Listen); return true;`);
+        await gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            for (const [name, id] of globalThis.__h21Hooks ?? []) Hooks.off(name, id);
+            if (globalThis.__h21Asked) game.socket.off("${SOCKET}", globalThis.__h21Asked);
+            const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}");
+            await A.sheetAuditIdle();
+            for (const who of [a, aiko]) {
+                const made = who.items.filter(i => i.name === ${JSON.stringify(h21Name)}).map(i => i.id);
+                if (made.length) await who.deleteEmbeddedDocuments("Item", made);
+            }
+            for (const [id, was] of ${JSON.stringify(h21Was.gear ?? [])}) {
+                await aiko.items.get(id)?.update({ "flags.${MOD}.location": was ?? foundry.data.operators.ForcedDeletion.create() });
+            }
+            ${h21Was.at ? `await canvas.scene.tokens.get("TOKAIKO000000000").update(${JSON.stringify(h21Was.at)});` : ""}
+            const actions = ${JSON.stringify(h21Was.actions ?? null)};
+            if (actions !== null && a.system?.resources?.actions?.value !== actions) {
+                const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+                await trustedWrite(a, { "system.resources.actions.value": actions }, { reason: "gmRuling" });
+            }
+            await A.sheetAuditIdle(); return true;`, { timeout: 30000 });
+    }
+    {
+        const ready = Boolean(h21?.madeId && h21Was.together && h21Was.free);
+        const ordered = h16InOrder(h21?.heard ?? [], { 0: "made", 1: "player" }, { 0: "asked", 1: "action.plant", 2: "p2" });
+        const same = Boolean(h21) && h21.docs.length === 4 && h21.docs.every(seen => JSON.stringify(seen) === JSON.stringify(h21.want));
+        check("SECURITY: a player's console making a Crime Tool on their student and at once asking to plant it makes no copy on the victim, on every client - the Tool still theirs and left to a GM, and the player told no GM has decided on it",
+            ready && ordered && same && JSON.stringify(h21?.told) === JSON.stringify([["action.plant", "itemNotDecided"]])
+                && JSON.stringify(h21?.rows) === JSON.stringify([["flagged", false, true]]),
+            JSON.stringify({ ready, ordered, ...(h21 ?? {}) }), { flow: "give-take-stash" });
+    }
+
+    /*
      * The load-time record ran on the GM, once (the E03 review measured it running
      * 0 times), and the GM holds a copy of every bullet in the world now - the ones
      * made during this scenario by a GM's write. The fixture world has no bullet at
