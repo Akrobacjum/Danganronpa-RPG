@@ -6,10 +6,18 @@
 # of everything, 8m08s wall): lint 3.4 s, check 2.9 s, the suite 309.5 s, the
 # other fourteen scenarios 171.7 s together (30-security 65.5 s of it). Peak
 # memory: the suite's GM client 474 MB, every other client 217-232 MB, each
-# cluster 58-63 MB, run-all 302 MB with ESLint loaded. GitHub's runner is not
-# that container and none of this has run on Actions yet: the first runs are the
-# measurement, and every results JSON records its time and each client's maxRSS,
-# uploaded below.
+# cluster 58-63 MB, run-all 302 MB with ESLint loaded. Every results JSON
+# records its time and each client's maxRSS, uploaded below.
+#
+# Measured on Actions (ubuntu-24.04), the "npm test" step of each job: 1.2.67
+# (05.10.2026, run 15, 738 tests) the suite 17 min 56 s, the scenarios 11 min
+# 59 s, lint-check-gate 11 s. 1.2.68 (06.10.2026, run 17, 863 tests) the suite
+# ran into its 25-minute limit and was cancelled 25 min 2 s into the step, the
+# scenarios took 16 min 11 s; the same suite on the same code took 1547.7 s in
+# the 4-core container (k4 on 0fa68c3). The limits below are there to end a
+# hang, not to budget a run: each is about twice the last green run of its job,
+# and the suite grows with every stage of the 1.3.0 plan (309 s on 24.09, 1548 s
+# on 06.10).
 #
 # workflow_dispatch lets anyone with write access run it on any branch - the
 # mutation branches of the E30 gate design among them. Making these jobs
@@ -37,8 +45,8 @@ jobs:
       matrix:
         include:
           - { name: "lint, check, gate", parts: "lint check gate", minutes: 10 }
-          - { name: "suite", parts: "suite", minutes: 25 }
-          - { name: "scenarios", parts: "scenarios", minutes: 25 }
+          - { name: "suite", parts: "suite", minutes: 50 }
+          - { name: "scenarios", parts: "scenarios", minutes: 40 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
