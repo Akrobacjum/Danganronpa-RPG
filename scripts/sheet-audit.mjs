@@ -12,7 +12,8 @@
  * WHAT THE GMS HOLD (`sheetMarks`, gm-stores.mjs). Per student, the last judged
  * values: its statistics (`system.traits`), experiences, each resource's value and
  * maximum, `system.rules` and `system.bonuses`, Daggerheart's level-up selections
- * (`system.levelData`, since E29 fix r1-G2), the module flags below, its effects and, per
+ * (`system.levelData`, since E29 fix r1-G2), Daggerheart's scars (`system.scars`, which set Hope's
+ * maximum; since E29 fix r2-H25), the module flags below, its effects and, per
  * item, the effects on its items (`itemEffects`, since E29 fix r1-G3).
  * A GM's write is never judged, and what it names is the new mark; so is
  * whatever a verdict leaves standing of what a player's write named. Either is taken
@@ -25,9 +26,9 @@
  *
  * WHAT IS PUT BACK, with the world setting `lockPlayerResources` on (its default):
  * any change to a statistic, an experience, a maximum, `system.rules`,
- * `system.bonuses` or `system.levelData`; any change to a GM-only flag (`GM_FLAGS`); an effect that
+ * `system.bonuses`, `system.levelData` or `system.scars`; any change to a GM-only flag (`GM_FLAGS`); an effect that
  * changes anything the GMs hold - a statistic, an experience, a resource's value or maximum,
- * a rule, a bonus, a level-up selection, a module flag (`HELD_PATH`, G3; until then only what
+ * a rule, a bonus, a level-up selection, the scars, a module flag (`HELD_PATH`, G3; until then only what
  * a roll is built from) - or is one of the module's own statuses, on the student or,
  * transferred, on one of its items (G3) - created (deleted), changed (written back) or deleted
  * (made again under its id). A statistic or a maximum goes back to its mark, not by a
@@ -202,7 +203,7 @@ const LOCK_NAMED_MAX = new Set([ACTIONS_RESOURCE, "hope", "hitPoints", "stress"]
  * values and flags (`resourceValue`, `getFlag`) while this file reads only the source. The harness
  * applies no effect to prepared data, so that half is read, not run. The comparison at ready asks the same.
  */
-const HELD_PATH = new RegExp(`^system\\.(?:traits|experiences|rules|bonuses|resources|levelData)(?:\\.|$)|\\.max$|^flags\\.${MODULE_ID}\\.`);
+const HELD_PATH = new RegExp(`^system\\.(?:traits|experiences|rules|bonuses|resources|levelData|scars)(?:\\.|$)|\\.max$|^flags\\.${MODULE_ID}\\.`);
 
 /** The statuses the module itself sets (chapter.mjs `dead`, states.mjs Breakdown and Wounded). */
 const MODULE_STATUSES = new Set(["dead", ...Object.values(STATES).map(state => state.id)]);
@@ -272,10 +273,17 @@ const AWAY_CARD = "sheetAway";
  * a statistic, an experience, the Health and Sanity maxima and a roll's dice (character.mjs
  * `prepareBaseData`, read 05.10.2026). No player road writes them: the module's Level Up is
  * `applyAdvancement`, on a GM (R79), and the module writes no `levelData` at all.
+ * `system.scars` since E29 fix r2-H25: Daggerheart's scars, a number, which set Hope's maximum - the world's setting
+ * less them (character.mjs `prepareDerivedData`, 2.10.5 :752). No road writes them: not the module's, and Daggerheart's
+ * one, the Death Move's Avoid Death, is no road in this game (states.mjs switches off the automation that offers it,
+ * danganronpa.css hides the sheet's button); so they are judged as the fields only a GM writes are, put back with
+ * `lockPlayerResources` on or off (`kindOf`). Until this fix a player's write of them was listed and stood, and with it
+ * a Hope maximum the GMs' readers took as theirs (`maxHeld`). A mark or a sheet with none reads 0, Daggerheart's
+ * initial (character.mjs :79): a mark taken before this fix holds none.
  */
-const MARK_ROOTS = ["system.traits", "system.experiences", "system.resources", "system.rules", "system.bonuses", "system.levelData"];
+const MARK_ROOTS = ["system.traits", "system.experiences", "system.resources", "system.rules", "system.bonuses", "system.levelData", "system.scars"];
 
-/** Every root of a student's document the mark keeps: the five above and each marked flag. */
+/** Every root of a student's document the mark keeps: the seven above and each marked flag. */
 const MARKED_PATHS = [...MARK_ROOTS, ...MARKED_FLAGS.map(key => `flags.${MODULE_ID}.${key}`)];
 
 /** The means' paths (`LEDGER`): a judgement moves them through its ledger alone, never as a path put back to its mark. */
@@ -324,7 +332,7 @@ function markFrom(actor) {
     const flags = src.flags?.[MODULE_ID] ?? {};
     return {
         traits: clone(system.traits ?? {}), experiences: clone(system.experiences ?? {}), resources: clone(system.resources ?? {}),
-        rules: clone(system.rules ?? {}), bonuses: clone(system.bonuses ?? {}), levelData: clone(system.levelData ?? {}),
+        rules: clone(system.rules ?? {}), bonuses: clone(system.bonuses ?? {}), levelData: clone(system.levelData ?? {}), scars: system.scars ?? 0,
         flags: Object.fromEntries(MARKED_FLAGS.filter(key => flags[key] !== undefined).map(key => [key, clone(flags[key])])),
         effects: Object.fromEntries((actor.effects?.contents ?? []).map(effect => [effect.id, docData(effect)])),
         items: Object.fromEntries((actor.items?.contents ?? []).map(item => [item.id, docData(item)]).filter(([, data]) => heldItem(data))
@@ -504,7 +512,7 @@ const takeAll = (credit, key, n) => creditHeld(credit, key) >= n && takeCredit(c
 function markAsDocument(mark) {
     return {
         system: { traits: mark.traits ?? {}, experiences: mark.experiences ?? {}, resources: mark.resources ?? {},
-            rules: mark.rules ?? {}, bonuses: mark.bonuses ?? {}, levelData: mark.levelData ?? {} },
+            rules: mark.rules ?? {}, bonuses: mark.bonuses ?? {}, levelData: mark.levelData ?? {}, scars: mark.scars ?? 0 },
         flags: { [MODULE_ID]: mark.flags ?? {} }
     };
 }
@@ -523,6 +531,7 @@ function kindOf(path) {
     if (/^system\.traits(?:\.|$)/.test(path)) return "traits";
     if (/^system\.experiences(?:\.|$)/.test(path)) return "experience";
     if (/^system\.levelData(?:\.|$)/.test(path)) return "levelData";
+    if (path === "system.scars") return "scars";
     if (/^system\..+\.max$/.test(path)) return "max";
     if (/^system\.rules(?:\.|$)/.test(path)) return "rules";
     if (/^system\.bonuses(?:\.|$)/.test(path)) return "bonuses";
@@ -858,12 +867,13 @@ function heldMark(actor) {
 
 /*
  * A STUDENT'S RESOURCE MAXIMUM AS THE GMS HOLD IT (E29 fix r2-H23, 06.10.2026), where `meansHeld` holds the value: the
- * prepared maximum with the mark's sheet maximum for the sheet's (`maxHeld`, as a judgement bounds the mark), on the
- * primary; the document's on any other browser and where the GMs hold no mark of their own. A player's write of a
- * maximum is put back with `lockPlayerResources` on (`LOCK_NAMED_MAX`) and stands on the sheet until its put-back
- * lands, and for good where it fails. For a GM's give-back held to the end of a track - a Reroll's rewind of a crisis
- * action's marks (murder.mjs `undoLastCrisis`) and of a clean-up's Sanity (cleanup.mjs `undoLastCleanup`) - read in
- * the job `gmMeansWrite` runs, as the value is.
+ * prepared maximum with the mark's sheet maximum for the sheet's - Hope's with the mark's scars for the sheet's, since
+ * fix r2-H25 (`maxHeld`, as a judgement bounds the mark) - on the primary; the document's on any other browser and where
+ * the GMs hold no mark of their own. A player's write of a maximum is put back with `lockPlayerResources` on
+ * (`LOCK_NAMED_MAX`) and stands on the sheet until its put-back lands, and for good where it fails. For a GM's
+ * give-back held to the end of a track - a Reroll's rewind of a crisis action's marks (murder.mjs `undoLastCrisis`) and
+ * of a clean-up's Sanity (cleanup.mjs `undoLastCleanup`) - read in the job `gmMeansWrite` runs, as the value is.
+ * Prepared: the end of a track, not a sheet's maximum to write over (`numberHeld`).
  */
 export function meansMaxHeld(actor, key) {
     return maxHeld(actor, heldMark(actor), key);
@@ -871,16 +881,19 @@ export function meansMaxHeld(actor, key) {
 
 /*
  * ANY OTHER NUMBER OF A STUDENT'S AS THE GMS HOLD IT (E29 fix r2-H24, 06.10.2026): a statistic, an experience's value,
- * the advances taken - what level-up.mjs `applyAdvancement` adds one to. The prepared value with the mark's for the
- * sheet's, as `maxHeld` reads a maximum, on the primary; the mark's alone where the document has none to prepare from,
- * and nothing where the mark holds none (the GMs hold none: a module flag the player wrote); the document's prepared
- * value on any other browser and where the GMs hold no mark of their own. Read in the job `gmMeansWrite` runs.
+ * the advances taken and, since fix r2-H25, a sheet's maximum - what level-up.mjs `applyAdvancement` adds to. The sheet's
+ * value as the mark holds it, on the primary, and nothing where the mark holds none (the GMs hold none: a module flag the
+ * player wrote); the sheet's own on any other browser and where the GMs hold no mark of their own. The sheet's, not the
+ * prepared value (fix r2-H25): what is written into the sheet Daggerheart prepares again - a class's hit points added to
+ * Health's maximum, a Level Up's picks to a statistic or a maximum (character.mjs `prepareBaseData`, 2.10.5 :678-700,
+ * :741), an effect's changes - so a prepared value written there takes them a second time. H24 read the prepared value
+ * with the mark's for the sheet's, and the maxima as `meansMaxHeld` answers them, prepared: measured at 525a186
+ * (06.10.2026, e29run/r2h25red) by tier 2 ("a GM's Level Up rises from the sheet's maximum"), +1 Health and +1 to a
+ * statistic over a class's 5 hit points and a pick of +1 wrote 12 and 2 for 7 and 1. Read in the job `gmMeansWrite` runs.
  */
 export function numberHeld(actor, path) {
-    const mark = heldMark(actor), prepared = foundry.utils.getProperty(actor ?? {}, path);
-    if (!mark) return prepared;
-    const sheet = foundry.utils.getProperty(actor._source ?? {}, path), held = foundry.utils.getProperty(markAsDocument(mark), path);
-    return typeof held === "number" && typeof prepared === "number" && typeof sheet === "number" ? prepared - sheet + held : held;
+    const mark = heldMark(actor);
+    return foundry.utils.getProperty(mark ? markAsDocument(mark) : actor?._source ?? {}, path);
 }
 
 /*
@@ -943,8 +956,8 @@ export function gmMeansWrite(actor, write) {
  * `spendHopeCall`); a rest (rest.mjs `applyRest`); an advancement (level-up.mjs `applyAdvancement`, with `numberHeld`);
  * a missed Observe's Sanity (observe.mjs `chargeObserveMiss`) and a resolution's (cleanup.mjs `markResolutionStress`);
  * and the incident's marks - a Despair opening's Sanity, a hit, a drain, a resolution's blood (murder.mjs
- * `resolveKillerOpening`, `takeReserves`, `spendStress`). A Hope maximum reads the same either way: Daggerheart prepares
- * it from the world's setting less the scars, whatever the sheet's says (`maxHeld`).
+ * `resolveKillerOpening`, `takeReserves`, `spendStress`). A Hope maximum is Daggerheart's world setting less the scars,
+ * whatever the sheet's maximum says: on a GM's client less the scars the GMs hold, since fix r2-H25 (`maxHeld`).
  * No job here waits on itself, by reading (H17's caution): each reads, computes and makes its one `trustedWrite`
  * (`convertDespairToHope` records the pool's debt first, a GM store's write), so nothing it awaits is a judgement that
  * waits on the student's queue; every other wait a road makes - `itemAsHeld` in `grantItemEffect`, a judgement's; the
@@ -1028,7 +1041,8 @@ function setMarked(mark, path, value) {
     const field = flag ? "flags" : root.slice("system.".length);
     const within = flag ? path.slice(`flags.${MODULE_ID}.`.length) : path.slice(root.length + 1);
     if (!within) {
-        mark[field] = isPlain(value) ? clone(value) : {};
+        // The scars are a number, 0 where there are none (fix r2-H25); every other root an object.
+        mark[field] = root === "system.scars" ? value ?? 0 : isPlain(value) ? clone(value) : {};
         return;
     }
     mark[field] ??= {};
@@ -1054,6 +1068,7 @@ function setMarked(mark, path, value) {
 function markAfter(actor, held, { paths = {}, back = [], calls = null, effect = null, effects = [], items = null, itemEffects = null, ledger = null } = {}) {
     const next = Object.fromEntries(["traits", "experiences", "resources", "rules", "bonuses", "levelData", "flags", "effects", "items", "itemEffects"]
         .map(field => [field, clone(held[field] ?? {})]));
+    next.scars = held.scars ?? 0;
     for (const [path, value] of Object.entries(paths)) setMarked(next, path, value);
     const was = markAsDocument(held);
     for (const path of back) setMarked(next, path, path === CALLS_PATH && calls ? keptCalls(paths[CALLS_PATH], calls) : foundry.utils.getProperty(was, path));
@@ -1487,9 +1502,11 @@ function gmLedger(actor, seen, reason = null, giveBack = false) {
  * picks to the sheet's Health maximum, and the picks to Sanity's (character.mjs `prepareBaseData`, read
  * in 2.6.5 and 2.10.5) - the sheet's Health maximum is a bonus, 0 on a fresh sheet, and bounding by it
  * would hold every Health value at it. Hope's maximum is Daggerheart's world setting less scars,
- * whatever the sheet holds (`prepareBaseData`, `prepareDerivedData`, both versions): a write cannot
- * raise it at a table, and the document's stands. The harness prepares nothing, so there a raised
- * sheet's Hope maximum still raises the document's, which no table does. Measured at 0d86603
+ * whatever the sheet's maximum holds (`prepareBaseData`, `prepareDerivedData`, both versions): a write
+ * of that maximum cannot raise it at a table; one of the scars can, and since E29 fix r2-H25 the scars
+ * the write left are taken out and the mark's put in, as a sheet's maximum is. The harness prepares
+ * nothing, so there a raised sheet's Hope maximum still raises the document's, which no table does,
+ * and the scars move nothing (tier 2 prepares them as Daggerheart does, `preparedAs`). Measured at 0d86603
  * (06.10.2026, e29run/r2h8red) by tier 2: a player's write of Sanity's marks and maximum to 9, over
  * the GMs' 1 mark of 6, banked 8 marks of credit; after it 5.
  */
@@ -1498,12 +1515,12 @@ function bounded(actor, mark, key, n) {
     return Math.max(0, Number.isFinite(max) ? Math.min(max, n) : n);
 }
 
-/** A resource's maximum as the GMs hold it (`bounded`, `meansMaxHeld`): the document's, with the mark's sheet maximum for the one the write left - Hope's aside. */
+/** A resource's maximum as the GMs hold it (`bounded`, `meansMaxHeld`): the document's, with the mark's sheet maximum for the one the write left - Hope's with the mark's scars, which it is less. */
 function maxHeld(actor, mark, key) {
     const prepared = Number(actor.system?.resources?.[key]?.max);
-    if (key === "hope") return prepared;
-    const sheet = foundry.utils.getProperty(actor._source ?? {}, `system.resources.${key}.max`), held = mark?.resources?.[key]?.max;
-    return typeof sheet === "number" && typeof held === "number" ? prepared - sheet + held : prepared;
+    const [path, held, sign] = key === "hope" ? ["system.scars", mark?.scars, -1] : [`system.resources.${key}.max`, mark?.resources?.[key]?.max, 1];
+    const sheet = foundry.utils.getProperty(actor._source ?? {}, path);
+    return typeof sheet === "number" && typeof held === "number" ? prepared + sign * (held - sheet) : prepared;
 }
 
 /*

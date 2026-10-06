@@ -519,11 +519,21 @@ class DrawnResources extends Map {
     }
 }
 
-/** Daggerheart's `modifyResource` of `resources` on `target`, as a GM's write of its means from the GMs' value (`updateResources`' note). */
+/**
+ * Daggerheart's `modifyResource` of `resources` on `target`, as a GM's write of its means from the GMs' value
+ * (`updateResources`' note) and held to their maxima (`heldValues`).
+ */
 export async function modifyFromHeld(target, resources) {
-    const { gmMeansWrite } = await import("./sheet-audit.mjs");
+    const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
     await gmMeansWrite(target, async held => {
-        const changes = resources.map(change => fromHeld(target, change, held));
+        let changes = resources.map(change => fromHeld(target, change, held));
+        const values = heldValues(target, changes, key => meansMaxHeld(target, key));
+        if (values) {
+            await trustedWrite(target, values, { reason: "gmRuling" });
+            changes = changes.filter(change => !ownResource(target, change));
+            if (!changes.length) return;
+        }
         const before = Object.fromEntries(Object.entries(target.system?.resources ?? {})
             .map(([key, resource]) => [key, { value: resource?.value, max: resource?.max, isReversed: resource?.isReversed }]));
         let heard = null;
@@ -544,6 +554,44 @@ function fromHeld(target, change, held) {
     if (change.clear || change.itemId || !Number.isFinite(held[change.key]) || !Number.isFinite(now) || held[change.key] === now) return change;
     return { ...change, value: (change.value ?? 0) + held[change.key] - now };
 }
+
+/*
+ * HELD TO THE MAXIMA THE GMS HOLD (E29 fix r2-H25, 06.10.2026; fix r2-H24's leftover). Daggerheart's `modifyResource`
+ * holds each value to the maximum the document holds and turns a Stress past it into a Hit Point (actor.mjs:967-975 and
+ * `convertStressDamageToHP`, :1021-1031, 2.10.5; the harness's model of 2.6.5's alike), whatever change it is handed - and
+ * a console's write of a maximum the audit puts back stands on the document until its put-back lands, and for good
+ * where it fails. So where a resource the roll moves - and Health, where it moves Sanity - has a maximum on the document
+ * that is not the one the GMs hold (sheet-audit.mjs `meansMaxHeld`), the values are worked out here as Daggerheart works
+ * them out, against the GMs' maxima, and written in this job as one GM's write (`gmRuling`, as despair-award.mjs writes
+ * a roll's Hope); Daggerheart is handed only what no maximum of the student's bounds - Fear, armour, an item's cost.
+ * Where the maxima agree - everywhere but in that window - this answers null and Daggerheart writes as before. `clear`
+ * is read as 2.10.5 reads it, as `dhWrites` does. Measured at 525a186 (06.10.2026, e29run/r2h25red) by tier 2 ("a
+ * roll's marks are held to the maxima the GMs hold"), the console's maximum standing: a critical's cleared mark left 3
+ * of 5 Sanity marks under a maximum lowered to 3, for 4; a mark on a full track of 6 under one raised to 9 made a
+ * seventh and no Health mark, for 6 and 1; the same under a Health maximum lowered to 1 left 1 Health mark, for 2.
+ */
+function heldValues(target, changes, maxOf) {
+    const resources = target.system?.resources ?? {};
+    const top = key => Number.isFinite(maxOf(key)) ? maxOf(key) : resources[key]?.max;
+    const own = changes.filter(change => ownResource(target, change)).map(change => ({ ...change }));
+    const keys = new Set(own.map(change => change.key));
+    if (keys.has("stress") && resources.hitPoints) keys.add("hitPoints");
+    if (![...keys].some(key => top(key) !== resources[key].max)) return null;
+    const stress = own.find(change => change.key === "stress");
+    if (stress && resources.hitPoints && !(resources.stress.value + stress.value <= top("stress"))) {
+        const hitPoints = own.find(change => change.key === "hitPoints");
+        if (hitPoints) hitPoints.value++;
+        else own.push({ key: "hitPoints", value: 1 });
+    }
+    return Object.fromEntries(own.map(change => {
+        const base = resources[change.key], max = top(change.key);
+        const value = change.clear ? (max && !base.isReversed ? max : 0) : (base.value ?? 0) + change.value;
+        return [`system.resources.${change.key}.value`, Math.max(Math.min(value, max), 0)];
+    }));
+}
+
+/** A change of one of `target`'s own resources: not Fear, armour or an item's cost - what `modifyResource` holds to a maximum of the actor's. */
+const ownResource = (target, change) => !change.itemId && change.key !== "fear" && change.key !== "armor" && Boolean(target.system?.resources?.[change.key]);
 
 /**
  * Whether Daggerheart's `modifyResource` writes the actor (actor.mjs:933-976, 2.10.5, read 05.10.2026):
