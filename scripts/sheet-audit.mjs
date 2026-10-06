@@ -710,8 +710,9 @@ export async function armedCallsHeld(actor) {
  * tier and a mend, left that write on Aiko's copy on every client and in her mark.
  * READ HERE SINCE, each road saying why its wait holds up nothing: through `itemAsHeld` the Rot's wear (overflow.mjs
  * `rotEverything`, fix r2-H19), a GM's ruling on an item used (use-items.mjs `grantItemEffect`, H19) and an
- * Objection's evidence (trial.mjs `seizeFloor`, H20); and the object a tie of a trace to the crime names
- * (bridge-guards.mjs `guardTieTraceHolder`, H21).
+ * Objection's evidence (trial.mjs `seizeFloor`, H20); the object a tie of a trace to the crime names
+ * (bridge-guards.mjs `guardTieTraceHolder`, H21); and through this list itself a Reroll's plant (reroll.mjs
+ * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (chapter.mjs `bulletsHeldBy`, H22).
  */
 export async function itemsAsHeld(actor) {
     await judgedFor(actor?.id);
@@ -820,6 +821,22 @@ export function creationRefusal(actor, itemId) {
     const open = Object.values(sheetWriteStore.entries() ?? {}).some(row => row?.actorId === actor.id && row.itemId === itemId
         && row.verdict === "flagged" && !row.decided && Array.isArray(row.change?.[whole]) && row.change[whole][0] === null);
     return open ? `no GM has decided yet on an item a player made on a sheet: "${actor.items?.get(itemId)?.name ?? itemId}"` : null;
+}
+
+/*
+ * THE ITEMS A PLAYER'S WRITE TOOK OFF A STUDENT THAT A GM'S UNDO WOULD MAKE AGAIN (E29 fix r2-H22, 06.10.2026): each
+ * undecided row of an item the GMs held that a player deleted (`itemFindings`: flagged, the change `items.<id>` to
+ * null, the GMs' copy kept as `data`; a row of the card of changes made with no GM watching alike), while the item is
+ * still off the sheet - the copy `decideNow`'s Undo makes again under its id - read as an item (`itemLike`, with the
+ * uuid it had). For a road that takes such an item for good (chapter.mjs `keepBulletDeletions`). Empty on a browser
+ * that holds no rows.
+ */
+export function deletedHeldBy(actor) {
+    if (!game.user?.isGM || !gmStoresHydrated() || !actor?.id) return [];
+    return Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.actorId === actor.id && row.itemId && row.data
+        && row.verdict === "flagged" && !row.decided && Array.isArray(row.change?.[`items.${row.itemId}`])
+        && row.change[`items.${row.itemId}`][1] === null && !actor.items?.has(row.itemId))
+        .map(([rowId, row]) => ({ rowId, item: { ...itemLike({ ...row.data, _id: row.itemId }), uuid: `${actor.uuid}.Item.${row.itemId}` } }));
 }
 
 /**

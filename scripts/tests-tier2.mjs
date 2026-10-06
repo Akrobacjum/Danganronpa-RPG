@@ -9154,6 +9154,11 @@ const SCENARIOS = [
          * the refusal's reason (`reasonOf`) or null, the copies the second holds, whether the first still holds the
          * Tool. Until this fix (4e5b868, e29run/r2h21red, 06.10.2026) each of the four roads moved the undecided
          * Tool to the second, [null,1,false] apiece; the kept, swept and undone cases read as now.
+         * AND ONE MADE WITH NO GM WATCHING (E29 fix r2-H22, 06.10.2026; fix r2-H21's "not measured"): a Tool made on
+         * the first where the GMs' mark does not see it (the audit's aside) and found by the comparison at ready
+         * (`compareAtReady`) - a row of the card of changes made with no GM watching, `away` and undecided - handed
+         * over as the others. It read as now at bf90cb0 (refused, e29run/r2h22red); with `creationRefusal` passing over
+         * an `away` row (e29run/r2h22m, m8) it changed hands, [null,1,false].
          */
         needs(world.atLeast("playerAccounts", 1), "a player account whose item is judged");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -9163,7 +9168,7 @@ const SCENARIOS = [
         const INV = await import("./inventory.mjs");
         const { ITEM_CATEGORIES } = await import("./config.mjs");
         const { reasonOf } = await import("./bridge-guards.mjs");
-        const { sheetAuditIdle, decideWrite } = await import("./sheet-audit.mjs");
+        const { sheetAuditIdle, decideWrite, compareAtReady, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
         const { sheetWriteStore } = await import("./gm-stores.mjs");
         const { locateActor } = await import("./movement.mjs");
         const [giver, taker] = cast(2);
@@ -9222,6 +9227,13 @@ const SCENARIOS = [
                 await sheetAuditIdle();
                 read[how] = await seen(item, await roads.give(item));
             }
+            const from = Date.now();
+            const [away] = await giver.createEmbeddedDocuments("Item", [moduleItemData(NAME)], { [AUDIT_ASIDE]: true, [INV.CAP_OVERRIDE]: true });
+            await compareAtReady();
+            await sheetAuditIdle();
+            must(away && Object.values(sheetWriteStore.entries() ?? {}).some(row => row?.away && row.itemId === away.id && row.verdict === "flagged"
+                && !row.decided && row.at >= from), "the Tool made with no GM watching was not asked about at ready - this would measure nothing");
+            read.away = await seen(away, await roads.give(away));
         } finally {
             for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
             for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
@@ -9230,7 +9242,8 @@ const SCENARIOS = [
             await sheetAuditIdle();
         }
         const refused = ["itemNotDecided", 0, true], copied = [null, 1, false];
-        equal(stableJson(read), stableJson({ give: refused, plant: refused, steal: refused, stash: refused, kept: copied, swept: copied, undone: [null, 0, false] }),
+        equal(stableJson(read), stableJson({ give: refused, plant: refused, steal: refused, stash: refused, kept: copied, swept: copied, undone: [null, 0, false],
+            away: refused }),
             "an item no GM had decided on changed hands, or one kept or swept did not, or one undone did (per case: the refusal's reason, the second's copies, "
                 + "the first still holds it)");
     }],
@@ -10637,6 +10650,94 @@ const SCENARIOS = [
             for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
             await F.putBack();
         }
+    }],
+
+    ["a Reroll of a Search that drew a plant takes back and gives again the plant as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H22, 06.10.2026; fix r2-H21's seam (b). A Reroll of a Search that drew a trap's plant takes the
+         * plant back and, on a total that finds, gives it again with its identity and its roles (reroll.mjs
+         * `settleSearch`; C6a's test above). The plant was found by the identity on the searcher's documents and its
+         * roles read off the one found, where a player's write the audit puts back stands until its put-back lands, or
+         * for good where it fails. A player's Search for a healing usable is bookmarked (`playerRollBookmark`) and
+         * replayed three times on a total that finds, each time with a plant of its own taken out on that roll (C6a's
+         * way) and put on the sheet with its identity, beside an older Tool of the character's; then, where the GMs'
+         * mark does not see it (the audit's aside, a failed put-back's state): 1, the plant's identity written on the
+         * older Tool; 2, the identity taken off the plant; 3, the plant given a Murder Weapon's role. Read, per replay:
+         * whether the older Tool and the first plant are still on the sheet, and each item the replay gave - its name,
+         * whether it carries the plant's identity, its roles. Until this fix (bf90cb0, e29run/r2h22red, 06.10.2026):
+         * the older Tool taken back for the identity written on it, the plant left and a copy of it given; the plant
+         * off its identity taken back by the claimed id and the Search replayed as an ordinary one (a Vacuum-packed
+         * bento given); the plant given again with the Murder Weapon's role - [[false,true,[[plant 1,true,[]]]],
+         * [true,false,[["Vacuum-packed bento",false,[]]]], [true,false,[[plant 3,true,["crimeTool"]]]]]. With the plant
+         * found on the documents again (e29run/r2h22m, m1) it read the same, the ordinary find a Burn cream; with its
+         * roles alone read off the document (m2), the third replay's role given again.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the plant waits where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the replay reads - this would measure nothing");
+        const T = await import("./traps.mjs");
+        const R = await import("./reroll.mjs");
+        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const room = where.room, sceneId = where.scene.id, flag = key => `flags.${MODULE_ID}.${ITEM_FLAGS[key]}`;
+        const had = new Set(actor.items.map(i => i.id)), messages = new Set(game.messages.contents.map(m => m.id));
+        const tokens = new Set(where.scene.tokens.map(t => t.id));
+        const marked = (item, key) => sheetMarkStore.get(actor.id)?.items?.[item.id]?.flags?.[MODULE_ID]?.[ITEM_FLAGS[key]] ?? null;
+        // The plants and the trap ledger are GM stores since E04: tier 2's restore puts them back.
+        const F = await playerRollBookmark(player, actor, "search", { category: "usable", goal: "healing", tier: 1, claimed: true });
+        // Each write, with what shows that it stands on the document alone.
+        const writes = {
+            1: async (older, plant, identity) => {
+                await older.update({ [flag("identity")]: identity }, { [AUDIT_ASIDE]: true });
+                return older.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity && marked(older, "identity") !== identity;
+            },
+            2: async (older, plant, identity) => {
+                await plant.update({ [flag("identity")]: null }, { [AUDIT_ASIDE]: true });
+                return !plant.getFlag(MODULE_ID, ITEM_FLAGS.identity) && marked(plant, "identity") === identity;
+            },
+            3: async (older, plant) => {
+                await plant.update({ [flag("roles")]: ["crimeTool"] }, { [AUDIT_ASIDE]: true });
+                return (plant.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? []).includes("crimeTool") && !(marked(plant, "roles") ?? []).includes("crimeTool");
+            }
+        };
+        const replay = async n => {
+            const older = await grantItem(actor, { name: `SUITE r2-H22 an older Tool ${n}`, category: "tool", tier: 1, override: true, quiet: true });
+            const identity = await T.plantItem("SUITE-r2-H22-project", room, { sceneId, name: `SUITE r2-H22 plant ${n}` });
+            must(older && identity, "the older Tool or the plant was not made");
+            const taken = await T.takePlant(room, sceneId, { actorId: actor.id, rollId: F.message.id, by: player.id });
+            must(taken?.drpgItemId === identity && F.row()?.facts?.plant?.identity === identity,
+                `the plant was not handed over onto the row - this would measure nothing: ${stableJson(F.row()?.facts ?? null)}`);
+            const plant = await grantItem(actor, { name: taken.name, category: "usable", tier: 1, goal: "healing", quiet: true,
+                extraFlags: { [ITEM_FLAGS.identity]: identity } });
+            must(plant, "the plant did not reach the sheet");
+            await sheetAuditIdle();
+            must(await writes[n](older, plant, identity), `write ${n} did not stand on the document alone, outside the GMs' mark - this would measure nothing`);
+            await sheetAuditIdle();
+            await R.settleSearch(actor, { ...R.replayBookmark(F.row()), itemId: plant.id }, { total: 30, isCritical: false, withHope: true, withFear: false }, []);
+            await settle();
+            const given = actor.items.filter(i => !had.has(i.id) && i.id !== older.id && i.id !== plant.id)
+                .map(i => [i.name, i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity, i.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? []]);
+            const read = [actor.items.has(older.id), actor.items.has(plant.id), given];
+            for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
+            await sheetAuditIdle();
+            return read;
+        };
+        const read = [];
+        try {
+            for (const n of [1, 2, 3]) read.push(await replay(n));
+        } finally {
+            for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
+            for (const token of where.scene.tokens.filter(t => !tokens.has(t.id))) await token.delete();
+            for (const m of game.messages.contents.filter(m => !messages.has(m.id))) await m.delete();
+            await F.putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([1, 2, 3].map(n => [true, false, [[`SUITE r2-H22 plant ${n}`, true, []]]])),
+            "a Reroll took back an item that was not the plant as the GMs hold it, or gave it again without its identity or with roles a write gave it "
+                + "(per write - on the older Tool, off the plant, the plant's roles: the older Tool still held, the first plant still held, each item given)");
     }],
 
     ["a Reroll's find counts the searcher's hands as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
@@ -13233,6 +13334,94 @@ const SCENARIOS = [
             JSON.stringify([true, true, 0, false]), "the publication did not write the flag and the marker, take the bullets and drop the row");
         equal(JSON.stringify(record), JSON.stringify(when), "the published record is not the kill's own chapter, day and time of day");
         equal(JSON.stringify(await publishDeath(victim)), JSON.stringify(record), "a second publication is not a no-op");
+    }],
+
+    ["a death and a sweep take the Truth Bullets the GMs hold, and keep a player's deletion of one, which no Undo makes again", async () => {
+        /*
+         * E29 fix r2-H22, 06.10.2026; fix r2-H21's seam (c). A death the table learns of takes the student's Truth
+         * Bullets (chapter.mjs `destroyBullets`), and a GM's sweep every student's but the Faint and the Final ones
+         * (`sweepTruthBullets`, the Investigation Dashboard's button); both chose by the category on the document
+         * (truth-bullets.mjs `bulletsOf`), where a player's write the audit puts back stands until its put-back lands,
+         * or for good where it fails. And a player's deletion of a bullet the GMs hold is flagged, the GMs' copy kept
+         * on its row, which the card's Undo makes again (sheet-audit.mjs `decideNow`). Two students, each given three
+         * bullets by the GM (`createTruthBullet`): one whose category is taken off where the GMs' mark does not see it
+         * (the audit's aside, a failed put-back's state), one the student's player deletes (`asPlayerItemWrite`,
+         * flagged and left to a GM), one left alone; the first also a Faint one its player deletes. The first is swept
+         * (for that student alone), the second killed in public (`killCharacter`); then the card's Undo is pressed for
+         * each deletion (`decideWrite`). Read, per student: whether the bullet off its category is still on the sheet,
+         * the deletion's decision before the Undo, whether the answer key still holds the deleted bullet, whether the
+         * Undo made it again, whether the plain one is still on the sheet; for the first, whether the Undo made the
+         * Faint one again. Until this fix (bf90cb0, e29run/r2h22red, 06.10.2026) the bullet off its category was passed
+         * over on both sheets, and each deletion stood undecided, its answer key kept, for the Undo to make again -
+         * swept [true,null,true,true,false,true], killed [true,null,true,true,false] (the sweep took no `actors` then:
+         * it ran over every student of that run's world, by reading). Each part alone turns it red (e29run/r2h22m): the
+         * sweep choosing off the documents (m3), swept [true,"keep",false,false,false,true]; the death (m4), killed
+         * [true,"keep",false,false,false]; the sweep leaving deletions (m5), swept [false,null,true,true,false,true];
+         * the death (m6), killed [false,null,true,true,false]; the sweep keeping a Faint one's deletion too (m7), swept
+         * [false,"keep",false,false,false,false].
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose deletion is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark and rows the two roads read - this would measure nothing");
+        const C = await import("./chapter.mjs");
+        const { createTruthBullet, isTruthBullet, secretOf } = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle, decideWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const [swept, killed] = cast(2);
+        const playerOf = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER")) ?? game.users.find(u => !u.isGM);
+        const made = { [swept.id]: [], [killed.id]: [] };
+        // A bullet the GM gives the student, in the GMs' mark before anything is written on it.
+        const bullet = async (a, name, faint = false) => {
+            const item = await createTruthBullet(a, { name: `SUITE r2-H22 ${name}`, playerText: "SUITE r2-H22", faint });
+            must(item, `the bullet "${name}" was not made`);
+            made[a.id].push(item.id);
+            await sheetAuditIdle();
+            return item;
+        };
+        // One the student's player deletes, its row flagged and left to a GM.
+        const deleted = async (a, name, faint = false) => {
+            const item = await bullet(a, name, faint), uuid = item.uuid, from = Date.now();
+            const { verdict } = await asPlayerItemWrite("deleteItem", a, item, playerOf(a));
+            await sheetAuditIdle();
+            const [rowId] = Object.entries(sheetWriteStore.entries() ?? {}).find(([, row]) => row?.itemId === item.id
+                && row.verdict === "flagged" && !row.decided && row.at >= from) ?? [];
+            must(verdict === "flagged" && rowId && !a.items.has(item.id), `the deletion was not flagged and left to a GM (${verdict}) - this would measure nothing`);
+            return { id: item.id, rowId, uuid };
+        };
+        const fixture = async (a, road, faint) => {
+            const aside = await bullet(a, "a category written off");
+            await aside.update({ [`flags.${MODULE_ID}.category`]: null }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(!isTruthBullet(aside) && sheetMarkStore.get(a.id)?.items?.[aside.id]?.flags?.[MODULE_ID]?.category === "truthBullet",
+                "the category did not stand off the document alone, outside the GMs' mark - this would measure nothing");
+            const gone = await deleted(a, "deleted by a player");
+            const plain = await bullet(a, "left alone");
+            const faded = faint ? await deleted(a, "Faint, deleted by a player", true) : null;
+            await road();
+            await settle();
+            await sheetAuditIdle();
+            const read = [a.items.has(aside.id), sheetWriteStore.get(gone.rowId)?.decided?.how ?? null, Object.keys(secretOf(gone.uuid)).length > 0];
+            for (const one of [gone, faded].filter(Boolean)) await decideWrite(one.rowId, false);
+            await sheetAuditIdle();
+            read.push(a.items.has(gone.id), a.items.has(plain.id));
+            if (faded) read.push(a.items.has(faded.id));
+            return read;
+        };
+        let read = null;
+        try {
+            read = {
+                swept: await fixture(swept, () => C.sweepTruthBullets({ actors: [swept] }), true),
+                killed: await fixture(killed, async () => must(await C.killCharacter(killed, { secret: false }), `${killed.name}'s death was not recorded`), false)
+            };
+        } finally {
+            if (C.isDeadForGm(killed)) await C.reviveCharacter(killed, { quiet: true });
+            for (const a of [swept, killed]) for (const id of made[a.id]) if (a.items.has(id)) await a.items.get(id).delete();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ swept: [false, "keep", false, false, false, true], killed: [false, "keep", false, false, false] }),
+            "a sweep or a death passed over a bullet the GMs hold, or left a player's deletion of one for an Undo to make again, or took a Faint "
+                + "one's from the GMs (per student: the bullet off its category still held, the deletion's decision, its answer key kept, made again "
+                + "by the Undo, the plain one still held; the Faint one made again)");
     }],
 
     ["a death nobody found stays the GMs' when the trial starts, and the GM's hand makes it known", async () => {

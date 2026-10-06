@@ -4544,6 +4544,192 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     }
 
     /*
+     * A CRISIS SWING AND A WORK'S RELIEF ON A WRITE OF A PLAYER'S CONSOLE (E29 fix r2-H22, 06.10.2026; fix r2-H21's seam
+     * (a)). Fixes r2-H18 and r2-H20 read the killer's weapon and the worker's tools as the GMs hold them (murder.mjs
+     * `applyCrisisAction`'s `held`, `carriesWeapon`, `swungWeapon`; action-rolls.mjs `reliefHeld`), and tier 2 measures
+     * each on a GM's write the GMs' mark does not see. These drive them from a player's console, through the bridge, on
+     * the GMs' record of a roll the GM drew. A write the audit puts back stands on the document until its put-back lands,
+     * and for good where the put-back fails; so that every run reads the second state, the put-back of the case's item is
+     * refused here by a hook of the GM's (`preUpdateItem` answering false to an `auditPutBack` write). In an incident the
+     * GM opens, Botan's other Crime Tools stowed by the GM, Botan swings at Chie at his turn with
+     *   - a Tier 1 knife the GM broke, which p2's console readies again (`equipped`, no judged field: nothing put back);
+     *   - a Tier 1 knife the GM put in a stash, which p2's console takes out and readies (the place put back, refused);
+     * each named in the packet as the weapon swung, on a hit with Hope. Read: Chie's Health marks (a Tier 1 weapon
+     * deals 2, an unarmed hit 1), the receipt's action and whether it names the knife, and how many things Botan was
+     * handed (an unarmed hit improvises a weapon for a killer who carries none). And Aiko, nothing else of hers ready,
+     * holds a Tier 1 Cleaning Tool the GM readied, which p1's console makes a Tool of tier 3 (`roles`, `tier`: put
+     * back, refused); p1 throws a Work roll on a project in her room that the GM draws onto a total of 15 to 17, and
+     * asks its progress claiming a relief of 3. Read: what the bar moved - by the bands as they are, no tool in hand as
+     * the GMs hold it, 1; eased by a Tier 3 tool's relief, 2. Measured 06.10.2026 (e29run/r2h22): each swing
+     * [1,"weaponAttack",false,1] (Chie's Health marks, the receipt's action, the knife on it, the things Botan was
+     * handed), the bar 1. Fixes r2-H18 and r2-H20 were in already, so red is the mutants' (e29run/r2h22m), each leaving
+     * the other cases as they read here: with murder.mjs `applyCrisisAction` reading the killer's document (m9) the
+     * stashed knife swung, [2,"weaponAttack",true,0]; with `carriesWeapon` reading it (m10) the knife the console took
+     * out counted as one carried and none was improvised, [1,"weaponAttack",false,0]; with `swungWeapon` swinging a
+     * broken weapon (m12) the broken knife swung, [2,"weaponAttack",true,0]; with action-rolls.mjs `reliefHeld` reading
+     * the worker's document (m11) the bar moved 2.
+     */
+    const h22Was = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+        const botan = game.actors.get("${ids.botan}"), chie = game.actors.get("${ids.chie}"), aiko = game.actors.get("${ids.aiko}");
+        const means = a => ({ hope: a.system.resources.hope?.value ?? null, actions: a.system.resources.actions?.value ?? null });
+        // Botan's other Crime Tools stowed by the GM, as tier 2's unarmed swing stows them: improvising is for a killer carrying none.
+        const stowed = [];
+        for (const i of botan.items.filter(i => INV.servesAs(i, "crimeTool") && !INV.isStashed(i))) {
+            stowed.push([i.id, i.getFlag("${MOD}", "location") ?? null]);
+            await i.update({ "flags.${MOD}.location": INV.LOCATIONS.vault });
+        }
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        return { stowed, had: { botan: botan.items.map(i => i.id), aiko: aiko.items.map(i => i.id) }, botan: means(botan), aiko: means(aiko),
+            chie: { hp: chie.system.resources.hitPoints.value, stress: chie.system.resources.stress.value },
+            fear: game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) };`, { timeout: 30000 });
+    // The case's item's put-back refused on the GM: the state a put-back that failed leaves. `item` is the eval's own.
+    const h22Veto = `(globalThis.__h22Vetoes ??= []).push(Hooks.on("preUpdateItem", (doc, changes, options) =>
+        doc.id === item.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined));`;
+    const h22VetoOff = `for (const id of globalThis.__h22Vetoes?.splice(0) ?? []) Hooks.off("preUpdateItem", id);`;
+    // A means of a student's put back as it was, by the GM.
+    const h22MeansBack = (id, was) => `{ const a = game.actors.get("${id}"), was = ${JSON.stringify(was)}, r = a.system.resources, back = {};
+        if (was.hope !== null && r.hope?.value !== was.hope) back["system.resources.hope.value"] = was.hope;
+        if (was.actions !== null && r.actions?.value !== was.actions) back["system.resources.actions.value"] = was.actions;
+        if (Object.keys(back).length) await (await import("${repoUrl}/scripts/resource-guard.mjs")).trustedWrite(a, back, { reason: "gmRuling" }); }`;
+    // One swing at Botan's turn: the GM's knife, p2's console's write on it, Chie unmarked, the roll drawn and the packet sent.
+    const h22Swing = async (name, stashed) => {
+        const knife = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
+            const item = await INV.grantItem(game.actors.get("${ids.botan}"), { name: ${JSON.stringify(name)}, category: "crimeTool", tier: 1, override: true, quiet: true });
+            if (!item) return null;
+            if (${stashed}) await item.update({ "flags.${MOD}.location": INV.LOCATIONS.vault, "flags.${MOD}.stashRoom": "SEC H22 a drawer" });
+            else await INV.breakItem(item, { reason: "gmRuling" });
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            ${h22Veto}
+            return item.id;`, { timeout: 30000 });
+        if (!knife) return { knife };
+        await p2.eval(`await game.actors.get("${ids.botan}").items.get("${knife}")?.update({ ${stashed ? `"flags.${MOD}.location": "carried", ` : ""}"flags.${MOD}.equipped": true },
+            { drpgAutomated: true });
+            return true;`);
+        // The mark's break is read as `isBroken` reads a document's: a break is a stamp (`{ at }`, inventory.mjs `breakItem`),
+        // which `=== true` read as no break in this case's first run (e29run/r2h22, 06.10.2026).
+        const before = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            for (let i = 0; i < 4 && game.drpg.murderState()?.turnSide !== "killer"; i++) await game.drpg.passTurn();
+            const botan = game.actors.get("${ids.botan}"), item = botan.items.get("${knife}");
+            await game.actors.get("${ids.chie}").update({ "system.resources.hitPoints.value": 0, "system.resources.stress.value": 0 });
+            const marked = S.sheetMarkStore.get(botan.id)?.items?.["${knife}"]?.flags?.["${MOD}"] ?? null;
+            return { turn: game.drpg.murderState()?.turnSide ?? null, had: botan.items.map(i => i.id),
+                doc: item ? [INV.isBroken(item), INV.isStashed(item), item.getFlag("${MOD}", "equipped") === true] : null,
+                mark: marked ? [Boolean(marked.broken), marked.location === INV.LOCATIONS.vault] : null };`, { timeout: 60000 });
+        const rolled = await drawnRoll(p2, ids.botan, "crisis", "body", { hope: 12, fear: 11, advantage: 1 }, { context: { crisis: "weaponAttack" } });
+        const answer = await p2.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+            return await B.requestCrisisResult({ actorId: "${ids.botan}", key: "weaponAttack", total: ${Number(rolled.total ?? 0)}, isCritical: false,
+                withHope: true, rollId: ${JSON.stringify(rolled.messageId)}, swungId: "${knife}" });`, { timeout: 60000 });
+        await settle(1200);
+        const read = await gm.eval(`const r = game.drpg.murderState()?.lastCrisis ?? null, had = new Set(${JSON.stringify(before.had)});
+            return [game.actors.get("${ids.chie}").system.resources.hitPoints.value, r?.actorId === "${ids.botan}" ? r.key : null,
+                r?.swungId === "${knife}", game.actors.get("${ids.botan}").items.filter(i => !had.has(i.id)).length];`);
+        // The knife and what was handed for it taken away before the next swing, its veto with them.
+        await gm.eval(`${h22VetoOff}
+            const botan = game.actors.get("${ids.botan}"), keep = new Set(${JSON.stringify(h22Was.had.botan)});
+            const gone = botan.items.filter(i => !keep.has(i.id)).map(i => i.id);
+            if (gone.length) await botan.deleteEmbeddedDocuments("Item", gone);
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`, { timeout: 30000 });
+        return { knife, before, rolled, answer, read };
+    };
+    let h22 = null;
+    try {
+        const opened = await gm.eval(`await game.drpg.openMurder({ killerId: "${ids.botan}", victimId: "${ids.chie}", openingTrait: "body" });
+            if (game.drpg.murderState()?.stage === "openingRoll") await game.drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            return game.drpg.murderState()?.stage ?? null;`, { timeout: 60000 });
+        await settle(500);
+        h22 = { opened, broken: await h22Swing("SEC H22 broken knife", false) };
+        h22.stashed = await h22Swing("SEC H22 stashed knife", true);
+    } finally {
+        await gm.eval(`${h22VetoOff}
+            await game.drpg.endMurder({ reason: "test", followUp: false });
+            const botan = game.actors.get("${ids.botan}"), keep = new Set(${JSON.stringify(h22Was.had.botan)});
+            const gone = botan.items.filter(i => !keep.has(i.id)).map(i => i.id);
+            if (gone.length) await botan.deleteEmbeddedDocuments("Item", gone);
+            for (const [id, was] of ${JSON.stringify(h22Was.stowed)}) {
+                await botan.items.get(id)?.update({ "flags.${MOD}.location": was ?? foundry.data.operators.ForcedDeletion.create() });
+            }
+            await game.actors.get("${ids.chie}").update({ "system.resources.hitPoints.value": ${Number(h22Was.chie.hp) || 0},
+                "system.resources.stress.value": ${Number(h22Was.chie.stress) || 0} });
+            ${h22MeansBack(ids.botan, h22Was.botan)}
+            const { gameSettings } = CONFIG.DH.SETTINGS;
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== ${Number(h22Was.fear) || 0}) {
+                await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, ${Number(h22Was.fear) || 0});
+            }
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`, { timeout: 60000 });
+    }
+    const h22Set = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs"), M = await import("${repoUrl}/scripts/movement.mjs");
+        const INV = await import("${repoUrl}/scripts/inventory.mjs"), U = await import("${repoUrl}/scripts/use-items.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), here = M.locateActor(aiko)?.room ?? null, ready = "flags.${MOD}." + U.EQUIPPED_FLAG;
+        const project = here ? await P.createProject({ name: "SEC H22 worked", target: 12, room: here }) : null;
+        // Nothing else of hers ready: the one thing a relief could be held to is the GM's Cleaning Tool.
+        const readied = aiko.items.filter(i => i.getFlag("${MOD}", U.EQUIPPED_FLAG)).map(i => i.id);
+        for (const id of readied) await aiko.items.get(id).update({ [ready]: false });
+        const item = await INV.grantItem(aiko, { name: "SEC H22 a mop", category: "cleaningTool", tier: 1, override: true, quiet: true });
+        if (item) await item.update({ [ready]: true });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        if (item) ${h22Veto}
+        return { here, project: project?.id ?? null, readied, mop: item?.id ?? null };`, { timeout: 60000 });
+    let h22Work = null;
+    try {
+        await p1.eval(`await game.actors.get("${ids.aiko}").items.get("${h22Set.mop}")?.update({ "flags.${MOD}.roles": ["tool"], "flags.${MOD}.tier": 3 },
+            { drpgAutomated: true });
+            return true;`);
+        const stood = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const mop = game.actors.get("${ids.aiko}").items.get("${h22Set.mop}");
+            const marked = S.sheetMarkStore.get("${ids.aiko}")?.items?.["${h22Set.mop}"]?.flags?.["${MOD}"] ?? null;
+            return { doc: mop ? [INV.servesAs(mop, "tool"), mop.getFlag("${MOD}", "tier") ?? null] : null,
+                mark: marked ? [(marked.roles ?? []).includes("tool"), marked.tier ?? null] : null };`);
+        // Onto a total of 15 to 17, where the bands as they are earn 1 and eased by 3 earn 2: a second roll where the first missed it.
+        const workRollOf = faces => drawnRoll(p1, ids.aiko, "project", "eye", faces, { context: { projectId: h22Set.project } });
+        const rolls = [await workRollOf({ hope: 9, fear: 4, advantage: 1 })];
+        if (!(rolls[0].total >= 15 && rolls[0].total <= 17)) {
+            const sum = 16 - ((rolls[0].total ?? 0) - 13), fear = Math.max(1, sum - 12);
+            rolls.push(await workRollOf({ hope: sum - fear, fear, advantage: 1 }));
+        }
+        const roll = rolls.at(-1);
+        const bands = await gm.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+            return [0, 3].map(relief => A.projectProgress({ total: ${Number(roll.total ?? 0)}, isCritical: false }, { relief }).progress);`);
+        const asked = await p1.eval(`const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+            return await B.requestProjectProgress("${h22Set.project}", 2, { actorId: "${ids.aiko}", rollId: ${JSON.stringify(roll.messageId)}, relief: 3 });`,
+            { timeout: 30000 });
+        const bar = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+            const read = () => P.allProjects().find(p => p.id === "${h22Set.project}")?.current ?? null;
+            for (let i = 0; i < 60 && !read(); i++) await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 500));
+            return read();`, { timeout: 30000 });
+        h22Work = { stood, rolls, bands, asked, bar };
+    } finally {
+        await gm.eval(`${h22VetoOff}
+            const U = await import("${repoUrl}/scripts/use-items.mjs");
+            const aiko = game.actors.get("${ids.aiko}"), keep = new Set(${JSON.stringify(h22Was.had.aiko)});
+            if (${JSON.stringify(h22Set.project)}) await (await import("${repoUrl}/scripts/projects.mjs")).deleteProject(${JSON.stringify(h22Set.project)}).catch(() => {});
+            const gone = aiko.items.filter(i => !keep.has(i.id)).map(i => i.id);
+            if (gone.length) await aiko.deleteEmbeddedDocuments("Item", gone);
+            for (const id of ${JSON.stringify(h22Set.readied)}) await aiko.items.get(id)?.update({ ["flags.${MOD}." + U.EQUIPPED_FLAG]: true });
+            ${h22MeansBack(ids.aiko, h22Was.aiko)}
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`, { timeout: 60000 });
+    }
+    {
+        // Ready: the incident open at Botan's turn, the knife on the document as the console left it and in the mark as the GM did, the roll drawn and the packet taken.
+        const ready = (swing, doc, mark) => h22?.opened === "incident" && Boolean(swing?.knife && swing.rolled?.messageId) && swing.answer?.ok === true
+            && swing.before?.turn === "killer" && JSON.stringify(swing.before?.doc) === JSON.stringify(doc) && JSON.stringify(swing.before?.mark) === JSON.stringify(mark);
+        const unarmed = JSON.stringify([1, "weaponAttack", false, 1]);
+        check("SECURITY: a crisis swing naming a broken knife a player's console readied again is unarmed on the GM - an unarmed hit's 1 Health, the knife not on the receipt, and a weapon improvised for a killer carrying none",
+            ready(h22?.broken, [true, false, true], [true, false]) && JSON.stringify(h22.broken.read) === unarmed,
+            JSON.stringify({ opened: h22?.opened, ...(h22?.broken ?? {}) }), { flow: "murder-incident" });
+        check("SECURITY: a crisis swing naming a knife a player's console took out of the stash the GMs' mark keeps it in is unarmed on the GM - an unarmed hit's 1 Health, the knife not on the receipt, and a weapon improvised for a killer carrying none as the GMs hold it",
+            ready(h22?.stashed, [false, false, true], [false, true]) && JSON.stringify(h22.stashed.read) === unarmed,
+            JSON.stringify({ opened: h22?.opened, ...(h22?.stashed ?? {}) }), { flow: "murder-incident" });
+        const workReady = Boolean(h22Set.here && h22Set.project && h22Set.mop && h22Work?.rolls?.at(-1)?.messageId)
+            && JSON.stringify(h22Work.stood) === JSON.stringify({ doc: [true, 3], mark: [false, 1] }) && JSON.stringify(h22Work.bands) === JSON.stringify([1, 2]);
+        check("SECURITY: a Work's relief of 3 a player's console claims through a Cleaning Tool it made a Tier 3 Tool is held to the tools as the GMs hold them - the bar moves by the bands as they are",
+            workReady && h22Work.bar === 1, JSON.stringify({ ...h22Set, ...(h22Work ?? {}) }), { flow: "projects" });
+    }
+
+    /*
      * The load-time record ran on the GM, once (the E03 review measured it running
      * 0 times), and the GM holds a copy of every bullet in the world now - the ones
      * made during this scenario by a GM's write. The fixture world has no bullet at

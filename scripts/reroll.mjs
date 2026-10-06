@@ -1144,7 +1144,8 @@ async function settleProgress(actor, bookmark, after, done) {
  * is told is what an ordinary find tells (trap 166, `searchDraw`): nothing here says a
  * plant moved. The plant is the one on the sheet by its identity, the GMs' fact, and not
  * the claimed `itemId`; one that has left the sheet since (given, stashed, used) stays where
- * it went, and the Search is replayed as an ordinary one.
+ * it went, and the Search is replayed as an ordinary one. Its identity and its roles are read
+ * as the GMs hold them since E29 fix r2-H22 (step 1 below).
  */
 /**
  * Whether a Search's Reroll takes a hidden stash's step again. For a roll the GM drew, the
@@ -1186,9 +1187,24 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     else if (change) done.push(game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(change), total: score }));
 
     // 1. The thing the first roll put in the inventory goes back on the shelf.
+    // THE PLANT AS THE GMS HOLD IT (E29 fix r2-H22, 06.10.2026; fix r2-H21's seam (b)). It was found by the identity on
+    // the documents and its roles read off the one found, where a player's write the audit puts back stands until its
+    // put-back lands, or for good where it fails. Both are read off the searcher's items as the GMs hold them now
+    // (sheet-audit.mjs `itemsAsHeld`), and the document of the one found is the one taken back. The wait is the one
+    // `counted` below has made since fix r2-H20, made sooner: nothing above writes, and no judgement waits for what a
+    // replay writes (a judgement waits only for its own player's consumption of an item and roll card, sheet-audit.mjs
+    // `consumedBy` and `callsCover`). The claimed `itemId` decides by id alone, and the held list has the documents'
+    // ids, item for item (`itemsHeldNow` maps the sheet's items), so it is read as before. Measured with tier 2's "a
+    // Reroll of a Search that drew a plant takes back and gives again ..." (e29run/r2h22red, 06.10.2026): until this
+    // fix a plant's identity a write put on an older Tool took that Tool back and left the plant, a plant a write took
+    // its identity off was replayed as an ordinary find, and a role a write gave the plant was given again with it; the
+    // plant found on the documents again (e29run/r2h22m, m1), or its roles read off the document (m2), each turns that
+    // test red.
     let itemId = null;
     const plant = bookmark.plant?.identity ? bookmark.plant : null;
-    let held = plant ? actor.items.find(i => i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === plant.identity) ?? null : null;
+    const asHeld = plant ? (await (await import("./sheet-audit.mjs")).itemsAsHeld(actor))
+        .find(i => i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === plant.identity) ?? null : null;
+    let held = asHeld ? actor.items.get(asHeld.id) ?? null : null;
     const first = held ?? (bookmark.itemId ? actor.items.get(bookmark.itemId) ?? null : null);
     if (first) {
         const name = first.name;
@@ -1221,7 +1237,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     const counted = async () => (await import("./sheet-audit.mjs")).actorAsHeld(actor);
     if (held) {
         const { grantItem } = await import("./inventory.mjs");
-        const roles = held.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [];
+        const roles = asHeld.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [];
         drawn = found ? { name: plant.name ?? held.name, roles } : null;
         granted = drawn ? await grantItem(actor, {
             reason: "reroll",

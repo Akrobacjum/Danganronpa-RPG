@@ -34,7 +34,7 @@ import { getClock } from "./clock.mjs";
 import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath
 } from "./settings.mjs";
-import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
+import { TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
@@ -320,11 +320,58 @@ async function isIncidentVictim(actor) {
     }
 }
 
+/*
+ * A STUDENT'S TRUTH BULLETS AS THE GMS HOLD THEM, FOR A DEATH AND A SWEEP (E29 fix r2-H22, 06.10.2026; fix r2-H21's
+ * seam (c)). `destroyBullets` and `sweepTruthBullets` chose by the category on the document (truth-bullets.mjs
+ * `bulletsOf`), where a player's write the audit puts back stands until its put-back lands, or for good where it fails:
+ * a bullet whose category a write took off was passed over, and was a bullet again once put back. They choose off the
+ * items as the GMs hold them now (sheet-audit.mjs `itemsAsHeld`) and delete the documents; an item a player's write
+ * made that no GM has decided on is no bullet as they hold it (read without its category, sheet-audit.mjs
+ * `ITEM_UNHELD`) and stays for a GM to decide, by reading. The wait holds up nothing that holds it up, by reading: a
+ * judgement waits only for its own player's consumption of an item and roll card (sheet-audit.mjs `consumedBy`,
+ * `callsCover`), which neither road writes, and neither runs inside a judgement (a kill, a publication, the chapter's
+ * end, the dashboard's button). Measured with tier 2's "a death and a sweep take the Truth Bullets the GMs hold, ..."
+ * (e29run/r2h22red, 06.10.2026): until this fix a bullet whose category a write took off where the mark does not see it
+ * was left on the sheet by both; with either reading the documents again (e29run/r2h22m, m3, m4) it is left again.
+ * The reveal (`allBullets`, each player's own bullets) and the chapter-end panel's count (a display) read the documents.
+ */
+async function bulletsHeldBy(actor) {
+    const { itemsAsHeld } = await import("./sheet-audit.mjs");
+    return (await itemsAsHeld(actor)).filter(isTruthBullet).map(item => actor.items.get(item.id)).filter(Boolean);
+}
+
+/*
+ * AND A BULLET A PLAYER'S WRITE TOOK OFF, WHICH A GM'S UNDO WOULD MAKE AGAIN (E29 fix r2-H22, 06.10.2026). A player's
+ * deletion of a bullet the GMs hold is not put back by the audit: it is flagged, the mark lets the bullet go, and the
+ * row keeps the GMs' copy (sheet-audit.mjs `itemFindings`), which the card's Undo makes again under its id
+ * (`decideNow`) - after a death or a sweep that took the rest, a bullet of theirs back on the sheet with its answer
+ * key. So both keep such a deletion, as a GM's Keep does (`askToDecideWrite`: decided once, on the primary GM), and
+ * forget its answer key with the rest; a sweep leaves the ones it leaves on a sheet (`spares`: Faint, Final), whose
+ * Undo stays the GMs'. Measured with the same test: until this fix each deletion stood undecided after both, its answer
+ * key kept, and the Undo made the bullet again; with either road leaving its deletions (m5, m6) they stand so again,
+ * and with the sweep keeping a Faint one's deletion too (m7) that one's Undo makes nothing (a Final one's is spared by
+ * the same rule, read, not measured). The Undo is the one road that makes a deleted item again; a put-back pending on a
+ * bullet either road deletes makes nothing again - it writes to the item still on the sheet, and to nothing once it is
+ * gone (sheet-audit.mjs `itemFindings`), by reading. Answers how many it kept.
+ */
+async function keepBulletDeletions(actor, spares = () => false) {
+    const { deletedHeldBy, askToDecideWrite } = await import("./sheet-audit.mjs");
+    let kept = 0;
+    for (const { rowId, item } of deletedHeldBy(actor)) {
+        if (!isTruthBullet(item) || spares(item) || !(await askToDecideWrite(rowId, true))) continue;
+        await dropSecret(item.uuid);
+        kept++;
+    }
+    return kept;
+}
+
 /** Every Truth Bullet of theirs deleted, its answer-key entry first; answers how many went. */
 async function destroyBullets(actor) {
-    // The ledger entries first, while the items still exist to be read.
-    for (const bullet of bulletsOf(actor)) await dropSecret(bullet.uuid);
-    const doomed = bulletsOf(actor).map(i => i.id);
+    // As the GMs hold them (`bulletsHeldBy`); the ledger entries first, while the items still exist to be read.
+    const bullets = await bulletsHeldBy(actor);
+    for (const bullet of bullets) await dropSecret(bullet.uuid);
+    await keepBulletDeletions(actor);
+    const doomed = bullets.map(i => i.id).filter(id => actor.items.has(id));
     if (!doomed.length) return 0;
     try {
         await actor.deleteEmbeddedDocuments("Item", doomed);
@@ -1096,17 +1143,19 @@ export async function revealAllBulletTypes() {
  * asks: the button is in the Investigation Dashboard, next to the one that
  * clears Faint Remnants, and both say how many before they do anything.
  */
-export async function sweepTruthBullets() {
+export async function sweepTruthBullets({ actors = null } = {}) {
     if (!game.user.isGM) return { removed: 0, kept: 0 };
 
     let removed = 0;
     let kept = 0;
 
-    for (const actor of game.actors) {
+    // `actors`: the students to sweep, every one where unsaid - the suite's, which must not sweep a table's world.
+    for (const actor of actors ?? game.actors) {
         if (actor.type !== "character") continue;
 
         const doomed = [];
-        for (const item of bulletsOf(actor)) {
+        // As the GMs hold them (`bulletsHeldBy`, fix r2-H22).
+        for (const item of await bulletsHeldBy(actor)) {
             /* `faintOf`, NOT THE ITEM'S FLAG. Since 1.2.47 Faint is published onto
                a player's item only once they have analysed the bullet, so the flag
                reads false for every doubtful trace nobody has spent a Head roll on -
@@ -1128,6 +1177,7 @@ export async function sweepTruthBullets() {
             }
             doomed.push(item);
         }
+        await keepBulletDeletions(actor, item => faintOf(item) || secretOf(item.uuid).realType === "final");
 
         if (!doomed.length) continue;
 
@@ -1222,7 +1272,12 @@ export async function openChapterEndDialog() {
        above already gives: a checkbox that promises work the action will not do is worse
        than no checkbox. `sweepTruthBullets` keeps Faint and Final; `clearFaintRemnants`
        keeps anything reinforced or tied to the crime; the Key sweep takes this chapter's
-       own planted clues and nothing older. */
+       own planted clues and nothing older. The bullets counted are the documents'; the
+       sweep chooses off the ones the GMs hold since E29 fix r2-H22 (`bulletsHeldBy`), and
+       the two part only where a document's category is not the one the GMs hold, by
+       reading: one a player's write moved whose put-back has not landed, and an item a
+       player's write made that no GM has decided on, read without its category
+       (sheet-audit.mjs `ITEM_UNHELD`) and so left by the sweep for a GM to decide. */
     const endingChapter = getClock().chapter;
     const sweepable = bullets.filter(({ item }) =>
         // the same reader the sweep itself uses, or the count would promise work
