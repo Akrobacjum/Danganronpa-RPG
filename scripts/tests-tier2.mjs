@@ -26545,6 +26545,75 @@ const SCENARIOS = [
     }],
 
     /*
+     * AN ITEM WRITTEN THROUGH ITS STUDENT'S UPDATE (E29 fix r2-H10, 06.10.2026; found by fix r2-H8's probe; the
+     * plan's 2.6). A student's update that carries its `items` fires no item hook in the harness, only
+     * `updateActor`, so the audit judges each item it reaches as a write of that item: a GM's tier 1 -> 2 on a
+     * Tool, by its id, goes into the mark; a player's - the Tool renamed, its tier 3 and its count 4, by its id -
+     * has the tier and the count put back through the Tool and the name listed, each row naming the Tool; the list
+     * then written whole, without the Tool and with a module item of the player's own, is flagged - a row for
+     * each - and the GMs' Undo of the deletion makes the Tool again as they held it. At 34a058c (06.10.2026,
+     * e29run/r2h10red) the GM's tier 2 left the mark at 1; the player's rename, tier 3 and count 4 stood with one
+     * row, the student's `listed:items`, the mark at tier 1 under the old name; the list written whole stood with
+     * the same one row - the Tool gone, the item made there, nothing for an Undo.
+     */
+    ["an item written through its student's update is judged as a write of the item itself: a player's put back or flagged, a GM's into the mark", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, decideWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const NAMES = ["Tier 2 H10 tool", "Tier 2 H10 tool, renamed", "Tier 2 H10 made"];
+        const made = foundry.utils.randomID();
+        // An item's tier, count and name, as its data holds them.
+        const read = data => [data?.flags?.[MODULE_ID]?.tier ?? null, data?.system?.quantity ?? null, data?.name ?? null];
+        let tool = null, seen = null;
+        const now = () => read(student.items.get(tool.id)?.toObject());
+        const held = () => read(sheetMarkStore.get(student.id)?.items?.[tool.id]);
+        // Written aside on the GM, then handed to the judge with the player's id: the verdict, and its rows as `verdict:item:fields`.
+        const judged = async write => {
+            const from = Date.now();
+            await student.update(write, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id);
+            await sheetAuditIdle();
+            const item = id => id === tool.id ? "tool" : id === made ? "made" : id ?? "student";
+            const field = path => path.replace(/^items\.[^.]+/, "").split(".").pop() || "item";
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from)
+                .map(row => `${row.verdict}:${item(row.itemId)}:${Object.keys(row.change ?? {}).map(field).sort().join(",")}`).sort();
+            return [verdict?.verdict ?? null, rows];
+        };
+        try {
+            tool = await grantItem(student, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(tool && held()[0] === 1, "no Tool, or the mark does not hold it at tier 1 - this would measure nothing");
+            await student.update({ items: [{ _id: tool.id, flags: { [MODULE_ID]: { tier: 2 } } }] });
+            await sheetAuditIdle();
+            const gm = [held()[0], now()[0]];
+            const renamed = await judged({ items: [{ _id: tool.id, name: NAMES[1], flags: { [MODULE_ID]: { tier: 3 } }, system: { quantity: 4 } }] });
+            const played = [renamed, now(), held()];
+            const from = Date.now();
+            const swapped = await judged({ items: replaced([...student.items.contents.filter(item => item.id !== tool.id).map(item => item.toObject()),
+                { _id: made, ...moduleItemData(NAMES[2], { tier: 3 }) }]) });
+            const [rowId] = Object.entries(sheetWriteStore.entries() ?? {})
+                .find(([, row]) => row?.itemId === tool.id && row.verdict === "flagged" && row.at >= from) ?? [];
+            const decided = rowId ? await decideWrite(rowId, false) : null;
+            await sheetAuditIdle();
+            seen = [gm, ...played, swapped, student.items.has(made), decided?.how ?? null, now()];
+        } finally {
+            await sheetAuditIdle();
+            const left = student.items.filter(item => NAMES.includes(item.name)).map(item => item.id);
+            if (left.length) await student.deleteEmbeddedDocuments("Item", left);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([[2, 2], ["putBack", ["listed:tool:name", "putBack:tool:quantity,tier"]], [2, 1, NAMES[1]], [2, 1, NAMES[1]],
+            ["flagged", ["flagged:made:item", "flagged:tool:item"]], true, "undo", [2, 1, NAMES[1]]]),
+            "an item written through its student's update was not judged as a write of the item itself (a GM's tier 2 by its id: the mark's, the "
+                + "Tool's; a player's rename, tier 3 and count 4 by its id: the verdict and its rows, the Tool after it, the mark's; the list written "
+                + "whole without the Tool and with an item of the player's: the verdict and its rows, whether that item is there, the GMs' Undo of the "
+                + "deletion, the Tool after it)");
+    }],
+
+    /*
      * AN ITEM MADE OR DELETED WITH ITS EFFECTS (E29 fix r1-G3, 05.10.2026; review round 1 sec B3). An item a
      * player makes carrying an effect Daggerheart applies to the student and that counts is put back whole -
      * deleted, its row naming the item and the effect - where until this fix it was flagged as any item made and

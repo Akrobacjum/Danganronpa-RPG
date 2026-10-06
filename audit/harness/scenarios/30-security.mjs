@@ -2923,6 +2923,48 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify({ parentWas, consoleParent }), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S ITEM THROUGH ITS STUDENT (E29 fix r2-H10, 06.10.2026; found by fix r2-H8's probe). The GM gives
+     * Aiko a Tool of tier 1; p1's console, in one update of Aiko, raises her Agility by 1 and writes the Tool's tier
+     * 3 by its id - `actor.update({ items })`, which fires no item hook here, only `updateActor`. Expected: both put
+     * back on every client, the mark's tier still 1, a put-back row each (the Tool's naming it), p1 told once. At
+     * 34a058c (06.10.2026, e29run/r2h10red) the Agility was put back and p1 told once, but the tier 3 stood on every
+     * client with the mark at 1, and the Tool's write had one row of Aiko's, `listed:items`.
+     */
+    phase("a console's item through its student", { flow: "sheet-audit" });
+    const itemWas = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), a = game.actors.get("${ids.aiko}");
+        const tool = await INV.grantItem(a, { name: "E29 H10 30 tool", category: "tool", tier: 1, override: true, quiet: true });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { tool: tool?.id ?? null, agility: a.system.traits.agility.value, from: Date.now() };`);
+    const readItem = `const a = game.actors.get("${ids.aiko}");
+        return { tier: a.items.get("${itemWas.tool}")?.getFlag("${MOD}", "tier") ?? null, agility: a.system.traits.agility.value };`;
+    let consoleItem = null;
+    try {
+        await toldSince();
+        await p1.eval(`await game.actors.get("${ids.aiko}").update({ "system.traits.agility.value": ${itemWas.agility + 1},
+            items: [{ _id: "${itemWas.tool}", flags: { "${MOD}": { tier: 3 } } }] }, { drpgAutomated: true }); return true;`);
+        // Up to 6 s for the GM to read the Tool at tier 1 with the write's row in, every judgement finished.
+        await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"), end = Date.now() + 6000; const read = () => { ${readItem} };
+            const rowed = () => Object.values(S.sheetWriteStore.entries() ?? {}).some(r => r?.actorId === "${ids.aiko}" && r.at >= ${itemWas.from});
+            while ((read().tier !== 1 || !rowed()) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        await settle(800);
+        consoleItem = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readItem))), told: await toldSince(),
+            mark: await gm.eval(`${audited} return S.sheetMarkStore.get("${ids.aiko}")?.items?.["${itemWas.tool}"]?.flags?.["${MOD}"]?.tier ?? null;`),
+            rows: await gm.eval(`${audited} return Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${itemWas.from})
+                .map(r => r.verdict + ":" + (r.itemId === "${itemWas.tool}" ? "tool:" : "") + Object.keys(r.change ?? {}).map(k => k.split(".")[0]).sort().join(",")).sort();`) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            if (a.items.has("${itemWas.tool}")) await a.deleteEmbeddedDocuments("Item", ["${itemWas.tool}"]);
+            if (a.system.traits.agility.value !== ${itemWas.agility}) await a.update({ "system.traits.agility.value": ${itemWas.agility} });
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    }
+    check("SECURITY: a module item's tier a player's console raises through its student's update is put back on every client and in the GMs' mark, with the Agility raised beside it, a row each, the player told once",
+        Boolean(consoleItem) && Boolean(itemWas.tool) && everyClient(consoleItem.after, { tier: 1, agility: itemWas.agility }) && consoleItem.mark === 1
+            && JSON.stringify(consoleItem.rows) === JSON.stringify(["putBack:system", "putBack:tool:items"]) && consoleItem.told === 1,
+        JSON.stringify({ itemWas, consoleItem }), { flow: "sheet-audit" });
+
+    /*
      * A CONSOLE'S CREDIT AND FREE USES (E29 fix r1-G4, 05.10.2026; review round 1 cor M1, cor M2, cor m9 = sec m3).
      * The GM pays 2 of Aiko's Hope for a Reroll and gives them back, as reroll.mjs does when one does not stand;
      * then p1's console, with the hooks a real write fires: gives the same 2 Hope "back" (`refund`); uses a tier-3

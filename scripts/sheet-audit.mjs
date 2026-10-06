@@ -337,6 +337,9 @@ const itemCopy = data => {
 /** The effects of an item's data, by id, each as the mark keeps an effect. */
 const effectsIn = data => Object.fromEntries((data?.effects ?? []).map(effect => [effect._id, docData(clone(effect))]));
 
+/** A student's items, by id, each as an item's own write is seen and the mark is taken (`docData`, its effects on it): fix r2-H10. */
+const itemsIn = actor => Object.fromEntries((actor.items?.contents ?? []).map(item => [item.id, docData(item)]));
+
 /** The item an effect is on, or null for one on the student itself. */
 const itemOf = effect => effect?.parent?.documentName === "Item" ? effect.parent : null;
 
@@ -851,9 +854,11 @@ export function judgeWrite(kind, doc, changes, userId, options = {}, priors = nu
 async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const user = game.users?.get(userId ?? "");
     const early = !gmStoresHydrated() && !options?.[AUDIT_ASIDE];
-    // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them, and the effects written through either (r2-H8).
+    // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them, the effects
+    // written through either (r2-H8) and the items written through the student (r2-H10).
     const stood = mark => ITEM_WRITES.has(kind) ? itemMoves(kind, mark, doc, seen.item, changes)
-        : kind === "updateActor" ? { paths: seen.paths, effects: seen.effects ? effectMoves(mark?.effects, seen.effects) : [] }
+        : kind === "updateActor" ? { paths: seen.paths, effects: seen.effects ? effectMoves(mark?.effects, seen.effects) : [],
+            ...(seen.items ? itemsMoved(mark, seen.items, itemsNamed(changes)) : {}) }
             : { effect: { id: doc.id, itemId: itemOf(doc)?.id ?? null, data: seen.effect } };
     if (user?.isGM) {
         if (early) noteUnmarked(kind, doc, actor, changes);
@@ -888,19 +893,23 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const found = kind === "updateActor" ? await updateFindings(actor, mark, changes, user, options, seen)
         : ITEM_WRITES.has(kind) ? await itemFindings(kind, doc, actor, mark, changes, user, options, seen)
             : effectFindings(kind, doc, mark, changes, seen.effect);
-    if (found.back.length || found.fix) {
+    // A student's update answers for the items written through it as well (fix r2-H10): each its own findings.
+    const parts = [found, ...(found.byItem ?? [])];
+    const any = key => parts.some(part => part[key]?.length);
+    const change = Object.assign({}, ...parts.map(part => part.change));
+    if (any("back") || found.fix) {
         try {
             await found.undo();
         } catch (err) {
             error(`The GMs' audit could not put back a write on ${actor.name}`, err);
-            return { verdict: "failed", change: found.change };
+            return { verdict: "failed", change };
         }
     }
     await record(actor, user, found, options);
     if (found.finds) await sheetMarkStore.patch(actor.id, { finds: found.finds });
     await refreshMark(actor, ITEM_WRITES.has(kind) ? { items: found.items, itemEffects: found.itemEffects } : found.moves);
-    const verdict = found.back.length ? "putBack" : found.flagged?.length ? "flagged" : found.listed.length ? "listed" : "stands";
-    return { verdict, change: found.change };
+    const verdict = any("back") ? "putBack" : any("flagged") ? "flagged" : any("listed") ? "listed" : "stands";
+    return { verdict, change };
 }
 
 /*
@@ -933,8 +942,9 @@ async function unmarkedWrite(kind, doc, actor, changes, user, options, seen) {
 /**
  * A student's update, as its hook saw it (G1): what it changed of what a roll is built from
  * (`actorFindings`) and of its means (`meansFindings`), put back in one write (`putBackNow`), the
- * effects it wrote, each put back through its own document (`parentEffects`, fix r2-H8), and what
- * the mark takes of it (`moves`). The GMs' armed entries it took wait for the roll that covers
+ * effects it wrote, each put back through its own document (`parentEffects`, fix r2-H8), the
+ * items it wrote, each judged as a write of that item (`byItem`, `parentItems`, fix r2-H10), and
+ * what the mark takes of it (`moves`). The GMs' armed entries it took wait for the roll that covers
  * them (`callsCover`, fix r2-H7).
  */
 async function updateFindings(actor, mark, changes, user, options, seen) {
@@ -943,15 +953,18 @@ async function updateFindings(actor, mark, changes, user, options, seen) {
     const sheet = read.taken.length ? callsOwed(read, await callsCover(actor, user, read.taken, seen.at)) : read;
     const means = await meansFindings(actor, mark, user, options, seen);
     const effects = seen.effects ? parentEffects(actor, null, mark, seen.effects) : { back: [], listed: [], change: {}, undos: [], stood: [] };
+    const items = seen.items ? await parentItems(actor, mark, changes, user, options, seen.items) : null;
     const back = [...sheet.back, ...means.back];
     return { back: [...back, ...effects.back], listed: [...sheet.listed, ...means.listed, ...effects.listed], flagged: [...sheet.flagged, ...means.flagged],
         stood: [...(sheet.stood ?? []), ...means.stood], roll: sheet.roll ?? null,
         change: { ...sheet.change, ...means.change, ...effects.change },
-        covered: means.covered, fix: means.fix,
-        moves: { paths: seen.paths, back: back.map(entry => entry.path), calls: sheet.calls, ledger: means.ledger, effects: effects.stood },
+        covered: means.covered, fix: means.fix, byItem: items?.found ?? [], finds: items?.finds ?? null,
+        moves: { paths: seen.paths, back: back.map(entry => entry.path), calls: sheet.calls, ledger: means.ledger, effects: effects.stood,
+            ...(items ? { items: items.items, itemEffects: items.itemEffects } : {}) },
         undo: async () => {
             await putBackNow(actor, mark, was, back, sheet.calls, means.patch);
             for (const undo of effects.undos) await undo();
+            for (const one of items?.found ?? []) if (one.back.length) await one.undo();
         } };
 }
 
@@ -1021,11 +1034,12 @@ function actorFindings(mark, changes, src) {
  * (05.10.2026, e29run/r1g4red) by tier 2 for the player's own flag (`ultimate`), a condition with no
  * changes taken off and an item that is not the module's taken off, and at ready for a condition taken
  * off and a module item renamed. The student's `effects` written through its update are no field of
- * it: each is judged as an effect (`parentEffects`, fix r2-H8).
+ * it: each is judged as an effect (`parentEffects`, fix r2-H8); nor are its `items`, each judged as a
+ * write of that item (`parentItems`, fix r2-H10).
  */
 function otherField(path, was, now) {
     if (LEDGER_PATHS.has(path) || path === RESTS_PATH || path.startsWith(`${RESTS_PATH}.`)) return false;
-    if (path === "effects" || path.startsWith("effects.")) return false;
+    if (path === "effects" || path.startsWith("effects.") || path === "items" || path.startsWith("items.")) return false;
     const held = MARKED_PATHS.some(root => path === root || path.startsWith(`${root}.`));
     return !held || stableJson(was ?? null) !== stableJson(now ?? null);
 }
@@ -1116,7 +1130,8 @@ function noteWrite(actor, changes, options, userId) {
  * the hook runs; a later write may have moved them by the time the judge reaches this one), the
  * item an item use names as it stood before its consumption landed, where this GM's hearing of
  * each means stood (`heard`, `hopeLeft`), the student's effects where the write reaches them
- * (`effects`, fix r2-H8: `parentEffects`), and when.
+ * (`effects`, fix r2-H8: `parentEffects`), its items likewise (`items`, fix r2-H10: `parentItems`),
+ * and when.
  */
 function seenNow(actor, changes, options, priors) {
     const src = actor._source ?? {};
@@ -1127,7 +1142,8 @@ function seenNow(actor, changes, options, priors) {
     const item = stamp?.reason === "itemUse" && stamp.ref ? actor.items?.get(stamp.ref)?.toObject?.() ?? null : null;
     const then = Object.fromEntries(Object.keys(values).map(key => [key, heard.get(actor.id)?.[key] ?? null]));
     const effects = names(changes, "effects") ? effectsIn(src) : undefined;
-    return { at: Date.now(), paths: pathsSeen(src, changes), values, rests, item, priors, heard: then, effects };
+    const items = names(changes, "items") ? itemsIn(actor) : undefined;
+    return { at: Date.now(), paths: pathsSeen(src, changes), values, rests, item, priors, heard: then, effects, items };
 }
 
 /*
@@ -1821,6 +1837,68 @@ const effectMoves = (held = {}, now = {}) => [...new Set([...Object.keys(held), 
     .filter(id => stableJson(held[id] ?? null) !== stableJson(now[id] ?? null)).map(id => ({ id, itemId: null, data: now[id] ?? null }));
 
 /*
+ * AN ITEM WRITTEN THROUGH ITS STUDENT (E29 fix r2-H10, 06.10.2026; found by fix r2-H8's probe). A student's
+ * update can carry its `items` as it can its effects: each changed where it is, named by its id, or the whole
+ * list replaced (v14's forced replacement), which makes and deletes them. The harness fires no item hook for
+ * such a write, only `updateActor` (the probe's P3); Foundry v14 is not measured, as for the effects - were it
+ * to fire the item's own hook as well, each item would be judged twice (by reading: a second row and a second
+ * word to the player, the second put-back writing what the first did). So each item the write reaches is judged
+ * as a write of the item itself (`itemFindings`, the plan's 2.6), on the item as the student's hook saw it
+ * (`seen.items`): one named by its id as that item's update, on what its entry wrote - a protected flag or a
+ * count raised put back through the item's own document, a name or a picture listed; with the list written
+ * whole, each item against what the GMs hold, as the comparison at ready reads them - a module item or a class
+ * changed as its update, one new to them as its creation; any other item by its effects alone, the one part of
+ * it they hold. One the GMs hold gone from the student is its deletion, whichever way it was written (in the
+ * harness only the whole list loses one). Each has rows of its own, naming its item (`record`); what stands
+ * goes into the mark, and a GM's such write is the mark's (`itemsMoved`). Until this fix the student's `items`
+ * were one field of it, listed (`otherField`): in the probe, at 0d86603 (06.10.2026, e29run/scratch/
+ * r2h8-probe), p1's console wrote a Tool's tier 1 -> 3 through Aiko's update, and it stood on the GM's copy
+ * with the mark at 1 and one row, `listed:items`.
+ */
+async function parentItems(actor, mark, changes, user, options, now) {
+    const named = itemsNamed(changes), found = [];
+    const gone = [...new Set([...Object.keys(mark.items ?? {}), ...Object.keys(mark.itemEffects ?? {})])].filter(id => !now[id]);
+    let held = mark;
+    for (const id of [...gone, ...(named ? [...named.keys()] : Object.keys(now)).filter(each => now[each])]) {
+        const data = now[id] ?? null, copy = held.items?.[id] ?? null, doc = actor.items?.get(id) ?? null;
+        let kind = "updateItem", write = named?.get(id) ?? null;
+        if (!data) kind = "deleteItem";
+        // Gone since the hook: its deletion is judged on its own.
+        else if (!doc) continue;
+        else if (!write) {
+            const effectsMoved = stableJson(held.itemEffects?.[id] ?? {}) !== stableJson(effectsIn(data));
+            if (!copy && heldItem(data)) kind = "createItem";
+            else if (!effectsMoved && (!copy || stableJson(copy) === stableJson(itemCopy(data)))) continue;
+            else write = { ...(copy ? bothPaths(copy, itemCopy(data)) : {}), ...(effectsMoved ? { effects: data.effects ?? [] } : {}) };
+        }
+        const one = await itemFindings(kind, doc ?? { id, name: copy?.name ?? null }, actor, held, write ?? {}, user, options, { item: data });
+        held = { ...held, items: one.items, itemEffects: one.itemEffects, ...(one.finds ? { finds: one.finds } : {}) };
+        if (one.back.length || one.flagged.length || one.listed.length || one.stood?.length) found.push(one);
+    }
+    return { found, items: held.items ?? {}, itemEffects: held.itemEffects ?? {}, finds: held.finds === mark.finds ? null : held.finds };
+}
+
+/** A student's update's `items` written as a list of entries named by their `_id`: id -> what the entry writes. Null for the list written whole. */
+function itemsNamed(changes) {
+    const list = changes?.items;
+    if (!Array.isArray(list)) return null;
+    return new Map(list.filter(entry => entry?._id).map(({ _id, ...entry }) => [_id, foundry.utils.expandObject(entry)]));
+}
+
+/**
+ * A GM's write of a student's items through its update (r2-H10): each it names - every one, the list written
+ * whole - as the hook saw it, and each the GMs held that is gone, are the mark's.
+ */
+function itemsMoved(mark, now, named) {
+    let moved = { items: { ...(mark?.items ?? {}) }, itemEffects: { ...(mark?.itemEffects ?? {}) } };
+    const ids = [...Object.keys(moved.items), ...Object.keys(moved.itemEffects)].filter(id => !now[id]);
+    for (const id of new Set([...ids, ...(named ? [...named.keys()] : Object.keys(now)).filter(each => now[each])])) {
+        moved = { items: itemsAfter(moved, { id }, now[id] ?? null), itemEffects: itemEffectsAfter(moved, id, now[id] ?? null) };
+    }
+    return moved;
+}
+
+/*
  * AN ITEM MADE CARRYING AN EFFECT THAT COUNTS (G3; review round 1 sec B3): the effects of an item's
  * data that Daggerheart applies to the student and that change what the GMs hold (`touchesHeld`), as
  * the entries of a put-back of the whole item - the item (`items.<id>`) and each such effect - with
@@ -1851,7 +1929,9 @@ function shown(value) {
  * A put-back is told to its writer once (`sheetPutBack`, its first field's kind named in
  * their language: bridge-guards.mjs `requestLabel`) and whispered to the GMs once, each
  * field before and after; what is flagged gets the GMs' card (`flaggedCard`) and nothing
- * for the writer; a row for each, and one for what was listed, go into `sheetWrites`.
+ * for the writer; a row for each, and one for what was listed, go into `sheetWrites`. The items
+ * a student's update wrote (`byItem`, fix r2-H10) have rows of their own, each naming its item as
+ * a write of the item's own does, and are told and whispered with the rest of the write.
  *
  * WHAT STOOD ON CREDIT OR A JUDGE HAS ITS ROW (E29 fix r1-G4, 05.10.2026; review round 1 cor m10;
  * the plan's 2.8). A gain a refund's credit, a Rest, an item used or a Call's price covered, a Rest
@@ -1865,18 +1945,20 @@ async function record(actor, user, found, options) {
     const stamp = options?.drpgWrite ?? {};
     const at = Date.now();
     const rows = {};
-    const row = (verdict, entries, messageId) => ({
-        actorId: actor.id, itemId: found.itemId ?? null, userId: user?.id ?? null, reason: stamp.reason ?? null, ref: stamp.ref ?? null,
-        change: Object.fromEntries(entries.map(entry => [entry.path, found.change[entry.path]]).filter(([, v]) => v !== undefined)),
-        covered: Object.keys(found.covered ?? {}).length ? found.covered : null,
+    const parts = [found, ...(found.byItem ?? [])];
+    const row = (part, verdict, entries, messageId) => ({
+        actorId: actor.id, itemId: part.itemId ?? null, userId: user?.id ?? null, reason: stamp.reason ?? null, ref: stamp.ref ?? null,
+        change: Object.fromEntries(entries.map(entry => [entry.path, part.change[entry.path]]).filter(([, v]) => v !== undefined)),
+        covered: Object.keys(part.covered ?? {}).length ? part.covered : null,
         verdict, messageId, decided: null, at
     });
-    if (found.back.length) {
-        tellRefused(user?.id ?? null, `sheet.${found.back[0].kind}`, null, "sheetPutBack");
-        const lines = found.back.map(entry => {
-            const [was, now] = found.change[entry.path] ?? [];
+    const back = parts.filter(part => part.back.length);
+    if (back.length) {
+        tellRefused(user?.id ?? null, `sheet.${back[0].back[0].kind}`, null, "sheetPutBack");
+        const lines = back.flatMap(part => part.back.map(entry => {
+            const [was, now] = part.change[entry.path] ?? [];
             return `<li>${esc(game.i18n.localize(`DRPG.Audit.field.${entry.kind}`))} (${esc(entry.path)}): ${esc(shown(was))} -> ${esc(shown(now))}</li>`;
-        }).join("");
+        })).join("");
         let message = null;
         try {
             message = await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Audit.putBack", {
@@ -1884,11 +1966,11 @@ async function record(actor, user, found, options) {
         } catch (err) {
             error("Could not tell the GMs of a write put back", err);
         }
-        rows[foundry.utils.randomID()] = row("putBack", found.back, message?.id ?? null);
+        for (const part of back) rows[foundry.utils.randomID()] = row(part, "putBack", part.back, message?.id ?? null);
     }
-    if (found.flagged?.length) {
+    for (const part of parts.filter(each => each.flagged?.length)) {
         // A deleted item's data goes with its row, for an Undo to make it again (C6).
-        const id = foundry.utils.randomID(), flagged = { ...row("flagged", found.flagged, null), ...(found.data ? { data: found.data } : {}) };
+        const id = foundry.utils.randomID(), flagged = { ...row(part, "flagged", part.flagged, null), ...(part.data ? { data: part.data } : {}) };
         let message = null;
         try {
             message = await whisperToGms(flaggedCard(flagged), { flags: { [MODULE_ID]: { sheetAudit: actor.id, [FLAGGED_CARD]: id } } });
@@ -1897,9 +1979,11 @@ async function record(actor, user, found, options) {
         }
         rows[id] = { ...flagged, messageId: message?.id ?? null };
     }
-    if (found.listed.length) rows[foundry.utils.randomID()] = row("listed", found.listed, null);
+    for (const part of parts.filter(each => each.listed.length)) rows[foundry.utils.randomID()] = row(part, "listed", part.listed, null);
     // A Call of the GMs' taken off stood on a roll (fix r2-H7): its row names the roll's message.
-    if (found.stood?.length) rows[foundry.utils.randomID()] = { ...row("covered", found.stood, null), ...(found.roll ? { ref: found.roll } : {}) };
+    for (const part of parts.filter(each => each.stood?.length)) {
+        rows[foundry.utils.randomID()] = { ...row(part, "covered", part.stood, null), ...(part.roll ? { ref: part.roll } : {}) };
+    }
     if (!Object.keys(rows).length) return;
     await keepRows(rows, at);
     debug(`The GMs' audit: ${user?.name ?? "?"} on ${actor.name}: ${Object.values(rows).map(r => r.verdict).join(", ")}.`);
