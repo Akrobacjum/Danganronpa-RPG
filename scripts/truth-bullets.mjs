@@ -1160,13 +1160,13 @@ export const NOT_AN_EDIT = "drpgNotAnEdit";
  * shows, the chapter lock - were theirs to set too.
  *
  * So every GM's browser keeps a copy of those fields for every bullet
- * (`guards`, below), refreshed by every write a GM makes, and the primary GM
- * puts a player's change to any of them back from it - only the fields the
- * change touched, so nothing else a player writes is undone - and the GMs are
- * told. That the author is really a player relies on Daggerheart's relay never
- * writing a guarded field for a player: relay-guard.mjs lets it write only an
- * item's charges and quantity, and a relayed write is authored by the GM who
- * ran it.
+ * (`guards`, below), and every write a GM makes moves it by the fields that
+ * write touched (fix r2-H16). The primary GM puts a player's change to any of
+ * them back from it - only the fields the change touched, so nothing else a
+ * player writes is undone - and the GMs are told. That the author is really a
+ * player relies on Daggerheart's relay never writing a guarded field for a
+ * player: relay-guard.mjs lets it write only an item's charges and quantity,
+ * and a relayed write is authored by the GM who ran it.
  *
  * IN MEMORY, NOT IN THE LEDGER (E03 second review, 24.09.2026). The first build
  * kept the copy as `guard` in the bullet's secret, and recording it at load
@@ -1209,8 +1209,9 @@ const GUARDED_PATHS = ["name", "img", "system.description", ...GUARDED_BULLET_FL
  * what the write reaches - the module's flags, `flags` or `system` deleted or replaced whole - is touched when
  * its value `now` differs from this GM's `copy`, as the student's road counts (`bulletWrites`): such a write
  * repeats every field it leaves as it was, and a scope written back as it stood puts nothing back and tells
- * nobody. With no copy to compare with, every field under it is touched, as the student's road counts a list
- * written whole. Until this fix the reader knew `name`, `img`, `system.description`, `flags.<module>.<key>` and
+ * nobody. With no copy to compare with - or a copy that holds no record of the field, since fix r2-H16 a GM's write
+ * records only what it touched (`refreshGuard`) - every field under it is touched, as the student's road counts a
+ * list written whole. Until this fix the reader knew `name`, `img`, `system.description`, `flags.<module>.<key>` and
  * `-=key` alone: at 528a72d p2's console replacing Botan's bullet's module flags with `analyzed` true, by its own
  * update and through Botan's, and deleting them, stood on every client with no word to the GMs; and a GM's text in
  * them replaced whole stayed off its trace and out of the GMs' copy, so p2's write of Botan's whole list as it stood
@@ -1220,15 +1221,39 @@ const GUARDED_PATHS = ["name", "img", "system.description", ...GUARDED_BULLET_FL
 export function guardedPathsIn(changes, now = null, copy = null) {
     const reached = reachOf(changes);
     return GUARDED_PATHS.filter(path => reached.some(at => at === path || at.startsWith(`${path}.`))
-        || (reached.some(at => path.startsWith(`${at}.`)) && (!now || !copy || stableJson(now[path]) !== stableJson(copy[path]))));
+        || (reached.some(at => path.startsWith(`${at}.`)) && (!now || !copy || !(path in copy) || stableJson(now[path]) !== stableJson(copy[path]))));
 }
 
 /** uuid -> the guarded fields as a GM last left them, on this browser. */
 const guards = new Map();
 
-/** Keep this GM's copy of a bullet's guarded fields up to date. */
-function refreshGuard(item) {
-    guards.set(item.uuid, guardedValues(item));
+/*
+ * A GM'S WRITE MOVES THE COPY BY WHAT IT TOUCHED (E29 fix r2-H16, 06.10.2026; found by fix r2-H15). `touched` is the
+ * guarded fields the write touched, as `guardedPathsIn` reads them; the copy's other fields stay as a GM last left
+ * them, as the sheet audit's mark moves by what a write reached (sheet-audit.mjs `reached`). Whole - `touched` null -
+ * only where the copy has nothing to go on but the bullet as it stands: the record at load (`guardAllBullets`) and a
+ * GM's creation. Until this fix every GM's write took the bullet whole as it stood, and since fix r2-H14 a player's
+ * write waits for its put-back behind the sheet audit's judgement (`judgedFor`), the put-back reading the copy as it is
+ * written: a GM's write of another field in that window took the player's value into the copy, and the put-back wrote
+ * it back and told the GMs it was put back. At c5ac507 p2's console text, sent behind a write the audit puts back,
+ * stood on every client, the GMs told it was put back, when the GM's own hook, hearing it, renamed the bullet or wrote
+ * its chapter lock as the module keeps its books (`NOT_AN_EDIT`); and p2's lab text, heard while the put-back of that
+ * text was on its way, stood the same way, taken into the copy by the put-back's own hook (scenario 30's `own`, `kept`
+ * and `alone`, e29run/r2h16red, 06.10.2026).
+ *
+ * A BULLET THIS BROWSER HOLDS NO COPY OF is moved the same way, so it holds only what was touched. Outside the harness
+ * (`forgetBulletGuard`) that is, by reading: a bullet no actor held at load (a world item: the record walks the
+ * actors), one a player made (the creation hook records a GM's alone; the sheet audit flags the creation), and an item
+ * made a bullet by a later write (no road of the module's: inventory.mjs writes the category as the item is made).
+ * Taken whole there, the copy would hold whatever a player had written into the bullet as the GMs' - a value still
+ * waiting for its put-back, then told to the GMs as put back while it stands, or every field of a forged bullet: at
+ * c5ac507 the rename of a bullet whose copy the harness had forgotten took p2's waiting text with it, and the text
+ * stood, the GMs told it was put back (`cold`). Touched only, a player's later write of a field with no record is told
+ * to the GMs as staying (`editUnrestored`), which it does.
+ */
+function refreshGuard(item, touched = null) {
+    const values = guardedValues(item);
+    guards.set(item.uuid, touched ? { ...(guards.get(item.uuid) ?? {}), ...Object.fromEntries(touched.map(path => [path, values[path]])) } : values);
 }
 
 /** Put a player's change to a guarded field back, and tell the GMs. */
@@ -1281,10 +1306,13 @@ export function forgetBulletGuard(uuid) {
     guards.delete(uuid);
 }
 
-/** How often the load-time record ran here, how many bullets it held then and now - for the harness. */
+/**
+ * How often the load-time record ran here, how many bullets it held then and now, and - given a bullet's uuid - this
+ * browser's copy of that bullet (null: none) - for the harness.
+ */
 const guardRuns = { runs: 0, recorded: 0 };
-export function bulletGuardStatus() {
-    return { ...guardRuns, known: guards.size };
+export function bulletGuardStatus(uuid = null) {
+    return { ...guardRuns, known: guards.size, ...(uuid ? { copy: guards.has(uuid) ? { ...guards.get(uuid) } : null } : {}) };
 }
 
 function watchBulletEdits() {
@@ -1319,7 +1347,8 @@ function watchBulletEdits() {
 async function onBulletWrite(item, changes, options, userId) {
     try {
         // Every GM's copy follows a GM's write - the next primary may be any
-        // of them. Memory only: nothing is written, so no GM doubles anything.
+        // of them - by the fields it touched (fix r2-H16, `refreshGuard`).
+        // Memory only: nothing is written, so no GM doubles anything.
         // A write that took the category with the rest of the module's flags
         // leaves an item `isTruthBullet` does not read as one; the copy says it
         // was one when a GM last left it, so it is judged as one (fix r2-H13).
@@ -1334,7 +1363,7 @@ async function onBulletWrite(item, changes, options, userId) {
         const copy = guards.get(item.uuid) ?? null;
         const touched = isTruthBullet(item) || copy ? guardedPathsIn(changes, guardedValues(item), copy) : [];
         const author = game.users.get(userId ?? "");
-        if (touched.length && author?.isGM && game.user?.isGM) refreshGuard(item);
+        if (touched.length && author?.isGM && game.user?.isGM) refreshGuard(item, touched);
         /*
          * THE PRIMARY GM, not "a GM" - and with two Gamemasters at this
          * table that is not pedantry. `updateItem` fires on every client,
@@ -1348,9 +1377,10 @@ async function onBulletWrite(item, changes, options, userId) {
             /*
              * AFTER THE SHEET AUDIT HAS JUDGED EVERY WRITE QUEUED ON THE STUDENT, whatever this one named and
              * by either road (fix r2-H13 for a write that took the category, fix r2-H14 for every write). The
-             * put-back is a GM's write, and the audit's mark takes an item whole as a GM's write leaves it
-             * (sheet-audit.mjs `stood`, `itemsAfter`): landing before the audit's own put-back of the same
-             * write, it carried into the mark what the audit was putting back. A write that took the category
+             * put-back is a GM's write, and the audit's mark took an item whole as a GM's write left it
+             * (sheet-audit.mjs `stood`, `itemsAfter`; since fix r2-H15 by what the write reached): landing
+             * before the audit's own put-back of the same write, it carried into the mark what the audit was
+             * putting back. A write that took the category
              * left no bullet in the mark (fix r2-H13: scenario 30's note "not held", e29run/r2h13/30-run2.log,
              * and m6 in e29run/r2h13m). One that kept it and named `roles` or a raised count beside a name, by
              * the bullet's own update or through its student's, left the player's value in the mark while the
@@ -1360,8 +1390,9 @@ async function onBulletWrite(item, changes, options, userId) {
              * roles or count alone then stood on every client with no row (scenario 30's three checks after fix
              * r2-H13's, e29run/r2h14red, 06.10.2026). The audit's hooks are registered at `init` and these at
              * `ready`, so its judgement of this write is queued by now; the copy is read as the put-back is
-             * written, so a GM's write in between wins. A bullet no student holds - a world item, an NPC's - has
-             * nothing queued (`judgedFor` passes it over) and is put back at once. By reading, a judgement awaits
+             * written, so a GM's write in between wins, of the fields it touched (fix r2-H16). A bullet no
+             * student holds - a world item, an NPC's - has nothing queued (`judgedFor` passes it over) and is
+             * put back at once. By reading, a judgement awaits
              * nothing but module imports, timers of at most sheet-audit.mjs `JUDGE_WAIT_MS` and writes that
              * settle when Foundry answers them, none of them this put-back's, and one that throws is caught by its
              * queue (`inOrder`); what holds the put-back is the player's own writes on the student heard back to
@@ -1441,12 +1472,18 @@ async function onBulletWrite(item, changes, options, userId) {
  * back by the primary GM, a GM's is every GM's copy and goes up to the trace, and the trace's own writes and the
  * module's bookkeeping are told apart by the same options.
  *
- * WHAT IT CHANGED IS WHAT DIFFERS FROM THIS GM'S COPY, whatever form the entry wrote it in: a list written whole
- * repeats every field, and a bullet it leaves as it was is put back by nothing and told to nobody. A bullet this
- * browser holds no copy of has every field its entry names counted - all of them, the list written whole - as its
- * own update's are: there is nothing to compare them with, and a player's is told to the GMs as staying. Were
- * Foundry to fire `updateItem` for such a write as well, a bullet would be judged twice - by reading, a player's
- * put back and told twice, the second put-back writing what the first did.
+ * WHAT IT CHANGED IS WHAT ITS ENTRY TOUCHED THAT DIFFERS FROM THIS GM'S COPY, whatever form the entry wrote it in
+ * (`guardedPathsIn`; every field, the list written whole): a list written whole repeats every field, and a bullet it
+ * leaves as it was is put back by nothing and told to nobody. Until fix r2-H16 it was every field that differed from
+ * the copy, touched or not - and by reading, a field that differs untouched is a player's write waiting for its
+ * put-back: at c5ac507 a GM's rename of Botan's bullet sent through his update, as the GM's hook heard p2's console
+ * text on it, counted the text as the GM's - into the copy, so the put-back wrote p2's text back and the GMs were told
+ * it was put back, and up to the trace, whose text then read p2's and came back down onto the bullet
+ * (`propagateRemnantPublic`; scenario 30's `botan`, e29run/r2h16red, 06.10.2026). A field this browser holds no copy of
+ * (none of the bullet, or none of that field: `refreshGuard`) is counted where its entry touched it, as its own
+ * update's are: there is nothing to compare it with, and a player's is told to the GMs as staying. Were Foundry to fire
+ * `updateItem` for such a write as well, a bullet would be judged twice - by reading, a player's put back and told
+ * twice, the second put-back writing what the first did.
  */
 function bulletWrites(actor, changes) {
     if (!game.user?.isGM) return [];
@@ -1457,8 +1494,8 @@ function bulletWrites(actor, changes) {
         // One whose entry took its category is still one while this GM holds its copy (`onBulletWrite`).
         if (!isTruthBullet(item) && !guard) continue;
         const now = guardedValues(item);
-        const paths = guard ? Object.keys(now).filter(path => stableJson(now[path]) !== stableJson(guard[path]))
-            : entry ? guardedPathsIn(entry, now) : Object.keys(now);
+        const paths = (entry ? guardedPathsIn(entry, now, guard) : Object.keys(now))
+            .filter(path => !guard || !(path in guard) || stableJson(now[path]) !== stableJson(guard[path]));
         if (paths.length) out.push([item, foundry.utils.expandObject(Object.fromEntries(paths.map(path => [path, now[path]])))]);
     }
     return out;

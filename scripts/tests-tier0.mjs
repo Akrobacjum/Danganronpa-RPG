@@ -4874,6 +4874,9 @@ const REGRESSIONS = [
         /* E29 fix r2-H14: a player's edit is put back once the sheet audit has judged every write queued on the bullet's student, whatever it named. */
         ok(/\n\s*await judgedFor\(item\.parent\?\.id\);\s*await revertPlayerBulletEdit\(/.test(judge),
             "a player's edit of a bullet can be put back before the sheet audit has judged the writes queued on its student");
+        /* E29 fix r2-H16: a GM's write moves the GMs' copy of a bullet by the fields it touched; whole, it took a player's value waiting for its put-back. */
+        ok(/\brefreshGuard\(item, touched\)/.test(judge) && !/\brefreshGuard\(item\)/.test(judge),
+            "a GM's write takes a bullet into the GMs' copy whole, a player's value waiting for its put-back with it");
         const guard = stripComments(sources.get("resource-guard.mjs") ?? "");
         for (const flag of ["playerText", "analyzedText", "shownType", "analyzed", "lockedChapter"]) {
             ok(bodyOf(guard, "const BULLET_GUARDED", { length: 400 }).includes(`"${flag}"`),

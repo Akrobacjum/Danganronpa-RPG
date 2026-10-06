@@ -1742,8 +1742,22 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
     out.items = itemsAfter(mark, item, withPaths(reached(held, now, changes), before, paths));
     if (back.length) {
         for (const path of paths) out.change[`${whole}.${path}`] = [clone(foundry.utils.getProperty(before, path)) ?? null, clone(foundry.utils.getProperty(now, path)) ?? null];
-        const patch = putBackPatch(before, paths);
-        undos.unshift(() => trustedWrite(item, patch, { reason: "auditPutBack" }));
+        /*
+         * READ WHEN WRITTEN (E29 fix r2-H16, 06.10.2026; found by fix r2-H15): only the paths the item still holds as
+         * the write left them (`now`), as a student's put-back (`putBackNow`) and an effect's (`effectFindings`) - a
+         * path a later write moved is that write's to judge - and nothing on an item no longer on the student. Until
+         * this fix the put-back was built in the judgement and written regardless: at c5ac507 a GM's count written as
+         * the GM's hook heard p2's console raise a Tool's 1 to 3 was overwritten on every client by the put-back's 1,
+         * the mark at the GM's 2, and p2's raise at once lowered to 0 ended at 1 on every client, the mark at 0
+         * (scenario 30's `count` and `lowered`, e29run/r2h16red). The item gone is by reading: the harness skips a
+         * write of an embedded document that is not there, so no scenario tells the two apart, and what Foundry does
+         * with one is not measured.
+         */
+        undos.unshift(() => {
+            const live = actor.items?.get(id) ?? null, src = live ? docData(live) : null;
+            const still = src ? paths.filter(path => stableJson(foundry.utils.getProperty(src, path) ?? null) === stableJson(foundry.utils.getProperty(now, path) ?? null)) : [];
+            return still.length ? trustedWrite(live, putBackPatch(before, still), { reason: "auditPutBack" }) : null;
+        });
     }
     out.back = [...back.map(entry => ({ ...entry, path: `${whole}.${entry.path}` })), ...(effects?.back ?? [])];
     if (undos.length) out.undo = async () => {

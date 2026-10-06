@@ -3171,9 +3171,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * Then the text is put right by the GM, so nothing after this reads a
      * rewritten bullet.
      */
-    await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
-        const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        T.forgetBulletGuard(b.uuid); return true;`);
+    const copyForgotten = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const b = game.actors.get("${ids.botan}").items.get("${bullet}"), copy = T.bulletGuardStatus(b.uuid).copy ?? null;
+        T.forgetBulletGuard(b.uuid); return copy;`);
     const whispersBefore = await gm.eval(`return game.messages.size;`);
     await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
         await b.update({ "flags.${MOD}.playerText": "SEC unrecorded" }, { drpgAutomated: true }); return true;`);
@@ -3187,8 +3187,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             reverted: said.includes(game.i18n.format("DRPG.TruthBullet.editReverted", { player: "", bullet: "" }).slice(-40)) };`);
     check("SECURITY: an edit with no record to restore it from is reported as staying, not as put back",
         unrecorded.text === "SEC unrecorded" && unrecorded.unrestored && !unrecorded.reverted, JSON.stringify(unrecorded));
+    /* Put right with every guarded field the forgotten copy held (E29 fix r2-H16): a GM's write records only the fields
+       it touched (truth-bullets.mjs `refreshGuard`), so the text alone would leave a copy of the text alone, and the checks
+       below that put back another field - `analyzed`, the name - would read no record of it (by reading). The harness
+       hands a hook every field a write names, as it stood or not, so the copy is whole again. */
     await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
-        await b.update({ "flags.${MOD}.playerText": ${JSON.stringify(bulletBefore.text)} }); return true;`);
+        await b.update({ ...${JSON.stringify(copyForgotten ?? {})}, "flags.${MOD}.playerText": ${JSON.stringify(bulletBefore.text)} }); return true;`);
     await settle(800);
 
     /*
@@ -3582,6 +3586,267 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     behindCheck("SECURITY: a player's console giving their Tool what it serves as and at once renaming it, each through their student's update, has the roles put back and the mark holding the rename alone, and the same roles written again are put back too, the GMs told each time", "botan");
     behindCheck("SECURITY: a player's console making a GM's penalty a +5 under a new name and at once writing its own name back has the +5 put back and the mark holding the penalty as the GM gave it, and the same +5 written again is put back too, the GMs told each time", "effect");
     behindCheck("SECURITY: a player's console giving their Tool what it serves as while a GM renames it has the roles put back and the mark holding the GM's rename alone, and the same roles written again are put back too, the GMs told each time", "gm");
+
+    /*
+     * A GM'S WRITE WHILE A PLAYER'S WAITS FOR ITS PUT-BACK (E29 fix r2-H16, 06.10.2026; found by fix r2-H15). p2's
+     * console writes a bullet's text behind a write the audit puts back - the roles of a second Tool of Botan's, the
+     * blocker, sent first in the same burst, so the audit's chain on Botan, which the text's put-back waits for
+     * (truth-bullets.mjs `judgedFor`), takes at least the blocker's put-back and its word to the GMs: two round trips -
+     * and the GM's own hook writes another field of the bullet as it hears p2's text: a rename by the bullet's own
+     * update (`own`) and the chapter lock as the module keeps its books (`NOT_AN_EDIT`, `kept`), on a bullet made here
+     * with no trace, and a rename through Botan's update of his own bullet, which has one (`botan`). The first two are
+     * not asked of a traced bullet: by reading, a GM's rename of one goes up to its trace, and the trace writes its
+     * text back down onto every copy (truth-bullets.mjs `propagateRemnantPublic`) - over the player's waiting text too,
+     * which would hide what the copy took. Then p2's text alone, its put-back held on the GM's page on its way out
+     * until p2's lab text, behind the blocker again, has been heard (`alone`): the put-back's own hook then hears the
+     * lab text standing - the harness standing in for a put-back slower on the wire than the player's next write. Each:
+     * the bullet as the GMs left it on every client but for the GM's field, the GMs told of each put-back and of
+     * nothing staying, the GMs' copy holding the same, and the trace's text as it was. Last, the rename again with the
+     * GM's copy of the bullet forgotten (`cold`, the state of a bullet no GM has recorded): the copy holds the rename
+     * alone, and p2's text stands, the GMs told it stayed - not that it was put back. And a Tool's count p2 raises
+     * behind the blocker while the GM's hook writes one less (`count`), or raises and at once lowers to 0 (`lowered`):
+     * the document and the mark at the GM's count, and at 0. The GM's hooks record each write on the bullets, the Tool
+     * and the blocker as it was heard, and a case counts only where they were heard in the order it needs
+     * (`h16InOrder`).
+     *
+     * At c5ac507 (e29run/r2h16red, 06.10.2026) 185/192, the seven red, each heard in its order but `cold`, whose order
+     * also asks that nothing be written back after the rename: in `own`, `kept`, `botan` and `cold` p2's text stood on
+     * every client, the GMs told once it was put back, the put-back writing p2's text; in `botan` the trace's text read
+     * p2's; in `alone` the text was put back and the lab text stood, the GMs told twice; in `count` the put-back's 1
+     * overwrote the GM's 2 on every client, the mark at 2; and in `lowered` the raise's put-back wrote 1 over p2's 0 on
+     * every client, the mark at 0. The GMs' copy is read through `bulletGuardStatus(uuid)`, which c5ac507 does not
+     * have: it read null there.
+     */
+    const h16Was = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), a = game.actors.get("${ids.botan}");
+        const T = await import("${repoUrl}/scripts/truth-bullets.mjs"), R = await import("${repoUrl}/scripts/remnants.mjs");
+        const tool = await INV.grantItem(a, { name: "SEC H16 tool", category: "tool", tier: 1, override: true, quiet: true });
+        const blocker = await INV.grantItem(a, { name: "SEC H16 blocker", category: "tool", tier: 1, override: true, quiet: true });
+        const made = await T.createTruthBullet(a, { name: "SEC H16 bullet", realType: "neutral", visibility: "obvious",
+            playerText: "SEC H16 the GMs' text", analyzedText: "SEC H16 the GMs' lab text" });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), m = S.sheetMarkStore.get("${ids.botan}")?.items ?? {};
+        const fields = b => [b?.name ?? null, b?.getFlag("${MOD}", "playerText") ?? null, b?.getFlag("${MOD}", "analyzedText") ?? null,
+            b?.getFlag("${MOD}", "lockedChapter") ?? null];
+        const traced = a.items.get("${bullet}"), ref = String((traced && T.bulletRefOf(traced)) ?? "").split(".");
+        return { tool: tool?.id ?? null, blocker: blocker?.id ?? null, held: Boolean(m[tool?.id] && m[blocker?.id]), count: tool?.system?.quantity ?? null,
+            bullet: made?.id ?? null, was: fields(made), tracedWas: fields(traced),
+            trace: ref.length === 2 ? R.remnantPublicById(ref[0], ref[1])?.playerText ?? null : null };`, { timeout: 30000 });
+    await settle(600);
+    const h16Text = "SEC H16 p2's text", h16Second = "SEC H16 p2's lab text";
+    const h16Raised = (h16Was.count ?? 1) + 2, h16Gms = (h16Was.count ?? 1) + 1;
+    // The two bullets - the one made here, with no trace, and Botan's own: its id, its name, text, lab text and lock as
+    // they were, and its trace's text.
+    const h16Of = { bullet: { id: h16Was.bullet, was: h16Was.was, trace: null }, traced: { id: bullet, was: h16Was.tracedWas, trace: h16Was.trace } };
+    const h16Doc = label => `game.actors.get("${ids.botan}").items.get("${h16Of[label].id}")`;
+    // The GM's own hooks beside the module's: each write on either bullet, the Tool or the blocker, and each of Botan's
+    // that writes his items, as it was heard - what, by whom (the audit's put-back is "back", the module's books "kept"),
+    // the fields it named, and that bullet's (Botan's own, for his) name, text, lab text and lock and the Tool's count after it.
+    await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"); globalThis.__h16Heard = [];
+        const by = (userId, options) => options?.drpgWrite?.reason === "auditPutBack" ? "back" : options?.[T.NOT_AN_EDIT] ? "kept"
+            : game.users.get(userId)?.isGM ? "gm" : "player";
+        const what = { "${h16Was.bullet}": "bullet", "${bullet}": "traced", "${h16Was.tool}": "tool", "${h16Was.blocker}": "blocker" };
+        const row = id => { const a = game.actors.get("${ids.botan}"), b = id ? a.items.get(id) : null, t = a.items.get("${h16Was.tool}");
+            return [b?.name ?? null, b?.getFlag("${MOD}", "playerText") ?? null, b?.getFlag("${MOD}", "analyzedText") ?? null,
+                b?.getFlag("${MOD}", "lockedChapter") ?? null, t?.system?.quantity ?? null]; };
+        const named = changes => Object.keys(foundry.utils.flattenObject(changes ?? {})).filter(k => !k.startsWith("_")).sort().join(",");
+        globalThis.__h16Hooks = [
+            ["updateItem", Hooks.on("updateItem", (doc, changes, options, userId) => what[doc.id] && globalThis.__h16Heard.push(JSON.parse(JSON.stringify(
+                [what[doc.id], by(userId, options), named(changes), ...row(["bullet", "traced"].includes(what[doc.id]) ? doc.id : null)]))))],
+            ["updateActor", Hooks.on("updateActor", (doc, changes, options, userId) => doc.id === "${ids.botan}" && "items" in (changes ?? {})
+                && globalThis.__h16Heard.push(JSON.parse(JSON.stringify(["botan", by(userId, options), "items", ...row("${bullet}")]))))]];
+        return true;`);
+    // p2's writes, each `[item id, changes]`, sent in one burst behind the blocker's roles.
+    const h16Burst = (...writes) => p2.eval(`const a = game.actors.get("${ids.botan}"), o = { drpgAutomated: true };
+        await Promise.all([a.items.get("${h16Was.blocker}").update({ "flags.${MOD}.roles": ${JSON.stringify(crimeRole)} }, o),
+            ${writes.map(([id, changes]) => `a.items.get("${id}").update(${JSON.stringify(changes)}, o)`).join(", ")}]); return true;`);
+    // The GM's hook writing `write` as it hears a player's write of `field` on the item `id`: once.
+    const h16When = (id, field, write) => gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        globalThis.__h16When = Hooks.on("updateItem", (doc, changes, options, userId) => {
+            if (doc.id !== "${id}" || game.users.get(userId)?.isGM || !("${field}" in foundry.utils.flattenObject(changes ?? {}))) return;
+            Hooks.off("updateItem", globalThis.__h16When);
+            ${write}
+        }); return true;`);
+    // Each case's writes undone by a GM's, the Tool's count in the mark too: at c5ac507 the put-back of p2's raise wrote
+    // the old count over the GM's, leaving the document at one count and the mark at the other, and the next case would
+    // have started from both. The harness hands on a write of the count the document already holds (no diff), so the
+    // mark takes it.
+    const h16AsWas = () => gm.eval(`const a = game.actors.get("${ids.botan}"), t = a.items.get("${h16Was.tool}"), k = a.items.get("${h16Was.blocker}");
+        const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const fixed = [];
+        for (const [label, id, was] of ${JSON.stringify(Object.entries(h16Of).map(([label, { id, was }]) => [label, id, was]))}) {
+            const b = a.items.get(id), want = { name: was[0], "flags.${MOD}.playerText": was[1], "flags.${MOD}.analyzedText": was[2],
+                "flags.${MOD}.lockedChapter": was[3] };
+            const patch = Object.fromEntries(Object.entries(want).filter(([path, value]) => JSON.stringify(foundry.utils.getProperty(b ?? {}, path) ?? null) !== JSON.stringify(value)));
+            if (b && Object.keys(patch).length) { await b.update(patch); fixed.push(label + ":" + Object.keys(patch).join(",")); }
+        }
+        await A.sheetAuditIdle();
+        const count = ${JSON.stringify(h16Was.count)}, marked = S.sheetMarkStore.get("${ids.botan}")?.items?.["${h16Was.tool}"]?.system?.quantity ?? null;
+        if (t && (t.system?.quantity !== count || marked !== count)) {
+            fixed.push(t.system?.quantity !== count ? "count" : "count in the mark");
+            await t.update({ "system.quantity": count });
+        }
+        if (k?.getFlag("${MOD}", "roles")?.length) { await k.update({ "flags.${MOD}.roles": foundry.data.operators.ForcedDeletion.create() }); fixed.push("roles"); }
+        await A.sheetAuditIdle();
+        return fixed;`);
+    const h16Read = label => `const b = ${h16Doc(label)};
+        return [b?.name ?? null, b?.getFlag("${MOD}", "playerText") ?? null, b?.getFlag("${MOD}", "analyzedText") ?? null, b?.getFlag("${MOD}", "lockedChapter") ?? null];`;
+    // Up to 6 s for each client to read `want` off `read`.
+    const h16Docs = (read, want) => Promise.all([gm, p1, p2, p3].map(c => c.eval(`const read = () => { ${read} }, end = Date.now() + 6000;
+        while (JSON.stringify(read()) !== ${JSON.stringify(JSON.stringify(want))} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return read();`)));
+    // Whether `heard` holds a write matching each of `steps` (its row: what, by, fields, name, text, lab text, lock, count), in that order.
+    const h16InOrder = (heard, ...steps) => {
+        let at = 0;
+        for (const step of steps) {
+            at = (heard ?? []).findIndex((h, i) => i >= at && Object.entries(step).every(([k, v]) => JSON.stringify(h[k]) === JSON.stringify(v)));
+            if (at < 0) return false;
+            at++;
+        }
+        return true;
+    };
+    const h16TextField = `flags.${MOD}.playerText`, h16SecondField = `flags.${MOD}.analyzedText`, h16LockField = `flags.${MOD}.lockedChapter`;
+    // One case on the bullet `label` names: `arm` readies the GM's side and `send` is p2's writes; then up to 8 s for the
+    // GMs to be told as many times as `tell` says, the GM's audit idle, each client read for `want`, and what the GMs were
+    // told since, read again; the GMs' copy, as `want` reads it, read for `copy`; its trace's text.
+    const h16Bullet = async (label, arm, send, want, tell, copy = want) => {
+        await gm.eval(`globalThis.__h16Heard.length = 0; return true;`);
+        const from = await gm.eval(`return game.messages.size;`);
+        const told = `const S = await import("${repoUrl}/scripts/secret.mjs");
+            const n = key => game.messages.contents.slice(${from}).map(m => S.contentOf(m) || m.content || "")
+                .filter(s => s.includes(game.i18n.format(key, { player: "", bullet: "" }).slice(-40))).length;
+            const told = () => ({ reverted: n("DRPG.TruthBullet.editReverted"), unrestored: n("DRPG.TruthBullet.editUnrestored") });`;
+        await arm();
+        const sent = await send();
+        await gm.eval(`${told} const end = Date.now() + 8000;
+            while (told().reverted + told().unrestored < ${tell.reverted + tell.unrestored} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        const docs = await h16Docs(h16Read(label), want);
+        const kept = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"), R = await import("${repoUrl}/scripts/remnants.mjs");
+            const b = ${h16Doc(label)}, c = b ? T.bulletGuardStatus(b.uuid).copy ?? null : null, ref = String((b && T.bulletRefOf(b)) ?? "").split(".");
+            return { copy: c && ["name", "${h16TextField}", "${h16SecondField}", "${h16LockField}"].map(k => c[k] ?? null),
+                trace: ref.length === 2 ? R.remnantPublicById(ref[0], ref[1])?.playerText ?? null : null };`);
+        const said = await gm.eval(`${told} return told();`);
+        const heard = await gm.eval(`return globalThis.__h16Heard.splice(0);`);
+        const restored = await h16AsWas();
+        const same = (seen, wanted) => JSON.stringify(seen) === JSON.stringify(wanted);
+        // Botan's own bullet is asked for having a trace, the one made here for having none.
+        return { ok: docs.length === 4 && docs.every(seen => same(seen, want)) && same(said, tell) && same(kept.copy, copy)
+            && kept.trace === h16Of[label].trace && (kept.trace !== null) === (label === "traced"), sent, docs, told: said, ...kept, heard, restored };
+    };
+    // One item case: `arm` readies the GM's side and `writes` are p2's; then up to 8 s for the GM to hear the blocker's
+    // put-back, its audit idle; the Tool's count and the blocker's roles in the mark and on each client, read for `want`.
+    const h16Item = async (arm, writes, want) => {
+        await gm.eval(`globalThis.__h16Heard.length = 0; return true;`);
+        await arm();
+        await h16Burst(...writes);
+        const mark = await gm.eval(`const end = Date.now() + 8000;
+            while (!globalThis.__h16Heard.some(h => h[0] === "blocker" && h[1] === "back") && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            await A.sheetAuditIdle();
+            const m = S.sheetMarkStore.get("${ids.botan}")?.items ?? {};
+            return [m["${h16Was.tool}"]?.system?.quantity ?? null, m["${h16Was.blocker}"]?.flags?.["${MOD}"]?.roles ?? null];`);
+        const docs = await h16Docs(`const a = game.actors.get("${ids.botan}"), t = a.items.get("${h16Was.tool}"), k = a.items.get("${h16Was.blocker}");
+            return [t?.system?.quantity ?? null, k?.getFlag("${MOD}", "roles") ?? null];`, want);
+        const heard = await gm.eval(`return globalThis.__h16Heard.splice(0);`);
+        const restored = await h16AsWas();
+        const same = seen => JSON.stringify(seen) === JSON.stringify(want);
+        return { ok: docs.length === 4 && docs.every(same) && same(mark), docs, mark, heard, restored };
+    };
+    const h16Wrote = label => () => h16Burst([h16Of[label].id, { [h16TextField]: h16Text }]);
+    const h16Want = (label, field, value) => Object.assign([...h16Of[label].was], { [field]: value });
+    const h16Told = (reverted, unrestored = 0) => ({ reverted, unrestored });
+    let h16 = null;
+    try {
+        h16 = {
+            own: await h16Bullet("bullet", () => h16When(h16Was.bullet, h16TextField, `void doc.update({ name: "SEC H16 renamed" });`),
+                h16Wrote("bullet"), h16Want("bullet", 0, "SEC H16 renamed"), h16Told(1)),
+            botan: await h16Bullet("traced", () => h16When(bullet, h16TextField,
+                `void game.actors.get("${ids.botan}").update({ items: [{ _id: "${bullet}", name: "SEC H16 renamed through Botan" }] });`),
+                h16Wrote("traced"), h16Want("traced", 0, "SEC H16 renamed through Botan"), h16Told(1)),
+            kept: await h16Bullet("bullet", () => h16When(h16Was.bullet, h16TextField, `void doc.update({ "${h16LockField}": 99 }, { [T.NOT_AN_EDIT]: true });`),
+                h16Wrote("bullet"), h16Want("bullet", 3, 99), h16Told(1)),
+            alone: await h16Bullet("bullet", () => gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"), b = ${h16Doc("bullet")}, update = b.update;
+                    globalThis.__h16Held = false;
+                    // The put-back of p2's text, held on its way out until p2's lab text has been heard: one write, once.
+                    b.update = function (data, options) {
+                        if (!options?.[T.NOT_AN_EDIT] || !("${h16TextField}" in (data ?? {}))) return update.call(this, data, options);
+                        delete b.update;
+                        globalThis.__h16Held = true;
+                        return new Promise(resolve => {
+                            globalThis.__h16Release = Hooks.on("updateItem", (doc, changes, opts, userId) => {
+                                if (doc.id !== "${h16Was.bullet}" || game.users.get(userId)?.isGM || !("${h16SecondField}" in foundry.utils.flattenObject(changes ?? {}))) return;
+                                Hooks.off("updateItem", globalThis.__h16Release);
+                                resolve(update.call(b, data, options));
+                            });
+                        });
+                    };
+                    return true;`), async () => {
+                await p2.eval(`await ${h16Doc("bullet")}.update({ "${h16TextField}": ${JSON.stringify(h16Text)} }, { drpgAutomated: true }); return true;`);
+                const held = await gm.eval(`const end = Date.now() + 8000;
+                    while (!globalThis.__h16Held && Date.now() < end) await new Promise(r => setTimeout(r, 50)); return globalThis.__h16Held;`);
+                await h16Burst([h16Was.bullet, { [h16SecondField]: h16Second }]);
+                return held;
+            }, [...h16Of.bullet.was], h16Told(2)),
+            // Last of the bullet's: this GM's copy of it forgotten (`forgetBulletGuard`), the state a bullet no GM has
+            // recorded is in. The rename is all the copy then holds, and p2's text stands, told as staying.
+            cold: await h16Bullet("bullet", async () => {
+                await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"); T.forgetBulletGuard(${h16Doc("bullet")}.uuid); return true;`);
+                return h16When(h16Was.bullet, h16TextField, `void doc.update({ name: "SEC H16 renamed, no copy" });`);
+            }, h16Wrote("bullet"), Object.assign([...h16Of.bullet.was], { 0: "SEC H16 renamed, no copy", 1: h16Text }), h16Told(0, 1),
+                ["SEC H16 renamed, no copy", null, null, null]),
+            count: await h16Item(() => h16When(h16Was.tool, "system.quantity", `void doc.update({ "system.quantity": ${h16Gms} });`),
+                [[h16Was.tool, { "system.quantity": h16Raised }]], [h16Gms, null]),
+            lowered: await h16Item(async () => true, [[h16Was.tool, { "system.quantity": h16Raised }], [h16Was.tool, { "system.quantity": 0 }]], [0, null])
+        };
+    } finally {
+        await h16AsWas();
+        await gm.eval(`const B = await import("${repoUrl}/scripts/truth-bullets.mjs"), A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            for (const [name, id] of globalThis.__h16Hooks ?? []) Hooks.off(name, id);
+            for (const id of [globalThis.__h16When, globalThis.__h16Release]) if (id !== undefined) Hooks.off("updateItem", id);
+            const a = game.actors.get("${ids.botan}"), b = a.items.get("${h16Was.bullet}"), uuid = b?.uuid ?? null;
+            if (b && Object.prototype.hasOwnProperty.call(b, "update")) delete b.update;
+            await A.sheetAuditIdle();
+            const made = ["${h16Was.tool}", "${h16Was.blocker}", "${h16Was.bullet}"].filter(id => a.items.has(id));
+            if (made.length) await a.deleteEmbeddedDocuments("Item", made);
+            if (uuid) await B.dropSecret(uuid);
+            await A.sheetAuditIdle(); return true;`, { timeout: 30000 });
+    }
+    const h16Ready = Boolean(h16 && h16Was.bullet && bullet && h16Was.tool && h16Was.blocker && h16Was.held);
+    // The GM's write heard holding p2's text, the text's put-back after it.
+    const h16Behind = (label, gmWrite) => [gmWrite, { 0: label, 1: "kept", 2: h16TextField }];
+    const h16Ordered = {
+        own: h16InOrder(h16?.own?.heard, ...h16Behind("bullet", { 0: "bullet", 1: "gm", 2: "name", 3: "SEC H16 renamed", 4: h16Text })),
+        botan: h16InOrder(h16?.botan?.heard, ...h16Behind("traced", { 0: "botan", 1: "gm", 3: "SEC H16 renamed through Botan", 4: h16Text })),
+        kept: h16InOrder(h16?.kept?.heard, ...h16Behind("bullet", { 0: "bullet", 1: "kept", 2: h16LockField, 4: h16Text, 6: 99 })),
+        // p2's lab text heard, then the put-back of the text heard holding it, then the lab text's own put-back.
+        alone: h16?.alone?.sent === true && h16InOrder(h16?.alone?.heard, { 0: "bullet", 1: "player", 2: h16SecondField },
+            { 0: "bullet", 1: "kept", 2: h16TextField, 4: h16Of.bullet.was[1], 5: h16Second }, { 0: "bullet", 1: "kept", 2: h16SecondField }),
+        // The rename heard holding p2's text, and nothing written back after it.
+        cold: h16InOrder(h16?.cold?.heard, { 0: "bullet", 1: "gm", 2: "name", 3: "SEC H16 renamed, no copy", 4: h16Text })
+            && !(h16?.cold?.heard ?? []).some(h => h[0] === "bullet" && h[1] === "kept"),
+        // p2's raise heard, then the GM's count, and no put-back of the Tool before it.
+        count: h16InOrder(h16?.count?.heard, { 0: "tool", 1: "player", 7: h16Raised }, { 0: "tool", 1: "gm", 7: h16Gms })
+            && !(h16?.count?.heard ?? []).slice(0, (h16?.count?.heard ?? []).findIndex(h => h[0] === "tool" && h[1] === "gm")).some(h => h[0] === "tool" && h[1] === "back"),
+        // p2's raise heard, then p2's 0, and no put-back of the Tool before it.
+        lowered: h16InOrder(h16?.lowered?.heard, { 0: "tool", 1: "player", 7: h16Raised }, { 0: "tool", 1: "player", 7: 0 })
+            && !(h16?.lowered?.heard ?? []).slice(0, (h16?.lowered?.heard ?? []).findIndex(h => h[0] === "tool" && h[1] === "player" && h[7] === 0)).some(h => h[0] === "tool" && h[1] === "back")
+    };
+    // What a case read, brief enough for the 2000 characters a check keeps: no field carries the module's prefix and no
+    // value the scenario's "SEC H16 ", and each write heard is one line.
+    const h16Brief = value => JSON.parse(JSON.stringify(value ?? null, (k, v) => typeof v === "string"
+        ? v.split(`flags.${MOD}.`).join("").replace(/^SEC H16 /, "") : v));
+    const h16Check = (name, key, opts) => {
+        const c = h16?.[key] ?? null;
+        check(name, h16Ready && Boolean(c?.ok) && h16Ordered[key], JSON.stringify(h16Brief({ ready: h16Ready, ordered: h16Ordered[key],
+            ...(c ? { ...c, heard: (c.heard ?? []).map(row => h16Brief(row).join(" / ")) } : {}) })), opts);
+    };
+    h16Check("SECURITY: a GM renaming a Truth Bullet while a player's console text on it waits for its put-back has the text put back to the GMs' on every client and the rename standing, the GMs told, and the GMs' copy holding the rename and the old text", "own");
+    h16Check("SECURITY: a GM renaming a Truth Bullet through its student's update while a player's console text on it waits for its put-back has the text put back to the GMs' on every client and the rename standing, the GMs told, the GMs' copy holding the rename and the old text, and its trace's text as it was", "botan");
+    h16Check("SECURITY: the module's own write of a Truth Bullet's chapter lock while a player's console text on it waits for its put-back has the text put back to the GMs' on every client and the lock standing, the GMs told, and the GMs' copy holding the lock and the old text", "kept");
+    h16Check("SECURITY: a player's console writing their Truth Bullet's text and then its lab text, the second heard while the first's put-back is on its way, has both put back on every client, the GMs told twice, and the GMs' copy holding the old texts", "alone");
+    h16Check("SECURITY: a GM renaming a Truth Bullet the GMs hold no copy of while a player's console text on it waits for its put-back leaves the text, the GMs told it stayed and not that it was put back, and the GMs' copy holding the rename alone", "cold");
+    h16Check("SECURITY: a GM writing a Tool's count while a player's console raise of it waits for its put-back leaves the GM's count on every client and in the GMs' mark", "count", { flow: "sheet-audit" });
+    h16Check("SECURITY: a player's console raising their Tool's count and at once lowering it to 0 leaves 0 on every client and in the GMs' mark, not the raise's put-back over it", "lowered", { flow: "sheet-audit" });
 
     /*
      * The load-time record ran on the GM, once (the E03 review measured it running
