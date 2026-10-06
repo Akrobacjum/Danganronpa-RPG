@@ -5188,6 +5188,84 @@ const SCENARIOS = [
         }
     }],
 
+    ["a drawn roll's Reroll adds what the GM threw, off its record, not the character as it stands at the Reroll", async () => {
+        /*
+         * E29 fix r2-H3, 06.10.2026; the round-2 security review's M1, its Reroll (C11), by reading. A
+         * drawn roll is thrown again from its record's `scored` (roll-draw.mjs `rollOnRecord`), and
+         * Daggerheart's constructor builds the statistic's and the experiences' modifiers again out of
+         * the roll's data (dualityRoll.mjs:174, d20Roll.mjs:103, 2.10.5), which was the character's as
+         * it stood at the Reroll (reroll.mjs `rollAsThrown`). A player's Search, then the character's
+         * Eye at 9 on the sheet as a player's write is before the audit has judged it (written with the
+         * audit's aside, judged by nobody). Then the same record without its `scored`, as one drawn
+         * before 1.2.68 is kept, whose Reroll is rebuilt off the character: the audit's queue on it held
+         * as a GM's own write of its means holds it (sheet-audit.mjs `gmMeansWrite`), the Eye at 9
+         * written as the player's and handed to the judge behind it, and the queue let go 300 ms into
+         * the Reroll's rebuild. Read: the first rebuild's data - the statistics in it, Eye's value, the
+         * experiences Daggerheart would read - against the record's `scored`; the second's Eye. The
+         * harness's constructor reads the data and keeps the formula it is given, so the sum is a
+         * table's to show (LIVE-E06-02). At 7a040b9's runtime (e29run/r2h3red): the first rebuild's
+         * data held all six statistics, Eye at the 9 written at the Reroll, and no experiences (the
+         * harness's `getRollData` is the system's clone, without the `system` Daggerheart's adds); the
+         * second's Eye was 9, the write the audit had not judged.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const R = await import("./reroll.mjs");
+        const A = await import("./sheet-audit.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const EYE = "system.traits.instinct.value";
+        const eye = Number(foundry.utils.getProperty(theirs, EYE)) || 0;
+        const eyeNow = () => Number(foundry.utils.getProperty(theirs, EYE)) || 0;
+        must(eye !== 9, `${theirs.name}'s Eye is 9 already - a write of 9 would change nothing`);
+        const F = await drawnForPlayer(player, theirs);
+        let holding = null, judged = null;
+        try {
+            must(F.record?.scored && F.message && F.record.scored.traitValue === eye,
+                "the GM kept no scored record of the draw, or did not throw it on the sheet's Eye - this would measure nothing");
+            const original = game.system.api.dice.DualityRoll.fromData(configuredRollOf(F.packet));
+            await theirs.update({ [EYE]: 9 }, { [A.AUDIT_ASIDE]: true });
+            const data = (await R.rollAsThrown(original, theirs, F.message)).options?.data ?? null;
+            await theirs.update({ [EYE]: eye }, { [A.AUDIT_ASIDE]: true });
+            await rollStore.patch(F.value.rollId, { scored: null });
+            let letGo = null;
+            const gate = new Promise(resolve => { letGo = resolve; });
+            holding = A.gmMeansWrite(theirs, () => gate);
+            await theirs.update({ [EYE]: 9 }, { [A.AUDIT_ASIDE]: true });
+            judged = A.judgeWrite("updateActor", theirs, foundry.utils.expandObject({ [EYE]: 9 }), player.id, {});
+            const rebuilt = R.rollAsThrown(original, theirs, F.message);
+            await wait(300);
+            letGo();
+            const unscored = (await rebuilt).options?.data ?? null;
+            equal(stableJson([Object.keys(data?.traits ?? {}), data?.traits?.instinct?.value ?? null, data?.system?.experiences ?? null,
+                unscored?.traits?.instinct?.value ?? null]), stableJson([["instinct"], eye, {}, eye]),
+                "a drawn roll's Reroll was handed the character as it stands rather than what the GM threw, or one with no record of it a write the audit had not judged (the statistics in its data, Eye's value, the experiences Daggerheart reads; Eye with no `scored`)");
+        } finally {
+            await Promise.all([holding, judged].filter(Boolean)).catch(() => null);
+            await A.sheetAuditIdle();
+            if (eyeNow() !== eye) await theirs.update({ [EYE]: eye }, { [A.AUDIT_ASIDE]: true });
+            await F.putBack();
+        }
+    }],
+
+    ["a roll's claim that lacked what the GM counted tells its roller nothing: the roller's line names only what the claim had beyond the list", async () => {
+        /*
+         * E29 fix r2-H3, 06.10.2026; the round-2 correctness review's m4, by reading. The roller's line
+         * (roll-draw.mjs `rollerLine`) named the modifier whenever the GM's throw left any of the claim's
+         * flat sum uncounted (`scored.uncounted`), and that is below nothing where the claim had less
+         * than the GM counted - a source the GM counted and the window lacked, the GMs' to see
+         * (`checkRoll`), which the line's own note and C9's say the roller is not told of. Three records
+         * of one shape, a roll thrown on Eye at 1: the claim 3 short of the GM's list, 3 past it, and
+         * level with it. Read: which modifier each line names, or null for none. At 7a040b9's runtime
+         * (e29run/r2h3red): the claim 3 short named "-3", the one 3 past "+3", the level one none.
+         */
+        const D = await import("./roll-draw.mjs");
+        const record = uncounted => ({ scored: { trait: "eye", traitValue: 1, experiences: [], advantage: 0, uncounted,
+            modifiers: [{ key: "trait", name: "eye", label: "Eye", value: 1 }] }, claim: { trait: "eye", dice: 0, advantage: 0 } });
+        const named = line => (line === null ? null : line.includes("+3") ? "+3" : line.includes("-3") ? "-3" : "other");
+        equal(stableJson([-3, 3, 0].map(n => named(D.rollerLine(record(n))))), stableJson([null, "+3", null]),
+            "a claim that lacked what the GM counted told its roller of a modifier, or one past the list was not told, or a level one was (per claim: the modifier its line names)");
+    }],
+
     ["a Reroll of a crisis roll keeps its weapon die", async () => {
         /*
          * E29 C11, 05.10.2026; the stage plan's 3.7. The GM throws a crisis roll's situation dice from
@@ -5806,6 +5884,131 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[door, "fixed"], [lowest, "gm"], [door, "fixed"], [erased, "gm"], [trailed, "gm"]]),
             "a clean-up said to come through Tamper's door was held to Tamper's statistic for the cleaner or not for another, or a GM's pick asked as an erase or a trail is asked did not hold that roll (per reading: statistic, row)");
+    }],
+
+    ["what a drawn roll throws is the GMs' record once its waits are over: a critical and a statistic a player's write puts on during the pick's wait are not thrown", async () => {
+        /*
+         * E29 fix r2-H3, 06.10.2026; the round-2 security review's M1. A drawn roll waited for the GMs'
+         * audit of its character once, before its Calls, and read the rest of its list after its own
+         * waits - a pick's, up to two seconds - off the character as it stood then (roll-draw.mjs "WHAT
+         * THE GM THROWS IS READ IN ONE STEP"). A Work on a project stored without a statistic, which
+         * lists four and no GM picks, drawn from the character's player. Once the GM has taken its
+         * payment, within the pick's wait, the audit's queue on the character is held as a GM's own
+         * write of its means holds it on its way (sheet-audit.mjs `gmMeansWrite`), and the player's
+         * writes are made as tier 2 makes them: an effect guaranteeing a critical, and each of the four
+         * statistics at 9 - on the sheet at once, judged once the queue moves, which it does 2.5 s
+         * later. Read: whether the writes were on the sheet then (a precondition), the roll's critical
+         * and the one its list read, the statistic thrown and its value, and what of the writes is left
+         * once the audit is idle. At 7a040b9's runtime (e29run/r2h3red): the roll and its list both
+         * critical, Hand thrown at the player's 9 where the GMs hold Body lowest at 0, and nothing of
+         * the writes left once the audit was idle - it put them back after the throw.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const P = await import("./projects.mjs");
+        const D = await import("./roll-draw.mjs");
+        const A = await import("./sheet-audit.mjs");
+        const { ACTIONS, TRAITS } = await import("./config.mjs");
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const path = t => `system.traits.${TRAITS[t].dh}.value`;
+        const value = t => Number(foundry.utils.getProperty(theirs, path(t))) || 0;
+        const held = Object.fromEntries(listed.map(t => [t, value(t)]));
+        const lowest = listed.reduce((low, t) => (held[t] < held[low] ? t : low));
+        const critical = () => [...(theirs.appliedEffects ?? [])].some(e => (e?.system?.changes ?? e?.changes ?? [])
+            .some(c => c?.key === "system.rules.roll.guaranteedCritical"));
+        must(listed.every(t => held[t] < 9) && !critical(), `${theirs.name} holds a statistic a project lists at 9, or a critical already - this would measure nothing`);
+        let F = null, projectId = null, during = null, seen = null;
+        const midway = async () => {
+            if (!await until(() => D.paymentsOf(theirs.id).some(t => t.kinds.includes("project")), 4000)) return;
+            await wait(200);
+            let letGo = null;
+            const gate = new Promise(resolve => { letGo = resolve; });
+            const holding = A.gmMeansWrite(theirs, () => gate);
+            const [effect] = await theirs.createEmbeddedDocuments("ActiveEffect", [{ name: "SUITE r2-H3 critical", transfer: false,
+                changes: [{ key: "system.rules.roll.guaranteedCritical", value: "true", type: "override" }] }], { [A.AUDIT_ASIDE]: true });
+            const nines = Object.fromEntries(listed.map(t => [path(t), 9]));
+            await theirs.update(nines, { [A.AUDIT_ASIDE]: true });
+            const judged = [A.judgeWrite("createActiveEffect", effect, {}, player.id, {}),
+                A.judgeWrite("updateActor", theirs, foundry.utils.expandObject(nines), player.id, {})];
+            seen = critical() && listed.every(t => value(t) === 9);
+            await wait(2500);
+            letGo();
+            await Promise.all([holding, ...judged]);
+        };
+        try {
+            projectId = (await P.createProject({ name: "SUITE r2-H3 project", target: 6, room: null, trait: null }))?.id ?? null;
+            must(projectId, "a project stored without a statistic was not made - this would measure nothing");
+            F = await drawnForPlayer(player, theirs, { actionKey: "project", trait: lowest,
+                edit: p => ({ ...p, context: { ...(p.context ?? {}), projectId } }), watch: () => { during = midway(); } });
+            await during;
+            await A.sheetAuditIdle();
+            must(F.record, `the GM kept no record of the Work (${F.verdict}) - this would measure nothing`);
+            must(seen === true, "the player's writes were not on the sheet within the draw's wait - this would measure nothing");
+            equal(stableJson([F.record.isCritical, F.record.legal?.read?.kind?.critical ?? null, F.record.scored?.trait ?? null,
+                F.record.scored?.traitValue ?? null, critical(), listed.filter(t => value(t) !== held[t])]),
+            stableJson([false, false, lowest, held[lowest], false, []]),
+                "a critical or a statistic a player's write put on during the draw's wait was thrown, or the audit did not put it back (the roll's and the list's critical, the statistic thrown and its value, a critical left, the statistics left moved)");
+        } finally {
+            await during?.catch(() => null);
+            if (F) await F.putBack();
+            D.forgetPayments?.(theirs.id);
+            const left = theirs.effects.contents.filter(e => e.name === "SUITE r2-H3 critical").map(e => e.id);
+            if (left.length) await theirs.deleteEmbeddedDocuments("ActiveEffect", left, { [A.AUDIT_ASIDE]: true });
+            const moved = listed.filter(t => value(t) !== held[t]);
+            if (moved.length) await theirs.update(Object.fromEntries(moved.map(t => [path(t), held[t]])), { [A.AUDIT_ASIDE]: true });
+            if (projectId) await P.deleteProject(projectId).catch(() => {});
+        }
+    }],
+
+    ["a drawn roll waits for the GMs' marks, and with none open in time it is refused, told", async () => {
+        /*
+         * E29 fix r2-H3, 06.10.2026; the round-2 security review's m3, by reading. Before this GM's
+         * stores had their copies there was no mark to ask which Calls the GMs hold armed on the
+         * character (sheet-audit.mjs `armedCallsHeld`), and its own flag counted alone (roll-draw.mjs
+         * "NO ROLL BEFORE THE GMS' MARKS"). The harness's one GM has its stores at once, so the marks'
+         * store is made to say it has not: opening 1.5 s into a Search drawn from the character's
+         * player, then never, for a second one, which waits out the bound (`TIMING.gmStoreOpenMs`,
+         * 16 s). Read: whether the first was thrown, and after the marks opened; the second's record
+         * and answer, and whether its player was told why it was refused. At 7a040b9's runtime
+         * (e29run/r2h3red): the first thrown before the marks opened, the second thrown (total 13) and
+         * recorded, its player told nothing and nothing logged.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const own = ["whenHydrated", "isHydrated"].map(key => [key, Object.hasOwn(sheetMarkStore, key) ? sheetMarkStore[key] : null]);
+        const putBack = () => { for (const [key, fn] of own) { if (fn) sheetMarkStore[key] = fn; else delete sheetMarkStore[key]; } };
+        let openedAt = null;
+        const shut = opensIn => {
+            let open = false;
+            sheetMarkStore.isHydrated = () => open;
+            sheetMarkStore.whenHydrated = () => (opensIn === null ? new Promise(() => {})
+                : new Promise(resolve => setTimeout(() => { open = true; openedAt = Date.now(); resolve("answered"); }, opensIn)));
+        };
+        let first = null, second = null, refusedFrom = null;
+        try {
+            shut(1500);
+            first = await drawnForPlayer(player, theirs);
+            putBack();
+            shut(null);
+            refusedFrom = Date.now();
+            second = await drawnForPlayer(player, theirs);
+        } finally {
+            putBack();
+            if (second) await second.putBack();
+            if (first) await first.putBack();
+            D.forgetPayments?.(theirs.id);
+        }
+        // The player is told the closed list's code; the GM's log keeps the reason (bridge-guards.mjs `reasonOf`) - one row a
+        // repeat only re-dates (utils.mjs `record`), so a row from an earlier run in this session is not taken for this one's.
+        const told = second?.sent?.find(r => r.action === "bridge.refused")?.reason ?? null;
+        const { sessionFailures } = await import("./utils.mjs");
+        const logged = refusedFrom !== null && sessionFailures().some(e => String(e.message ?? "").includes("the GMs' marks of the characters are not open")
+            && e.at >= refusedFrom);
+        equal(stableJson([Boolean(first?.record), openedAt !== null && (first?.record?.at ?? 0) >= openedAt, second?.record ?? null,
+            second?.value ?? null, told, logged]), stableJson([true, true, null, null, "cannotNow", true]),
+            "a drawn roll was thrown before the GMs' marks opened, or with none open in time it was thrown or its player not told (the first thrown, after the opening; the second's record and answer, the code its player was told, the reason logged)");
     }],
 
     ["a crisis roll's weapon die is the GM's reading: a packet that names none is expected it, and flagged", async () => {

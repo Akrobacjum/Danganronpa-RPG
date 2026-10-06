@@ -51,7 +51,7 @@ import { SETTINGS, getClock } from "./settings.mjs";
 import { primaryGmId, isPrimaryGm, announce, whisperToGms, warn, error, esc } from "./utils.mjs";
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
 import { readDuality, awardRollDespair } from "./despair-award.mjs";
-import { rollStore } from "./gm-stores.mjs";
+import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
 import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
@@ -69,7 +69,9 @@ const SEAM = Symbol.for("drpgRollDraw");
  * HOW LONG THE ROLLER WAITS FOR THE GM'S DRAW. The GM's side is an evaluation and one
  * message, with no window and nothing a person decides, so the answer's clock is a
  * bound for a GM who went away mid-draw - the roll is then not made, as a closed roll
- * window is not (the plan's 3.8) - chosen, not measured (LIVE-E28-03).
+ * window is not (the plan's 3.8) - chosen, not measured (LIVE-E28-03). It holds the GM's own
+ * waits within a draw too: a pick's (`PICK_WAIT_MS`), and before this GM's stores open its marks'
+ * (`marksOpen`, at most `TIMING.gmStoreOpenMs`; E29 fix r2-H3).
  */
 const DRAW_ANSWER_MS = 30_000;
 
@@ -766,12 +768,29 @@ export async function takeCallPayment(actorId, cost) {
     return true;
 }
 
+/*
+ * NO ROLL BEFORE THE GMS' MARKS (E29 fix r2-H3, 06.10.2026; the round-2 security review's m3, by
+ * reading). The Calls a drawn roll applies are the ones the GMs' mark of the character holds armed
+ * (sheet-audit.mjs `armedCallsHeld`, C8), and before this GM's stores have their copies there is no
+ * mark to ask: the character's own flag was read alone, so an entry a player's browser wrote there
+ * counted - for up to `gmStoreSyncMs` after a primary loads beside another GM, by the review's
+ * reading. The harness runs one GM, whose stores open alone at once, so that window is not measured
+ * here. Now a draw waits for the marks as an Analyze waits for its answer keys (gm-stores.mjs
+ * `answerKeysOpen`): until they open, this GM's open fails, or `TIMING.gmStoreOpenMs` passes - not
+ * `gmStoreSyncMs`, whose clock starts at the hello (config.mjs) - and is refused, told, if they have
+ * not opened - before its payment's ticket is taken (`drawRefusal`). A character the opened stores
+ * hold no mark of - made a moment ago, or cut by a reset and not filled yet - is read off its
+ * document, as the audit then takes its document for the mark (`unmarkedWrite`, E29 fix r1-G6).
+ */
+/** Whether this GM's marks are open, waited for within the bound. */
+const marksOpen = async () => (await answerKeysOpen({ store: sheetMarkStore })) === "open";
+
 /**
  * The run of `roll.draw` on the primary GM (private-rolls.mjs `drawRollOnGm`). The guards
  * have tied the character to the sender, the roll to a duality roll nobody threw and its
- * costs to its experiences' Hope. A player's roll is then held to the action it is for
- * (`drawRefusal`, fix r2-H1) - refused, `{ refused }`, before anything is thrown - and only
- * then thrown (`throwDrawn`).
+ * costs to its experiences' Hope. The GMs' marks are waited for (`marksOpen`, fix r2-H3). A
+ * player's roll is then held to the action it is for (`drawRefusal`, fix r2-H1) - refused,
+ * `{ refused }`, before anything is thrown - and only then thrown (`throwDrawn`).
  */
 export async function drawOnGm(packet, sender) {
     const actor = game.actors.get(packet?.actorId ?? "");
@@ -780,6 +799,7 @@ export async function drawOnGm(packet, sender) {
     if (lock && drawing.has(lock)) return { refused: "a roll of that action is being thrown already" };
     if (lock) drawing.add(lock);
     try {
+        if (!await marksOpen()) return { refused: "the GMs' marks of the characters are not open on this GM's browser" };
         const why = actor && !sender?.isGM ? await drawRefusal(actor, key, contextSent(packet.context)) : null;
         if (why) return { refused: why };
         const { murderState } = await import("./murder.mjs");
@@ -930,16 +950,27 @@ const numberJson = n => ({ class: "NumericTerm", options: {}, evaluated: false, 
 /** The plain numbers of a roll's terms with their signs, smallest first - what a formula adds beyond its dice. */
 const numbersOf = terms => JSON.stringify(terms.flatMap((term, i) => (typeof term?.number === "number" && !("faces" in term)
     ? [(terms[i - 1]?.operator === "-" ? -1 : 1) * term.number] : [])).sort((a, b) => a - b));
-/** A statistic's value and an experience's, off the character as this GM holds it. */
+/** A statistic's value off the character as this GM holds it. */
 const traitValueOf = (actor, key) => Number(actor.system?.traits?.[TRAITS[key]?.dh ?? ""]?.value) || 0;
-const experienceValueOf = (actor, key) => Number(actor.system?.experiences?.[key]?.value) || 0;
 
-/** The packet's numbers: its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice. */
-function claimOf(terms, actor, told) {
+/**
+ * The character's numbers a roll adds up, as this GM holds them at one moment (E29 fix r2-H3): each
+ * statistic's value by the module's key, and each experience it holds, `{ name, value }` by its key.
+ * Read by `expectedFor` with the rest of the list ("WHAT THE GM THROWS IS READ IN ONE STEP" below);
+ * the claim and what the GM throws are read off it, not off the character.
+ */
+function sheetOf(actor) {
+    const held = Object.entries(actor?.system?.experiences ?? {}).filter(([, experience]) => experience);
+    return { traits: Object.fromEntries(Object.keys(TRAITS).map(key => [key, traitValueOf(actor, key)])),
+        experiences: Object.fromEntries(held.map(([key, { name, value }]) => [key, { name: name ?? key, value: Number(value) || 0 }])) };
+}
+
+/** The packet's numbers against the character's (`sheet`): its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice. */
+function claimOf(terms, sheet, told) {
     const fifth = ADVANTAGE_DICE[terms[4]?.class] ?? 0;
     const trait = traitKeyOf(told.trait);
-    return { trait, traitValue: trait ? traitValueOf(actor, trait) : 0,
-        experiences: told.experiences.filter(key => actor.system?.experiences?.[key]),
+    return { trait, traitValue: trait ? sheet.traits[trait] ?? 0 : 0,
+        experiences: told.experiences.filter(key => Object.hasOwn(sheet.experiences, key)),
         flat: flatOf({ terms }), advantage: fifth * (Math.max(1, Math.trunc(Number(terms[4]?.number)) || 1)),
         dice: Math.max(0, terms.filter(term => "faces" in (term ?? {})).length - 2 - (fifth ? 1 : 0)) };
 }
@@ -949,24 +980,25 @@ function claimOf(terms, actor, told) {
  * counted, each flat source `{ key, label, value }` (a statistic's or an experience's own name as its
  * label; the list's line for the rest), their sum, the advantage dice, and what of the claim's flat
  * sum was not counted (`uncounted`: experiences no Call bought, and the effects' part past its range).
+ * The values are the character's as the list read them (`expected.sheet`, fix r2-H3).
  */
-function scoredOf(actor, expected, claim) {
-    const { read } = expected;
+function scoredOf(expected, claim) {
+    const { read, sheet } = expected;
     const trait = expected.trait ?? claim.trait;
     const experiences = claim.experiences.slice(0, expected.experiences);
-    const valueOf = keys => keys.reduce((sum, key) => sum + experienceValueOf(actor, key), 0);
+    const valueOf = keys => keys.reduce((sum, key) => sum + (sheet.experiences[key]?.value ?? 0), 0);
     // The claim's flat sum past its statistic, its experiences and the Calls' bonus is the effects' part.
     const rest = claim.flat - claim.traitValue - valueOf(claim.experiences) - read.callBonus;
     const [low, high] = expected.effects;
     const effects = Math.min(high, Math.max(low, rest));
     const modifiers = [
-        ...(trait ? [{ key: "trait", name: trait, label: TRAITS[trait]?.label ?? trait, value: traitValueOf(actor, trait) }] : []),
-        ...experiences.map(name => ({ key: "experience", name, label: actor.system.experiences[name]?.name ?? name, value: experienceValueOf(actor, name) })),
+        ...(trait ? [{ key: "trait", name: trait, label: TRAITS[trait]?.label ?? trait, value: sheet.traits[trait] ?? 0 }] : []),
+        ...experiences.map(name => ({ key: "experience", name, label: sheet.experiences[name]?.name ?? name, value: sheet.experiences[name]?.value ?? 0 })),
         { key: "callBonus", value: read.callBonus },
         { key: "hostile", value: read.hostile.bonus },
         { key: "effects", value: effects }
     ].filter(m => m.key === "trait" || m.value);
-    return { trait, traitValue: trait ? traitValueOf(actor, trait) : 0, experiences, modifiers,
+    return { trait, traitValue: trait ? sheet.traits[trait] ?? 0 : 0, experiences, modifiers,
         flat: modifiers.reduce((sum, m) => sum + m.value, 0), advantage: expected.advantage,
         uncounted: rest - effects + valueOf(claim.experiences.slice(experiences.length)) };
 }
@@ -1035,9 +1067,9 @@ function drawnOptions(nonce, { actionType, critical, advantage, modifiers, trait
 async function legalRollOf(packetRoll, actor, expected, told, { key = null, claimed = true, nonce = null } = {}) {
     const json = foundry.utils.deepClone(packetRoll && typeof packetRoll === "object" ? packetRoll : {});
     const sent = Array.isArray(json.terms) ? json.terms : [];
-    const claim = claimOf(sent, actor, told);
+    const claim = claimOf(sent, expected.sheet, told);
     if (!expected.checked) return { json: await onGmTerms(json, actor, { key, claimed, nonce }), scored: null, claim };
-    const scored = scoredOf(actor, expected, claim);
+    const scored = scoredOf(expected, claim);
     const { read } = expected;
     const terms = termsOf(scored, read);
     const formula = diceShape(terms) !== diceShape(sent) || numbersOf(terms) !== numbersOf(sent) ? formulaOf(terms) : json.formula;
@@ -1059,7 +1091,8 @@ export function rollerLine({ scored = null, claim = null } = {}) {
     const kind = what => game.i18n.localize(FLAG_KINDS[what]);
     const missed = [];
     if (claim.trait && claim.trait !== scored.trait) missed.push(`${kind("trait")} ${TRAITS[claim.trait]?.label ?? claim.trait}`);
-    if (scored.uncounted) missed.push(`${kind("modifier")} ${signed(scored.uncounted)}`);
+    // Below nothing is a source the GM counted and the window lacked: the GMs' to see, not the roller's (fix r2-H3; cor m4).
+    if (scored.uncounted > 0) missed.push(`${kind("modifier")} ${signed(scored.uncounted)}`);
     if (claim.dice > 0) missed.push(`${kind("dice")} ${claim.dice}`);
     if ((claim.advantage > 0 && claim.advantage > scored.advantage) || (claim.advantage < 0 && claim.advantage < scored.advantage)) {
         missed.push(`${kind("advantage")} ${signed(claim.advantage)}`);
@@ -1146,7 +1179,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
         // the draw - a Reroll of a roll with no `scored` rebuilds the roll from these (reroll.mjs
         // `rollAsThrown`), not from a bookmark the roller may send again; one with it, from `scored`
         // (`rollOnRecord`, E29 C11).
-        trait: traitKeyOf(told.trait), experiences: told.experiences.filter(name => actor.system?.experiences?.[name]),
+        trait: traitKeyOf(told.trait), experiences: told.experiences.filter(name => Object.hasOwn(expected.sheet.experiences, name)),
         dice: roll.dice.map(die => ({ faces: die.faces, results: die.results.map(r => ({ result: r.result, active: r.active !== false })) })),
         total: roll.total, hope: roll.dHope?.total ?? null, fear: roll.dFear?.total ?? null,
         isCritical: Boolean(roll.isCritical), withHope: Boolean(roll.withHope), withFear: Boolean(roll.withFear),
@@ -1411,8 +1444,8 @@ function gmPickOf(actor, spec, listed) {
     return null;
 }
 
-/** Of the statistics `listed`, the one this GM holds lowest on the character, the first listed of equals - what a roll whose pick did not come is thrown on (the `gm` row below). */
-const lowestOf = (actor, listed) => listed.reduce((low, trait) => (traitValueOf(actor, trait) < traitValueOf(actor, low) ? trait : low));
+/** Of the statistics `listed`, the one lowest in the character's numbers (`sheetOf`), the first listed of equals - what a roll whose pick did not come is thrown on (the `gm` row below). */
+const lowestOf = (sheet, listed) => listed.reduce((low, trait) => ((sheet.traits[trait] ?? 0) < (sheet.traits[low] ?? 0) ? trait : low));
 
 /*
  * WHERE A ROLL'S STATISTIC COMES FROM IS ONE TABLE (E29 fix r1-G10, 05.10.2026; audit S18-01, the
@@ -1433,7 +1466,8 @@ const lowestOf = (actor, listed) => listed.reduce((low, trait) => (traitValueOf(
  *   - `gm`: where the definition lists several, the newest pick card a GM wrote for this character
  *     and this definition no drawn roll has used yet (`gmPickOf`), waited for a moment as the
  *     card's meta can land after the answer - and where none came, the lowest statistic the
- *     definition lists as this GM holds the character (`lowestOf`), which `checkRoll` flags
+ *     definition lists as this GM holds the character (`lowestOf`; chosen with the rest of the
+ *     list once the wait is over, `traitThrown`, fix r2-H3), which `checkRoll` flags
  *     (`pick`). Until fix r2-H2 (the round-2 security review's M2) it was none, and the roll was
  *     thrown on the statistic its packet claimed, any of the six: the review's console rolled a
  *     clean-up claiming Hand with no pick, and the GM threw Hand (its probe 99 P3, at 070b72b's
@@ -1471,20 +1505,28 @@ const TRAIT_SOURCES = Object.freeze([
             await new Promise(resolve => setTimeout(resolve, 100));
             found = gmPickOf(actor, spec, listed);
         }
-        return found ?? { trait: lowestOf(actor, listed) };
+        return found ?? { lowest: listed };
     } },
     { from: "fixed", read: (actor, { listed }) => (listed.length === 1 ? { trait: listed[0] } : null) }
 ]);
 
-/** The statistic a roll is held to, `{ trait, traitFrom, pick }` - the `trait` row: the first of `TRAIT_SOURCES` that answers, or none. */
+/**
+ * Where a roll's statistic comes from, `{ trait, traitFrom, pick, lowest }`: the first of
+ * `TRAIT_SOURCES` that answers, or none - the part of the `trait` row that takes time, read before
+ * the rest (`readyFor`). `lowest` names the statistics the lowest of which is thrown, chosen with the
+ * rest of the list (`traitThrown`, fix r2-H3).
+ */
 async function traitReading(actor, draw) {
     const listed = await listedFor(actor, draw.key, draw.context);
     for (const { from, read } of TRAIT_SOURCES) {
         const got = await read(actor, { ...draw, listed });
-        if (got) return { trait: got.trait ?? null, traitFrom: from, pick: got.pick ?? null };
+        if (got) return { trait: got.trait ?? null, traitFrom: from, pick: got.pick ?? null, lowest: got.lowest ?? null };
     }
-    return { trait: null, traitFrom: null, pick: null };
+    return { trait: null, traitFrom: null, pick: null, lowest: null };
 }
+
+/** The `trait` row, `{ trait, traitFrom, pick }`: the statistic `traitReading` found, or of those it named, the lowest in the character's numbers. */
+const traitThrown = ({ lowest, ...source }, sheet) => (lowest ? { ...source, trait: lowestOf(sheet, lowest) } : source);
 
 /** The side whose opening roll this is, as the GM sees the incident now (`killer`, `victim`), or null. */
 function openingSideOf(actor, context, state) {
@@ -1492,30 +1534,24 @@ function openingSideOf(actor, context, state) {
     return side && state?.stage === "openingRoll" && state[`${side}Id`] === actor.id ? side : null;
 }
 
-/** The situation's dice of a roll, read on this GM for its action - the `situation` row; see the note above. */
-async function situationReading(actor, { key, context }) {
-    if (key === "search") return searchOdds(actor, roomOfActor(actor), context.category ?? null, await import("./vault.mjs")).situational;
+/** The situation's dice of a roll, read on this GM for its action with the modules `readyFor` loaded - the `situation` row; see the note above. */
+function situationReading(actor, { key, context, ready: { vault, murder, items, cleanup } }) {
+    if (key === "search") return searchOdds(actor, roomOfActor(actor), context.category ?? null, vault).situational;
     if (key === "murderOpening") {
         // The Night's die, the opening roll's own (murder.mjs `throwOpeningRoll`, `rollTrait`'s `situational`).
-        const { murderState, atNight } = await import("./murder.mjs");
-        const side = openingSideOf(actor, context, murderState());
+        const side = openingSideOf(actor, context, murder.murderState());
         const def = side ? MURDER_OPENING[side] ?? {} : {};
-        return side && atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
+        return side && murder.atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;
     }
     if (key === "crisis") {
         const crisis = typeof context.crisis === "string" && Object.hasOwn(CRISIS_ACTIONS, context.crisis) ? context.crisis : null;
-        const { crisisSituational } = await import("./murder.mjs");
-        return crisis ? crisisSituational(actor, crisis) : 0;
+        return crisis ? murder.crisisSituational(actor, crisis) : 0;
     }
-    if (key === "project" || key === "sabotage") {
-        // A tool in hand is worth a die (action-rolls.mjs, "A TOOL IN HAND IS WORTH A DIE").
-        const { equippedFor } = await import("./use-items.mjs");
-        return equippedFor(actor, "tool") ? 1 : 0;
-    }
+    // A tool in hand is worth a die (action-rolls.mjs, "A TOOL IN HAND IS WORTH A DIE").
+    if (key === "project" || key === "sabotage") return items.equippedFor(actor, "tool") ? 1 : 0;
     if (key === "cleanup") {
         // A Cleaning Tool's die, but not on a body moved (cleanup.mjs `attemptCleanup`, Stage 6's actions).
-        const { cleaningTool } = await import("./cleanup.mjs");
-        return CLEANUP.toolAdvantage && cleaningTool(actor) && cleanupStepOf(context) !== "moveBody" ? 1 : 0;
+        return CLEANUP.toolAdvantage && cleanup.cleaningTool(actor) && cleanupStepOf(context) !== "moveBody" ? 1 : 0;
     }
     return 0;
 }
@@ -1531,7 +1567,9 @@ const rulesOf = actor => actor.getRollData?.()?.rules ?? actor.system?.rules ?? 
 /**
  * ONE READER PER ROW of config.mjs `LEGAL_ROLL_MODIFIERS`, each `(actor, draw, row)` with `draw` =
  * `{ key, claimed, actionType, applied, hostile, context, loaded }` as this GM holds them - see the
- * note above. `onGmTerms` reads the faces and the kind, `expectedFor` every row.
+ * note above - and, from `expectedFor`, `ready` (`readyFor`) and `sheet` (`sheetOf`). Each answers at
+ * once, awaiting nothing ("WHAT THE GM THROWS IS READ IN ONE STEP" below). `onGmTerms` reads the
+ * faces and the kind, `expectedFor` every row.
  */
 const LEGAL_READERS = Object.freeze({
     hopeDie: (actor, draw, row) => facesFrom(rulesOf(actor).dualityRoll?.defaultHopeDice, row.bound),
@@ -1541,7 +1579,7 @@ const LEGAL_READERS = Object.freeze({
         const roll = rulesOf(actor).roll ?? {}, faces = facesFrom(roll.advantageFaces, row.bound);
         return { advantage: facesFrom(roll.defaultAdvantageDice, faces), disadvantage: facesFrom(roll.defaultDisadvantageDice, faces) };
     },
-    trait: (actor, draw) => traitReading(actor, draw),
+    trait: (actor, { ready, sheet }) => traitThrown(ready.trait, sheet),
     experience: (actor, draw, row) => (draw.applied.some(call => call?.grants === "experience") ? row.bound : 0),
     callBonus: (actor, draw) => bonusOf(draw.applied),
     effects: actor => effectRange(actor),
@@ -1550,8 +1588,8 @@ const LEGAL_READERS = Object.freeze({
     breakdown: (actor, draw, row) => (isBrokenDown(actor) ? row.bound : 0),
     situation: (actor, draw) => situationReading(actor, draw),
     loadedDie: (actor, draw) => typeof draw.loaded === "string" && draw.applied.some(call => call?.grants === "critical" && call.nonce === draw.loaded),
-    stashStep: async (actor, { key, context }) => key === "search"
-        && Boolean(searchOdds(actor, roomOfActor(actor), context.category ?? null, await import("./vault.mjs")).stashDie),
+    stashStep: (actor, { key, context, ready }) => key === "search"
+        && Boolean(searchOdds(actor, roomOfActor(actor), context.category ?? null, ready.vault).stashDie),
     // A module action's roll is an action; a student's statistic from the sheet the reaction its window makes it; a
     // Monokuma's whichever its window said. A critical guaranteed only by the character's own effects (`buildConfigure`).
     kind: (actor, { key, claimed, actionType }) => ({
@@ -1565,22 +1603,64 @@ const LEGAL = Object.freeze(Object.fromEntries(LEGAL_ROLL_MODIFIERS.map(row => [
 /** One row read: its reader, handed the row. */
 const legal = (key, actor, draw) => LEGAL_READERS[key](actor, draw, LEGAL[key]);
 
+/*
+ * WHAT THE GM THROWS IS READ IN ONE STEP (E29 fix r2-H3, 06.10.2026; the round-2 security review's
+ * M1). The GMs' audit judges a player's write on the primary as its hook hears it, and puts back
+ * what nothing covers (sheet-audit.mjs) - a moment after the write landed. A draw waited for the
+ * character's queue once, before its Calls (`armedCallsHeld`), and read the rest of the list after
+ * awaits of its own - the pick card's wait above all, up to `PICK_WAIT_MS` - off the character as
+ * it stood then, so a write that landed during them and was not put back yet was thrown: by the
+ * review's probe 99 P3 at 070b72b's runtime, a clean-up waiting for a pick while p1's console made
+ * effects guaranteeing a critical every 10 ms was thrown a critical (Hope 3, Fear 8, no flag).
+ * At 7a040b9's runtime the same held still (e29run/r2h3red), the put-back waiting behind a GM's own
+ * write of the character's means (sheet-audit.mjs `gmMeansWrite`) rather than wherever a flood
+ * left it: a Work waiting for a pick was thrown the critical and Hand at the player's 9, where the
+ * GMs hold Body lowest at 0, and the audit put both back after the throw (tier 2's "what a drawn
+ * roll throws is the GMs' record once its waits are over", scenario 30's check after C10's).
+ * Now what takes time comes first (`readyFor`: the modules the rows read with, and where the
+ * statistic comes from - the pick card waited for), then the draw waits until every write heard on
+ * the character has been judged (`judgedFor`) and reads every row in one step, awaiting nothing
+ * between: the faces, the statistic and the experiences (`sheetOf`, which the claim and what is
+ * thrown are read off), the effects' range and the critical, Breakdown, the situation's dice, the
+ * stash. Every write that reached this GM before that step was judged and, where nothing covered
+ * it, put back first - the judge awaits its put-back - and none lands within it.
+ * Not the GMs' mark itself, the fix list's first way: the mark keeps each path's source
+ * (sheet-audit.mjs `markFrom`), and a roll adds the character's prepared values, which Daggerheart
+ * moves with effects - a statistic's too: its armour feature Cumbersome takes one off Finesse
+ * (itemConfig.mjs:228-245), and 70 documents of its 2.10.5 packs carry a change to a statistic's
+ * value (counted 06.10.2026). Off the mark, a student in such armour would be thrown one higher
+ * than Daggerheart's sheet and window show. The harness prepares no effect into a character's
+ * values (lib/shim.mjs `getRollData`), so it could not show that difference either way: by reading.
+ * Not covered: a put-back that fails (the audit logs it) leaves the write on the character, and the
+ * draw reads it.
+ */
+
+/** What the list's rows need that takes time, ready before them: the audit's wait, the modules the rows read with, and where the statistic comes from (`traitReading`). */
+async function readyFor(actor, draw) {
+    const [{ judgedFor }, { ADVANTAGE_CAP }, vault, murder, items, cleanup] = await Promise.all([import("./sheet-audit.mjs"),
+        import("./roll-dialog.mjs"), import("./vault.mjs"), import("./murder.mjs"), import("./use-items.mjs"), import("./cleanup.mjs")]);
+    return { judgedFor, advantageCap: ADVANTAGE_CAP, vault, murder, items, cleanup, trait: await traitReading(actor, draw) };
+}
+
 /**
  * What this GM expects of a roll of `actor` for `actionKey` - every row of the list read, see the
  * note above. `applied` are the Calls it applied (`appliedCalls`), `hostile` the hostile ones it did
  * not name (`hostileCalls`); `context`, `claimed` and `loaded` the packet's word, `actionType` the
  * kind this GM gave the roll (`onGmTerms`). The expected `trait` is null where any statistic stands
- * or none is known here; `traitFrom` says which. `read` is each row's reading. Exported for the suite.
+ * or none is known here; `traitFrom` says which. `read` is each row's reading, `sheet` the
+ * character's numbers read with them. Exported for the suite.
  */
 export async function expectedFor(actor, { actionKey = null, applied = [], hostile = [], context = {}, claimed = true, loaded = null, actionType = null } = {}) {
     const draw = { key: actionKey, claimed, actionType, applied, hostile, context, loaded };
+    draw.ready = await readyFor(actor, draw);
+    await draw.ready.judgedFor(actor?.id);
+    draw.sheet = sheetOf(actor);
     const read = {};
-    for (const row of LEGAL_ROLL_MODIFIERS) read[row.key] = await legal(row.key, actor, draw);
-    const { ADVANTAGE_CAP } = await import("./roll-dialog.mjs");
+    for (const row of LEGAL_ROLL_MODIFIERS) read[row.key] = legal(row.key, actor, draw);
     const dice = read.calls + read.hostile.dice + read.breakdown + read.situation;
-    return { checked: !isMonokuma(actor), ...read.trait, advantage: Math.sign(dice) * Math.min(ADVANTAGE_CAP, Math.abs(dice)),
+    return { checked: !isMonokuma(actor), ...read.trait, advantage: Math.sign(dice) * Math.min(draw.ready.advantageCap, Math.abs(dice)),
         situationFrom: "gm", bonus: read.callBonus + read.hostile.bonus, experiences: read.experience, effects: read.effects,
-        stashDie: read.stashStep, read };
+        stashDie: read.stashStep, sheet: draw.sheet, read };
 }
 
 /** What the record keeps of an expectation (`legal`): plain, with each row's reading and the pick card that a later roll may not use again. */
@@ -1783,9 +1863,12 @@ export function drawnRecordOf(message) {
  * same dice at the list's faces and the same numbers, the statistic and the experiences the GM
  * counted, and every other number the GM counted as a base modifier (`baseModifiers`, which
  * Daggerheart's `applyBaseBonus` starts from) with no effects for it to read again - so the
- * constructor, which drops the formula's numbers and writes its own, comes back to the GM's sum
- * as long as the statistic's and the experiences' values on the character are the ones the GM
- * counted. Not measured at a table (LIVE-E06-02 reads the rebuild there). The record's `scored`
+ * constructor, which drops the formula's numbers and writes its own, comes back to the GM's sum.
+ * The statistic's and the experiences' values it reads come from the roll's data (dualityRoll.mjs
+ * :174, d20Roll.mjs:103), which until fix r2-H3 was the character's as it stood at the Reroll - with
+ * a write the audit had not put back yet, or a GM's change since the draw, in it (the round-2
+ * security review's M1, by reading); the data is the record's now (`data`), holding only those
+ * values. Not measured at a table (LIVE-E06-02 reads the rebuild there). The record's `scored`
  * stands for every version a Reroll writes (`keepRerolledVersion`): a Reroll changes the dice, not
  * what they are added to. Null for a roll with no `scored` - a Monokuma's, of which nothing is
  * expected, or one drawn before 1.2.68 - which `rollAsThrown` rebuilds as before.
@@ -1797,8 +1880,11 @@ export function rollOnRecord(record) {
     const roll = { advantage: Math.sign(scored.advantage), modifiers: scored.modifiers.map(labelled),
         baseModifiers: scored.modifiers.filter(m => m.key !== "trait" && m.key !== "experience").map(labelled) };
     if (scored.trait) roll.trait = TRAITS[scored.trait]?.dh ?? scored.trait;
+    const counted = key => scored.modifiers.filter(m => m.key === key);
+    const data = { traits: roll.trait ? { [roll.trait]: { value: counted("trait")[0]?.value ?? 0 } } : {},
+        system: { experiences: Object.fromEntries(counted("experience").map(m => [m.name, { name: m.label ?? m.name, value: m.value }])) } };
     return { formula: formulaOf(termsOf(scored, read)), roll, experiences: Array.isArray(scored.experiences) ? [...scored.experiences] : [],
-        critical: read.kind.critical === true, actionType: read.kind.actionType ?? null };
+        critical: read.kind.critical === true, actionType: read.kind.actionType ?? null, data };
 }
 
 /*
@@ -1962,13 +2048,14 @@ async function awayClaimOf({ message, actor }) {
     const flat = Number(roll?.total) - (Number(roll?.dHope?.total) || 0) - (Number(roll?.dFear?.total) || 0)
         - (Number(up?.total) || 0) + (Number(down?.total) || 0);
     if (!Number.isFinite(flat)) return null;
-    const trait = traitKeyOf(options.roll?.trait);
-    const claim = { trait, traitValue: trait ? traitValueOf(actor, trait) : 0,
-        experiences: strings(options.experiences).filter(key => actor.system?.experiences?.[key]),
-        flat, advantage: (Number(up?.number) || 0) - (Number(down?.number) || 0), dice: 0 };
     const { armedCallsHeld } = await import("./sheet-audit.mjs");
     const hostile = hostileCalls(actor, [], await armedCallsHeld(actor), { claimed: false });
-    const scored = scoredOf(actor, await expectedFor(actor, { hostile, claimed: false, actionType: options.actionType ?? null }), claim);
+    const expected = await expectedFor(actor, { hostile, claimed: false, actionType: options.actionType ?? null });
+    const trait = traitKeyOf(options.roll?.trait);
+    const claim = { trait, traitValue: trait ? expected.sheet.traits[trait] ?? 0 : 0,
+        experiences: strings(options.experiences).filter(key => Object.hasOwn(expected.sheet.experiences, key)),
+        flat, advantage: (Number(up?.number) || 0) - (Number(down?.number) || 0), dice: 0 };
+    const scored = scoredOf(expected, claim);
     const said = ({ flat: sum, advantage }) => [`${game.i18n.localize(FLAG_KINDS.modifier)} ${signed(sum)}`,
         ...(advantage ? [`${game.i18n.localize(FLAG_KINDS.advantage)} ${signed(advantage)}`] : [])].join(", ");
     return game.i18n.format("DRPG.Rolls.awayClaimed", { claimed: said(claim), legal: said(scored) });

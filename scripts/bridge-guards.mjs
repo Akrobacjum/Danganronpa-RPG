@@ -324,6 +324,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["rollThrown", /^a roll of that action is being thrown already$/],
     ["badRequest", /^no crisis action that throws a roll is named$/],
     ["cannotNow", /^that character has no opening roll to throw now$/],
+    // E29 fix r2-H3: a draw asked before this GM's marks of the characters opened, and none opened in time (roll-draw.mjs `marksOpen`).
+    ["cannotNow", /^the GMs' marks of the characters are not open on this GM's browser$/],
     ["badRequest", /^that roll's window asks a cost no roll of this game pays$/],
     // E08+E28 fix r2-H2: progress that names no roll is a Hope Call's, paid for once (guardCallProgress).
     ["badRequest", /^no Call that adds progress is named$/],

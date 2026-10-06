@@ -114,7 +114,10 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
  * the GM drew and threw from its own list is rebuilt whole from the record's `scored` since
  * E29 C11 - its formula, statistic, experiences and every other number the GM counted, with no
  * effects to read again (roll-draw.mjs `rollOnRecord`, whose note says why): the roll it is
- * handed and the record's statistic and experiences, which were the packet's, are not read. A roll
+ * handed and the record's statistic and experiences, which were the packet's, are not read - and
+ * since fix r2-H3 nor is the character: the data Daggerheart's constructor reads the statistic's and
+ * the experiences' values from is the record's too (`data`). Any other roll is rebuilt off the
+ * character once every write heard on it has been judged (sheet-audit.mjs `judgedFor`). A roll
  * the module threw that the bookmark does not name is refused rather than
  * thrown weaker: the Reroll's whole point is not to hand back a worse roll
  * than the one paid to replace. A roll the module did not throw is its own
@@ -130,7 +133,7 @@ export async function rollAsThrown(original, actor, message, bookmark = null) {
     const scored = rollOnRecord(record);
     if (scored) {
         const options = foundry.utils.deepClone(original.options ?? {});
-        options.data = actor.getRollData();
+        options.data = scored.data;
         options.roll = { ...(options.roll ?? {}), ...scored.roll };
         if (!scored.roll.trait) delete options.roll.trait;
         options.experiences = scored.experiences;
@@ -149,10 +152,15 @@ export async function rollAsThrown(original, actor, message, bookmark = null) {
     const trait = kept ? TRAITS[kept.trait]?.dh ?? (TRAIT_BY_DH[kept.trait] ? kept.trait : null) : null;
     if (!trait) throw new Error(`no statistic is kept for roll ${message.id}`);
     const options = foundry.utils.deepClone(original.options ?? {});
-    options.data = actor.getRollData();
     options.roll = { ...(options.roll ?? {}), trait };
     options.experiences = Array.isArray(kept.experiences) ? [...kept.experiences] : [];
+    // The character as the GMs hold it: read once every write heard on it has been judged (fix r2-H3).
+    // Daggerheart's `getActionRelevantEffects` awaits nothing (baseAction.mjs:368-380, 2.10.5), so no
+    // write lands between the wait and the constructor, which reads the data and the effects.
+    const { judgedFor } = await import("./sheet-audit.mjs");
+    await judgedFor(actor?.id);
     options.effects = await game.system?.api?.data?.actions?.actionsTypes?.base?.getActionRelevantEffects?.(actor) ?? [];
+    options.data = actor.getRollData();
     return new original.constructor(original._formula ?? original.formula, {}, options);
 }
 
