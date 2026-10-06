@@ -176,12 +176,15 @@ export const FLOWS = Object.freeze([
     // the GMs' Undo makes it again under its id); 40's day stashes, retrieves and discards with no alarm. C7
     // (05.10.2026): 15 has p1's console raise Agility and heal a Health mark with no GM connected - at the GM's
     // return Agility is put back and the mark is asked about on one card, whose own Undo heals it back - and
-    // reads a student's token HUD bars display-only for p1. Still partial: the Party sheet's pips are CSS no
-    // client of the harness computes, and the two-GM click on the card of changes made away is 61's shape
-    // (one row, `audit.decide`), not driven on that card.
+    // reads a student's token HUD bars display-only for p1. Covered at the 1.2.68 release (06.10.2026): each of
+    // the six scenarios tags checks with this flow (30 40, 40 4, 61 8, 20 2, 10 3, 15 6 - grep that day); the
+    // write is judged from p1's console and through Daggerheart's relay, compared at ready in 15 (a GM away and
+    // back) and 61's W, and decided by two GMs at once in 61's V (`askToDecideWrite`, the card button's road).
+    // Not driven, so the audit's live checks instead (AUDIT 9.2, LIVE-E29-02 and -05): the Party sheet's pips,
+    // CSS no client of the harness computes, and two GMs clicking the card itself.
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
-        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held"], status: "partial", stage: "E29" },
+        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held"], status: "covered", stage: "1.2.68" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",
