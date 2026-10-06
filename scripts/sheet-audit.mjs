@@ -40,9 +40,10 @@
  *
  * AN ARMED CALL IS THE GMS' (C8, 05.10.2026; the plan's 2.4, 3.3). A player's Call is armed on
  * the primary GM (gm-bridge.mjs `call.arm`), on any character, so an entry a player's browser
- * adds to `pendingCall` is put back whatever the setting says - the entries it took away stand,
- * as a roll spends them - and a drawn roll applies only the entries the mark holds
- * (`armedCallsHeld`, roll-draw.mjs `throwDrawn`), once this student's writes are judged.
+ * adds to `pendingCall` is put back whatever the setting says - the player's own entries it took
+ * away stand, as a roll spends them; a hindering or Despair Call, or one a GM armed, stands taken
+ * only behind a roll of theirs (fix r2-H7, `gmsCall`) - and a drawn roll applies only the entries
+ * the mark holds (`armedCallsHeld`, roll-draw.mjs `throwDrawn`), once this student's writes are judged.
  *
  * HOPE, AND WHAT A GAIN NEEDS (C4, 05.10.2026; the plan's 2.4, 2.5). The mark keeps
  * each resource as the GMs hold it - Hope, actions, Health and Sanity marks, the
@@ -142,6 +143,7 @@ import { tellRefused, bridgeRequest } from "./bridge-guards.mjs";
 import { cardFlag, cardWriter, updateSecret } from "./secret.mjs";
 import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry } from "./inventory.mjs";
 import { readDuality } from "./despair-award.mjs";
+import { spentByGm } from "./call-effects.mjs";
 
 /** The module flags only a GM writes (the plan's 2.4), held in the mark and put back. */
 const GM_FLAGS = ["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "lootTrace", "swungWeapon",
@@ -511,21 +513,63 @@ function addedEntries(before, after) {
     return list(after).filter(entry => !had.has(stableJson(entry)));
 }
 
-/** An armed list without the entries a write added (`added`, each as `stableJson`), or undefined where nothing is left. */
-function keptCalls(list, added) {
-    const kept = (Array.isArray(list) ? list : list ? [list] : []).filter(entry => !added.has(stableJson(entry)));
-    return kept.length ? clone(kept) : undefined;
+/*
+ * A CALL THE PLAYER MAY NOT DROP (E29 fix r2-H7, 06.10.2026; review round 2 sec M3 = cor M4; the
+ * owner's Q3 (a), and the orchestrator's decision (b) of 06.10.2026). Plan 2.4 let every entry a
+ * player's write took off the armed list stand, as a roll on their browser spends its Calls so - and a
+ * console took the GM's Obstacle off its own student, and the next drawn roll threw no hostile die:
+ * measured by the review's probe 99 P2 at 070b72b, and on 82830f9 by this fix's probe
+ * (e29run/scratch/r2h7-probe): document, mark and held list all lost it, with no row. Q3 (a) makes
+ * a hostile Call armed past its grace count whether the roll names it or not; plan 2.4 was written
+ * before it. So an entry the mark holds that is not the player's to drop - a hindering Call (a
+ * disadvantage, a bonus below nothing: roll-draw.mjs `hinders` reads the same), a Despair Call, or
+ * one a GM armed (call-effects.mjs `appendArmedCall` stamps `by`) - stands taken only behind a roll
+ * that covers it (`callsCover`): a duality roll of that player about that student, not drawn by a
+ * GM, heard after the entry was armed, each roll covering one write's removal once; else it is put
+ * back with a row. A spend the GMs made themselves is theirs (call-effects.mjs `spentByGm`). Not a
+ * roll drawn by the GM: that one is spent by the GM (roll-draw.mjs `throwDrawn`), and a roll not drawn
+ * - no GM, a Daggerheart build the seam was not written for, Daggerheart's own item rolls - spends the
+ * window's Calls with a roll in the chat, which is the plan's 3.8. What this cannot tell: a console
+ * that posts a roll of its own first and then takes the entry off. That roll is in the chat for the
+ * GMs to see, and the covered row keeps its message's id (`ref`, in the GMs' store - `sheetWrites`
+ * does not show it): it is layer two's to check.
+ */
+function gmsCall(entry) {
+    if (!entry || typeof entry !== "object") return false;
+    if (entry.kind === "despair" || entry.grants === "disadvantage" || (entry.grants === "bonus" && Number(entry.amount) < 0)) return true;
+    return typeof entry.by === "string" && game.users?.get(entry.by)?.isGM === true;
+}
+
+/**
+ * An armed list without the entries a write added (`calls.added`, each as `stableJson`) and with
+ * the GMs' entries it took that nothing covered (`calls.taken`), save one a GM's spend has named
+ * since (`spentByGm`); undefined where nothing is left.
+ */
+function keptCalls(list, calls) {
+    const kept = (Array.isArray(list) ? list : list ? [list] : []).filter(entry => !calls.added.has(stableJson(entry)));
+    const held = new Set(kept.map(stableJson));
+    const owed = (calls.taken ?? []).filter(entry => !held.has(stableJson(entry)) && !spentByGm(entry?.nonce));
+    return kept.length || owed.length ? clone([...kept, ...owed]) : undefined;
 }
 
 /*
  * The armed list put back (C8): what the document holds now, without the entries the write added
- * (`added`, read as its hook saw it: `actorFindings`). The entries the write took away stay away - a
- * roll on the player's browser spends its Calls with such a write - so the mark's list is not
- * written back whole; and the list is read when the put-back is written, so a Call a GM armed after
- * the write landed stays armed (G1). Nothing left takes the flag off.
+ * (`calls.added`, read as its hook saw it: `actorFindings`). The player's own entries the write took
+ * away stay away - a roll on their browser spends its Calls with such a write - so the mark's list
+ * is not written back whole; and the list is read when the put-back is written, so a Call a GM armed
+ * after the write landed stays armed (G1). The GMs' entries it took that no roll covered come back
+ * beside whatever the list holds then (`calls.taken`, fix r2-H7), save one the GMs' own spend has
+ * named since (`spentByGm`). Not only while the list is as the write left it, as every other path
+ * put back is: the audit's own put-back of a write before it moves the list too, and with that guard
+ * a console's writes in a row - an entry added, then the GM's Obstacle taken off - kept the Obstacle
+ * off (tier 2's "... right behind a write the audit is putting back ...", red with the guard put in:
+ * e29run/r2h7m m11, 06.10.2026). A GM's arming and a GM's spend wait for this judgement
+ * (call-effects.mjs `appendArmedCall`, `spendCallsByNonce`; the same tier's "a Call the GM arms
+ * while ..." and "a Call the GMs spend while ...", each red without its wait: m10, m13).
+ * Nothing left takes the flag off.
  */
-function armedPutBack(actor, added) {
-    return keptCalls(foundry.utils.getProperty(actor._source ?? {}, CALLS_PATH), added) ?? forcedDeletion();
+function armedPutBack(actor, calls) {
+    return keptCalls(foundry.utils.getProperty(actor._source ?? {}, CALLS_PATH), calls) ?? forcedDeletion();
 }
 
 /** Whether `lockPlayerResources` is on (its default, and what an unreadable setting counts as). */
@@ -883,14 +927,17 @@ async function unmarkedWrite(kind, doc, actor, changes, user, options, seen) {
 /**
  * A student's update, as its hook saw it (G1): what it changed of what a roll is built from
  * (`actorFindings`) and of its means (`meansFindings`), put back in one write (`putBackNow`), and
- * what the mark takes of it (`moves`).
+ * what the mark takes of it (`moves`). The GMs' armed entries it took wait for the roll that
+ * covers them (`callsCover`, fix r2-H7).
  */
 async function updateFindings(actor, mark, changes, user, options, seen) {
     const was = asSource(seen.paths);
-    const sheet = actorFindings(mark, changes, was);
+    const read = actorFindings(mark, changes, was);
+    const sheet = read.taken.length ? callsOwed(read, await callsCover(actor, user, read.taken, seen.at)) : read;
     const means = await meansFindings(actor, mark, user, options, seen);
     const back = [...sheet.back, ...means.back];
-    return { back, listed: [...sheet.listed, ...means.listed], flagged: [...sheet.flagged, ...means.flagged], stood: means.stood,
+    return { back, listed: [...sheet.listed, ...means.listed], flagged: [...sheet.flagged, ...means.flagged],
+        stood: [...(sheet.stood ?? []), ...means.stood], roll: sheet.roll ?? null,
         change: { ...sheet.change, ...means.change },
         covered: means.covered, fix: means.fix,
         moves: { paths: seen.paths, back: back.map(entry => entry.path), calls: sheet.calls, ledger: means.ledger },
@@ -900,14 +947,15 @@ async function updateFindings(actor, mark, changes, user, options, seen) {
 /**
  * A student's update: what it changed that the statistics' half of this file judges, against the
  * mark - read in `src`, the write as its hook saw it (G1), or the document as the comparison at
- * ready read it. `calls` holds the armed entries it added, each as `stableJson`. The free Move
- * given back is flagged (G4, `MARKED_FLAGS`); what no judgement here or in `meansFindings` covers
- * is listed (`otherField`).
+ * ready read it. `calls.added` holds the armed entries it added, each as `stableJson`, and
+ * `taken` the GMs' entries it took off (`gmsCall`), which its caller puts back or lets stand on a
+ * roll (`callsOwed`). The free Move given back is flagged (G4, `MARKED_FLAGS`); what no judgement
+ * here or in `meansFindings` covers is listed (`otherField`).
  */
 function actorFindings(mark, changes, src) {
     const before = markAsDocument(mark);
     const lock = locked(), back = [], listed = [], flagged = [], change = {};
-    let calls = null;
+    let calls = null, taken = [];
     for (const path of judgedPaths(before, changes, src)) {
         const kind = kindOf(path);
         const was = foundry.utils.getProperty(before, path), now = foundry.utils.getProperty(src, path);
@@ -929,9 +977,14 @@ function actorFindings(mark, changes, src) {
         if (kind === "pendingCall") {
             const all = [foundry.utils.getProperty(before, CALLS_PATH), foundry.utils.getProperty(src, CALLS_PATH)];
             const added = addedEntries(...all);
-            if (added.length && !calls) {
-                calls = new Set(added.map(stableJson));
-                back.push({ path: CALLS_PATH, kind });
+            // What it took of the GMs' (fix r2-H7): put back, or stood on a roll, once its cover is asked (`callsOwed`).
+            const gone = addedEntries(all[1], all[0]).filter(entry => gmsCall(entry) && !spentByGm(entry?.nonce));
+            if ((added.length || gone.length) && !calls && !taken.length) {
+                if (added.length) {
+                    calls = { added: new Set(added.map(stableJson)), taken: [] };
+                    back.push({ path: CALLS_PATH, kind });
+                }
+                taken = clone(gone);
                 change[CALLS_PATH] = all.map(v => clone(v) ?? null);
             }
             continue;
@@ -941,7 +994,7 @@ function actorFindings(mark, changes, src) {
         if (!lock && (kind === "traits" || LOCK_NAMED_MAX.has(path))) listed.push({ path, kind });
         else back.push({ path, kind });
     }
-    return { back, listed, flagged, change, calls };
+    return { back, listed, flagged, change, calls, taken };
 }
 
 /*
@@ -1382,6 +1435,82 @@ export function relayGainRefusal(actor, flat, sender) {
     return null;
 }
 
+/** The rolls a write's taking of the GMs' armed Calls stood on, on this GM (`callsCover`; a reload forgets them). */
+const callRolls = new Set();
+/** messageId -> when this GM heard a player's message, by its own clock, kept `ROLL_COVER_MS` (`onRollHeard`). */
+const rollsHeard = new Map();
+/** The judgements waiting for a roll (`callsCover`), woken by every message heard. */
+const rollWaiters = new Set();
+
+/** When this GM heard a message, or - one from before it loaded, or older than it keeps - the message's own time. */
+const heardAt = message => rollsHeard.get(message.id) ?? (Number(message.timestamp) || 0);
+
+/*
+ * THE ROLL A CALL TAKEN OFF STANDS ON (E29 fix r2-H7, 06.10.2026; see `gmsCall`). The newest duality
+ * roll heard after the earliest of the GMs' entries a write took (`taken`) was armed, by its writer
+ * (with none known - the comparison at ready - by a player who owns the student), about that
+ * student, not drawn by a GM (its Calls are the GM's to spend), and not counted for another write's:
+ * counted for this one. A live write waits for it up to `JUDGE_WAIT_MS` from when it was heard
+ * (`from`), as an item used waits for its consumption: a roll window spends its Calls as it closes
+ * (roll-dialog.mjs `onCloseApplication`), before Daggerheart throws the roll and writes its card
+ * (dhRoll.mjs `build`, read in 2.10.5), while the module's own roll spends them after its card
+ * (action-rolls.mjs `throwDice`); live, the roll is one of the last `ROLL_COVER_MS`. How long a
+ * table's card takes after the window closes is not measured here - the harness's roll windows are
+ * stand-ins that throw nothing (LIVE-E29 candidate). Answers the message, or null.
+ */
+function callsCover(actor, user, taken, from = null) {
+    const earliest = Math.min(...taken.map(entry => Number(entry.at) || 0));
+    const find = () => {
+        const messages = game.messages?.contents ?? [];
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const message = messages[i], at = heardAt(message);
+            if (callRolls.has(message.id) || !(at > earliest) || (from !== null && at < from - ROLL_COVER_MS)) continue;
+            if (message.speaker?.actor !== actor.id || message.getFlag?.(MODULE_ID, "drawn")) continue;
+            const author = message.author;
+            if (!author || author.isGM || (user ? author.id !== user.id : !actor.testUserPermission?.(author, "OWNER"))) continue;
+            if (!readDuality(message)) continue;
+            callRolls.add(message.id);
+            return message;
+        }
+        return null;
+    };
+    const found = find();
+    if (found || from === null) return Promise.resolve(found);
+    return new Promise(resolve => {
+        const done = roll => { clearTimeout(timer); rollWaiters.delete(waiter); resolve(roll); };
+        const waiter = () => { const roll = find(); if (roll) done(roll); };
+        const timer = setTimeout(() => done(find()), Math.max(0, from + JUDGE_WAIT_MS - Date.now()));
+        rollWaiters.add(waiter);
+    });
+}
+
+/**
+ * The GMs' entries a write took (`read.taken`, `actorFindings`), judged on the roll that covers them
+ * (`callsCover`): each armed before the roll stood on it - a `covered` row naming the roll - and the
+ * rest are put back with the ones the write added (`calls.taken`, `keptCalls`), with a row.
+ */
+function callsOwed(read, roll) {
+    const rolled = roll ? heardAt(roll) : -Infinity;
+    const owed = read.taken.filter(entry => !((Number(entry.at) || 0) < rolled));
+    const out = { ...read, stood: owed.length < read.taken.length ? [{ path: CALLS_PATH, kind: "pendingCall" }] : [],
+        roll: owed.length < read.taken.length ? roll.id : null };
+    if (!owed.length) return out;
+    return { ...out, calls: { added: read.calls?.added ?? new Set(), taken: owed },
+        back: read.calls ? read.back : [...read.back, { path: CALLS_PATH, kind: "pendingCall" }] };
+}
+
+/** A message the primary hears: when, for `callsCover`, and every judgement waiting on a roll woken. A GM's is no player's roll. */
+function onRollHeard(message) {
+    if (!isPrimaryGm() || !message?.id || message.author?.isGM) return;
+    const at = Date.now();
+    rollsHeard.set(message.id, at);
+    for (const [id, when] of rollsHeard) {
+        if (when >= at - ROLL_COVER_MS) break;
+        rollsHeard.delete(id);
+    }
+    for (const waiter of [...rollWaiters]) waiter();
+}
+
 /* ---------------------------------------------------------------------------
  * The module's items (C6)
  * ------------------------------------------------------------------------- */
@@ -1673,7 +1802,8 @@ async function record(actor, user, found, options) {
         rows[id] = { ...flagged, messageId: message?.id ?? null };
     }
     if (found.listed.length) rows[foundry.utils.randomID()] = row("listed", found.listed, null);
-    if (found.stood?.length) rows[foundry.utils.randomID()] = row("covered", found.stood, null);
+    // A Call of the GMs' taken off stood on a roll (fix r2-H7): its row names the roll's message.
+    if (found.stood?.length) rows[foundry.utils.randomID()] = { ...row("covered", found.stood, null), ...(found.roll ? { ref: found.roll } : {}) };
     if (!Object.keys(rows).length) return;
     await keepRows(rows, at);
     debug(`The GMs' audit: ${user?.name ?? "?"} on ${actor.name}: ${Object.values(rows).map(r => r.verdict).join(", ")}.`);
@@ -1954,7 +2084,9 @@ async function compareOne(actor) {
         return null;
     }
     const paths = differing(markAsDocument(mark), src).filter(path => !byGm(path));
-    const sheet = actorFindings(mark, foundry.utils.expandObject(Object.fromEntries(paths.map(path => [path, true]))), src);
+    const read = actorFindings(mark, foundry.utils.expandObject(Object.fromEntries(paths.map(path => [path, true]))), src);
+    // A GM's armed entry taken off with no GM watching stands on a roll in the chat as it does live (fix r2-H7), with no wait.
+    const sheet = read.taken.length ? callsOwed(read, await callsCover(actor, null, read.taken)) : read;
     const out = { actor, back: [...sheet.back], listed: [...sheet.listed], flagged: [...sheet.flagged], change: { ...sheet.change }, items: [] };
     const values = ledgerOf(mark, actor), now = ledgerOf(start, actor);
     for (const [key, { path, cost, kind }] of Object.entries(LEDGER)) {
@@ -2220,6 +2352,7 @@ export function registerSheetAudit() {
     Hooks.on("createItem", (item, options, userId) => { onSheetWrite("createItem", item, {}, options, userId); });
     Hooks.on("deleteItem", (item, options, userId) => { onSheetWrite("deleteItem", item, {}, options, userId); });
     Hooks.on("renderChatMessageHTML", onRenderFlagged);
+    Hooks.on("createChatMessage", onRollHeard);
     Hooks.on("createActor", actor => { if (actor?.type === "character") void refillMarks(); });
     Hooks.on("userConnected", primaryLeft);
     Hooks.on("deleteActor", actor => {

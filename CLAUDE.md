@@ -257,8 +257,10 @@ reason from a closed list (`trustedWrite`, `trustedCreate`, `trustedDelete`,
 and the GM checks the evidence it names - a payment it saw, a Rest's stamp, room
 and picks, an item used and spent, a Call's price, a Search's record. What
 nothing covers is put back at once and the writer told (Hope as a delta,
-statistics, maxima, rules, bonuses, the GM-only flags, an armed Call, a module
-item's protected flags, an effect that counts), or flagged to the GMs on a card
+statistics, maxima, rules, bonuses, the GM-only flags, an armed Call added -
+or, where it hinders or a GM armed it, taken off with no roll of the player's
+behind it - a module item's protected flags, an effect that counts), or flagged
+to the GMs on a card
 with Undo and Keep (Health, Sanity, actions, the free grants, a module item
 deleted or created); the rest is listed (`game.drpg.sheetWrites()`). What changed
 while no GM was connected is compared at the primary GM's ready and goes the same
@@ -277,7 +279,10 @@ what the list would give), every roll on a Daggerheart build the draw was not
 written for (thrown in the player's browser, the GM told once per version), and
 Daggerheart's own item rolls, its damage rolls and the rest of its rolls; the
 Hope such a roll earns, which the GM credits against that player's roll message
-of the last minute, whose dice are that browser's; the resources of any actor
+of the last minute, whose dice are that browser's; the Calls such a roll's
+window spends there, where one that hinders or that a GM armed stands taken off
+only behind that player's roll message about the character, which a console can
+write first; the resources of any actor
 that is not a student (companions included), Fear one step at a time, and the
 countdowns the rules tick or the GM gave them - all through the relay;
 `relay-guard.mjs` lists the rest. A Hope Call that changes no roll is paid on the

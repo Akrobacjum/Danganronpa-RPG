@@ -1252,6 +1252,21 @@ function press(cfg, root) {
 }
 
 /**
+ * A PLAYER'S ROLL IN THE CHAT, AS DAGGERHEART WRITES ONE ONCE ITS WINDOW HAS CLOSED (E29 fix r2-H7,
+ * 06.10.2026): a duality roll by `player` about `student`, not drawn by a GM, made here by the GM in
+ * the player's name, as tier 2's relay test makes one. A reaction, so nothing pays for it
+ * (despair-award.mjs) and the relay's cover does not count it (sheet-audit.mjs `rollCovering`).
+ * Answers the message; the test deletes it.
+ */
+function playerRollCard(player, student) {
+    const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+        dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+        options: { actionType: "reaction" } };
+    return ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor: student }),
+        content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll } });
+}
+
+/**
  * A ROLL WINDOW STOOD IN FOR (E08+E28 C7, 03.10.2026). Daggerheart's roll window is not in the
  * harness, so roll-dialog.mjs's two hooks are called on a stand-in carrying what they read:
  * the `roll-selection` class, the roll's config with the character as `data.parent`, and the
@@ -5933,6 +5948,309 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([["putBack", [honest]], [3, false, []]]),
             "a Loaded Die a player's browser wrote stood, took the GMs' own entry with it, or was loaded on a drawn roll (the write's verdict and the list after; the record's Hope die, loaded, Calls used)");
+    }],
+
+    ["a Call the GMs armed or that hinders, taken off by a player's write with no roll of theirs, is put back, the player's own stands, and the GMs' spend takes it", async () => {
+        /*
+         * E29 fix r2-H7, 06.10.2026; the round-2 reviews' sec M3 and cor M4, the owner's Q3 (a) and the
+         * orchestrator's decision (b) of the same day. Plan 2.4 let every entry a player's write took off
+         * the armed list stand, so a console took the GM's Obstacle off its own student and no drawn roll
+         * ever threw it (the review's probe 99 P2). Three Calls on a player's character: an Obstacle and a
+         * Support the GM arms itself (`appendArmedCall`, the Obstacle's payload naming the player as `by`),
+         * and a Resolve the player buys on the GM's bridge (`call.arm` handed to its runner with the
+         * player's id, its packet naming this GM as `by`); then the player's write of the list without the
+         * three, judged as theirs with no roll in the chat; then the GMs' spend of the first two. Read:
+         * whom each entry names as `by` (a GM's id only where a GM armed it, never the packet's), the
+         * write's verdict, which of the three the document and the mark hold after it, the rows it left,
+         * and both after the spend. Until this fix the write stood, with no row.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the purchase is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const G = await import("./bridge-guards.mjs");
+        const B = await import("./gm-bridge.mjs");
+        const E = await import("./call-effects.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const HOPE = "system.resources.hope.value", flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
+        const listOf = f => Array.isArray(f) ? f : f ? [f] : [];
+        const hopeWas = theirs.system.resources.hope.value;
+        const obstacle = "E29H7OBSTACLE001", support = "E29H7SUPPORT0001", own = "E29H7RESOLVE0001", ours = [obstacle, support, own];
+        const held = () => [listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)), listOf(sheetMarkStore.get(theirs.id)?.flags?.[FLAGS.pendingCall])]
+            .map(list => list.map(c => c?.nonce).filter(n => ours.includes(n)).sort());
+        must(!E.armedCallsShown(theirs).some(c => c.grants === "trait"), `${theirs.name} already holds a Resolve - a second is refused, and this would measure that`);
+        const from = Date.now();
+        let read = null;
+        try {
+            await E.appendArmedCall(theirs, { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce: obstacle, by: player.id });
+            await E.appendArmedCall(theirs, { key: "support", kind: "hope", grants: "advantage", amount: null, nonce: support });
+            await trustedWrite(theirs, { [HOPE]: 3 }, { reason: "gmRuling" });
+            await G.judge(B.BRIDGE_ACTIONS, { action: "call.arm", requestId: "E29H7RESOLVEARM1", actorId: theirs.id,
+                call: { key: "determination", kind: "hope", grants: "trait", from: theirs.id, nonce: own, by: game.user.id } }, player.id, { send: () => null });
+            await sheetAuditIdle();
+            const by = Object.fromEntries(listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).filter(c => ours.includes(c.nonce)).map(c => [c.nonce, c.by ?? null]));
+            must(Object.keys(by).length === 3, "the three Calls were not armed - this would measure nothing");
+            const judged = await asPlayerWrite(theirs, { [flag]: listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).filter(c => !ours.includes(c.nonce)) }, player);
+            await sheetAuditIdle();
+            const after = held();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === theirs.id && r.at >= from && flag in (r.change ?? {})).map(r => r.verdict);
+            await E.spendCallsByNonce(theirs, [obstacle, support]);
+            await sheetAuditIdle();
+            read = [by[obstacle] === game.user.id, by[support] === game.user.id, by[own], judged?.verdict ?? null, after, rows, held()];
+        } finally {
+            await E.spendCallsByNonce(theirs, ours);
+            if (theirs.system.resources.hope.value !== hopeWas) await trustedWrite(theirs, { [HOPE]: hopeWas }, { reason: "gmRuling" });
+        }
+        const gms = [obstacle, support].sort();
+        equal(stableJson(read), stableJson([true, true, null, "putBack", [gms, gms], ["putBack"], [[], []]]),
+            "a player's write took off a Call the GMs armed or one that hinders and it stood, or took their own with it, or a packet chose who armed it, or the GMs' spend did not take it (by on each; the verdict; document and mark after; the rows; both after the spend)");
+    }],
+
+    ["a roll of the player's covers one write's taking of the GMs' Calls, once, and only the Calls armed before it", async () => {
+        /*
+         * E29 fix r2-H7, 06.10.2026; the orchestrator's decision (b): a roll that is not drawn spends its
+         * window's Calls on the player's browser (the plan's 3.8), so a Call of the GMs' taken off stands on
+         * a roll of that player's about that student heard after it was armed, each roll covering one
+         * write's removal. Two Obstacles armed by the GM; the player's write without the first, its roll
+         * written a moment after the write as Daggerheart's window writes it (`playerRollCard`); the
+         * player's write without the second, with no new roll; a second roll, then a third Obstacle armed
+         * after it and the player's write without that. Read: the three verdicts, which of the three the
+         * list still holds, and whether the covered row names the first roll.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the write is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which hears the rolls - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`, listOf = f => Array.isArray(f) ? f : f ? [f] : [];
+        const obstacle = n => ({ key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce: `E29H7ROLLOBST00${n}` });
+        const [o1, o2, o3] = [1, 2, 3].map(obstacle), ours = [o1, o2, o3].map(o => o.nonce);
+        const without = nonce => ({ [flag]: listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).filter(c => c.nonce !== nonce) });
+        const from = Date.now(), made = [];
+        let read = null;
+        try {
+            await E.appendArmedCall(theirs, o1);
+            await E.appendArmedCall(theirs, o2);
+            const first = asPlayerWrite(theirs, without(o1.nonce), player);
+            await wait(300);
+            made.push(await playerRollCard(player, theirs));
+            const verdicts = [(await first)?.verdict ?? null, (await asPlayerWrite(theirs, without(o2.nonce), player))?.verdict ?? null];
+            made.push(await playerRollCard(player, theirs));
+            await wait(50);
+            await E.appendArmedCall(theirs, o3);
+            verdicts.push((await asPlayerWrite(theirs, without(o3.nonce), player))?.verdict ?? null);
+            await sheetAuditIdle();
+            const covered = Object.values(sheetWriteStore.entries() ?? {})
+                .filter(r => r?.actorId === theirs.id && r.at >= from && r.verdict === "covered" && flag in (r.change ?? {}));
+            read = [verdicts, listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).map(c => c.nonce).filter(n => ours.includes(n)).sort(),
+                covered.map(r => r.ref === made[0]?.id)];
+        } finally {
+            await E.spendCallsByNonce(theirs, ours);
+            for (const m of made) await m?.delete();
+        }
+        equal(stableJson(read), stableJson([["stands", "putBack", "putBack"], [o2.nonce, o3.nonce], [true]]),
+            "a roll did not cover the write it followed, covered a second, or covered a Call armed after it (the verdicts; the list after; the covered row names the roll)");
+    }],
+
+    ["a Call the GMs' own spend named is not given back when a player's write took it off first", async () => {
+        /*
+         * E29 fix r2-H7, 06.10.2026. A drawn roll reads the armed list before its dice and spends what it
+         * applied after them (roll-draw.mjs `throwDrawn`); a player's write that took an entry off between
+         * the two is judged while the roll is on its way, and given back it would be applied twice. The
+         * fix list's words: put back "unless the GMs' own spend removed it" (call-effects.mjs `spentByGm`).
+         * An Obstacle armed by the GM; the player's write without it lands; the GM's spend of it, which
+         * finds it gone from the flag; then that write judged as the player's. Read: what the spend took
+         * off the flag, the verdict, and whether the document and the mark hold it. A guard: green before
+         * this fix too, which gave nothing back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the write is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`, listOf = f => Array.isArray(f) ? f : f ? [f] : [];
+        const nonce = "E29H7SPENTBYGM01";
+        let read = null;
+        try {
+            await E.appendArmedCall(theirs, { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce });
+            await sheetAuditIdle();
+            must(listOf(sheetMarkStore.get(theirs.id)?.flags?.[FLAGS.pendingCall]).some(c => c?.nonce === nonce), "the GMs' mark does not hold the Obstacle - this would measure nothing");
+            const write = { [flag]: listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).filter(c => c.nonce !== nonce) };
+            await theirs.update(write, { [AUDIT_ASIDE]: true });
+            const spent = await E.spendCallsByNonce(theirs, [nonce]);
+            const judged = await judgeWrite("updateActor", theirs, foundry.utils.expandObject(write), player.id, {});
+            await sheetAuditIdle();
+            read = [spent.length, judged?.verdict ?? null, listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).some(c => c?.nonce === nonce),
+                listOf(sheetMarkStore.get(theirs.id)?.flags?.[FLAGS.pendingCall]).some(c => c?.nonce === nonce)];
+        } finally {
+            await E.spendCallsByNonce(theirs, [nonce]);
+        }
+        equal(stableJson(read), stableJson([0, "stands", false, false]),
+            "a Call the GMs' spend had named was given back to a player's write that took it off first (spent off the flag; the verdict; document; mark)");
+    }],
+
+    ["a Call the GM arms while a player's write that took one of the GMs' off is being judged waits for it, and both stay armed", async () => {
+        /*
+         * E29 fix r2-H7, 06.10.2026. The judge waits a moment for a roll that covers such a write
+         * (sheet-audit.mjs `callsCover`); a GM's arming in that moment read the list with the Call already
+         * off and wrote it without it, and the GMs' mark, which moves by a GM's write as it is written,
+         * lost the Call the put-back gave back to the document (the mark and the held list without the
+         * Obstacle with the wait taken out: e29run/r2h7m m10, 06.10.2026). `appendArmedCall` waits for that
+         * student's judgements now. An Obstacle armed by the GM; the player's write without it, judged as
+         * theirs and not waited for; a Support armed by the GM a moment later; then both judged. Read: which
+         * of the two the document, the mark and the list the GMs hold armed name.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the write is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { sheetAuditIdle, armedCallsHeld } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`, listOf = f => Array.isArray(f) ? f : f ? [f] : [];
+        const obstacle = "E29H7ARMWAITOBS1", support = "E29H7ARMWAITSUP1", ours = [obstacle, support];
+        const named = list => listOf(list).map(c => c?.nonce).filter(n => ours.includes(n)).sort();
+        let read = null;
+        try {
+            await E.appendArmedCall(theirs, { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce: obstacle });
+            const judging = asPlayerWrite(theirs, { [flag]: listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).filter(c => c.nonce !== obstacle) }, player);
+            await wait(300);
+            await E.appendArmedCall(theirs, { key: "support", kind: "hope", grants: "advantage", amount: null, nonce: support });
+            await judging;
+            await sheetAuditIdle();
+            const held = await armedCallsHeld(theirs);
+            read = [named(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)), named(sheetMarkStore.get(theirs.id)?.flags?.[FLAGS.pendingCall]),
+                [...(held ?? [])].filter(n => ours.includes(n)).sort()];
+        } finally {
+            await E.spendCallsByNonce(theirs, ours);
+        }
+        const both = [...ours].sort();
+        equal(stableJson(read), stableJson([both, both, both]),
+            "a GM's arming during the judgement of a player's write left the GMs' Call it took off the mark or the document (document; mark; held)");
+    }],
+
+    ["a Call the GMs spend while a player's write that took another of theirs off is being judged waits for it, and the other stays armed", async () => {
+        /*
+         * E29 fix r2-H7, 06.10.2026. As the test before, with the GMs' spend in that moment: a drawn roll
+         * spends what it applied after its dice (roll-draw.mjs `throwDrawn`), whatever a player's write did
+         * meanwhile. A spend that read the list with the Obstacle already off wrote it without it, and the
+         * mark lost the Obstacle the put-back gave back to the document. `spendCallsByNonce` waits for that
+         * student's judgements now, as `appendArmedCall` does. An Obstacle and a Support armed by the GM;
+         * the player's write without the Obstacle, judged as theirs and not waited for; the GMs' spend of
+         * the Support a moment later; then both judged. Read: which of the two the document, the mark and
+         * the list the GMs hold armed name.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the write is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { sheetAuditIdle, armedCallsHeld } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`, listOf = f => Array.isArray(f) ? f : f ? [f] : [];
+        const obstacle = "E29H7SPENDWAITO1", support = "E29H7SPENDWAITS1", ours = [obstacle, support];
+        const named = list => listOf(list).map(c => c?.nonce).filter(n => ours.includes(n)).sort();
+        let read = null;
+        try {
+            await E.appendArmedCall(theirs, { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce: obstacle });
+            await E.appendArmedCall(theirs, { key: "support", kind: "hope", grants: "advantage", amount: null, nonce: support });
+            const judging = asPlayerWrite(theirs, { [flag]: listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).filter(c => c.nonce !== obstacle) }, player);
+            await wait(300);
+            await E.spendCallsByNonce(theirs, [support]);
+            await judging;
+            await sheetAuditIdle();
+            const held = await armedCallsHeld(theirs);
+            read = [named(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)), named(sheetMarkStore.get(theirs.id)?.flags?.[FLAGS.pendingCall]),
+                [...(held ?? [])].filter(n => ours.includes(n)).sort()];
+        } finally {
+            await E.spendCallsByNonce(theirs, ours);
+        }
+        equal(stableJson(read), stableJson([[obstacle], [obstacle], [obstacle]]),
+            "a GM's spend during the judgement of a player's write left the GMs' Call it took off the mark or the document, or the spent one armed (document; mark; held)");
+    }],
+
+    ["a Call of the GMs' a console takes off right behind a write the audit is putting back still comes back", async () => {
+        /*
+         * E29 fix r2-H7, 06.10.2026. Three writes of a player's console in a row, each judged in turn while
+         * the first waits for a roll: one without the GM's first Obstacle, one adding an entry of its own,
+         * one without the second Obstacle. Each put-back lands after the writes behind it, so the list a
+         * put-back meets is never the one its own write left - and a put-back that gave the GMs' Calls back
+         * only while it was (as every other path is put back) gave back none: the document held neither
+         * Obstacle, with that condition put back (e29run/r2h7m m11, 06.10.2026). Read: which of the three
+         * the document and the mark hold.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the write is a player's, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`, listOf = f => Array.isArray(f) ? f : f ? [f] : [];
+        const [o1, o2] = ["E29H7QUICKOBST01", "E29H7QUICKOBST02"], forged = { key: "freeCrit", kind: "hope", grants: "critical", amount: null, nonce: "E29H7QUICKDIE001" };
+        const ours = [o1, o2, forged.nonce], named = list => listOf(list).map(c => c?.nonce).filter(n => ours.includes(n)).sort();
+        // The write lands, and its judgement is queued as the primary's hook queues it - not waited for.
+        const send = async write => {
+            await theirs.update(write, { [AUDIT_ASIDE]: true });
+            return { judged: judgeWrite("updateActor", theirs, foundry.utils.expandObject(write), player.id, {}) };
+        };
+        let read = null;
+        try {
+            for (const nonce of [o1, o2]) await E.appendArmedCall(theirs, { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce });
+            const w0 = listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).filter(c => c.nonce !== o1);
+            const w1 = [...w0, forged], w2 = w1.filter(c => c.nonce !== o2);
+            const sent = [];
+            for (const list of [w0, w1, w2]) sent.push(await send({ [flag]: list }));
+            const verdicts = (await Promise.all(sent.map(s => s.judged))).map(j => j?.verdict ?? null);
+            await sheetAuditIdle();
+            read = [verdicts, named(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)), named(sheetMarkStore.get(theirs.id)?.flags?.[FLAGS.pendingCall])];
+        } finally {
+            await E.spendCallsByNonce(theirs, ours);
+        }
+        const gms = [o1, o2].sort();
+        equal(stableJson(read), stableJson([["putBack", "putBack", "putBack"], gms, gms]),
+            "a console's writes in a row took the GMs' Calls off behind a put-back, or kept its own entry (the verdicts; document; mark)");
+    }],
+
+    ["with no GM watching, a Call of the GMs' taken off is put back at ready unless a roll of the player's in the chat covers it", async () => {
+        /*
+         * E29 fix r2-H7, 06.10.2026; the plan's 2.9. A write with no GM connected is judged when the
+         * primary's stores hydrate (`compareAtReady`), each difference as a write naming it would be; a
+         * roll thrown with no GM is not drawn and spends its window's Calls, with its card in the chat. An
+         * Obstacle armed by the GM, then written off the list where the GMs' mark does not see it (the
+         * audit's aside), and the comparison; then the same with a roll of the player's in the chat first.
+         * Read: whether the document holds it after each, and the comparison's rows for the armed list.
+         * Until this fix the first stood too.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the roll is a player's, and Foundry names only a connected one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which compares at ready - this would measure nothing");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { compareAtReady, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`, listOf = f => Array.isArray(f) ? f : f ? [f] : [];
+        const nonce = "E29H7READYOBST01", holds = () => listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).some(c => c?.nonce === nonce);
+        const off = () => theirs.update({ [flag]: listOf(theirs.getFlag(MODULE_ID, FLAGS.pendingCall)).filter(c => c.nonce !== nonce) }, { [AUDIT_ASIDE]: true });
+        const rowsFrom = at => Object.values(sheetWriteStore.entries() ?? {}).filter(r => r?.away && r.actorId === theirs.id && r.at >= at && flag in (r.change ?? {})).map(r => r.verdict);
+        const made = [];
+        let read = null;
+        try {
+            await E.appendArmedCall(theirs, { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce });
+            await sheetAuditIdle();
+            await off();
+            const from = Date.now();
+            await compareAtReady();
+            await sheetAuditIdle();
+            const first = [holds(), rowsFrom(from)];
+            await off();
+            made.push(await playerRollCard(player, theirs));
+            const again = Date.now();
+            await compareAtReady();
+            await sheetAuditIdle();
+            read = [first, [holds(), rowsFrom(again)]];
+        } finally {
+            await E.spendCallsByNonce(theirs, [nonce]);
+            for (const m of made) await m?.delete();
+        }
+        equal(stableJson(read), stableJson([[true, ["putBack"]], [false, []]]),
+            "a Call of the GMs' taken off with no GM watching stood at ready with no roll, or was put back behind one (document, rows: without a roll; with one)");
     }],
 
     ["a Confusion reported spent without a roll naming it stays armed", async () => {

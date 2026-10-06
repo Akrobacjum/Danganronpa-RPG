@@ -1168,8 +1168,8 @@ async function handleArm(payload, sender, ctx, prepared) {
     const call = HOPE_CALLS[payload.call.key] ?? DESPAIR_CALLS[payload.call.key];
     const kind = HOPE_CALLS[payload.call.key] ? "hope" : "despair";
 
-    // Appended, not written over: Calls stack (CALL-02).
-    await appendArmedCall(actor, armedEntry(payload.call, call, kind));
+    // Appended, not written over: Calls stack (CALL-02). Armed on that GM's word (E29 fix r2-H7, `by`).
+    await appendArmedCall(actor, armedEntry(payload.call, call, kind), { by: sender });
     debug(`Armed ${payload.call.key} on ${actor.name} on behalf of ${sender.name}.`);
     void tellBeneficiary(actor, kind, call.grants);
     return { reply: { ok: true, left: null } };
@@ -1249,7 +1249,8 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     });
     if (paid.left === null) return { refused: `the buyer holds ${paid.held} Hope, the Call costs ${call.cost}` };
     try {
-        await appendArmedCall(actor, armedEntry(payload.call, call, "hope"));
+        // The player's own purchase: armed on their word, so it carries no GM's `by` (E29 fix r2-H7).
+        await appendArmedCall(actor, armedEntry(payload.call, call, "hope"), { by: sender });
     } catch (err) {
         error(`Could not arm ${payload.call.key} on ${actor.name}; the Hope goes back`, err);
         await gmMeansWrite(buyer, ({ hope }) => trustedWrite(buyer, { "system.resources.hope.value": hope + call.cost }, { reason: "refund" }));

@@ -365,11 +365,24 @@ export async function unsignArmedCalls() {
  * payload says (E29 C8, for C9's reading of a hostile Call: the owner's Q3 (a),
  * applied when armed more than 60 s before the draw). An entry armed before
  * 1.2.68 has none.
+ *
+ * `by` is the GM it was armed on the word of, where that is a GM (E29 fix r2-H7,
+ * 06.10.2026): this GM unless the caller names somebody else - the bridge names the
+ * player it arms for, whose entry carries none. The GMs' audit gives back an entry
+ * a GM armed that a player's write takes off with no roll of theirs to cover it
+ * (sheet-audit.mjs `gmsCall`); a payload's own `by` is never kept.
  */
-export async function appendArmedCall(actor, payload) {
+export async function appendArmedCall(actor, payload, { by = game.user } = {}) {
     if (!actor || !payload?.grants || !game.user?.isGM) return null;
     const entry = { ...payload, at: Date.now() };
+    delete entry.by;
+    if (by?.isGM) entry.by = by.id;
     if (entry.key === CONFUSION) return armConfusion(actor, entry);
+    // The list as the GMs hold it (E29 fix r2-H7): a player's write still being judged - one that took a
+    // Call of the GMs' off waits a moment for a roll to cover it - is judged, and given back, before this
+    // reads the list; read before it, this write would leave the Call off in the GMs' mark.
+    const { judgedFor } = await import("./sheet-audit.mjs");
+    await judgedFor(actor.id);
     await actor.setFlag(MODULE_ID, FLAGS.pendingCall, [...pendingCallsRaw(actor), entry].map(unsigned));
     return true;
 }
@@ -414,10 +427,26 @@ export async function consumeCallsByNonce(actor, nonces) {
  * `onCloseApplication`): the GM read what it applied before it threw the dice, so a spend
  * landing first on the roller's side would have taken the Calls out from under the GM's
  * reading.
+ *
+ * On a GM's browser the names are kept a minute (`spentByGm`), whether the flag still
+ * held them or not (E29 fix r2-H7, 06.10.2026): a drawn roll reads the armed list before
+ * its dice and spends after them, so a player's write that took an entry off between the
+ * two is judged while the roll that applied it is still on its way - and the GMs' audit,
+ * which gives back an entry of the GMs' a player's write took (sheet-audit.mjs
+ * `keptCalls`), gives back none their own spend named. A reload forgets them. And the
+ * spend then waits for that student's judgements, as `appendArmedCall` does: a spend
+ * that read the list while such a write was judged would write it without the Call the
+ * audit gives back, and the GMs' mark, which moves by a GM's write as it is written, would
+ * lose that Call while the document holds it.
  */
 export async function spendCallsByNonce(actor, nonces) {
     const names = new Set(nonces ?? []);
     if (!names.size) return [];
+    if (game.user?.isGM) {
+        noteGmSpend(names);
+        const { judgedFor } = await import("./sheet-audit.mjs");
+        await judgedFor(actor.id);
+    }
     const pending = pendingCallsRaw(actor);
     const spent = pending.filter(entry => names.has(entry.nonce));
     const kept = pending.filter(entry => !names.has(entry.nonce));
@@ -426,6 +455,28 @@ export async function spendCallsByNonce(actor, nonces) {
     else if (spent.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
     if (confusions.length) await spendConfusions(actor, confusions);
     return [...spent, ...confusions];
+}
+
+/** How long a GM's spend is remembered (`spentByGm`): longer than a judgement waits for a roll. Chosen, not measured. */
+const GM_SPENT_MS = 60_000;
+/** nonce -> when this GM's `spendCallsByNonce` named it, oldest first. */
+const gmSpent = new Map();
+
+function noteGmSpend(names) {
+    const at = Date.now();
+    for (const name of names) {
+        gmSpent.delete(name);
+        gmSpent.set(name, at);
+    }
+    for (const [name, when] of gmSpent) {
+        if (when >= at - GM_SPENT_MS) break;
+        gmSpent.delete(name);
+    }
+}
+
+/** Whether a GM's spend on this browser named this armed Call in the last minute (E29 fix r2-H7; see `spendCallsByNonce`). */
+export function spentByGm(nonce) {
+    return typeof nonce === "string" && (gmSpent.get(nonce) ?? -Infinity) >= Date.now() - GM_SPENT_MS;
 }
 
 /**

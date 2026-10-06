@@ -243,6 +243,68 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
             && yesRoad.after.logged.some(([m, n]) => /"call\.yes".*: only a GM says yes to a Call/.test(m) && n === 1),
         JSON.stringify(yesRoad), { flow: "hope-call" });
 
+    /* 4b3. A GM'S CALL IS NOT THE PLAYER'S TO DROP (E29 fix r2-H7, 06.10.2026; the round-2 reviews' sec M3 and cor M4,
+       the owner's Q3 (a) and the orchestrator's decision (b) of the same day). The GM arms an Obstacle on Aiko by its
+       own road (call-effects.mjs `armCall` on its browser), and p1's console writes her armed list without it, with no
+       roll of its own. Read on the GM once its audit has judged - it waits up to two seconds for a roll of p1's that
+       covers the write (sheet-audit.mjs `callsCover`): whether the document, the mark and the list the GMs hold armed
+       still name it, the rows since; on p1, what it was told. Then the control: the GMs' own spend (`spendCallsByNonce`)
+       takes it off, and it stays off. Until this fix the console's write stood - document, mark and held list all lost
+       it, with no row - and the next drawn roll threw no hostile die (the review's probe 99 P2 at 070b72b; this fix's
+       probe on 82830f9, e29run/scratch/r2h7-probe). Her list is put back after. */
+    phase("a GM's Call taken off", { flow: "call-arm" });
+    const obstacleWas = await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = a.getFlag("${MOD}", "pendingCall") ?? null;
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await (await import("${repoUrl}/scripts/call-effects.mjs")).armCall(a, { key: "obstacle", kind: "despair", grants: "disadvantage", nonce: "SECH7OBSTACLE001" });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return was;`);
+    const obstacleHeld = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"), A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        await A.sheetAuditIdle();
+        const a = game.actors.get("${ids.aiko}"), named = v => (Array.isArray(v) ? v : v ? [v] : []).some(e => e?.nonce === "SECH7OBSTACLE001");
+        const held = await A.armedCallsHeld(a);
+        return { doc: named(a.getFlag("${MOD}", "pendingCall")), mark: named(S.sheetMarkStore.get("${ids.aiko}")?.flags?.pendingCall),
+            held: held ? held.has("SECH7OBSTACLE001") : null };`;
+    let takenOff = null;
+    try {
+        const armed = await gm.eval(obstacleHeld);
+        const from = await gm.eval(`return Date.now();`);
+        await p1.eval(`globalThis.__h7Told = [];
+            if (!globalThis.__h7ToldHook) {
+                globalThis.__h7ToldHook = true;
+                game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused") globalThis.__h7Told.push(payload.reason); });
+            }
+            const a = game.actors.get("${ids.aiko}"), had = a.getFlag("${MOD}", "pendingCall");
+            await a.update({ "flags.${MOD}.pendingCall": (Array.isArray(had) ? had : had ? [had] : []).filter(e => e?.nonce !== "SECH7OBSTACLE001") });
+            return true;`);
+        const backIn = await gm.eval(`const a = game.actors.get("${ids.aiko}"), end = Date.now() + 8000;
+            const named = () => { const f = a.getFlag("${MOD}", "pendingCall"); return (Array.isArray(f) ? f : f ? [f] : []).some(e => e?.nonce === "SECH7OBSTACLE001"); };
+            await new Promise(r => setTimeout(r, 300));
+            while (!named() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            return Date.now() < end;`, { timeout: 30000 });
+        await settle(600);
+        const after = await gm.eval(obstacleHeld);
+        const rows = await gm.eval(`return (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetWrites({ quiet: true })
+            .filter(r => Date.parse(r.at) >= ${from} && r.character === "Aiko Hoshino" && r.change.includes("pendingCall")).map(r => r.verdict);`);
+        const told = await p1.eval(`return globalThis.__h7Told.slice();`);
+        await gm.eval(`await (await import("${repoUrl}/scripts/call-effects.mjs")).spendCallsByNonce(game.actors.get("${ids.aiko}"), ["SECH7OBSTACLE001"]);
+            return true;`);
+        await settle(600);
+        takenOff = { armed, backIn, after, rows, told, spent: await gm.eval(obstacleHeld) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(obstacleWas)};
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            if (was) await a.setFlag("${MOD}", "pendingCall", was); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("SECURITY: a GM's Obstacle p1's console takes off Aiko with no roll of its own is put back - on the document, in the mark and in what the GMs hold armed - with a row, and p1 is told",
+        Boolean(takenOff) && takenOff.armed.doc && takenOff.armed.mark && takenOff.backIn === true
+            && takenOff.after.doc && takenOff.after.mark && takenOff.after.held === true
+            && JSON.stringify(takenOff.rows) === JSON.stringify(["putBack"]) && takenOff.told.includes("sheetPutBack"),
+        JSON.stringify(takenOff), { flow: "call-arm" });
+    check("control: the GMs' own spend takes the Obstacle off Aiko, and it stays off",
+        Boolean(takenOff) && !takenOff.spent.doc && !takenOff.spent.mark && takenOff.spent.held === false,
+        JSON.stringify(takenOff?.spent ?? null), { flow: "call-arm" });
+
     // 4c. murder.crisis: p1 throws the finishing blow as Botan, the killer.
     //     The incident is opened the way 13-murder-signals opens one; the killer's
     //     player sits still so an opening roll cannot race the GM's.

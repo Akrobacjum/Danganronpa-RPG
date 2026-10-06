@@ -768,9 +768,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * touched. Daggerheart's window is not in the harness, so p1 holds a stand-in for Aiko's,
      * handed to roll-dialog.mjs's two hooks as tier 2's `rollWindow` does. The GM arms a Support
      * on Aiko, p1 opens the window on it, the GM arms an Obstacle - a GM's flag write, which p1's
-     * `updateActor` sees - and p1 submits. Read: on p1 whether the window was redrawn and the line
-     * it carries; on the GM, Aiko's armed list once p1's close has landed. Aiko's list is emptied
-     * first and put back after. Until C7 nothing redrew p1's window and its close spent both.
+     * `updateActor` sees - and p1 submits; the roll the window was for follows its close, as
+     * Daggerheart writes it. Read: on p1 whether the window was redrawn and the line it carries; on
+     * the GM, Aiko's armed list once p1's close has landed and the GMs' audit has let the Support's
+     * spend stand on that roll - a Call the GM armed stands taken only behind a roll of the player's
+     * (E29 fix r2-H7, sheet-audit.mjs `callsCover`; without the roll it is put back). Aiko's list is
+     * emptied first and put back after. Until C7 nothing redrew p1's window and its close spent both.
      */
     phase("a Call armed while the roll window is open", { flow: "call-arm" });
     const armOnAiko = (key, kind, grants) => gm.eval(`const E = await import("${REPO}/scripts/call-effects.mjs");
@@ -800,17 +803,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             expect: game.i18n.format("DRPG.Calls.waitsNextRoll", { what: game.i18n.localize("DRPG.Calls.grants.disadvantage") }) };
         await D.onCloseApplication(win);
         delete globalThis.__waitingWindow;
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "reaction" } };
+        out.rolled = (await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: game.actors.get("${ids.aiko}") }),
+            content: '<div class="dice-roll">Duality</div>', rolls: [roll], system: { roll } }))?.id ?? null;
         return out;`, { timeout: 30000 });
-    const aikoArmed = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+    const aikoArmed = await gm.eval(`const a = game.actors.get("${ids.aiko}"), A = await import("${REPO}/scripts/sheet-audit.mjs");
         const keys = () => { const f = a.getFlag("${MOD}", "pendingCall"); return (Array.isArray(f) ? f : f ? [f] : []).map(e => e?.key); };
         for (let i = 0; i < 50 && keys().includes("support"); i++) await new Promise(r => setTimeout(r, 100));
+        await A.sheetAuditIdle();
         return keys();`, { timeout: 30000 });
     check("p1: an Obstacle the GM arms while Aiko's roll window is open redraws it with a line that it waits, and the window's close spends the Support alone",
         supportArmed && obstacleArmed && windowOpen.armed.join() === "support" && windowClosed.redrawn === true
-            && windowClosed.line === windowClosed.expect && aikoArmed.join() === "obstacle",
+            && windowClosed.line === windowClosed.expect && Boolean(windowClosed.rolled) && aikoArmed.join() === "obstacle",
         JSON.stringify({ supportArmed, obstacleArmed, windowOpen, windowClosed, aikoArmed }), { flow: "call-arm" });
     await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(aikoCallsWere)};
-        if (was) await a.setFlag("${MOD}", "pendingCall", was); else await a.unsetFlag("${MOD}", "pendingCall"); return true;`);
+        if (was) await a.setFlag("${MOD}", "pendingCall", was); else await a.unsetFlag("${MOD}", "pendingCall");
+        await game.messages.get(${JSON.stringify(windowClosed.rolled ?? null)} ?? "")?.delete();
+        return true;`);
 
     // ---- 6c. a project's work: a project with no statistic asks the GM once ------------------
     /*
@@ -1637,6 +1648,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * with something it judges - a Tool worn out (`itemWear`), the kit used up (`itemUse`, inventory.mjs
      * `breakItem`) and a Tool stowed (`stash`) - and three covered rows: the item used (its Health), the Rest
      * (its stamp and its Sanity) and the Search's find; 115 patches, 35 of them items, as at G1.
+     * Since E29 fix r2-H7 (06.10.2026) a fourth covered row, with no reason (the window's spend names
+     * none): the Support the GM armed on Aiko in 6b+, which p1's window spent as it closed, stood on p1's
+     * roll (sheet-audit.mjs `callsCover`). Measured on the harness on 06.10.2026 (e29run/r2h7, one run):
+     * those four, 115 patches, 35 of them items.
      */
     phase("the day's writes, as the GMs' audit saw them", { flow: "sheet-audit" });
     const auditDay = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
@@ -1646,10 +1661,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             putBack: rows.filter(r => r.verdict === "putBack").map(r => Object.keys(r.change ?? {})),
             listed: rows.filter(r => r.verdict === "listed").flatMap(r => Object.keys(r.change ?? {}).map(k => (r.reason ?? "-") + ":" + k.replace(/^items\.[^.]+/, "items.<id>"))),
             flagged: rows.filter(r => r.verdict === "flagged").map(r => Object.keys(r.change ?? {})),
-            covered: rows.filter(r => r.verdict === "covered").map(r => r.reason + ":" + Object.keys(r.change ?? {}).map(k => k.replace(/^items\.[^.]+/, "items.<id>")).sort().join(",") + (r.covered ? ":" + JSON.stringify(r.covered) : "")).sort() };`);
+            covered: rows.filter(r => r.verdict === "covered").map(r => (r.reason ?? "-") + ":" + Object.keys(r.change ?? {}).map(k => k.replace(/^items\.[^.]+/, "items.<id>")).sort().join(",") + (r.covered ? ":" + JSON.stringify(r.covered) : "")).sort() };`);
     const MARK_PATCHES_MEASURED = 111;
-    const COVERED_MEASURED = ["itemUse:system.resources.hitPoints.value", `rest:flags.${MOD}.restsTaken,system.resources.stress.value`, "searchFind:items.<id>"];
-    check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed and an item's readiness, has a covered row for the Rest, the item used and the find, and patches its marks within a quarter of the measured count",
+    const COVERED_MEASURED = [`-:flags.${MOD}.pendingCall`, "itemUse:system.resources.hitPoints.value", `rest:flags.${MOD}.restsTaken,system.resources.stress.value`, "searchFind:items.<id>"];
+    check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed and an item's readiness, has a covered row for the Rest, the item used, the find and the Call a roll's window spent, and patches its marks within a quarter of the measured count",
         auditDay.store && auditDay.putBack.length === 0 && auditDay.flagged.length === 0
             && auditDay.listed.every(entry => entry.endsWith(`:flags.${MOD}.pendingCall`) || entry.endsWith(`:items.<id>.flags.${MOD}.equipped`))
             && JSON.stringify(auditDay.covered) === JSON.stringify(COVERED_MEASURED)
