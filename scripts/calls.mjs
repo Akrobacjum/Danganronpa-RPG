@@ -260,7 +260,24 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
          * above, asked first.
          */
         const gmPays = !game.user.isGM && Boolean(call.grants);
-        if (!gmPays) await trustedWrite(actor, { "system.resources.hope.value": held - call.cost }, { reason: "call" });
+        /* From the Hope the GMs hold where a GM buys on a sheet (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a
+           console's raised Hope, not put back yet, paid there. The question above is asked again of that value. A
+           player's browser reads its sheet, as before. */
+        const { meansWrite } = await import("./sheet-audit.mjs");
+        if (!gmPays) {
+            const paid = await meansWrite(actor, async ({ hope }) => {
+                if (hope < call.cost) return { held: hope, left: null };
+                await trustedWrite(actor, { "system.resources.hope.value": hope - call.cost }, { reason: "call" });
+                return { held: hope, left: hope - call.cost };
+            });
+            if (paid.left === null) {
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.notEnoughHope", {
+                    call: call.label, cost: call.cost, held: paid.held
+                }));
+                return null;
+            }
+            held = paid.held;
+        }
 
         // Do the thing, not just charge for it.
         const { applyCall } = await import("./call-effects.mjs");
@@ -276,11 +293,9 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         // rather than restoring `held`: a roll may have granted Hope in between,
         // and writing the old number would quietly erase it.
         if (failed) {
-            const now = hopeHeld(actor);
-            const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-            await trustedWrite(actor, {
-                "system.resources.hope.value": Math.min(max, now + call.cost)
-            }, { reason: "refund" });
+            await meansWrite(actor, ({ hope: now }, maxOf) => trustedWrite(actor, {
+                "system.resources.hope.value": Math.min(maxOf("hope") || STARTING.hopeMax, now + call.cost)
+            }, { reason: "refund" }));
             ui.notifications.warn(game.i18n.format("DRPG.Calls.refunded", {
                 call: call.label, cost: call.cost
             }));

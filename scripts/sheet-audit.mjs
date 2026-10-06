@@ -847,9 +847,13 @@ export function deletedHeldBy(actor) {
  * no mark, a Monokuma, the stores not hydrated, not a student (E29 fix r1-G5).
  */
 export function meansHeld(actor) {
+    return ledgerOf(heldMark(actor), actor);
+}
+
+/** The mark the held readers read: the primary's, of a student; none for a Monokuma - no student (`judgeNow`): what it holds stands, so its document is the record. */
+function heldMark(actor) {
     const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
-    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
-    return ledgerOf(mark && !mark.flags?.[FLAGS.monokuma] ? mark : null, actor);
+    return mark && !mark.flags?.[FLAGS.monokuma] ? mark : null;
 }
 
 /*
@@ -862,9 +866,21 @@ export function meansHeld(actor) {
  * the job `gmMeansWrite` runs, as the value is.
  */
 export function meansMaxHeld(actor, key) {
-    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
-    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
-    return maxHeld(actor, mark && !mark.flags?.[FLAGS.monokuma] ? mark : null, key);
+    return maxHeld(actor, heldMark(actor), key);
+}
+
+/*
+ * ANY OTHER NUMBER OF A STUDENT'S AS THE GMS HOLD IT (E29 fix r2-H24, 06.10.2026): a statistic, an experience's value,
+ * the advances taken - what level-up.mjs `applyAdvancement` adds one to. The prepared value with the mark's for the
+ * sheet's, as `maxHeld` reads a maximum, on the primary; the mark's alone where the document has none to prepare from,
+ * and nothing where the mark holds none (the GMs hold none: a module flag the player wrote); the document's prepared
+ * value on any other browser and where the GMs hold no mark of their own. Read in the job `gmMeansWrite` runs.
+ */
+export function numberHeld(actor, path) {
+    const mark = heldMark(actor), prepared = foundry.utils.getProperty(actor ?? {}, path);
+    if (!mark) return prepared;
+    const sheet = foundry.utils.getProperty(actor._source ?? {}, path), held = foundry.utils.getProperty(markAsDocument(mark), path);
+    return typeof held === "number" && typeof prepared === "number" && typeof sheet === "number" ? prepared - sheet + held : held;
 }
 
 /*
@@ -902,6 +918,50 @@ export function gmMeansWrite(actor, write) {
             }
         });
     });
+}
+
+/*
+ * A ROAD'S WRITE OF A STUDENT'S MEANS, ON A GM'S CLIENT OR A PLAYER'S (E29 fix r2-H24, 06.10.2026; found by fix r2-H23,
+ * which read `refundAction` and measured nothing). `write(held, maxOf)`: on a GM's client a `gmMeansWrite` job, `held`
+ * the values the GMs hold (`meansHeld`) and `maxOf(key)` the maximum they hold (`meansMaxHeld`; undefined where there is
+ * none), read in its one step (H3); on a player's browser the document's prepared values and maxima, read as its roads
+ * read them before this fix (`resourceValue`, `resourceMax`) - the player's own write, which the GMs judge when it lands.
+ * Until this fix each road below read what it writes from off the document on a GM's client as well, where a player's
+ * write the audit puts back with `lockPlayerResources` on - the Hope, a statistic, a maximum (`LOCK_NAMED_MAX`), the
+ * advances - stands until its put-back lands, and for good where it fails, and where a GM's write over the same path
+ * supersedes the put-back pending on it (READ WHEN WRITTEN). Measured at 85fdf9d (06.10.2026, e29run/r2h24red; tier 2,
+ * the five tests named "... the GMs hold"), the put-back held by a GM's hook: an action given back came to 4 under the
+ * GMs' maximum of 2 and a refill gave a wounded student the whole budget; a Level Up raised a Health maximum to 10 for
+ * 7; seven roads wrote Hope from the console's 5 for the GMs' 2; a raised Sanity maximum let an Objection be paid with a
+ * seventh mark on a track of 6; and a lowered one kept an Observe's, a resolution's, Paranoia's and the incident's marks
+ * off a track the GMs held room on.
+ * The roads: an action given back (actions.mjs `refundAction`) or set by a GM (`setActions`), and a time of day's
+ * refill, which reads the Health that wounds (`resetActionsFor`); a price paid on the GM - the Objection - or given back
+ * (price.mjs `payPrice`, `refundPrice`); Despair turned into Hope (despair.mjs `convertDespairToHope`); what an item a
+ * GM rules on restores (use-items.mjs `restore`); a Despair Call's Hope and marks (call-effects.mjs
+ * `hopeFromDespairEffect`, `damageEffect`); a Hope Call bought on a GM's client and its price given back (calls.mjs
+ * `spendHopeCall`); a rest (rest.mjs `applyRest`); an advancement (level-up.mjs `applyAdvancement`, with `numberHeld`);
+ * a missed Observe's Sanity (observe.mjs `chargeObserveMiss`) and a resolution's (cleanup.mjs `markResolutionStress`);
+ * and the incident's marks - a Despair opening's Sanity, a hit, a drain, a resolution's blood (murder.mjs
+ * `resolveKillerOpening`, `takeReserves`, `spendStress`). A Hope maximum reads the same either way: Daggerheart prepares
+ * it from the world's setting less the scars, whatever the sheet's says (`maxHeld`).
+ * No job here waits on itself, by reading (H17's caution): each reads, computes and makes its one `trustedWrite`
+ * (`convertDespairToHope` records the pool's debt first, a GM store's write), so nothing it awaits is a judgement that
+ * waits on the student's queue; every other wait a road makes - `itemAsHeld` in `grantItemEffect`, a judgement's; the
+ * GM's yes in `spendHopeCall` - comes before its job or after it, never in it; no judgement calls any of these roads;
+ * and no `gmMeansWrite` job calls one (the jobs before this fix make their writes and call no road: reroll.mjs
+ * `makeReroll` and `giveBack`, gm-bridge.mjs `armPaidByPlayer`, despair-award.mjs `adjustCritHopeTopUp`, roll-draw.mjs
+ * `modifyFromHeld`, murder.mjs `undoLastCrisis`, cleanup.mjs `undoLastCleanup`).
+ */
+export function meansWrite(actor, write) {
+    if (game.user?.isGM) {
+        return gmMeansWrite(actor, held => write(held, key => {
+            const max = meansMaxHeld(actor, key);
+            return Number.isFinite(max) ? max : undefined;
+        }));
+    }
+    const own = Object.fromEntries(Object.entries(LEDGER).map(([key, { path }]) => [key, Number(foundry.utils.getProperty(actor ?? {}, path)) || 0]));
+    return (async () => write(own, key => actor?.system?.resources?.[key]?.max))();
 }
 
 /** A path a write names, without v14's `-=` and `==` on its parts: the path it writes. */

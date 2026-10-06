@@ -18,7 +18,6 @@
 
 import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
 import { SETTINGS, getClock } from "./settings.mjs";
-import { resourceValue } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { announce, whisperToOwner, log, warn, error, isPrimaryGm, plural } from "./utils.mjs";
 import { despairOwedStore } from "./gm-stores.mjs";
@@ -611,14 +610,6 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
         return 0;
     }
 
-    const { hopeMax } = await import("./calls.mjs");
-    const hope = resourceValue(actor, "hope");
-    const granted = Math.min(amount, hopeMax(actor) - hope);
-    if (granted <= 0) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
-        return 0;
-    }
-
     /*
      * THE HOPE NOW, THE POOL AT THE NEXT TIME OF DAY, THE CARD VEILED (E05 C12, 27.09.2026;
      * audit S09-28). The pool went down here, public on every bar, as the recipient's Hope
@@ -626,9 +617,21 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
      * receives. The drop is owed now (`recordOwed`; paid by `settleOwed`), recorded before the
      * Hope so no window redrawn by the Hope's write offers the Despair again, and the card
      * speaks as nobody (secret.mjs).
+     * From the Hope the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's
+     * raised Hope, not put back yet, was converted onto, and trimmed what the pool paid.
      */
-    await recordOwed(monokumaUserId, granted);
-    await trustedWrite(actor, { "system.resources.hope.value": hope + granted }, { reason: "gmRuling" });
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const granted = await meansWrite(actor, async ({ hope }, maxOf) => {
+        const room = Math.min(amount, (maxOf("hope") || STARTING.hopeMax) - hope);
+        if (room <= 0) return 0;
+        await recordOwed(monokumaUserId, room);
+        await trustedWrite(actor, { "system.resources.hope.value": hope + room }, { reason: "gmRuling" });
+        return room;
+    });
+    if (granted <= 0) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
+        return 0;
+    }
 
     const user = game.users.get(monokumaUserId);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Despair.hopeConverted", {

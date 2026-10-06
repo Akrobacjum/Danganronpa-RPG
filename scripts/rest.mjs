@@ -17,7 +17,6 @@ import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { roomOfActor, roomsKnownToMe } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
-import { resourceMax, resourceValue } from "./character.mjs";
 import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 // One room map for the whole module (audit C3): `workingScene()`, which is what
 // a GM resolving somebody else's rest means by "this scene", not `canvas.scene`.
@@ -328,46 +327,50 @@ async function applyRest(actor, kind, picks, { stamp = null, relief = false } = 
     const applied = [];
     const { overflowBlocksHope } = await import("./overflow.mjs");
     const hopeBlocked = overflowBlocksHope();
+    const { trustedWrite } = await import("./resource-guard.mjs");
 
-    for (const pick of picks) {
-        const opt = REST.options[pick];
+    // From the means the GMs hold on a GM's client - a rest a GM gives, a Relief bought there - in one step
+    // (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's raised Hope, not put back yet, was rested on top
+    // there. A player's own rest reads its sheet, as before.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    return meansWrite(actor, async (held, maxOf) => {
+        for (const pick of picks) {
+            const opt = REST.options[pick];
 
-        if (pick === "sleep") {
-            const marks = resourceValue(actor, "hitPoints");
-            const healed = full ? marks : Math.ceil(marks / 2);
-            update["system.resources.hitPoints.value"] = marks - healed;
-            applied.push(`${opt.label}: ${healed} Health recovered`);
+            if (pick === "sleep") {
+                const marks = held.hitPoints;
+                const healed = full ? marks : Math.ceil(marks / 2);
+                update["system.resources.hitPoints.value"] = marks - healed;
+                applied.push(`${opt.label}: ${healed} Health recovered`);
+            }
+
+            if (pick === "meal") {
+                const marks = held.stress;
+                const cleared = full ? marks : Math.ceil(marks / 2);
+                update["system.resources.stress.value"] = marks - cleared;
+                applied.push(`${opt.label}: ${cleared} Sanity cleared`);
+            }
+
+            if (pick === "breath" && hopeBlocked) {
+                // The picker greys Breath under the Despair darkening; this is the
+                // authority for a pick that got past it (CALL-05).
+                applied.push(`${opt.label}: ${game.i18n.localize("DRPG.Overflow.noHopeNow")}`);
+            } else if (pick === "breath") {
+                const gain = full ? 2 : 1;
+                const max = maxOf("hope") || STARTING.hopeMax;
+                const next = Math.min(max, held.hope + gain);
+                update["system.resources.hope.value"] = next;
+                applied.push(`${opt.label}: +${gain} Hope`);
+            }
         }
 
-        if (pick === "meal") {
-            const marks = resourceValue(actor, "stress");
-            const cleared = full ? marks : Math.ceil(marks / 2);
-            update["system.resources.stress.value"] = marks - cleared;
-            applied.push(`${opt.label}: ${cleared} Sanity cleared`);
-        }
-
-        if (pick === "breath" && hopeBlocked) {
-            // The picker greys Breath under the Despair darkening; this is the
-            // authority for a pick that got past it (CALL-05).
-            applied.push(`${opt.label}: ${game.i18n.localize("DRPG.Overflow.noHopeNow")}`);
-        } else if (pick === "breath") {
-            const gain = full ? 2 : 1;
-            const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-            const next = Math.min(max, resourceValue(actor, "hope") + gain);
-            update["system.resources.hope.value"] = next;
-            applied.push(`${opt.label}: +${gain} Hope`);
-        }
-    }
-
-    // Through the module's road: Health and Sanity are in the courtesy guard's
-    // `GUARDED`, so a plain `actor.update()` from a player's browser would lose them.
-    // `ref` "relief" is a Relief's free rest, which the GMs' side covers by that Call's
-    // payment rather than by the room, the allowance and the action.
-    if (Object.keys(update).length) {
-        const { trustedWrite } = await import("./resource-guard.mjs");
-        await trustedWrite(actor, update, { reason: "rest", ref: relief ? "relief" : null });
-    }
-    return applied;
+        // Through the module's road: Health and Sanity are in the courtesy guard's
+        // `GUARDED`, so a plain `actor.update()` from a player's browser would lose them.
+        // `ref` "relief" is a Relief's free rest, which the GMs' side covers by that Call's
+        // payment rather than by the room, the allowance and the action.
+        if (Object.keys(update).length) await trustedWrite(actor, update, { reason: "rest", ref: relief ? "relief" : null });
+        return applied;
+    });
 }
 
 function kindLabel(kind) {

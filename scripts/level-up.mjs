@@ -13,7 +13,7 @@
  */
 
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING } from "./config.mjs";
-import { listExperiences, resourceMax } from "./character.mjs";
+import { listExperiences } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
@@ -541,9 +541,9 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     const update = {};
     const summary = [];
 
-    // Start from current values and accumulate.
-    let hpMax = resourceMax(actor, "hitPoints");
-    let stressMax = resourceMax(actor, "stress");
+    // Accumulate the rises; what they rise from is read as the GMs hold it, when the write is made (below).
+    let hpUp = 0;
+    let stressUp = 0;
     const traitDeltas = {};
     const experienceDeltas = {};
     const newExperiences = {};
@@ -551,12 +551,12 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     for (const pick of picks) {
         switch (pick.option) {
             case "hp":
-                hpMax += 1;
+                hpUp += 1;
                 summary.push(LEVEL_UP_OPTIONS.hp.label);
                 break;
 
             case "stress":
-                stressMax += 1;
+                stressUp += 1;
                 summary.push(LEVEL_UP_OPTIONS.stress.label);
                 break;
 
@@ -596,24 +596,11 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         }
     }
 
-    if (hpMax !== resourceMax(actor, "hitPoints")) update["system.resources.hitPoints.max"] = hpMax;
-    if (stressMax !== resourceMax(actor, "stress")) update["system.resources.stress.max"] = stressMax;
-
-    for (const [key, delta] of Object.entries(traitDeltas)) {
-        const current = actor.system.traits?.[key]?.value ?? 0;
-        update[`system.traits.${key}.value`] = current + delta;
-    }
-
-    for (const [id, delta] of Object.entries(experienceDeltas)) {
-        const current = actor.system.experiences?.[id]?.value ?? 0;
-        update[`system.experiences.${id}.value`] = current + delta;
-    }
-
     for (const [id, data] of Object.entries(newExperiences)) {
         update[`system.experiences.${id}`] = data;
     }
 
-    if (!Object.keys(update).length) {
+    if (!hpUp && !stressUp && !Object.keys(traitDeltas).length && !Object.keys(experienceDeltas).length && !Object.keys(update).length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Advance.nothingToApply"));
         return null;
     }
@@ -630,10 +617,28 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         // (R79, R221). And since E29 C3 what a console writes there by hand is put back
         // by the primary GM (sheet-audit.mjs), which takes this write, a GM's, as the
         // student's new mark.
+        //
+        // AS THE GMS HOLD THEM (E29 fix r2-H24, 06.10.2026). The maxima, the statistics, the experiences and the
+        // advances each rise from what the GMs hold, read in one job of the student's queue (sheet-audit.mjs
+        // `meansWrite`, `numberHeld`): read off the sheet, a console's rise the audit had not put back yet was
+        // written on as this GM's, the student's mark from then on. The job writes and awaits nothing else.
         const { trustedWrite } = await import("./resource-guard.mjs");
-        const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
-        update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;
-        await trustedWrite(actor, update, { reason: "levelUp" });
+        const { meansWrite, numberHeld } = await import("./sheet-audit.mjs");
+        const taken = await meansWrite(actor, async (held, maxOf) => {
+            const from = path => numberHeld(actor, path) ?? 0;
+            if (hpUp) update["system.resources.hitPoints.max"] = (maxOf("hitPoints") ?? 0) + hpUp;
+            if (stressUp) update["system.resources.stress.max"] = (maxOf("stress") ?? 0) + stressUp;
+            for (const [key, delta] of Object.entries(traitDeltas)) {
+                update[`system.traits.${key}.value`] = from(`system.traits.${key}.value`) + delta;
+            }
+            for (const [id, delta] of Object.entries(experienceDeltas)) {
+                update[`system.experiences.${id}.value`] = from(`system.experiences.${id}.value`) + delta;
+            }
+            const taken = from(`flags.${MODULE_ID}.${FLAGS.advances}`) + 1;
+            update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;
+            await trustedWrite(actor, update, { reason: "levelUp" });
+            return taken;
+        });
         /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Withdrawn here rather than at the
            three call sites - the GM's own picker, a player's picks arriving over the
            socket, and the API - because this is the one place that writes an

@@ -356,6 +356,61 @@ async function heardWhilePaid(student, write, player) {
     return { judged: () => judged, stop: () => { if (on) Hooks.off("preUpdateActor", hook); on = false; } };
 }
 
+/**
+ * A ROAD RUN IN THE WINDOW A CONSOLE'S WRITE LEAVES (E29 fix r2-H24, 06.10.2026). `student` set to `honest` by this GM
+ * and the audit idle with no credit; then `forged`, as `player`'s write, judged with its put-back refused by a hook of
+ * this GM's, as scenario 30 refuses one - the state a put-back that failed leaves, and the one before a put-back lands;
+ * then `road()`, and the hook off once the audit is idle after it. Answers each of `paths` as [on the sheet, in the
+ * GMs' mark]. A forged write not judged a put-back left on the sheet alone, outside the mark, fails: it would measure
+ * nothing.
+ */
+async function inConsoleWindow(student, player, { honest = {}, forged, paths }, road) {
+    const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    const sheet = path => foundry.utils.getProperty(student._source, path) ?? null;
+    const marked = path => {
+        const mark = sheetMarkStore.get(student.id) ?? {};
+        return foundry.utils.getProperty({ system: { resources: mark.resources, traits: mark.traits, experiences: mark.experiences },
+            flags: { [MODULE_ID]: mark.flags } }, path) ?? null;
+    };
+    if (Object.keys(honest).length) await trustedWrite(student, honest, { reason: "gmRuling" });
+    await auditFromScratch(student);
+    const was = Object.fromEntries(Object.keys(forged).map(path => [path, sheet(path)]));
+    const veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+        doc.id === student.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+    try {
+        const judged = await asPlayerWrite(student, forged, player);
+        await sheetAuditIdle();
+        must(judged?.verdict === "putBack" && Object.entries(forged).every(([path, value]) => sheet(path) === value && marked(path) === was[path]),
+            `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
+                stableJson([judged?.verdict ?? null, Object.keys(forged).map(path => [sheet(path), marked(path), was[path]])])}`);
+        await road();
+        await settle();
+        await sheetAuditIdle();
+    } finally {
+        Hooks.off("preUpdateActor", veto);
+        await sheetAuditIdle();
+    }
+    return paths.map(path => [sheet(path), marked(path)]);
+}
+
+/** What `paths` hold on `actor`'s sheet now, and what puts them back as they were (an absent module flag unset; E29 fix r2-H24). */
+function sheetAsFound(actor, paths) {
+    const was = Object.fromEntries(paths.map(path => [path, foundry.utils.getProperty(actor._source, path)]));
+    return async () => {
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const back = Object.fromEntries(Object.entries(was).filter(([, value]) => value !== undefined));
+        if (Object.keys(back).length) await trustedWrite(actor, back, { reason: "gmRuling" });
+        for (const path of Object.keys(was).filter(path => was[path] === undefined && path.startsWith(`flags.${MODULE_ID}.`)
+            && foundry.utils.getProperty(actor._source, path) !== undefined)) {
+            await actor.unsetFlag(MODULE_ID, path.split(".").pop());
+        }
+        await sheetAuditIdle();
+    };
+}
+
 /** A module item's data for a test (E29 C6): a Tool of tier 1 unless `flags` say otherwise. */
 const moduleItemData = (name, flags = {}) => ({ name, type: "loot", system: { quantity: 1 },
     flags: { [MODULE_ID]: { category: "tool", tier: 1, ...flags } } });
@@ -29598,6 +29653,246 @@ const SCENARIOS = [
         equal(stableJson([crisis, cleanup]), stableJson([[1, 1, 4, 4], [3, 3]]),
             "a Reroll's take-back read a Hope or a maximum a player's console wrote that the GMs' audit had not put back "
             + "(the crisis's Hope and Health marks, the clean-up's Sanity marks; each on the sheet and in the GMs' mark)");
+    }],
+
+    ["a GM's give of an action reads the actions and the maxima the GMs hold, not a console's the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026; found by fix r2-H23, which read `refundAction` and measured nothing. A GM's write
+         * of the actions computed from a maximum read off the sheet - where a console's write the audit puts back stands
+         * until its put-back lands, and for good where it fails - was the GMs' value from then on: an action given back
+         * (actions.mjs `refundAction`) or set by a GM (`setActions`), held to a raised actions maximum, and a time of
+         * day's refill, which read a raised Health maximum as not wounded (`resetActionsFor`). The student at 1 action
+         * of 2; the console raises the actions maximum to 9, its put-back refused by a hook of the GM's
+         * (`inConsoleWindow`), and the GM gives 3 back, then sets 7; then, its Health marked full, the console raises
+         * the Health maximum by 3 and the GM refills. Read: the actions, on the sheet and in the GMs' mark.
+         * At 85fdf9d (06.10.2026, e29run/r2h24red) the refund came to 4 and the ruling to 7, on the sheet and in the
+         * mark (2 and 2 since), and the refill gave the wounded student the whole budget, 2 (1 since).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const A = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const R = "system.resources", ACTS = `${R}.${ACTIONS_RESOURCE}.value`, ACTS_MAX = `${R}.${ACTIONS_RESOURCE}.max`;
+        const HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const putBack = sheetAsFound(student, [ACTS, ACTS_MAX, HP, HP_MAX]);
+        const hpMax = Number(foundry.utils.getProperty(student._source, HP_MAX));
+        must(hpMax >= 1, `${student.name} has no Health maximum to mark full: ${hpMax}`);
+        const honest = { [ACTS]: 1, [ACTS_MAX]: 2 }, raised = { [ACTS_MAX]: 9 };
+        const read = [];
+        let budget = null;
+        try {
+            read.push(await inConsoleWindow(student, player(student), { honest, forged: raised, paths: [ACTS] }, () => A.refundAction(student, 3)));
+            read.push(await inConsoleWindow(student, player(student), { honest, forged: raised, paths: [ACTS] }, () => A.setActions(student, 7)));
+            await trustedWrite(student, { [ACTS]: 0, [ACTS_MAX]: 2, [HP]: hpMax }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            budget = A.actionBudget(student);
+            must(budget.wounded, `${student.name}, its Health marked full, is not wounded - this would measure nothing: ${stableJson(budget)}`);
+            read.push(await inConsoleWindow(student, player(student), { forged: { [HP_MAX]: hpMax + 3 }, paths: [ACTS] },
+                () => A.resetActionsFor(student, { keepGrants: true })));
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[[2, 2]], [[2, 2]], [[budget.total, budget.total]]]),
+            "a GM's give of an action read an actions or a Health maximum a player's console raised that the GMs' audit had not put back "
+            + "(an action given back, the actions a GM set, a wounded student's refill; each on the sheet and in the GMs' mark)");
+    }],
+
+    ["a GM's give or take of Hope reads the Hope the GMs hold, not a console's the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026. Every road that writes a student's Hope on a GM's client from the Hope on the sheet,
+         * where a console's raised Hope stands until its put-back lands (and for good where it fails) and a GM's write
+         * over it supersedes the put-back: a price paid on the GM - the Objection's (price.mjs `payPrice`) - and given
+         * back (`refundPrice`), Despair turned into Hope (despair.mjs `convertDespairToHope`), an item's effect a GM
+         * grants (use-items.mjs `grantItemEffect`), a Despair Call's Hope (call-effects.mjs, Fuel a Monocub), a Hope Call
+         * a GM buys on the sheet (calls.mjs `spendHopeCall`, a Sprint at 2) and a rest a GM gives (rest.mjs `takeRest`,
+         * Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
+         * Hope, on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red) each road wrote from the
+         * console's 5, on the sheet and in the mark alike: the Objection left 4 (1 since), the refund, the conversion, the
+         * ruling, the Call and the rest 6 (3 since), the Sprint 3 (0 since).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { payPrice, refundPrice } = await import("./price.mjs");
+        const D = await import("./despair.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { grantItemEffect } = await import("./use-items.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const { spendHopeCall } = await import("./calls.mjs");
+        const { takeRest } = await import("./rest.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
+        must(donor, "no Monokuma's pool to convert from - this would measure nothing");
+        must(!overflowBlocksHope(), "the Despair darkening holds Hope down - this would measure nothing");
+        must(resourceMax(student, "hope") === STARTING.hopeMax, `${student.name}'s Hope maximum is not ${STARTING.hopeMax}: ${resourceMax(student, "hope")}`);
+        const R = "system.resources", HOPE = `${R}.hope.value`, ACTS = `${R}.actions.value`;
+        const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`, MOVES = `flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`;
+        const putBack = sheetAsFound(student, [HOPE, ACTS, GRANTS, MOVES]);
+        const despairWas = D.getDespair(donor.id);
+        const Dialog = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(Dialog, "wait");
+        const inWindow = road => inConsoleWindow(student, player(student), { honest: { [HOPE]: 2 }, forged: { [HOPE]: 5 }, paths: [HOPE] }, road);
+        const read = {};
+        try {
+            await trustedWrite(student, { [ACTS]: 0, [GRANTS]: 0 }, { reason: "gmRuling" });
+            read.objection = await inWindow(() => payPrice(student, "objection", { quiet: true }));
+            read.refund = await inWindow(() => refundPrice(student, { key: "objection", pay: "hope", amount: 1, grant: false }, { quiet: true }));
+            await despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, 5);
+            read.convert = await inWindow(() => D.convertDespairToHope(donor.id, student, 1));
+            read.ruling = await inWindow(() => grantItemEffect(student, null, { hope: 1 }, { consumeItem: false }));
+            read.fuel = await inWindow(() => applyCall(null, "fuelTheCub", "despair", { target: student }));
+            read.sprint = await inWindow(() => spendHopeCall(student, "sprint"));
+            Dialog.wait = async () => ["breath"];
+            read.rest = await inWindow(() => takeRest(student, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true }));
+        } finally {
+            if (ownWait) Object.defineProperty(Dialog, "wait", ownWait); else delete Dialog.wait;
+            await despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, despairWas);
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ objection: [[1, 1]], refund: [[3, 3]], convert: [[3, 3]], ruling: [[3, 3]], fuel: [[3, 3]],
+            sprint: [[0, 0]], rest: [[3, 3]] }),
+        "a GM's road wrote a student's Hope from a Hope a player's console raised that the GMs' audit had not put back "
+            + "(by road: the Hope on the sheet and in the GMs' mark)");
+    }],
+
+    ["a GM's advancement rises from the maxima, the statistics and the advances the GMs hold, not a console's the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026. level-up.mjs `applyAdvancement` - a GM's road, its write the student's mark from
+         * then on - read the maxima it raises, the statistics and experiences it adds to and the advances it counts off
+         * the sheet, where a console's rise the audit puts back stands until its put-back lands (and for good where it
+         * fails), and its write over the same paths superseded the put-back. The console raises the Health maximum by 3,
+         * a trait by 2 and the advances by 5, the put-back refused (`inConsoleWindow`); the GM applies +1 Health and +1
+         * to that trait. Read: the Health maximum, the trait and the advances, on the sheet and in the GMs' mark.
+         * At 85fdf9d (06.10.2026, e29run/r2h24red): a Health maximum of 10, the trait at 3 and 6 advances, on the sheet
+         * and in the mark (7, 1 and 1 since).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { applyAdvancement } = await import("./level-up.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const trait = Object.values(TRAITS)[0]?.dh;
+        const HP_MAX = "system.resources.hitPoints.max", TRAIT = `system.traits.${trait}.value`, ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const at = path => foundry.utils.getProperty(student._source, path);
+        must(typeof at(HP_MAX) === "number" && typeof at(TRAIT) === "number",
+            `${student.name} has no Health maximum or no ${trait} to raise - this would measure nothing: ${stableJson([at(HP_MAX), at(TRAIT)])}`);
+        const putBack = sheetAsFound(student, [HP_MAX, TRAIT, ADVANCES]);
+        const [hp, stat, advances] = [at(HP_MAX), at(TRAIT), at(ADVANCES) ?? 0];
+        let read = null;
+        try {
+            read = await inConsoleWindow(student, player(student), { forged: { [HP_MAX]: hp + 3, [TRAIT]: stat + 2, [ADVANCES]: advances + 5 },
+                paths: [HP_MAX, TRAIT, ADVANCES] }, () => applyAdvancement(student, [{ option: "hp" }, { option: "trait", trait }]));
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[hp + 1, hp + 1], [stat + 1, stat + 1], [advances + 1, advances + 1]]),
+            "a GM's advancement rose from a maximum, a statistic or the advances a player's console raised that the GMs' audit had not put back "
+            + "(the Health maximum, the trait, the advances; each on the sheet and in the GMs' mark)");
+    }],
+
+    ["a GM's take of Sanity is held to the maximum the GMs hold, not one a console wrote that the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026. A GM's write of a student's marks held to a maximum read off the sheet, where a
+         * console's write of the maximum the audit puts back stands until its put-back lands (and for good where it
+         * fails): a missed Observe's Sanity (observe.mjs `chargeObserveMiss`), a resolution's price (cleanup.mjs
+         * `markResolutionStress`) and Paranoia's marks (call-effects.mjs `damageEffect`), each at 3 marks under a maximum
+         * the console lowered to 3; and a price paid in Sanity on the GM - the Objection's, with no action and no Hope
+         * (price.mjs `payPrice`) - on a full track under a maximum the console raised by 3. Each put-back refused
+         * (`inConsoleWindow`). Read: the Sanity marks, on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026,
+         * e29run/r2h24red) the Observe, the resolution and Paranoia marked nothing - 3 each (4, 4 and 5 since) - and the
+         * Objection was paid with a seventh mark on a track of 6 (unpaid since, 6), on the sheet and in the mark alike.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { chargeObserveMiss } = await import("./observe.mjs");
+        const { markResolutionStress } = await import("./cleanup.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const { payPrice } = await import("./price.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const R = "system.resources", SAN = `${R}.stress.value`, SAN_MAX = `${R}.stress.max`, HOPE = `${R}.hope.value`, ACTS = `${R}.actions.value`;
+        const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        const S = Number(foundry.utils.getProperty(student._source, SAN_MAX));
+        must(S >= 5, `${student.name}'s Sanity maximum cannot hold the fixture's marks: ${S}`);
+        const putBack = sheetAsFound(student, [SAN, SAN_MAX, HOPE, ACTS, GRANTS]);
+        const lowered = { honest: { [SAN]: 3, [SAN_MAX]: S }, forged: { [SAN_MAX]: 3 }, paths: [SAN] };
+        const p = player(student), read = {};
+        try {
+            read.observe = await inConsoleWindow(student, p, lowered, () => chargeObserveMiss(student));
+            read.resolution = await inConsoleWindow(student, p, lowered, () => markResolutionStress(student));
+            read.paranoia = await inConsoleWindow(student, p, lowered, () => applyCall(null, "paranoia", "despair", { target: student }));
+            await trustedWrite(student, { [HOPE]: 0, [ACTS]: 0, [GRANTS]: 0 }, { reason: "gmRuling" });
+            read.objection = await inConsoleWindow(student, p, { honest: { [SAN]: S, [SAN_MAX]: S }, forged: { [SAN_MAX]: S + 3 }, paths: [SAN] },
+                () => payPrice(student, "objection", { quiet: true }));
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ observe: [[4, 4]], resolution: [[4, 4]], paranoia: [[5, 5]], objection: [[S, S]] }),
+            "a GM's take of Sanity was held to a maximum a player's console wrote that the GMs' audit had not put back "
+            + "(by road: the Sanity marks on the sheet and in the GMs' mark)");
+    }],
+
+    ["the incident's marks are held to the maxima the GMs hold, not ones a console lowered that the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026. The incident's GM-side writes of a student's marks, held to a maximum read off the
+         * sheet: a Despair opening fills the victim's Sanity to its maximum (murder.mjs `resolveKillerOpening`), a hit
+         * and a drain take Sanity and then Health (`takeReserves`), and a resolution's price is paid in blood on a full
+         * Sanity (`spendStress`). The victim at 3 Sanity marks, the console's Sanity maximum lowered to 3 and its
+         * put-back refused (`inConsoleWindow`): the opening is Despair. At 3 Sanity marks and 1 Health mark, the same
+         * maximum lowered again: the killer strikes with Hope (1 Sanity, 1 Health) and the turn, passing to the victim,
+         * drains 1 Sanity. A Self-defence with Hope opens Survive; at a full Sanity and 1 Health mark the console lowers
+         * the Health maximum to 1, and Survive fails with Hope - its extra drain and its price both land on Health.
+         * Read: the victim's Sanity after the opening, Sanity and Health after the strike, Health after Survive; each
+         * on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red), on the sheet and in the mark
+         * alike: the opening filled Sanity to 3 (6 since); the strike's Sanity and the drain went to Health - Sanity 3,
+         * Health 4 (5 and 2 since); Survive's drain and price marked nothing - Health 1 (3 since).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const R = "system.resources", SAN = `${R}.stress.value`, SAN_MAX = `${R}.stress.max`, HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const at = path => Number(foundry.utils.getProperty(victim._source, path));
+        const [S, H] = [at(SAN_MAX), at(HP_MAX)];
+        must(S >= 5 && H >= 4, `${victim.name}'s maxima cannot hold the fixture's marks: ${stableJson([S, H])}`);
+        const putBack = [sheetAsFound(victim, [SAN, SAN_MAX, HP, HP_MAX]), sheetAsFound(killer, [SAN, HP])];
+        const p = player(victim), read = {};
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            must(M.murderState()?.stage === "openingRoll", `the fixture's opening was answered before the test answered it: ${stableJson(M.murderState())}`);
+            read.opening = await inConsoleWindow(victim, p, { honest: { [SAN]: 3 }, forged: { [SAN_MAX]: 3 }, paths: [SAN] },
+                () => M.resolveKillerOpening({ total: 24, isCritical: false, withHope: false }));
+            must(M.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(M.murderState())}`);
+            await turnFor(M, killer, "strike");
+            read.strike = await inConsoleWindow(victim, p, { honest: { [SAN]: 3, [SAN_MAX]: S, [HP]: 1 }, forged: { [SAN_MAX]: 3 }, paths: [SAN, HP] },
+                () => M.resolveCrisisAction({ actorId: killer.id, key: "strike", total: 99, isCritical: false, withHope: true }));
+            await trustedWrite(victim, { [SAN_MAX]: S }, { reason: "gmRuling" });
+            await turnFor(M, victim, "selfDefence");
+            await M.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 99, isCritical: false, withHope: true });
+            await settle();
+            await turnFor(M, victim, "survive");
+            read.survive = await inConsoleWindow(victim, p, { honest: { [SAN]: S, [HP]: 1 }, forged: { [HP_MAX]: 1 }, paths: [HP] },
+                () => M.resolveCrisisAction({ actorId: victim.id, key: "survive", total: 0, isCritical: false, withHope: true }));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const actor of [killer, victim]) if (isDeadForGm(actor)) await reviveCharacter(actor, { quiet: true });
+            for (const back of putBack) await back();
+        }
+        equal(stableJson(read), stableJson({ opening: [[S, S]], strike: [[5, 5], [2, 2]], survive: [[3, 3]] }),
+            "the incident's marks were held to a maximum a player's console lowered that the GMs' audit had not put back "
+            + "(the opening's Sanity, the strike's Sanity and Health, Survive's Health; each on the sheet and in the GMs' mark)");
     }],
 
     ["a player's write that raises a resource's maximum banks no credit beyond the maximum the GMs hold", async () => {

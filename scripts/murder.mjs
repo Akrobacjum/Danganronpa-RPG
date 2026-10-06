@@ -1495,9 +1495,12 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
         if (victim) {
-            await trustedWrite(victim, {
-                "system.resources.stress.value": resourceMax(victim, "stress")
-            }, { reason: "incident" });
+            // To the end of the track the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's
+            // lowered maximum, not put back yet, was the end this filled to.
+            const { meansWrite } = await import("./sheet-audit.mjs");
+            await meansWrite(victim, (held, maxOf) => trustedWrite(victim, {
+                "system.resources.stress.value": maxOf("stress") ?? 0
+            }, { reason: "incident" }));
         }
     }
     await tellGms(prose[band], { keys });
@@ -3211,12 +3214,20 @@ async function applyDamage(actor, state, def, band, done, failed = false, choice
  * said. Returns whether anything landed.
  */
 async function takeReserves(actor, { hitPoints = 0, stress = 0 }, done) {
-    const sanity = reserveChange(actor, "stress", -stress);
-    const health = reserveChange(actor, "hitPoints", -(hitPoints + sanity.overflow));
-    const update = { ...health.update, ...sanity.update };
-    if (!Object.keys(update).length) return false;
-    await trustedWrite(actor, update, { reason: "incident" });
-    const note = landedNote(actor, [health, sanity]);
+    // From the marks and the maxima the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's lowered
+    // maximum, not put back yet, read as a reserve spent already, and the loss went to Health or nowhere.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const changes = await meansWrite(actor, async (held, maxOf) => {
+        const at = key => ({ marks: held[key], max: maxOf(key) });
+        const sanity = reserveChange(actor, "stress", -stress, at("stress"));
+        const health = reserveChange(actor, "hitPoints", -(hitPoints + sanity.overflow), at("hitPoints"));
+        const update = { ...health.update, ...sanity.update };
+        if (!Object.keys(update).length) return null;
+        await trustedWrite(actor, update, { reason: "incident" });
+        return [health, sanity];
+    });
+    if (!changes) return false;
+    const note = landedNote(actor, changes);
     if (note) done.push(note);
     return true;
 }
@@ -3627,10 +3638,14 @@ async function spendStress(actor, done) {
      * ends because both tracks are now full, which is `isSpent`, and the caller
      * asks `checkVictimSpent` two lines later.
      */
-    const health = reserveChange(actor, "hitPoints", -RESOLUTION_HEALTH_COST);
+    // From the Health the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24), as `takeReserves` reads it.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const health = await meansWrite(actor, async (held, maxOf) => {
+        const change = reserveChange(actor, "hitPoints", -RESOLUTION_HEALTH_COST, { marks: held.hitPoints, max: maxOf("hitPoints") });
+        if (change.landed) await trustedWrite(actor, change.update, { reason: "incident" });
+        return change;
+    });
     if (!health.landed) return;
-
-    await trustedWrite(actor, health.update, { reason: "incident" });
     done.push(landedNote(actor, [health]));
 }
 

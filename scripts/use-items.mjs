@@ -634,42 +634,48 @@ async function confirmUse(item, preview, pointless) {
  * one mark of Health who drinks a Tier 2 kit recovers one, not two.
  */
 async function restore(actor, amounts, { reason, ref }) {
-    const update = {};
-    const done = {};
     // Under the Despair darkening a Hope write is stripped; reporting it as
     // restored would be the card lying (CALL-05). `wouldRestore` asks the same.
     const hopeBlocked = overflowBlocksHope();
 
-    for (const [key, amount] of Object.entries(amounts)) {
-        if (key === "hope") {
-            if (hopeBlocked) continue;
-            const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-            const held = resourceValue(actor, "hope");
-            const next = Math.min(max, held + amount);
-            if (next !== held) {
-                update["system.resources.hope.value"] = next;
-                done.hope = next - held;
+    // From the means the GMs hold on a GM's client - a ruling's (`grantItemEffect`) - in one step (sheet-audit.mjs
+    // `meansWrite`, E29 fix r2-H24): a console's raised Hope, not put back yet, was restored on top there. A player's
+    // own use reads its sheet, as before.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    return meansWrite(actor, async (held, maxOf) => {
+        const update = {};
+        const done = {};
+        for (const [key, amount] of Object.entries(amounts)) {
+            if (key === "hope") {
+                if (hopeBlocked) continue;
+                const max = maxOf("hope") || STARTING.hopeMax;
+                const next = Math.min(max, held.hope + amount);
+                if (next !== held.hope) {
+                    update["system.resources.hope.value"] = next;
+                    done.hope = next - held.hope;
+                }
+                continue;
             }
-            continue;
+
+            // Health and Sanity; anything the GMs do not hold is read as it stands.
+            const marks = held[key] ?? resourceValue(actor, key);
+            const next = Math.max(0, marks - amount);
+            if (next !== marks) {
+                update[`system.resources.${key}.value`] = next;
+                done[key] = marks - next;
+            }
         }
 
-        const marks = resourceValue(actor, key);
-        const next = Math.max(0, marks - amount);
-        if (next !== marks) {
-            update[`system.resources.${key}.value`] = next;
-            done[key] = marks - next;
+        if (Object.keys(update).length) {
+            try {
+                await trustedWrite(actor, update, { reason, ref });
+            } catch (err) {
+                error("Could not apply what the item restored", err);
+                return {};
+            }
         }
-    }
-
-    if (Object.keys(update).length) {
-        try {
-            await trustedWrite(actor, update, { reason, ref });
-        } catch (err) {
-            error("Could not apply what the item restored", err);
-            return {};
-        }
-    }
-    return done;
+        return done;
+    });
 }
 
 function describe(restored) {

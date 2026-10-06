@@ -2664,13 +2664,18 @@ async function handBack(actor, price, amount = 1, receipt = null) {
  * `stampOf`).
  */
 export async function markResolutionStress(actor) {
-    const marks = resourceValue(actor, "stress");
-    const max = resourceMax(actor, "stress");
-    if (marks >= max) return false;
-    await trustedWrite(actor, {
-        "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
-    }, { reason: "price" });
-    return true;
+    // Held to the marks and the maximum the GMs hold on a GM's client (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a
+    // console's lowered maximum, not put back yet, read as a full track there and sent the price to Health. The
+    // killer's own concealment roll reads its sheet, as before.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    return meansWrite(actor, async ({ stress: marks }, maxOf) => {
+        const max = maxOf("stress") ?? 0;
+        if (marks >= max) return false;
+        await trustedWrite(actor, {
+            "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
+        }, { reason: "price" });
+        return true;
+    });
 }
 
 async function spendStress(actor) {
