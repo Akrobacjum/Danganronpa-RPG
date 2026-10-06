@@ -361,9 +361,12 @@ function itemEffectsAfter(mark, itemId, data) {
     return out;
 }
 
-/** What an item's write that stands moves the mark by: the item as its hook saw it (C6) and, made or deleted, its effects with it (G3). */
-const itemMoves = (kind, mark, item, data) => ({ items: itemsAfter(mark, item, data),
-    ...(kind === "updateItem" ? {} : { itemEffects: itemEffectsAfter(mark, item.id, data) }) });
+/**
+ * What an item's write that stands moves the mark by: the item as its hook saw it (C6) and, made or deleted, its effects with it
+ * (G3) - or updated with them in its `changes` (fix r2-H8, `parentEffects`).
+ */
+const itemMoves = (kind, mark, item, data, changes = {}) => ({ items: itemsAfter(mark, item, data),
+    ...(kind === "updateItem" && !names(changes, "effects") ? {} : { itemEffects: itemEffectsAfter(mark, item.id, data) }) });
 
 /** An item the mark holds, whole: its copy with the effects held on it (G3), as a deleted one is made again. */
 const wholeItem = (mark, id) => ({ ...clone(mark.items[id]), effects: Object.values(mark.itemEffects?.[id] ?? {}).map(clone) });
@@ -749,18 +752,20 @@ function setMarked(mark, path, value) {
  * The mark after one judged write (G1): the mark as held, with each path the write's hook saw set
  * (`paths`), then each path put back given its held value again (`back`; the armed list, the
  * entries of the hook's list the GMs held: `calls`), the one effect that stood (`effect`, on the
- * student or on its item `effect.itemId`, G3), the module items as the verdict leaves them (`items`,
- * C6) and their effects as an item made or deleted leaves them (`itemEffects`, G3), and the means as
- * the judgement hands them (`ledger`) or as held - never as written: the GMs' means are the ledger's
- * alone (C4).
+ * student or on its item `effect.itemId`, G3) or those of a student's update that wrote them
+ * (`effects`, fix r2-H8), the module items as the verdict leaves them (`items`, C6) and their
+ * effects as an item made, deleted or updated with them leaves them (`itemEffects`, G3), and the
+ * means as the judgement hands them (`ledger`) or as held - never as written: the GMs' means are
+ * the ledger's alone (C4).
  */
-function markAfter(actor, held, { paths = {}, back = [], calls = null, effect = null, items = null, itemEffects = null, ledger = null } = {}) {
+function markAfter(actor, held, { paths = {}, back = [], calls = null, effect = null, effects = [], items = null, itemEffects = null, ledger = null } = {}) {
     const next = Object.fromEntries(["traits", "experiences", "resources", "rules", "bonuses", "levelData", "flags", "effects", "items", "itemEffects"]
         .map(field => [field, clone(held[field] ?? {})]));
     for (const [path, value] of Object.entries(paths)) setMarked(next, path, value);
     const was = markAsDocument(held);
     for (const path of back) setMarked(next, path, path === CALLS_PATH && calls ? keptCalls(paths[CALLS_PATH], calls) : foundry.utils.getProperty(was, path));
     if (effect) setEffect(next, effect.itemId ?? null, effect.id, effect.data);
+    for (const each of effects) setEffect(next, each.itemId ?? null, each.id, each.data);
     if (items) next.items = items;
     if (itemEffects) next.itemEffects = itemEffects;
     return withLedger(next, ledger?.values ?? ledgerOf(held, actor), ledger?.credit ?? held.credit ?? {});
@@ -846,9 +851,10 @@ export function judgeWrite(kind, doc, changes, userId, options = {}, priors = nu
 async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const user = game.users?.get(userId ?? "");
     const early = !gmStoresHydrated() && !options?.[AUDIT_ASIDE];
-    // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them.
-    const stood = mark => ITEM_WRITES.has(kind) ? itemMoves(kind, mark, doc, seen.item)
-        : kind === "updateActor" ? { paths: seen.paths } : { effect: { id: doc.id, itemId: itemOf(doc)?.id ?? null, data: seen.effect } };
+    // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them, and the effects written through either (r2-H8).
+    const stood = mark => ITEM_WRITES.has(kind) ? itemMoves(kind, mark, doc, seen.item, changes)
+        : kind === "updateActor" ? { paths: seen.paths, effects: seen.effects ? effectMoves(mark?.effects, seen.effects) : [] }
+            : { effect: { id: doc.id, itemId: itemOf(doc)?.id ?? null, data: seen.effect } };
     if (user?.isGM) {
         if (early) noteUnmarked(kind, doc, actor, changes);
         /* The GMs' own put-back moves nothing they hold: it writes back what the mark holds, and since G1
@@ -866,7 +872,7 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
         const reason = options?.drpgWrite?.reason ?? (options?.[HOPE_REFUND] || options?.[GIVE_BACK] ? "refund" : null);
         if (options?.[AUDIT_ASIDE] || reason === "auditPutBack") return { verdict: "mark", change: {} };
         const moves = stood(sheetMarkStore.get(actor.id));
-        if (kind === "updateActor") moves.ledger = gmLedger(actor, seen, reason);
+        if (kind === "updateActor") moves.ledger = gmLedger(actor, seen, reason, Boolean(options?.[GIVE_BACK]));
         await refreshMark(actor, moves);
         return { verdict: "mark", change: {} };
     }
@@ -926,22 +932,27 @@ async function unmarkedWrite(kind, doc, actor, changes, user, options, seen) {
 
 /**
  * A student's update, as its hook saw it (G1): what it changed of what a roll is built from
- * (`actorFindings`) and of its means (`meansFindings`), put back in one write (`putBackNow`), and
- * what the mark takes of it (`moves`). The GMs' armed entries it took wait for the roll that
- * covers them (`callsCover`, fix r2-H7).
+ * (`actorFindings`) and of its means (`meansFindings`), put back in one write (`putBackNow`), the
+ * effects it wrote, each put back through its own document (`parentEffects`, fix r2-H8), and what
+ * the mark takes of it (`moves`). The GMs' armed entries it took wait for the roll that covers
+ * them (`callsCover`, fix r2-H7).
  */
 async function updateFindings(actor, mark, changes, user, options, seen) {
     const was = asSource(seen.paths);
     const read = actorFindings(mark, changes, was);
     const sheet = read.taken.length ? callsOwed(read, await callsCover(actor, user, read.taken, seen.at)) : read;
     const means = await meansFindings(actor, mark, user, options, seen);
+    const effects = seen.effects ? parentEffects(actor, null, mark, seen.effects) : { back: [], listed: [], change: {}, undos: [], stood: [] };
     const back = [...sheet.back, ...means.back];
-    return { back, listed: [...sheet.listed, ...means.listed], flagged: [...sheet.flagged, ...means.flagged],
+    return { back: [...back, ...effects.back], listed: [...sheet.listed, ...means.listed, ...effects.listed], flagged: [...sheet.flagged, ...means.flagged],
         stood: [...(sheet.stood ?? []), ...means.stood], roll: sheet.roll ?? null,
-        change: { ...sheet.change, ...means.change },
+        change: { ...sheet.change, ...means.change, ...effects.change },
         covered: means.covered, fix: means.fix,
-        moves: { paths: seen.paths, back: back.map(entry => entry.path), calls: sheet.calls, ledger: means.ledger },
-        undo: () => putBackNow(actor, mark, was, back, sheet.calls, means.patch) };
+        moves: { paths: seen.paths, back: back.map(entry => entry.path), calls: sheet.calls, ledger: means.ledger, effects: effects.stood },
+        undo: async () => {
+            await putBackNow(actor, mark, was, back, sheet.calls, means.patch);
+            for (const undo of effects.undos) await undo();
+        } };
 }
 
 /**
@@ -1009,10 +1020,12 @@ function actorFindings(mark, changes, src) {
  * mark keeps below it is read. Until this fix all of these stood with no row: measured at fd7c61f
  * (05.10.2026, e29run/r1g4red) by tier 2 for the player's own flag (`ultimate`), a condition with no
  * changes taken off and an item that is not the module's taken off, and at ready for a condition taken
- * off and a module item renamed.
+ * off and a module item renamed. The student's `effects` written through its update are no field of
+ * it: each is judged as an effect (`parentEffects`, fix r2-H8).
  */
 function otherField(path, was, now) {
     if (LEDGER_PATHS.has(path) || path === RESTS_PATH || path.startsWith(`${RESTS_PATH}.`)) return false;
+    if (path === "effects" || path.startsWith("effects.")) return false;
     const held = MARKED_PATHS.some(root => path === root || path.startsWith(`${root}.`));
     return !held || stableJson(was ?? null) !== stableJson(now ?? null);
 }
@@ -1102,7 +1115,8 @@ function noteWrite(actor, changes, options, userId) {
  * them (`pathsSeen`, G1), the means and the Rest stamps among them (the document holds them as
  * the hook runs; a later write may have moved them by the time the judge reaches this one), the
  * item an item use names as it stood before its consumption landed, where this GM's hearing of
- * each means stood (`heard`, `hopeLeft`), and when.
+ * each means stood (`heard`, `hopeLeft`), the student's effects where the write reaches them
+ * (`effects`, fix r2-H8: `parentEffects`), and when.
  */
 function seenNow(actor, changes, options, priors) {
     const src = actor._source ?? {};
@@ -1112,7 +1126,8 @@ function seenNow(actor, changes, options, priors) {
     const stamp = options?.drpgWrite;
     const item = stamp?.reason === "itemUse" && stamp.ref ? actor.items?.get(stamp.ref)?.toObject?.() ?? null : null;
     const then = Object.fromEntries(Object.keys(values).map(key => [key, heard.get(actor.id)?.[key] ?? null]));
-    return { at: Date.now(), paths: pathsSeen(src, changes), values, rests, item, priors, heard: then };
+    const effects = names(changes, "effects") ? effectsIn(src) : undefined;
+    return { at: Date.now(), paths: pathsSeen(src, changes), values, rests, item, priors, heard: then, effects };
 }
 
 /*
@@ -1130,24 +1145,55 @@ function seenNow(actor, changes, options, priors) {
  * 69deef0 (a GM's 3 Hope paid and given back, then p1's 5 -> 8 stamped `refund`: 8 stood, no row), and
  * at fd7c61f (05.10.2026, e29run/r1g4red) by tier 2 - the 2 paid and given back still in the credit, the
  * player's 2 standing on it - and scenario 30's console (Hope 4 on every client, no row).
+ *
+ * A GIVE-BACK'S FALL PAYS FOR NOTHING (E29 fix r2-H8, 06.10.2026; fix r2-H6's open point, decided (a) by
+ * the orchestrator). A Reroll's take-back that removes what the action gave - the Hope an item's use
+ * gave in a crisis action, murder.mjs `restoreResource` - carries `GIVE_BACK` (`giveBack`) and is a fall,
+ * which added credit as any GM's fall does: a console's refund of the same Hope then stood on it, the
+ * shape C5 closed for the Undo. It adds none now. Measured at 0d86603 (06.10.2026, e29run/r2h8red) by
+ * tier 2: the 2 Hope taken back stayed in the credit and the player's refund of them stood (credit 2,
+ * `stands`, Hope 2 up); after it 0, put back.
  */
-function gmLedger(actor, seen, reason = null) {
+function gmLedger(actor, seen, reason = null, giveBack = false) {
     const mark = sheetMarkStore.get(actor.id);
     if (!mark || !Object.keys(seen.values).length) return null;
     const values = ledgerOf(mark, actor), credit = creditOf(mark, seen.at);
     for (const [key, value] of Object.entries(seen.values)) {
         const spent = (value - values[key]) * LEDGER[key].cost;
-        if (spent > 0 && reason !== "auditUndo") (credit[key] ??= []).push({ n: spent, at: seen.at });
+        if (spent > 0 && reason !== "auditUndo" && !giveBack) (credit[key] ??= []).push({ n: spent, at: seen.at });
         if (spent < 0 && REFUNDS.has(reason)) takeCredit(credit, key, -spent);
         values[key] = value;
     }
     return { values, credit };
 }
 
-/** A means held within its bounds: 0, and a resource's maximum. */
-function bounded(actor, key, n) {
-    const max = LEDGER[key].path.startsWith("system.") ? Number(actor.system?.resources?.[key]?.max) : NaN;
+/*
+ * A MEANS HELD WITHIN ITS BOUNDS: 0, and the maximum the GMs hold (E29 fix r2-H8, 06.10.2026; review
+ * round 2 cor m1). The document's maximum is what Daggerheart prepares from the sheet's, which the write
+ * being judged can raise - put back as `max`, but after this has read it: a rise of marks then banked
+ * credit up to the raised maximum, and a gain covered by credit kept a value above the one put back.
+ * So the sheet's maximum the write left is taken out of the document's and the mark's put in. Not the
+ * mark's maximum alone, as the review proposed: Daggerheart adds the class's hit points and a level-up's
+ * picks to the sheet's Health maximum, and the picks to Sanity's (character.mjs `prepareBaseData`, read
+ * in 2.6.5 and 2.10.5) - the sheet's Health maximum is a bonus, 0 on a fresh sheet, and bounding by it
+ * would hold every Health value at it. Hope's maximum is Daggerheart's world setting less scars,
+ * whatever the sheet holds (`prepareBaseData`, `prepareDerivedData`, both versions): a write cannot
+ * raise it at a table, and the document's stands. The harness prepares nothing, so there a raised
+ * sheet's Hope maximum still raises the document's, which no table does. Measured at 0d86603
+ * (06.10.2026, e29run/r2h8red) by tier 2: a player's write of Sanity's marks and maximum to 9, over
+ * the GMs' 1 mark of 6, banked 8 marks of credit; after it 5.
+ */
+function bounded(actor, mark, key, n) {
+    const max = LEDGER[key].path.startsWith("system.") ? maxHeld(actor, mark, key) : NaN;
     return Math.max(0, Number.isFinite(max) ? Math.min(max, n) : n);
+}
+
+/** A resource's maximum as the GMs hold it (`bounded`): the document's, with the mark's sheet maximum for the one the write left - Hope's aside. */
+function maxHeld(actor, mark, key) {
+    const prepared = Number(actor.system?.resources?.[key]?.max);
+    if (key === "hope") return prepared;
+    const sheet = foundry.utils.getProperty(actor._source ?? {}, `system.resources.${key}.max`), held = mark?.resources?.[key]?.max;
+    return typeof sheet === "number" && typeof held === "number" ? prepared - sheet + held : prepared;
 }
 
 /*
@@ -1178,7 +1224,8 @@ function hopeLeft(actor, seen, value) {
  * spends Hope - that reads as a rise straight after a put-back of Hope was paid from the value the
  * put-back replaced, by a browser the put-back had not reached yet: it is measured from that one.
  * Without it a forged Hope spent at once on a Call cost nothing whenever the put-back landed
- * between the two. How often the two cross at a table is not measured (LIVE-E29-02).
+ * between the two. How often the two cross at a table is not measured, and no live check of AUDIT
+ * section 9 counts it (the LIVE-E29-02 cited here until fix r2-H8 is the Party sheet's read-only check).
  */
 function movesOf(seen, values, stamp) {
     return Object.fromEntries(Object.entries(seen.values).map(([key, value]) => {
@@ -1215,7 +1262,7 @@ async function meansFindings(actor, mark, user, options, seen) {
             gains[key] = -spent;
             continue;
         }
-        const next = bounded(actor, key, values[key] + move.d), n = Math.abs(next - values[key]);
+        const next = bounded(actor, mark, key, values[key] + move.d), n = Math.abs(next - values[key]);
         if (n) (credit[key] ??= []).push({ n, at: seen.at });
         values[key] = next;
     }
@@ -1223,7 +1270,7 @@ async function meansFindings(actor, mark, user, options, seen) {
         ? await coverOf(actor, mark, credit, gains, moves, stamp, user, seen) : { covers: {}, rest: false, taken: {} };
     for (const [key, gain] of Object.entries(gains)) {
         const covered = Math.min(gain, judged.covers[key] ?? 0), verdict = gainVerdict(key, lock);
-        values[key] = bounded(actor, key, values[key] - LEDGER[key].cost * (verdict === "back" ? covered : gain));
+        values[key] = bounded(actor, mark, key, values[key] - LEDGER[key].cost * (verdict === "back" ? covered : gain));
         const { path, kind, cost } = LEDGER[key];
         if (covered === gain) {
             out.stood.push({ path, kind });
@@ -1564,7 +1611,8 @@ function withPaths(data, before, paths) {
  * is put back. Any item made with an effect that counts (`carriedEffects`, G3) is put back whole.
  * Any other field of an item, and an item the GMs hold no copy of taken off the sheet - with the
  * effects it took with it named in its row - is listed; a Search's find is what its write stood
- * on (`stood`, G4). An item's effects are judged as their own, never as a field of the item.
+ * on (`stood`, G4). An item's effects are judged as their own, never as a field of the item -
+ * those its update wrote too (`parentEffects`, fix r2-H8).
  */
 async function itemFindings(kind, item, actor, mark, changes, user, options, seen) {
     const id = item.id, held = mark.items?.[id] ?? null, now = seen?.item ?? null, stamp = options?.drpgWrite ?? {};
@@ -1620,13 +1668,25 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
         out.listed.push({ path: `${whole}.${path}`, kind: "other" });
         out.change[`${whole}.${path}`] = [clone(was) ?? null, clone(is) ?? null];
     }
-    if (!back.length) return out;
-    const paths = back.map(entry => entry.path);
-    for (const path of paths) out.change[`${whole}.${path}`] = [clone(foundry.utils.getProperty(before, path)) ?? null, clone(foundry.utils.getProperty(now, path)) ?? null];
-    out.back = back.map(entry => ({ ...entry, path: `${whole}.${entry.path}` }));
-    const patch = putBackPatch(before, paths);
-    out.undo = () => trustedWrite(item, patch, { reason: "auditPutBack" });
-    out.items = itemsAfter(mark, item, withPaths(now, before, paths));
+    // The effects it wrote (fix r2-H8): each judged as one on the student, the ones that stand into the mark.
+    const effects = names(changes, "effects") ? parentEffects(item, id, mark, effectsIn(now)) : null;
+    if (effects) {
+        out.listed.push(...effects.listed);
+        Object.assign(out.change, effects.change);
+        for (const each of effects.stood) setEffect(out, id, each.id, each.data);
+    }
+    const undos = [...(effects?.undos ?? [])];
+    if (back.length) {
+        const paths = back.map(entry => entry.path);
+        for (const path of paths) out.change[`${whole}.${path}`] = [clone(foundry.utils.getProperty(before, path)) ?? null, clone(foundry.utils.getProperty(now, path)) ?? null];
+        const patch = putBackPatch(before, paths);
+        undos.unshift(() => trustedWrite(item, patch, { reason: "auditPutBack" }));
+        out.items = itemsAfter(mark, item, withPaths(now, before, paths));
+    }
+    out.back = [...back.map(entry => ({ ...entry, path: `${whole}.${entry.path}` })), ...(effects?.back ?? [])];
+    if (undos.length) out.undo = async () => {
+        for (const undo of undos) await undo();
+    };
     return out;
 }
 
@@ -1723,6 +1783,42 @@ function effectFindings(kind, effect, mark, changes, now) {
         return still.length ? trustedWrite(live, putBackPatch(held, still), { reason: "auditPutBack" }) : null;
     });
 }
+
+/*
+ * AN EFFECT WRITTEN THROUGH ITS PARENT (E29 fix r2-H8, 06.10.2026; review round 2 cor M5). A student's
+ * or an item's update can carry its `effects`: each changed where it is, named by its id, or the whole
+ * list replaced (v14's forced replacement), which makes and deletes them. The harness fires no effect
+ * hook for such a write, only the parent's (measured by the fix's probe at 0d86603, e29run/scratch/
+ * r2h8-probe: `updateActor`, `updateItem`); whether Foundry v14 does is not measured - its source is not
+ * on this machine, and it is recalled as the same. So the effects as the parent's hook saw them (`now`,
+ * by id) are compared with the mark's, and each that differs is judged as `effectFindings` judges one
+ * written on its own - made, changed or deleted - and put back through its own document (`undos`); one
+ * that stands goes into the mark (`stood`). Until this fix a student's were one field, listed
+ * (`otherField`), and an item's were read by nothing (`otherItemPaths`): in the probe a +5 to every roll
+ * written over a GM's penalty by p1's console stood on Aiko with a listed row, and on her Tool with none.
+ * Were Foundry to fire the effect's own hook as well, the later of the two judgements (`inOrder`) would
+ * write nothing - a put-back writes only what still stands as the write left it - and add a second row.
+ */
+function parentEffects(host, itemId, mark, now) {
+    const held = (itemId ? mark.itemEffects?.[itemId] : mark.effects) ?? {};
+    const out = { back: [], listed: [], change: {}, undos: [], stood: [] };
+    for (const id of new Set([...Object.keys(held), ...Object.keys(now)])) {
+        const was = held[id] ?? null, is = now[id] ?? null;
+        if (stableJson(was) === stableJson(is)) continue;
+        const kind = !is ? "deleteActiveEffect" : was ? "updateActiveEffect" : "createActiveEffect";
+        const one = effectFindings(kind, host.effects?.get(id) ?? { id, parent: host }, mark, was && is ? bothPaths(was, is) : {}, is);
+        out.back.push(...one.back);
+        out.listed.push(...one.listed);
+        Object.assign(out.change, one.change);
+        if (one.back.length) out.undos.push(one.undo);
+        else out.stood.push({ id, itemId, data: is });
+    }
+    return out;
+}
+
+/** A GM's write of a student's effects through its update (r2-H8): every one that differs from the mark's, as the hook saw it, is the mark's. */
+const effectMoves = (held = {}, now = {}) => [...new Set([...Object.keys(held), ...Object.keys(now)])]
+    .filter(id => stableJson(held[id] ?? null) !== stableJson(now[id] ?? null)).map(id => ({ id, itemId: null, data: now[id] ?? null }));
 
 /*
  * AN ITEM MADE CARRYING AN EFFECT THAT COUNTS (G3; review round 1 sec B3): the effects of an item's
@@ -2125,7 +2221,8 @@ async function compareOne(actor) {
             gone.push(id);
         } else if (!held) out.items.push({ itemId: id, back: [], flagged: [{ path: whole, kind: "itemCreated" }], change: { [whole]: [null, item.name ?? null] } });
         else {
-            const found = await itemFindings("updateItem", item, actor, mark, bothPaths(held, data), null, {}, { item: data });
+            // Its fields only: its effects are compared below, each as its own (G3), not as written through it (r2-H8).
+            const found = await itemFindings("updateItem", item, actor, mark, bothPaths(held, itemCopy(data)), null, {}, { item: data });
             if (!found.back.length && !found.listed.length) continue;
             out.items.push(found);
             if (!found.back.length) continue;

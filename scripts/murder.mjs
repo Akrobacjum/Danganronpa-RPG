@@ -2907,7 +2907,8 @@ function marksBack(actor, field, was, claimed) {
  * A resource put back as it stood before the action taken back. A give-back (fix r2-H6,
  * resource-guard.mjs `stampOf`): what it returns - the marks the action made on either side -
  * takes the credit the action left in the GMs' audit. What it takes away - the Hope a use gave -
- * is a fall, which the marker leaves as it was: credit, as every fall but an Undo's (`gmLedger`).
+ * is a fall the marker keeps out of the credit since fix r2-H8, as an Undo's is (`gmLedger`): it
+ * paid for nothing, and a refund of it is no refund.
  */
 async function restoreResource(actor, field, value) {
     if (!actor || typeof value !== "number") return;

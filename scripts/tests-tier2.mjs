@@ -26385,6 +26385,116 @@ const SCENARIOS = [
     }],
 
     /*
+     * AN EFFECT WRITTEN THROUGH ITS STUDENT'S UPDATE (E29 fix r2-H8, 06.10.2026; review round 2 cor M5). A
+     * student's update that carries its `effects` fires no effect hook in the harness, only `updateActor` (the
+     * fix's probe), so the audit judges the list as the hook saw it: a GM's change of the GMs' penalty goes into
+     * the mark; a player's - the penalty turned into a +5 by its id, then the whole list replaced without the
+     * penalty and with a +5 of its own - is put back, the penalty as the GM left it and made again under its id,
+     * the +5 taken off. At 0d86603 (06.10.2026, e29run/r2h8red) every round was listed and stood: the mark kept
+     * -2, the +5 stayed, the Evasion bonus raised stayed out of the mark, and the replaced list kept the +5 and lost the penalty.
+     */
+    ["an effect written through its student's own update is judged as one written on its own: a player's put back, a GM's into the mark", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const bonus = value => ({ system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value }] } });
+        const valueOf = data => data?.system?.changes?.[0]?.value ?? null;
+        const ours = () => student.effects.contents.filter(effect => effect.name?.startsWith("Tier 2 H8 "));
+        // Written aside on the GM, then handed to the judge with the player's id, as the primary's hook hands it: the verdict and its rows.
+        const judged = async write => {
+            const from = Date.now();
+            await student.update(write, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id);
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from)
+                .map(row => `${row.verdict}:${Object.keys(row.change ?? {}).map(path => path.split(".")[0]).join(",")}`);
+            return [verdict?.verdict ?? null, rows];
+        };
+        let seen = null;
+        try {
+            const [penalty] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 H8 penalty", ...bonus(-2) }]);
+            await sheetAuditIdle();
+            must(penalty && valueOf(sheetMarkStore.get(student.id)?.effects?.[penalty.id]) === -2, "the GMs' penalty is not in the mark - this would measure nothing");
+            await student.update({ effects: [{ _id: penalty.id, ...bonus(-3) }] });
+            await sheetAuditIdle();
+            const gm = valueOf(sheetMarkStore.get(student.id)?.effects?.[penalty.id]);
+            const changed = await judged({ effects: [{ _id: penalty.id, ...bonus(5) }] });
+            const changedAfter = valueOf(student.effects.get(penalty.id));
+            const evasion = value => ({ system: { changes: [{ key: "system.evasion", type: "add", value }] } });
+            const [dodge] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 H8 evasion", ...evasion(1) }]);
+            await sheetAuditIdle();
+            const dodged = await judged({ effects: [{ _id: dodge.id, ...evasion(2) }] });
+            const dodgeHeld = valueOf(sheetMarkStore.get(student.id)?.effects?.[dodge.id]);
+            const extra = foundry.utils.randomID();
+            const list = [...student.effects.contents.filter(effect => effect.id !== penalty.id).map(effect => effect.toObject()),
+                { _id: extra, name: "Tier 2 H8 bonus", ...bonus(5) }];
+            const swapped = await judged({ effects: replaced(list) });
+            seen = [gm, changed, changedAfter, dodged, dodgeHeld, swapped, valueOf(student.effects.get(penalty.id)), student.effects.has(extra)];
+        } finally {
+            await sheetAuditIdle();
+            if (ours().length) await student.deleteEmbeddedDocuments("ActiveEffect", ours().map(effect => effect.id));
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([-3, ["putBack", ["putBack:effects"]], -3, ["listed", ["listed:effects"]], 2,
+            ["putBack", ["putBack:effects,effects"]], -3, false]),
+            "an effect written through the student's update was not judged as one written on its own (the GM's change in the mark; a player's +5 - "
+                + "the verdict and its rows, the penalty after it; an Evasion bonus raised - the verdict and its rows, the mark's; the list replaced "
+                + "without the penalty and with a +5 - the verdict and its rows, the penalty after it, whether the +5 is left)");
+    }],
+
+    /*
+     * AN EFFECT WRITTEN THROUGH ITS ITEM'S UPDATE (E29 fix r2-H8, 06.10.2026; review round 2 cor M5). The same
+     * through a Tool the student carries: `item.update({ effects })` fires only `updateItem` in the harness, and
+     * until this fix the audit read nothing of it. Since the fix the harness merges an embedded item's `effects`
+     * by id, as Foundry's update of an embedded list does - before it the list was replaced by the patch (the
+     * penalty's name read here). At 0d86603 (06.10.2026, e29run/r2h8red, with this fix's harness) the mark kept
+     * -2 and the player's +5 stood with no row; at ready it was put back once, to the mark's -2.
+     */
+    ["an effect written through its item's update is judged as one on the student: a player's put back, a GM's into the mark", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, compareAtReady, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const bonus = value => ({ system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value }] } });
+        const valueOf = data => data?.system?.changes?.[0]?.value ?? null;
+        let tool = null, seen = null;
+        try {
+            tool = await grantItem(student, { name: "Tier 2 H8 tool", category: "tool", tier: 1, override: true, quiet: true });
+            const [penalty] = tool ? await tool.createEmbeddedDocuments("ActiveEffect", [{ name: "Tier 2 H8 penalty", ...bonus(-2) }]) : [];
+            await sheetAuditIdle();
+            const held = () => valueOf(sheetMarkStore.get(student.id)?.itemEffects?.[tool.id]?.[penalty.id]);
+            must(tool && penalty && held() === -2, "no Tool, or its penalty is not in the mark - this would measure nothing");
+            await tool.update({ effects: [{ _id: penalty.id, ...bonus(-3) }] });
+            await sheetAuditIdle();
+            const gm = [held(), valueOf(tool.effects.get(penalty.id)), tool.effects.get(penalty.id)?.name ?? null];
+            const from = Date.now(), write = { effects: [{ _id: penalty.id, ...bonus(5) }] };
+            await tool.update(write, { [AUDIT_ASIDE]: true });
+            const verdict = (await judgeWrite("updateItem", tool, foundry.utils.expandObject(write), player.id))?.verdict ?? null;
+            await sheetAuditIdle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from)
+                .map(row => `${row.verdict}:${row.itemId === tool.id}:${Object.keys(row.change ?? {}).map(path => path.split(".")[0]).join(",")}`);
+            const played = [verdict, rows, valueOf(tool.effects.get(penalty.id)), held()];
+            // At ready, the Tool renamed and its penalty made a +5 through its update with no GM watching: the effect is put back once.
+            await tool.update({ name: "Tier 2 H8 tool, renamed", effects: [{ _id: penalty.id, ...bonus(5) }] }, { [AUDIT_ASIDE]: true });
+            const ready = (await compareAtReady())?.putBack ?? null;
+            await sheetAuditIdle();
+            seen = [gm, ...played, ready, valueOf(tool.effects.get(penalty.id))];
+        } finally {
+            await sheetAuditIdle();
+            if (tool && student.items.has(tool.id)) await student.deleteEmbeddedDocuments("Item", [tool.id]);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([[-3, -3, "Tier 2 H8 penalty"], "putBack", ["putBack:true:itemEffects"], -3, -3, 1, -3]),
+            "an effect written through a Tool's update was not judged as one on the student (the GM's change: in the mark, on the Tool, the penalty's "
+                + "name; a player's +5: the verdict, its rows, the penalty after it, the mark's; at ready, with the Tool renamed: how many put back, "
+                + "the penalty after it)");
+    }],
+
+    /*
      * AN ITEM MADE OR DELETED WITH ITS EFFECTS (E29 fix r1-G3, 05.10.2026; review round 1 sec B3). An item a
      * player makes carrying an effect Daggerheart applies to the student and that counts is put back whole -
      * deleted, its row naming the item and the effect - where until this fix it was flagged as any item made and
@@ -26568,6 +26678,58 @@ const SCENARIOS = [
             "a crisis action's Health given back by its Reroll left the blow in the credit, or the victim's refund of the same stood on it (the credit left, the verdict)");
     }],
 
+    ["a Use an item's Hope a Reroll takes back is no credit, so the player's refund of the same is put back", async () => {
+        /* E29 fix r2-H8, 06.10.2026: fix r2-H6's open point, decided (a). The killer's Use an item with a tier-3
+           pack scored on the GM - 2 Hope the use gave, as the player's browser writes it - then taken back by
+           the Reroll's rewind (murder.mjs `restoreResource`, a GM's fall carrying `GIVE_BACK`) and replayed
+           into a miss; then the killer's player writes the same 2 Hope back as a `refund`. At 0d86603
+           (06.10.2026, e29run/r2h8red) the credit held the 2 and the refund stood on them. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player, the killer's refund judged");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const HOPE = "system.resources.hope.value", hope = () => Number(foundry.utils.getProperty(killer._source, HOPE));
+        const had = new Set([...killer.items, ...victim.items].map(item => item.id)), was = hope(), max = resourceMax(killer, "hope");
+        let read = null;
+        try {
+            must(max >= 3, `${killer.name} holds at most ${max} Hope - a use's 2 would not fit`);
+            await fightOpen(M, killer, victim);
+            const [pack] = await killer.createEmbeddedDocuments("Item", [{ name: "Tier 2 H8 pack", type: "loot", system: { quantity: 2 },
+                flags: { [MODULE_ID]: { category: "usable", tier: 3 } } }]);
+            await turnFor(M, killer, "useItem");
+            await trustedWrite(killer, { [HOPE]: max - 2 }, { reason: "gmRuling" });
+            const before = { hp: killer.system.resources.hitPoints.value, stress: killer.system.resources.stress.value, qty: 2, hope: max - 2 };
+            await trustedWrite(killer, { [HOPE]: max }, { reason: "gmRuling" });
+            await pack.update({ "system.quantity": 1 });
+            await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 20, isCritical: false, withHope: true, usedItemId: pack.id, before });
+            await settle();
+            must(M.murderState()?.lastCrisis?.hopeGranted === 2, `the use was not scored with the 2 Hope it gave - this would measure nothing: ${stableJson(M.murderState()?.lastCrisis ?? null)}`);
+            await auditFromScratch(killer);
+            await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 0, isCritical: false, withHope: true, undo: true });
+            await settle();
+            must(hope() === max - 2, `the Reroll did not take the use's Hope back: ${hope()} of ${max}`);
+            await sheetAuditIdle();
+            const left = await creditHeld(killer, "hope");
+            const judged = await asPlayerWrite(killer, { [HOPE]: max }, player(killer), { reason: "refund" });
+            await sheetAuditIdle();
+            read = [left, judged?.verdict ?? null, hope() - (max - 2)];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const actor of [killer, victim]) {
+                const made = actor.items.filter(item => !had.has(item.id)).map(item => item.id);
+                if (made.length) await actor.deleteEmbeddedDocuments("Item", made);
+            }
+            await trustedWrite(killer, { [HOPE]: was }, { reason: "gmRuling" });
+        }
+        equal(stableJson(read), stableJson([0, "putBack", 0]),
+            "a Use an item's Hope taken back by its Reroll was left in the credit, or the player's refund of the same stood on it (the credit left, the verdict, the Hope it added)");
+    }],
+
     ["an Observe a Reroll takes back takes the credit its miss left, so the observer's refund of the same is flagged", async () => {
         /* A trace where the player's character stands, the Observe aimed at it and missed on the GM - a mark of
            Sanity, the GMs' credit - then rerolled into a hit: the miss's Sanity comes back through observe.mjs
@@ -26650,6 +26812,33 @@ const SCENARIOS = [
             "a clean-up's Sanity given back by its Reroll left the price in the credit, or the player's refund of the same stood on it (the credit left, the verdict)");
     }],
 
+    ["a player's write that raises a resource's maximum banks no credit beyond the maximum the GMs hold", async () => {
+        /* E29 fix r2-H8, 06.10.2026; review round 2 cor m1. The student's Sanity at 1 mark; the player's write
+           raises the marks and the maximum by 3 past the maximum - the marks stand as a price and are credit,
+           the maximum is put back - so the credit is what the GMs' maximum allows. At 0d86603 (06.10.2026,
+           e29run/r2h8red) it banked 8 marks over a maximum of 6; 5 since. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const VALUE = "system.resources.stress.value", MAX = "system.resources.stress.max", sheetMax = () => foundry.utils.getProperty(student._source, MAX);
+        const max = sheetMax();
+        let read = null;
+        try {
+            must(typeof max === "number" && max >= 2, `the student's Sanity maximum on the sheet is ${max} - too small to bank anything`);
+            await student.update({ [VALUE]: 1 });
+            await auditFromScratch(student);
+            const judged = await asPlayerWrite(student, { [VALUE]: max + 3, [MAX]: max + 3 }, player);
+            await sheetAuditIdle();
+            read = [judged?.verdict ?? null, await creditHeld(student, "stress"), sheetMax()];
+        } finally {
+            await sheetAuditIdle();
+            if (sheetMax() !== max) await student.update({ [MAX]: max });
+        }
+        equal(stableJson(read), stableJson(["putBack", max - 1, max]),
+            "a write raising Sanity's maximum banked credit beyond the GMs' maximum, or its maximum was not put back (the verdict, the credit, the maximum)");
+    }],
+
     ["an item used whose consumption is its count raised by hand is no use: Hope put back, Health flagged, the count put back", async () => {
         /* The review's probe's sequence (cor M2): a tier-3 kit's use - 2 Hope and two Health marks - and,
            for its consumption, the kit's count raised 1 -> 2. A count that rose consumed nothing of what the
@@ -26691,6 +26880,44 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([["putBack", "putBack"], 2, 0, 1,
             [`flagged:${HP}`, `putBack:${HOPE}`, `putBack:items.${kit.id}.${COUNT}`].sort()]),
             "a count raised by hand covered an item's use, or was not put back (the verdicts, Hope, Health, the count, the rows)");
+    }],
+
+    ["a module usable a player renames heals what it was made as: its use as the kind its new name reads is flagged", async () => {
+        /* E29 fix r2-H8, 06.10.2026; review round 2 sec m4 = cor m2. A tier-1 healing usable the GM gave, renamed by
+           the player after a Sanity Relief one - listed: a name is the player's - then used on Sanity, the pair of
+           them one less, as the player's browser writes a use. At 0d86603 (06.10.2026, e29run/r2h8red) it read
+           as Sanity Relief and the use stood. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { grantItem } = await import("./inventory.mjs");
+        const { usableKindFor } = await import("./tables.mjs");
+        const { usableKindOf } = await import("./use-items.mjs");
+        const { sheetAuditIdle, judgeWrite, onItemWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const STRESS = "system.resources.stress.value", COUNT = "system.quantity", NAME = "Chewing gum";
+        must(usableKindFor(NAME) === "stress", `"${NAME}" is no Sanity Relief name in this world - this would measure nothing`);
+        let kit = null, read = null;
+        try {
+            await student.update({ [STRESS]: 2 });
+            kit = await grantItem(student, { name: "Tier 2 H8 bandage", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+            must(kit && kit.getFlag(MODULE_ID, "usableKind") === "healing", "the healing usable was not given with its kind");
+            await kit.update({ [COUNT]: 2 });
+            const renamed = (await asPlayerItemWrite("updateItem", student, kit, player, null, { name: NAME })).verdict;
+            await auditFromScratch(student);
+            const used = { [STRESS]: 1 };
+            await student.update(used, { [AUDIT_ASIDE]: true });
+            const use = judgeWrite("updateActor", student, foundry.utils.expandObject(used), player.id, { drpgWrite: { reason: "itemUse", ref: kit.id } });
+            await kit.update({ [COUNT]: 1 }, { [AUDIT_ASIDE]: true });
+            onItemWrite(kit, foundry.utils.expandObject({ [COUNT]: 1 }), {}, player.id, { primary: true });
+            const count = judgeWrite("updateItem", kit, foundry.utils.expandObject({ [COUNT]: 1 }), player.id, {});
+            read = [renamed, usableKindOf(kit), (await use)?.verdict ?? null, (await count)?.verdict ?? null];
+        } finally {
+            await sheetAuditIdle();
+            if (kit) await student.items.get(kit.id)?.delete();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson(["listed", "healing", "flagged", "stands"]),
+            "a renamed healing usable read as the kind of its new name, or its use on Sanity was covered (the rename, the kind, the use, the count)");
     }],
 
     ["the free Move a player gives back is flagged with Undo, and what no judgement reads is listed - a flag, a condition, an item the GMs hold no copy of", async () => {

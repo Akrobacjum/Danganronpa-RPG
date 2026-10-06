@@ -13,7 +13,7 @@
  *   USE      a Usable Item, spent on the spot. What it restores comes from
  *            USABLE_EFFECTS plus the item's KIND: every usable is a healing
  *            item (Health) or a stress-relief item (Sanity), decided by which item
- *            table it belongs to - see `usableKindOf`. Tiers 1 and 2 apply
+ *            table it came from - see `usableKindOf`. Tiers 1 and 2 apply
  *            that kind's resource without asking; tier 3 is the one tier that
  *            still offers the Health-or-Sanity choice, with 2 Hope on top either
  *            way; tier 0 is "open to creative use" and has no table entry, so
@@ -336,22 +336,30 @@ export function isUsable(item) {
  * Which kind of usable this item is: "healing", "stress", or null when the
  * module honestly does not know.
  *
- * The item tables are asked first and outrank the flag on the item, because the
- * tables are what the GM edits: move "Pills" from Sanity Relief to Healing and
- * every jar of pills in every inventory changes with it, including the ones
- * found last week. The flag answers when the tables cannot - an item drawn off
- * a room's own pool, or renamed on the sheet - and a name that sits in tables
- * of BOTH kinds falls back to the flag too, since the search that found it knew
- * which of the two it was.
+ * THE KIND IT WAS MADE AS (E29 fix r2-H8, 06.10.2026; review round 2 sec m4 =
+ * cor m2). The flag the item was made with answers first - the kind of the table
+ * its Search drew it from, or the one the item tables gave its name when it was
+ * handed over (inventory.mjs `grantItem`) - and only a GM changes it (the GMs'
+ * audit puts a player's write of it back, sheet-audit.mjs `ITEM_FIXED`). The
+ * tables answer for an item made with none. Until this fix the tables were asked
+ * first, so that a GM moving "Pills" from Sanity Relief to Healing changed every
+ * jar already found; but the name is the player's to write, and a module item
+ * renamed after a usable of the other kind healed that kind, and the audit
+ * judged the use by the same reading (`itemCovers`): measured at 0d86603
+ * (06.10.2026, e29run/r2h8red) by tier 2 - a healing usable renamed "Chewing
+ * gum" read as Sanity Relief, and its use on Sanity stood; since, it reads as
+ * healing and the use is flagged. A GM's edit of the tables now reaches the items
+ * made after it, as the GM's handbook already said ("the kind comes from the
+ * table it was drawn from").
  */
 export function usableKindOf(item) {
     if (!item) return null;
 
-    const assigned = usableKindFor(item.name);
-    if (USABLE_KINDS[assigned]) return assigned;
-
     const flagged = item.getFlag(MODULE_ID, ITEM_FLAGS.kind);
-    return USABLE_KINDS[flagged] ? flagged : null;
+    if (USABLE_KINDS[flagged]) return flagged;
+
+    const assigned = usableKindFor(item.name);
+    return USABLE_KINDS[assigned] ? assigned : null;
 }
 
 /**

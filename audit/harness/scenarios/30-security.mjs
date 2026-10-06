@@ -2877,6 +2877,52 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify(consoleEffects?.gift ?? null), { flow: "sheet-audit" });
 
     /*
+     * A CONSOLE'S EFFECTS THROUGH THEIR PARENT (E29 fix r2-H8, 06.10.2026; review round 2 cor M5). The GM puts a
+     * penalty - 2 off every roll - on Aiko and one on a Tool she carries; p1's console turns each into a +5 through
+     * the parent's own update, `actor.update({ effects })` and `item.update({ effects })`, which fire no effect hook
+     * here, only the parent's. Expected: both back at -2 on every client, a put-back row each (the Tool's naming
+     * it), p1 told twice. At 0d86603 (06.10.2026, e29run/r2h8red) both +5s stood on every client, Aiko's with
+     * a listed row and the Tool's with none, and p1 was told nothing.
+     */
+    phase("a console's effects through their parent", { flow: "sheet-audit" });
+    const parentWas = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), a = game.actors.get("${ids.aiko}");
+        const penalty = name => ({ name, system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: -2 }] } });
+        const [own] = await a.createEmbeddedDocuments("ActiveEffect", [penalty("SEC H8 own penalty")]);
+        const tool = await INV.grantItem(a, { name: "E29 H8 30 tool", category: "tool", tier: 1, override: true, quiet: true });
+        const [onTool] = tool ? await tool.createEmbeddedDocuments("ActiveEffect", [penalty("SEC H8 tool penalty")]) : [];
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { own: own?.id ?? null, tool: tool?.id ?? null, onTool: onTool?.id ?? null, from: Date.now() };`);
+    const readParent = `const a = game.actors.get("${ids.aiko}"), t = a.items.get("${parentWas.tool}");
+        return { own: a.effects.get("${parentWas.own}")?.system?.changes?.[0]?.value ?? null, tool: t?.effects?.get("${parentWas.onTool}")?.system?.changes?.[0]?.value ?? null };`;
+    const bonusFive = `system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: 5 }] }`;
+    // Up to 6 s for the GM to read `want` of `key`, every judgement finished.
+    const parentSettled = key => gm.eval(`const end = Date.now() + 6000; const read = () => { ${readParent} };
+        while (read().${key} !== -2 && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    let consoleParent = null;
+    try {
+        await toldSince();
+        await p1.eval(`await game.actors.get("${ids.aiko}").update({ effects: [{ _id: "${parentWas.own}", ${bonusFive} }] }); return true;`);
+        await parentSettled("own");
+        await p1.eval(`await game.actors.get("${ids.aiko}").items.get("${parentWas.tool}").update({ effects: [{ _id: "${parentWas.onTool}", ${bonusFive} }] }); return true;`);
+        await parentSettled("tool");
+        await settle(800);
+        consoleParent = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readParent))), told: await toldSince(),
+            rows: await gm.eval(`${audited} return Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${parentWas.from})
+                .map(r => r.verdict + ":" + (r.itemId === "${parentWas.tool}" ? "tool:" : "") + Object.keys(r.change ?? {}).map(k => k.split(".")[0]).sort().join(",")).sort();`) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            if (a.effects.has("${parentWas.own}")) await a.deleteEmbeddedDocuments("ActiveEffect", ["${parentWas.own}"]);
+            if (a.items.has("${parentWas.tool}")) await a.deleteEmbeddedDocuments("Item", ["${parentWas.tool}"]);
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    }
+    check("SECURITY: an effect a player's console changes through its student's or its item's own update is put back on every client, a row each, the player told",
+        Boolean(consoleParent) && Boolean(parentWas.own && parentWas.onTool) && everyClient(consoleParent.after, { own: -2, tool: -2 })
+            && JSON.stringify(consoleParent.rows) === JSON.stringify(["putBack:effects", "putBack:tool:itemEffects"]) && consoleParent.told === 2,
+        JSON.stringify({ parentWas, consoleParent }), { flow: "sheet-audit" });
+
+    /*
      * A CONSOLE'S CREDIT AND FREE USES (E29 fix r1-G4, 05.10.2026; review round 1 cor M1, cor M2, cor m9 = sec m3).
      * The GM pays 2 of Aiko's Hope for a Reroll and gives them back, as reroll.mjs does when one does not stand;
      * then p1's console, with the hooks a real write fires: gives the same 2 Hope "back" (`refund`); uses a tier-3

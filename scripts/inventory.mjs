@@ -76,11 +76,11 @@ export const ITEM_FLAGS = {
     /**
      * Which kind of usable this is: "healing" or "stress" (USABLE_KINDS).
      *
-     * A record of where the item came from, not the authority on what it does -
-     * the item tables outrank it (see `usableKindOf` in use-items.mjs). It is
-     * what keeps a room-table find working: "Herbal tea" drawn in the infirmary
-     * exists in no Healing table, and this flag is the only place its kind was
-     * ever written down.
+     * Where the item came from, and since E29 fix r2-H8 the authority on what it
+     * does: it outranks the item tables (see `usableKindOf` in use-items.mjs), so
+     * a renamed item heals what it was made as. It is also what keeps a
+     * room-table find working: "Herbal tea" drawn in the infirmary exists in no
+     * Healing table, and this flag is the only place its kind was ever written down.
      */
     kind: "usableKind",
     /**
