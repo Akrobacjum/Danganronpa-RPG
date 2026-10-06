@@ -450,7 +450,35 @@ async function runSpend(payload, sender, ctx) {
     // from a sealed or exhausted room. The look itself comes later, from a
     // Search that found something - see `SearchTokens.takePlant`.
     if (ok) searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), Date.now());
+    else await settleUnclaimed(sender, payload.actorId);
     return { reply: { ok, left: SearchTokens.left(payload.roomName, sceneId) } };
+}
+
+/*
+ * A SEARCH WHOSE TOKEN WAS REFUSED FINDS NOTHING (E29 fix r2-H9, 06.10.2026; review round 2 cor m3).
+ * The searcher's browser ends a Search whose token this GM refused - a room picked clean, or sealed -
+ * without a find (action-rolls.mjs `searchUnclaimed`), but the GMs' record of its roll stayed as the
+ * draw wrote it, and an item a player's console created named after that record stood as the Search's
+ * find (sheet-audit.mjs `searchFind`; red at 2f2747d, the tier-2 test "a Search whose token the GM
+ * refused"). The refusal settles the record's "search" now, as a stash's theft does (bridge-guards.mjs
+ * `rollsFor`), and the find's judge refuses a settled record. The packet names no roll, so the record
+ * is the newest Search of the character drawn for the sender: the draw writes it before it answers
+ * (roll-draw.mjs `keepRecord`, which also marks the older unsettled one `superseded`), and the spend
+ * follows the answer. A refusal after a roll this GM did not draw finds an older Search, whose find
+ * was asked after its own spend - by reading, not measured.
+ *
+ * Only the refusal. A find named after a Search that asked for no token at all is still judged on
+ * the record alone (the plan's 2.6; the suite's "a Search's find stands" test makes its records so).
+ */
+async function settleUnclaimed(sender, actorId) {
+    if (!ownsActor(sender, actorId)) return;
+    const { rollStore } = await import("./gm-stores.mjs");
+    await rollStore.whenHydrated();
+    const [rollId, row] = Object.entries(rollStore.entries() ?? {})
+        .filter(([, r]) => r?.actorId === actorId && r.userId === sender.id && r.actionKey === "search" && !r.superseded)
+        .sort(([, a], [, b]) => (Number(b.at) || 0) - (Number(a.at) || 0))[0] ?? [];
+    const resolved = Array.isArray(row?.resolved) ? row.resolved : [];
+    if (row && !resolved.includes("search")) await rollStore.patch(rollId, { resolved: [...resolved, "search"] });
 }
 
 /**
@@ -519,11 +547,12 @@ export const SEARCH_ACTIONS = table({
     [ACTION_SPEND]: {
         label: "DRPG.Bridge.what.searchTokens.spend",
         guards: [knownSender, guardSearchRoom],
-        // The character is the guard's to find, off the packet as it came; the run never reads it.
-        sanitize: pick({ roomName: as.text, sceneId: as.id }),
+        // The character is the guard's to find, off the packet as it came; the run reads it only to
+        // settle a refused Search's record, for a character the sender plays (`settleUnclaimed`).
+        sanitize: pick({ roomName: as.text, sceneId: as.id, actorId: as.id }),
         run: runSpend,
         answer: "reply", timeoutMs: TIMING.searchTokenAckMs,
-        claims: { sceneId: guardSearchRoom }
+        claims: { sceneId: guardSearchRoom, actorId: guardSearchRoom }
     },
     [ACTION_TAKE_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.takePlant",

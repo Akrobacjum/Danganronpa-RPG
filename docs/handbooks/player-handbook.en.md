@@ -345,7 +345,7 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
 | **Loaded Die** | 6 | On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. |
 
-A Call that affects a roll - Support, Experience, Ultimate, Resolve, Loaded Die - is bought on the GM's browser, which takes the Hope: with no GM connected it cannot be bought, and nothing is spent. It waits on your next roll and is spent the moment you throw. One armed on you after your roll window opened is not part of that roll: the window says so, and it waits for your next one. Sprint and Burst bank instead and last until the time of day ends.
+A Call that affects a roll - Support, Experience, Ultimate, Resolve, Loaded Die - is bought on the GM's browser, which takes the Hope: with no GM connected it cannot be bought, and nothing is spent. It waits on your next roll and is spent the moment you throw. One armed on you after your roll window opened is not part of that roll: the window says so, and it waits for your next one - unless it hinders you (a disadvantage or a negative bonus) and was armed more than a minute before a roll the GM's browser throws, which counts it whether the window shows it or not. Sprint and Burst bank instead and last until the time of day ends.
 
 > [!IMPORTANT]
 > Nobody can spend Hope Calls during an Eclipse, while Silenced by Monokuma, or while the overflow's Silence darkens the time of day.

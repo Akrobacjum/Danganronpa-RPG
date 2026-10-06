@@ -25798,6 +25798,56 @@ const SCENARIOS = [
                 + "(the three verdicts, the rows, the record kept as used)");
     }],
 
+    /*
+     * A SEARCH WHOSE TOKEN WAS REFUSED (E29 fix r2-H9, 06.10.2026; review round 2 cor m3). The searcher's
+     * browser ends it without a find (action-rolls.mjs `searchUnclaimed`); the GMs' record of its roll
+     * stayed unsettled, and an item a console then created named after it stood as its find. The spend
+     * runs as the bridge runs it for the student's player (`SEARCH_ACTIONS`, its packet sanitized; the
+     * room's count stubbed, so none moves - the guard is R166's), on a record of 13 (a tier-1 hit), and
+     * a tier-1 find named after the record follows: once refused, then, on a record of its own, spent -
+     * the control, whose find stands. Read: each find's verdict and what its record has settled.
+     */
+    ["a Search whose token the GM refused settles its record, and a find named after it is flagged", async () => {
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player, whose spend and find are judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(owner);
+        const player = owner(student);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
+        const spendAs = SEARCH_ACTIONS["searchTokens.spend"], spend = SearchTokens.spend;
+        const made = [], records = [];
+        let read = null;
+        try {
+            const searched = async (ok, name) => {
+                const record = await recordFor({ id: null }, player, student, "search", { total: 13 });
+                records.push(record);
+                SearchTokens.spend = async () => ok;
+                try {
+                    await spendAs.run(spendAs.sanitize({ roomName: "SUITE H9 room", sceneId: null, actorId: student.id }, player), player, {});
+                } finally {
+                    SearchTokens.spend = spend;
+                }
+                const out = await asPlayerItemWrite("createItem", student, moduleItemData(name, { tier: 1 }), player, { reason: "searchFind", ref: record.rollId });
+                made.push(out.item);
+                return [out.verdict, rollStore.get(record.rollId)?.resolved ?? []];
+            };
+            const refused = await searched(false, "E29 H9 a find on a refused token");
+            const spent = await searched(true, "E29 H9 a find on a spent token");
+            await sheetAuditIdle();
+            read = { refused, spent };
+        } finally {
+            await sheetAuditIdle();
+            for (const item of made) if (student.items.get(item.id)) await item.delete();
+            await sheetAuditIdle();
+            for (const record of records) await record.putBack();
+        }
+        equal(stableJson(read), stableJson({ refused: ["flagged", ["search"]], spent: ["stands", []] }),
+            "a find named after a Search whose token the GM refused stood, or one whose token was spent did not "
+                + "(each find's verdict, and what its record has settled)");
+    }],
+
     ["a broken item discarded raises no card; an unbroken one deleted is flagged, and Undo makes it again under its id", async () => {
         /* The GM gives the student two Tools, one broken. The player's discard of the broken one stands with
            no row and no card; the same discard of the whole one is flagged on one card, and the GMs' Undo
