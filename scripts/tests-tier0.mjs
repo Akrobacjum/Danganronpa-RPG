@@ -4858,12 +4858,25 @@ const REGRESSIONS = [
         ok(/"ownership\.default": OBSERVER/.test(bodyOf(anonymity, "async function lowerOwnership(", { until: "\n}\n" })),
             "lowerOwnership does not put the default back to Observer");
         const bullets = stripComments(sources.get("truth-bullets.mjs") ?? "");
-        const watcher = bodyOf(bullets, "function watchBulletEdits(", { length: 2400 });
-        ok(/Hooks\.on\("updateItem", async \(item, changes, options, userId\)/.test(watcher),
+        /* E29 fix r2-H12: the item's own update and its student's (`bulletWrites`) reach one judge, `onBulletWrite`. */
+        const watcher = bodyOf(bullets, "function watchBulletEdits(", { until: "\n}\n" });
+        const judge = bodyOf(bullets, "async function onBulletWrite(", { until: "\n}\n" });
+        ok(/Hooks\.on\("updateItem", onBulletWrite\)/.test(watcher) && judge.startsWith("async function onBulletWrite(item, changes, options, userId)"),
             "the bullet watcher does not know who made the change");
-        ok(watcher.includes("revertPlayerBulletEdit("), "a player's edit of a bullet is not put back");
-        ok(watcher.indexOf("revertPlayerBulletEdit(") < watcher.indexOf("FROM_REMNANT"),
+        ok(/Hooks\.on\("updateActor", [^\n]*\n[^\n]*bulletWrites\(actor, changes\)[^\n]*onBulletWrite\(item, wrote, options, userId\)/.test(watcher),
+            "a bullet written through its student's update does not reach the judge of its own update");
+        ok(judge.includes("revertPlayerBulletEdit("), "a player's edit of a bullet is not put back");
+        ok(judge.indexOf("revertPlayerBulletEdit(") < judge.indexOf("FROM_REMNANT"),
             "the player's edit is looked at after the watcher has already returned for the trace's own writes");
+        /* E29 fix r2-H13: what a bullet's write touched is read with the sheet audit's reader of a write's forms. */
+        ok(bodyOf(bullets, "export function guardedPathsIn(", { until: "\n}\n" }).includes("reachOf(changes)"),
+            "a bullet's guarded fields are read off a write by a reader of their own, not by sheet-audit.mjs's reachOf");
+        /* E29 fix r2-H14: a player's edit is put back once the sheet audit has judged every write queued on the bullet's student, whatever it named. */
+        ok(/\n\s*await judgedFor\(item\.parent\?\.id\);\s*await revertPlayerBulletEdit\(/.test(judge),
+            "a player's edit of a bullet can be put back before the sheet audit has judged the writes queued on its student");
+        /* E29 fix r2-H16: a GM's write moves the GMs' copy of a bullet by the fields it touched; whole, it took a player's value waiting for its put-back. */
+        ok(/\brefreshGuard\(item, touched\)/.test(judge) && !/\brefreshGuard\(item\)/.test(judge),
+            "a GM's write takes a bullet into the GMs' copy whole, a player's value waiting for its put-back with it");
         const guard = stripComments(sources.get("resource-guard.mjs") ?? "");
         for (const flag of ["playerText", "analyzedText", "shownType", "analyzed", "lockedChapter"]) {
             ok(bodyOf(guard, "const BULLET_GUARDED", { length: 400 }).includes(`"${flag}"`),
@@ -4896,7 +4909,7 @@ const REGRESSIONS = [
         const handover = stripComments(sources.get("handover.mjs") ?? "");
         ok(/isEclipse\(\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })), "a handover is not refused during an Eclipse on the GM's side");
         const give = bodyOf(handover, "export async function giveItem(", { until: "\n}\n" });
-        ok(give.indexOf("isStashed(item)") >= 0 && give.indexOf("isStashed(item)") < give.indexOf("BEDROOM_KEY_FLAG"),
+        ok(give.indexOf("isStashed(held)") >= 0 && give.indexOf("isStashed(held)") < give.indexOf("BEDROOM_KEY_FLAG"),
             "a key lying in a stash can still be handed over");
     }],
 
@@ -4911,7 +4924,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const analyze = stripComments(sources.get("analyze.mjs") ?? "");
         const resolve = bodyOf(analyze, "export async function resolveAnalyze(", { until: "\n}\n" });
-        ok(/!undo && !isAnalysable\(item, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
+        ok(/!undo && !isAnalysable\(held, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
         ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
@@ -5470,6 +5483,9 @@ const REGRESSIONS = [
             drawOnGm: "refused", drawRefusal: "returns",
             // E29 C8: a Call on the buyer's own character, the other half of `guardArmPlayerCall`.
             ownArmRefusal: "returns",
+            // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
+            creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
+            stealFromPerson: "refused", stealFromVault: "refused",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);

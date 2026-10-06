@@ -750,7 +750,13 @@ async function markReplacedCard(row, before, after) {
  * A REROLL THAT DOES NOT STAND IS GIVEN BACK WHOLE (E32+E07 fix r1-G3, 02.10.2026; E08+E28
  * C4a). The card gets its first rolls again, and the Hope paid comes back as +3 on the Hope
  * the GMs hold now (since fix r2-H5 their value, in the character's audit queue, as
- * `makeReroll` pays it), never the number held before: a grant that landed in between stays. What a
+ * `makeReroll` pays it), never the number held before: a grant that landed in between stays -
+ * and held to the Hope maximum the GMs hold (sheet-audit.mjs `meansMaxHeld`, since fix r2-H27).
+ * Read off the document, that maximum was one a console's write of the scars had lowered until
+ * the audit's put-back landed, and the GM's write of the lower Hope became the GMs' value:
+ * measured at 414ebd2 (06.10.2026, e29run/r2h27red) by tier 2 ("a Reroll's give-back and a
+ * critical's second Hope are held to the Hope maximum the GMs hold"), the 3 given back to 1
+ * under a maximum lowered from 6 to 3 made 3 on the sheet and in the mark, for 4. What a
  * replay's own undo put back stays put back - each undo checks before it writes, so a late
  * refusal has written nothing of its own. The journal row goes with it. The harness has no
  * Daggerheart roll to throw again; the suite drives this with a roll of its own, and a real
@@ -763,10 +769,9 @@ async function giveBack(actor, message, firstRolls, cost) {
     if (rerollJournalStore.has(actor.id)) await rerollJournalStore.patch(actor.id, { phase: "givingBack" });
     await putFirstRollBack(message, firstRolls);
     try {
-        const { gmMeansWrite } = await import("./sheet-audit.mjs");
-        const { resourceMax } = await import("./character.mjs");
+        const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
         await gmMeansWrite(actor, ({ hope }) => trustedWrite(actor,
-            { "system.resources.hope.value": Math.min(resourceMax(actor, "hope") || STARTING.hopeMax, hope + cost) }, { reason: "refund" }));
+            { "system.resources.hope.value": Math.min(meansMaxHeld(actor, "hope") || STARTING.hopeMax, hope + cost) }, { reason: "refund" }));
     } catch (err) {
         error(`Could not give back the ${cost} Hope a Reroll that did not stand had taken`, err);
     }
@@ -1102,7 +1107,7 @@ async function settleProgress(actor, bookmark, after, done) {
     // Both are the roller's claims, held as the first throw's were and scored by
     // the first throw's table (fix r2-H3; the round-2 review's M1: read raw, a
     // bonus of 40 rerolled into 13 moved a project 0 -> 41).
-    const held = projectExtrasHeld(await claimedOn(actor, bookmark), bookmark, bookmark.projectId);
+    const held = await projectExtrasHeld(await claimedOn(actor, bookmark), bookmark, bookmark.projectId);
     const { hit, progress: now } = projectProgress(after, held);
     const bonus = held.bonus;
     const was = bookmark.progress ?? 0;
@@ -1144,7 +1149,8 @@ async function settleProgress(actor, bookmark, after, done) {
  * is told is what an ordinary find tells (trap 166, `searchDraw`): nothing here says a
  * plant moved. The plant is the one on the sheet by its identity, the GMs' fact, and not
  * the claimed `itemId`; one that has left the sheet since (given, stashed, used) stays where
- * it went, and the Search is replayed as an ordinary one.
+ * it went, and the Search is replayed as an ordinary one. Its identity and its roles are read
+ * as the GMs hold them since E29 fix r2-H22 (step 1 below).
  */
 /**
  * Whether a Search's Reroll takes a hidden stash's step again. For a roll the GM drew, the
@@ -1186,9 +1192,24 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     else if (change) done.push(game.i18n.format("DRPG.Action.situationAfterRoll", { n: String(change), total: score }));
 
     // 1. The thing the first roll put in the inventory goes back on the shelf.
+    // THE PLANT AS THE GMS HOLD IT (E29 fix r2-H22, 06.10.2026; fix r2-H21's seam (b)). It was found by the identity on
+    // the documents and its roles read off the one found, where a player's write the audit puts back stands until its
+    // put-back lands, or for good where it fails. Both are read off the searcher's items as the GMs hold them now
+    // (sheet-audit.mjs `itemsAsHeld`), and the document of the one found is the one taken back. The wait is the one
+    // `counted` below has made since fix r2-H20, made sooner: nothing above writes, and no judgement waits for what a
+    // replay writes (a judgement waits only for its own player's consumption of an item and roll card, sheet-audit.mjs
+    // `consumedBy` and `callsCover`). The claimed `itemId` decides by id alone, and the held list has the documents'
+    // ids, item for item (`itemsHeldNow` maps the sheet's items), so it is read as before. Measured with tier 2's "a
+    // Reroll of a Search that drew a plant takes back and gives again ..." (e29run/r2h22red, 06.10.2026): until this
+    // fix a plant's identity a write put on an older Tool took that Tool back and left the plant, a plant a write took
+    // its identity off was replayed as an ordinary find, and a role a write gave the plant was given again with it; the
+    // plant found on the documents again (e29run/r2h22m, m1), or its roles read off the document (m2), each turns that
+    // test red.
     let itemId = null;
     const plant = bookmark.plant?.identity ? bookmark.plant : null;
-    let held = plant ? actor.items.find(i => i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === plant.identity) ?? null : null;
+    const asHeld = plant ? (await (await import("./sheet-audit.mjs")).itemsAsHeld(actor))
+        .find(i => i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === plant.identity) ?? null : null;
+    let held = asHeld ? actor.items.get(asHeld.id) ?? null : null;
     const first = held ?? (bookmark.itemId ? actor.items.get(bookmark.itemId) ?? null : null);
     if (first) {
         const name = first.name;
@@ -1213,14 +1234,20 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     let drawnName = null;
     let drawn = null;
     let granted = null;
+    // The searcher's hands as the GMs hold them (E29 fix r2-H20, 06.10.2026; as H18's copy roads): the find's carry
+    // cap is counted on them (inventory.mjs `grantItem`'s `counted`), not on a slot a player's browser emptied a
+    // moment before with a write the audit puts back. Read as each grant is made, after the first find was taken
+    // back; nothing a judgement waits for comes from a replay's grant. Until this fix (4d1532c, e29run/r2h20red,
+    // 06.10.2026) a replay's find went into the hands, in a slot a stash written outside the GMs' mark had emptied.
+    const counted = async () => (await import("./sheet-audit.mjs")).actorAsHeld(actor);
     if (held) {
         const { grantItem } = await import("./inventory.mjs");
-        const roles = held.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [];
+        const roles = asHeld.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [];
         drawn = found ? { name: plant.name ?? held.name, roles } : null;
         granted = drawn ? await grantItem(actor, {
             reason: "reroll",
             name: drawn.name, category: bookmark.category ?? null, tier, goal: bookmark.goal ?? null, roles,
-            extraFlags: { [ITEM_FLAGS.identity]: plant.identity }
+            extraFlags: { [ITEM_FLAGS.identity]: plant.identity }, counted: await counted()
         }) : null;
         if (granted) {
             itemId = granted.id;
@@ -1242,7 +1269,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
             granted = await grantItem(actor, {
                 reason: "reroll",
                 name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null,
-                roles: drawn.roles ?? []
+                roles: drawn.roles ?? [], counted: await counted()
             });
             if (granted) itemId = granted.id;
             done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier }));
@@ -1316,7 +1343,7 @@ async function putPlantBack(plant) {
  */
 async function settleSabotage(actor, bookmark, after, done) {
     const def = ACTIONS.sabotage;
-    const { penalty, relief } = sabotageExtrasHeld(await claimedOn(actor, bookmark), bookmark);
+    const { penalty, relief } = await sabotageExtrasHeld(await claimedOn(actor, bookmark), bookmark);
     const score = after.total + penalty;
     // The same eased bands the first roll was scored against (ACT-11 / ROLL-04).
     const hit = sabotageHit(after, { penalty, relief }, def);

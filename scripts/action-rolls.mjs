@@ -3050,29 +3050,38 @@ export const PROJECT_BONUS_MOST = Math.max(INDIRECT_MURDER.concealIntent.aloneBo
  *   - a tool's relief at most what the GM sees in the character's hand - or, for a roll with Fear
  *     that is no critical, whose Despair wears the readied tool before the packets leave
  *     (use-items.mjs `breakOnDespair`), the best tool the character carries, broken or not.
+ * What the GM sees there is the tools as the GMs hold them (E29 fix r2-H18, 06.10.2026;
+ * sheet-audit.mjs `actorAsHeld`): once every write queued on the character has been judged, a
+ * tool's place, category, roles, tier and broken flag as the sheet audit's mark holds them, so a
+ * tier, a role or a readied tool's mend the roller's console wrote a moment before the packet is
+ * not what the relief is held to. At 0c75739 (e29run/r2h18red, 06.10.2026) a readied Tier 1 tool given
+ * tier 3 where the mark did not see it held a claimed relief of 3 to 3, on a roll with Hope and on
+ * one with Fear; it holds it to 1 now.
  */
 function heldTo(claimed, low, high) {
     return Math.max(low, Math.min(high, Math.trunc(Number(claimed) || 0)));
 }
 
-function reliefHeld(roll, claimed) {
+async function reliefHeld(roll, claimed) {
     const actor = game.actors.get(roll?.actorId ?? "");
     if (!actor) return 0;
-    const tools = roll.withFear && !roll.isCritical ? carriedFor(actor, "tool") : [equippedFor(actor, "tool")].filter(Boolean);
+    const { actorAsHeld } = await import("./sheet-audit.mjs");
+    const held = await actorAsHeld(actor);
+    const tools = roll.withFear && !roll.isCritical ? carriedFor(held, "tool") : [equippedFor(held, "tool")].filter(Boolean);
     return heldTo(claimed, 0, Math.max(0, ...tools.map(tool => toolRelief(tool, tierOf))));
 }
 
 /** A Work's `relief` and `bonus` as `claimed` says them, held to the rules for `projectId`. */
-export function projectExtrasHeld(roll, claimed, projectId) {
+export async function projectExtrasHeld(roll, claimed, projectId) {
     return {
-        relief: reliefHeld(roll, claimed?.relief),
+        relief: await reliefHeld(roll, claimed?.relief),
         bonus: isIndirectMurder(projectId) ? heldTo(claimed?.bonus, 0, PROJECT_BONUS_MOST) : 0
     };
 }
 
 /** A Sabotage's `penalty` and `relief` as `claimed` says them, held to the rules. */
-export function sabotageExtrasHeld(roll, claimed) {
-    return { penalty: heldTo(claimed?.penalty, SABOTAGE_CONCEAL.despairPenalty, 0), relief: reliefHeld(roll, claimed?.relief) };
+export async function sabotageExtrasHeld(roll, claimed) {
+    return { penalty: heldTo(claimed?.penalty, SABOTAGE_CONCEAL.despairPenalty, 0), relief: await reliefHeld(roll, claimed?.relief) };
 }
 
 // Guide: with someone else in the room, the killer must hide their intent

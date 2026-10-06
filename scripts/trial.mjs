@@ -623,8 +623,17 @@ async function seizeFloor(message, objectorId, targetId) {
         return refuse(game.i18n.format("DRPG.Trial.objectionNotYours", { name: actor.name }));
     }
 
+    /*
+     * THE BULLET AS THE GMS HOLD IT (E29 fix r2-H20, 06.10.2026; H18's seam). Whether the card's item is a Truth
+     * Bullet is its category, a field the sheet audit judges, so it is read as the GMs hold it (sheet-audit.mjs
+     * `itemAsHeld`): an item a player's browser made a bullet a moment before - a write the audit puts back - shows
+     * no evidence. Read before anything is paid; the wait holds up nothing that holds it up, by reading: an
+     * objection writes no use's consumption and no roll's card. Until this fix (4d1532c, e29run/r2h20red,
+     * 06.10.2026) a Tool made a Truth Bullet where the GMs' mark did not see it took the floor, its action paid.
+     */
     const itemId = message.getFlag(MODULE_ID, TRIAL_FLAGS.item);
-    const item = itemId ? actor.items.get(itemId) : null;
+    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const item = itemId ? await itemAsHeld(actor, itemId) : null;
     if (!item || !isTruthBullet(item)) {
         return refuse(game.i18n.localize("DRPG.Trial.objectionNoItem"));
     }

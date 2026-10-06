@@ -2623,6 +2623,7 @@
         "rollThrown": "Rzut tej akcji już padł.",
         "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call.",
         "callNotApproved": "Klient GM-a nie ma zgody GM-a na ten Call. Poproś o nią jeszcze raz.",
+        "itemNotDecided": "Żaden GM nie zdecydował jeszcze o tym przedmiocie, który gracz dodał do karty: do tego czasu nie zmienia właściciela.",
         "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
@@ -3068,6 +3069,7 @@
         "rules": "Zasady rzutu",
         "bonuses": "Premie",
         "levelData": "Wybory Level Up",
+        "scars": "Blizny",
         "flag": "Zapisy modułu",
         "effect": "Efekt",
         "hope": "Hope",

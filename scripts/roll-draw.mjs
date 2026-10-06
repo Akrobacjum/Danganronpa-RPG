@@ -519,11 +519,21 @@ class DrawnResources extends Map {
     }
 }
 
-/** Daggerheart's `modifyResource` of `resources` on `target`, as a GM's write of its means from the GMs' value (`updateResources`' note). */
+/**
+ * Daggerheart's `modifyResource` of `resources` on `target`, as a GM's write of its means from the GMs' value
+ * (`updateResources`' note) and held to their maxima (`heldValues`).
+ */
 export async function modifyFromHeld(target, resources) {
-    const { gmMeansWrite } = await import("./sheet-audit.mjs");
+    const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
     await gmMeansWrite(target, async held => {
-        const changes = resources.map(change => fromHeld(target, change, held));
+        let changes = resources.map(change => fromHeld(target, change, held));
+        const values = heldValues(target, changes, key => meansMaxHeld(target, key));
+        if (values) {
+            await trustedWrite(target, values, { reason: "gmRuling" });
+            changes = changes.filter(change => !ownResource(target, change));
+            if (!changes.length) return;
+        }
         const before = Object.fromEntries(Object.entries(target.system?.resources ?? {})
             .map(([key, resource]) => [key, { value: resource?.value, max: resource?.max, isReversed: resource?.isReversed }]));
         let heard = null;
@@ -544,6 +554,44 @@ function fromHeld(target, change, held) {
     if (change.clear || change.itemId || !Number.isFinite(held[change.key]) || !Number.isFinite(now) || held[change.key] === now) return change;
     return { ...change, value: (change.value ?? 0) + held[change.key] - now };
 }
+
+/*
+ * HELD TO THE MAXIMA THE GMS HOLD (E29 fix r2-H25, 06.10.2026; fix r2-H24's leftover). Daggerheart's `modifyResource`
+ * holds each value to the maximum the document holds and turns a Stress past it into a Hit Point (actor.mjs:967-975 and
+ * `convertStressDamageToHP`, :1021-1031, 2.10.5; the harness's model of 2.6.5's alike), whatever change it is handed - and
+ * a console's write of a maximum the audit puts back stands on the document until its put-back lands, and for good
+ * where it fails. So where a resource the roll moves - and Health, where it moves Sanity - has a maximum on the document
+ * that is not the one the GMs hold (sheet-audit.mjs `meansMaxHeld`), the values are worked out here as Daggerheart works
+ * them out, against the GMs' maxima, and written in this job as one GM's write (`gmRuling`, as despair-award.mjs writes
+ * a roll's Hope); Daggerheart is handed only what no maximum of the student's bounds - Fear, armour, an item's cost.
+ * Where the maxima agree - everywhere but in that window - this answers null and Daggerheart writes as before. `clear`
+ * is read as 2.10.5 reads it, as `dhWrites` does. Measured at 525a186 (06.10.2026, e29run/r2h25red) by tier 2 ("a
+ * roll's marks are held to the maxima the GMs hold"), the console's maximum standing: a critical's cleared mark left 3
+ * of 5 Sanity marks under a maximum lowered to 3, for 4; a mark on a full track of 6 under one raised to 9 made a
+ * seventh and no Health mark, for 6 and 1; the same under a Health maximum lowered to 1 left 1 Health mark, for 2.
+ */
+function heldValues(target, changes, maxOf) {
+    const resources = target.system?.resources ?? {};
+    const top = key => Number.isFinite(maxOf(key)) ? maxOf(key) : resources[key]?.max;
+    const own = changes.filter(change => ownResource(target, change)).map(change => ({ ...change }));
+    const keys = new Set(own.map(change => change.key));
+    if (keys.has("stress") && resources.hitPoints) keys.add("hitPoints");
+    if (![...keys].some(key => top(key) !== resources[key].max)) return null;
+    const stress = own.find(change => change.key === "stress");
+    if (stress && resources.hitPoints && !(resources.stress.value + stress.value <= top("stress"))) {
+        const hitPoints = own.find(change => change.key === "hitPoints");
+        if (hitPoints) hitPoints.value++;
+        else own.push({ key: "hitPoints", value: 1 });
+    }
+    return Object.fromEntries(own.map(change => {
+        const base = resources[change.key], max = top(change.key);
+        const value = change.clear ? (max && !base.isReversed ? max : 0) : (base.value ?? 0) + change.value;
+        return [`system.resources.${change.key}.value`, Math.max(Math.min(value, max), 0)];
+    }));
+}
+
+/** A change of one of `target`'s own resources: not Fear, armour or an item's cost - what `modifyResource` holds to a maximum of the actor's. */
+const ownResource = (target, change) => !change.itemId && change.key !== "fear" && change.key !== "armor" && Boolean(target.system?.resources?.[change.key]);
 
 /**
  * Whether Daggerheart's `modifyResource` writes the actor (actor.mjs:933-976, 2.10.5, read 05.10.2026):
@@ -1539,8 +1587,22 @@ function openingSideOf(actor, context, state) {
     return side && state?.stage === "openingRoll" && state[`${side}Id`] === actor.id ? side : null;
 }
 
-/** The situation's dice of a roll, read on this GM for its action with the modules `readyFor` loaded - the `situation` row; see the note above. */
-function situationReading(actor, { key, context, ready: { vault, murder, items, cleanup } }) {
+/*
+ * The situation's dice of a roll, read on this GM for its action with the modules `readyFor` loaded - the `situation`
+ * row; see the note above.
+ * A CRISIS WEAPON, A TOOL, A CLEANING TOOL AS THE GMS HOLD THEM (E29 fix r2-H20, 06.10.2026; H18's seam). Whether a
+ * weapon, a tool or a Cleaning Tool is in hand is read off the character's items as the GMs hold them (sheet-audit.mjs
+ * `actorHeldNow`, handed in by `readyFor` as `heldNow`): a role, a tier, a break or a stash a player's browser wrote and
+ * the audit puts back is not read, nor one whose put-back failed. Read for these three actions only, in the list's one
+ * step ("WHAT THE GM THROWS IS READ IN ONE STEP" below, fix r2-H3): after its wait (`judgedFor`), awaiting nothing -
+ * `actorHeldNow` is `actorAsHeld` without the wait, which the draw has made. No judgement waits for anything the draw
+ * makes before its dice - its Calls are spent after them, and a find comes after its roll (by reading, not measured).
+ * Until this fix (4d1532c, e29run/r2h20red, 06.10.2026) a readied knife a write took out of the stash the GMs' mark
+ * keeps it in read as a weapon in hand on a crisis swing (0, not an unarmed -1) and as a tool and a Cleaning Tool on a
+ * project's and a clean-up's roll (1 each, not 0). Written on the side line before fix r2-H3 met it, this reading
+ * awaited `actorAsHeld` itself; the merge of the two lines (06.10.2026) reads it in the one step instead.
+ */
+function situationReading(actor, { key, context, ready: { vault, murder, items, cleanup, heldNow } }) {
     if (key === "search") return searchOdds(actor, roomOfActor(actor), context.category ?? null, vault).situational;
     if (key === "murderOpening") {
         // The Night's die, the opening roll's own (murder.mjs `throwOpeningRoll`, `rollTrait`'s `situational`).
@@ -1550,13 +1612,13 @@ function situationReading(actor, { key, context, ready: { vault, murder, items, 
     }
     if (key === "crisis") {
         const crisis = typeof context.crisis === "string" && Object.hasOwn(CRISIS_ACTIONS, context.crisis) ? context.crisis : null;
-        return crisis ? murder.crisisSituational(actor, crisis) : 0;
+        return crisis ? murder.crisisSituational(actor, crisis, undefined, heldNow(actor)) : 0;
     }
     // A tool in hand is worth a die (action-rolls.mjs, "A TOOL IN HAND IS WORTH A DIE").
-    if (key === "project" || key === "sabotage") return items.equippedFor(actor, "tool") ? 1 : 0;
+    if (key === "project" || key === "sabotage") return items.equippedFor(heldNow(actor), "tool") ? 1 : 0;
     if (key === "cleanup") {
         // A Cleaning Tool's die, but not on a body moved (cleanup.mjs `attemptCleanup`, Stage 6's actions).
-        return CLEANUP.toolAdvantage && cleanup.cleaningTool(actor) && cleanupStepOf(context) !== "moveBody" ? 1 : 0;
+        return CLEANUP.toolAdvantage && cleanup.cleaningTool(heldNow(actor)) && cleanupStepOf(context) !== "moveBody" ? 1 : 0;
     }
     return 0;
 }
@@ -1640,11 +1702,11 @@ const legal = (key, actor, draw) => LEGAL_READERS[key](actor, draw, LEGAL[key]);
  * draw reads it.
  */
 
-/** What the list's rows need that takes time, ready before them: the audit's wait, the modules the rows read with, and where the statistic comes from (`traitReading`). */
+/** What the list's rows need that takes time, ready before them: the audit's wait, the modules the rows read with (and the audit's reading of a character's items as the GMs hold them, `heldNow`, fix r2-H20), and where the statistic comes from (`traitReading`). */
 async function readyFor(actor, draw) {
-    const [{ judgedFor }, { ADVANTAGE_CAP }, vault, murder, items, cleanup] = await Promise.all([import("./sheet-audit.mjs"),
+    const [{ judgedFor, actorHeldNow }, { ADVANTAGE_CAP }, vault, murder, items, cleanup] = await Promise.all([import("./sheet-audit.mjs"),
         import("./roll-dialog.mjs"), import("./vault.mjs"), import("./murder.mjs"), import("./use-items.mjs"), import("./cleanup.mjs")]);
-    return { judgedFor, advantageCap: ADVANTAGE_CAP, vault, murder, items, cleanup, trait: await traitReading(actor, draw) };
+    return { judgedFor, heldNow: actorHeldNow, advantageCap: ADVANTAGE_CAP, vault, murder, items, cleanup, trait: await traitReading(actor, draw) };
 }
 
 /**

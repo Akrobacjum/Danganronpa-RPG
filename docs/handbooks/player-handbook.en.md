@@ -473,7 +473,7 @@ A Truth Bullet card shows:
 
 The pack can be grouped by Chapter or by Location. A Truth Bullet is the only thing you can present at a trial.
 
-You cannot rename or edit an item. What a thing is called is part of the evidence.
+Your sheet does not let you rename an item or change its picture or description: what a thing is called is part of the evidence. A change made anyway stays and is recorded for the GMs - except on a Truth Bullet, where the GM's browser puts it back.
 
 ### Reading the difficulty ladder
 

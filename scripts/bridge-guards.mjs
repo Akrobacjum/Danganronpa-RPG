@@ -158,7 +158,7 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "relay", "sheetPutBack", "failed",
+    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "itemNotDecided", "relay", "sheetPutBack", "failed",
     "refused", "noGm", "noAnswer"
 ]);
 
@@ -331,7 +331,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^no Call that adds progress is named$/],
     ["callNotPaid", /^no payment of that character's stands for that Call$/],
     // E29 fix r2-H4: a Call that waits for the GM's yes, armed with none kept for it (guardArmGmYes).
-    ["callNotApproved", /^no GM's yes stands for that Call$/]
+    ["callNotApproved", /^no GM's yes stands for that Call$/],
+    // E29 fix r2-H21: an item a player's browser made that no GM has decided on yet changes no hands (sheet-audit.mjs
+    // `creationRefusal`, asked by the copy roads of handover.mjs and vault.mjs).
+    ["itemNotDecided", /^no GM has decided yet on an item a player made on a sheet: ".*"$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -636,17 +639,27 @@ export async function guardSabotageRoom(sender, payload, ctx) {
  * a crisis action, so the incident is at its incident stage and the holder
  * is one of its participants - the victim included, whose Self-defence and
  * Role reversal swing a weapon too.
+ *
+ * AS THE GMS HOLD THE OBJECT (E29 fix r2-H21, 06.10.2026; the class sweep of fixes r2-H17 to r2-H20). An object's
+ * identity (`drpgItemId`) is a field the sheet audit fixes (sheet-audit.mjs `ITEM_FIXED`), and a participant's write
+ * of one on an item of their own stands on the document until its put-back lands, or for good where it fails - so the
+ * holding was read off a write the GMs put back, and the traces of an object no participant the sender plays holds
+ * could be tied to the crime (remnants.mjs `tieTraceForItem`). The holding is read off the participants' items as the
+ * GMs hold them (`itemsAsHeld`). The wait holds up nothing that holds it up, by reading: the honest sender asks for the tie
+ * after its roll and before its crisis packet, and what a judgement waits for (a use's consumption, a find's record)
+ * it waits for at most `JUDGE_WAIT_MS` from when the write was heard.
  */
 export async function guardTieTraceHolder(sender, payload, ctx) {
     const identity = payload.identity;
     const { murderState, participantIds } = await import("./murder.mjs");
+    const { itemsAsHeld } = await import("./sheet-audit.mjs");
     const state = murderState();
     const cast = state?.stage === "incident" ? new Set(participantIds(state)) : new Set();
-    const holds = Boolean(identity) && game.actors.some(actor =>
-        cast.has(actor.id)
-        && ownsActor(sender, actor.id)
-        && actor.items.some(item => item.getFlag(MODULE_ID, "drpgItemId") === identity));
-    return holds ? null : "no participant of the running incident the sender plays holds that object";
+    const theirs = identity ? game.actors.filter(actor => cast.has(actor.id) && ownsActor(sender, actor.id)) : [];
+    for (const actor of theirs) {
+        if ((await itemsAsHeld(actor)).some(item => item.getFlag(MODULE_ID, "drpgItemId") === identity)) return null;
+    }
+    return "no participant of the running incident the sender plays holds that object";
 }
 
 /**

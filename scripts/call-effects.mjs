@@ -906,16 +906,20 @@ async function hopeFromDespairEffect(actor, call, choice, done) {
         ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
         throw new NothingToDo("the darkening blocks Hope");
     }
-    const max = resourceMax(choice.target, "hope") || STARTING.hopeMax;
-    const held = resourceValue(choice.target, "hope");
-    const next = Math.min(max, held + call.grantsHope);
+    // From the Hope the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's raised Hope,
+    // not put back yet, was granted on top.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const { held, next } = await meansWrite(choice.target, async ({ hope }, maxOf) => {
+        const next = Math.min(maxOf("hope") || STARTING.hopeMax, hope + call.grantsHope);
+        if (next !== hope) await trustedWrite(choice.target, { "system.resources.hope.value": next }, { reason: "call" });
+        return { held: hope, next };
+    });
 
     if (next === held) {
         ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
         throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
     }
 
-    await trustedWrite(choice.target, { "system.resources.hope.value": next }, { reason: "call" });
     done.push(game.i18n.format("DRPG.Calls.hopeGranted", {
         name: choice.target.name, n: next - held
     }));
@@ -950,25 +954,30 @@ async function feedOverflowEffect(actor, call, choice, done) {
 
 // --- damage and stress ---
 async function damageEffect(actor, call, choice, done) {
-    const update = {};
     // What actually lands, not what the Call is worth: Pain on a student
     // with one mark left used to report "takes 2 Health" and keep all of
     // its price, and on a full track it did nothing at all (CALL-15).
-    const landed = [];
-    for (const [resource, amount] of Object.entries(call.damage)) {
-        // Health and Sanity are reverse resources: marks count up to max.
-        const marks = resourceValue(choice.target, resource);
-        const max = resourceMax(choice.target, resource);
-        const next = Math.min(max, marks + amount);
-        if (next === marks) continue;
-        update[`system.resources.${resource}.value`] = next;
-        landed.push(`${next - marks} ${resource === "hitPoints" ? "Health" : "Sanity"}`);
-    }
+    // Held to the marks and the maxima the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24):
+    // a console's lowered maximum, not put back yet, took the marks off the Call.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const landed = await meansWrite(choice.target, async (held, maxOf) => {
+        const update = {};
+        const landed = [];
+        for (const [resource, amount] of Object.entries(call.damage)) {
+            // Health and Sanity are reverse resources: marks count up to max.
+            const marks = held[resource];
+            const next = Math.min(maxOf(resource) ?? 0, marks + amount);
+            if (next === marks) continue;
+            update[`system.resources.${resource}.value`] = next;
+            landed.push(`${next - marks} ${resource === "hitPoints" ? "Health" : "Sanity"}`);
+        }
+        if (landed.length) await trustedWrite(choice.target, update, { reason: "call" });
+        return landed;
+    });
     if (!landed.length) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.nothingToMark", { name: choice.target.name }));
         throw new NothingToDo(`${choice.target.name} has nothing left to mark`);
     }
-    await trustedWrite(choice.target, update, { reason: "call" });
     done.push(game.i18n.format("DRPG.Calls.damaged", {
         name: choice.target.name,
         what: landed.join(", ")

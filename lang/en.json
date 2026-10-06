@@ -2535,6 +2535,7 @@
         "rollThrown": "That action's roll has been thrown already.",
         "callNotPaid": "The GM's client saw no Hope paid for that Call.",
         "callNotApproved": "The GM's client holds no GM's yes for that Call. Ask for it again.",
+        "itemNotDecided": "No GM has decided yet on that item, which a player made on a sheet: it changes no hands until one does.",
         "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
@@ -2956,6 +2957,7 @@
         "rules": "Roll rules",
         "bonuses": "Bonuses",
         "levelData": "Level Up choices",
+        "scars": "Scars",
         "flag": "The module's records",
         "effect": "An effect",
         "hope": "Hope",

@@ -473,7 +473,7 @@ Karta Truth Bulleta pokazuje:
 
 Pakiet możesz grupować według Rozdziału albo Lokacji. Truth Bullet to jedyna rzecz, którą możesz przedstawić w Class Trialu.
 
-Nie da się zmienić nazwy ani opisu przedmiotu. To, jak rzecz się nazywa, jest częścią dowodu.
+Karta nie pozwala zmienić nazwy, obrazka ani opisu przedmiotu: to, jak rzecz się nazywa, jest częścią dowodu. Zmiana zrobiona mimo to zostaje i jest zapisywana dla GMów - poza Truth Bulletem, na którym przeglądarka GMa ją cofa.
 
 ### Drabina trudności
 

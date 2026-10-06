@@ -12,7 +12,8 @@
  * WHAT THE GMS HOLD (`sheetMarks`, gm-stores.mjs). Per student, the last judged
  * values: its statistics (`system.traits`), experiences, each resource's value and
  * maximum, `system.rules` and `system.bonuses`, Daggerheart's level-up selections
- * (`system.levelData`, since E29 fix r1-G2), the module flags below, its effects and, per
+ * (`system.levelData`, since E29 fix r1-G2), Daggerheart's scars (`system.scars`, which set Hope's
+ * maximum; since E29 fix r2-H25), the module flags below, its effects and, per
  * item, the effects on its items (`itemEffects`, since E29 fix r1-G3).
  * A GM's write is never judged, and what it names is the new mark; so is
  * whatever a verdict leaves standing of what a player's write named. Either is taken
@@ -25,9 +26,9 @@
  *
  * WHAT IS PUT BACK, with the world setting `lockPlayerResources` on (its default):
  * any change to a statistic, an experience, a maximum, `system.rules`,
- * `system.bonuses` or `system.levelData`; any change to a GM-only flag (`GM_FLAGS`); an effect that
+ * `system.bonuses`, `system.levelData` or `system.scars`; any change to a GM-only flag (`GM_FLAGS`); an effect that
  * changes anything the GMs hold - a statistic, an experience, a resource's value or maximum,
- * a rule, a bonus, a level-up selection, a module flag (`HELD_PATH`, G3; until then only what
+ * a rule, a bonus, a level-up selection, the scars, a module flag (`HELD_PATH`, G3; until then only what
  * a roll is built from) - or is one of the module's own statuses, on the student or,
  * transferred, on one of its items (G3) - created (deleted), changed (written back) or deleted
  * (made again under its id). A statistic or a maximum goes back to its mark, not by a
@@ -133,7 +134,7 @@
  * later write - a GM's included - is not written over but judged in its turn.
  */
 
-import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL, VAULT_LIMIT } from "./config.mjs";
+import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL, VAULT_LIMIT, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { SETTINGS, getSetting, getClock } from "./settings.mjs";
 import { isPrimaryGm, primaryGmId, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
 import { onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, stableJson } from "./gm-store.mjs";
@@ -202,7 +203,7 @@ const LOCK_NAMED_MAX = new Set([ACTIONS_RESOURCE, "hope", "hitPoints", "stress"]
  * values and flags (`resourceValue`, `getFlag`) while this file reads only the source. The harness
  * applies no effect to prepared data, so that half is read, not run. The comparison at ready asks the same.
  */
-const HELD_PATH = new RegExp(`^system\\.(?:traits|experiences|rules|bonuses|resources|levelData)(?:\\.|$)|\\.max$|^flags\\.${MODULE_ID}\\.`);
+const HELD_PATH = new RegExp(`^system\\.(?:traits|experiences|rules|bonuses|resources|levelData|scars)(?:\\.|$)|\\.max$|^flags\\.${MODULE_ID}\\.`);
 
 /** The statuses the module itself sets (chapter.mjs `dead`, states.mjs Breakdown and Wounded). */
 const MODULE_STATUSES = new Set(["dead", ...Object.values(STATES).map(state => state.id)]);
@@ -223,8 +224,20 @@ const ITEM_WRITES = new Set(["updateItem", "createItem", "deleteItem"]);
  * (`usableKind`). `grantItem` sets them on the item it makes, which is judged as an item created,
  * and only migrate.mjs writes `roles` on one that exists, on the primary GM (review round 1 sec M3
  * = cor M5, which measured a console's `roles` making a carried item serve as a crime tool, no row).
+ *
+ * AND THE ROOM A BEDROOM KEY OPENS (E29 fix r2-H19, 06.10.2026; found by fix r2-H17). A flag outside `ITEM_FLAGS`
+ * (config.mjs `BEDROOM_KEY_FLAG`) that only a GM writes: vault.mjs `grantBedroomKey` on the key it makes, and the copy
+ * roads carry it over (inventory.mjs `preservedFlags`). It was no part of this list, so a player's write of one was
+ * listed and stood, and a hand-over of the item it stood on made the receiver a real key to that room (handover.mjs
+ * `shareKey`, through `grantBedroomKey`), as a plant's copy carried it: at 68150ec (e29run/r2h19red) a key written by
+ * a player on a Tool and on an item not the module's was listed and left on each, a hand-over of a Tool or of an item
+ * not the module's that carried one made the receiver a key, and a plant's copy carried it; in scenario 30 p2's key
+ * and at once a hand-over made Aiko a key to Dorm B on every client, its row listed with no message to the GMs. It is
+ * the only such flag - a sweep of every module flag a road writes on an item (06.10.2026) found besides these the
+ * Truth Bullet's, which truth-bullets.mjs guards on its own, and `equipped`, which is the player's (use-items.mjs
+ * `toggleEquipped`).
  */
-const ITEM_FIXED = [ITEM_FLAGS.category, ITEM_FLAGS.tier, ITEM_FLAGS.identity, ITEM_FLAGS.roles, ITEM_FLAGS.kind];
+const ITEM_FIXED = [ITEM_FLAGS.category, ITEM_FLAGS.tier, ITEM_FLAGS.identity, ITEM_FLAGS.roles, ITEM_FLAGS.kind, BEDROOM_KEY_FLAG];
 
 /** Where a module item is kept: carried, or which stash. */
 const ITEM_PLACE = [ITEM_FLAGS.location, ITEM_FLAGS.stashRoom];
@@ -242,6 +255,14 @@ const CLASS_HIT_POINTS = "system.hitPoints";
 /** Every path of an item's write this file judges (the plan's 2.6): its count and the flags above, and a class's hit points. */
 const ITEM_JUDGED = ["system.quantity", ...[...ITEM_FIXED, ITEM_FLAGS.broken, ITEM_FLAGS.wear, ...ITEM_PLACE].map(flag => `flags.${MODULE_ID}.${flag}`)];
 
+/*
+ * The judged paths an item the GMs hold no copy of is read without (`itemFindings`' `before`, `itemsAsHeld`,
+ * `itemCovers`): its category, which would make it the module's, and since E29 fix r2-H19 a bedroom key's room, which
+ * makes any item a key where a key is read (handover.mjs `giveItem`, vault.mjs `keysHeldBy`). A player's write of
+ * either on such an item is put back, and neither is read off it as the GMs hold it.
+ */
+const ITEM_UNHELD = [ITEM_FLAGS.category, BEDROOM_KEY_FLAG].map(flag => `flags.${MODULE_ID}.${flag}`);
+
 /** The flag of the GMs' card of the changes made with no GM watching (C7): the ids of the rows it asks about. */
 const AWAY_CARD = "sheetAway";
 
@@ -252,10 +273,17 @@ const AWAY_CARD = "sheetAway";
  * a statistic, an experience, the Health and Sanity maxima and a roll's dice (character.mjs
  * `prepareBaseData`, read 05.10.2026). No player road writes them: the module's Level Up is
  * `applyAdvancement`, on a GM (R79), and the module writes no `levelData` at all.
+ * `system.scars` since E29 fix r2-H25: Daggerheart's scars, a number, which set Hope's maximum - the world's setting
+ * less them (character.mjs `prepareDerivedData`, 2.10.5 :752). No road writes them: not the module's, and Daggerheart's
+ * one, the Death Move's Avoid Death, is no road in this game (states.mjs switches off the automation that offers it,
+ * danganronpa.css hides the sheet's button); so they are judged as the fields only a GM writes are, put back with
+ * `lockPlayerResources` on or off (`kindOf`). Until this fix a player's write of them was listed and stood, and with it
+ * a Hope maximum the GMs' readers took as theirs (`maxHeld`). A mark or a sheet with none reads 0, Daggerheart's
+ * initial (character.mjs :79): a mark taken before this fix holds none.
  */
-const MARK_ROOTS = ["system.traits", "system.experiences", "system.resources", "system.rules", "system.bonuses", "system.levelData"];
+const MARK_ROOTS = ["system.traits", "system.experiences", "system.resources", "system.rules", "system.bonuses", "system.levelData", "system.scars"];
 
-/** Every root of a student's document the mark keeps: the five above and each marked flag. */
+/** Every root of a student's document the mark keeps: the seven above and each marked flag. */
 const MARKED_PATHS = [...MARK_ROOTS, ...MARKED_FLAGS.map(key => `flags.${MODULE_ID}.${key}`)];
 
 /** The means' paths (`LEDGER`): a judgement moves them through its ledger alone, never as a path put back to its mark. */
@@ -304,7 +332,7 @@ function markFrom(actor) {
     const flags = src.flags?.[MODULE_ID] ?? {};
     return {
         traits: clone(system.traits ?? {}), experiences: clone(system.experiences ?? {}), resources: clone(system.resources ?? {}),
-        rules: clone(system.rules ?? {}), bonuses: clone(system.bonuses ?? {}), levelData: clone(system.levelData ?? {}),
+        rules: clone(system.rules ?? {}), bonuses: clone(system.bonuses ?? {}), levelData: clone(system.levelData ?? {}), scars: system.scars ?? 0,
         flags: Object.fromEntries(MARKED_FLAGS.filter(key => flags[key] !== undefined).map(key => [key, clone(flags[key])])),
         effects: Object.fromEntries((actor.effects?.contents ?? []).map(effect => [effect.id, docData(effect)])),
         items: Object.fromEntries((actor.items?.contents ?? []).map(item => [item.id, docData(item)]).filter(([, data]) => heldItem(data))
@@ -337,11 +365,17 @@ const itemCopy = data => {
 /** The effects of an item's data, by id, each as the mark keeps an effect. */
 const effectsIn = data => Object.fromEntries((data?.effects ?? []).map(effect => [effect._id, docData(clone(effect))]));
 
+/** A student's items, by id, each as an item's own write is seen and the mark is taken (`docData`, its effects on it): fix r2-H10. */
+const itemsIn = actor => Object.fromEntries((actor.items?.contents ?? []).map(item => [item.id, docData(item)]));
+
 /** The item an effect is on, or null for one on the student itself. */
 const itemOf = effect => effect?.parent?.documentName === "Item" ? effect.parent : null;
 
 /** Where the mark holds an effect, and a row names it: `effects.<id>`, or `itemEffects.<item id>.<id>` (G3). */
 const effectPath = (itemId, id) => itemId ? `itemEffects.${itemId}.${id}` : `effects.${id}`;
+
+/** The mark's copy of an effect - the student's own, or one on its item `itemId` (G3) - or null. */
+const effectHeld = (mark, itemId, id) => (itemId ? mark?.itemEffects?.[itemId] : mark?.effects)?.[id] ?? null;
 
 /** Sets one effect in a mark - the student's own, or one on its item `itemId` (G3) - or takes it out where `data` is null. */
 function setEffect(mark, itemId, id, data) {
@@ -352,21 +386,57 @@ function setEffect(mark, itemId, id, data) {
     if (itemId && !Object.keys(slot).length) delete mark.itemEffects[itemId];
 }
 
-/** The mark's items' effects with one item's taken in as its data holds them, or gone with it (G3). */
-function itemEffectsAfter(mark, itemId, data) {
+/*
+ * THE MARK TAKES WHAT A WRITE REACHED (E29 fix r2-H15, 06.10.2026; found by fix r2-H14). An item's or an effect's
+ * update moves the mark's copy of that document by the paths it reached (`reachOf`; an entry's, written through its
+ * student or its item), each as its hook saw it, and by nothing else of the hook's copy: that copy holds every write
+ * before it, and one of those may still wait for its put-back. A document the mark holds no copy of is taken whole,
+ * as one made is. Until this fix an item's or an effect's write took the hook's copy whole, though G1 had made a
+ * student's own paths move only so and refreshMark's comment said it of every write: measured on the harness by
+ * scenario 30 at d1445c0 (06.10.2026, e29run/r2h15red), p2's console wrote a Tool's `roles` and at once renamed it,
+ * the rename's hook holding the roles; the roles were put back on every client and stood in the mark, and the same
+ * roles written again then stood with no row. So did a count raised behind a rename, the roles through Botan's
+ * update, a penalty's +5 behind a write of its old name, and the roles behind a GM's rename in the window.
+ */
+function reached(held, data, changes) {
+    return held && data ? withPaths(held, data, reachOf(changes)) : clone(data) ?? null;
+}
+
+/** A write's `key` (`items`, `effects`) written as a list of entries named by their `_id`: id -> what the entry writes. Null for the list written whole. */
+function entriesNamed(changes, key) {
+    const list = changes?.[key];
+    if (!Array.isArray(list)) return null;
+    return new Map(list.filter(entry => entry?._id).map(({ _id, ...entry }) => [_id, foundry.utils.expandObject(entry)]));
+}
+
+/** The effects the mark holds on one host (`held`, by id) with each `named` one (id -> what its entry wrote) taken in by what its entry reached. */
+function effectsReached(held = {}, now = {}, named) {
+    const out = { ...held };
+    for (const [id, entry] of named) if (now[id]) out[id] = reached(held[id] ?? null, now[id], entry);
+    return out;
+}
+
+/**
+ * The mark's items' effects with one item's taken in as its data holds them, or gone with it (G3) - or, where its write named them
+ * by their id (`named`), only those, each by what its entry reached (fix r2-H15).
+ */
+function itemEffectsAfter(mark, itemId, data, named = null) {
     const out = { ...(mark?.itemEffects ?? {}) };
-    const effects = effectsIn(data);
+    const effects = named ? effectsReached(mark?.itemEffects?.[itemId], effectsIn(data), named) : effectsIn(data);
     if (Object.keys(effects).length) out[itemId] = effects;
     else delete out[itemId];
     return out;
 }
 
 /**
- * What an item's write that stands moves the mark by: the item as its hook saw it (C6) and, made or deleted, its effects with it
- * (G3) - or updated with them in its `changes` (fix r2-H8, `parentEffects`).
+ * What an item's write that stands moves the mark by: made or deleted, the item as its hook saw it (C6) and its effects with it
+ * (G3); updated, the paths it reached (`reached`, fix r2-H15) and, where its `changes` wrote them (fix r2-H8, `parentEffects`),
+ * its effects - each it named by what its entry reached, every one as the hook saw it where it wrote the list whole.
  */
-const itemMoves = (kind, mark, item, data, changes = {}) => ({ items: itemsAfter(mark, item, data),
-    ...(kind === "updateItem" && !names(changes, "effects") ? {} : { itemEffects: itemEffectsAfter(mark, item.id, data) }) });
+const itemMoves = (kind, mark, item, data, changes = {}) => kind !== "updateItem"
+    ? { items: itemsAfter(mark, item, data), itemEffects: itemEffectsAfter(mark, item.id, data) }
+    : { items: itemsAfter(mark, item, reached(mark?.items?.[item.id] ?? null, data, changes)),
+        ...(names(changes, "effects") ? { itemEffects: itemEffectsAfter(mark, item.id, data, entriesNamed(changes, "effects")) } : {}) };
 
 /** An item the mark holds, whole: its copy with the effects held on it (G3), as a deleted one is made again. */
 const wholeItem = (mark, id) => ({ ...clone(mark.items[id]), effects: Object.values(mark.itemEffects?.[id] ?? {}).map(clone) });
@@ -442,7 +512,7 @@ const takeAll = (credit, key, n) => creditHeld(credit, key) >= n && takeCredit(c
 function markAsDocument(mark) {
     return {
         system: { traits: mark.traits ?? {}, experiences: mark.experiences ?? {}, resources: mark.resources ?? {},
-            rules: mark.rules ?? {}, bonuses: mark.bonuses ?? {}, levelData: mark.levelData ?? {} },
+            rules: mark.rules ?? {}, bonuses: mark.bonuses ?? {}, levelData: mark.levelData ?? {}, scars: mark.scars ?? 0 },
         flags: { [MODULE_ID]: mark.flags ?? {} }
     };
 }
@@ -461,6 +531,7 @@ function kindOf(path) {
     if (/^system\.traits(?:\.|$)/.test(path)) return "traits";
     if (/^system\.experiences(?:\.|$)/.test(path)) return "experience";
     if (/^system\.levelData(?:\.|$)/.test(path)) return "levelData";
+    if (path === "system.scars") return "scars";
     if (/^system\..+\.max$/.test(path)) return "max";
     if (/^system\.rules(?:\.|$)/.test(path)) return "rules";
     if (/^system\.bonuses(?:\.|$)/.test(path)) return "bonuses";
@@ -626,6 +697,158 @@ export async function armedCallsHeld(actor) {
     return new Set((Array.isArray(stored) ? stored : stored ? [stored] : []).map(entry => entry?.nonce).filter(nonce => typeof nonce === "string"));
 }
 
+/*
+ * A STUDENT'S ITEMS AS THE GMS HOLD THEM (E29 fix r2-H17, 06.10.2026; found by fix r2-H16). A GM's road that makes
+ * a copy of a student's item on another sheet - handover.mjs `giveItem` and `lootBody`, vault.mjs `stealFromVault`,
+ * `stealFromPerson` and `plantOnPerson` - reads the item here: once every write queued on the student has been
+ * judged (`judgedFor`), the fields this file judges (`ITEM_JUDGED`, a class's hit points) as the mark holds them,
+ * whether their put-back landed or failed, as `armedCallsHeld` reads a Call; every other field as the document
+ * holds it, and every field where the GMs keep no mark of their own here - on a GM who is not the primary (its copy
+ * may lag, `meansHeld`), the stores not hydrated, a Monokuma's, no student's. An item the mark holds no copy of is
+ * read without a category or a key (`ITEM_UNHELD`), as its judgement reads one (`itemFindings`' `before`): the GMs
+ * hold no module item there.
+ * Each item is plain data read as an item is read (`itemLike`, with its `img`), taken in one step as the wait ends;
+ * a write heard after it is judged on its own and moves nothing read here. A wait alone is enough for these roads,
+ * unlike a GM's write of a student's means (`gmMeansWrite`): none writes a field of the item a put-back writes - each
+ * makes a new item elsewhere and deletes this one, whose put-back then finds nothing to write (fix r2-H16) - and, by
+ * reading, no judgement waits for anything they do (an item used waits for its consumption, a Call taken for a roll's
+ * card, a Search's find for its roll's record), so the wait holds up nothing that holds it up. Until this fix the
+ * roads read the document as it stood: at ebdf1ba (e29run/r2h17red, 06.10.2026) a Tool given roles and tier 3 where
+ * the mark did not see them (the mark: no roles, tier 1) was copied with both by a hand-over, a loot, a plant and
+ * both thefts, and in scenario 30 a hand-over and a plant p2 asked for at once after writing a Tool's roles, or its
+ * tier and a mend, left that write on Aiko's copy on every client and in her mark.
+ * READ HERE SINCE, each road saying why its wait holds up nothing: through `itemAsHeld` the Rot's wear (overflow.mjs
+ * `rotEverything`, fix r2-H19), a GM's ruling on an item used (use-items.mjs `grantItemEffect`, H19) and an
+ * Objection's evidence (trial.mjs `seizeFloor`, H20); the object a tie of a trace to the crime names
+ * (bridge-guards.mjs `guardTieTraceHolder`, H21); and through this list itself a Reroll's plant (reroll.mjs
+ * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (chapter.mjs `bulletsHeldBy`, H22); and through
+ * `itemAsHeld` the count a Reroll gives a used item's charge back to (murder.mjs `undoLastCrisis`, H23).
+ */
+export async function itemsAsHeld(actor) {
+    await judgedFor(actor?.id);
+    return itemsHeldNow(actor);
+}
+
+/*
+ * `itemsAsHeld` without its wait, for a road that has made the wait itself and reads in one step from its end: a GM's
+ * draw (roll-draw.mjs `expectedFor`, through `actorHeldNow`; the merge of the side line's fix r2-H20 with the main
+ * line's fix r2-H3, 06.10.2026). Read without the wait, a write heard and not judged yet is read as the mark held the
+ * item before it - a write the judgement would keep included.
+ * And for two that take no wait of their own (fix r2-H21): a GM's break (inventory.mjs `breakItem`), whose callers
+ * on a GM have waited already (a discovery's and a close's `destroyTools`, a swing's and the Rot's wear, a ruling's
+ * consumption) and on a player's browser find no mark, and the count Daggerheart's relay may lower (relay-guard.mjs
+ * `itemRefusal`), whose judge answers at once, as it measures the Hope from the mark as it stands
+ * (`relayGainRefusal`). So a player's break not judged yet is read whole and the GM's break is written over it - the
+ * item broken either way - and a GM's rise of a count not judged yet is not counted, so a fall below it asked in
+ * that moment is refused.
+ */
+export function itemsHeldNow(actor) {
+    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
+    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
+    const copies = mark && !mark.flags?.[FLAGS.monokuma] ? mark.items ?? {} : null;
+    return (actor?.items?.contents ?? []).map(item => {
+        const data = docData(item), copy = copies?.[item.id] ?? null;
+        const held = !copies ? data : copy ? withPaths(data, copy, isClassItem(data) ? [...ITEM_JUDGED, CLASS_HIT_POINTS] : ITEM_JUDGED)
+            : withPaths(data, {}, ITEM_UNHELD);
+        return { ...itemLike(held), img: held.img ?? null };
+    });
+}
+
+/** One of a student's items as the GMs hold it (`itemsAsHeld`), or null where it is no longer on the student. */
+export async function itemAsHeld(actor, id) {
+    return (await itemsAsHeld(actor)).find(item => item.id === id) ?? null;
+}
+
+/*
+ * A STUDENT'S MODULE FLAGS AS THE GMS HOLD THEM (E29 fix r2-H19, 06.10.2026), for a GM's road that decides by one
+ * through a reader a player's browser shares, handed this in the actor's place as `actorAsHeld` is: its id, name and
+ * type, and a `getFlag` that answers - once every write queued on the student has been judged (`judgedFor`) - a flag
+ * the mark holds (`MARKED_FLAGS`) with the mark's value and any other with the document's, and every flag with the
+ * document's wherever the GMs keep no mark of their own here, as `itemsAsHeld` reads. The mark's flags are taken in
+ * one step as the wait ends. The road: the Rot's death (overflow.mjs `rotEverything`, through settings.mjs
+ * `isDeceased`, one of the two readers of the flag R192 allows) - a death a player's console wrote, a GM's flag the
+ * audit puts back, spared every item of that student until the put-back landed, or for good where it failed. The
+ * wait holds up nothing that holds it up, by reading: no judgement waits for a GM's write.
+ */
+export async function flagsAsHeld(actor) {
+    await judgedFor(actor?.id);
+    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
+    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
+    const flags = mark && !mark.flags?.[FLAGS.monokuma] ? clone(mark.flags ?? {}) : null;
+    return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
+        getFlag: (scope, key) => flags && scope === MODULE_ID && MARKED_FLAGS.includes(key) ? flags[key] : actor?.getFlag?.(scope, key) };
+}
+
+/*
+ * A STUDENT AS THE GMS HOLD ITS ITEMS, FOR A GM'S DECISION (E29 fix r2-H18, 06.10.2026; H17's seam). A GM's road
+ * that decides by a student's items through the readers a player's browser shares - inventory.mjs `canCarry` and
+ * `carriedFor`, use-items.mjs `equippedFor` - hands them this in the actor's place: its id, name and type, and its
+ * items as `itemsAsHeld` reads them, in a list read as an actor's collection (`filter`, `find`, `some`, `get`). The
+ * readers stay synchronous, and the player's browser's own reads stay on its document (its sheet and its quotes: the
+ * GM decides). Nothing is written through it - a road writes to the documents. The roads: the crisis on the GM
+ * (murder.mjs `applyCrisisAction`), a tool's relief on a project's roll (action-rolls.mjs `reliefHeld`), and the
+ * receiver's hands on the copy roads (handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`,
+ * `stealFromPerson`, `plantOnPerson`). The wait is `itemsAsHeld`'s, and on these roads, as on H17's, it holds up
+ * nothing that holds it up, by reading: a crisis action, a project's packet and a copy each come after the roll and
+ * the use they follow, and none writes what a judgement waits for (a use's consumption, a roll's card).
+ * And since fix r2-H20, each saying the same of its own wait: a clean-up's and Stage 6's gloves (cleanup.mjs
+ * `resolveCleanup`, `resolveStageSix`), the gloves and the weapons the discovery and the close break (`destroyTools`),
+ * and the searcher's hands a Reroll's find is carried in (reroll.mjs `settleSearch`).
+ */
+export async function actorAsHeld(actor) {
+    await judgedFor(actor?.id);
+    return actorHeldNow(actor);
+}
+
+/** `actorAsHeld` without its wait (`itemsHeldNow`'s note): a GM's draw reads a weapon, a tool and a Cleaning Tool in hand off it in its one step (roll-draw.mjs `situationReading`). */
+export function actorHeldNow(actor) {
+    const items = itemsHeldNow(actor);
+    return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
+        items: Object.assign([...items], { get: id => items.find(item => item.id === id) }) };
+}
+
+/*
+ * A PLAYER'S ITEM NO GM HAS DECIDED ON CHANGES NO HANDS (E29 fix r2-H21, 06.10.2026; the orchestrator's decision (a),
+ * as for fixes r2-H7 and r2-H11 - the owner may overrule it). An item a player's browser makes on a student is
+ * flagged whole (`itemFindings`, the plan's 2.6) and stands until a GM decides (2.8), and the mark takes it in as it
+ * stands - so a copy road read it as any item the GMs hold: a hand-over, a plant, a theft or a loot made a GM's copy
+ * of it on another sheet, a write that stands as the GMs', and deleted the original, whose card's Undo then found
+ * nothing to undo. The copy roads (handover.mjs `giveItem` - its key's and its bullet's branches included - and
+ * `lootBody`; vault.mjs `plantOnPerson`, `stealFromVault` and `stealFromPerson`) ask this after their wait, which
+ * has judged every write queued on the student and so written the creation's row, and before anything is written:
+ * an item whose creation row (`sheetWrites`, verdict "flagged", the change `items.<id>` from null) holds no decision
+ * is refused, and the asker told (`itemNotDecided`). The decision is read as the card's Undo and Keep write it
+ * (`decideNow`: `decided`, written before anything else, on a card's row and on a row of the card of changes made
+ * with no GM watching alike): kept, the item copies as any item; undone, it is gone, and there is nothing to copy.
+ * A row swept a day after it was written (`keepRows`) or cut by the reset's "actions" group (gm-stores.mjs
+ * `sheetWriteStore`) is a decision no GM can make any more - by the plan's 2.3 and 2.8 the window has closed and the
+ * write stands - so the item copies then too. A created item on its owner's own roads (an Objection with it, Use an
+ * item) stands until a GM decides, as 2.8 says, and is not asked here. Null on a browser that holds no rows.
+ */
+export function creationRefusal(actor, itemId) {
+    if (!game.user?.isGM || !gmStoresHydrated() || !actor?.id || !itemId) return null;
+    const whole = `items.${itemId}`;
+    const open = Object.values(sheetWriteStore.entries() ?? {}).some(row => row?.actorId === actor.id && row.itemId === itemId
+        && row.verdict === "flagged" && !row.decided && Array.isArray(row.change?.[whole]) && row.change[whole][0] === null);
+    return open ? `no GM has decided yet on an item a player made on a sheet: "${actor.items?.get(itemId)?.name ?? itemId}"` : null;
+}
+
+/*
+ * THE ITEMS A PLAYER'S WRITE TOOK OFF A STUDENT THAT A GM'S UNDO WOULD MAKE AGAIN (E29 fix r2-H22, 06.10.2026): each
+ * undecided row of an item the GMs held that a player deleted (`itemFindings`: flagged, the change `items.<id>` to
+ * null, the GMs' copy kept as `data`; a row of the card of changes made with no GM watching alike), while the item is
+ * still off the sheet - the copy `decideNow`'s Undo makes again under its id - read as an item (`itemLike`, with the
+ * uuid it had). For a road that takes such an item for good (chapter.mjs `keepBulletDeletions`). Empty on a browser
+ * that holds no rows.
+ */
+export function deletedHeldBy(actor) {
+    if (!game.user?.isGM || !gmStoresHydrated() || !actor?.id) return [];
+    return Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.actorId === actor.id && row.itemId && row.data
+        && row.verdict === "flagged" && !row.decided && Array.isArray(row.change?.[`items.${row.itemId}`])
+        && row.change[`items.${row.itemId}`][1] === null && !actor.items?.has(row.itemId))
+        .map(([rowId, row]) => ({ rowId, item: { ...itemLike({ ...row.data, _id: row.itemId }), uuid: `${actor.uuid}.Item.${row.itemId}` } }));
+}
+
 /**
  * The GMs' value of each of a student's means (`hope`, `actions`, `hitPoints`, `stress` and the two
  * grants): their mark's, on the primary, where the judge keeps it current; the document's on any other
@@ -633,9 +856,46 @@ export async function armedCallsHeld(actor) {
  * no mark, a Monokuma, the stores not hydrated, not a student (E29 fix r1-G5).
  */
 export function meansHeld(actor) {
+    return ledgerOf(heldMark(actor), actor);
+}
+
+/** The mark the held readers read: the primary's, of a student; none for a Monokuma - no student (`judgeNow`): what it holds stands, so its document is the record. */
+function heldMark(actor) {
     const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
-    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
-    return ledgerOf(mark && !mark.flags?.[FLAGS.monokuma] ? mark : null, actor);
+    return mark && !mark.flags?.[FLAGS.monokuma] ? mark : null;
+}
+
+/*
+ * A STUDENT'S RESOURCE MAXIMUM AS THE GMS HOLD IT (E29 fix r2-H23, 06.10.2026), where `meansHeld` holds the value: the
+ * prepared maximum with the mark's sheet maximum for the sheet's - Hope's with the mark's scars for the sheet's, since
+ * fix r2-H25 (`maxHeld`, as a judgement bounds the mark) - on the primary; the document's on any other browser and where
+ * the GMs hold no mark of their own. A player's write of a maximum is put back with `lockPlayerResources` on
+ * (`LOCK_NAMED_MAX`) and stands on the sheet until its put-back lands, and for good where it fails. For a GM's
+ * give-back held to the end of a track - a Reroll's rewind of a crisis action's marks (murder.mjs `undoLastCrisis`) and
+ * of a clean-up's Sanity (cleanup.mjs `undoLastCleanup`) - read in the job `gmMeansWrite` runs, as the value is; so
+ * too, since fix r2-H27, for a Reroll's price given back (reroll.mjs `giveBack`) and a critical's second Hope
+ * (despair-award.mjs `adjustCritHopeTopUp`), the last two jobs that read Hope's maximum off the document (tier 1's R290
+ * holds the census of such reads). Prepared: the end of a track, not a sheet's maximum to write over (`numberHeld`).
+ */
+export function meansMaxHeld(actor, key) {
+    return maxHeld(actor, heldMark(actor), key);
+}
+
+/*
+ * ANY OTHER NUMBER OF A STUDENT'S AS THE GMS HOLD IT (E29 fix r2-H24, 06.10.2026): a statistic, an experience's value,
+ * the advances taken and, since fix r2-H25, a sheet's maximum - what level-up.mjs `applyAdvancement` adds to. The sheet's
+ * value as the mark holds it, on the primary, and nothing where the mark holds none (the GMs hold none: a module flag the
+ * player wrote); the sheet's own on any other browser and where the GMs hold no mark of their own. The sheet's, not the
+ * prepared value (fix r2-H25): what is written into the sheet Daggerheart prepares again - a class's hit points added to
+ * Health's maximum, a Level Up's picks to a statistic or a maximum (character.mjs `prepareBaseData`, 2.10.5 :678-700,
+ * :741), an effect's changes - so a prepared value written there takes them a second time. H24 read the prepared value
+ * with the mark's for the sheet's, and the maxima as `meansMaxHeld` answers them, prepared: measured at 525a186
+ * (06.10.2026, e29run/r2h25red) by tier 2 ("a GM's Level Up rises from the sheet's maximum"), +1 Health and +1 to a
+ * statistic over a class's 5 hit points and a pick of +1 wrote 12 and 2 for 7 and 1. Read in the job `gmMeansWrite` runs.
+ */
+export function numberHeld(actor, path) {
+    const mark = heldMark(actor);
+    return foundry.utils.getProperty(mark ? markAsDocument(mark) : actor?._source ?? {}, path);
 }
 
 /*
@@ -658,6 +918,9 @@ export function meansHeld(actor) {
  * meanwhile is judged after it, from it (`hopeLeft`). With it, the same probe read as expected in 24
  * runs of 24 (e29run/r1g5q/q1-probe.log). `write(held)` answers what its caller needs; an error in it
  * is the caller's, and the queue goes on.
+ * Since fix r2-H23 a Reroll's rewind writes in such a job too: the Hope a use gave taken back and the marks put back
+ * to the end of the track the GMs hold (murder.mjs `undoLastCrisis`), and a clean-up's Sanity (cleanup.mjs
+ * `undoLastCleanup`).
  */
 export function gmMeansWrite(actor, write) {
     if (actor?.documentName !== "Actor" || actor.type !== "character") return (async () => write(meansHeld(actor)))();
@@ -670,6 +933,50 @@ export function gmMeansWrite(actor, write) {
             }
         });
     });
+}
+
+/*
+ * A ROAD'S WRITE OF A STUDENT'S MEANS, ON A GM'S CLIENT OR A PLAYER'S (E29 fix r2-H24, 06.10.2026; found by fix r2-H23,
+ * which read `refundAction` and measured nothing). `write(held, maxOf)`: on a GM's client a `gmMeansWrite` job, `held`
+ * the values the GMs hold (`meansHeld`) and `maxOf(key)` the maximum they hold (`meansMaxHeld`; undefined where there is
+ * none), read in its one step (H3); on a player's browser the document's prepared values and maxima, read as its roads
+ * read them before this fix (`resourceValue`, `resourceMax`) - the player's own write, which the GMs judge when it lands.
+ * Until this fix each road below read what it writes from off the document on a GM's client as well, where a player's
+ * write the audit puts back with `lockPlayerResources` on - the Hope, a statistic, a maximum (`LOCK_NAMED_MAX`), the
+ * advances - stands until its put-back lands, and for good where it fails, and where a GM's write over the same path
+ * supersedes the put-back pending on it (READ WHEN WRITTEN). Measured at 85fdf9d (06.10.2026, e29run/r2h24red; tier 2,
+ * the five tests named "... the GMs hold"), the put-back held by a GM's hook: an action given back came to 4 under the
+ * GMs' maximum of 2 and a refill gave a wounded student the whole budget; a Level Up raised a Health maximum to 10 for
+ * 7; seven roads wrote Hope from the console's 5 for the GMs' 2; a raised Sanity maximum let an Objection be paid with a
+ * seventh mark on a track of 6; and a lowered one kept an Observe's, a resolution's, Paranoia's and the incident's marks
+ * off a track the GMs held room on.
+ * The roads: an action given back (actions.mjs `refundAction`) or set by a GM (`setActions`), and a time of day's
+ * refill, which reads the Health that wounds (`resetActionsFor`); a price paid on the GM - the Objection - or given back
+ * (price.mjs `payPrice`, `refundPrice`); Despair turned into Hope (despair.mjs `convertDespairToHope`); what an item a
+ * GM rules on restores (use-items.mjs `restore`); a Despair Call's Hope and marks (call-effects.mjs
+ * `hopeFromDespairEffect`, `damageEffect`); a Hope Call bought on a GM's client and its price given back (calls.mjs
+ * `spendHopeCall`); a rest (rest.mjs `applyRest`); an advancement (level-up.mjs `applyAdvancement`, with `numberHeld`);
+ * a missed Observe's Sanity (observe.mjs `chargeObserveMiss`) and a resolution's (cleanup.mjs `markResolutionStress`);
+ * and the incident's marks - a Despair opening's Sanity, a hit, a drain, a resolution's blood (murder.mjs
+ * `resolveKillerOpening`, `takeReserves`, `spendStress`). A Hope maximum is Daggerheart's world setting less the scars,
+ * whatever the sheet's maximum says: on a GM's client less the scars the GMs hold, since fix r2-H25 (`maxHeld`).
+ * No job here waits on itself, by reading (H17's caution): each reads, computes and makes its one `trustedWrite`
+ * (`convertDespairToHope` records the pool's debt first, a GM store's write), so nothing it awaits is a judgement that
+ * waits on the student's queue; every other wait a road makes - `itemAsHeld` in `grantItemEffect`, a judgement's; the
+ * GM's yes in `spendHopeCall` - comes before its job or after it, never in it; no judgement calls any of these roads;
+ * and no `gmMeansWrite` job calls one (the jobs before this fix make their writes and call no road: reroll.mjs
+ * `makeReroll` and `giveBack`, gm-bridge.mjs `armPaidByPlayer`, despair-award.mjs `adjustCritHopeTopUp`, roll-draw.mjs
+ * `modifyFromHeld`, murder.mjs `undoLastCrisis`, cleanup.mjs `undoLastCleanup`).
+ */
+export function meansWrite(actor, write) {
+    if (game.user?.isGM) {
+        return gmMeansWrite(actor, held => write(held, key => {
+            const max = meansMaxHeld(actor, key);
+            return Number.isFinite(max) ? max : undefined;
+        }));
+    }
+    const own = Object.fromEntries(Object.entries(LEDGER).map(([key, { path }]) => [key, Number(foundry.utils.getProperty(actor ?? {}, path)) || 0]));
+    return (async () => write(own, key => actor?.system?.resources?.[key]?.max))();
 }
 
 /** A path a write names, without v14's `-=` and `==` on its parts: the path it writes. */
@@ -689,9 +996,10 @@ const plainPath = path => path.replace(/(^|\.)[-=]=/g, "$1");
  * made the student a Monokuma, and all of it stood with no row. What v14 hands a hook for an operator
  * - the instance, a plain value, or nothing at that key - is LIVE-E30-03: the harness hands the
  * instance (lib/operators.mjs), and there a key spelled the old way changes nothing; Foundry is not
- * measured.
+ * measured. truth-bullets.mjs reads a bullet's write with it too (`guardedPathsIn`, fix r2-H13), so the
+ * two judges of an item's write read its forms one way.
  */
-function reachOf(changes) {
+export function reachOf(changes) {
     return [...new Set(pathsOf(changes).map(raw => {
         const parts = raw.split("."), cut = parts.findIndex(part => /^[-=]=/.test(part));
         return plainPath(cut < 0 ? raw : parts.slice(0, cut + 1).join("."));
@@ -735,7 +1043,8 @@ function setMarked(mark, path, value) {
     const field = flag ? "flags" : root.slice("system.".length);
     const within = flag ? path.slice(`flags.${MODULE_ID}.`.length) : path.slice(root.length + 1);
     if (!within) {
-        mark[field] = isPlain(value) ? clone(value) : {};
+        // The scars are a number, 0 where there are none (fix r2-H25); every other root an object.
+        mark[field] = root === "system.scars" ? value ?? 0 : isPlain(value) ? clone(value) : {};
         return;
     }
     mark[field] ??= {};
@@ -761,6 +1070,7 @@ function setMarked(mark, path, value) {
 function markAfter(actor, held, { paths = {}, back = [], calls = null, effect = null, effects = [], items = null, itemEffects = null, ledger = null } = {}) {
     const next = Object.fromEntries(["traits", "experiences", "resources", "rules", "bonuses", "levelData", "flags", "effects", "items", "itemEffects"]
         .map(field => [field, clone(held[field] ?? {})]));
+    next.scars = held.scars ?? 0;
     for (const [path, value] of Object.entries(paths)) setMarked(next, path, value);
     const was = markAsDocument(held);
     for (const path of back) setMarked(next, path, path === CALLS_PATH && calls ? keptCalls(paths[CALLS_PATH], calls) : foundry.utils.getProperty(was, path));
@@ -783,7 +1093,9 @@ async function markWritten(actor, next) {
 /**
  * THE MARK MOVES BY WHAT WAS JUDGED (G1). After a GM's write, by the paths it named, as its hook
  * saw them; after a player's, by what of it stood (`markAfter`) - never by the document as it
- * stands when the judgement ends. A student with no mark takes the document whole (`markFrom`),
+ * stands when the judgement ends, nor, for an item or an effect, by the rest of the copy its hook
+ * saw, which holds the writes before it (`reached`, fix r2-H15). An item or an effect made, or one
+ * the mark holds no copy of, is taken whole. A student with no mark takes the document whole (`markFrom`),
  * as `fillMarks` does. Only the fields that differ are written, so a write the mark already holds
  * patches nothing. Answers whether it wrote.
  */
@@ -851,10 +1163,14 @@ export function judgeWrite(kind, doc, changes, userId, options = {}, priors = nu
 async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const user = game.users?.get(userId ?? "");
     const early = !gmStoresHydrated() && !options?.[AUDIT_ASIDE];
-    // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them, and the effects written through either (r2-H8).
+    // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them - an update of
+    // either by the paths it reached (r2-H15) -, the effects written through either (r2-H8) and the items written through
+    // the student (r2-H10).
     const stood = mark => ITEM_WRITES.has(kind) ? itemMoves(kind, mark, doc, seen.item, changes)
-        : kind === "updateActor" ? { paths: seen.paths, effects: seen.effects ? effectMoves(mark?.effects, seen.effects) : [] }
-            : { effect: { id: doc.id, itemId: itemOf(doc)?.id ?? null, data: seen.effect } };
+        : kind === "updateActor" ? { paths: seen.paths, effects: seen.effects ? effectMoves(mark?.effects, seen.effects, entriesNamed(changes, "effects")) : [],
+            ...(seen.items ? itemsMoved(mark, seen.items, itemsNamed(changes)) : {}) }
+            : { effect: { id: doc.id, itemId: itemOf(doc)?.id ?? null, data: kind === "updateActiveEffect"
+                ? reached(effectHeld(mark, itemOf(doc)?.id ?? null, doc.id), seen.effect, changes) : seen.effect } };
     if (user?.isGM) {
         if (early) noteUnmarked(kind, doc, actor, changes);
         /* The GMs' own put-back moves nothing they hold: it writes back what the mark holds, and since G1
@@ -888,19 +1204,23 @@ async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const found = kind === "updateActor" ? await updateFindings(actor, mark, changes, user, options, seen)
         : ITEM_WRITES.has(kind) ? await itemFindings(kind, doc, actor, mark, changes, user, options, seen)
             : effectFindings(kind, doc, mark, changes, seen.effect);
-    if (found.back.length || found.fix) {
+    // A student's update answers for the items written through it as well (fix r2-H10): each its own findings.
+    const parts = [found, ...(found.byItem ?? [])];
+    const any = key => parts.some(part => part[key]?.length);
+    const change = Object.assign({}, ...parts.map(part => part.change));
+    if (any("back") || found.fix) {
         try {
             await found.undo();
         } catch (err) {
             error(`The GMs' audit could not put back a write on ${actor.name}`, err);
-            return { verdict: "failed", change: found.change };
+            return { verdict: "failed", change };
         }
     }
     await record(actor, user, found, options);
     if (found.finds) await sheetMarkStore.patch(actor.id, { finds: found.finds });
     await refreshMark(actor, ITEM_WRITES.has(kind) ? { items: found.items, itemEffects: found.itemEffects } : found.moves);
-    const verdict = found.back.length ? "putBack" : found.flagged?.length ? "flagged" : found.listed.length ? "listed" : "stands";
-    return { verdict, change: found.change };
+    const verdict = any("back") ? "putBack" : any("flagged") ? "flagged" : any("listed") ? "listed" : "stands";
+    return { verdict, change };
 }
 
 /*
@@ -933,8 +1253,9 @@ async function unmarkedWrite(kind, doc, actor, changes, user, options, seen) {
 /**
  * A student's update, as its hook saw it (G1): what it changed of what a roll is built from
  * (`actorFindings`) and of its means (`meansFindings`), put back in one write (`putBackNow`), the
- * effects it wrote, each put back through its own document (`parentEffects`, fix r2-H8), and what
- * the mark takes of it (`moves`). The GMs' armed entries it took wait for the roll that covers
+ * effects it wrote, each put back through its own document (`parentEffects`, fix r2-H8), the
+ * items it wrote, each judged as a write of that item (`byItem`, `parentItems`, fix r2-H10), and
+ * what the mark takes of it (`moves`). The GMs' armed entries it took wait for the roll that covers
  * them (`callsCover`, fix r2-H7).
  */
 async function updateFindings(actor, mark, changes, user, options, seen) {
@@ -942,16 +1263,19 @@ async function updateFindings(actor, mark, changes, user, options, seen) {
     const read = actorFindings(mark, changes, was);
     const sheet = read.taken.length ? callsOwed(read, await callsCover(actor, user, read.taken, seen.at)) : read;
     const means = await meansFindings(actor, mark, user, options, seen);
-    const effects = seen.effects ? parentEffects(actor, null, mark, seen.effects) : { back: [], listed: [], change: {}, undos: [], stood: [] };
+    const effects = seen.effects ? parentEffects(actor, null, mark, seen.effects, entriesNamed(changes, "effects")) : { back: [], listed: [], change: {}, undos: [], stood: [] };
+    const items = seen.items ? await parentItems(actor, mark, changes, user, options, seen.items) : null;
     const back = [...sheet.back, ...means.back];
     return { back: [...back, ...effects.back], listed: [...sheet.listed, ...means.listed, ...effects.listed], flagged: [...sheet.flagged, ...means.flagged],
         stood: [...(sheet.stood ?? []), ...means.stood], roll: sheet.roll ?? null,
         change: { ...sheet.change, ...means.change, ...effects.change },
-        covered: means.covered, fix: means.fix,
-        moves: { paths: seen.paths, back: back.map(entry => entry.path), calls: sheet.calls, ledger: means.ledger, effects: effects.stood },
+        covered: means.covered, fix: means.fix, byItem: items?.found ?? [], finds: items?.finds ?? null,
+        moves: { paths: seen.paths, back: back.map(entry => entry.path), calls: sheet.calls, ledger: means.ledger, effects: effects.stood,
+            ...(items ? { items: items.items, itemEffects: items.itemEffects } : {}) },
         undo: async () => {
             await putBackNow(actor, mark, was, back, sheet.calls, means.patch);
             for (const undo of effects.undos) await undo();
+            for (const one of items?.found ?? []) if (one.back.length) await one.undo();
         } };
 }
 
@@ -1021,11 +1345,12 @@ function actorFindings(mark, changes, src) {
  * (05.10.2026, e29run/r1g4red) by tier 2 for the player's own flag (`ultimate`), a condition with no
  * changes taken off and an item that is not the module's taken off, and at ready for a condition taken
  * off and a module item renamed. The student's `effects` written through its update are no field of
- * it: each is judged as an effect (`parentEffects`, fix r2-H8).
+ * it: each is judged as an effect (`parentEffects`, fix r2-H8); nor are its `items`, each judged as a
+ * write of that item (`parentItems`, fix r2-H10).
  */
 function otherField(path, was, now) {
     if (LEDGER_PATHS.has(path) || path === RESTS_PATH || path.startsWith(`${RESTS_PATH}.`)) return false;
-    if (path === "effects" || path.startsWith("effects.")) return false;
+    if (path === "effects" || path.startsWith("effects.") || path === "items" || path.startsWith("items.")) return false;
     const held = MARKED_PATHS.some(root => path === root || path.startsWith(`${root}.`));
     return !held || stableJson(was ?? null) !== stableJson(now ?? null);
 }
@@ -1116,7 +1441,8 @@ function noteWrite(actor, changes, options, userId) {
  * the hook runs; a later write may have moved them by the time the judge reaches this one), the
  * item an item use names as it stood before its consumption landed, where this GM's hearing of
  * each means stood (`heard`, `hopeLeft`), the student's effects where the write reaches them
- * (`effects`, fix r2-H8: `parentEffects`), and when.
+ * (`effects`, fix r2-H8: `parentEffects`), its items likewise (`items`, fix r2-H10: `parentItems`),
+ * and when.
  */
 function seenNow(actor, changes, options, priors) {
     const src = actor._source ?? {};
@@ -1127,7 +1453,8 @@ function seenNow(actor, changes, options, priors) {
     const item = stamp?.reason === "itemUse" && stamp.ref ? actor.items?.get(stamp.ref)?.toObject?.() ?? null : null;
     const then = Object.fromEntries(Object.keys(values).map(key => [key, heard.get(actor.id)?.[key] ?? null]));
     const effects = names(changes, "effects") ? effectsIn(src) : undefined;
-    return { at: Date.now(), paths: pathsSeen(src, changes), values, rests, item, priors, heard: then, effects };
+    const items = names(changes, "items") ? itemsIn(actor) : undefined;
+    return { at: Date.now(), paths: pathsSeen(src, changes), values, rests, item, priors, heard: then, effects, items };
 }
 
 /*
@@ -1177,9 +1504,11 @@ function gmLedger(actor, seen, reason = null, giveBack = false) {
  * picks to the sheet's Health maximum, and the picks to Sanity's (character.mjs `prepareBaseData`, read
  * in 2.6.5 and 2.10.5) - the sheet's Health maximum is a bonus, 0 on a fresh sheet, and bounding by it
  * would hold every Health value at it. Hope's maximum is Daggerheart's world setting less scars,
- * whatever the sheet holds (`prepareBaseData`, `prepareDerivedData`, both versions): a write cannot
- * raise it at a table, and the document's stands. The harness prepares nothing, so there a raised
- * sheet's Hope maximum still raises the document's, which no table does. Measured at 0d86603
+ * whatever the sheet's maximum holds (`prepareBaseData`, `prepareDerivedData`, both versions): a write
+ * of that maximum cannot raise it at a table; one of the scars can, and since E29 fix r2-H25 the scars
+ * the write left are taken out and the mark's put in, as a sheet's maximum is. The harness prepares
+ * nothing, so there a raised sheet's Hope maximum still raises the document's, which no table does,
+ * and the scars move nothing (tier 2 prepares them as Daggerheart does, `preparedAs`). Measured at 0d86603
  * (06.10.2026, e29run/r2h8red) by tier 2: a player's write of Sanity's marks and maximum to 9, over
  * the GMs' 1 mark of 6, banked 8 marks of credit; after it 5.
  */
@@ -1188,12 +1517,12 @@ function bounded(actor, mark, key, n) {
     return Math.max(0, Number.isFinite(max) ? Math.min(max, n) : n);
 }
 
-/** A resource's maximum as the GMs hold it (`bounded`): the document's, with the mark's sheet maximum for the one the write left - Hope's aside. */
+/** A resource's maximum as the GMs hold it (`bounded`, `meansMaxHeld`): the document's, with the mark's sheet maximum for the one the write left - Hope's with the mark's scars, which it is less. */
 function maxHeld(actor, mark, key) {
     const prepared = Number(actor.system?.resources?.[key]?.max);
-    if (key === "hope") return prepared;
-    const sheet = foundry.utils.getProperty(actor._source ?? {}, `system.resources.${key}.max`), held = mark?.resources?.[key]?.max;
-    return typeof sheet === "number" && typeof held === "number" ? prepared - sheet + held : prepared;
+    const [path, held, sign] = key === "hope" ? ["system.scars", mark?.scars, -1] : [`system.resources.${key}.max`, mark?.resources?.[key]?.max, 1];
+    const sheet = foundry.utils.getProperty(actor._source ?? {}, path);
+    return typeof sheet === "number" && typeof held === "number" ? prepared + sign * (held - sheet) : prepared;
 }
 
 /*
@@ -1320,7 +1649,7 @@ async function coverOf(actor, mark, credit, gains, moves, stamp, user, seen) {
         const covers = await restCovers(actor, mark, credit, gains, moves, stamp.ref, seen);
         return covers ? { ...none, covers, rest: true } : none;
     }
-    if (stamp.reason === "itemUse") return { ...none, covers: (await itemCovers(gains, stamp.ref, user, seen)) ?? {} };
+    if (stamp.reason === "itemUse") return { ...none, covers: (await itemCovers(gains, stamp.ref, user, seen, mark)) ?? {} };
     if (stamp.reason === "call") return { ...none, covers: callCovers(credit, gains, stamp.ref) };
     return none;
 }
@@ -1360,15 +1689,25 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
 }
 
 /*
- * An item used (the plan's 2.5): the item the write names as it stood when the write was heard -
- * this student's, usable, not broken, not stashed, of a tier with a row in `USABLE_EFFECTS` - each
- * gain within that row (one of Health or Sanity, Hope only where the row adds it), and its
- * consumption (a count lowered, or broken) by the same user within `JUDGE_WAIT_MS` of the write.
+ * An item used (the plan's 2.5): the item the write names - this student's, usable, not broken, not
+ * stashed, of a tier with a row in `USABLE_EFFECTS` - each gain within that row (one of Health or
+ * Sanity, Hope only where the row adds it), and its consumption (a count lowered, or broken) by the
+ * same user within `JUDGE_WAIT_MS` of the write.
+ *
+ * READ AS THE GMS HOLD IT (E29 fix r2-H19, 06.10.2026). The fields this file judges (`ITEM_JUDGED`: the category,
+ * tier, kind, break and place among them) are the mark's, as the writes heard before the use left it (`mark`, its
+ * judgement's); the rest - the name, which a kind may be read from (fix r2-H8) - as the use's hook heard the item; an
+ * item the mark holds no copy of is read without a category (`ITEM_UNHELD`), so it is no usable. Until this fix the
+ * item was read whole as the hook heard it, where a write of the player's the audit puts back stands until its
+ * put-back lands, or for good where it fails: at 68150ec (e29run/r2h19red) a tier-1 kit raised there to tier 3 covered
+ * a use's 2 Hope and both Health marks, and a kind, a mend and a stash undone there each covered its use; in scenario
+ * 30 p1's tier and at once the use left Hope 4 on every client, the use's row covered.
  */
-async function itemCovers(gains, ref, user, seen) {
+async function itemCovers(gains, ref, user, seen, mark) {
     const src = seen.item;
     if (!src || src._id !== ref || !user) return null;
-    const item = itemLike(src);
+    const copy = mark?.items?.[ref] ?? null;
+    const item = itemLike(copy ? withPaths(src, copy, ITEM_JUDGED) : withPaths(src, {}, ITEM_UNHELD));
     const { isUsable, tierOf, usableKindOf } = await import("./use-items.mjs");
     if (!isUsable(item) || isBroken(item) || isStashed(item)) return null;
     const effect = USABLE_EFFECTS[tierOf(item)];
@@ -1608,7 +1947,8 @@ function withPaths(data, before, paths) {
  * Search's finds (`finds`). A row names the item itself as `items.<id>` and a field of it as
  * `items.<id>.<path>`. A module item is judged against its copy in the mark; an item the GMs hold
  * no copy of is not the module's, and only a category written onto it - which would make it one -
- * is put back. Any item made with an effect that counts (`carriedEffects`, G3) is put back whole.
+ * is put back, and since fix r2-H19 a bedroom key's room (`ITEM_UNHELD`). Any item made with an
+ * effect that counts (`carriedEffects`, G3) is put back whole.
  * Any other field of an item, and an item the GMs hold no copy of taken off the sheet - with the
  * effects it took with it named in its row - is listed; a Search's find is what its write stood
  * on (`stood`, G4). An item's effects are judged as their own, never as a field of the item -
@@ -1645,9 +1985,8 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
         return out;
     }
     if (!now) return out;
-    const CATEGORY = `flags.${MODULE_ID}.${ITEM_FLAGS.category}`;
-    const before = held ?? withPaths(now, {}, [CATEGORY]);
-    const moved = itemPathsOf(changes, held ?? now).filter(path => (held || path === CATEGORY)
+    const before = held ?? withPaths(now, {}, ITEM_UNHELD);
+    const moved = itemPathsOf(changes, held ?? now).filter(path => (held || ITEM_UNHELD.includes(path))
         && stableJson(foundry.utils.getProperty(before, path) ?? null) !== stableJson(foundry.utils.getProperty(now, path) ?? null));
     const back = [];
     for (const path of moved) {
@@ -1668,20 +2007,36 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
         out.listed.push({ path: `${whole}.${path}`, kind: "other" });
         out.change[`${whole}.${path}`] = [clone(was) ?? null, clone(is) ?? null];
     }
-    // The effects it wrote (fix r2-H8): each judged as one on the student, the ones that stand into the mark.
-    const effects = names(changes, "effects") ? parentEffects(item, id, mark, effectsIn(now)) : null;
+    // The effects it wrote (fix r2-H8): each judged as one on the student, the ones that stand into the mark - each it named by
+    // its id by what its entry reached (fix r2-H15), every one as the hook saw it where the student's list was written whole.
+    const effects = names(changes, "effects") ? parentEffects(item, id, mark, effectsIn(now), seen?.whole ? null : entriesNamed(changes, "effects")) : null;
     if (effects) {
         out.listed.push(...effects.listed);
         Object.assign(out.change, effects.change);
         for (const each of effects.stood) setEffect(out, id, each.id, each.data);
     }
-    const undos = [...(effects?.undos ?? [])];
+    const undos = [...(effects?.undos ?? [])], paths = back.map(entry => entry.path);
+    // The mark takes the paths the write reached as its hook saw them, less what is put back (fix r2-H15); an item it holds no
+    // copy of, whole, its category and key put back.
+    out.items = itemsAfter(mark, item, withPaths(reached(held, now, changes), before, paths));
     if (back.length) {
-        const paths = back.map(entry => entry.path);
         for (const path of paths) out.change[`${whole}.${path}`] = [clone(foundry.utils.getProperty(before, path)) ?? null, clone(foundry.utils.getProperty(now, path)) ?? null];
-        const patch = putBackPatch(before, paths);
-        undos.unshift(() => trustedWrite(item, patch, { reason: "auditPutBack" }));
-        out.items = itemsAfter(mark, item, withPaths(now, before, paths));
+        /*
+         * READ WHEN WRITTEN (E29 fix r2-H16, 06.10.2026; found by fix r2-H15): only the paths the item still holds as
+         * the write left them (`now`), as a student's put-back (`putBackNow`) and an effect's (`effectFindings`) - a
+         * path a later write moved is that write's to judge - and nothing on an item no longer on the student. Until
+         * this fix the put-back was built in the judgement and written regardless: at c5ac507 a GM's count written as
+         * the GM's hook heard p2's console raise a Tool's 1 to 3 was overwritten on every client by the put-back's 1,
+         * the mark at the GM's 2, and p2's raise at once lowered to 0 ended at 1 on every client, the mark at 0
+         * (scenario 30's `count` and `lowered`, e29run/r2h16red). The item gone is by reading: the harness skips a
+         * write of an embedded document that is not there, so no scenario tells the two apart, and what Foundry does
+         * with one is not measured.
+         */
+        undos.unshift(() => {
+            const live = actor.items?.get(id) ?? null, src = live ? docData(live) : null;
+            const still = src ? paths.filter(path => stableJson(foundry.utils.getProperty(src, path) ?? null) === stableJson(foundry.utils.getProperty(now, path) ?? null)) : [];
+            return still.length ? trustedWrite(live, putBackPatch(before, still), { reason: "auditPutBack" }) : null;
+        });
     }
     out.back = [...back.map(entry => ({ ...entry, path: `${whole}.${entry.path}` })), ...(effects?.back ?? [])];
     if (undos.length) out.undo = async () => {
@@ -1731,12 +2086,21 @@ async function placeStands(actor, item, before, now) {
  * `CONTEXT_SENT`, the roller's word like the category beside it), and a stash's theft settles the
  * record's "search" (bridge-guards.mjs `rollsFor`); a find on either is refused. The other way round,
  * a theft named after a record a find already stood on is refused by gm-bridge.mjs `searchTheftOf`.
+ *
+ * NOR A SEARCH WHOSE TOKEN THE GM NEVER SPENT (E29 fix r2-H11, 06.10.2026). A Search spends its
+ * room's token after its roll, and a refused spend settles the record (search-tokens.mjs
+ * `settleUnclaimed`, fix r2-H9) - but a console that drew a Search and never asked for the token
+ * left the record as the draw wrote it, and a find named after it stood (red at 3654512, the tier-2
+ * test "a find named after a Search whose token was never spent"). A spend that succeeds marks the
+ * record (`tokenSpentAt`, search-tokens.mjs `SearchTokens.markSpent`); a record without that mark
+ * takes no find.
  */
 async function searchFind(actor, mark, data, stamp, user) {
     if (stamp.reason !== "searchFind" || typeof stamp.ref !== "string" || !user || !isModuleItem(data)) return null;
     const { rollRecord } = await import("./roll-draw.mjs");
     const record = rollRecord(stamp.ref);
     if (record?.actorId !== actor.id || record.userId !== user.id || record.actionKey !== "search" || mark.finds?.[stamp.ref]) return null;
+    if (!record.tokenSpentAt) return null;
     if (record.goal === "specific" || (Array.isArray(record.resolved) && record.resolved.includes("search"))) return null;
     const { searchTier } = await import("./action-rolls.mjs");
     const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical }, record.used?.stash?.change ?? 0);
@@ -1749,7 +2113,8 @@ async function searchFind(actor, mark, data, stamp, user) {
 /*
  * An effect created, changed or deleted on a student or on one of its items (G3), as its hook saw it
  * (`now`; G1): put back when it changes what the GMs hold (`touchesHeld`), before or after. One that
- * stands moves the mark (`moves`); one put back leaves the mark's copy as it was. Each put-back writes
+ * stands moves the mark (`moves`) - made, whole; changed, by the paths the write reached (`reached`,
+ * fix r2-H15); one put back leaves the mark's copy as it was. Each put-back writes
  * only what is still as the write left it, as a student's does (`putBackNow`): an effect a later write
  * deleted, made again or changed is that write's, and so is one whose item is gone since. Any other
  * effect made, changed or taken off - a Daggerheart condition, one an item does not transfer - is
@@ -1757,12 +2122,13 @@ async function searchFind(actor, mark, data, stamp, user) {
  */
 function effectFindings(kind, effect, mark, changes, now) {
     const item = itemOf(effect), host = effect.parent, id = effect.id, itemId = item?.id ?? null;
-    const held = (itemId ? mark.itemEffects?.[itemId] : mark.effects)?.[id] ?? null;
+    const held = effectHeld(mark, itemId, id);
     const counts = data => touchesHeld(data, { onItem: Boolean(item) });
     const path = effectPath(itemId, id);
     const standing = () => !item || Boolean(item.parent?.items?.get(itemId));
     const there = () => standing() ? host?.effects?.get(id) ?? null : null;
-    const none = { back: [], listed: [], change: {}, itemId, moves: { effect: { id, itemId, data: now } }, undo: async () => null };
+    const taken = kind === "updateActiveEffect" ? reached(held, now, changes) : now;
+    const none = { back: [], listed: [], change: {}, itemId, moves: { effect: { id, itemId, data: taken } }, undo: async () => null };
     const back = (change, undo) => ({ back: [{ path, kind: "effect" }], listed: [], change: { [path]: change }, itemId, moves: {}, undo });
     const takeOff = async () => there() ? trustedDelete(there(), { reason: "auditPutBack" }) : null;
     const listed = (was, is) => ({ ...none, listed: [{ path, kind: "effect" }], change: { [path]: [effectSummary(was), effectSummary(is)] } });
@@ -1798,8 +2164,11 @@ function effectFindings(kind, effect, mark, changes, now) {
  * written over a GM's penalty by p1's console stood on Aiko with a listed row, and on her Tool with none.
  * Were Foundry to fire the effect's own hook as well, the later of the two judgements (`inOrder`) would
  * write nothing - a put-back writes only what still stands as the write left it - and add a second row.
+ * One that stands moves the mark by what the write reached (fix r2-H15): each the write named by its id
+ * (`named`: id -> what its entry wrote) by what its entry reached, none it did not name; the list written
+ * whole, each as the hook saw it.
  */
-function parentEffects(host, itemId, mark, now) {
+function parentEffects(host, itemId, mark, now, named = null) {
     const held = (itemId ? mark.itemEffects?.[itemId] : mark.effects) ?? {};
     const out = { back: [], listed: [], change: {}, undos: [], stood: [] };
     for (const id of new Set([...Object.keys(held), ...Object.keys(now)])) {
@@ -1811,14 +2180,93 @@ function parentEffects(host, itemId, mark, now) {
         out.listed.push(...one.listed);
         Object.assign(out.change, one.change);
         if (one.back.length) out.undos.push(one.undo);
-        else out.stood.push({ id, itemId, data: is });
+        else if (!named) out.stood.push({ id, itemId, data: is });
+        else if (named.has(id) && is) out.stood.push({ id, itemId, data: reached(was, is, named.get(id)) });
     }
     return out;
 }
 
-/** A GM's write of a student's effects through its update (r2-H8): every one that differs from the mark's, as the hook saw it, is the mark's. */
-const effectMoves = (held = {}, now = {}) => [...new Set([...Object.keys(held), ...Object.keys(now)])]
-    .filter(id => stableJson(held[id] ?? null) !== stableJson(now[id] ?? null)).map(id => ({ id, itemId: null, data: now[id] ?? null }));
+/**
+ * A GM's write of a student's effects through its update (r2-H8): each it named by its id, by what its entry reached (fix r2-H15),
+ * or - the list written whole - every one that differs from the mark's, as the hook saw it, is the mark's.
+ */
+const effectMoves = (held = {}, now = {}, named = null) => named
+    ? [...named.keys()].filter(id => now[id]).map(id => ({ id, itemId: null, data: reached(held[id] ?? null, now[id], named.get(id)) }))
+    : [...new Set([...Object.keys(held), ...Object.keys(now)])]
+        .filter(id => stableJson(held[id] ?? null) !== stableJson(now[id] ?? null)).map(id => ({ id, itemId: null, data: now[id] ?? null }));
+
+/*
+ * AN ITEM WRITTEN THROUGH ITS STUDENT (E29 fix r2-H10, 06.10.2026; found by fix r2-H8's probe). A student's
+ * update can carry its `items` as it can its effects: each changed where it is, named by its id, or the whole
+ * list replaced (v14's forced replacement), which makes and deletes them. The harness fires no item hook for
+ * such a write, only `updateActor` (the probe's P3); Foundry v14 is not measured, as for the effects - were it
+ * to fire the item's own hook as well, each item would be judged twice (by reading: a second row and a second
+ * word to the player, the second put-back writing what the first did). So each item the write reaches is judged
+ * as a write of the item itself (`itemFindings`, the plan's 2.6), on the item as the student's hook saw it
+ * (`seen.items`): one named by its id as that item's update, on what its entry wrote - a protected flag or a
+ * count raised put back through the item's own document, a name or a picture listed; with the list written
+ * whole, each item against what the GMs hold, as the comparison at ready reads them - a module item or a class
+ * changed as its update, one new to them as its creation; any other item by its effects alone, the one part of
+ * it they hold. One the GMs hold gone from the student is its deletion, whichever way it was written (in the
+ * harness only the whole list loses one). Each has rows of its own, naming its item (`record`); what stands
+ * goes into the mark, and a GM's such write is the mark's (`itemsMoved`). Until this fix the student's `items`
+ * were one field of it, listed (`otherField`): in the probe, at 0d86603 (06.10.2026, e29run/scratch/
+ * r2h8-probe), p1's console wrote a Tool's tier 1 -> 3 through Aiko's update, and it stood on the GM's copy
+ * with the mark at 1 and one row, `listed:items`.
+ */
+async function parentItems(actor, mark, changes, user, options, now) {
+    const named = itemsNamed(changes), found = [];
+    const gone = [...new Set([...Object.keys(mark.items ?? {}), ...Object.keys(mark.itemEffects ?? {})])].filter(id => !now[id]);
+    let held = mark;
+    for (const id of [...gone, ...(named ? [...named.keys()] : Object.keys(now)).filter(each => now[each])]) {
+        const data = now[id] ?? null, copy = held.items?.[id] ?? null, doc = actor.items?.get(id) ?? null;
+        let kind = "updateItem", write = named?.get(id) ?? null;
+        if (!data) kind = "deleteItem";
+        // Gone since the hook: its deletion is judged on its own.
+        else if (!doc) continue;
+        else if (!write) {
+            const effectsMoved = stableJson(held.itemEffects?.[id] ?? {}) !== stableJson(effectsIn(data));
+            if (!copy && heldItem(data)) kind = "createItem";
+            else if (!effectsMoved && (!copy || stableJson(copy) === stableJson(itemCopy(data)))) continue;
+            else write = { ...(copy ? bothPaths(copy, itemCopy(data)) : {}), ...(effectsMoved ? { effects: data.effects ?? [] } : {}) };
+        }
+        const one = await itemFindings(kind, doc ?? { id, name: copy?.name ?? null }, actor, held, write ?? {}, user, options, { item: data, whole: !named });
+        held = { ...held, items: one.items, itemEffects: one.itemEffects, ...(one.finds ? { finds: one.finds } : {}) };
+        if (one.back.length || one.flagged.length || one.listed.length || one.stood?.length) found.push(one);
+    }
+    return { found, items: held.items ?? {}, itemEffects: held.itemEffects ?? {}, finds: held.finds === mark.finds ? null : held.finds };
+}
+
+/** A student's update's `items` written as a list of entries named by their `_id`: id -> what the entry writes. Null for the list written whole. */
+function itemsNamed(changes) {
+    return entriesNamed(changes, "items");
+}
+
+/**
+ * The items a student's update writes, read as `parentItems` reads them: id -> what its entry writes, or - the
+ * list written whole - each item the student holds now -> null. Null when it writes no `items`. truth-bullets.mjs
+ * finds a bullet written through its student here (fix r2-H12) rather than reading the list a third way.
+ */
+export function itemsWritten(actor, changes) {
+    if (!names(changes, "items")) return null;
+    return itemsNamed(changes) ?? new Map((actor.items?.contents ?? []).map(item => [item.id, null]));
+}
+
+/**
+ * A GM's write of a student's items through its update (r2-H10): each it names as that item's own update moves the mark
+ * (`itemMoves`, fix r2-H15: by what its entry reached) - every one as the hook saw it, the list written whole - and each
+ * the GMs held that is gone, are the mark's.
+ */
+function itemsMoved(mark, now, named) {
+    let moved = { items: { ...(mark?.items ?? {}) }, itemEffects: { ...(mark?.itemEffects ?? {}) } };
+    const ids = [...Object.keys(moved.items), ...Object.keys(moved.itemEffects)].filter(id => !now[id]);
+    for (const id of new Set([...ids, ...(named ? [...named.keys()] : Object.keys(now)).filter(each => now[each])])) {
+        const entry = now[id] ? named?.get(id) : null;
+        moved = entry ? { ...moved, ...itemMoves("updateItem", moved, { id }, now[id], entry) }
+            : { items: itemsAfter(moved, { id }, now[id] ?? null), itemEffects: itemEffectsAfter(moved, id, now[id] ?? null) };
+    }
+    return moved;
+}
 
 /*
  * AN ITEM MADE CARRYING AN EFFECT THAT COUNTS (G3; review round 1 sec B3): the effects of an item's
@@ -1851,7 +2299,9 @@ function shown(value) {
  * A put-back is told to its writer once (`sheetPutBack`, its first field's kind named in
  * their language: bridge-guards.mjs `requestLabel`) and whispered to the GMs once, each
  * field before and after; what is flagged gets the GMs' card (`flaggedCard`) and nothing
- * for the writer; a row for each, and one for what was listed, go into `sheetWrites`.
+ * for the writer; a row for each, and one for what was listed, go into `sheetWrites`. The items
+ * a student's update wrote (`byItem`, fix r2-H10) have rows of their own, each naming its item as
+ * a write of the item's own does, and are told and whispered with the rest of the write.
  *
  * WHAT STOOD ON CREDIT OR A JUDGE HAS ITS ROW (E29 fix r1-G4, 05.10.2026; review round 1 cor m10;
  * the plan's 2.8). A gain a refund's credit, a Rest, an item used or a Call's price covered, a Rest
@@ -1865,18 +2315,20 @@ async function record(actor, user, found, options) {
     const stamp = options?.drpgWrite ?? {};
     const at = Date.now();
     const rows = {};
-    const row = (verdict, entries, messageId) => ({
-        actorId: actor.id, itemId: found.itemId ?? null, userId: user?.id ?? null, reason: stamp.reason ?? null, ref: stamp.ref ?? null,
-        change: Object.fromEntries(entries.map(entry => [entry.path, found.change[entry.path]]).filter(([, v]) => v !== undefined)),
-        covered: Object.keys(found.covered ?? {}).length ? found.covered : null,
+    const parts = [found, ...(found.byItem ?? [])];
+    const row = (part, verdict, entries, messageId) => ({
+        actorId: actor.id, itemId: part.itemId ?? null, userId: user?.id ?? null, reason: stamp.reason ?? null, ref: stamp.ref ?? null,
+        change: Object.fromEntries(entries.map(entry => [entry.path, part.change[entry.path]]).filter(([, v]) => v !== undefined)),
+        covered: Object.keys(part.covered ?? {}).length ? part.covered : null,
         verdict, messageId, decided: null, at
     });
-    if (found.back.length) {
-        tellRefused(user?.id ?? null, `sheet.${found.back[0].kind}`, null, "sheetPutBack");
-        const lines = found.back.map(entry => {
-            const [was, now] = found.change[entry.path] ?? [];
+    const back = parts.filter(part => part.back.length);
+    if (back.length) {
+        tellRefused(user?.id ?? null, `sheet.${back[0].back[0].kind}`, null, "sheetPutBack");
+        const lines = back.flatMap(part => part.back.map(entry => {
+            const [was, now] = part.change[entry.path] ?? [];
             return `<li>${esc(game.i18n.localize(`DRPG.Audit.field.${entry.kind}`))} (${esc(entry.path)}): ${esc(shown(was))} -> ${esc(shown(now))}</li>`;
-        }).join("");
+        })).join("");
         let message = null;
         try {
             message = await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Audit.putBack", {
@@ -1884,11 +2336,11 @@ async function record(actor, user, found, options) {
         } catch (err) {
             error("Could not tell the GMs of a write put back", err);
         }
-        rows[foundry.utils.randomID()] = row("putBack", found.back, message?.id ?? null);
+        for (const part of back) rows[foundry.utils.randomID()] = row(part, "putBack", part.back, message?.id ?? null);
     }
-    if (found.flagged?.length) {
+    for (const part of parts.filter(each => each.flagged?.length)) {
         // A deleted item's data goes with its row, for an Undo to make it again (C6).
-        const id = foundry.utils.randomID(), flagged = { ...row("flagged", found.flagged, null), ...(found.data ? { data: found.data } : {}) };
+        const id = foundry.utils.randomID(), flagged = { ...row(part, "flagged", part.flagged, null), ...(part.data ? { data: part.data } : {}) };
         let message = null;
         try {
             message = await whisperToGms(flaggedCard(flagged), { flags: { [MODULE_ID]: { sheetAudit: actor.id, [FLAGGED_CARD]: id } } });
@@ -1897,9 +2349,11 @@ async function record(actor, user, found, options) {
         }
         rows[id] = { ...flagged, messageId: message?.id ?? null };
     }
-    if (found.listed.length) rows[foundry.utils.randomID()] = row("listed", found.listed, null);
+    for (const part of parts.filter(each => each.listed.length)) rows[foundry.utils.randomID()] = row(part, "listed", part.listed, null);
     // A Call of the GMs' taken off stood on a roll (fix r2-H7): its row names the roll's message.
-    if (found.stood?.length) rows[foundry.utils.randomID()] = { ...row("covered", found.stood, null), ...(found.roll ? { ref: found.roll } : {}) };
+    for (const part of parts.filter(each => each.stood?.length)) {
+        rows[foundry.utils.randomID()] = { ...row(part, "covered", part.stood, null), ...(part.roll ? { ref: part.roll } : {}) };
+    }
     if (!Object.keys(rows).length) return;
     await keepRows(rows, at);
     debug(`The GMs' audit: ${user?.name ?? "?"} on ${actor.name}: ${Object.values(rows).map(r => r.verdict).join(", ")}.`);

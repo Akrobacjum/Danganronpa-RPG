@@ -124,6 +124,33 @@ export async function run({ gm, ag, p1, p2, p3, check, settle, opLog, socketTraf
         Boolean(itemId) && JSON.stringify(b4.writes) === JSON.stringify([`gm embedded-create ${IDS.aiko}`, `gm embedded-delete ${IDS.botan}`])
         && b4.aiko === 1, JSON.stringify({ itemId, ...b4 }));
 
+    /* B5 (E29 fix r2-H12, 06.10.2026): a Truth Bullet's text Botan's player writes through Botan's update
+       (`items: [{ _id, flags }]`, which fires no item hook here) is put back once, by the primary GM, with the
+       Assistant's client holding the same copy of the bullet; the GMs are told once. At dd67545 (e29run/r2h12red)
+       the rewritten text stayed on all three clients, nothing wrote it back and the GMs were told nothing. */
+    const bulletId = await gm.eval(`const B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const item = await B.createTruthBullet(game.actors.get("${IDS.botan}"), { name: "E29 H12 bullet", realType: "neutral", visibility: "obvious", playerText: "Seen." });
+        return item?.id ?? null;`);
+    await settle(600);
+    mark = opLog.length;
+    const said0 = await gm.eval(`return game.messages.size;`);
+    await p2.eval(`await game.actors.get("${IDS.botan}").update({ items: [{ _id: "${bulletId}", flags: { "${MOD}": { playerText: "E29 H12 rewritten" } } }] },
+        { drpgAutomated: true }); return true;`);
+    await settle(1500);
+    const textOn = c => c.eval(`return game.actors.get("${IDS.botan}").items.get("${bulletId}")?.getFlag("${MOD}", "playerText") ?? null;`);
+    const b5 = {
+        writes: opLog.slice(mark).filter(w => w.embeddedName === "Item").map(w => `${w.who} ${w.action} ${w.docId}`),
+        texts: [await textOn(gm), await textOn(ag), await textOn(p2)],
+        told: await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+            const put = game.i18n.format("DRPG.TruthBullet.editReverted", { player: "", bullet: "" }).slice(-40);
+            return game.messages.contents.slice(${said0}).filter(m => String(S.contentOf(m) || m.content || "").includes(put)).length;`)
+    };
+    await gm.eval(`await game.actors.get("${IDS.botan}").items.get("${bulletId}")?.delete(); return true;`);
+    await settle(400);
+    check("B5: a player's Truth Bullet text written through their student's update is put back once, by the primary GM, and the GMs are told once",
+        Boolean(bulletId) && JSON.stringify(b5.writes) === JSON.stringify([`gm embedded-update ${IDS.botan}`]) && b5.texts.every(t => t === "Seen.")
+        && b5.told === 1, JSON.stringify({ bulletId, ...b5 }));
+
     /* --------------------------- C. what an Assistant may do --------------------------- */
 
     const pools = c => c.eval(`return { candidates: game.drpg.poolCandidates().map(u => u.id), pools: game.drpg.monokumas().map(u => u.id) };`);

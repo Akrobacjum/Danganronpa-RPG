@@ -876,7 +876,9 @@ export const cleanupAttemptStore = defineGmStore({
  * `crisis` (the crisis action a crisis roll was drawn for), `incident` (the incident's turn it was
  * drawn in, or null) and `superseded` (the later roll of its action that replaced it, or null:
  * fix r2-H1, roll-draw.mjs `keepRecord`), `project` (the project a Work's or a Sabotage's roll was
- * drawn for, or null: fix r2-H2), and `at`. Written by the primary GM as it draws a player's roll (roll-draw.mjs `drawOnGm`), and by
+ * drawn for, or null: fix r2-H2), `tokenSpentAt` (on a Search, when the primary spent its room's
+ * token for it: search-tokens.mjs `SearchTokens.markSpent`, E29 fix r2-H11), and `at`. Written by
+ * the primary GM as it draws a player's roll (roll-draw.mjs `drawOnGm`), and by
  * the GM a Reroll of it is made on; read by the guard that ties a drawn message to its roller
  * (bridge-guards.mjs `guardRollAuthor`) and by the resolutions that take its result (`rollRefusal`). Synced between the GMs and not backed up: a
  * row is worth a roll's resolution and its Reroll, minutes long, and is swept past
@@ -899,7 +901,8 @@ export const rollStore = defineGmStore({
  * `experiences`, `resources` (each value and maximum), `rules`, `bonuses`, the module `flags` only
  * a GM writes and `pendingCall`, and `effects` (each one's data, so a deleted one can be made
  * again under its id); since C6 `items` (each module item's data, likewise - and since E29 fix
- * r1-G2 each class's, and `levelData`, Daggerheart's level-up selections), since G3 `itemEffects`
+ * r1-G2 each class's, and `levelData`, Daggerheart's level-up selections; since fix r2-H25 `scars`, Daggerheart's
+ * scars, which set Hope's maximum), since G3 `itemEffects`
  * (the effects on each of its items, by item - an item's copy in `items` holds none) and `finds` (the
  * Search records a find stood on, each with the item: one find a record). Written by the primary after every verdict and every GM's write, and filled
  * from the documents when its stores hydrate and a character has none (sheet-audit.mjs). Synced

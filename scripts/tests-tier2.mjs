@@ -356,6 +356,91 @@ async function heardWhilePaid(student, write, player) {
     return { judged: () => judged, stop: () => { if (on) Hooks.off("preUpdateActor", hook); on = false; } };
 }
 
+/**
+ * A ROAD RUN IN THE WINDOW A CONSOLE'S WRITE LEAVES (E29 fix r2-H24, 06.10.2026). `student` set to `honest` by this GM
+ * and the audit idle with no credit; then `forged`, as `player`'s write, judged with its put-back refused by a hook of
+ * this GM's, as scenario 30 refuses one - the state a put-back that failed leaves, and the one before a put-back lands;
+ * then `road()`, and the hook off once the audit is idle after it. Answers each of `paths` as [on the sheet, in the
+ * GMs' mark]. A forged write not judged a put-back left on the sheet alone, outside the mark, fails: it would measure
+ * nothing. With `during` (fix r2-H25) the forged write is made where the road calls the function it is handed - a
+ * console's write landing while the road waits, on a picker - and is checked against the sheet as the road left it.
+ */
+async function inConsoleWindow(student, player, { honest = {}, forged, paths, during = false }, road) {
+    const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    const sheet = path => foundry.utils.getProperty(student._source, path) ?? null;
+    const marked = path => {
+        const mark = sheetMarkStore.get(student.id) ?? {};
+        return foundry.utils.getProperty({ system: { resources: mark.resources, traits: mark.traits, experiences: mark.experiences, scars: mark.scars },
+            flags: { [MODULE_ID]: mark.flags } }, path) ?? null;
+    };
+    if (Object.keys(honest).length) await trustedWrite(student, honest, { reason: "gmRuling" });
+    await auditFromScratch(student);
+    const veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+        doc.id === student.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+    // Read where it is made and checked after it - inside a road, a failed check would be the road's to swallow.
+    let made = null;
+    const forge = async () => {
+        const was = Object.fromEntries(Object.keys(forged).map(path => [path, sheet(path)]));
+        const judged = await asPlayerWrite(student, forged, player);
+        await sheetAuditIdle();
+        made = [judged?.verdict ?? null, Object.entries(forged).map(([path, value]) => [sheet(path), marked(path), was[path], value])];
+    };
+    const check = () => must(made?.[0] === "putBack" && made[1].every(([onSheet, inMark, was, value]) => onSheet === value && inMark === was),
+        `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
+            stableJson(made)}`);
+    try {
+        if (!during) {
+            await forge();
+            check();
+        }
+        await road(forge);
+        if (during) check();
+        await settle();
+        await sheetAuditIdle();
+    } finally {
+        Hooks.off("preUpdateActor", veto);
+        await sheetAuditIdle();
+    }
+    return paths.map(path => [sheet(path), marked(path)]);
+}
+
+/** What `paths` hold on `actor`'s sheet now, and what puts them back as they were (an absent module flag unset; E29 fix r2-H24). */
+function sheetAsFound(actor, paths) {
+    const was = Object.fromEntries(paths.map(path => [path, foundry.utils.getProperty(actor._source, path)]));
+    return async () => {
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const back = Object.fromEntries(Object.entries(was).filter(([, value]) => value !== undefined));
+        if (Object.keys(back).length) await trustedWrite(actor, back, { reason: "gmRuling" });
+        for (const path of Object.keys(was).filter(path => was[path] === undefined && path.startsWith(`flags.${MODULE_ID}.`)
+            && foundry.utils.getProperty(actor._source, path) !== undefined)) {
+            await actor.unsetFlag(MODULE_ID, path.split(".").pop());
+        }
+        await sheetAuditIdle();
+    };
+}
+
+/*
+ * DAGGERHEART'S PREPARATION, WHERE THE HARNESS HAS NONE (E29 fix r2-H25, 06.10.2026). At a table a student's prepared
+ * data is not its sheet: Daggerheart sets Hope's maximum to the world's setting less the scars, adds the class's hit
+ * points to Health's maximum and a Level Up's picks to a statistic (data/actor/character.mjs `prepareBaseData`,
+ * `prepareDerivedData`; 2.10.5 :678-700, :740-741, :752). The harness prepares nothing - a document's `system` is its
+ * source - so there `prepare` is applied to a copy of the sheet at every read of `actor.system` on this client, until
+ * the function this answers is called. A table prepares its own: there nothing is done, it answers null and the test
+ * reads Daggerheart's.
+ */
+function preparedAs(actor, prepare) {
+    if (actor.system !== actor._source?.system) return null;
+    Object.defineProperty(actor, "system", { configurable: true, get() {
+        const system = foundry.utils.deepClone(this._source.system ?? {});
+        prepare(system);
+        return system;
+    } });
+    return () => { delete actor.system; };
+}
+
 /** A module item's data for a test (E29 C6): a Tool of tier 1 unless `flags` say otherwise. */
 const moduleItemData = (name, flags = {}) => ({ name, type: "loot", system: { quantity: 1 },
     flags: { [MODULE_ID]: { category: "tool", tier: 1, ...flags } } });
@@ -921,6 +1006,34 @@ async function recordFor(message, player, actor, actionKey, { total, isCritical 
 }
 
 /**
+ * A SEARCH WHOSE TOKEN THE GM SPENT (E29 fix r2-H11, 06.10.2026): a find stands only on one
+ * (sheet-audit.mjs `searchFind`). `tokenSpent` runs the spend as the bridge runs it for `player`
+ * (`SEARCH_ACTIONS`, its packet sanitized; the room's count stubbed, so none moves - the guard is
+ * R166's), which marks the newest Search of `actor` drawn for that player (search-tokens.mjs
+ * `SearchTokens.markSpent`). `spentSearch` makes the GMs' record of a Search (`recordFor`) a few
+ * milliseconds after any before it, so it is the newest, spends its token, and answers the record
+ * with `spent`, whether the spend marked it.
+ */
+async function tokenSpent(player, actor) {
+    const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
+    const spendAs = SEARCH_ACTIONS["searchTokens.spend"], spend = SearchTokens.spend;
+    SearchTokens.spend = async () => true;
+    try {
+        await spendAs.run(spendAs.sanitize({ roomName: "SUITE H11 room", sceneId: null, actorId: actor.id }, player), player, {});
+    } finally {
+        SearchTokens.spend = spend;
+    }
+}
+
+async function spentSearch(player, actor, fields) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    await wait(5);
+    const record = await recordFor({ id: null }, player, actor, "search", fields);
+    await tokenSpent(player, actor);
+    return { ...record, spent: Boolean(rollStore.get(record.rollId)?.tokenSpentAt) };
+}
+
+/**
  * A PLAYER'S PROJECT PACKETS, JUDGED AS THE BRIDGE JUDGES THEM (E08+E28 C16, 04.10.2026). Progress
  * and a Sabotage are read off the GMs' record of the roll their packet names (gm-bridge.mjs
  * `progressOf`, `repairOf`). `project(room)` makes a public project of 12 in `room`, or in none;
@@ -1157,22 +1270,30 @@ async function swingFixture(identity = null) {
  * quantity and whether it is broken, whether the replay's receipt names the pack, and the reserve
  * the row says the use healed. `tier` 3 (fix r1-G6): a pack of no kind that heals 2 Health marks
  * and gives 2 Hope, the killer at their most Hope after it and 2 below it before (`before.hope`).
+ * `aside` (fix r2-H20): an update written to the pack after the first use and before the Reroll
+ * where the GMs' mark does not see it (sheet-audit.mjs `AUDIT_ASIDE`, a failed put-back's state).
+ * `consoleWrite` (fix r2-H23): an update of the pack the player's console writes at the same moment,
+ * judged as theirs (`asPlayerItemWrite`), its put-back refused by a hook of this GM's while the Reroll
+ * is made, as scenario 30 refuses one, and the hook taken off before the read, which then holds the
+ * count the GMs' mark holds (`marked`). `qty`: the count the row's `before` names, the player's word.
  */
-async function useItemRerolled(next, { tier = 1 } = {}) {
+async function useItemRerolled(next, { tier = 1, aside = null, consoleWrite = null, qty = 2 } = {}) {
     const { ITEM_FLAGS, isBroken } = await import("./inventory.mjs");
+    const audit = aside || consoleWrite ? await import("./sheet-audit.mjs") : null;
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
     const { trustedWrite } = await import("./resource-guard.mjs");
     const { resourceMax } = await import("./character.mjs");
     const { M, killer, putBack } = await swingFixture();
     const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
     const max = resourceMax(killer, "hope");
-    let F = null;
+    let F = null, veto = null;
     try {
         if (tier === 3) must(max >= 5, `${killer.name} holds at most ${max} Hope - a use's 2 and a Reroll's 3 would not fit`);
         const [pack] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C6b pack", type: "loot", system: { quantity: 2 },
             flags: { [MODULE_ID]: { [ITEM_FLAGS.category]: "usable", [ITEM_FLAGS.tier]: tier, ...(tier === 3 ? {} : { [ITEM_FLAGS.kind]: "healing" }) } } }]);
         await killer.update({ "system.resources.hitPoints.value": tier === 3 ? 3 : 2 });
         F = await playerRollBookmark(player, killer, "crisis", {}, { record: { total: 20 } });
-        const before = { hp: tier === 3 ? 3 : 2, stress: killer.system.resources.stress.value, qty: 2 };
+        const before = { hp: tier === 3 ? 3 : 2, stress: killer.system.resources.stress.value, qty };
         if (tier === 3) {
             before.hope = max - 2;
             await trustedWrite(killer, { "system.resources.hope.value": max }, { reason: "gmRuling" });
@@ -1186,16 +1307,44 @@ async function useItemRerolled(next, { tier = 1 } = {}) {
             `the first Use an item was not scored with the pack on the row and the receipt - this would measure nothing: ${stableJson([used, F.row()?.facts ?? null])}`);
         const scored = M.murderState()?.lastCrisis?.hopeGranted ?? 0;
         await trustedWrite(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) }, { reason: "gmRuling" });
+        if (aside) {
+            await audit.sheetAuditIdle();
+            await pack.update(aside, { [audit.AUDIT_ASIDE]: true });
+            await audit.sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[pack.id] ?? null;
+            must(marked && Object.entries(aside).every(([path, value]) => foundry.utils.getProperty(killer.items.get(pack.id), path) === value
+                && foundry.utils.getProperty(marked, path) !== value),
+            `the write did not stand on the pack alone, outside the GMs' mark - this would measure nothing: ${stableJson(aside)}`);
+        }
+        if (consoleWrite) {
+            await audit.sheetAuditIdle();
+            veto = Hooks.on("preUpdateItem", (doc, changes, options) =>
+                doc.id === pack.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+            const { verdict } = await asPlayerItemWrite("updateItem", killer, pack, player, null, consoleWrite);
+            await audit.sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[pack.id] ?? null;
+            must(verdict === "putBack" && marked && Object.entries(consoleWrite).every(([path, value]) => foundry.utils.getProperty(killer.items.get(pack.id), path) === value
+                && foundry.utils.getProperty(marked, path) !== value),
+            `the player's write was not judged a put-back left on the pack alone, outside the GMs' mark - this would measure nothing: ${stableJson([verdict, consoleWrite])}`);
+        }
         const { out } = await rerollAgain(killer, F.message, { hope: 9, fear: 4 }, next);
+        if (veto !== null) {
+            Hooks.off("preUpdateItem", veto);
+            veto = null;
+            await audit.sheetAuditIdle();
+        }
         const now = killer.items.get(pack.id);
         const read = { replayed: Array.isArray(out?.lines), hp: killer.system.resources.hitPoints.value, qty: Number(now?.system?.quantity ?? 0),
             broken: isBroken(now), usedAgain: M.murderState()?.lastCrisis?.usedItemId === pack.id, usedFor: F.row()?.facts?.usedFor ?? null };
+        if (consoleWrite) read.marked = Number(sheetMarkStore.get(killer.id)?.items?.[pack.id]?.system?.quantity ?? 0);
         // A tier 3's Hope: what the first use was read to give, how far below the most the killer holds now, and the replay's.
         return tier === 3 ? { ...read, scored, belowMax: max - killer.system.resources.hope.value,
             replayGave: M.murderState()?.lastCrisis?.hopeGranted ?? 0 } : read;
     } finally {
+        if (veto !== null) Hooks.off("preUpdateItem", veto);
         await F?.putBack();
         await putBack();
+        await audit?.sheetAuditIdle();
     }
 }
 
@@ -2614,6 +2763,167 @@ const SCENARIOS = [
         }
     }],
 
+    ["a crisis swing on the GM deals and wears by the weapon as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H18, 06.10.2026; H17's seam. The GM's crisis action decided by the killer's items as they stood
+         * (murder.mjs `applyCrisisAction`) - the weapon swung, the tier its damage reads, the wear it takes - and a
+         * player's write the audit puts back stands on the item until its put-back lands, or for good where the
+         * put-back fails: the GMs' mark keeps their own then. It reads them as the GMs hold them now (sheet-audit.mjs
+         * `actorAsHeld`). At the killer's turn (`swingFixture`) the readied Tier 1 knife is given tier 3 where the GMs'
+         * mark does not see it (the audit's aside, a failed put-back's state), and the killer swings it on a hit with
+         * Fear. Read: whether the action stood, the victim's Health marks (a Tier 1 weapon deals 2, a Tier 3 one 3,
+         * config.mjs `weaponDamage`), and whether the knife broke (a Tier 1's one point of durability). Until this
+         * fix (0c75739, e29run/r2h18red, 06.10.2026): stood, 3 Health marks, and the knife not broken.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the crisis reads - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { M, killer, knife, putBack, health } = await swingFixture();
+        let read = null;
+        try {
+            await sheetAuditIdle();
+            await knife.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.tier}`]: 3 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[knife.id]?.flags?.[MODULE_ID] ?? null;
+            must(knife.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) === 3 && marked?.tier === 1,
+                "the tier did not stand on the knife alone, outside the GMs' mark - this would measure nothing");
+            const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: false, swungId: knife.id });
+            await settle();
+            read = [Boolean(done?.success), health(), INV.isBroken(killer.items.get(knife.id))];
+        } finally {
+            await putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, 2, true]),
+            "a crisis swing dealt or wore by a tier a write had left on the weapon outside the GMs' mark (stood, Health marks, knife broken)");
+    }],
+
+    ["a crisis's unarmed swing on the GM improvises nothing for a killer the GMs hold carrying a weapon", async () => {
+        /*
+         * E29 fix r2-H18, 06.10.2026. An unarmed swing that lands improvises a weapon for a killer who carries none
+         * (murder.mjs `carriesWeapon`), and that was read off the sheet as it stood: a Crime Tool the player's console
+         * put in a stash a moment before - a write the audit puts back - left the killer carrying nothing, and the GM
+         * handed them a weapon besides the one that came back. At the killer's turn (`swingFixture`) the GM puts the
+         * knife down and stows any other Crime Tool the killer carries, the knife is put in a stash where the GMs' mark
+         * does not see it (the audit's aside), and the killer swings with no weapon named, on a hit with Hope. Read:
+         * whether the action stood, and how many things the killer was handed. Until this fix (0c75739,
+         * e29run/r2h18red, 06.10.2026) the killer was handed one.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the crisis reads - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { M, killer, knife, putBack, handed } = await swingFixture();
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, stowed = [];
+        let read = null;
+        try {
+            await knife.update({ [`flags.${MODULE_ID}.equipped`]: false });
+            for (const i of killer.items.filter(i => i.id !== knife.id && INV.servesAs(i, "crimeTool") && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            await sheetAuditIdle();
+            await knife.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H18 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[knife.id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.isStashed(killer.items.get(knife.id)) && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the knife alone, outside the GMs' mark - this would measure nothing");
+            const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true });
+            await settle();
+            read = [Boolean(done?.success), handed()];
+        } finally {
+            for (const [i, was] of stowed) if (killer.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, 0]),
+            "an unarmed swing improvised a weapon for a killer whose Crime Tool a write had stashed outside the GMs' mark (stood, items handed)");
+    }],
+
+    ["a crisis swing on the GM swings no broken weapon, readied again or not", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; found by fix r2-H18. The swing (murder.mjs `swungWeapon`) took the weapon a packet
+         * named where the killer carried it and held it ready, and did not ask whether it was broken: a break puts a
+         * weapon down (inventory.mjs `breakItem`), but `equipped` is the player's to write and no judged field, so a
+         * console readied a ruined knife again and the swing dealt its tier. At the killer's turn (`swingFixture`) the
+         * GM breaks the readied Tier 1 knife, it is readied again, and the killer swings it on a hit with Fear. Read:
+         * whether the action stood, the victim's Health marks (a Tier 1 weapon deals 2, an unarmed hit the bare 1),
+         * whether the receipt records the knife, and how many things the killer was handed (a broken weapon is none,
+         * murder.mjs `carriesWeapon`, so an unarmed hit improvises one). Until this fix (4d1532c, e29run/r2h20red,
+         * 06.10.2026): stood, 2 Health marks, the knife on the receipt, and nothing handed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const INV = await import("./inventory.mjs");
+        const { M, killer, knife, putBack, health, handed } = await swingFixture();
+        let read = null;
+        try {
+            await INV.breakItem(knife, { reason: "gmRuling" });
+            await knife.update({ [`flags.${MODULE_ID}.equipped`]: true });
+            const now = killer.items.get(knife.id);
+            must(INV.isBroken(now) && now?.getFlag(MODULE_ID, "equipped") === true, "the knife is not broken and readied again - this would measure nothing");
+            const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: false, swungId: knife.id });
+            await settle();
+            read = [Boolean(done?.success), health(), M.murderState()?.lastCrisis?.swungId === knife.id, handed()];
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([true, 1, false, 1]),
+            "a crisis swing swung a broken weapon a write had readied again (stood, Health marks, the receipt's weapon, items handed)");
+    }],
+
+    ["a GM's draw reads a crisis weapon, a tool and a Cleaning Tool in hand as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. The die a GM's draw throws for the situation (roll-draw.mjs
+         * `situationReading`) read the character's items as they stood: whether a weapon is in hand on a crisis swing,
+         * a tool on a project's roll, a Cleaning Tool on a clean-up's. At the killer's turn (`swingFixture`) the GM
+         * stows any other Crime Tool, tool and Cleaning Tool the killer carries, gives the readied knife the roles of a
+         * tool and a Cleaning Tool and puts it in a stash, and the knife is taken out and readied again where the GMs'
+         * mark does not see it (the audit's aside, a failed put-back's state). Read: the situation row the GM expects
+         * (`expectedFor`) of a crisis swing (-1 unarmed, 0 armed), a project and a clean-up (1 with a tool in hand, else
+         * 0). Until this fix (4d1532c, e29run/r2h20red, 06.10.2026): 0, 1 and 1.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the draw reads - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { equippedFor } = await import("./use-items.mjs");
+        const { cleaningTool } = await import("./cleanup.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { killer, knife, putBack } = await swingFixture();
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, stowed = [];
+        const ROLES = ["crimeTool", "tool", "cleaningTool"];
+        let read = null;
+        try {
+            for (const i of killer.items.filter(i => i.id !== knife.id && ROLES.some(role => INV.servesAs(i, role)) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            await knife.update({ [flag("roles")]: ["tool", "cleaningTool"], [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H20 a drawer" });
+            await sheetAuditIdle();
+            await knife.update({ [flag("location")]: INV.LOCATIONS.carried, [flag("stashRoom")]: forcedDeletion(), [`flags.${MODULE_ID}.equipped`]: true },
+                { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[knife.id]?.flags?.[MODULE_ID] ?? null;
+            must(marked?.location === INV.LOCATIONS.vault && [equippedFor(killer, "crimeTool"), equippedFor(killer, "tool"), cleaningTool(killer)].every(i => i?.id === knife.id),
+                "the knife did not stand in hand as a weapon, a tool and a Cleaning Tool on the document alone, the GMs' mark keeping it in a stash - this would measure nothing");
+            const situation = async (actionKey, context = {}) => (await D.expectedFor(killer, { actionKey, context })).read?.situation ?? null;
+            read = [await situation("crisis", { crisis: "weaponAttack" }), await situation("project"), await situation("cleanup")];
+        } finally {
+            for (const [i, was] of stowed) if (killer.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([-1, 0, 0]),
+            "a GM's draw read a weapon, a tool or a Cleaning Tool a write had taken out of a stash outside the GMs' mark (crisis swing, project, clean-up)");
+    }],
+
     ["a Reroll's rewind that meets a close rewinds nothing, and the incident stays closed", async () => {
         /*
          * E32+E07 fix r1-G3, 02.10.2026; review C-M2. The rewind (`undoLastCrisis`) put the
@@ -3576,6 +3886,58 @@ const SCENARIOS = [
         }
     }],
 
+    ["a close breaks the knife the GMs hold the killer swung, though a write of the player's has put it in a stash", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; fix r2-H20's "not measured". The close breaks each killer's swung weapon (murder.mjs
+         * `endMurder`, cleanup.mjs `endResolution` and `destroyTools`), chosen off the killer as the GMs hold them since
+         * fix r2-H20 - a choice H20's tests measured on the discovery alone. As the test above: the killer stabs the
+         * victim with a Tier 1 knife and the fight reaches Stage 6; then the knife is put in a stash where the GMs' mark
+         * does not see it (the audit's aside, a failed put-back's state), and the GM closes the incident. Read: whether
+         * the knife broke. Green at 4e5b868 (fix r2-H20's held read); red under the mutant that reads the document
+         * (e29run/r2h21m, m14): the knife stayed whole.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the close reads - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        let knife = null, read = null;
+        try {
+            knife = await inHand(killer, "crimeTool", "SUITE r2-H21 a swung knife stashed by a write");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "weaponAttack");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: true, swungId: knife.id });
+            if (M.murderState()?.stage === "incident") {
+                await turnFor(M, killer, "finishingBlow");
+                await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            }
+            await settle();
+            must(M.murderState()?.stage === "resolution" && M.swungWeaponOf(killer)?.id === knife.id && !INV.isBroken(killer.items.get(knife.id)),
+                `the fixture's Stage 6, with the knife written down as swung and still whole, did not come: ${stableJson(M.murderState())}`);
+            await sheetAuditIdle();
+            await knife.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H21 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = S.sheetMarkStore.get(killer.id)?.items?.[knife.id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.isStashed(killer.items.get(knife.id)) && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the knife alone, outside the GMs' mark - this would measure nothing");
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            read = INV.isBroken(killer.items.get(knife.id));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            try { await knife?.delete(); } catch { /* already gone */ }
+            await sheetAuditIdle();
+        }
+        equal(read, true, "the close spared the swung knife a write had put in a stash outside the GMs' mark");
+    }],
+
     ["a close before Stage 6 breaks nothing, a weapon swung in the fight included", async () => {
         /*
          * E32+E07 C12, 02.10.2026; audit S04-17. Every close broke the killer's crime tool, at any
@@ -3667,6 +4029,267 @@ const SCENARIOS = [
                 try { await doc?.delete(); } catch { /* already gone */ }
             }
         }
+    }],
+
+    ["a clean-up and a body moved on the GM are eased by the gloves as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. The tier of the Cleaning Tool in hand lowers a clean-up's number
+         * (cleanup.mjs `cleanupDc`, through `resolveCleanup`) and Move the body's (`resolveStageSix`, its
+         * `toolBonusPerTier`), and both read it off the killer's items as they stood, where a player's write the audit
+         * puts back stands until its put-back lands, or for good where it fails. Two students with players, each standing
+         * in a named room: the killer, readied Tier 1 gloves in hand (`inHand`), kills; in Stage 6 the gloves are given
+         * tier 3 where the GMs' mark does not see it (the audit's aside, a failed put-back's state); the killer scrubs an
+         * evident trace on a total one short of the number Tier 1 gloves leave, the body is laid where the killer stands,
+         * and the killer moves it on 14 (16, less the tier). Read: whether the scrub removed the trace and whether it
+         * still stands, and whether the move succeeded. Until this fix (4d1532c, e29run/r2h20red, 06.10.2026): the trace
+         * removed and gone, and the move succeeded.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("studentsInRooms", 2), "the body is carried off from the room the killer stands in");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the clean-up reads - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const scene = canvas?.scene;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const [killer, victim] = livingStudents().filter(a => player(a) && tokenOf(a) && locateActor(a)?.room);
+        must(killer && victim, "no two students with players stand in named rooms on the scene on screen");
+        const body = tokenOf(victim), mine = tokenOf(killer), was = { x: body.x, y: body.y };
+        const tokens = new Set(scene.tokens.map(t => t.id));
+        let gloves = null, read = null;
+        try {
+            gloves = await inHand(killer, "cleaningTool", "SUITE r2-H20 gloves given a tier");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            const trace = await placeRemnant({ type: "incident", visibility: "evident", x: mine.x, y: mine.y, scene,
+                note: "SUITE r2-H20 a trace the killer scrubs" });
+            must(trace, "the fixture's trace was not placed");
+            const dc = CL.cleanupDc("evident", killer);
+            await sheetAuditIdle();
+            await gloves.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.tier}`]: 3 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = S.sheetMarkStore.get(killer.id)?.items?.[gloves.id]?.flags?.[MODULE_ID] ?? null;
+            must(CL.cleanupDc("evident", killer) === dc - 2 && marked?.[INV.ITEM_FLAGS.tier] === 1,
+                "the tier did not stand on the gloves alone, outside the GMs' mark, or moved no number - this would measure nothing");
+            const scrub = await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: dc - 1, isCritical: false, withHope: true });
+            await settle();
+            await body.update({ x: mine.x, y: mine.y });
+            must(CL.bodyIsHere(killer), "the body does not lie in the killer's room - this would measure nothing");
+            const move = await CL.resolveStageSix({ actorId: killer.id, key: "moveBody", targetId: null, total: 14, isCritical: false, withHope: true });
+            await settle();
+            read = [Boolean(scrub?.removed), Boolean(scene.tokens.get(trace.id)), move?.success ?? move?.refused ?? null];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            if (scene.tokens.has(body.id)) await body.update({ x: was.x, y: was.y });
+            for (const token of scene.tokens.filter(t => !tokens.has(t.id))) await token.delete();
+            try { await gloves?.delete(); } catch { /* already gone */ }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([false, true, false]),
+            "a clean-up or a body moved was eased by a tier a write had left on the gloves outside the GMs' mark (trace removed, trace standing, move succeeded)");
+    }],
+
+    ["a discovery breaks the gloves the GMs hold in the killer's hands, not spared by a stash a write of the player's left", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. The discovery breaks the Cleaning Tools a clean-up used (cleanup.mjs
+         * `destroyCleaningTools`) and leaves alone one gone from the killer, broken or put in their stash since
+         * (`rememberedTools`) - read off the killer's items as they stood, where a player's write the audit puts back
+         * stands until its put-back lands, or for good where it fails. As C12's test above: the killer kills wearing Tier
+         * 1 gloves (`inHand`) and scrubs a trace in Stage 6, which writes the gloves down; then the gloves are put in a
+         * stash where the GMs' mark does not see it (the audit's aside, a failed put-back's state), and the body is
+         * found. Read: whether the gloves broke, and whether the discovery named them. Until this fix (4d1532c,
+         * e29run/r2h20red, 06.10.2026): neither.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the discovery reads - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        let gloves = null, trace = null, read = null;
+        try {
+            gloves = await inHand(killer, "cleaningTool", "SUITE r2-H20 gloves stashed by a write");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE r2-H20 a trace the killer scrubs" });
+            must(trace, "the fixture's trace was not placed");
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true });
+            await settle();
+            must((S.usedToolStore?.get(killer.id)?.cleaning ?? []).includes(gloves.id), "the clean-up did not write the gloves down - this would measure nothing");
+            await sheetAuditIdle();
+            await gloves.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H20 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = S.sheetMarkStore.get(killer.id)?.items?.[gloves.id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.isStashed(killer.items.get(gloves.id)) && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the gloves alone, outside the GMs' mark - this would measure nothing");
+            const broke = await CL.destroyCleaningTools([victim.id]);
+            read = [INV.isBroken(killer.items.get(gloves.id)), broke.includes(gloves.name)];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            for (const doc of [gloves, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, true]),
+            "the discovery spared gloves a write had put in a stash outside the GMs' mark (broken, named)");
+    }],
+
+    ["a clean-up writes down and a discovery breaks the gloves the GMs hold, though the player's writes have stashed and broken them on the sheet", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; fix r2-H20's seam (d) and its "not measured". A GM's break (inventory.mjs
+         * `breakItem`) wrote nothing on an item its document showed broken already, and a `broken` a player's write put
+         * there stands on the sheet until its put-back lands, or for good where it fails: the discovery named the gloves
+         * broken and the GMs' mark kept them whole. A GM's break asks the break as the GMs hold it now (sheet-audit.mjs
+         * `itemsHeldNow`). And the clean-up's note of the gloves it used (cleanup.mjs `noteCleaningTool`), which reads
+         * them as the GMs hold them since fix r2-H20 and which H20's tests measured with nothing aside. As the test above,
+         * but the gloves put in a stash where the GMs' mark does not see it (the audit's aside) before the trace is
+         * scrubbed, and broken the same way before the body is found. Read: whether the clean-up wrote the gloves down,
+         * whether the GMs' mark holds them broken after the discovery, and whether the discovery named them. Until this
+         * fix (4e5b868, e29run/r2h21red, 06.10.2026): [true,false,true] - written down and named, and held whole by the
+         * mark, the GM's break having written nothing. The note's read is green there (fix r2-H20) and red under the
+         * mutant that reads the document (e29run/r2h21m, m13): [false,true,true].
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the clean-up and the discovery read - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        let gloves = null, trace = null, read = null;
+        const marked = () => S.sheetMarkStore.get(killer.id)?.items?.[gloves?.id]?.flags?.[MODULE_ID] ?? null;
+        try {
+            gloves = await inHand(killer, "cleaningTool", "SUITE r2-H21 gloves stashed and broken by writes");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE r2-H21 a trace the killer scrubs" });
+            must(trace, "the fixture's trace was not placed");
+            await sheetAuditIdle();
+            await gloves.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H21 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(INV.isStashed(killer.items.get(gloves.id)) && marked() && marked().location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the gloves alone, outside the GMs' mark - this would measure nothing");
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true });
+            await settle();
+            const noted = (S.usedToolStore?.get(killer.id)?.cleaning ?? []).includes(gloves.id);
+            await sheetAuditIdle();
+            await gloves.update({ [flag("broken")]: { at: Date.now() } }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(INV.isBroken(killer.items.get(gloves.id)) && marked() && !marked().broken,
+                "the break did not stand on the gloves alone, outside the GMs' mark - this would measure nothing");
+            const broke = await CL.destroyCleaningTools([victim.id]);
+            await sheetAuditIdle();
+            read = [noted, Boolean(marked()?.broken), broke.includes(gloves.name)];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            for (const doc of [gloves, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, true, true]),
+            "the clean-up passed over gloves a write had stashed, or the discovery left gloves a write had broken whole in the GMs' mark, or did not name them "
+                + "(written down, broken in the GMs' mark, named)");
+    }],
+
+    ["a tie of a trace to the crime is let through for an object a participant holds as the GMs hold it, not for an identity a write of the player's left", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; the class sweep of fixes r2-H17 to r2-H20. A player's ask to tie the traces of an
+         * object to the crime is let through by bridge-guards.mjs `guardTieTraceHolder` only where a participant of the
+         * running incident the sender plays holds the object - read off the sheets as they stood, where a player's write
+         * of an item's identity (`drpgItemId`, which the audit puts back) stands until its put-back lands, or for good
+         * where it fails. It reads the participants' items as the GMs hold them now (`itemsAsHeld`). A fight between two
+         * students played by two accounts; the killer holds a knife the GMs gave an identity, and the victim a Tool whose
+         * identity is written to the knife's where the GMs' mark does not see it (the audit's aside). Read: the guard's
+         * answer to the victim's player and to the killer's. Until this fix (4e5b868, e29run/r2h21red, 06.10.2026):
+         * [null,null] - the tie let through for the victim's player as well.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the guard reads - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { guardTieTraceHolder } = await import("./bridge-guards.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const killers = player(killer), victims = player(victim);
+        must(killers && victims && !killer.testUserPermission(victims, "OWNER") && !victim.testUserPermission(killers, "OWNER"),
+            "the killer's player plays the victim too, or the other way round - this would measure nothing");
+        const ID = "SUITEH21KNIFE001", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const made = [];
+        let read = null;
+        try {
+            const knife = await inHand(killer, "crimeTool", "SUITE r2-H21 a knife with an identity");
+            made.push(knife);
+            await knife.update({ [flag("identity")]: ID });
+            const tool = await INV.grantItem(victim, { name: "SUITE r2-H21 a tool a write names", category: "tool", tier: 1, override: true, quiet: true });
+            made.push(tool);
+            must(tool, `${victim.name} could not be handed a Tool - this would measure nothing`);
+            await sheetAuditIdle();
+            await tool.update({ [flag("identity")]: ID }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = S.sheetMarkStore.get(victim.id)?.items?.[tool.id]?.flags?.[MODULE_ID] ?? null;
+            must(tool.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) === ID && marked && marked[INV.ITEM_FLAGS.identity] !== ID,
+                "the identity did not stand on the Tool alone, outside the GMs' mark - this would measure nothing");
+            await fightOpen(M, killer, victim);
+            read = [await guardTieTraceHolder(victims, { identity: ID }, {}), await guardTieTraceHolder(killers, { identity: ID }, {})];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const item of made) {
+                try { await item?.delete(); } catch { /* already gone */ }
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson(["no participant of the running incident the sender plays holds that object", null]),
+            "the tie was let through for an identity a write had left outside the GMs' mark, or refused for the knife the killer holds (the victim's player, the killer's)");
     }],
 
     ["a discovery breaks the gloves of the bodies it found, and a betrayer's stay while their victim is unfound", async () => {
@@ -8372,6 +8995,366 @@ const SCENARIOS = [
         }
     }],
 
+    ["an item handed over, planted or stolen arrives as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H17, 06.10.2026; found by fix r2-H16. A GM's road that makes a copy of a student's item on
+         * another sheet - a hand-over, a plant, a theft from the pockets and one from a stash (handover.mjs
+         * `giveItem`, vault.mjs `plantOnPerson`, `stealFromPerson`, `stealFromVault`) - copied its roles, tier and
+         * the rest off the item as it stood, and a player's write the audit puts back stands on the item until its
+         * put-back lands, or for good where the put-back fails: the GMs' mark keeps their own then. The roads read
+         * the item as the GMs hold it now (sheet-audit.mjs `itemsAsHeld`). Two students stood alone together, a
+         * stash of the first's in their room and a hand of the second's free for a Tool; for each road a Tool of
+         * the first's, tier 1 - in the stash for the last - given roles and tier 3 where the GMs' mark does not see
+         * it (the audit's aside, a failed put-back's state), and the road run for the second, on a critical where
+         * it is rolled. Read: the roles and tier of each copy the second holds. Until this fix (ebdf1ba,
+         * e29run/r2h17red, 06.10.2026) each road's copy held the roles and tier 3.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the roads read - this would measure nothing");
+        const H = await import("./handover.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [giver, taker] = cast(2);
+        const fixture = await aloneTogether(giver, taker);
+        const NAME = "Suite H17 a tool", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const where = locateActor(taker), region = where?.room ? V.regionsByName(where.scene).get(where.room) : null;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const stowed = [], read = {};
+        try {
+            must(region, `the room ${where?.room} has no region to hide a stash in`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: giver.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            // What takes a Tool's slot in the second's hands put in a stash, and back after: a hand-over to full hands is refused.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            if (!INV.canCarry(taker, "tool").ok) for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            must(INV.canCarry(taker, "tool").ok, `${taker.name} has no hand free for a Tool - this would measure nothing`);
+            const forged = async stashed => {
+                const item = await INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                must(item, `${giver.name} could not be handed a Tool - this would measure nothing`);
+                if (stashed) await item.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: where.room });
+                await sheetAuditIdle();
+                await item.update({ [flag("roles")]: ["crimeTool"], [flag("tier")]: 3 }, { [AUDIT_ASIDE]: true });
+                await sheetAuditIdle();
+                const marked = sheetMarkStore.get(giver.id)?.items?.[item.id]?.flags?.[MODULE_ID] ?? null;
+                must(item.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) === 3 && marked?.tier === 1 && !marked?.roles?.length,
+                    "the write did not stand on the item alone, outside the GMs' mark - this would measure nothing");
+                return item;
+            };
+            const roads = {
+                give: item => H.giveItem({ fromId: giver.id, toId: taker.id, itemId: item.id }),
+                plant: item => V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                steal: item => V.stealFromPerson({ thiefId: taker.id, victimId: giver.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                stash: item => V.stealFromVault({ thiefId: taker.id, ownerId: giver.id, itemId: item.id })
+            };
+            for (const [road, run] of Object.entries(roads)) {
+                await run(await forged(road === "stash"));
+                await settle();
+                const copy = taker.items.find(i => i.name === NAME);
+                read[road] = copy ? [copy.getFlag(MODULE_ID, INV.ITEM_FLAGS.roles) ?? [], copy.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) ?? null] : null;
+                for (const i of taker.items.filter(i => i.name === NAME)) await i.delete();
+            }
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ give: [[], 1], plant: [[], 1], steal: [[], 1], stash: [[], 1] }),
+            "a copy took roles or a tier a write had left on the item outside the GMs' mark (per road: the copy's roles, its tier)");
+    }],
+
+    ["an item handed over, planted or stolen counts the receiver's hands as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H18, 06.10.2026; H17's seam. The four roads above counted the receiver's hands for the carry cap on
+         * the sheet as it stood (handover.mjs `giveItem`'s own count, inventory.mjs `grantItem`'s): a slot the
+         * receiver's console emptied a moment before - a stash the audit puts back - let a copy in, and the put-back
+         * then left the receiver carrying one over the cap. They count them as the GMs hold them now (sheet-audit.mjs
+         * `actorAsHeld`). Two students stood alone together, a stash of each's in their room; the second's slots for a
+         * Tool filled with the suite's Tools, one of which is put in a stash where the GMs' mark does not see it (the
+         * audit's aside), afresh before each road; for each road a Tool of the first's - in the stash for the last - and
+         * the road run for the second, on a critical where it is rolled. Read, per road: the copies the second carries -
+         * every copy, for a hand-over, which full hands refuse outright (`theirHandsFull`), where the other roads put
+         * what a full hand cannot take in the receiver's stash (`grantItem`). Until this fix (0c75739,
+         * e29run/r2h18red, 06.10.2026) the second carried one on every road.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the roads read - this would measure nothing");
+        const H = await import("./handover.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [giver, taker] = cast(2);
+        const fixture = await aloneTogether(giver, taker);
+        const NAME = "Suite H18 a tool", FULL = "Suite H18 a full hand", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const where = locateActor(taker), region = where?.room ? V.regionsByName(where.scene).get(where.room) : null;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const stowed = [], read = {};
+        try {
+            must(region, `the room ${where?.room} has no region to hide a stash in`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: giver.id, concealed: false }, { actorId: taker.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            // Whatever takes a Tool's slot in the second's hands put in a stash, and back after; the slots filled with the suite's.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            const { limit } = INV.canCarry(taker, "tool");
+            must(Number.isInteger(limit) && limit > 0, `a Tool's slots have no limit to fill (${limit}) - this would measure nothing`);
+            const full = [];
+            for (let n = 0; n < limit; n++) full.push(await INV.grantItem(taker, { name: FULL, category: "tool", tier: 1, override: true, quiet: true }));
+            must(full.every(Boolean) && !INV.canCarry(taker, "tool").ok, `${taker.name}'s hands could not be filled - this would measure nothing`);
+            // One of them put in a stash outside the GMs' mark, afresh for each road: the GM's write puts it in the hand first.
+            const emptied = async () => {
+                await full[0].update({ [flag("location")]: INV.LOCATIONS.carried, [flag("stashRoom")]: forcedDeletion() });
+                await sheetAuditIdle();
+                await full[0].update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: where.room }, { [AUDIT_ASIDE]: true });
+                await sheetAuditIdle();
+                const marked = sheetMarkStore.get(taker.id)?.items?.[full[0].id]?.flags?.[MODULE_ID] ?? null;
+                must(INV.canCarry(taker, "tool").ok && marked && marked.location !== INV.LOCATIONS.vault,
+                    "the stash did not stand on the full hand alone, outside the GMs' mark - this would measure nothing");
+            };
+            const given = async stashed => {
+                const item = await INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                must(item, `${giver.name} could not be handed a Tool - this would measure nothing`);
+                if (stashed) await item.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: where.room });
+                return item;
+            };
+            const roads = {
+                give: item => H.giveItem({ fromId: giver.id, toId: taker.id, itemId: item.id }),
+                plant: item => V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                steal: item => V.stealFromPerson({ thiefId: taker.id, victimId: giver.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                stash: item => V.stealFromVault({ thiefId: taker.id, ownerId: giver.id, itemId: item.id })
+            };
+            for (const [road, run] of Object.entries(roads)) {
+                const item = await given(road === "stash");
+                await emptied();
+                await run(item);
+                await settle();
+                read[road] = taker.items.filter(i => i.name === NAME && (road === "give" || !INV.isStashed(i))).length;
+                for (const i of taker.items.filter(i => i.name === NAME)) await i.delete();
+            }
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME || i.name === FULL)) await i.delete();
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ give: 0, plant: 0, steal: 0, stash: 0 }),
+            "a copy was carried into hands a write had emptied outside the GMs' mark (per road: the copies the receiver carries)");
+    }],
+
+    ["a bedroom key a player writes on an item is put back, and a hand-over or a plant reads the key the GMs hold, not a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H19, 06.10.2026; found by fix r2-H17. The room a bedroom key opens is a flag on the key (config.mjs
+         * `BEDROOM_KEY_FLAG`) only a GM writes - vault.mjs `grantBedroomKey`, and the copy roads carry it (inventory.mjs
+         * `preservedFlags`) - and the audit judged no such flag: a player's write of one stood, listed, and a hand-over of
+         * the item it stood on made the receiver a real key to that room (handover.mjs `shareKey`), as a plant's copy carried
+         * it. A key to a room written by the player on a Tool the GM gave (`tool`) and on an item that is not the module's
+         * (`loose`); then, two students alone together and a hand of the second's free for a Tool, a Tool of the first's
+         * given the key where the GMs' mark does not see it (the audit's aside) and handed to the second (`give`), an item
+         * not the module's so too (`giveLoose`), and a Tool so planted on the second on a critical (`plant`). Read: each
+         * write's verdict and the key left on the item; whether the second holds a key to the room, and the Tool; the key
+         * on the planted copy. Until this fix (68150ec, e29run/r2h19red, 06.10.2026) both writes were listed and left their
+         * key; after `give` the second held a key to the room and not the Tool, after `giveLoose` a key; and the planted
+         * copy carried the key.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the roads read - this would measure nothing");
+        const H = await import("./handover.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES, BEDROOM_KEY_FLAG } = await import("./config.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const [giver, taker] = cast(2);
+        const player = game.users.find(u => !u.isGM);
+        const fixture = await aloneTogether(giver, taker);
+        const NAME = "Suite H19 a tool", LOOSE = "Suite H19 a loose thing", ROOM = "Suite H19 a room";
+        const KEY = `flags.${MODULE_ID}.${BEDROOM_KEY_FLAG}`, flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const keyOf = i => i?.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) ?? null, ours = i => i.name === NAME || i.name === LOOSE || keyOf(i) === ROOM;
+        const stowed = [], read = {};
+        try {
+            const made = {
+                tool: () => INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true }),
+                loose: async () => (await giver.createEmbeddedDocuments("Item", [{ name: LOOSE, type: "loot", system: { quantity: 1 } }]))[0]
+            };
+            for (const [road, make] of Object.entries(made)) {
+                const item = await make();
+                must(item, `${giver.name} could not be handed the ${road} item - this would measure nothing`);
+                await sheetAuditIdle();
+                const { verdict } = await asPlayerItemWrite("updateItem", giver, item, player, null, { [KEY]: ROOM });
+                await sheetAuditIdle();
+                read[road] = [verdict, keyOf(giver.items.get(item.id))];
+                await giver.items.get(item.id)?.delete();
+            }
+            // What takes a Tool's slot in the second's hands put in a stash, and back after: a hand-over to full hands is refused.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            if (!INV.canCarry(taker, "tool").ok) for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            must(INV.canCarry(taker, "tool").ok, `${taker.name} has no hand free for a Tool - this would measure nothing`);
+            // The key written outside the GMs' mark: on a Tool whose copy the mark holds without it, or on an item it holds none of.
+            const forged = async road => {
+                const item = await made[road]();
+                must(item, `${giver.name} could not be handed the ${road} item - this would measure nothing`);
+                await sheetAuditIdle();
+                await item.update({ [KEY]: ROOM }, { [AUDIT_ASIDE]: true });
+                await sheetAuditIdle();
+                const marked = sheetMarkStore.get(giver.id)?.items?.[item.id] ?? null;
+                must(keyOf(item) === ROOM && (road === "loose" ? !marked : marked && foundry.utils.getProperty(marked, KEY) === undefined),
+                    "the key did not stand on the item alone, outside the GMs' mark - this would measure nothing");
+                return item;
+            };
+            await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: (await forged("tool")).id });
+            await settle();
+            read.give = [taker.items.some(i => keyOf(i) === ROOM), taker.items.some(i => i.name === NAME)];
+            for (const a of [giver, taker]) for (const i of a.items.filter(ours)) await i.delete();
+            await H.giveItem({ fromId: giver.id, toId: taker.id, itemId: (await forged("loose")).id });
+            await settle();
+            read.giveLoose = taker.items.some(i => keyOf(i) === ROOM);
+            for (const a of [giver, taker]) for (const i of a.items.filter(ours)) await i.delete();
+            await V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: (await forged("tool")).id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true });
+            await settle();
+            read.plant = taker.items.filter(i => i.name === NAME).map(keyOf);
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(ours)) await i.delete();
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ tool: ["putBack", null], loose: ["putBack", null], give: [false, true], giveLoose: false, plant: [null] }),
+            "a key a player wrote stood, or a hand-over or a plant read it outside the GMs' mark (per write: the verdict, the key left; the receiver's key and Tool; the receiver's key; the plant's key)");
+    }],
+
+    ["an item a player made that no GM has decided on is handed over, planted or stolen by nobody; kept, or its row swept, it is, and undone it is gone", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; the orchestrator's decision (a), as for fixes r2-H7 and r2-H11. An item a player's
+         * browser makes on a student is flagged whole and stands until a GM decides (the plan's 2.8), and the copy roads
+         * read it as any item the GMs hold: a hand-over, a plant or a theft made a GM's copy of it on another sheet - a
+         * write that stands as the GMs' - and deleted the one made, whose card's Undo then found nothing to undo. The
+         * roads ask whether a GM has decided (sheet-audit.mjs `creationRefusal`) and refuse the item until one has, the
+         * asker told (`itemNotDecided`). Two students stood alone together, a stash of the first's in their room and a
+         * hand of the second's free for a Tool; for each road a Tool the first's player made (`asPlayerItemWrite`,
+         * flagged) - in the stash for the last - and the road run for the second, on a critical where it is rolled.
+         * Then three hand-overs more, each of a Tool made the same way: its row kept by a GM (`decideWrite`), its row
+         * gone from the store as a day's sweep or the reset's "actions" group takes it, its row undone. Read, per case:
+         * the refusal's reason (`reasonOf`) or null, the copies the second holds, whether the first still holds the
+         * Tool. Until this fix (4e5b868, e29run/r2h21red, 06.10.2026) each of the four roads moved the undecided
+         * Tool to the second, [null,1,false] apiece; the kept, swept and undone cases read as now.
+         * AND ONE MADE WITH NO GM WATCHING (E29 fix r2-H22, 06.10.2026; fix r2-H21's "not measured"): a Tool made on
+         * the first where the GMs' mark does not see it (the audit's aside) and found by the comparison at ready
+         * (`compareAtReady`) - a row of the card of changes made with no GM watching, `away` and undecided - handed
+         * over as the others. It read as now at bf90cb0 (refused, e29run/r2h22red); with `creationRefusal` passing over
+         * an `away` row (e29run/r2h22m, m8) it changed hands, [null,1,false].
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose item is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose rows the roads read - this would measure nothing");
+        const H = await import("./handover.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { sheetAuditIdle, decideWrite, compareAtReady, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [giver, taker] = cast(2);
+        const player = game.users.find(u => !u.isGM && giver.testUserPermission(u, "OWNER")) ?? game.users.find(u => !u.isGM);
+        const fixture = await aloneTogether(giver, taker);
+        const NAME = "Suite H21 a tool a player made", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const where = locateActor(taker), region = where?.room ? V.regionsByName(where.scene).get(where.room) : null;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const stowed = [], read = {};
+        try {
+            must(region, `the room ${where?.room} has no region to hide a stash in`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: giver.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            // What takes a Tool's slot in the second's hands put in a stash, and back after: a hand-over to full hands is refused.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            if (!INV.canCarry(taker, "tool").ok) for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            must(INV.canCarry(taker, "tool").ok, `${taker.name} has no hand free for a Tool - this would measure nothing`);
+            // A Tool the player made on the first, its row flagged and left to a GM; in the stash for the theft from one.
+            const made = async stashed => {
+                const from = Date.now();
+                const { item, verdict } = await asPlayerItemWrite("createItem", giver, moduleItemData(NAME, stashed
+                    ? { [INV.ITEM_FLAGS.location]: INV.LOCATIONS.vault, [INV.ITEM_FLAGS.stashRoom]: where.room } : {}), player);
+                await sheetAuditIdle();
+                const [rowId] = Object.entries(sheetWriteStore.entries() ?? {}).find(([, row]) => row?.itemId === item?.id
+                    && row.verdict === "flagged" && !row.decided && row.at >= from) ?? [];
+                must(item && verdict === "flagged" && rowId, `the made Tool was not flagged and left to a GM (${verdict}) - this would measure nothing`);
+                return { item, rowId };
+            };
+            // What a road did with it - the refusal's reason or null, the second's copies, whether the first holds it - then both cleared.
+            const seen = async (item, out) => {
+                await settle();
+                const what = [out?.refused ? reasonOf(out.refused) : null, taker.items.filter(i => i.name === NAME).length, giver.items.has(item.id)];
+                for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+                await sheetAuditIdle();
+                return what;
+            };
+            const roads = {
+                give: item => H.giveItem({ fromId: giver.id, toId: taker.id, itemId: item.id }),
+                plant: item => V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                steal: item => V.stealFromPerson({ thiefId: taker.id, victimId: giver.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                stash: item => V.stealFromVault({ thiefId: taker.id, ownerId: giver.id, itemId: item.id })
+            };
+            for (const [road, run] of Object.entries(roads)) {
+                const { item } = await made(road === "stash");
+                read[road] = await seen(item, await run(item));
+            }
+            const decisions = { kept: rowId => decideWrite(rowId, true), swept: rowId => sheetWriteStore.drop(rowId), undone: rowId => decideWrite(rowId, false) };
+            for (const [how, decide] of Object.entries(decisions)) {
+                const { item, rowId } = await made(false);
+                await decide(rowId);
+                await sheetAuditIdle();
+                read[how] = await seen(item, await roads.give(item));
+            }
+            const from = Date.now();
+            const [away] = await giver.createEmbeddedDocuments("Item", [moduleItemData(NAME)], { [AUDIT_ASIDE]: true, [INV.CAP_OVERRIDE]: true });
+            await compareAtReady();
+            await sheetAuditIdle();
+            must(away && Object.values(sheetWriteStore.entries() ?? {}).some(row => row?.away && row.itemId === away.id && row.verdict === "flagged"
+                && !row.decided && row.at >= from), "the Tool made with no GM watching was not asked about at ready - this would measure nothing");
+            read.away = await seen(away, await roads.give(away));
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        const refused = ["itemNotDecided", 0, true], copied = [null, 1, false];
+        equal(stableJson(read), stableJson({ give: refused, plant: refused, steal: refused, stash: refused, kept: copied, swept: copied, undone: [null, 0, false],
+            away: refused }),
+            "an item no GM had decided on changed hands, or one kept or swept did not, or one undone did (per case: the refusal's reason, the second's copies, "
+                + "the first still holds it)");
+    }],
+
     ["a trace's band is the GM's, whatever the packet names", async () => {
         /*
          * E08+E28 C15, 04.10.2026; audit S10-06; the plan's "a packet asking hidden for a Search that
@@ -8900,6 +9883,54 @@ const SCENARIOS = [
             await B.putBack();
             await F.putBack();
         }
+    }],
+
+    ["a project's tool relief is held to the tools as the GMs hold them, not to a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H18, 06.10.2026. A Work's or a Sabotage's relief is held to what the GM sees of the roller's tools
+         * (action-rolls.mjs `projectExtrasHeld`, `sabotageExtrasHeld`; fix r2-H3), and that was the sheet as it stood: a
+         * tier the player's console wrote on the tool in hand stands there until its put-back lands, or for good where
+         * the put-back fails, and the relief was held to it. Both read the tools as the GMs hold them now
+         * (sheet-audit.mjs `actorAsHeld`). A student with every tool they carried stowed and a Tool of tier 1 readied,
+         * given tier 3 where the GMs' mark does not see it (the audit's aside); a Work's extras held on a roll with Hope
+         * and a Sabotage's on a roll with Fear (the hand, then everything carried), each claiming a relief of 3. Read:
+         * the relief each is held to. Until this fix (0c75739, e29run/r2h18red, 06.10.2026) both were held to 3.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the relief reads - this would measure nothing");
+        const A = await import("./action-rolls.mjs");
+        const INV = await import("./inventory.mjs");
+        const { equippedFor, EQUIPPED_FLAG } = await import("./use-items.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const [actor] = cast(1);
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, stowed = [];
+        let tool = null, read = null;
+        try {
+            for (const i of actor.items.filter(i => INV.servesAs(i, "tool") && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            tool = await INV.grantItem(actor, { name: "SUITE r2-H18 a tool in hand", category: "tool", tier: 1, override: true, quiet: true });
+            must(tool, `${actor.name} could not be handed a Tool - this would measure nothing`);
+            await tool.update({ [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: true });
+            await sheetAuditIdle();
+            await tool.update({ [flag("tier")]: 3 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(actor.id)?.items?.[tool.id]?.flags?.[MODULE_ID] ?? null;
+            must(equippedFor(actor, "tool")?.id === tool.id && tool.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) === 3 && marked?.tier === 1,
+                "the tier did not stand on the readied tool alone, outside the GMs' mark - this would measure nothing");
+            const roll = withFear => ({ actorId: actor.id, withFear, isCritical: false });
+            const work = await A.projectExtrasHeld(roll(false), { relief: 3, bonus: 0 }, "SUITE r2-H18 no project");
+            const sabotage = await A.sabotageExtrasHeld(roll(true), { penalty: 0, relief: 3 });
+            read = [work?.relief ?? null, sabotage?.relief ?? null];
+        } finally {
+            if (tool) await actor.items.get(tool.id)?.delete();
+            for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([1, 1]),
+            "a relief was held to a tier a write had left on the tool outside the GMs' mark (a Work's on Hope, a Sabotage's on Fear)");
     }],
 
     ["a GM's own Dynamic action's Reroll is scored at the band the GM picked for it", async () => {
@@ -9728,6 +10759,155 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Reroll of a Search that drew a plant takes back and gives again the plant as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H22, 06.10.2026; fix r2-H21's seam (b). A Reroll of a Search that drew a trap's plant takes the
+         * plant back and, on a total that finds, gives it again with its identity and its roles (reroll.mjs
+         * `settleSearch`; C6a's test above). The plant was found by the identity on the searcher's documents and its
+         * roles read off the one found, where a player's write the audit puts back stands until its put-back lands, or
+         * for good where it fails. A player's Search for a healing usable is bookmarked (`playerRollBookmark`) and
+         * replayed three times on a total that finds, each time with a plant of its own taken out on that roll (C6a's
+         * way) and put on the sheet with its identity, beside an older Tool of the character's; then, where the GMs'
+         * mark does not see it (the audit's aside, a failed put-back's state): 1, the plant's identity written on the
+         * older Tool; 2, the identity taken off the plant; 3, the plant given a Murder Weapon's role. Read, per replay:
+         * whether the older Tool and the first plant are still on the sheet, and each item the replay gave - its name,
+         * whether it carries the plant's identity, its roles. Until this fix (bf90cb0, e29run/r2h22red, 06.10.2026):
+         * the older Tool taken back for the identity written on it, the plant left and a copy of it given; the plant
+         * off its identity taken back by the claimed id and the Search replayed as an ordinary one (a Vacuum-packed
+         * bento given); the plant given again with the Murder Weapon's role - [[false,true,[[plant 1,true,[]]]],
+         * [true,false,[["Vacuum-packed bento",false,[]]]], [true,false,[[plant 3,true,["crimeTool"]]]]]. With the plant
+         * found on the documents again (e29run/r2h22m, m1) it read the same, the ordinary find a Burn cream; with its
+         * roles alone read off the document (m2), the third replay's role given again.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the plant waits where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the replay reads - this would measure nothing");
+        const T = await import("./traps.mjs");
+        const R = await import("./reroll.mjs");
+        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const room = where.room, sceneId = where.scene.id, flag = key => `flags.${MODULE_ID}.${ITEM_FLAGS[key]}`;
+        const had = new Set(actor.items.map(i => i.id)), messages = new Set(game.messages.contents.map(m => m.id));
+        const tokens = new Set(where.scene.tokens.map(t => t.id));
+        const marked = (item, key) => sheetMarkStore.get(actor.id)?.items?.[item.id]?.flags?.[MODULE_ID]?.[ITEM_FLAGS[key]] ?? null;
+        // The plants and the trap ledger are GM stores since E04: tier 2's restore puts them back.
+        const F = await playerRollBookmark(player, actor, "search", { category: "usable", goal: "healing", tier: 1, claimed: true });
+        // Each write, with what shows that it stands on the document alone.
+        const writes = {
+            1: async (older, plant, identity) => {
+                await older.update({ [flag("identity")]: identity }, { [AUDIT_ASIDE]: true });
+                return older.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity && marked(older, "identity") !== identity;
+            },
+            2: async (older, plant, identity) => {
+                await plant.update({ [flag("identity")]: null }, { [AUDIT_ASIDE]: true });
+                return !plant.getFlag(MODULE_ID, ITEM_FLAGS.identity) && marked(plant, "identity") === identity;
+            },
+            3: async (older, plant) => {
+                await plant.update({ [flag("roles")]: ["crimeTool"] }, { [AUDIT_ASIDE]: true });
+                return (plant.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? []).includes("crimeTool") && !(marked(plant, "roles") ?? []).includes("crimeTool");
+            }
+        };
+        const replay = async n => {
+            const older = await grantItem(actor, { name: `SUITE r2-H22 an older Tool ${n}`, category: "tool", tier: 1, override: true, quiet: true });
+            const identity = await T.plantItem("SUITE-r2-H22-project", room, { sceneId, name: `SUITE r2-H22 plant ${n}` });
+            must(older && identity, "the older Tool or the plant was not made");
+            const taken = await T.takePlant(room, sceneId, { actorId: actor.id, rollId: F.message.id, by: player.id });
+            must(taken?.drpgItemId === identity && F.row()?.facts?.plant?.identity === identity,
+                `the plant was not handed over onto the row - this would measure nothing: ${stableJson(F.row()?.facts ?? null)}`);
+            const plant = await grantItem(actor, { name: taken.name, category: "usable", tier: 1, goal: "healing", quiet: true,
+                extraFlags: { [ITEM_FLAGS.identity]: identity } });
+            must(plant, "the plant did not reach the sheet");
+            await sheetAuditIdle();
+            must(await writes[n](older, plant, identity), `write ${n} did not stand on the document alone, outside the GMs' mark - this would measure nothing`);
+            await sheetAuditIdle();
+            await R.settleSearch(actor, { ...R.replayBookmark(F.row()), itemId: plant.id }, { total: 30, isCritical: false, withHope: true, withFear: false }, []);
+            await settle();
+            const given = actor.items.filter(i => !had.has(i.id) && i.id !== older.id && i.id !== plant.id)
+                .map(i => [i.name, i.getFlag(MODULE_ID, ITEM_FLAGS.identity) === identity, i.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? []]);
+            const read = [actor.items.has(older.id), actor.items.has(plant.id), given];
+            for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
+            await sheetAuditIdle();
+            return read;
+        };
+        const read = [];
+        try {
+            for (const n of [1, 2, 3]) read.push(await replay(n));
+        } finally {
+            for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
+            for (const token of where.scene.tokens.filter(t => !tokens.has(t.id))) await token.delete();
+            for (const m of game.messages.contents.filter(m => !messages.has(m.id))) await m.delete();
+            await F.putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([1, 2, 3].map(n => [true, false, [[`SUITE r2-H22 plant ${n}`, true, []]]])),
+            "a Reroll took back an item that was not the plant as the GMs hold it, or gave it again without its identity or with roles a write gave it "
+                + "(per write - on the older Tool, off the plant, the plant's roles: the older Tool still held, the first plant still held, each item given)");
+    }],
+
+    ["a Reroll's find counts the searcher's hands as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam (its copy roads' `counted`). A Reroll of a Search that finds again hands
+         * the new find over on the GM (reroll.mjs `settleSearch`), held to the carry cap (inventory.mjs `grantItem`),
+         * which was counted on the searcher's sheet as it stood: a slot a player's write had emptied a moment before - a
+         * stash the audit puts back - took the find into the hand. A player's Search for a Tool is bookmarked
+         * (`playerRollBookmark`); the GM stows every Murder Weapon, Cleaning Tool and Tool the character carries and hands
+         * over two Tools, which fills the two slots they share (config.mjs `LIMIT_GROUPS`); one of the two is put in a
+         * stash where the GMs' mark does not see it (the audit's aside, a failed put-back's state); and the Search is
+         * replayed on a total that finds. Read: the finds the replay put in the character's hands (a find a full hand has
+         * no room for goes to the stash, or is refused where there is none). Until this fix (4d1532c, e29run/r2h20red,
+         * 06.10.2026): one.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the Search is made where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the replay reads - this would measure nothing");
+        const R = await import("./reroll.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, stowed = [], tools = [];
+        const inGear = i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === "gear" && !INV.isStashed(i);
+        // The replay's line for a draw, whatever it drew: `DRPG.Reroll.itemDrawn` up to its first blank.
+        const drawnHead = game.i18n.localize("DRPG.Reroll.itemDrawn").split("{")[0];
+        const F = await playerRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
+        const had = new Set(actor.items.map(i => i.id)), messages = new Set(game.messages.contents.map(m => m.id));
+        const tokens = new Set(where.scene.tokens.map(t => t.id));
+        let read = null;
+        try {
+            must(F.verdict === true && F.row()?.actionKey === "search", `the Search was not bookmarked - this would measure nothing: ${stableJson(F.row())}`);
+            for (const i of actor.items.filter(inGear)) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            for (const n of [1, 2]) tools.push(await INV.grantItem(actor, { name: `SUITE r2-H20 a Tool in the bag ${n}`, category: "tool", tier: 1, quiet: true }));
+            must(tools.every(Boolean) && !INV.canCarry(actor, "tool").ok, "the two slots are not full of the fixture's Tools - this would measure nothing");
+            await sheetAuditIdle();
+            await tools[0].update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H20 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(actor.id)?.items?.[tools[0].id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.canCarry(actor, "tool").ok && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the Tool alone, outside the GMs' mark - this would measure nothing");
+            const done = [];
+            await R.settleSearch(actor, R.replayBookmark(F.row()), { total: 30, isCritical: false, withHope: true, withFear: false }, done);
+            await settle();
+            must(drawnHead && done.some(line => line.startsWith(drawnHead)), `the replay drew nothing - this would measure nothing: ${stableJson(done)}`);
+            read = actor.items.filter(i => !had.has(i.id) && !tools.some(t => t?.id === i.id) && !INV.isStashed(i)).length;
+        } finally {
+            for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
+            for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            for (const token of where.scene.tokens.filter(t => !tokens.has(t.id))) await token.delete();
+            for (const m of game.messages.contents.filter(m => !messages.has(m.id))) await m.delete();
+            await F.putBack();
+            await sheetAuditIdle();
+        }
+        equal(read, 0, "a Reroll's find went into a hand whose slot a write had emptied outside the GMs' mark (finds carried)");
+    }],
+
     ["a Reroll while the GM describes the find is refused before the Hope is paid, and one after it replays", async () => {
         /*
          * E08+E28 C6a, 03.10.2026; audit S05-22. An Observe's result is written on the GM's
@@ -10030,6 +11210,54 @@ const SCENARIOS = [
             { belowMax: 5, broken: false, hp: 3, qty: 2, replayGave: 0, replayed: true, scored: 2, usedAgain: false, usedFor: "hitPoints" },
             { belowMax: 3, broken: false, hp: 1, qty: 1, replayGave: 2, replayed: true, scored: 2, usedAgain: true, usedFor: "hitPoints" }]),
         "a tier 3 Use an item's Reroll kept the Hope of a use it took back, or its replay's use paid none (miss, hit)");
+    }],
+
+    ["a Reroll's replay of Use an item uses the item as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. The replay a Reroll of Use an item makes on the GM uses the item again
+         * (murder.mjs `afterCrisisRoll`, use-items.mjs `useItem`), and what the use decides by - whether it is a usable,
+         * broken or stashed, its tier and its kind - was read off the item as it stood, where a player's write the audit
+         * puts back stands until its put-back lands, or for good where it fails. The first test's use above
+         * (`useItemRerolled`: a Tier 1 healing pack, the Reroll a hit with Hope on 11 and 5), with the pack given tier 3
+         * where the GMs' mark does not see it (`aside`) after the first use and before the Reroll - a tier 3 heals 2 and
+         * adds 2 Hope (config.mjs `USABLE_EFFECTS`). Read: as `useItemRerolled` reads. Until this fix (4d1532c,
+         * e29run/r2h20red, 06.10.2026): 0 Health marks - the replay healed a tier 3's 2 - and the rest as now.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the replay reads - this would measure nothing");
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const read = await useItemRerolled({ hope: 11, fear: 5 }, { aside: { [`flags.${MODULE_ID}.${ITEM_FLAGS.tier}`]: 3 } });
+        equal(stableJson(read), stableJson({ replayed: true, hp: 1, qty: 1, broken: false, usedAgain: true, usedFor: "hitPoints" }),
+            "the replay of a Use an item healed by a tier a write had left on the pack outside the GMs' mark "
+            + "(replayed, Health marks, quantity, broken, receipt's item, the reserve healed)");
+    }],
+
+    ["a Reroll gives a used item's charge back off the count the GMs hold, not one a player's console raised", async () => {
+        /*
+         * E29 fix r2-H23, 06.10.2026; found by fix r2-H22, which read it and measured nothing. The undo of Use an item
+         * gives back the charge the use took where the row's `before` - the player's word - names more than there is
+         * (murder.mjs `undoLastCrisis`, E08+E28 C6b), and read what there is off the pack, where a player's raise the
+         * audit puts back stands until its put-back lands, and for good where the put-back fails. Written as the GM's,
+         * the count given back is the GMs' from then on, and the raise's put-back, read when written (fix r2-H16),
+         * finds its path moved and writes nothing. The second test's use above (`useItemRerolled`: a Tier 1 healing
+         * pack of two, one after the use, its Reroll a miss with Hope on 4 and 2), with the player's console raising
+         * the pack to 5 after the use, its put-back refused while the Reroll is made (`consoleWrite`), and a `before`
+         * naming 9 - forged - or 2. Read: as `useItemRerolled` reads, and the count the GMs' mark holds.
+         * At e253b3a (06.10.2026, e29run/r2h23red), with 9: the pack at 6 on the sheet and in the mark, four charges
+         * minted; with 2: at 5 on the sheet - the raise its refused put-back left - and 1 in the mark, the use's
+         * charge not given back (a cost to its writer only, as fix r2-H22 read it). 2 and 2 for both since.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the rewind reads - this would measure nothing");
+        const raised = { "system.quantity": 5 };
+        const forged = await useItemRerolled({ hope: 4, fear: 2 }, { consoleWrite: raised, qty: 9 });
+        const honest = await useItemRerolled({ hope: 4, fear: 2 }, { consoleWrite: raised, qty: 2 });
+        const back = { replayed: true, hp: 2, qty: 2, broken: false, usedAgain: false, usedFor: "hitPoints", marked: 2 };
+        equal(stableJson([forged, honest]), stableJson([back, back]),
+            "a Reroll gave a used pack's charge back off a count a player's console raised (with a before of 9, of 2: replayed, "
+            + "Health marks, quantity, broken, receipt's item, the reserve healed, the GMs' count)");
     }],
 
     ["a bookmark note for another player's character is refused", async () => {
@@ -12242,6 +13470,94 @@ const SCENARIOS = [
         equal(JSON.stringify(await publishDeath(victim)), JSON.stringify(record), "a second publication is not a no-op");
     }],
 
+    ["a death and a sweep take the Truth Bullets the GMs hold, and keep a player's deletion of one, which no Undo makes again", async () => {
+        /*
+         * E29 fix r2-H22, 06.10.2026; fix r2-H21's seam (c). A death the table learns of takes the student's Truth
+         * Bullets (chapter.mjs `destroyBullets`), and a GM's sweep every student's but the Faint and the Final ones
+         * (`sweepTruthBullets`, the Investigation Dashboard's button); both chose by the category on the document
+         * (truth-bullets.mjs `bulletsOf`), where a player's write the audit puts back stands until its put-back lands,
+         * or for good where it fails. And a player's deletion of a bullet the GMs hold is flagged, the GMs' copy kept
+         * on its row, which the card's Undo makes again (sheet-audit.mjs `decideNow`). Two students, each given three
+         * bullets by the GM (`createTruthBullet`): one whose category is taken off where the GMs' mark does not see it
+         * (the audit's aside, a failed put-back's state), one the student's player deletes (`asPlayerItemWrite`,
+         * flagged and left to a GM), one left alone; the first also a Faint one its player deletes. The first is swept
+         * (for that student alone), the second killed in public (`killCharacter`); then the card's Undo is pressed for
+         * each deletion (`decideWrite`). Read, per student: whether the bullet off its category is still on the sheet,
+         * the deletion's decision before the Undo, whether the answer key still holds the deleted bullet, whether the
+         * Undo made it again, whether the plain one is still on the sheet; for the first, whether the Undo made the
+         * Faint one again. Until this fix (bf90cb0, e29run/r2h22red, 06.10.2026) the bullet off its category was passed
+         * over on both sheets, and each deletion stood undecided, its answer key kept, for the Undo to make again -
+         * swept [true,null,true,true,false,true], killed [true,null,true,true,false] (the sweep took no `actors` then:
+         * it ran over every student of that run's world, by reading). Each part alone turns it red (e29run/r2h22m): the
+         * sweep choosing off the documents (m3), swept [true,"keep",false,false,false,true]; the death (m4), killed
+         * [true,"keep",false,false,false]; the sweep leaving deletions (m5), swept [false,null,true,true,false,true];
+         * the death (m6), killed [false,null,true,true,false]; the sweep keeping a Faint one's deletion too (m7), swept
+         * [false,"keep",false,false,false,false].
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose deletion is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark and rows the two roads read - this would measure nothing");
+        const C = await import("./chapter.mjs");
+        const { createTruthBullet, isTruthBullet, secretOf } = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle, decideWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const [swept, killed] = cast(2);
+        const playerOf = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER")) ?? game.users.find(u => !u.isGM);
+        const made = { [swept.id]: [], [killed.id]: [] };
+        // A bullet the GM gives the student, in the GMs' mark before anything is written on it.
+        const bullet = async (a, name, faint = false) => {
+            const item = await createTruthBullet(a, { name: `SUITE r2-H22 ${name}`, playerText: "SUITE r2-H22", faint });
+            must(item, `the bullet "${name}" was not made`);
+            made[a.id].push(item.id);
+            await sheetAuditIdle();
+            return item;
+        };
+        // One the student's player deletes, its row flagged and left to a GM.
+        const deleted = async (a, name, faint = false) => {
+            const item = await bullet(a, name, faint), uuid = item.uuid, from = Date.now();
+            const { verdict } = await asPlayerItemWrite("deleteItem", a, item, playerOf(a));
+            await sheetAuditIdle();
+            const [rowId] = Object.entries(sheetWriteStore.entries() ?? {}).find(([, row]) => row?.itemId === item.id
+                && row.verdict === "flagged" && !row.decided && row.at >= from) ?? [];
+            must(verdict === "flagged" && rowId && !a.items.has(item.id), `the deletion was not flagged and left to a GM (${verdict}) - this would measure nothing`);
+            return { id: item.id, rowId, uuid };
+        };
+        const fixture = async (a, road, faint) => {
+            const aside = await bullet(a, "a category written off");
+            await aside.update({ [`flags.${MODULE_ID}.category`]: null }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            must(!isTruthBullet(aside) && sheetMarkStore.get(a.id)?.items?.[aside.id]?.flags?.[MODULE_ID]?.category === "truthBullet",
+                "the category did not stand off the document alone, outside the GMs' mark - this would measure nothing");
+            const gone = await deleted(a, "deleted by a player");
+            const plain = await bullet(a, "left alone");
+            const faded = faint ? await deleted(a, "Faint, deleted by a player", true) : null;
+            await road();
+            await settle();
+            await sheetAuditIdle();
+            const read = [a.items.has(aside.id), sheetWriteStore.get(gone.rowId)?.decided?.how ?? null, Object.keys(secretOf(gone.uuid)).length > 0];
+            for (const one of [gone, faded].filter(Boolean)) await decideWrite(one.rowId, false);
+            await sheetAuditIdle();
+            read.push(a.items.has(gone.id), a.items.has(plain.id));
+            if (faded) read.push(a.items.has(faded.id));
+            return read;
+        };
+        let read = null;
+        try {
+            read = {
+                swept: await fixture(swept, () => C.sweepTruthBullets({ actors: [swept] }), true),
+                killed: await fixture(killed, async () => must(await C.killCharacter(killed, { secret: false }), `${killed.name}'s death was not recorded`), false)
+            };
+        } finally {
+            if (C.isDeadForGm(killed)) await C.reviveCharacter(killed, { quiet: true });
+            for (const a of [swept, killed]) for (const id of made[a.id]) if (a.items.has(id)) await a.items.get(id).delete();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ swept: [false, "keep", false, false, false, true], killed: [false, "keep", false, false, false] }),
+            "a sweep or a death passed over a bullet the GMs hold, or left a player's deletion of one for an Undo to make again, or took a Faint "
+                + "one's from the GMs (per student: the bullet off its category still held, the deletion's decision, its answer key kept, made again "
+                + "by the Undo, the plain one still held; the Faint one made again)");
+    }],
+
     ["a death nobody found stays the GMs' when the trial starts, and the GM's hand makes it known", async () => {
         /* E05 C10; the owner's Q3, 26.09.2026: besides the discovery only a GM publishes a death,
            and until then it counts nowhere. The trial's start tells the GM how many there are
@@ -14173,6 +15489,127 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM's text for a Truth Bullet written through its student's update goes up to its trace and down to every copy", async () => {
+        /*
+         * E29 fix r2-H12, 06.10.2026. A GM's write of a bullet through its student's update - `items: [{ _id,
+         * flags }]`, which fires no item hook in the harness, only `updateActor` - is the bullet's own write, so it
+         * goes up to the trace the bullet came from, as a GM's edit on the item's own sheet does (the test above, its
+         * fourth part), and the trace sends it down to every copy. 30-security drives a player's writes that way and
+         * the GMs' copy; this is the trace's half. At dd67545 (e29run/r2h12red) the GM's text stayed on the copy it
+         * was written to: the trace and the other copy kept the trace's words.
+         */
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const F = bullets.TRUTH_BULLET_FLAGS;
+
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is built beside a token standing in a room");
+        const scene = canvas?.scene;
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
+        const [writer, holder] = cast(2);
+        const TEXT = `Chalk dust on the sill ${Date.now() % 100000}`;
+        let token = null;
+        const made = [];
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
+                note: "test fixture - a bullet written through its student"
+            });
+            ok(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "Suite fixture chalk", playerText: "A pale mark." });
+            for (const actor of [writer, holder]) {
+                const item = await bullets.createTruthBullet(actor, {
+                    name: "Suite fixture chalk", realType: "resolution", visibility: "obvious",
+                    playerText: "A pale mark.", remnantId: token.id, sceneId: scene.id
+                });
+                ok(item, `no bullet was created for ${actor.name}`);
+                made.push(item);
+            }
+            await settle();
+            await writer.update({ items: [{ _id: made[0].id, flags: { [MODULE_ID]: { [F.playerText]: TEXT } } }] });
+            const textOf = (actor, item) => actor.items.get(item.id)?.getFlag(MODULE_ID, F.playerText) ?? null;
+            await until(() => remnants.remnantPublic(token)?.playerText === TEXT && textOf(holder, made[1]) === TEXT);
+            equal(JSON.stringify([textOf(writer, made[0]), remnants.remnantPublic(token)?.playerText ?? null, textOf(holder, made[1])]),
+                JSON.stringify([TEXT, TEXT, TEXT]),
+                "a GM's text written through the student's update did not reach the trace, or the trace did not send it to the other copy");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) {
+                    await scene.deleteEmbeddedDocuments("Token", [token.id]);
+                }
+            }
+        }
+    }],
+
+    ["a GM's text for a Truth Bullet in its module flags replaced whole goes up to its trace and down to every copy", async () => {
+        /*
+         * E29 fix r2-H13, 06.10.2026. A GM's write of a bullet's module flags whole (v14's forced replacement, the
+         * instance the harness hands the hook) is the bullet's own write in another form: the text in it goes up
+         * to the trace and down to every copy, as the test above has it for a text written through the student.
+         * 30-security drives a player's writes in these forms and the GMs' copy; this is the trace's half. At
+         * 528a72d the trace and the other copy kept the words before (e29run/r2h13red).
+         */
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const F = bullets.TRUTH_BULLET_FLAGS;
+
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is built beside a token standing in a room");
+        const scene = canvas?.scene;
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
+        const [writer, holder] = cast(2);
+        const TEXT = `Soot on the grate ${Date.now() % 100000}`;
+        let token = null;
+        const made = [];
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
+                note: "test fixture - a bullet's module flags written whole"
+            });
+            ok(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "Suite fixture soot", playerText: "A grey smear." });
+            for (const actor of [writer, holder]) {
+                const item = await bullets.createTruthBullet(actor, {
+                    name: "Suite fixture soot", realType: "resolution", visibility: "obvious",
+                    playerText: "A grey smear.", remnantId: token.id, sceneId: scene.id
+                });
+                ok(item, `no bullet was created for ${actor.name}`);
+                made.push(item);
+            }
+            await settle();
+            const mine = writer.items.get(made[0].id);
+            const scope = foundry.utils.deepClone(mine.flags?.[MODULE_ID] ?? {});
+            await mine.update({ flags: { [MODULE_ID]: replaced({ ...scope, [F.playerText]: TEXT }) } });
+            const textOf = (actor, item) => actor.items.get(item.id)?.getFlag(MODULE_ID, F.playerText) ?? null;
+            await until(() => remnants.remnantPublic(token)?.playerText === TEXT && textOf(holder, made[1]) === TEXT);
+            equal(JSON.stringify([textOf(writer, made[0]), remnants.remnantPublic(token)?.playerText ?? null, textOf(holder, made[1])]),
+                JSON.stringify([TEXT, TEXT, TEXT]),
+                "a GM's text in the module flags written whole did not reach the trace, or the trace did not send it to the other copy");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) {
+                    await scene.deleteEmbeddedDocuments("Token", [token.id]);
+                }
+            }
+        }
+    }],
+
     ["a Key and a Final keep their reading for an Analyze, like any trace", async () => {
         /*
          * Dawid, 21.09: every trace works like an ordinary one - a description,
@@ -14316,6 +15753,82 @@ const SCENARIOS = [
             }
             await settle();
         }
+    }],
+
+    ["a bullet analysed or handed over is read as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H17, 06.10.2026; found by fix r2-H16. An Analyze asked whether a bullet could be analysed and
+         * rebuilt its description, its Undo too, from the bullet as it stood (analyze.mjs `resolveAnalyze`,
+         * `identify`); a hand-over minted its copy the same way - born with the reading where the bullet said it was
+         * analysed (handover.mjs `shareBullet`); and a player's write of a bullet stands on it until its put-back
+         * lands. They read this browser's copy of the GMs' fields now (truth-bullets.mjs `bulletAsHeld`). Bullets of
+         * a student's, each given a field on this browser alone (`updateSource`: the document holds it and no GM's
+         * write moved the copy - the state a player's write waiting for its put-back leaves): its lock taken off one
+         * locked this chapter, and an Analyze of it; a text on a second, an Analyze of it on a critical and its Undo
+         * with a Reroll that misses (one that hits is scored after the Undo, and its `identify` rebuilds the description
+         * once more - the first run of this test read that as an Undo leaving the reading); `analyzed` on a third,
+         * handed to another student stood with the first. Read: the first Analyze's refusal;
+         * after the second, whether the description holds the GMs' text, the reading and the text written here, the
+         * copy's text, and whether the copy's description is the document's; after its Undo, the description again;
+         * the copy handed over: analysed or not, and its reading. Until this fix (ebdf1ba, e29run/r2h17red,
+         * 06.10.2026) each road read the document: no refusal; after the Analyze, a description with the reading and
+         * the text written here in place of the GMs'; after the Undo, the text written here alone; the copy handed
+         * over analysed, with the reading.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which keeps the copies the roads read - this would measure nothing");
+        const T = await import("./truth-bullets.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const { shareBullet } = await import("./handover.mjs");
+        const F = T.TRUTH_BULLET_FLAGS, chapter = getClock().chapter;
+        const [reader, receiver] = cast(2);
+        const fixture = await aloneTogether(reader, receiver);
+        // Escape-safe: the description is markup, and these are looked for in it.
+        const TEXT = "Suite H17 the text the GMs hold", FORGED = "Suite H17 a text written here alone", READING = "Suite H17 the reading";
+        const made = [];
+        const bullet = async name => {
+            const b = await T.createTruthBullet(reader, { name, realType: "neutral", visibility: "obvious", playerText: TEXT, analyzedText: READING });
+            must(b, `no bullet was made for ${reader.name} - this would measure nothing`);
+            made.push(b);
+            await settle();
+            must(T.bulletGuardStatus(b.uuid).copy, "this browser holds no copy of the bullet - this would measure nothing");
+            return b;
+        };
+        const aside = (b, key, value) => b.updateSource({ flags: { [MODULE_ID]: { [F[key]]: value } } });
+        const described = b => ((d = String(b.system?.description ?? "")) => [d.includes(TEXT), d.includes(READING), d.includes(FORGED)])();
+        let read = null;
+        try {
+            const locked = await bullet("Suite H17 locked");
+            await locked.update({ [`flags.${MODULE_ID}.${F.lockedChapter}`]: chapter });
+            aside(locked, "lockedChapter", null);
+            const refused = (await resolveAnalyze({ actorId: reader.id, itemId: locked.id, total: 40, isCritical: true }))?.refused ?? null;
+            const texted = await bullet("Suite H17 texted");
+            aside(texted, "playerText", FORGED);
+            await resolveAnalyze({ actorId: reader.id, itemId: texted.id, total: 40, isCritical: true });
+            await settle();
+            const copy = T.bulletGuardStatus(texted.uuid).copy ?? {};
+            const analysed = [...described(texted), copy[`flags.${MODULE_ID}.${F.playerText}`] ?? null, copy["system.description"] === texted.system?.description];
+            aside(texted, "playerText", FORGED);
+            await resolveAnalyze({ actorId: reader.id, itemId: texted.id, total: 0, undo: true });
+            await settle();
+            const undone = described(texted);
+            const shown = await bullet("Suite H17 shown");
+            aside(shown, "analyzed", true);
+            const handed = await shareBullet({ fromId: reader.id, toId: receiver.id, itemId: shown.id });
+            if (handed) made.push(handed);
+            await settle();
+            const live = handed ? receiver.items.get(handed.id) : null;
+            read = [refused, analysed, undone, live ? [Boolean(live.getFlag(MODULE_ID, F.analyzed)), live.getFlag(MODULE_ID, F.analyzedText) ?? ""] : null];
+        } finally {
+            for (const b of made) {
+                const live = b?.actor?.items?.get(b.id), uuid = b?.uuid ?? null;
+                if (live) await live.delete();
+                if (uuid) await T.dropSecret(uuid);
+            }
+            await fixture.back();
+        }
+        equal(stableJson(read), stableJson(["that bullet cannot be analysed now", [true, true, false, TEXT, true], [true, false, false], [false, ""]]),
+            "an Analyze or a hand-over read a bullet's field off a write the GMs' copy does not hold (the lock's refusal; after the Analyze: GMs' text, reading, the text written here, the copy's text, the copy's description the document's; after its Undo: the same three; the copy handed over: analysed, its reading)");
     }],
 
     ["a project's token is known to the people who know the project, and to nobody else", async () => {
@@ -15133,6 +16646,155 @@ const SCENARIOS = [
             await reviveCharacter(body, { quiet: true });
             await settle();
         }
+    }],
+
+    ["an item looted off a body arrives as the GMs hold it, not as a write their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H17, 06.10.2026. A loot copied the body's item as it stood (handover.mjs `lootBody`), and the
+         * body's owner can still write it - with the put-back of the write to come, or failed, the GMs' mark keeping
+         * their own. It reads the item as the GMs hold it now, as a hand-over does (the test of the hand-over, the
+         * plant and the two thefts). A Tool on a dead student, tier 1, given roles and tier 3 where the GMs' mark
+         * does not see it (the audit's aside), and looted. Read: the copy's roles and tier. Put back after as the
+         * test above puts it back. Until this fix (ebdf1ba, e29run/r2h17red, 06.10.2026) the copy held the roles
+         * and tier 3.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the loot writes one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the loot reads - this would measure nothing");
+        const [taker, body] = cast(2);
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore, sheetMarkStore } = await import("./gm-stores.mjs");
+        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const remnants = await import("./remnants.mjs");
+        const had = new Set(taker.items.map(i => i.id));
+        const NAME = "SUITE H17 a crowbar";
+        let read = null;
+        try {
+            ok(await killCharacter(body, { secret: false, keepBullets: true }), "the death was not recorded");
+            const item = await grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            must(item, "the fixture item was not put on the body - this would measure nothing");
+            await sheetAuditIdle();
+            await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.roles}`]: ["crimeTool"], [`flags.${MODULE_ID}.${ITEM_FLAGS.tier}`]: 3 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(body.id)?.items?.[item.id]?.flags?.[MODULE_ID] ?? null;
+            must(item.getFlag(MODULE_ID, ITEM_FLAGS.tier) === 3 && marked?.tier === 1 && !marked?.roles?.length,
+                "the write did not stand on the item alone, outside the GMs' mark - this would measure nothing");
+            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: item.id }), "the loot took nothing");
+            await settle();
+            const copy = taker.items.find(i => !had.has(i.id) && i.name === NAME);
+            read = copy ? [copy.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [], copy.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null] : null;
+        } finally {
+            for (const item of taker.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            const row = lootTraceStore.get(body.id);
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const item of body.items.filter(i => i.name === NAME)) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            await reviveCharacter(body, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[], 1]),
+            "a loot's copy took roles or a tier a write had left on the item outside the GMs' mark (the copy's roles, its tier)");
+    }],
+
+    ["a loot takes nothing a player made on the body that no GM has decided on, and counts the taker's hands as the GMs hold them", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026. A loot is a copy road as a hand-over is (handover.mjs `lootBody`; the test of the
+         * hand-over, the plant and the two thefts): a Tool a player made on the body, flagged and left to a GM, was copied
+         * to the taker and deleted off the body. It is refused now, the taker told (`itemNotDecided`, sheet-audit.mjs
+         * `creationRefusal`). And fix r2-H20's "not measured": the loot counts the taker's hands as the GMs hold them
+         * (`counted`, fix r2-H18), as H18's test counts the four other roads' - the taker's slots for a Tool filled, one
+         * of them put in a stash where the GMs' mark does not see it (the audit's aside), and a Tool the GMs gave the
+         * body looted. Read: the made Tool's loot (the refusal's reason or null, the taker's copies, whether the body
+         * still holds it), and the copies of the GMs' Tool the taker carries. Until this fix (4e5b868,
+         * e29run/r2h21red, 06.10.2026) the made Tool went to the taker, [null,1,false]. The count of the taker's hands
+         * is green there (fix r2-H18's `counted`) and red under the mutant that counts the document (e29run/r2h21m,
+         * m12): one copy carried.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the loot writes one");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose item is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose rows and mark the loot reads - this would measure nothing");
+        const [taker, body] = cast(2);
+        const player = game.users.find(u => !u.isGM && body.testUserPermission(u, "OWNER")) ?? game.users.find(u => !u.isGM);
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore, sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { reasonOf } = await import("./bridge-guards.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const remnants = await import("./remnants.mjs");
+        const had = new Set(taker.items.map(i => i.id));
+        const MADE = "SUITE H21 a crowbar a player made", GIVEN = "SUITE H21 a crowbar the GMs gave", FULL = "SUITE H21 a full hand";
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const stowed = [], read = {};
+        try {
+            // What takes a Tool's slot in the taker's hands put in a stash, and back after.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            ok(await killCharacter(body, { secret: false, keepBullets: true }), "the death was not recorded");
+            const from = Date.now();
+            const { item: made, verdict } = await asPlayerItemWrite("createItem", body, moduleItemData(MADE), player);
+            await sheetAuditIdle();
+            const row = Object.values(sheetWriteStore.entries() ?? {}).find(r => r?.itemId === made?.id && r.verdict === "flagged" && !r.decided && r.at >= from);
+            must(made && verdict === "flagged" && row, `the made Tool was not flagged and left to a GM (${verdict}) - this would measure nothing`);
+            const out = await lootBody({ takerId: taker.id, bodyId: body.id, itemId: made.id });
+            await settle();
+            read.made = [out?.refused ? reasonOf(out.refused) : null, taker.items.filter(i => i.name === MADE).length, body.items.has(made.id)];
+            for (const i of taker.items.filter(i => i.name === MADE)) await i.delete();
+            // The taker's slots for a Tool filled, and one of them put in a stash outside the GMs' mark.
+            const { limit } = INV.canCarry(taker, "tool");
+            must(Number.isInteger(limit) && limit > 0, `a Tool's slots have no limit to fill (${limit}) - this would measure nothing`);
+            const full = [];
+            for (let n = 0; n < limit; n++) full.push(await INV.grantItem(taker, { name: FULL, category: "tool", tier: 1, override: true, quiet: true }));
+            must(full.every(Boolean) && !INV.canCarry(taker, "tool").ok, `${taker.name}'s hands could not be filled - this would measure nothing`);
+            await sheetAuditIdle();
+            await full[0].update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H21 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(taker.id)?.items?.[full[0].id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.canCarry(taker, "tool").ok && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the full hand alone, outside the GMs' mark - this would measure nothing");
+            const given = await INV.grantItem(body, { name: GIVEN, category: "tool", tier: 1, override: true, quiet: true });
+            must(given, "the GMs' Tool was not put on the body - this would measure nothing");
+            await lootBody({ takerId: taker.id, bodyId: body.id, itemId: given.id });
+            await settle();
+            read.hands = taker.items.filter(i => i.name === GIVEN && !INV.isStashed(i)).length;
+        } finally {
+            for (const item of taker.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            const row = lootTraceStore.get(body.id);
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const item of body.items.filter(i => [MADE, GIVEN].includes(i.name))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            await reviveCharacter(body, { quiet: true });
+            await settle();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ made: ["itemNotDecided", 0, true], hands: 0 }),
+            "a loot took a Tool no GM had decided on, or carried a copy into hands a write had emptied outside the GMs' mark (the made Tool: the refusal's "
+                + "reason, the taker's copies, the body still holds it; the GMs' Tool's copies carried)");
     }],
 
     ["a body looted before anybody found it gives its taker no word of it until the death is published", async () => {
@@ -18602,6 +20264,82 @@ const SCENARIOS = [
         }
     }],
 
+    ["the Rot wears each student's things as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H19, 06.10.2026. The Rot (overflow.mjs `rotEverything`), a GM's sweep over every student's items when
+         * the overflow draws it, read whether a student is dead, and each item's tier, wear and break, off the documents as
+         * they stood, where a write of the player's the audit puts back stands until its put-back lands, or for good where
+         * it fails: the GMs' mark keeps their own then. Two students, only the Rot in the hat and the count at the
+         * threshold: the first's tier-3 Tools - one worn once by the GM, its wear taken off where the GMs' mark does not see
+         * it (the audit's aside, `worn`); one its tier lowered to 1 there (`lowered`); one the player broke, a write that
+         * stands (`broken`) - and the second's tier-3 Tool, the second dead there (`dead`). Read: the wear on each after the
+         * Rot, and the break's verdict. Until this fix (68150ec, e29run/r2h19red, 06.10.2026) `worn` wore to 1 from the
+         * document's 0, and `lowered` and `dead` were spared (no wear); `broken` stood and was spared, as it is to be.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the Rot reads - this would measure nothing");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const o = await import("./overflow.mjs");
+        const INV = await import("./inventory.mjs");
+        const { overflowStore, sheetMarkStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const [first, second] = cast(2);
+        const player = game.users.find(u => !u.isGM);
+        const NAME = "Suite H19 rot", WEAR = `flags.${MODULE_ID}.${INV.ITEM_FLAGS.wear}`, DEAD = `flags.${MODULE_ID}.${FLAGS.deceased}`;
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {});
+        const count = o.overflowCount();
+        const rules = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflowRules) ?? {});
+        // The Rot wears the whole school: every character's things as they were, each put back after.
+        const wears = game.actors.filter(a => a.type === "character").flatMap(a => a.items.contents.map(i => [a.id, i.id, foundry.utils.getProperty(i.toObject(), WEAR)]));
+        const dead = second.getFlag(MODULE_ID, FLAGS.deceased) ?? null, before = new Set(game.messages.contents.map(m => m.id));
+        const read = {};
+        try {
+            const tool = async (who, name) => {
+                const item = await INV.grantItem(who, { name: `${NAME} ${name}`, category: "tool", tier: 3, override: true, quiet: true });
+                must(item && INV.durabilityLeft(item) === 3, `${who.name} could not be handed a tier-3 Tool - this would measure nothing`);
+                return item;
+            };
+            const items = { worn: await tool(first, "worn"), lowered: await tool(first, "lowered"), broken: await tool(first, "broken"), dead: await tool(second, "dead") };
+            await items.worn.update({ [WEAR]: 1 });
+            await sheetAuditIdle();
+            await items.worn.update({ [WEAR]: 0 }, { [AUDIT_ASIDE]: true });
+            await items.lowered.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.tier}`]: 1 }, { [AUDIT_ASIDE]: true });
+            await second.update({ [DEAD]: true }, { [AUDIT_ASIDE]: true });
+            const broke = (await asPlayerItemWrite("updateItem", first, items.broken, player, null, { [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.broken}`]: true })).verdict;
+            await sheetAuditIdle();
+            const marked = item => sheetMarkStore.get(item.parent.id)?.items?.[item.id]?.flags?.[MODULE_ID] ?? {};
+            must(INV.durabilityLeft(items.worn) === 3 && marked(items.worn)[INV.ITEM_FLAGS.wear] === 1 && INV.durabilityLeft(items.lowered) === 1
+                && marked(items.lowered)[INV.ITEM_FLAGS.tier] === 3
+                && INV.isBroken(items.broken) && second.getFlag(MODULE_ID, FLAGS.deceased) && !sheetMarkStore.get(second.id)?.flags?.[FLAGS.deceased],
+                "the writes did not stand on the items and the student alone, outside the GMs' mark - this would measure nothing");
+            // Only the Rot in the hat, wearing one point; the count at the threshold, and nothing armed for this hour.
+            const effects = Object.fromEntries(Object.keys(o.overflowRules().effects).map(key => [key, key === "rot" ? { on: true, by: 1 } : { on: false }]));
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, { ...rules, effects });
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, { active: null });
+            await overflowStore.patch("record", { count: o.overflowThreshold() });
+            const fired = await o.checkOverflow();
+            must(fired?.effect === "rot", `the overflow drew ${fired?.effect ?? "nothing"}, not the Rot - this would measure nothing`);
+            await sheetAuditIdle();
+            const wear = item => foundry.utils.getProperty(item.toObject(), WEAR) ?? null;
+            Object.assign(read, { worn: wear(items.worn), lowered: wear(items.lowered), broken: [broke, wear(items.broken)], dead: wear(items.dead) });
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.overflowRules, rules);
+            await game.settings.set(MODULE_ID, SETTINGS.overflow, stored);
+            await overflowStore.patch("record", { count });
+            await sheetAuditIdle();
+            for (const a of [first, second]) for (const i of a.items.filter(i => i.name.startsWith(NAME))) await i.delete();
+            await second.update({ [DEAD]: dead ?? forcedDeletion() });
+            for (const [actorId, itemId, was] of wears) {
+                const item = game.actors.get(actorId)?.items.get(itemId);
+                if (item && stableJson(foundry.utils.getProperty(item.toObject(), WEAR) ?? null) !== stableJson(was ?? null)) await item.update({ [WEAR]: was ?? forcedDeletion() });
+            }
+            for (const m of game.messages.contents.filter(m => !before.has(m.id))) await m.delete();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ worn: 2, lowered: 1, broken: ["stands", null], dead: 1 }),
+            "the Rot wore a student's things by a wear, a tier or a death a write had left outside the GMs' mark (per Tool: its wear after; the break's verdict)");
+    }],
+
     ["two Calls armed on one student both apply, and the same one twice does not", async () => {
         /*
          * CALL-02 live: one slot used to mean a Monokuma's Obstacle silently ate the
@@ -19340,6 +21078,73 @@ const SCENARIOS = [
             });
             await settle();
         }
+    }],
+
+    ["an Objection's evidence is a Truth Bullet as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. An objection's card takes the floor only with a Truth Bullet of the
+         * objector's for evidence (trial.mjs `seizeFloor`), and whether the item is one is its category - a field the
+         * sheet audit judges - read off the item as it stood, where a player's write the audit puts back stands until
+         * its put-back lands, or for good where it fails. A Tool of the objector's is made a Truth Bullet where the GMs'
+         * mark does not see it (the audit's aside, a failed put-back's state), and in a Class Trial with the floor open
+         * the card naming it is posted, as C6's test above posts one. Read: whether the objector holds the floor,
+         * whether the card was marked refused, and the objector's actions (one before). Until this fix (4d1532c,
+         * e29run/r2h20red, 06.10.2026): the floor held, the card not refused, and no action left.
+         */
+        const [who, other] = cast(2);
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the objection reads - this would measure nothing");
+        const { TRIAL_FLAGS } = await import("./trial.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const INV = await import("./inventory.mjs");
+        const { isTruthBullet } = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: who.system.resources.actions.value, max: who.system.resources.actions.max,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        let tool = null, message = null, read = null;
+        try {
+            tool = await INV.grantItem(who, { name: "SUITE r2-H20 a Tool called evidence", category: "tool", tier: 1, override: true, quiet: true });
+            must(tool, "the fixture's Tool was not made");
+            await sheetAuditIdle();
+            await tool.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.category}`]: "truthBullet" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(who.id)?.items?.[tool.id]?.flags?.[MODULE_ID] ?? null;
+            must(isTruthBullet(who.items.get(tool.id)) && marked?.[INV.ITEM_FLAGS.category] === "tool",
+                "the Tool was not made a Truth Bullet on the sheet alone, outside the GMs' mark - this would measure nothing");
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({});
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await who.update({ "system.resources.actions.value": 1, "system.resources.actions.max": 2 });
+            await settle();
+            message = await ChatMessage.create({
+                content: "<p>suite r2-H20 objection</p>",
+                speaker: ChatMessage.getSpeaker({ actor: who }),
+                flags: { [MODULE_ID]: {
+                    [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.objection]: true, [TRIAL_FLAGS.presenter]: who.name,
+                    [TRIAL_FLAGS.item]: tool.id, [TRIAL_FLAGS.target]: other.id, [TRIAL_FLAGS.targetName]: other.name,
+                    [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none"
+                } }
+            });
+            await until(() => message.getFlag(MODULE_ID, TRIAL_FLAGS.refused) || floorMod.trialFloor()?.holderId === who.id);
+            await settle();
+            read = [floorMod.trialFloor()?.holderId === who.id, Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.refused)),
+                who.system.resources.actions.value];
+        } finally {
+            try { await message?.delete(); } catch { /* already gone */ }
+            try { await tool?.delete(); } catch { /* already gone */ }
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, true, 1]),
+            "an objection took the floor with a Tool a write had made a Truth Bullet outside the GMs' mark (holds the floor, refused, actions)");
     }],
 
     ["Analyze outside a Class Trial still costs exactly one action", async () => {
@@ -26191,6 +27996,57 @@ const SCENARIOS = [
             "a module item's count rose through the relay, fell no more, or an item of Daggerheart's own was judged differently");
     }],
 
+    ["Daggerheart's relay lowers a module item's count from the count the GMs hold, not from a write of the player's", async () => {
+        /*
+         * E29 fix r2-H21, 06.10.2026; the class sweep's relay row. The test above: a module item's count only falls
+         * through the relay - measured off the item as it stood, where a player's write of the count or of the module's
+         * flags stands until its put-back lands, or for good where it fails. A count the player's console raised was the
+         * one a fall was measured from, and an item whose module flags the console took off was judged as an item of
+         * Daggerheart's own. Measured from the item as the GMs hold it as well now (relay-guard.mjs `itemRefusal`,
+         * sheet-audit.mjs `itemsHeldNow`). A kit of the player's own student, its count raised by four where the GMs'
+         * mark does not see it (the audit's aside), asked to three above the GMs' count, then to the GMs' count; a second
+         * kit with the module's flags taken off the same way, asked to one more. The verdicts are asked, not run.
+         * Until this fix (4e5b868, e29run/r2h21red, 06.10.2026): ["forward","forward","forward"] - the rise above
+         * the GMs' count let through, and the kit without its flags judged as Daggerheart's own.
+         */
+        needs(world.atLeast("playersWithCharacter", 1), "a player whose own student the relay judges");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the relay's judge reads - this would measure nothing");
+        const player = game.users.find(u => !u.isGM && u.character?.type === "character");
+        const student = player.character;
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const made = [];
+        let read = null;
+        try {
+            const grant = name => grantItem(student, { name, category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+            const kit = await grant("Tier 2 H21 relay kit"), bare = await grant("Tier 2 H21 relay kit its flags taken off");
+            made.push(kit?.id, bare?.id);
+            must(kit && bare, "the two kits were not made");
+            await sheetAuditIdle();
+            const held = Number(kit.system?.quantity ?? 1);
+            await kit.update({ "system.quantity": held + 4 }, { [AUDIT_ASIDE]: true });
+            await bare.update({ [`flags.${MODULE_ID}`]: forcedDeletion() }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marks = sheetMarkStore.get(student.id)?.items ?? {};
+            must(Number(kit.system?.quantity) === held + 4 && Number(marks[kit.id]?.system?.quantity) === held
+                && !Object.keys(bare._source?.flags?.[MODULE_ID] ?? {}).length && marks[bare.id]?.flags?.[MODULE_ID]?.category === "usable",
+                "the writes did not stand on the kits alone, outside the GMs' mark - this would measure nothing");
+            const ask = (item, quantity) => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: item.uuid,
+                data: { "system.quantity": quantity } } }, player).verdict;
+            read = [ask(kit, held + 3), ask(kit, held), ask(bare, Number(bare.system?.quantity ?? 1) + 1)];
+        } finally {
+            const left = made.filter(id => id && student.items.get(id));
+            if (left.length) await student.deleteEmbeddedDocuments("Item", left);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson(["refuse", "forward", "refuse"]),
+            "a count rose above the GMs' through the relay, a fall to it was refused, or a kit whose flags a write took off was judged as Daggerheart's own "
+                + "(three above the GMs' count, at it; the kit without its flags, one more)");
+    }],
+
     ["with lockPlayerResources off a forged Hope rise is listed, not put back", async () => {
         /* The owner's Q2 (a), 05.10.2026: off, Hope a player raises with nothing to cover it stands and is listed. */
         needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
@@ -26358,20 +28214,25 @@ const SCENARIOS = [
         /* A record of 13 earns tier 1 on the Search's table (12 and up). A tier-1 find on it stands and
            uses it; a second tier-1 item named after the same record is flagged; a tier-2 item named after
            a fresh record of 13 is flagged too. At HEAD a creation was judged as an effect, and all three stood.
-           Since E29 fix r1-G4 the find that stood has its row, `covered` (the plan's 2.8). */
-        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
-        const [student] = cast(1);
-        const player = game.users.find(u => !u.isGM);
+           Since E29 fix r1-G4 the find that stood has its row, `covered` (the plan's 2.8). Since E29 fix
+           r2-H11 a find stands only on a Search whose token the GM spent, so each record's is spent by the
+           student's own player (`spentSearch`): until then the records had no spend, and the find stood. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player, whose spend and find are judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(owner);
+        const player = owner(student);
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
         const { sheetWriteStore, sheetMarkStore } = await import("./gm-stores.mjs");
         const { searchTier } = await import("./action-rolls.mjs");
         must(searchTier({ total: 13 }).tier === 1 && searchTier({ total: 13 }).hit, "the Search's table gives no tier-1 hit at 13 any more - the totals below measure nothing");
         const from = Date.now();
-        const first = await recordFor({ id: null }, player, student, "search", { total: 13 });
-        const fresh = await recordFor({ id: null }, player, student, "search", { total: 13 });
+        const first = await spentSearch(player, student, { total: 13 });
+        const fresh = await spentSearch(player, student, { total: 13 });
         const made = [];
         let read = null;
         try {
+            must(first.spent && fresh.spent, "a spend did not mark the Search it followed - the finds below would be flagged for that alone");
             const find = async (name, tier, rollId) => {
                 const out = await asPlayerItemWrite("createItem", student, moduleItemData(name, { tier }), player, { reason: "searchFind", ref: rollId });
                 made.push(out.item);
@@ -26445,6 +28306,50 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ refused: ["flagged", ["search"]], spent: ["stands", []] }),
             "a find named after a Search whose token the GM refused stood, or one whose token was spent did not "
                 + "(each find's verdict, and what its record has settled)");
+    }],
+
+    /*
+     * A SEARCH THAT NEVER ASKED FOR ITS TOKEN (E29 fix r2-H11, 06.10.2026; found by fix r2-H9). A find
+     * named after a Search was judged on the GMs' record alone, so a console that drew a Search and
+     * skipped the spend had what r2-H9 closed for a spend the GM refused. A spend that succeeds marks
+     * the newest Search of the character drawn for its sender (search-tokens.mjs
+     * `SearchTokens.markSpent`), and the find's judge asks for the mark (sheet-audit.mjs `searchFind`).
+     * Two records of 13 (a tier-1 hit) of the student's, drawn for its player: the first with no spend,
+     * the second followed by one (`spentSearch`); a tier-1 find named after each. Read: each find's
+     * verdict, and whether its record carries the mark - the spend marks the Search it follows, not the
+     * one before. At 3654512 both finds stood and neither record was marked.
+     */
+    ["a find named after a Search whose token was never spent is flagged, and a spend marks the Search it follows", async () => {
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player, whose spend and find are judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(owner);
+        const player = owner(student);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const made = [], records = [];
+        let read = null;
+        try {
+            const unspent = await recordFor({ id: null }, player, student, "search", { total: 13 });
+            records.push(unspent);
+            const spent = await spentSearch(player, student, { total: 13 });
+            records.push(spent);
+            const find = async (name, record) => {
+                const out = await asPlayerItemWrite("createItem", student, moduleItemData(name, { tier: 1 }), player, { reason: "searchFind", ref: record.rollId });
+                made.push(out.item);
+                return [out.verdict, Boolean(rollStore.get(record.rollId)?.tokenSpentAt)];
+            };
+            read = { unspent: await find("E29 H11 a find on a Search that spent no token", unspent), spent: await find("E29 H11 a find on a spent token", spent) };
+            await sheetAuditIdle();
+        } finally {
+            await sheetAuditIdle();
+            for (const item of made) if (student.items.get(item.id)) await item.delete();
+            await sheetAuditIdle();
+            for (const record of records) await record.putBack();
+        }
+        equal(stableJson(read), stableJson({ unspent: ["flagged", false], spent: ["stands", true] }),
+            "a find named after a Search that spent no token stood, or the spend marked another Search than the one it followed "
+                + "(each find's verdict, and whether its record carries the spend's mark)");
     }],
 
     ["a broken item discarded raises no card; an unbroken one deleted is flagged, and Undo makes it again under its id", async () => {
@@ -27144,6 +29049,207 @@ const SCENARIOS = [
     }],
 
     /*
+     * AN ITEM WRITTEN THROUGH ITS STUDENT'S UPDATE (E29 fix r2-H10, 06.10.2026; found by fix r2-H8's probe; the
+     * plan's 2.6). A student's update that carries its `items` fires no item hook in the harness, only
+     * `updateActor`, so the audit judges each item it reaches as a write of that item: a GM's tier 1 -> 2 on a
+     * Tool, by its id, goes into the mark; a player's - the Tool renamed, its tier 3 and its count 4, by its id -
+     * has the tier and the count put back through the Tool and the name listed, each row naming the Tool; the list
+     * then written whole, without the Tool and with a module item of the player's own, is flagged - a row for
+     * each - and the GMs' Undo of the deletion makes the Tool again as they held it. At 34a058c (06.10.2026,
+     * e29run/r2h10red) the GM's tier 2 left the mark at 1; the player's rename, tier 3 and count 4 stood with one
+     * row, the student's `listed:items`, the mark at tier 1 under the old name; the list written whole stood with
+     * the same one row - the Tool gone, the item made there, nothing for an Undo.
+     */
+    ["an item written through its student's update is judged as a write of the item itself: a player's put back or flagged, a GM's into the mark", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, decideWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore, sheetWriteStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const NAMES = ["Tier 2 H10 tool", "Tier 2 H10 tool, renamed", "Tier 2 H10 made"];
+        const made = foundry.utils.randomID();
+        // An item's tier, count and name, as its data holds them.
+        const read = data => [data?.flags?.[MODULE_ID]?.tier ?? null, data?.system?.quantity ?? null, data?.name ?? null];
+        let tool = null, seen = null;
+        const now = () => read(student.items.get(tool.id)?.toObject());
+        const held = () => read(sheetMarkStore.get(student.id)?.items?.[tool.id]);
+        // Written aside on the GM, then handed to the judge with the player's id: the verdict, and its rows as `verdict:item:fields`.
+        const judged = async write => {
+            const from = Date.now();
+            await student.update(write, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("updateActor", student, foundry.utils.expandObject(write), player.id);
+            await sheetAuditIdle();
+            const item = id => id === tool.id ? "tool" : id === made ? "made" : id ?? "student";
+            const field = path => path.replace(/^items\.[^.]+/, "").split(".").pop() || "item";
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from)
+                .map(row => `${row.verdict}:${item(row.itemId)}:${Object.keys(row.change ?? {}).map(field).sort().join(",")}`).sort();
+            return [verdict?.verdict ?? null, rows];
+        };
+        try {
+            tool = await grantItem(student, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(tool && held()[0] === 1, "no Tool, or the mark does not hold it at tier 1 - this would measure nothing");
+            await student.update({ items: [{ _id: tool.id, flags: { [MODULE_ID]: { tier: 2 } } }] });
+            await sheetAuditIdle();
+            const gm = [held()[0], now()[0]];
+            const renamed = await judged({ items: [{ _id: tool.id, name: NAMES[1], flags: { [MODULE_ID]: { tier: 3 } }, system: { quantity: 4 } }] });
+            const played = [renamed, now(), held()];
+            const from = Date.now();
+            const swapped = await judged({ items: replaced([...student.items.contents.filter(item => item.id !== tool.id).map(item => item.toObject()),
+                { _id: made, ...moduleItemData(NAMES[2], { tier: 3 }) }]) });
+            const [rowId] = Object.entries(sheetWriteStore.entries() ?? {})
+                .find(([, row]) => row?.itemId === tool.id && row.verdict === "flagged" && row.at >= from) ?? [];
+            const decided = rowId ? await decideWrite(rowId, false) : null;
+            await sheetAuditIdle();
+            seen = [gm, ...played, swapped, student.items.has(made), decided?.how ?? null, now()];
+        } finally {
+            await sheetAuditIdle();
+            const left = student.items.filter(item => NAMES.includes(item.name)).map(item => item.id);
+            if (left.length) await student.deleteEmbeddedDocuments("Item", left);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([[2, 2], ["putBack", ["listed:tool:name", "putBack:tool:quantity,tier"]], [2, 1, NAMES[1]], [2, 1, NAMES[1]],
+            ["flagged", ["flagged:made:item", "flagged:tool:item"]], true, "undo", [2, 1, NAMES[1]]]),
+            "an item written through its student's update was not judged as a write of the item itself (a GM's tier 2 by its id: the mark's, the "
+                + "Tool's; a player's rename, tier 3 and count 4 by its id: the verdict and its rows, the Tool after it, the mark's; the list written "
+                + "whole without the Tool and with an item of the player's: the verdict and its rows, whether that item is there, the GMs' Undo of the "
+                + "deletion, the Tool after it)");
+    }],
+
+    /*
+     * WHAT A GM'S WRITE OF AN ITEM OR AN EFFECT MOVES (E29 fix r2-H15, 06.10.2026; found by fix r2-H14). A write the
+     * audit has not judged waits on a Tool and on two penalties, one on the student and one on the Tool - the Tool's
+     * tier 3 and each penalty made a +5, written aside, as a player's write waiting for its put-back is - and the GM
+     * then writes each of them by another field: the Tool renamed by its own update and its count through the
+     * student's, the student's penalty renamed by its own update and again through the student's, the Tool's renamed
+     * through the Tool's. Each moves the mark by what it wrote and leaves the waiting write out of it; the student's
+     * items and then its effects written whole take all of it in, as their hooks saw it. At d1445c0 (06.10.2026,
+     * e29run/r2h15red) the Tool's rename took the waiting tier 3 into the mark, its count written through the student
+     * the Tool's penalty's +5, and the student's penalty's rename its +5.
+     */
+    ["a GM's write of an item or an effect moves the GMs' mark only by what it reached, whichever road, and by all of a list written whole", async () => {
+        const [student] = cast(1);
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const bonus = value => ({ system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value }] } });
+        const NAMES = ["Tier 2 H15 tool", "Tier 2 H15 penalty", "Tier 2 H15 tool penalty"];
+        const GMS = [`${NAMES[0]}, the GM's`, `${NAMES[1]}, the GM's`, `${NAMES[1]}, the GM's again`, `${NAMES[2]}, the GM's`];
+        let ids = null, seen = null;
+        const tool = () => student.items.get(ids.tool), own = () => student.effects.get(ids.own), onTool = () => tool()?.effects.get(ids.onTool);
+        // The Tool's name, tier and count, and each penalty's name and value, as the mark holds them.
+        const held = () => {
+            const mark = sheetMarkStore.get(student.id), item = mark?.items?.[ids.tool];
+            return [item?.name ?? null, item?.flags?.[MODULE_ID]?.tier ?? null, item?.system?.quantity ?? null,
+                ...[mark?.effects?.[ids.own], mark?.itemEffects?.[ids.tool]?.[ids.onTool]].flatMap(data => [data?.name ?? null, data?.system?.changes?.[0]?.value ?? null])];
+        };
+        const after = async write => {
+            await write();
+            await sheetAuditIdle();
+            return held();
+        };
+        try {
+            const made = await grantItem(student, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            const [penalty] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: NAMES[1], ...bonus(-2) }]);
+            const [toolPenalty] = made ? await made.createEmbeddedDocuments("ActiveEffect", [{ name: NAMES[2], ...bonus(-2) }]) : [];
+            ids = { tool: made?.id, own: penalty?.id, onTool: toolPenalty?.id };
+            await sheetAuditIdle();
+            must(made && penalty && toolPenalty && stableJson(held()) === stableJson([NAMES[0], 1, 1, NAMES[1], -2, NAMES[2], -2]),
+                "no Tool or penalty, or the mark does not hold them as the GM made them - this would measure nothing");
+            await tool().update({ flags: { [MODULE_ID]: { tier: 3 } } }, { [AUDIT_ASIDE]: true });
+            await own().update(bonus(5), { [AUDIT_ASIDE]: true });
+            await onTool().update(bonus(5), { [AUDIT_ASIDE]: true });
+            seen = [
+                await after(() => tool().update({ name: GMS[0] })),
+                await after(() => student.update({ items: [{ _id: ids.tool, system: { quantity: 2 } }] })),
+                await after(() => own().update({ name: GMS[1] })),
+                await after(() => student.update({ effects: [{ _id: ids.own, name: GMS[2] }] })),
+                await after(() => tool().update({ effects: [{ _id: ids.onTool, name: GMS[3] }] })),
+                await after(() => student.update({ items: replaced(student.items.contents.map(item => item.toObject())) })),
+                await after(() => student.update({ effects: replaced(student.effects.contents.map(effect => effect.toObject())) }))];
+        } finally {
+            await sheetAuditIdle();
+            const effects = student.effects.filter(effect => effect.name?.startsWith("Tier 2 H15 ")).map(effect => effect.id);
+            if (effects.length) await student.deleteEmbeddedDocuments("ActiveEffect", effects);
+            const items = student.items.filter(item => item.name?.startsWith("Tier 2 H15 ")).map(item => item.id);
+            if (items.length) await student.deleteEmbeddedDocuments("Item", items);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([[GMS[0], 1, 1, NAMES[1], -2, NAMES[2], -2], [GMS[0], 1, 2, NAMES[1], -2, NAMES[2], -2],
+            [GMS[0], 1, 2, GMS[1], -2, NAMES[2], -2], [GMS[0], 1, 2, GMS[2], -2, NAMES[2], -2], [GMS[0], 1, 2, GMS[2], -2, GMS[3], -2],
+            [GMS[0], 3, 2, GMS[2], -2, GMS[3], 5], [GMS[0], 3, 2, GMS[2], 5, GMS[3], 5]]),
+            "a GM's write of an item or an effect did not move the mark by what it reached (the mark's Tool name, tier and count, its penalty's name "
+                + "and value and the Tool's penalty's, after each: the Tool renamed, its count through the student, the penalty renamed, again through "
+                + "the student, the Tool's penalty renamed through the Tool, the items written whole, the effects written whole)");
+    }],
+
+    /*
+     * WHAT A PLAYER'S EFFECT WRITTEN THROUGH ITS PARENT MOVES (E29 fix r2-H15, 06.10.2026). A player renames an Evasion
+     * effect - which the GMs hold nothing by, so the rename stands, listed - on the student through its update, and
+     * one on a Tool through the Tool's, each entry naming its effect by its id, while a description written aside
+     * waits on each. The mark takes the names and not the descriptions. Then the player writes the student's items
+     * whole, the Tool without its effect: that list names no entry, so the deletion, listed, is the mark's too. In
+     * play the first rule decides nothing that counts: `parentEffects` judges each effect by all it differs from the
+     * mark's copy, so a waiting change that counts is put back with the write behind it, and one that does not has
+     * been taken in by its own judgement, queued first; the descriptions are written aside here so that the rule
+     * itself is what is read. At d1445c0 (06.10.2026, e29run/r2h15red) both descriptions went into the mark with the
+     * names.
+     */
+    ["a player's effect written through its student's or its item's update moves the GMs' mark only by what its entry reached", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const evasion = { system: { changes: [{ key: "system.evasion", type: "add", value: 1 }] } };
+        const NAMES = ["Tier 2 H15 dodge tool", "Tier 2 H15 dodge", "Tier 2 H15 tool dodge"], ASIDE = "Tier 2 H15 aside";
+        let ids = null, seen = null;
+        const tool = () => student.items.get(ids.tool);
+        // Each effect's name in the mark, and whether the mark holds the description written aside.
+        const held = () => {
+            const mark = sheetMarkStore.get(student.id);
+            return [mark?.effects?.[ids.own], mark?.itemEffects?.[ids.tool]?.[ids.onTool]].map(data => [data?.name ?? null, data?.description === ASIDE]);
+        };
+        // Written aside on the GM, then handed to the judge with the player's id: its verdict.
+        const judged = async (kind, doc, write) => {
+            await doc.update(write, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite(kind, doc, foundry.utils.expandObject(write), player.id);
+            await sheetAuditIdle();
+            return verdict?.verdict ?? null;
+        };
+        try {
+            const made = await grantItem(student, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            const [dodge] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: NAMES[1], ...evasion }]);
+            const [toolDodge] = made ? await made.createEmbeddedDocuments("ActiveEffect", [{ name: NAMES[2], ...evasion }]) : [];
+            ids = { tool: made?.id, own: dodge?.id, onTool: toolDodge?.id };
+            await sheetAuditIdle();
+            must(made && dodge && toolDodge && stableJson(held()) === stableJson([[NAMES[1], false], [NAMES[2], false]]),
+                "no Tool or Evasion effect, or the mark does not hold them as the GM made them - this would measure nothing");
+            await student.effects.get(ids.own).update({ description: ASIDE }, { [AUDIT_ASIDE]: true });
+            await tool().effects.get(ids.onTool).update({ description: ASIDE }, { [AUDIT_ASIDE]: true });
+            seen = [await judged("updateActor", student, { effects: [{ _id: ids.own, name: `${NAMES[1]}, renamed` }] }),
+                await judged("updateItem", tool(), { effects: [{ _id: ids.onTool, name: `${NAMES[2]}, renamed` }] }), held()];
+            const items = student.items.contents.map(item => item.toObject())
+                .map(data => data._id === ids.tool ? { ...data, effects: (data.effects ?? []).filter(effect => effect._id !== ids.onTool) } : data);
+            seen.push(await judged("updateActor", student, { items: replaced(items) }), held());
+        } finally {
+            await sheetAuditIdle();
+            const effects = student.effects.filter(effect => effect.name?.startsWith("Tier 2 H15 ")).map(effect => effect.id);
+            if (effects.length) await student.deleteEmbeddedDocuments("ActiveEffect", effects);
+            const items = student.items.filter(item => item.name?.startsWith("Tier 2 H15 ")).map(item => item.id);
+            if (items.length) await student.deleteEmbeddedDocuments("Item", items);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson(["listed", "listed", [[`${NAMES[1]}, renamed`, false], [`${NAMES[2]}, renamed`, false]],
+            "listed", [[`${NAMES[1]}, renamed`, false], [null, false]]]),
+            "a player's effect written through its parent did not move the mark by what its entry reached (the verdict through the student, through "
+                + "the Tool; then each effect's name in the mark and whether the mark holds the description written aside; the verdict of the items "
+                + "written whole without the Tool's effect; the same of the mark after it)");
+    }],
+
+    /*
      * AN ITEM MADE OR DELETED WITH ITS EFFECTS (E29 fix r1-G3, 05.10.2026; review round 1 sec B3). An item a
      * player makes carrying an effect Daggerheart applies to the student and that counts is put back whole -
      * deleted, its row naming the item and the effect - where until this fix it was flagged as any item made and
@@ -27461,6 +29567,625 @@ const SCENARIOS = [
             "a clean-up's Sanity given back by its Reroll left the price in the credit, or the player's refund of the same stood on it (the credit left, the verdict)");
     }],
 
+    ["a Reroll's take-backs read the Hope and the maxima the GMs hold, not a player's write the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H23, 06.10.2026; the siblings of a used item's charge (its test above, by Use an item's Reroll). A
+         * take-back computed from a means or a maximum read off the sheet - where a player's write the audit puts back
+         * stands until its put-back lands, and for good where the put-back fails - was written as a GM's, the GMs'
+         * value from then on: the Hope a use gave, taken back off the Hope on the sheet (murder.mjs `undoLastCrisis`);
+         * the marks a use healed, put back up to the sheet's Health maximum (`marksBack`); a clean-up's Sanity, given
+         * back down to the sheet's Sanity maximum (cleanup.mjs `undoLastCleanup`). The killer, at 1 Hope and 4 Health
+         * marks, uses a tier 3 pack - 2 Hope given and 2 marks healed, written here by the GM where the player's
+         * browser writes them - and the use is scored on the GM; the player's console then raises the Hope to the most
+         * it holds and lowers the Health maximum to 1, its put-back refused by a hook of the GM's, as scenario 30
+         * refuses one, and the rewind runs as reroll.mjs `settleCrisis` runs it, into a miss with Hope. `settleCrisis`
+         * comes after the Reroll's payment, which writes the Hope from the GMs' value (fix r2-H5) and so takes off a
+         * forged Hope heard before it: this one is heard between the payment and the rewind. Then a clean-up attempted
+         * at 3 Sanity marks is charged on the GM; the console lowers the Sanity maximum to 1, refused the same way, and
+         * the clean-up's Reroll takes the attempt back. Read: the Hope, the Health marks and the Sanity marks, each on
+         * the sheet and in the GMs' mark. At e253b3a (06.10.2026, e29run/r2h23red): [[4, 4, 1, 1], [1, 1]] - the most
+         * Hope (6) less the use's 2, not the GMs' 3 less it; and 1 Health mark and 1 Sanity mark where the maxima the
+         * GMs hold put back 4 and 3.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
+        needs(world.atLeast("sceneOnScreen"), "the clean-up's trace is placed on the scene on screen");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the take-backs read - this would measure nothing");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const R = "system.resources", HOPE = `${R}.hope.value`, HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const SANITY = `${R}.stress.value`, SANITY_MAX = `${R}.stress.max`;
+        const sheet = path => foundry.utils.getProperty(killer._source, path);
+        const marked = key => sheetMarkStore.get(killer.id)?.resources?.[key] ?? {};
+        const had = new Set([...killer.items, ...victim.items].map(item => item.id));
+        const was = Object.fromEntries([HOPE, HP, HP_MAX, SANITY_MAX].map(path => [path, sheet(path)]));
+        const most = { hope: resourceMax(killer, "hope"), hitPoints: Number(sheet(HP_MAX)), stress: Number(sheet(SANITY_MAX)) };
+        // The killer's put-back refused on the GM: the state a put-back that failed leaves.
+        let veto = null, crisis = null, cleanup = null;
+        const refuseBack = () => {
+            veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+                doc.id === killer.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+        };
+        const allowBack = async () => {
+            if (veto !== null) Hooks.off("preUpdateActor", veto);
+            veto = null;
+            await sheetAuditIdle();
+        };
+        must(most.hope >= 4 && most.hitPoints >= 4 && most.stress >= 5, `${killer.name}'s maxima cannot hold the fixture's values: ${stableJson(most)}`);
+        try {
+            await fightOpen(M, killer, victim);
+            const [pack] = await killer.createEmbeddedDocuments("Item", [{ name: "Tier 2 H23 pack", type: "loot", system: { quantity: 2 },
+                flags: { [MODULE_ID]: { category: "usable", tier: 3 } } }]);
+            await turnFor(M, killer, "useItem");
+            await trustedWrite(killer, { [HOPE]: 1, [HP]: 4 }, { reason: "gmRuling" });
+            const before = { hp: 4, stress: killer.system.resources.stress.value, qty: 2, hope: 1 };
+            await trustedWrite(killer, { [HOPE]: 3, [HP]: 2 }, { reason: "gmRuling" });
+            await pack.update({ "system.quantity": 1 });
+            await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 20, isCritical: false, withHope: true, usedItemId: pack.id, before });
+            await settle();
+            const scored = M.murderState()?.lastCrisis ?? null;
+            must(scored?.hopeGranted === 2 && scored.actorHp === 2,
+                `the use was not scored with the 2 Hope it gave and the 2 Health marks it left - this would measure nothing: ${stableJson(scored)}`);
+            await auditFromScratch(killer);
+            refuseBack();
+            const forged = await asPlayerWrite(killer, { [HOPE]: most.hope, [HP_MAX]: 1 }, player(killer));
+            await sheetAuditIdle();
+            must(forged?.verdict === "putBack" && sheet(HOPE) === most.hope && sheet(HP_MAX) === 1 && marked("hope").value === 3
+                && marked("hitPoints").max === most.hitPoints,
+            `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
+                stableJson([forged?.verdict ?? null, sheet(HOPE), sheet(HP_MAX), marked("hope"), marked("hitPoints")])}`);
+            await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 0, isCritical: false, withHope: true, undo: true,
+                again: { choice: null, usedItemId: pack.id, usedFor: "hitPoints", before } });
+            await settle();
+            await allowBack();
+            crisis = [sheet(HOPE), marked("hope").value ?? null, sheet(HP), marked("hitPoints").value ?? null];
+        } finally {
+            await allowBack();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const actor of [killer, victim]) {
+                const made = actor.items.filter(item => !had.has(item.id)).map(item => item.id);
+                if (made.length) await actor.deleteEmbeddedDocuments("Item", made);
+            }
+            await trustedWrite(killer, was, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        const F = await cleanupFixture(killer, "SUITE E29 H23 a trace scrubbed and rerolled");
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            await killer.update({ [SANITY]: 3 });
+            await auditFromScratch(killer);
+            await F.scrub(0, { price: null });
+            await settle();
+            must(sheet(SANITY) > 3, `the fixture's attempt took no Sanity - this would measure nothing: ${sheet(SANITY)} marks`);
+            refuseBack();
+            const forged = await asPlayerWrite(killer, { [SANITY_MAX]: 1 }, player(killer));
+            await sheetAuditIdle();
+            must(forged?.verdict === "putBack" && sheet(SANITY_MAX) === 1 && marked("stress").max === most.stress,
+                `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
+                    stableJson([forged?.verdict ?? null, sheet(SANITY_MAX), marked("stress")])}`);
+            await F.scrub(30, { undo: true });
+            await settle();
+            await allowBack();
+            cleanup = [sheet(SANITY), marked("stress").value ?? null];
+        } finally {
+            await allowBack();
+            await F.putBack();
+            if (sheet(SANITY_MAX) !== was[SANITY_MAX]) await trustedWrite(killer, { [SANITY_MAX]: was[SANITY_MAX] }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        equal(stableJson([crisis, cleanup]), stableJson([[1, 1, 4, 4], [3, 3]]),
+            "a Reroll's take-back read a Hope or a maximum a player's console wrote that the GMs' audit had not put back "
+            + "(the crisis's Hope and Health marks, the clean-up's Sanity marks; each on the sheet and in the GMs' mark)");
+    }],
+
+    ["a GM's give of an action reads the actions and the maxima the GMs hold, not a console's the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026; found by fix r2-H23, which read `refundAction` and measured nothing. A GM's write
+         * of the actions computed from a maximum read off the sheet - where a console's write the audit puts back stands
+         * until its put-back lands, and for good where it fails - was the GMs' value from then on: an action given back
+         * (actions.mjs `refundAction`) or set by a GM (`setActions`), held to a raised actions maximum, and a time of
+         * day's refill, which read a raised Health maximum as not wounded (`resetActionsFor`). The student at 1 action
+         * of 2; the console raises the actions maximum to 9, its put-back refused by a hook of the GM's
+         * (`inConsoleWindow`), and the GM gives 3 back, then sets 7; then, its Health marked full, the console raises
+         * the Health maximum by 3 and the GM refills. Read: the actions, on the sheet and in the GMs' mark.
+         * At 85fdf9d (06.10.2026, e29run/r2h24red) the refund came to 4 and the ruling to 7, on the sheet and in the
+         * mark (2 and 2 since), and the refill gave the wounded student the whole budget, 2 (1 since).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const A = await import("./actions.mjs");
+        const { ACTIONS_RESOURCE } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const R = "system.resources", ACTS = `${R}.${ACTIONS_RESOURCE}.value`, ACTS_MAX = `${R}.${ACTIONS_RESOURCE}.max`;
+        const HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const putBack = sheetAsFound(student, [ACTS, ACTS_MAX, HP, HP_MAX]);
+        const hpMax = Number(foundry.utils.getProperty(student._source, HP_MAX));
+        must(hpMax >= 1, `${student.name} has no Health maximum to mark full: ${hpMax}`);
+        const honest = { [ACTS]: 1, [ACTS_MAX]: 2 }, raised = { [ACTS_MAX]: 9 };
+        const read = [];
+        let budget = null;
+        try {
+            read.push(await inConsoleWindow(student, player(student), { honest, forged: raised, paths: [ACTS] }, () => A.refundAction(student, 3)));
+            read.push(await inConsoleWindow(student, player(student), { honest, forged: raised, paths: [ACTS] }, () => A.setActions(student, 7)));
+            await trustedWrite(student, { [ACTS]: 0, [ACTS_MAX]: 2, [HP]: hpMax }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            budget = A.actionBudget(student);
+            must(budget.wounded, `${student.name}, its Health marked full, is not wounded - this would measure nothing: ${stableJson(budget)}`);
+            read.push(await inConsoleWindow(student, player(student), { forged: { [HP_MAX]: hpMax + 3 }, paths: [ACTS] },
+                () => A.resetActionsFor(student, { keepGrants: true })));
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[[2, 2]], [[2, 2]], [[budget.total, budget.total]]]),
+            "a GM's give of an action read an actions or a Health maximum a player's console raised that the GMs' audit had not put back "
+            + "(an action given back, the actions a GM set, a wounded student's refill; each on the sheet and in the GMs' mark)");
+    }],
+
+    ["a GM's give or take of Hope reads the Hope the GMs hold, not a console's the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026. Every road that writes a student's Hope on a GM's client from the Hope on the sheet,
+         * where a console's raised Hope stands until its put-back lands (and for good where it fails) and a GM's write
+         * over it supersedes the put-back: a price paid on the GM - the Objection's (price.mjs `payPrice`) - and given
+         * back (`refundPrice`), Despair turned into Hope (despair.mjs `convertDespairToHope`), an item's effect a GM
+         * grants (use-items.mjs `grantItemEffect`), a Despair Call's Hope (call-effects.mjs, Fuel a Monocub), a Hope Call
+         * a GM buys on the sheet (calls.mjs `spendHopeCall`, a Sprint at 2) and a rest a GM gives (rest.mjs `takeRest`,
+         * Breath). Each from 2 Hope the GMs hold, the console's 5 refused its put-back (`inConsoleWindow`). Read: the
+         * Hope, on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red) each road wrote from the
+         * console's 5, on the sheet and in the mark alike: the Objection left 4 (1 since), the refund, the conversion, the
+         * ruling, the Call and the rest 6 (3 since), the Sprint 3 (0 since).
+         * And a Hope Call that does not land, given back (`spendHopeCall`'s refund; fix r2-H25, the row H24 left without a
+         * test): Relief bought from 4 Hope, the console's 5 written while its rest's picker is open - the Call's effect, the
+         * only moment the refund can be reached in - and the picker closed, so the Call fails and its 4 come back. Green at
+         * 525a186, which read it from the GMs' value; read off the sheet (its mutant, e29run/r2h25m) it came to 6, the
+         * console's 5 and the 4 held to the maximum.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { payPrice, refundPrice } = await import("./price.mjs");
+        const D = await import("./despair.mjs");
+        const { despairOwedStore } = await import("./gm-stores.mjs");
+        const { grantItemEffect } = await import("./use-items.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const { spendHopeCall } = await import("./calls.mjs");
+        const { takeRest } = await import("./rest.mjs");
+        const { overflowBlocksHope } = await import("./overflow.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const donor = D.monokumas().find(u => u.id === game.user.id) ?? D.monokumas()[0];
+        must(donor, "no Monokuma's pool to convert from - this would measure nothing");
+        must(!overflowBlocksHope(), "the Despair darkening holds Hope down - this would measure nothing");
+        must(resourceMax(student, "hope") === STARTING.hopeMax, `${student.name}'s Hope maximum is not ${STARTING.hopeMax}: ${resourceMax(student, "hope")}`);
+        const R = "system.resources", HOPE = `${R}.hope.value`, ACTS = `${R}.actions.value`;
+        const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`, MOVES = `flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`;
+        const putBack = sheetAsFound(student, [HOPE, ACTS, GRANTS, MOVES]);
+        const despairWas = D.getDespair(donor.id);
+        const Dialog = foundry.applications.api.DialogV2, ownWait = Object.getOwnPropertyDescriptor(Dialog, "wait");
+        const inWindow = road => inConsoleWindow(student, player(student), { honest: { [HOPE]: 2 }, forged: { [HOPE]: 5 }, paths: [HOPE] }, road);
+        const read = {};
+        try {
+            await trustedWrite(student, { [ACTS]: 0, [GRANTS]: 0 }, { reason: "gmRuling" });
+            read.objection = await inWindow(() => payPrice(student, "objection", { quiet: true }));
+            read.refund = await inWindow(() => refundPrice(student, { key: "objection", pay: "hope", amount: 1, grant: false }, { quiet: true }));
+            await despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, 5);
+            read.convert = await inWindow(() => D.convertDespairToHope(donor.id, student, 1));
+            read.ruling = await inWindow(() => grantItemEffect(student, null, { hope: 1 }, { consumeItem: false }));
+            read.fuel = await inWindow(() => applyCall(null, "fuelTheCub", "despair", { target: student }));
+            read.sprint = await inWindow(() => spendHopeCall(student, "sprint"));
+            Dialog.wait = async () => ["breath"];
+            read.rest = await inWindow(() => takeRest(student, "short", { free: true, ignoreRoom: true, ignoreLimit: true, quiet: true }));
+            read.failedCall = await inConsoleWindow(student, player(student), { honest: { [HOPE]: 4 }, forged: { [HOPE]: 5 }, paths: [HOPE], during: true },
+                forge => {
+                    Dialog.wait = async () => {
+                        await forge();
+                        return null;
+                    };
+                    return spendHopeCall(student, "relief");
+                });
+        } finally {
+            if (ownWait) Object.defineProperty(Dialog, "wait", ownWait); else delete Dialog.wait;
+            await despairOwedStore.drop(donor.id);
+            await D.setDespair(donor.id, despairWas);
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ objection: [[1, 1]], refund: [[3, 3]], convert: [[3, 3]], ruling: [[3, 3]], fuel: [[3, 3]],
+            sprint: [[0, 0]], rest: [[3, 3]], failedCall: [[4, 4]] }),
+        "a GM's road wrote a student's Hope from a Hope a player's console raised that the GMs' audit had not put back "
+            + "(by road: the Hope on the sheet and in the GMs' mark)");
+    }],
+
+    ["a GM's advancement rises from the maxima, the statistics and the advances the GMs hold, not a console's the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026. level-up.mjs `applyAdvancement` - a GM's road, its write the student's mark from
+         * then on - read the maxima it raises, the statistics and experiences it adds to and the advances it counts off
+         * the sheet, where a console's rise the audit puts back stands until its put-back lands (and for good where it
+         * fails), and its write over the same paths superseded the put-back. The console raises the Health maximum by 3,
+         * a trait by 2 and the advances by 5, the put-back refused (`inConsoleWindow`); the GM applies +1 Health and +1
+         * to that trait. Read: the Health maximum, the trait and the advances, on the sheet and in the GMs' mark.
+         * At 85fdf9d (06.10.2026, e29run/r2h24red): a Health maximum of 10, the trait at 3 and 6 advances, on the sheet
+         * and in the mark (7, 1 and 1 since). The Sanity maximum and an experience, raised by 3 and 2 with them and given +1
+         * each, are fix r2-H25's rows (H24 left them without a test): green at 525a186; read off the sheet (a mutant each,
+         * e29run/r2h25m) a Sanity maximum of 10 and an experience of 5, for 7 and 3.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { applyAdvancement } = await import("./level-up.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const trait = Object.values(TRAITS)[0]?.dh, experience = Object.keys(student._source.system?.experiences ?? {})[0];
+        const R = "system.resources", HP_MAX = `${R}.hitPoints.max`, SAN_MAX = `${R}.stress.max`, TRAIT = `system.traits.${trait}.value`;
+        const EXP = `system.experiences.${experience}.value`, ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const at = path => foundry.utils.getProperty(student._source, path);
+        must([HP_MAX, SAN_MAX, TRAIT, EXP].every(path => typeof at(path) === "number"), `${student.name} has no Health or Sanity maximum, no ${
+            trait} or no experience to raise - this would measure nothing: ${stableJson([HP_MAX, SAN_MAX, TRAIT, EXP].map(at))}`);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES]);
+        const [hp, san, stat, exp, advances] = [at(HP_MAX), at(SAN_MAX), at(TRAIT), at(EXP), at(ADVANCES) ?? 0];
+        let read = null;
+        try {
+            read = await inConsoleWindow(student, player(student), { forged: { [HP_MAX]: hp + 3, [SAN_MAX]: san + 3, [TRAIT]: stat + 2, [EXP]: exp + 2,
+                [ADVANCES]: advances + 5 }, paths: [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES] },
+            () => applyAdvancement(student, [{ option: "hp" }, { option: "stress" }, { option: "trait", trait }, { option: "experienceUp", experience }]));
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[hp + 1, hp + 1], [san + 1, san + 1], [stat + 1, stat + 1], [exp + 1, exp + 1], [advances + 1, advances + 1]]),
+            "a GM's advancement rose from a maximum, a statistic or the advances a player's console raised that the GMs' audit had not put back "
+            + "(the Health and Sanity maxima, the trait, the experience, the advances; each on the sheet and in the GMs' mark)");
+    }],
+
+    ["a GM's Level Up rises from the sheet's maximum and statistic, not from what Daggerheart prepares from them", async () => {
+        /*
+         * E29 fix r2-H25, 06.10.2026; found by fix r2-H24. level-up.mjs `applyAdvancement` writes into the sheet, which
+         * Daggerheart prepares again: it adds the class's hit points to Health's maximum and a Level Up's picks to a
+         * statistic (data/actor/character.mjs `prepareBaseData`, 2.10.5). It rose from the prepared values - Health's
+         * maximum as `meansMaxHeld` answers it, a statistic as `numberHeld` did - so the sheet took the class's hit points
+         * and the pick a second time. The GM's copy of the student prepared with a class of 5 hit points and a pick of +1
+         * to a statistic (`preparedAs`; the harness prepares nothing), the GM applies +1 Health and +1 to that statistic.
+         * Read: the Health maximum and the statistic on the sheet. At 525a186 (06.10.2026, e29run/r2h25red): a Health
+         * maximum of 12 for 7 and the statistic at 2 for 1 - the class's 5 hit points and the pick taken a second time.
+         */
+        needs(world.atLeast("livingStudents"), "a living student to advance");
+        const { applyAdvancement } = await import("./level-up.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [student] = livingStudents();
+        const trait = Object.values(TRAITS)[0]?.dh;
+        const HP_MAX = "system.resources.hitPoints.max", TRAIT = `system.traits.${trait}.value`, ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const at = path => foundry.utils.getProperty(student._source, path);
+        must(typeof at(HP_MAX) === "number" && typeof at(TRAIT) === "number",
+            `${student.name} has no Health maximum or no ${trait} to raise - this would measure nothing: ${stableJson([at(HP_MAX), at(TRAIT)])}`);
+        const putBack = sheetAsFound(student, [HP_MAX, TRAIT, ADVANCES]);
+        const [hp, stat] = [at(HP_MAX), at(TRAIT)];
+        const unprepare = preparedAs(student, system => {
+            system.resources.hitPoints.max += 5;
+            system.traits[trait].value += 1;
+        });
+        let read = null;
+        try {
+            // At a table Daggerheart's own preparation stands in for `preparedAs`; where it adds nothing to either value
+            // (no class's hit points, no pick), the two readings agree and this measures nothing there.
+            if (unprepare) must(student.system.resources.hitPoints.max === hp + 5 && foundry.utils.getProperty(student.system, `traits.${trait}.value`) === stat + 1,
+                `the preparation the test stands in for did not take - this would measure nothing: ${stableJson([student.system.resources.hitPoints.max, hp])}`);
+            await applyAdvancement(student, [{ option: "hp" }, { option: "trait", trait }]);
+            read = [at(HP_MAX), at(TRAIT)];
+        } finally {
+            unprepare?.();
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([hp + 1, stat + 1]),
+            "a GM's advancement rose from a prepared maximum or statistic and wrote it into the sheet (the sheet's Health maximum and statistic)");
+    }],
+
+    ["a GM's take of Sanity is held to the maximum the GMs hold, not one a console wrote that the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026. A GM's write of a student's marks held to a maximum read off the sheet, where a
+         * console's write of the maximum the audit puts back stands until its put-back lands (and for good where it
+         * fails): a missed Observe's Sanity (observe.mjs `chargeObserveMiss`), a resolution's price (cleanup.mjs
+         * `markResolutionStress`) and Paranoia's marks (call-effects.mjs `damageEffect`), each at 3 marks under a maximum
+         * the console lowered to 3; and a price paid in Sanity on the GM - the Objection's, with no action and no Hope
+         * (price.mjs `payPrice`) - on a full track under a maximum the console raised by 3. Each put-back refused
+         * (`inConsoleWindow`). Read: the Sanity marks, on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026,
+         * e29run/r2h24red) the Observe, the resolution and Paranoia marked nothing - 3 each (4, 4 and 5 since) - and the
+         * Objection was paid with a seventh mark on a track of 6 (unpaid since, 6), on the sheet and in the mark alike.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { chargeObserveMiss } = await import("./observe.mjs");
+        const { markResolutionStress } = await import("./cleanup.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const { payPrice } = await import("./price.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const R = "system.resources", SAN = `${R}.stress.value`, SAN_MAX = `${R}.stress.max`, HOPE = `${R}.hope.value`, ACTS = `${R}.actions.value`;
+        const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        const S = Number(foundry.utils.getProperty(student._source, SAN_MAX));
+        must(S >= 5, `${student.name}'s Sanity maximum cannot hold the fixture's marks: ${S}`);
+        const putBack = sheetAsFound(student, [SAN, SAN_MAX, HOPE, ACTS, GRANTS]);
+        const lowered = { honest: { [SAN]: 3, [SAN_MAX]: S }, forged: { [SAN_MAX]: 3 }, paths: [SAN] };
+        const p = player(student), read = {};
+        try {
+            read.observe = await inConsoleWindow(student, p, lowered, () => chargeObserveMiss(student));
+            read.resolution = await inConsoleWindow(student, p, lowered, () => markResolutionStress(student));
+            read.paranoia = await inConsoleWindow(student, p, lowered, () => applyCall(null, "paranoia", "despair", { target: student }));
+            await trustedWrite(student, { [HOPE]: 0, [ACTS]: 0, [GRANTS]: 0 }, { reason: "gmRuling" });
+            read.objection = await inConsoleWindow(student, p, { honest: { [SAN]: S, [SAN_MAX]: S }, forged: { [SAN_MAX]: S + 3 }, paths: [SAN] },
+                () => payPrice(student, "objection", { quiet: true }));
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ observe: [[4, 4]], resolution: [[4, 4]], paranoia: [[5, 5]], objection: [[S, S]] }),
+            "a GM's take of Sanity was held to a maximum a player's console wrote that the GMs' audit had not put back "
+            + "(by road: the Sanity marks on the sheet and in the GMs' mark)");
+    }],
+
+    ["the incident's marks are held to the maxima the GMs hold, not ones a console lowered that the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H24, 06.10.2026. The incident's GM-side writes of a student's marks, held to a maximum read off the
+         * sheet: a Despair opening fills the victim's Sanity to its maximum (murder.mjs `resolveKillerOpening`), a hit
+         * and a drain take Sanity and then Health (`takeReserves`), and a resolution's price is paid in blood on a full
+         * Sanity (`spendStress`). The victim at 3 Sanity marks, the console's Sanity maximum lowered to 3 and its
+         * put-back refused (`inConsoleWindow`): the opening is Despair. At 3 Sanity marks and 1 Health mark, the same
+         * maximum lowered again: the killer strikes with Hope (1 Sanity, 1 Health) and the turn, passing to the victim,
+         * drains 1 Sanity. A Self-defence with Hope opens Survive; at a full Sanity and 1 Health mark the console lowers
+         * the Health maximum to 1, and Survive fails with Hope - its extra drain and its price both land on Health.
+         * Read: the victim's Sanity after the opening, Sanity and Health after the strike, Health after Survive; each
+         * on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red), on the sheet and in the mark
+         * alike: the opening filled Sanity to 3 (6 since); the strike's Sanity and the drain went to Health - Sanity 3,
+         * Health 4 (5 and 2 since); Survive's drain and price marked nothing - Health 1 (3 since).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const R = "system.resources", SAN = `${R}.stress.value`, SAN_MAX = `${R}.stress.max`, HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const at = path => Number(foundry.utils.getProperty(victim._source, path));
+        const [S, H] = [at(SAN_MAX), at(HP_MAX)];
+        must(S >= 5 && H >= 4, `${victim.name}'s maxima cannot hold the fixture's marks: ${stableJson([S, H])}`);
+        const putBack = [sheetAsFound(victim, [SAN, SAN_MAX, HP, HP_MAX]), sheetAsFound(killer, [SAN, HP])];
+        const p = player(victim), read = {};
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            must(M.murderState()?.stage === "openingRoll", `the fixture's opening was answered before the test answered it: ${stableJson(M.murderState())}`);
+            read.opening = await inConsoleWindow(victim, p, { honest: { [SAN]: 3 }, forged: { [SAN_MAX]: 3 }, paths: [SAN] },
+                () => M.resolveKillerOpening({ total: 24, isCritical: false, withHope: false }));
+            must(M.murderState()?.stage === "incident", `the fixture's fight is not running: ${stableJson(M.murderState())}`);
+            await turnFor(M, killer, "strike");
+            read.strike = await inConsoleWindow(victim, p, { honest: { [SAN]: 3, [SAN_MAX]: S, [HP]: 1 }, forged: { [SAN_MAX]: 3 }, paths: [SAN, HP] },
+                () => M.resolveCrisisAction({ actorId: killer.id, key: "strike", total: 99, isCritical: false, withHope: true }));
+            await trustedWrite(victim, { [SAN_MAX]: S }, { reason: "gmRuling" });
+            await turnFor(M, victim, "selfDefence");
+            await M.resolveCrisisAction({ actorId: victim.id, key: "selfDefence", total: 99, isCritical: false, withHope: true });
+            await settle();
+            await turnFor(M, victim, "survive");
+            read.survive = await inConsoleWindow(victim, p, { honest: { [SAN]: S, [HP]: 1 }, forged: { [HP_MAX]: 1 }, paths: [HP] },
+                () => M.resolveCrisisAction({ actorId: victim.id, key: "survive", total: 0, isCritical: false, withHope: true }));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const actor of [killer, victim]) if (isDeadForGm(actor)) await reviveCharacter(actor, { quiet: true });
+            for (const back of putBack) await back();
+        }
+        equal(stableJson(read), stableJson({ opening: [[S, S]], strike: [[5, 5], [2, 2]], survive: [[3, 3]] }),
+            "the incident's marks were held to a maximum a player's console lowered that the GMs' audit had not put back "
+            + "(the opening's Sanity, the strike's Sanity and Health, Survive's Health; each on the sheet and in the GMs' mark)");
+    }],
+
+    ["a roll's marks are held to the maxima the GMs hold, not ones a console moved that the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H25, 06.10.2026; H24's leftover. A roll's resource step on a student - the GM's throw of a player's
+         * roll, the rolls granted when a GM comes back, a Reroll's (roll-draw.mjs `modifyFromHeld`) - is Daggerheart's
+         * `modifyResource`, which holds each value to the maximum the document holds and turns a Stress past it into a Hit
+         * Point (documents/actor.mjs :930-976, :1021-1031, 2.10.5; the harness's model of 2.6.5's alike), whatever change it
+         * is handed; and a console's write of a maximum the audit puts back stands on the document until its put-back
+         * lands, and for good where it fails. Each in that window (`inConsoleWindow`): a critical's step (a Hope, a Sanity
+         * mark cleared) at 5 Sanity marks under a maximum the console lowered to 3; a Reroll's step that marks Sanity
+         * again (+1) on a full track under a maximum it raised by 3; and the same on a full track with 1 Health mark under
+         * a Health maximum it lowered to 1. Read: the Sanity and Health marks, on the sheet and in the GMs' mark.
+         * At 525a186 (06.10.2026, e29run/r2h25red), on the sheet and in the mark alike: the critical left 3 marks (4
+         * since); the Reroll's mark made a seventh on a track of 6 and no Health mark (6 and 1 since); and the Health
+         * mark the overflow makes was held at 1 (2 since).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { modifyFromHeld } = await import("./roll-draw.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const R = "system.resources", HOPE = `${R}.hope.value`, SAN = `${R}.stress.value`, SAN_MAX = `${R}.stress.max`;
+        const HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const at = path => Number(foundry.utils.getProperty(student._source, path));
+        const [S, H] = [at(SAN_MAX), at(HP_MAX)];
+        must(S >= 5 && H >= 2, `${student.name}'s maxima cannot hold the fixture's marks: ${stableJson([S, H])}`);
+        const putBack = sheetAsFound(student, [HOPE, SAN, SAN_MAX, HP, HP_MAX]);
+        const p = player(student), read = {};
+        try {
+            read.critical = await inConsoleWindow(student, p, { honest: { [HOPE]: 2, [SAN]: 5, [SAN_MAX]: S }, forged: { [SAN_MAX]: 3 }, paths: [SAN] },
+                () => modifyFromHeld(student, [{ key: "hope", value: 1 }, { key: "stress", value: -1 }]));
+            read.marked = await inConsoleWindow(student, p, { honest: { [SAN]: S, [SAN_MAX]: S, [HP]: 0 }, forged: { [SAN_MAX]: S + 3 },
+                paths: [SAN, HP] }, () => modifyFromHeld(student, [{ key: "stress", value: 1 }]));
+            read.overflow = await inConsoleWindow(student, p, { honest: { [SAN]: S, [SAN_MAX]: S, [HP]: 1, [HP_MAX]: H }, forged: { [HP_MAX]: 1 },
+                paths: [HP] }, () => modifyFromHeld(student, [{ key: "stress", value: 1 }]));
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson({ critical: [[4, 4]], marked: [[S, S], [1, 1]], overflow: [[2, 2]] }),
+            "a roll's marks were held to a maximum a player's console moved that the GMs' audit had not put back "
+            + "(by roll: the Sanity and Health marks on the sheet and in the GMs' mark)");
+    }],
+
+    ["a player's write of the scars that set Hope's maximum is put back, and a GM's give of Hope reads the maximum the GMs hold", async () => {
+        /*
+         * E29 fix r2-H25, 06.10.2026; found by fix r2-H24. Daggerheart's scars set a student's Hope maximum - the world's
+         * setting less the scars (data/actor/character.mjs `prepareDerivedData`, 2.10.5 :752, 2.6.5 :817) - and the audit
+         * judged no write of them: listed and left standing. No road of the module writes them, and the one of
+         * Daggerheart's that does, the Death Move's Avoid Death, is no road in this game (states.mjs switches off the
+         * automation that offers it; the stylesheet hides the sheet's button): so they are judged as the fields only
+         * a GM writes are - put back with `lockPlayerResources` on or off, and an effect that changes them taken off.
+         * On the GM's copy of the student prepared as Daggerheart prepares Hope's maximum (`preparedAs`; the harness
+         * prepares nothing), at 2 Hope and no scars, the player's console writes 3 scars: with the setting on, then
+         * off; then with the put-back refused by a hook of the GM's (as `inConsoleWindow` refuses one), Hope's
+         * maximum is read on the document and as the GMs hold it (sheet-audit.mjs `meansMaxHeld`), and the GM gives 3
+         * Hope (use-items.mjs `grantItemEffect`); last, the player's effect takes 3 scars off. Read: the verdict, the
+         * scars on the sheet and in the GMs' mark; the two maxima; the Hope on the sheet and in the mark; the
+         * effect's verdict and whether it is left.
+         * At 525a186 (06.10.2026, e29run/r2h25red): the scars were listed and stood with the setting on and off, the
+         * mark holding none; in the window Hope's maximum read 3 on the document and 3 from `meansMaxHeld` (6 since), and
+         * the GM's 3 Hope given to 2 stopped at 3 (5 since); the effect was listed and left (put back since).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { judgeWrite, meansMaxHeld, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { grantItemEffect } = await import("./use-items.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const p = player(student);
+        const SCARS = "system.scars", HOPE = "system.resources.hope.value", NAME = "Tier 2 r2-H25 scars";
+        const sheet = path => foundry.utils.getProperty(student._source, path) ?? null;
+        const mark = () => sheetMarkStore.get(student.id) ?? {};
+        const ours = () => student.effects.contents.filter(effect => effect.name === NAME);
+        const [scarsWas, hopeWas, lock] = [foundry.utils.getProperty(student._source, SCARS), sheet(HOPE), getSetting(SETTINGS.lockPlayerResources)];
+        const unprepare = preparedAs(student, system => { system.resources.hope.max = STARTING.hopeMax - (system.scars ?? 0); });
+        const scarred = async () => {
+            await trustedWrite(student, { [SCARS]: 0, [HOPE]: 2 }, { reason: "gmRuling" });
+            await auditFromScratch(student);
+            const judged = await asPlayerWrite(student, { [SCARS]: 3 }, p);
+            await sheetAuditIdle();
+            return judged?.verdict ?? null;
+        };
+        const read = {};
+        let top = null;
+        try {
+            await trustedWrite(student, { [SCARS]: 0 }, { reason: "gmRuling" });
+            top = Number(student.system.resources.hope.max);
+            must(top >= 5, `${student.name}'s Hope maximum cannot hold the fixture's Hope: ${top}`);
+            read.locked = [await scarred(), sheet(SCARS), mark().scars ?? null];
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, false);
+            read.unlocked = [await scarred(), sheet(SCARS), mark().scars ?? null];
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, lock);
+            const veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+                doc.id === student.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+            try {
+                const verdict = await scarred();
+                read.window = [verdict, sheet(SCARS), Number(student.system.resources.hope.max), meansMaxHeld(student, "hope")];
+                await grantItemEffect(student, null, { hope: 3 }, { consumeItem: false });
+                await settle();
+                await sheetAuditIdle();
+                read.give = [sheet(HOPE), mark().resources?.hope?.value ?? null];
+            } finally {
+                Hooks.off("preUpdateActor", veto);
+                await sheetAuditIdle();
+            }
+            await trustedWrite(student, { [SCARS]: 0 }, { reason: "gmRuling" });
+            await auditFromScratch(student);
+            const [effect] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: NAME,
+                system: { changes: [{ key: SCARS, type: "add", value: -3 }] } }], { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite("createActiveEffect", effect, {}, p.id);
+            await sheetAuditIdle();
+            read.effect = [verdict?.verdict ?? null, ours().length];
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, lock);
+            unprepare?.();
+            await sheetAuditIdle();
+            if (ours().length) await student.deleteEmbeddedDocuments("ActiveEffect", ours().map(effect => effect.id));
+            await student.update({ [SCARS]: scarsWas === undefined ? forcedDeletion() : scarsWas, [HOPE]: hopeWas });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ locked: ["putBack", 0, 0], unlocked: ["putBack", 0, 0], window: ["putBack", 3, top - 3, top],
+            give: [5, 5], effect: ["putBack", 0] }),
+        "a player's write of the scars stood, or a GM's give of Hope read a Hope maximum the scars lowered that the GMs' audit had not put back "
+            + "(the scars' verdict and the scars on the sheet and in the GMs' mark, with the setting on and off; in the put-back's window, the "
+            + "verdict, the scars, Hope's maximum on the document and as the GMs hold it; the Hope given on the sheet and in the mark; an "
+            + "effect on the scars: its verdict, and whether it is left)");
+    }],
+
+    ["a Reroll's give-back and a critical's second Hope are held to the Hope maximum the GMs hold", async () => {
+        /*
+         * E29 fix r2-H27, 06.10.2026; found by fix r2-H25 (its "found, not fixed"). Two GM jobs write a student's Hope
+         * from the Hope the GMs hold (sheet-audit.mjs `gmMeansWrite`) and read its maximum off the document: a Reroll
+         * that does not stand gives its price back (reroll.mjs `giveBack`), and a Reroll into a critical pays the
+         * module's second Hope (despair-award.mjs `adjustCritHopeTopUp`). Daggerheart's scars set that maximum - the
+         * world's setting less them - and a console's write of them stands on the document until the audit's put-back
+         * lands (for good where it fails), so each job stopped at the lowered maximum and the GM's write became the GMs'
+         * value. On the GM's copy of the student prepared as Daggerheart prepares Hope's maximum (`preparedAs`), in the
+         * window a console's write of the scars leaves (`inConsoleWindow`, the put-back refused), a roll of the
+         * student's kept on the GMs is rerolled on this GM (`rerollOnGm`, as fix r2-H5's test does) with the players'
+         * Hope automation on: from 4 Hope under 3 scars (a maximum of 3 for the GMs' 6) into a Reroll that cannot be
+         * thrown, and from 5 Hope under 4 scars (a maximum of 2) into a critical. Read per Reroll: what it answered,
+         * and the Hope on the sheet and in the GMs' mark. Expected the price given back whole (1 + 3) and the second
+         * Hope paid (2 + 1), both under the GMs' 6. At 414ebd2 (06.10.2026, e29run/r2h27red): 3 and 3, 2 and 2.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const R = await import("./reroll.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const { meansMaxHeld, sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [who] = livingStudents().filter(player);
+        const p = player(who);
+        const SCARS = "system.scars", HOPE = "system.resources.hope.value";
+        const [scarsWas, hopeWas] = [foundry.utils.getProperty(who._source, SCARS), foundry.utils.getProperty(who._source, HOPE)];
+        const messages = [], read = [];
+        must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+        const unprepare = preparedAs(who, system => { system.resources.hope.max = STARTING.hopeMax - (system.scars ?? 0); });
+        try {
+            await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, false);
+                const first = { hope: 9, fear: 4 };
+                for (const [hope, scars, next, fails] of [[4, 3, { hope: 10, fear: 3 }, true], [5, 4, { hope: 7, fear: 7 }, false]]) {
+                    let made = null;
+                    const [[onSheet, inMark]] = await inConsoleWindow(who, p, { honest: { [SCARS]: 0, [HOPE]: hope }, forged: { [SCARS]: scars }, paths: [HOPE] },
+                        async () => {
+                            const [top, held] = [Number(who.system.resources.hope.max), meansMaxHeld(who, "hope")];
+                            must(top === STARTING.hopeMax - scars && held === STARTING.hopeMax,
+                                `the console's scars did not lower the document's Hope maximum under the GMs' - this would measure nothing (${top} on the document, ${held} held)`);
+                            const message = await thrownFresh(who, first, () => null, { remember: true });
+                            messages.push(message.id);
+                            must(rerollBookmarkStore.get(who.id)?.messageId === message.id, "the roll to take back is not the one the GMs keep - this would measure nothing");
+                            await trustedWrite(who, { [HOPE]: hope }, { reason: "gmRuling" });
+                            await sheetAuditIdle();
+                            const stand = rerollableRoll(message, { first, next, onReroll: async () => {
+                                if (fails) throw new Error("SUITE E29 fix r2-H27: a Reroll that cannot be thrown");
+                            } });
+                            try {
+                                made = await R.rerollOnGm(who, game.user);
+                            } finally {
+                                stand.putBack();
+                            }
+                            await settle();
+                        });
+                    read.push([Array.isArray(made?.lines) ? "made" : made?.say ?? made?.refused ?? null, onSheet, inMark]);
+                }
+            });
+        } finally {
+            unprepare?.();
+            for (const id of messages) await game.messages.get(id)?.delete();
+            await sheetAuditIdle();
+            await who.update({ [SCARS]: scarsWas === undefined ? forcedDeletion() : scarsWas, [HOPE]: hopeWas });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([["DRPG.Reroll.failed", 4, 4], ["made", 3, 3]]),
+            "a Reroll's give-back or a critical's second Hope stopped at a Hope maximum a console's scars had lowered and the GMs' audit had not put back, "
+                + "or the GM's write of it became the mark (per Reroll: the answer, the Hope on the sheet and in the GMs' mark - the GMs' maximum 6, the document's 3 and 2)");
+    }],
+
     ["a player's write that raises a resource's maximum banks no credit beyond the maximum the GMs hold", async () => {
         /* E29 fix r2-H8, 06.10.2026; review round 2 cor m1. The student's Sanity at 1 mark; the player's write
            raises the marks and the maximum by 3 past the maximum - the marks stand as a price and are credit,
@@ -27567,6 +30292,122 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson(["listed", "healing", "flagged", "stands"]),
             "a renamed healing usable read as the kind of its new name, or its use on Sanity was covered (the rename, the kind, the use, the count)");
+    }],
+
+    ["an item used is judged by the tier, kind, state and place the GMs hold, not by a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H19, 06.10.2026. The judge of an item used (sheet-audit.mjs `itemCovers`) read the item as the use's
+         * hook heard it, and a write of the player's the audit puts back stands on the item until its put-back lands, or
+         * for good where it fails: the GMs' mark keeps their own then. For each case a tier-1 healing kit of the student's,
+         * two of it, a field written by the GM, then by the player where the GMs' mark does not see it (the audit's aside),
+         * then the player's use and its consumption as the player's browser writes them: `tier` raised to 3 and used as a
+         * tier-3 kit is (2 Hope, both Health marks); `kind` made a Sanity Relief and used on Sanity; `mend` broken by the GM,
+         * mended and used; `place` put in a stash by the GM, carried and used. Read: each use's verdict, and the Hope after
+         * `tier`. Until this fix (68150ec, e29run/r2h19red, 06.10.2026) each use was judged by the item the write left -
+         * every verdict `stands`, and the Hope after `tier` 4.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const INV = await import("./inventory.mjs");
+        const { sheetAuditIdle, judgeWrite, onItemWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const r = student.system.resources;
+        must(Number(r?.hope?.max) >= 4 && Number(r?.hitPoints?.max) >= 2 && Number(r?.stress?.max) >= 1, "the student's Hope, Health or Sanity is too small for these uses");
+        const HOPE = "system.resources.hope.value", HP = "system.resources.hitPoints.value", STRESS = "system.resources.stress.value", COUNT = "system.quantity";
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const was = { [HOPE]: r.hope.value, [HP]: r.hitPoints.value, [STRESS]: r.stress.value };
+        // Each case: the GM's write, the player's where the mark does not see it, and the use.
+        const cases = {
+            tier: { gm: {}, forged: { [flag("tier")]: 3 }, used: { [HOPE]: 4, [HP]: 0 } },
+            kind: { gm: {}, forged: { [flag("kind")]: "stress" }, used: { [STRESS]: 0 } },
+            mend: { gm: { [flag("broken")]: true }, forged: { [flag("broken")]: forcedDeletion() }, used: { [HP]: 1 } },
+            place: { gm: { [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "Suite H19 a stash" },
+                forged: { [flag("location")]: INV.LOCATIONS.carried, [flag("stashRoom")]: forcedDeletion() }, used: { [HP]: 1 } }
+        };
+        const read = {};
+        let kit = null;
+        try {
+            for (const [name, { gm, forged, used }] of Object.entries(cases)) {
+                await student.update({ [HOPE]: 2, [HP]: 2, [STRESS]: 1 });
+                kit = await INV.grantItem(student, { name: "Tier 2 H19 kit", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+                must(kit && kit.getFlag(MODULE_ID, INV.ITEM_FLAGS.kind) === "healing", "the healing kit was not given with its kind");
+                await kit.update({ [COUNT]: 2, ...gm });
+                await sheetAuditIdle();
+                await kit.update(forged, { [AUDIT_ASIDE]: true });
+                await auditFromScratch(student);
+                const marked = sheetMarkStore.get(student.id)?.items?.[kit.id] ?? null, src = kit.toObject();
+                must(marked && Number(marked.system?.quantity) === 2 && Object.keys(forged).every(path =>
+                    stableJson(foundry.utils.getProperty(src, path) ?? null) !== stableJson(foundry.utils.getProperty(marked, path) ?? null)),
+                    `${name}: the write did not stand on the kit alone, outside the GMs' mark - this would measure nothing`);
+                await student.update(used, { [AUDIT_ASIDE]: true });
+                const use = judgeWrite("updateActor", student, foundry.utils.expandObject(used), player.id, { drpgWrite: { reason: "itemUse", ref: kit.id } });
+                await kit.update({ [COUNT]: 1 }, { [AUDIT_ASIDE]: true });
+                onItemWrite(kit, foundry.utils.expandObject({ [COUNT]: 1 }), {}, player.id, { primary: true });
+                const count = judgeWrite("updateItem", kit, foundry.utils.expandObject({ [COUNT]: 1 }), player.id, {});
+                read[name] = (await use)?.verdict ?? null;
+                await count;
+                await sheetAuditIdle();
+                if (name === "tier") read.hope = foundry.utils.getProperty(student._source, HOPE);
+                await kit.delete();
+                kit = null;
+                await sheetAuditIdle();
+            }
+        } finally {
+            await sheetAuditIdle();
+            if (kit) await student.items.get(kit.id)?.delete();
+            await student.update(was);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ tier: "putBack", kind: "flagged", mend: "flagged", place: "flagged", hope: 2 }),
+            "an item's use was judged by a tier, kind, mend or place a write had left on it outside the GMs' mark (per case: the use's verdict; the Hope after the tier's)");
+    }],
+
+    ["a GM's ruling on an item used reads its identity and its count as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H19, 06.10.2026. A GM's ruling on an item's creative use (use-items.mjs `grantItemEffect`, the
+         * messenger's ruling and `game.drpg.grantItemEffect`) stamps its card with the item's identity, which a trap watching
+         * that identity reads (traps.mjs), and spends one of its count or breaks the last - both read off the item as it
+         * stood, where a write of the player's the audit puts back stands until its put-back lands, or for good where it
+         * fails. A tier-0 usable of the student's, one of it, given a count of 2 and another identity where the GMs' mark does
+         * not see it (the audit's aside), and the ruling made on it. Read: whether the item is broken, and whether the
+         * ruling's card names the identity the GMs hold. Until this fix (68150ec, e29run/r2h19red, 06.10.2026) neither:
+         * the ruling spent one of the two written there, and its card named the identity written there.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the ruling reads - this would measure nothing");
+        const [student] = cast(1);
+        const INV = await import("./inventory.mjs");
+        const { grantItemEffect } = await import("./use-items.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const IDENTITY = `flags.${MODULE_ID}.${INV.ITEM_FLAGS.identity}`, HP = "system.resources.hitPoints.value";
+        const hp = student.system.resources.hitPoints.value, before = new Set(game.messages.contents.map(m => m.id));
+        let thing = null, read = null;
+        try {
+            thing = await INV.grantItem(student, { name: "Tier 2 H19 odd thing", category: "usable", tier: 0, override: true, quiet: true });
+            const identity = thing?.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity) ?? null;
+            must(thing && identity && Number(thing.system.quantity) === 1, "the tier-0 usable was not given, with an identity, one of it");
+            await sheetAuditIdle();
+            await thing.update({ "system.quantity": 2, [IDENTITY]: "SUITEH19FORGED00" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(student.id)?.items?.[thing.id] ?? null;
+            must(marked && Number(marked.system?.quantity) === 1 && foundry.utils.getProperty(marked, IDENTITY) === identity,
+                "the write did not stand on the item alone, outside the GMs' mark - this would measure nothing");
+            await grantItemEffect(student, thing, { hitPoints: 1 });
+            await settle();
+            const card = game.messages.contents.find(m => !before.has(m.id) && cardFlag(m, "usedItem"));
+            read = [INV.isBroken(student.items.get(thing.id)), card ? cardFlag(card, "usedItem")?.id === identity : null];
+        } finally {
+            await sheetAuditIdle();
+            if (thing) await student.items.get(thing.id)?.delete();
+            for (const m of game.messages.contents.filter(m => !before.has(m.id))) await m.delete();
+            await student.update({ [HP]: hp });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, true]),
+            "a GM's ruling spent a count or stamped an identity a write had left on the item outside the GMs' mark (the item broken, the card's identity the GMs')");
     }],
 
     ["the free Move a player gives back is flagged with Undo, and what no judgement reads is listed - a flag, a condition, an item the GMs hold no copy of", async () => {
@@ -27867,10 +30708,14 @@ const SCENARIOS = [
                 edit: packet => ({ ...packet, context: { ...(packet.context ?? {}), category: "tool", goal: "specific" } }) });
             backs.push(F.putBack);
             must(F.record && (searchTier(F.record).hit || F.record.isCritical), "the GM drew no Search that hit - this would measure nothing");
-            const stash = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
-            const found = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
+            // Each Search a find is named after has its token spent (E29 fix r2-H11), so each is flagged for what it measures.
+            await tokenSpent(player, theirs);
+            const stash = await spentSearch(player, theirs, { total: 13 });
+            const found = await spentSearch(player, theirs, { total: 13 });
             const fresh = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
             backs.push(stash.putBack, found.putBack, fresh.putBack);
+            must(rollStore.get(F.record.rollId)?.tokenSpentAt && stash.spent && found.spent,
+                "a spend did not mark the Search it followed - the finds below would be flagged for that alone");
             await rollStore.patch(stash.rollId, { resolved: ["search"] });
             const find = async (name, rollId) => {
                 const out = await asPlayerItemWrite("createItem", theirs, moduleItemData(name), player, { reason: "searchFind", ref: rollId });

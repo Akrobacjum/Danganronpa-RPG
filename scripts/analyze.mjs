@@ -21,7 +21,8 @@
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import {
-    TRUTH_BULLET_FLAGS, secretOf, setSecret, isTruthBullet, isAnalysable, bulletDescription, faintOf, NOT_AN_EDIT, shownSourceAction
+    TRUTH_BULLET_FLAGS, secretOf, setSecret, isTruthBullet, isAnalysable, bulletDescription, faintOf, NOT_AN_EDIT, shownSourceAction,
+    bulletAsHeld
 } from "./truth-bullets.mjs";
 // The trace's own `public` record, for a reading a bullet's secret was minted
 // without (T-2). Static: remnants.mjs does not import this file.
@@ -68,6 +69,13 @@ export async function resolveAnalyze({
         warn(`Analyze: no Truth Bullet ${itemId} on ${actorId}.`);
         return null;
     }
+    /*
+     * THE BULLET AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026): whether it can be analysed now, how hard it is,
+     * what it showed before, its Faint and the text a description is rebuilt from are read off the GMs' copy
+     * (truth-bullets.mjs `bulletAsHeld`, which says why no wait is needed), never off a player's write of them still
+     * waiting for its put-back. The writes go to the bullet itself.
+     */
+    const held = bulletAsHeld(item);
 
     const { getClock } = await import("./clock.mjs");
     const chapter = getClock().chapter;
@@ -85,7 +93,7 @@ export async function resolveAnalyze({
      * chapter to take back, recorded below when it was scored.
      */
     const secretNow = secretOf(item.uuid);
-    if (!undo && !isAnalysable(item, chapter)) return { refused: "that bullet cannot be analysed now" };
+    if (!undo && !isAnalysable(held, chapter)) return { refused: "that bullet cannot be analysed now" };
     if (undo && secretNow.analysedChapter !== chapter) return { refused: "no Analyze of that bullet this chapter to take back" };
 
     // A Reroll buys back the dice, not the attempt. Whatever the first throw
@@ -143,7 +151,7 @@ export async function resolveAnalyze({
             // undo was never told about: a rerolled Analyze that lost left the
             // doubtful-trace badge the first throw had published. `faintOf` reads
             // the secret first, so taking the flag off the item loses nothing.
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: kindShown ? faintOf(item) : null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: kindShown ? faintOf(held) : null,
             // The reading goes back too, ITEM AND DESCRIPTION BOTH. Clearing the
             // flag and leaving the rendered paragraph would hand the reroll for
             // free: the player reads the sentence off their own sheet while the
@@ -151,9 +159,9 @@ export async function resolveAnalyze({
             // so the second throw can pay out exactly the same words.
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: "",
             "system.description": bulletDescription(
-                item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "")
+                held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "")
         };
-        if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.lockedChapter) === chapter) {
+        if (held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.lockedChapter) === chapter) {
             patch[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.lockedChapter}`] = null;
         }
         try {
@@ -169,7 +177,7 @@ export async function resolveAnalyze({
         // made of these two fields alone would be an answer key with no answer in it.
         try {
             await setSecret(item.uuid, {
-                analysedFrom: item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral",
+                analysedFrom: held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral",
                 // Which chapter the throw belongs to: a Reroll may take back
                 // this chapter's, and nothing older (E03).
                 analysedChapter: chapter
@@ -182,7 +190,7 @@ export async function resolveAnalyze({
     // Which bullet this roll read, for a Reroll's undo on a GM (C4a).
     await rolls.noteFactOn(roll, { bulletId: item.id });
 
-    const visibility = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.visibility) ?? "evident";
+    const visibility = held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.visibility) ?? "evident";
     const realType = secret.realType ?? "neutral";
     const dc = analyzeDc(visibility, realType);
 
@@ -238,6 +246,8 @@ async function identify(item, actor, realType, isCritical, dc, total) {
     // object. All four were waiting in the bullet's secret since creation, so a
     // trace the killer has since wiped still identifies completely.
     const secret = secretOf(item.uuid);
+    // Its Faint and its text as the GMs hold them (fix r2-H17, `resolveAnalyze`).
+    const held = bulletAsHeld(item);
 
     /*
      * THE SECRET IS THE FAST PATH, THE TRACE IS THE FALLBACK (T-2).
@@ -266,7 +276,7 @@ async function identify(item, actor, realType, isCritical, dc, total) {
                creation, so the badge announced a doubtful trace to somebody who
                had not analysed it - `faintOf` knows both roads for a world made
                before that. */
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(item),
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(held),
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: analyzedText,
             // Rebuilt from the FLAG rather than patched onto whatever the
             // description currently holds: a GM may have rewritten the Observe
@@ -275,7 +285,7 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             // description its own source of truth, which is how the two halves
             // would start to disagree.
             "system.description": bulletDescription(
-                item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "", analyzedText)
+                held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "", analyzedText)
         }, { [NOT_AN_EDIT]: true });
     } catch (err) {
         error("Could not identify the Truth Bullet after a successful Analyze", err);
