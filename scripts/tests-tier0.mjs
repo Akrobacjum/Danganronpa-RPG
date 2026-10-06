@@ -4868,6 +4868,9 @@ const REGRESSIONS = [
         ok(judge.includes("revertPlayerBulletEdit("), "a player's edit of a bullet is not put back");
         ok(judge.indexOf("revertPlayerBulletEdit(") < judge.indexOf("FROM_REMNANT"),
             "the player's edit is looked at after the watcher has already returned for the trace's own writes");
+        /* E29 fix r2-H13: what a bullet's write touched is read with the sheet audit's reader of a write's forms. */
+        ok(bodyOf(bullets, "export function guardedPathsIn(", { until: "\n}\n" }).includes("reachOf(changes)"),
+            "a bullet's guarded fields are read off a write by a reader of their own, not by sheet-audit.mjs's reachOf");
         const guard = stripComments(sources.get("resource-guard.mjs") ?? "");
         for (const flag of ["playerText", "analyzedText", "shownType", "analyzed", "lockedChapter"]) {
             ok(bodyOf(guard, "const BULLET_GUARDED", { length: 400 }).includes(`"${flag}"`),

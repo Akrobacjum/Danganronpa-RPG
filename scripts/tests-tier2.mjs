@@ -13663,6 +13663,67 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM's text for a Truth Bullet in its module flags replaced whole goes up to its trace and down to every copy", async () => {
+        /*
+         * E29 fix r2-H13, 06.10.2026. A GM's write of a bullet's module flags whole (v14's forced replacement, the
+         * instance the harness hands the hook) is the bullet's own write in another form: the text in it goes up
+         * to the trace and down to every copy, as the test above has it for a text written through the student.
+         * 30-security drives a player's writes in these forms and the GMs' copy; this is the trace's half. At
+         * 528a72d the trace and the other copy kept the words before (e29run/r2h13red).
+         */
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const F = bullets.TRUTH_BULLET_FLAGS;
+
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is built beside a token standing in a room");
+        const scene = canvas?.scene;
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
+        const [writer, holder] = cast(2);
+        const TEXT = `Soot on the grate ${Date.now() % 100000}`;
+        let token = null;
+        const made = [];
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
+                note: "test fixture - a bullet's module flags written whole"
+            });
+            ok(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "Suite fixture soot", playerText: "A grey smear." });
+            for (const actor of [writer, holder]) {
+                const item = await bullets.createTruthBullet(actor, {
+                    name: "Suite fixture soot", realType: "resolution", visibility: "obvious",
+                    playerText: "A grey smear.", remnantId: token.id, sceneId: scene.id
+                });
+                ok(item, `no bullet was created for ${actor.name}`);
+                made.push(item);
+            }
+            await settle();
+            const mine = writer.items.get(made[0].id);
+            const scope = foundry.utils.deepClone(mine.flags?.[MODULE_ID] ?? {});
+            await mine.update({ flags: { [MODULE_ID]: replaced({ ...scope, [F.playerText]: TEXT }) } });
+            const textOf = (actor, item) => actor.items.get(item.id)?.getFlag(MODULE_ID, F.playerText) ?? null;
+            await until(() => remnants.remnantPublic(token)?.playerText === TEXT && textOf(holder, made[1]) === TEXT);
+            equal(JSON.stringify([textOf(writer, made[0]), remnants.remnantPublic(token)?.playerText ?? null, textOf(holder, made[1])]),
+                JSON.stringify([TEXT, TEXT, TEXT]),
+                "a GM's text in the module flags written whole did not reach the trace, or the trace did not send it to the other copy");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) {
+                    await scene.deleteEmbeddedDocuments("Token", [token.id]);
+                }
+            }
+        }
+    }],
+
     ["a Key and a Final keep their reading for an Analyze, like any trace", async () => {
         /*
          * Dawid, 21.09: every trace works like an ordinary one - a description,

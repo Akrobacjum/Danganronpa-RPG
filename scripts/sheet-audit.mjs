@@ -692,9 +692,10 @@ const plainPath = path => path.replace(/(^|\.)[-=]=/g, "$1");
  * made the student a Monokuma, and all of it stood with no row. What v14 hands a hook for an operator
  * - the instance, a plain value, or nothing at that key - is LIVE-E30-03: the harness hands the
  * instance (lib/operators.mjs), and there a key spelled the old way changes nothing; Foundry is not
- * measured.
+ * measured. truth-bullets.mjs reads a bullet's write with it too (`guardedPathsIn`, fix r2-H13), so the
+ * two judges of an item's write read its forms one way.
  */
-function reachOf(changes) {
+export function reachOf(changes) {
     return [...new Set(pathsOf(changes).map(raw => {
         const parts = raw.split("."), cut = parts.findIndex(part => /^[-=]=/.test(part));
         return plainPath(cut < 0 ? raw : parts.slice(0, cut + 1).join("."));

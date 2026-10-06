@@ -2,7 +2,7 @@ export const layers = ["ci"];
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
-export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDenials, repoUrl, canary }) {
+export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissionDenials, repoUrl, canary }) {
     const ids = await gm.eval(`return { aiko: game.actors.getName("Aiko Hoshino").id, botan: game.actors.getName("Botan Kage").id, chie: game.actors.getName("Chie Mori").id, daichi: game.actors.getName("Daichi Sato").id };`);
 
     // 1. XSS via messenger free text (player writes hostile markup)
@@ -3269,6 +3269,88 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("SECURITY: a student's whole item list written back as it stands puts nothing back on their Truth Bullet and tells the GMs nothing",
         everyClient(wholeSame.after, bulletBefore) && wholeSame.putBacks === 0 && !wholeSame.told.reverted && !wholeSame.told.unrestored,
         JSON.stringify({ bulletBefore, wholeSame }));
+
+    /*
+     * A BULLET'S MODULE FLAGS WRITTEN WHOLE (E29 fix r2-H13, 06.10.2026; found by fix r2-H12). The edits above in the
+     * forms that reach the guarded flags from over them: p2's console replaces Botan's bullet's module flags with
+     * `analyzed` true (v14's forced replacement - the instance, as the harness hands the hook: lib/operators.mjs,
+     * LIVE-E30-03), by the bullet's own update and through Botan's, and deletes them (forced deletion) - each put
+     * back on every client in one write and told to the GMs as put back; a GM's module flags replaced whole with a
+     * new text stand on every client, and p2's later write of Botan's whole list leaves them; and p2's module flags
+     * written back whole as they stand put nothing back and tell nobody (a guard). p2's writes take the bullet's
+     * category with the rest, which is the sheet audit's to put back, not the bullet guard's: read on every client
+     * beside the guarded fields (`kind`), and the audit's mark is to hold the bullet as the document does once it has
+     * judged both put-backs (`held`). The old spellings (`flags.-=<module>`, `flags.==<module>`) change nothing in
+     * the harness (LIVE-E30-01), so no check sends them. Between the checks the GM writes the module's flags back
+     * whole as they stood before the first (`scopeBefore`).
+     *
+     * At 528a72d the first four were red (e29run/r2h13red, 06.10.2026): p2's three writes stood on every client,
+     * nothing put back and no word to the GMs - the audit put back the category and the item's id alone - and p2's
+     * write of the whole list took the GM's text back to the words before it. With the guard's put-back written
+     * before the audit had judged p2's write, the mark held no bullet after any of the three (truth-bullets.mjs
+     * `onBulletWrite`).
+     */
+    const scopeBefore = await gm.eval(`return foundry.utils.deepClone(game.actors.get("${ids.botan}").items.get("${bullet}")?.flags?.["${MOD}"] ?? null);`);
+    const replaced = scope => `foundry.data.operators.ForcedReplacement.create(${JSON.stringify(scope)})`;
+    const writeScope = (client, value, opts = ", { drpgAutomated: true }") => client.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ flags: { "${MOD}": ${value} } }${opts}); return true;`);
+    const kinds = () => Promise.all([gm, p1, p2, p3].map(c => c.eval(`return game.actors.get("${ids.botan}").items.get("${bullet}")?.getFlag("${MOD}", "category") ?? null;`)));
+    const restoreScope = async () => {
+        await writeScope(gm, replaced(scopeBefore), "");
+        await settle(800);
+    };
+    // The keys of the bullet's module flags on the GM, and how the sheet audit's mark holds them once it has judged every write queued on Botan.
+    const heldScope = () => gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs"); await A.sheetAuditIdle();
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const held = S.sheetMarkStore.get("${ids.botan}")?.items?.["${bullet}"];
+        const doc = game.actors.get("${ids.botan}").items.get("${bullet}")?.flags?.["${MOD}"] ?? {}, marked = held?.flags?.["${MOD}"] ?? {};
+        const flat = scope => JSON.stringify(Object.keys(scope).sort().map(key => [key, scope[key]]));
+        return { scope: Object.keys(doc).sort().join(","), marked: !held ? "not held" : flat(marked) === flat(doc) ? "as the document" : Object.keys(marked).sort().join(",") };`);
+    note("Truth Bullet module flags: the bullet's module flags, and the sheet audit's mark of them, before p2's writes", JSON.stringify(await heldScope()));
+    const scopeEdit = async (label, write) => {
+        const from = await gm.eval(`return game.messages.size;`);
+        await putBacks();
+        await write();
+        const out = { after: await readAfterPutBack(bulletBefore), putBacks: await putBacks(), told: await gmSaid(from), kind: await kinds(), held: await heldScope() };
+        note(`Truth Bullet module flags ${label}: what the GM's copy holds after the put-backs, and the mark`, JSON.stringify(out.held));
+        await restoreScope();
+        return out;
+    };
+    const scopePutBack = edit => everyClient(edit.after, bulletBefore) && edit.putBacks === 1 && edit.told.reverted && !edit.told.unrestored
+        && edit.held.marked === "as the document";
+
+    const scopeReplaced = await scopeEdit("replaced", () => writeScope(p2, replaced({ analyzed: true })));
+    check("SECURITY: a player's console replacing their Truth Bullet's module flags whole is put back on every client, and the GMs are told so",
+        Boolean(bullet) && scopePutBack(scopeReplaced), JSON.stringify({ bulletBefore, scopeReplaced }));
+    const scopeViaBotan = await scopeEdit("replaced through Botan", () => p2.eval(`await game.actors.get("${ids.botan}").update({ items: [{ _id: "${bullet}",
+        flags: { "${MOD}": ${replaced({ analyzed: true })} } }] }, { drpgAutomated: true }); return true;`));
+    check("SECURITY: a player's console replacing their Truth Bullet's module flags whole through their student's update is put back on every client, and the GMs are told so",
+        scopePutBack(scopeViaBotan), JSON.stringify({ bulletBefore, scopeViaBotan }));
+    const scopeDeleted = await scopeEdit("deleted", () => writeScope(p2, "foundry.data.operators.ForcedDeletion.create()"));
+    check("SECURITY: a player's console deleting their Truth Bullet's module flags is put back on every client, and the GMs are told so",
+        scopePutBack(scopeDeleted), JSON.stringify({ bulletBefore, scopeDeleted }));
+
+    const gmWhole = { text: "SEC the GM's flags written whole", analyzed: bulletBefore.analyzed };
+    await writeScope(gm, replaced({ ...scopeBefore, playerText: gmWhole.text }), "");
+    await gm.eval(`const end = Date.now() + 6000; const read = () => { ${readBullet} };
+        while (read().text !== ${JSON.stringify(gmWhole.text)} && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return true;`);
+    await settle(800);
+    const gmScope = await Promise.all([gm, p1, p2, p3].map(c => c.eval(readBullet)));
+    await putBacks();
+    await wholeBotan(null);
+    await settle(2000);
+    const listAfter = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readBullet))), putBacks: await putBacks() };
+    check("SECURITY: a GM's module flags for a Truth Bullet replaced whole with a new text stand on every client, and a player's later write of the student's whole list leaves them",
+        everyClient(gmScope, gmWhole) && everyClient(listAfter.after, gmWhole) && listAfter.putBacks === 0, JSON.stringify({ gmWhole, gmScope, listAfter }));
+    await restoreScope();
+
+    saidFrom = await gm.eval(`return game.messages.size;`);
+    await putBacks();
+    await writeScope(p2, replaced(scopeBefore));
+    await settle(2000);
+    const scopeSame = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readBullet))), putBacks: await putBacks(), told: await gmSaid(saidFrom) };
+    check("SECURITY: a player's Truth Bullet module flags written back whole as they stand put nothing back and tell the GMs nothing",
+        everyClient(scopeSame.after, bulletBefore) && scopeSame.putBacks === 0 && !scopeSame.told.reverted && !scopeSame.told.unrestored,
+        JSON.stringify({ bulletBefore, scopeSame }));
 
     /*
      * The load-time record ran on the GM, once (the E03 review measured it running

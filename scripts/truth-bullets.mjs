@@ -44,7 +44,7 @@ import { playSfxFor } from "./sfx.mjs";
 import { bulletStore, bulletRefCopy, backupCase, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible, stableJson } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
-import { itemsWritten } from "./sheet-audit.mjs";
+import { itemsWritten, judgedFor, reachOf } from "./sheet-audit.mjs";
 
 /** The one inventory category a Truth Bullet ever has. */
 export const BULLET_CATEGORY = "truthBullet";
@@ -1198,17 +1198,29 @@ function guardedValues(item) {
     return values;
 }
 
-/** Which guarded paths an update touched, deletions (`-=key`) included. */
-export function guardedPathsIn(changes) {
-    const touched = [];
-    if (changes?.name !== undefined) touched.push("name");
-    if (changes?.img !== undefined) touched.push("img");
-    if (changes?.system?.description !== undefined) touched.push("system.description");
-    const flags = changes?.flags?.[MODULE_ID] ?? {};
-    for (const key of GUARDED_BULLET_FLAGS) {
-        if (key in flags || `-=${key}` in flags) touched.push(`flags.${MODULE_ID}.${key}`);
-    }
-    return touched;
+/** Every guarded field of a bullet, by the path a write names it with (`guardedValues`' keys). */
+const GUARDED_PATHS = ["name", "img", "system.description", ...GUARDED_BULLET_FLAGS.map(key => `flags.${MODULE_ID}.${key}`)];
+
+/*
+ * WHICH GUARDED FIELDS A WRITE TOUCHED, WHATEVER FORM IT TAKES (E29 fix r2-H13, 06.10.2026; found by fix
+ * r2-H12). What a write reaches is read as the sheet audit reads it (sheet-audit.mjs `reachOf`, fix r1-G2):
+ * a key spelled `-=key` or `==key` is cut there, and v14's forced deletion or replacement is a leaf. A guarded
+ * field the write reaches, or reaches under, is touched, as one named by its own path always was. One under
+ * what the write reaches - the module's flags, `flags` or `system` deleted or replaced whole - is touched when
+ * its value `now` differs from this GM's `copy`, as the student's road counts (`bulletWrites`): such a write
+ * repeats every field it leaves as it was, and a scope written back as it stood puts nothing back and tells
+ * nobody. With no copy to compare with, every field under it is touched, as the student's road counts a list
+ * written whole. Until this fix the reader knew `name`, `img`, `system.description`, `flags.<module>.<key>` and
+ * `-=key` alone: at 528a72d p2's console replacing Botan's bullet's module flags with `analyzed` true, by its own
+ * update and through Botan's, and deleting them, stood on every client with no word to the GMs; and a GM's text in
+ * them replaced whole stayed off its trace and out of the GMs' copy, so p2's write of Botan's whole list as it stood
+ * put it back to the words before (scenario 30 and tier 2's "... in its module flags replaced whole ...",
+ * e29run/r2h13red, 06.10.2026).
+ */
+export function guardedPathsIn(changes, now = null, copy = null) {
+    const reached = reachOf(changes);
+    return GUARDED_PATHS.filter(path => reached.some(at => at === path || at.startsWith(`${path}.`))
+        || (reached.some(at => path.startsWith(`${at}.`)) && (!now || !copy || stableJson(now[path]) !== stableJson(copy[path]))));
 }
 
 /** uuid -> the guarded fields as a GM last left them, on this browser. */
@@ -1308,7 +1320,19 @@ async function onBulletWrite(item, changes, options, userId) {
     try {
         // Every GM's copy follows a GM's write - the next primary may be any
         // of them. Memory only: nothing is written, so no GM doubles anything.
-        const touched = isTruthBullet(item) ? guardedPathsIn(changes) : [];
+        // A write that took the category with the rest of the module's flags
+        // leaves an item `isTruthBullet` does not read as one; the copy says it
+        // was one when a GM last left it, so it is judged as one (fix r2-H13).
+        // The put-back writes the guarded fields alone. The category is the
+        // sheet audit's: of the same write it puts back the category and the
+        // item's id and tells the player, and the rest the flags held
+        // (`location`, `chapter`, `room`, `day`, `timeOfDay`) stays deleted
+        // (scenario 30's notes, e29run/r2h13red).
+        // No road of the module's changes a held item's category (inventory.mjs
+        // writes it as the item is made): a GM who did by hand would have that
+        // item judged as a bullet's on this browser until it reloads.
+        const copy = guards.get(item.uuid) ?? null;
+        const touched = isTruthBullet(item) || copy ? guardedPathsIn(changes, guardedValues(item), copy) : [];
         const author = game.users.get(userId ?? "");
         if (touched.length && author?.isGM && game.user?.isGM) refreshGuard(item);
         /*
@@ -1321,6 +1345,20 @@ async function onBulletWrite(item, changes, options, userId) {
          */
         if (!isPrimaryGm()) return;
         if (touched.length && !author?.isGM) {
+            /*
+             * AFTER THE SHEET AUDIT HAS JUDGED IT, a write that took the category (fix r2-H13). The put-back
+             * is a GM's write, and the audit's mark takes an item as a GM's write leaves it: landing before
+             * the audit's own put-back of the category, it leaves an item the mark does not hold
+             * (sheet-audit.mjs `itemsAfter`). Put back at once, p2's three writes in scenario 30 left the mark
+             * without the bullet each time (its note "not held", e29run/r2h13/30-run2.log, and m6 in
+             * e29run/r2h13m; at 528a72d, which put nothing back, the mark held the item as the document did:
+             * e29run/r2h13red, 06.10.2026). The audit's hooks are registered at `init` and these at `ready`,
+             * so its judgement of this write is queued by now. A write that leaves the category is put back
+             * at once, as before; were it to name a field the audit judges beside a guarded one - a count
+             * with a name - the same order would leave the player's count in the mark and the document's
+             * put back (read, not measured).
+             */
+            if (!isTruthBullet(item)) await judgedFor(item.parent?.id);
             await revertPlayerBulletEdit(item, touched, author);
             return;
         }
@@ -1335,14 +1373,16 @@ async function onBulletWrite(item, changes, options, userId) {
         if (!sceneId || !tokenId) return;
 
         // Only the things the trace owns. A GM ticking `identified` or
-        // burning an analysis is not describing the object.
+        // burning an analysis is not describing the object. Read off what
+        // the write touched, so a GM's text written in any form goes up
+        // (fix r2-H13: the module's flags replaced whole carry theirs too).
         const patch = {};
-        if (changes.name !== undefined) patch.name = item.name;
-        const flags = changes.flags?.[MODULE_ID] ?? {};
-        if (flags[TRUTH_BULLET_FLAGS.playerText] !== undefined) {
+        const wrote = path => touched.includes(path);
+        if (wrote("name")) patch.name = item.name;
+        if (wrote(`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`)) {
             patch.playerText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "";
         }
-        if (flags[TRUTH_BULLET_FLAGS.analyzedText] !== undefined) {
+        if (wrote(`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`)) {
             patch.analyzedText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzedText) ?? "";
         }
         /*
@@ -1363,7 +1403,7 @@ async function onBulletWrite(item, changes, options, userId) {
          * Cut by the class `bulletDescription` stamps, which is the only
          * thing here that knows the two halves apart.
          */
-        if (changes.system?.description !== undefined && patch.playerText === undefined) {
+        if (wrote("system.description") && patch.playerText === undefined) {
             // A template, whose content is inert: read for its text, never run.
             const wrap = document.createElement("template");
             wrap.innerHTML = String(item.system?.description ?? "");
@@ -1403,10 +1443,12 @@ function bulletWrites(actor, changes) {
     const out = [];
     for (const [id, entry] of itemsWritten(actor, changes) ?? []) {
         const item = actor.items?.get(id) ?? null;
-        if (!isTruthBullet(item)) continue;
-        const guard = guards.get(item.uuid) ?? null, now = guardedValues(item);
+        const guard = item ? guards.get(item.uuid) ?? null : null;
+        // One whose entry took its category is still one while this GM holds its copy (`onBulletWrite`).
+        if (!isTruthBullet(item) && !guard) continue;
+        const now = guardedValues(item);
         const paths = guard ? Object.keys(now).filter(path => stableJson(now[path]) !== stableJson(guard[path]))
-            : entry ? guardedPathsIn(entry) : Object.keys(now);
+            : entry ? guardedPathsIn(entry, now) : Object.keys(now);
         if (paths.length) out.push([item, foundry.utils.expandObject(Object.fromEntries(paths.map(path => [path, now[path]])))]);
     }
     return out;
