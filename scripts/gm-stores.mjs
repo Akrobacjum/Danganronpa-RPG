@@ -876,7 +876,9 @@ export const cleanupAttemptStore = defineGmStore({
  * `crisis` (the crisis action a crisis roll was drawn for), `incident` (the incident's turn it was
  * drawn in, or null) and `superseded` (the later roll of its action that replaced it, or null:
  * fix r2-H1, roll-draw.mjs `keepRecord`), `project` (the project a Work's or a Sabotage's roll was
- * drawn for, or null: fix r2-H2), and `at`. Written by the primary GM as it draws a player's roll (roll-draw.mjs `drawOnGm`), and by
+ * drawn for, or null: fix r2-H2), `tokenSpentAt` (on a Search, when the primary spent its room's
+ * token for it: search-tokens.mjs `SearchTokens.markSpent`, E29 fix r2-H11), and `at`. Written by
+ * the primary GM as it draws a player's roll (roll-draw.mjs `drawOnGm`), and by
  * the GM a Reroll of it is made on; read by the guard that ties a drawn message to its roller
  * (bridge-guards.mjs `guardRollAuthor`) and by the resolutions that take its result (`rollRefusal`). Synced between the GMs and not backed up: a
  * row is worth a roll's resolution and its Reroll, minutes long, and is swept past

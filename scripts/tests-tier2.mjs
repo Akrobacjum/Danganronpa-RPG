@@ -908,6 +908,34 @@ async function recordFor(message, player, actor, actionKey, { total, isCritical 
 }
 
 /**
+ * A SEARCH WHOSE TOKEN THE GM SPENT (E29 fix r2-H11, 06.10.2026): a find stands only on one
+ * (sheet-audit.mjs `searchFind`). `tokenSpent` runs the spend as the bridge runs it for `player`
+ * (`SEARCH_ACTIONS`, its packet sanitized; the room's count stubbed, so none moves - the guard is
+ * R166's), which marks the newest Search of `actor` drawn for that player (search-tokens.mjs
+ * `SearchTokens.markSpent`). `spentSearch` makes the GMs' record of a Search (`recordFor`) a few
+ * milliseconds after any before it, so it is the newest, spends its token, and answers the record
+ * with `spent`, whether the spend marked it.
+ */
+async function tokenSpent(player, actor) {
+    const { SearchTokens, SEARCH_ACTIONS } = await import("./search-tokens.mjs");
+    const spendAs = SEARCH_ACTIONS["searchTokens.spend"], spend = SearchTokens.spend;
+    SearchTokens.spend = async () => true;
+    try {
+        await spendAs.run(spendAs.sanitize({ roomName: "SUITE H11 room", sceneId: null, actorId: actor.id }, player), player, {});
+    } finally {
+        SearchTokens.spend = spend;
+    }
+}
+
+async function spentSearch(player, actor, fields) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    await wait(5);
+    const record = await recordFor({ id: null }, player, actor, "search", fields);
+    await tokenSpent(player, actor);
+    return { ...record, spent: Boolean(rollStore.get(record.rollId)?.tokenSpentAt) };
+}
+
+/**
  * A PLAYER'S PROJECT PACKETS, JUDGED AS THE BRIDGE JUDGES THEM (E08+E28 C16, 04.10.2026). Progress
  * and a Sabotage are read off the GMs' record of the roll their packet names (gm-bridge.mjs
  * `progressOf`, `repairOf`). `project(room)` makes a public project of 12 in `room`, or in none;
@@ -25759,20 +25787,25 @@ const SCENARIOS = [
         /* A record of 13 earns tier 1 on the Search's table (12 and up). A tier-1 find on it stands and
            uses it; a second tier-1 item named after the same record is flagged; a tier-2 item named after
            a fresh record of 13 is flagged too. At HEAD a creation was judged as an effect, and all three stood.
-           Since E29 fix r1-G4 the find that stood has its row, `covered` (the plan's 2.8). */
-        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
-        const [student] = cast(1);
-        const player = game.users.find(u => !u.isGM);
+           Since E29 fix r1-G4 the find that stood has its row, `covered` (the plan's 2.8). Since E29 fix
+           r2-H11 a find stands only on a Search whose token the GM spent, so each record's is spent by the
+           student's own player (`spentSearch`): until then the records had no spend, and the find stood. */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player, whose spend and find are judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(owner);
+        const player = owner(student);
         const { sheetAuditIdle } = await import("./sheet-audit.mjs");
         const { sheetWriteStore, sheetMarkStore } = await import("./gm-stores.mjs");
         const { searchTier } = await import("./action-rolls.mjs");
         must(searchTier({ total: 13 }).tier === 1 && searchTier({ total: 13 }).hit, "the Search's table gives no tier-1 hit at 13 any more - the totals below measure nothing");
         const from = Date.now();
-        const first = await recordFor({ id: null }, player, student, "search", { total: 13 });
-        const fresh = await recordFor({ id: null }, player, student, "search", { total: 13 });
+        const first = await spentSearch(player, student, { total: 13 });
+        const fresh = await spentSearch(player, student, { total: 13 });
         const made = [];
         let read = null;
         try {
+            must(first.spent && fresh.spent, "a spend did not mark the Search it followed - the finds below would be flagged for that alone");
             const find = async (name, tier, rollId) => {
                 const out = await asPlayerItemWrite("createItem", student, moduleItemData(name, { tier }), player, { reason: "searchFind", ref: rollId });
                 made.push(out.item);
@@ -25846,6 +25879,50 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ refused: ["flagged", ["search"]], spent: ["stands", []] }),
             "a find named after a Search whose token the GM refused stood, or one whose token was spent did not "
                 + "(each find's verdict, and what its record has settled)");
+    }],
+
+    /*
+     * A SEARCH THAT NEVER ASKED FOR ITS TOKEN (E29 fix r2-H11, 06.10.2026; found by fix r2-H9). A find
+     * named after a Search was judged on the GMs' record alone, so a console that drew a Search and
+     * skipped the spend had what r2-H9 closed for a spend the GM refused. A spend that succeeds marks
+     * the newest Search of the character drawn for its sender (search-tokens.mjs
+     * `SearchTokens.markSpent`), and the find's judge asks for the mark (sheet-audit.mjs `searchFind`).
+     * Two records of 13 (a tier-1 hit) of the student's, drawn for its player: the first with no spend,
+     * the second followed by one (`spentSearch`); a tier-1 find named after each. Read: each find's
+     * verdict, and whether its record carries the mark - the spend marks the Search it follows, not the
+     * one before. At 3654512 both finds stood and neither record was marked.
+     */
+    ["a find named after a Search whose token was never spent is flagged, and a spend marks the Search it follows", async () => {
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player, whose spend and find are judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const owner = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(owner);
+        const player = owner(student);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const made = [], records = [];
+        let read = null;
+        try {
+            const unspent = await recordFor({ id: null }, player, student, "search", { total: 13 });
+            records.push(unspent);
+            const spent = await spentSearch(player, student, { total: 13 });
+            records.push(spent);
+            const find = async (name, record) => {
+                const out = await asPlayerItemWrite("createItem", student, moduleItemData(name, { tier: 1 }), player, { reason: "searchFind", ref: record.rollId });
+                made.push(out.item);
+                return [out.verdict, Boolean(rollStore.get(record.rollId)?.tokenSpentAt)];
+            };
+            read = { unspent: await find("E29 H11 a find on a Search that spent no token", unspent), spent: await find("E29 H11 a find on a spent token", spent) };
+            await sheetAuditIdle();
+        } finally {
+            await sheetAuditIdle();
+            for (const item of made) if (student.items.get(item.id)) await item.delete();
+            await sheetAuditIdle();
+            for (const record of records) await record.putBack();
+        }
+        equal(stableJson(read), stableJson({ unspent: ["flagged", false], spent: ["stands", true] }),
+            "a find named after a Search that spent no token stood, or the spend marked another Search than the one it followed "
+                + "(each find's verdict, and whether its record carries the spend's mark)");
     }],
 
     ["a broken item discarded raises no card; an unbroken one deleted is flagged, and Undo makes it again under its id", async () => {
@@ -27337,10 +27414,14 @@ const SCENARIOS = [
                 edit: packet => ({ ...packet, context: { ...(packet.context ?? {}), category: "tool", goal: "specific" } }) });
             backs.push(F.putBack);
             must(F.record && (searchTier(F.record).hit || F.record.isCritical), "the GM drew no Search that hit - this would measure nothing");
-            const stash = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
-            const found = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
+            // Each Search a find is named after has its token spent (E29 fix r2-H11), so each is flagged for what it measures.
+            await tokenSpent(player, theirs);
+            const stash = await spentSearch(player, theirs, { total: 13 });
+            const found = await spentSearch(player, theirs, { total: 13 });
             const fresh = await recordFor({ id: null }, player, theirs, "search", { total: 13 });
             backs.push(stash.putBack, found.putBack, fresh.putBack);
+            must(rollStore.get(F.record.rollId)?.tokenSpentAt && stash.spent && found.spent,
+                "a spend did not mark the Search it followed - the finds below would be flagged for that alone");
             await rollStore.patch(stash.rollId, { resolved: ["search"] });
             const find = async (name, rollId) => {
                 const out = await asPlayerItemWrite("createItem", theirs, moduleItemData(name), player, { reason: "searchFind", ref: rollId });

@@ -122,6 +122,20 @@ export class SearchTokens {
     }
 
     /**
+     * Mark, on the GMs' record of the sender's newest Search of that character, that this GM spent
+     * its token (`tokenSpentAt`): a find stands only on a Search so marked (sheet-audit.mjs
+     * `searchFind`, E29 fix r2-H11). On the primary GM, from `runSpend`, after a spend that
+     * succeeded. A method here, like `takePlant`, so that R166 - which runs the spend's real run
+     * for a player at tier 1, the token stubbed - stubs this write as well, and tier 1 writes
+     * nothing at a table where that player searched minutes ago. By reading, not measured: the
+     * harness holds no Search record when tier 1 runs, so it would see no write either way.
+     */
+    static async markSpent(sender, actorId) {
+        const { rollStore, rollId, row } = await newestSearch(sender, actorId);
+        if (row && !row.tokenSpentAt) await rollStore.patch(rollId, { tokenSpentAt: Date.now() });
+    }
+
+    /**
      * How long a "the GM just told me" count is trusted.
      *
      * It only exists to bridge the gap until the world setting arrives, and the
@@ -448,9 +462,12 @@ async function runSpend(payload, sender, ctx) {
     // Only a spend that SUCCEEDED earns a look for a plant: a refused search
     // is not a search, and a plant handed out for one would be a free item
     // from a sealed or exhausted room. The look itself comes later, from a
-    // Search that found something - see `SearchTokens.takePlant`.
-    if (ok) searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), Date.now());
-    else await settleUnclaimed(sender, payload.actorId);
+    // Search that found something - see `SearchTokens.takePlant`. And only it
+    // marks the Search's record a find may stand on (`SearchTokens.markSpent`).
+    if (ok) {
+        searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), Date.now());
+        await SearchTokens.markSpent(sender, payload.actorId);
+    } else await settleUnclaimed(sender, payload.actorId);
     return { reply: { ok, left: SearchTokens.left(payload.roomName, sceneId) } };
 }
 
@@ -467,18 +484,38 @@ async function runSpend(payload, sender, ctx) {
  * follows the answer. A refusal after a roll this GM did not draw finds an older Search, whose find
  * was asked after its own spend - by reading, not measured.
  *
- * Only the refusal. A find named after a Search that asked for no token at all is still judged on
- * the record alone (the plan's 2.6; the suite's "a Search's find stands" test makes its records so).
+ * AND A SEARCH THAT ASKED FOR NO TOKEN FINDS NOTHING EITHER (E29 fix r2-H11, 06.10.2026; found by
+ * fix r2-H9). Until then a find named after a Search that never asked for its token was judged on
+ * the record alone (the plan's 2.6), and stood (red at 3654512, the tier-2 test "a find named after
+ * a Search whose token was never spent"): a console that drew a Search and skipped the spend had
+ * what the refusal above closes. A spend that succeeds marks the same record - the newest Search
+ * of the character drawn for the sender (`SearchTokens.markSpent`) - and the find's judge asks for
+ * that mark. A player's Search draws its roll, then spends, and only then draws the find
+ * (action-rolls.mjs `performSearch`, and `grantDrawn`, the one road that names a record): the
+ * Daily Life day of 40-flow flags its find when the spend marks nothing. The rest by reading, not
+ * measured: a plant is handed only after a spend (`runTakePlant`); a Reroll keeps the record and
+ * its mark, and grants as `reroll`; a spend that reaches this GM before its roll's record does
+ * marks the Search before it, and the new one stays unmarked - the stricter side.
  */
 async function settleUnclaimed(sender, actorId) {
-    if (!ownsActor(sender, actorId)) return;
-    const { rollStore } = await import("./gm-stores.mjs");
-    await rollStore.whenHydrated();
-    const [rollId, row] = Object.entries(rollStore.entries() ?? {})
-        .filter(([, r]) => r?.actorId === actorId && r.userId === sender.id && r.actionKey === "search" && !r.superseded)
-        .sort(([, a], [, b]) => (Number(b.at) || 0) - (Number(a.at) || 0))[0] ?? [];
+    const { rollStore, rollId, row } = await newestSearch(sender, actorId);
     const resolved = Array.isArray(row?.resolved) ? row.resolved : [];
     if (row && !resolved.includes("search")) await rollStore.patch(rollId, { resolved: [...resolved, "search"] });
+}
+
+/**
+ * The GMs' record of the newest Search of `actorId` drawn for `sender` that no later one replaced
+ * (roll-draw.mjs `keepRecord`), as `{ rollStore, rollId, row }` - `row` null when there is none, or
+ * when the sender does not play that character. What a spend settles or marks.
+ */
+async function newestSearch(sender, actorId) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    if (!ownsActor(sender, actorId)) return { rollStore, rollId: null, row: null };
+    await rollStore.whenHydrated();
+    const [rollId = null, row = null] = Object.entries(rollStore.entries() ?? {})
+        .filter(([, r]) => r?.actorId === actorId && r.userId === sender.id && r.actionKey === "search" && !r.superseded)
+        .sort(([, a], [, b]) => (Number(b.at) || 0) - (Number(a.at) || 0))[0] ?? [];
+    return { rollStore, rollId, row };
 }
 
 /**

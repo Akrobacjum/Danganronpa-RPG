@@ -3310,7 +3310,11 @@ const INVARIANTS = [
          * character standing in a room, with a packet naming a scene nobody stands
          * on; the token store is spied for the two calls and put back, so nothing is
          * spent, and the runner's packets go to a recorder: nothing leaves this
-         * client. Red on copies with each of those faults planted.
+         * client. Red on copies with each of those faults planted. Since E29 fix
+         * r2-H11 (06.10.2026) a spend that succeeds also marks the searcher's newest
+         * Search on the GMs' record (`SearchTokens.markSpent`): stubbed as well, so
+         * this tier writes nothing at a table where that player searched minutes
+         * ago. Not measured: the harness holds no Search record at this tier.
          */
         const { searchSceneOf, SEARCH_ACTIONS, SearchTokens } = await import("./search-tokens.mjs");
         const { judge, knownSender, pick, as } = await import("./bridge-guards.mjs");
@@ -3345,9 +3349,10 @@ const INVARIANTS = [
         // character stands on, not on the one the packet names.
         const { user, actor, place } = searcher;
         const recorded = [], told = [];
-        const real = { spend: SearchTokens.spend, takePlant: SearchTokens.takePlant };
+        const real = { spend: SearchTokens.spend, takePlant: SearchTokens.takePlant, markSpent: SearchTokens.markSpent };
         SearchTokens.spend = async (room, sceneId) => { recorded.push(`spend ${room} ${sceneId}`); return true; };
         SearchTokens.takePlant = async (room, sceneId) => { recorded.push(`takePlant ${room} ${sceneId}`); return null; };
+        SearchTokens.markSpent = async () => null;
         try {
             for (const action of ["searchTokens.spend", "searchTokens.takePlant"]) {
                 await judge(SEARCH_ACTIONS, { action, requestId: `r166-${action}`, userId: user.id, actorId: actor.id,
@@ -3356,6 +3361,7 @@ const INVARIANTS = [
         } finally {
             SearchTokens.spend = real.spend;
             SearchTokens.takePlant = real.takePlant;
+            SearchTokens.markSpent = real.markSpent;
         }
         equal(JSON.stringify({ recorded, told }), JSON.stringify({
             recorded: [`spend ${place.room} ${place.scene.id}`, `takePlant ${place.room} ${place.scene.id}`],

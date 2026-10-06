@@ -1747,12 +1747,21 @@ async function placeStands(actor, item, before, now) {
  * `CONTEXT_SENT`, the roller's word like the category beside it), and a stash's theft settles the
  * record's "search" (bridge-guards.mjs `rollsFor`); a find on either is refused. The other way round,
  * a theft named after a record a find already stood on is refused by gm-bridge.mjs `searchTheftOf`.
+ *
+ * NOR A SEARCH WHOSE TOKEN THE GM NEVER SPENT (E29 fix r2-H11, 06.10.2026). A Search spends its
+ * room's token after its roll, and a refused spend settles the record (search-tokens.mjs
+ * `settleUnclaimed`, fix r2-H9) - but a console that drew a Search and never asked for the token
+ * left the record as the draw wrote it, and a find named after it stood (red at 3654512, the tier-2
+ * test "a find named after a Search whose token was never spent"). A spend that succeeds marks the
+ * record (`tokenSpentAt`, search-tokens.mjs `SearchTokens.markSpent`); a record without that mark
+ * takes no find.
  */
 async function searchFind(actor, mark, data, stamp, user) {
     if (stamp.reason !== "searchFind" || typeof stamp.ref !== "string" || !user || !isModuleItem(data)) return null;
     const { rollRecord } = await import("./roll-draw.mjs");
     const record = rollRecord(stamp.ref);
     if (record?.actorId !== actor.id || record.userId !== user.id || record.actionKey !== "search" || mark.finds?.[stamp.ref]) return null;
+    if (!record.tokenSpentAt) return null;
     if (record.goal === "specific" || (Array.isArray(record.resolved) && record.resolved.includes("search"))) return null;
     const { searchTier } = await import("./action-rolls.mjs");
     const { hit, tier } = searchTier({ total: record.total, isCritical: record.isCritical }, record.used?.stash?.change ?? 0);
