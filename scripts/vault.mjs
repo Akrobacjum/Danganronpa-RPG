@@ -1037,7 +1037,8 @@ export async function stealFromVault({
     const thief = game.actors.get(thiefId);
     const owner = game.actors.get(ownerId);
     const item = owner?.items?.get(itemId);
-    if (!thief || !owner || !item || !isStashed(item)) return null;
+    // Whether it is stashed, and where, is asked below of the item as the GMs hold it (fix r2-H17).
+    if (!thief || !owner || !item) return null;
 
     // The dead rob nobody. A socket payload is a claim, and this side is the
     // one that decides - the same reasoning `handover.mjs` applies to a gift.
@@ -1084,12 +1085,6 @@ export async function stealFromVault({
         return refuse(`"${where.room}" holds no stash of ${owner.name}'s`);
     }
 
-    // And the thing has to be in THAT stash, not merely in one of theirs
-    // somewhere on the map - the same distinction `retrieve` makes.
-    if (stashRoomOfItem(item, owner, where.scene) !== where.room) {
-        return refuse(`"${item.name}" is not in the stash in "${where.room}"`);
-    }
-
     /*
      * Concealment is a gate on the FREE route only.
      *
@@ -1128,20 +1123,37 @@ export async function stealFromVault({
         }
     }
 
-    const category = item.getFlag(MODULE_ID, ITEM_FLAGS.category);
     const { grantItem, preservedFlags } = await import("./inventory.mjs");
+
+    /*
+     * THE ITEM AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026): once every write queued on the owner has been judged,
+     * its place, category, tier, roles, kind, broken and wear as the sheet audit's mark holds them (sheet-audit.mjs
+     * `itemsAsHeld`, which says why the wait is enough here) - so neither a place nor roles, a tier or a mend the
+     * owner's console wrote a moment before decide the theft or ride on the thief's copy. Read once, last, with no
+     * await between the read and the grant: the two checks of where it lies moved down to it. The deletion is the
+     * document's.
+     */
+    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const held = await itemAsHeld(owner, item.id);
+    if (!held || !isStashed(held)) return null;
+
+    // And the thing has to be in THAT stash, not merely in one of theirs
+    // somewhere on the map - the same distinction `retrieve` makes.
+    if (stashRoomOfItem(held, owner, where.scene) !== where.room) {
+        return refuse(`"${held.name}" is not in the stash in "${where.room}"`);
+    }
 
     const copy = await grantItem(thief, {
         reason: "gmRuling",
-        name: item.name,
-        category,
-        tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-        description: item.system?.description ?? "",
-        img: item.img,
+        name: held.name,
+        category: held.getFlag(MODULE_ID, ITEM_FLAGS.category),
+        tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
+        description: held.system?.description ?? "",
+        img: held.img,
         // Stealing a ruined thing out of somebody's drawer does not mend it -
         // and hiding one there and having it lifted was the obvious way to
         // launder a broken murder weapon back into a working one.
-        extraFlags: preservedFlags(item)
+        extraFlags: preservedFlags(held)
     });
     if (!copy) {
         // The thief is told, or the Search card that follows says "what comes
@@ -1279,11 +1291,21 @@ export async function stealFromPerson({
      * whatever comes out - the id is ignored, not honoured quietly, because a
      * client that sends one on a non-critical is either out of date or trying
      * it on, and both deserve the same answer.
+     *
+     * OUT OF THE POCKETS AS THE GMS HOLD THEM (E29 fix r2-H17, 06.10.2026): the
+     * victim's items once every write queued on them has been judged, each with
+     * its place, category, tier, roles, kind, broken and wear as the sheet
+     * audit's mark holds them (sheet-audit.mjs `itemsAsHeld`, which says why the
+     * wait is enough here), in the order `carriedInCategory` gave. Read once,
+     * with no await between the read and the grant; the deletion is the
+     * document's.
      */
-    const { carriedInCategory, preservedFlags, grantItem } = await import("./inventory.mjs");
+    const { preservedFlags, grantItem } = await import("./inventory.mjs");
+    const { itemsAsHeld } = await import("./sheet-audit.mjs");
+    const pockets = await itemsAsHeld(victim);
     const pool = Object.keys(ITEM_CATEGORIES)
         .filter(c => c !== "truthBullet")
-        .flatMap(c => carriedInCategory(victim, c));
+        .flatMap(c => pockets.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === c && !isStashed(i)));
 
     let item = null;
     if (success && pool.length) {
@@ -1332,7 +1354,7 @@ export async function stealFromPerson({
                  * goes ahead: a suppressed refresh next to a whisper naming the
                  * thief is just a way of losing one of the two messages.
                  */
-                await item.delete({ render: seen });
+                await victim.items.get(item.id).delete({ render: seen });
             } catch (err) {
                 error("Could not take the stolen item off its owner", err);
             }
@@ -1444,12 +1466,18 @@ export async function plantOnPerson({
      * the same two exclusions, for the same reasons read backwards. A Truth
      * Bullet cannot be planted because it is knowledge rather than an object,
      * and something in a stash cannot be planted because it is not in a hand.
+     * Out of the pockets as the GMs hold them, as a theft's (E29 fix r2-H17):
+     * what lands on the victim is never roles, a tier or a mend the planter's
+     * console wrote a moment before asking.
      */
-    const { carriedInCategory, preservedFlags, grantItem } = await import("./inventory.mjs");
+    const { preservedFlags, grantItem } = await import("./inventory.mjs");
+    const { itemsAsHeld } = await import("./sheet-audit.mjs");
+    const pockets = await itemsAsHeld(planter);
     const pool = Object.keys(ITEM_CATEGORIES)
         .filter(c => c !== "truthBullet")
-        .flatMap(c => carriedInCategory(planter, c));
-    if (!pool.some(i => i.id === item.id)) {
+        .flatMap(c => pockets.filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === c && !isStashed(i)));
+    const held = pool.find(i => i.id === item.id);
+    if (!held) {
         return refuse(`"${item.name}" is not something they are carrying`);
     }
 
@@ -1469,16 +1497,16 @@ export async function plantOnPerson({
     if (success) {
         landed = await grantItem(victim, {
             reason: "gmRuling",
-            name: item.name,
-            category: item.getFlag(MODULE_ID, ITEM_FLAGS.category),
-            tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
-            description: item.system?.description ?? "",
-            img: item.img,
+            name: held.name,
+            category: held.getFlag(MODULE_ID, ITEM_FLAGS.category),
+            tier: held.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
+            description: held.system?.description ?? "",
+            img: held.img,
             // A planted broken thing stays broken - which is most of the point.
             // The best use of this action is getting a ruined murder weapon out
             // of your own pocket and into somebody else's, and it would be
             // worth nothing if the transfer mended it.
-            extraFlags: preservedFlags(item),
+            extraFlags: preservedFlags(held),
             // The quiet half, and the mirror of the silent Steal: the victim's
             // sheet does not redraw FOR THIS. See `grantItem`.
             quiet: !seen

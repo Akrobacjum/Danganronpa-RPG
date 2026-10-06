@@ -1315,6 +1315,33 @@ export function bulletGuardStatus(uuid = null) {
     return { ...guardRuns, known: guards.size, ...(uuid ? { copy: guards.has(uuid) ? { ...guards.get(uuid) } : null } : {}) };
 }
 
+/*
+ * A BULLET AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026; found by fix r2-H16). What a GM's road makes of a student's
+ * bullet - analyze.mjs's lock, Faint and rebuilt description, the copy handover.mjs `shareBullet` mints - reads each
+ * guarded field off this browser's copy (`guards`), and off the bullet where the copy holds no record of it, which is
+ * how `revertPlayerBulletEdit` leaves such a field; every other field (the category among them, the sheet audit's) off
+ * the bullet. Read at each use, as the bullet was, and with no wait, unlike an item's (sheet-audit.mjs `itemsAsHeld`):
+ * a player's write never enters the copy and a GM's moves it in `onBulletWrite` before that awaits anything, so the
+ * copy holds the GMs' fields at every moment, a player's write waiting for its put-back or not. Until this fix the
+ * roads read the bullet as it stood: at ebdf1ba (e29run/r2h17red, 06.10.2026) an Analyze of a bullet whose lock the
+ * document alone had lost was not refused, an Analyze and its Undo rebuilt the description from a text the document
+ * alone held, and a hand-over of a bullet the document alone called analysed minted a copy with its reading; in
+ * scenario 30 an Analyze p2 asked for at once after writing a bullet's text published that text with the reading
+ * on every client, and the GMs' copy took the description made of it.
+ */
+export function bulletAsHeld(item) {
+    const held = (path, now) => {
+        const copy = guards.get(item.uuid);
+        return copy && path in copy ? copy[path] : now;
+    };
+    return {
+        id: item.id, uuid: item.uuid,
+        get name() { return held("name", item.name); },
+        get img() { return held("img", item.img); },
+        getFlag: (scope, key) => held(`flags.${scope}.${key}`, item.getFlag(scope, key))
+    };
+}
+
 function watchBulletEdits() {
     /*
      * RUN NOW when the world is already up. This is called from the module's own

@@ -668,6 +668,44 @@ export async function armedCallsHeld(actor) {
     return new Set((Array.isArray(stored) ? stored : stored ? [stored] : []).map(entry => entry?.nonce).filter(nonce => typeof nonce === "string"));
 }
 
+/*
+ * A STUDENT'S ITEMS AS THE GMS HOLD THEM (E29 fix r2-H17, 06.10.2026; found by fix r2-H16). A GM's road that makes
+ * a copy of a student's item on another sheet - handover.mjs `giveItem` and `lootBody`, vault.mjs `stealFromVault`,
+ * `stealFromPerson` and `plantOnPerson` - reads the item here: once every write queued on the student has been
+ * judged (`judgedFor`), the fields this file judges (`ITEM_JUDGED`, a class's hit points) as the mark holds them,
+ * whether their put-back landed or failed, as `armedCallsHeld` reads a Call; every other field as the document
+ * holds it, and every field where the GMs keep no mark of their own here - on a GM who is not the primary (its copy
+ * may lag, `meansHeld`), the stores not hydrated, a Monokuma's, no student's. An item the mark holds no copy of is
+ * read without a category, as its judgement reads one (`itemFindings`' `before`): the GMs hold no module item there.
+ * Each item is plain data read as an item is read (`itemLike`, with its `img`), taken in one step as the wait ends;
+ * a write heard after it is judged on its own and moves nothing read here. A wait alone is enough for these roads,
+ * unlike a GM's write of a student's means (`gmMeansWrite`): none writes a field of the item a put-back writes - each
+ * makes a new item elsewhere and deletes this one, whose put-back then finds nothing to write (fix r2-H16) - and, by
+ * reading, no judgement waits for anything they do (an item used waits for its consumption, a Call taken for a roll's
+ * card, a Search's find for its roll's record), so the wait holds up nothing that holds it up. Until this fix the
+ * roads read the document as it stood: at ebdf1ba (e29run/r2h17red, 06.10.2026) a Tool given roles and tier 3 where
+ * the mark did not see them (the mark: no roles, tier 1) was copied with both by a hand-over, a loot, a plant and
+ * both thefts, and in scenario 30 a hand-over and a plant p2 asked for at once after writing a Tool's roles, or its
+ * tier and a mend, left that write on Aiko's copy on every client and in her mark.
+ */
+export async function itemsAsHeld(actor) {
+    await judgedFor(actor?.id);
+    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
+    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
+    const copies = mark && !mark.flags?.[FLAGS.monokuma] ? mark.items ?? {} : null;
+    return (actor?.items?.contents ?? []).map(item => {
+        const data = docData(item), copy = copies?.[item.id] ?? null;
+        const held = !copies ? data : copy ? withPaths(data, copy, isClassItem(data) ? [...ITEM_JUDGED, CLASS_HIT_POINTS] : ITEM_JUDGED)
+            : withPaths(data, {}, [`flags.${MODULE_ID}.${ITEM_FLAGS.category}`]);
+        return { ...itemLike(held), img: held.img ?? null };
+    });
+}
+
+/** One of a student's items as the GMs hold it (`itemsAsHeld`), or null where it is no longer on the student. */
+export async function itemAsHeld(actor, id) {
+    return (await itemsAsHeld(actor)).find(item => item.id === id) ?? null;
+}
+
 /**
  * The GMs' value of each of a student's means (`hope`, `actions`, `hitPoints`, `stress` and the two
  * grants): their mark's, on the primary, where the judge keeps it current; the document's on any other

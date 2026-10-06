@@ -7802,6 +7802,84 @@ const SCENARIOS = [
         }
     }],
 
+    ["an item handed over, planted or stolen arrives as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H17, 06.10.2026; found by fix r2-H16. A GM's road that makes a copy of a student's item on
+         * another sheet - a hand-over, a plant, a theft from the pockets and one from a stash (handover.mjs
+         * `giveItem`, vault.mjs `plantOnPerson`, `stealFromPerson`, `stealFromVault`) - copied its roles, tier and
+         * the rest off the item as it stood, and a player's write the audit puts back stands on the item until its
+         * put-back lands, or for good where the put-back fails: the GMs' mark keeps their own then. The roads read
+         * the item as the GMs hold it now (sheet-audit.mjs `itemsAsHeld`). Two students stood alone together, a
+         * stash of the first's in their room and a hand of the second's free for a Tool; for each road a Tool of
+         * the first's, tier 1 - in the stash for the last - given roles and tier 3 where the GMs' mark does not see
+         * it (the audit's aside, a failed put-back's state), and the road run for the second, on a critical where
+         * it is rolled. Read: the roles and tier of each copy the second holds. Until this fix (ebdf1ba,
+         * e29run/r2h17red, 06.10.2026) each road's copy held the roles and tier 3.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the roads read - this would measure nothing");
+        const H = await import("./handover.mjs");
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const [giver, taker] = cast(2);
+        const fixture = await aloneTogether(giver, taker);
+        const NAME = "Suite H17 a tool", flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        const where = locateActor(taker), region = where?.room ? V.regionsByName(where.scene).get(where.room) : null;
+        const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+        const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+        const stowed = [], read = {};
+        try {
+            must(region, `the room ${where?.room} has no region to hide a stash in`);
+            await region.update({ [`flags.${MODULE_ID}.${V.VAULT_FLAGS.stashes}`]: [{ actorId: giver.id, concealed: false }],
+                [`flags.${MODULE_ID}.${V.VAULT_FLAGS.hinders}`]: [], [`flags.${MODULE_ID}.${V.VAULT_FLAGS.favours}`]: [] });
+            // What takes a Tool's slot in the second's hands put in a stash, and back after: a hand-over to full hands is refused.
+            const group = ITEM_CATEGORIES.tool?.limitGroup ?? null;
+            const slot = i => [i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)].some(c => c === "tool" || (group !== null && ITEM_CATEGORIES[c]?.limitGroup === group));
+            if (!INV.canCarry(taker, "tool").ok) for (const i of taker.items.filter(i => slot(i) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            must(INV.canCarry(taker, "tool").ok, `${taker.name} has no hand free for a Tool - this would measure nothing`);
+            const forged = async stashed => {
+                const item = await INV.grantItem(giver, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+                must(item, `${giver.name} could not be handed a Tool - this would measure nothing`);
+                if (stashed) await item.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: where.room });
+                await sheetAuditIdle();
+                await item.update({ [flag("roles")]: ["crimeTool"], [flag("tier")]: 3 }, { [AUDIT_ASIDE]: true });
+                await sheetAuditIdle();
+                const marked = sheetMarkStore.get(giver.id)?.items?.[item.id]?.flags?.[MODULE_ID] ?? null;
+                must(item.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) === 3 && marked?.tier === 1 && !marked?.roles?.length,
+                    "the write did not stand on the item alone, outside the GMs' mark - this would measure nothing");
+                return item;
+            };
+            const roads = {
+                give: item => H.giveItem({ fromId: giver.id, toId: taker.id, itemId: item.id }),
+                plant: item => V.plantOnPerson({ plannerId: giver.id, victimId: taker.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                steal: item => V.stealFromPerson({ thiefId: taker.id, victimId: giver.id, itemId: item.id, total: 30, isCritical: true, unseenTotal: 30, unseenCritical: true }),
+                stash: item => V.stealFromVault({ thiefId: taker.id, ownerId: giver.id, itemId: item.id })
+            };
+            for (const [road, run] of Object.entries(roads)) {
+                await run(await forged(road === "stash"));
+                await settle();
+                const copy = taker.items.find(i => i.name === NAME);
+                read[road] = copy ? [copy.getFlag(MODULE_ID, INV.ITEM_FLAGS.roles) ?? [], copy.getFlag(MODULE_ID, INV.ITEM_FLAGS.tier) ?? null] : null;
+                for (const i of taker.items.filter(i => i.name === NAME)) await i.delete();
+            }
+        } finally {
+            for (const a of [giver, taker]) for (const i of a.items.filter(i => i.name === NAME)) await i.delete();
+            for (const [i, was] of stowed) if (taker.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            if (region) await region.update(Object.fromEntries(keys.map((k, i) => [`flags.${MODULE_ID}.${k}`, before[i] === undefined ? forcedDeletion() : before[i]])));
+            await fixture.back();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson({ give: [[], 1], plant: [[], 1], steal: [[], 1], stash: [[], 1] }),
+            "a copy took roles or a tier a write had left on the item outside the GMs' mark (per road: the copy's roles, its tier)");
+    }],
+
     ["a trace's band is the GM's, whatever the packet names", async () => {
         /*
          * E08+E28 C15, 04.10.2026; audit S10-06; the plan's "a packet asking hidden for a Search that
@@ -13869,6 +13947,82 @@ const SCENARIOS = [
         }
     }],
 
+    ["a bullet analysed or handed over is read as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H17, 06.10.2026; found by fix r2-H16. An Analyze asked whether a bullet could be analysed and
+         * rebuilt its description, its Undo too, from the bullet as it stood (analyze.mjs `resolveAnalyze`,
+         * `identify`); a hand-over minted its copy the same way - born with the reading where the bullet said it was
+         * analysed (handover.mjs `shareBullet`); and a player's write of a bullet stands on it until its put-back
+         * lands. They read this browser's copy of the GMs' fields now (truth-bullets.mjs `bulletAsHeld`). Bullets of
+         * a student's, each given a field on this browser alone (`updateSource`: the document holds it and no GM's
+         * write moved the copy - the state a player's write waiting for its put-back leaves): its lock taken off one
+         * locked this chapter, and an Analyze of it; a text on a second, an Analyze of it on a critical and its Undo
+         * with a Reroll that misses (one that hits is scored after the Undo, and its `identify` rebuilds the description
+         * once more - the first run of this test read that as an Undo leaving the reading); `analyzed` on a third,
+         * handed to another student stood with the first. Read: the first Analyze's refusal;
+         * after the second, whether the description holds the GMs' text, the reading and the text written here, the
+         * copy's text, and whether the copy's description is the document's; after its Undo, the description again;
+         * the copy handed over: analysed or not, and its reading. Until this fix (ebdf1ba, e29run/r2h17red,
+         * 06.10.2026) each road read the document: no refusal; after the Analyze, a description with the reading and
+         * the text written here in place of the GMs'; after the Undo, the text written here alone; the copy handed
+         * over analysed, with the reading.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which keeps the copies the roads read - this would measure nothing");
+        const T = await import("./truth-bullets.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const { shareBullet } = await import("./handover.mjs");
+        const F = T.TRUTH_BULLET_FLAGS, chapter = getClock().chapter;
+        const [reader, receiver] = cast(2);
+        const fixture = await aloneTogether(reader, receiver);
+        // Escape-safe: the description is markup, and these are looked for in it.
+        const TEXT = "Suite H17 the text the GMs hold", FORGED = "Suite H17 a text written here alone", READING = "Suite H17 the reading";
+        const made = [];
+        const bullet = async name => {
+            const b = await T.createTruthBullet(reader, { name, realType: "neutral", visibility: "obvious", playerText: TEXT, analyzedText: READING });
+            must(b, `no bullet was made for ${reader.name} - this would measure nothing`);
+            made.push(b);
+            await settle();
+            must(T.bulletGuardStatus(b.uuid).copy, "this browser holds no copy of the bullet - this would measure nothing");
+            return b;
+        };
+        const aside = (b, key, value) => b.updateSource({ flags: { [MODULE_ID]: { [F[key]]: value } } });
+        const described = b => ((d = String(b.system?.description ?? "")) => [d.includes(TEXT), d.includes(READING), d.includes(FORGED)])();
+        let read = null;
+        try {
+            const locked = await bullet("Suite H17 locked");
+            await locked.update({ [`flags.${MODULE_ID}.${F.lockedChapter}`]: chapter });
+            aside(locked, "lockedChapter", null);
+            const refused = (await resolveAnalyze({ actorId: reader.id, itemId: locked.id, total: 40, isCritical: true }))?.refused ?? null;
+            const texted = await bullet("Suite H17 texted");
+            aside(texted, "playerText", FORGED);
+            await resolveAnalyze({ actorId: reader.id, itemId: texted.id, total: 40, isCritical: true });
+            await settle();
+            const copy = T.bulletGuardStatus(texted.uuid).copy ?? {};
+            const analysed = [...described(texted), copy[`flags.${MODULE_ID}.${F.playerText}`] ?? null, copy["system.description"] === texted.system?.description];
+            aside(texted, "playerText", FORGED);
+            await resolveAnalyze({ actorId: reader.id, itemId: texted.id, total: 0, undo: true });
+            await settle();
+            const undone = described(texted);
+            const shown = await bullet("Suite H17 shown");
+            aside(shown, "analyzed", true);
+            const handed = await shareBullet({ fromId: reader.id, toId: receiver.id, itemId: shown.id });
+            if (handed) made.push(handed);
+            await settle();
+            const live = handed ? receiver.items.get(handed.id) : null;
+            read = [refused, analysed, undone, live ? [Boolean(live.getFlag(MODULE_ID, F.analyzed)), live.getFlag(MODULE_ID, F.analyzedText) ?? ""] : null];
+        } finally {
+            for (const b of made) {
+                const live = b?.actor?.items?.get(b.id), uuid = b?.uuid ?? null;
+                if (live) await live.delete();
+                if (uuid) await T.dropSecret(uuid);
+            }
+            await fixture.back();
+        }
+        equal(stableJson(read), stableJson(["that bullet cannot be analysed now", [true, true, false, TEXT, true], [true, false, false], [false, ""]]),
+            "an Analyze or a hand-over read a bullet's field off a write the GMs' copy does not hold (the lock's refusal; after the Analyze: GMs' text, reading, the text written here, the copy's text, the copy's description the document's; after its Undo: the same three; the copy handed over: analysed, its reading)");
+    }],
+
     ["a project's token is known to the people who know the project, and to nobody else", async () => {
         /*
          * A project token's document reaches EVERY browser on the scene - Foundry
@@ -14684,6 +14838,64 @@ const SCENARIOS = [
             await reviveCharacter(body, { quiet: true });
             await settle();
         }
+    }],
+
+    ["an item looted off a body arrives as the GMs hold it, not as a write their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H17, 06.10.2026. A loot copied the body's item as it stood (handover.mjs `lootBody`), and the
+         * body's owner can still write it - with the put-back of the write to come, or failed, the GMs' mark keeping
+         * their own. It reads the item as the GMs hold it now, as a hand-over does (the test of the hand-over, the
+         * plant and the two thefts). A Tool on a dead student, tier 1, given roles and tier 3 where the GMs' mark
+         * does not see it (the audit's aside), and looted. Read: the copy's roles and tier. Put back after as the
+         * test above puts it back. Until this fix (ebdf1ba, e29run/r2h17red, 06.10.2026) the copy held the roles
+         * and tier 3.
+         */
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the loot writes one");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the loot reads - this would measure nothing");
+        const [taker, body] = cast(2);
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore, sheetMarkStore } = await import("./gm-stores.mjs");
+        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const remnants = await import("./remnants.mjs");
+        const had = new Set(taker.items.map(i => i.id));
+        const NAME = "SUITE H17 a crowbar";
+        let read = null;
+        try {
+            ok(await killCharacter(body, { secret: false, keepBullets: true }), "the death was not recorded");
+            const item = await grantItem(body, { name: NAME, category: "tool", tier: 1, override: true, quiet: true });
+            must(item, "the fixture item was not put on the body - this would measure nothing");
+            await sheetAuditIdle();
+            await item.update({ [`flags.${MODULE_ID}.${ITEM_FLAGS.roles}`]: ["crimeTool"], [`flags.${MODULE_ID}.${ITEM_FLAGS.tier}`]: 3 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(body.id)?.items?.[item.id]?.flags?.[MODULE_ID] ?? null;
+            must(item.getFlag(MODULE_ID, ITEM_FLAGS.tier) === 3 && marked?.tier === 1 && !marked?.roles?.length,
+                "the write did not stand on the item alone, outside the GMs' mark - this would measure nothing");
+            ok(await lootBody({ takerId: taker.id, bodyId: body.id, itemId: item.id }), "the loot took nothing");
+            await settle();
+            const copy = taker.items.find(i => !had.has(i.id) && i.name === NAME);
+            read = copy ? [copy.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [], copy.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null] : null;
+        } finally {
+            for (const item of taker.items.filter(i => !had.has(i.id))) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            const row = lootTraceStore.get(body.id);
+            const trace = row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+            if (trace) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            if (lootTraceStore.has(body.id)) await lootTraceStore.drop(body.id);
+            for (const item of body.items.filter(i => i.name === NAME)) {
+                try { await item.delete(); } catch { /* already gone */ }
+            }
+            await reviveCharacter(body, { quiet: true });
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[], 1]),
+            "a loot's copy took roles or a tier a write had left on the item outside the GMs' mark (the copy's roles, its tier)");
     }],
 
     ["a body looted before anybody found it gives its taker no word of it until the death is published", async () => {

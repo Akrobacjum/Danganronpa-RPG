@@ -3849,6 +3849,229 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     h16Check("SECURITY: a player's console raising their Tool's count and at once lowering it to 0 leaves 0 on every client and in the GMs' mark, not the raise's put-back over it", "lowered", { flow: "sheet-audit" });
 
     /*
+     * A GM'S COPY OF A PLAYER'S ITEM WHILE A WRITE OF THEIRS WAITS FOR ITS PUT-BACK (E29 fix r2-H17, 06.10.2026; found
+     * by fix r2-H16). p2's console writes one of Botan's Tools behind a blocker's roles, as H16's writes above, and at
+     * once asks a GM's road to copy it onto Aiko, who stands in Botan's room with a hand free: roles, and a hand-over
+     * (`hand`); a tier raised and a broken Tool mended, and a plant on the GMs' record of two critical palm rolls
+     * (`plant`); and the Tool broken, a write that stands, and a hand-over (`broke`: the copy is to take it). Each:
+     * Aiko's copy holding the roles, tier and broken the GMs hold, on every client and in her mark. Then p2's text on a
+     * bullet of Botan's whose reading waits in its answer key, and at once an Analyze of it on a critical the GM drew
+     * (`analyze`): the text's put-back is held on the GM's page on its way out until the Analyze's write has been heard
+     * (or 8 s) - the harness standing in for a put-back slower than the GM's road, as `alone` above - and the bullet
+     * read for the GMs' text in its flag and in the description rebuilt with the reading, the GMs told once, and the GMs'
+     * copy holding the same. The GM's hooks record each write on the Tools and the bullet, each copy made on Aiko, and
+     * each of the four asks as it reached the GM; a case counts only where p2's write was heard before its ask and no
+     * put-back of it before the ask.
+     *
+     * At ebdf1ba (e29run/r2h17red, 06.10.2026) each case was heard in its order and three were red: `hand`'s copy held
+     * p2's roles, and `plant`'s tier 3 and no break, on all four clients and in Aiko's mark; `analyze` rebuilt the
+     * description on all four from p2's text with the reading, the text's own put-back landing and told once, and the
+     * GMs' copy took that description. `broke` was green there, as it is to be: it is the case that turns red when a
+     * road reads the mark without waiting for the judgement (e29run/r2h17m, m8).
+     */
+    const h17Names = { hand: "SEC H17 hand", plant: "SEC H17 plant", broke: "SEC H17 broke", blocker: "SEC H17 blocker" };
+    const h17Text = "SEC H17 the text the GMs hold", h17Forged = "SEC H17 a text p2 wrote", h17Reading = "SEC H17 the reading the GMs hold";
+    const h17TextField = `flags.${MOD}.playerText`;
+    const h17Was = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), C = await import("${repoUrl}/scripts/config.mjs");
+        const M = await import("${repoUrl}/scripts/movement.mjs"), T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}"), token = canvas.scene.tokens.get("TOKAIKO000000000");
+        // Aiko back in Botan's room, where the send-back above may have left her elsewhere, and a hand of hers freed for a Tool.
+        const at = M.sameRoom(aiko, a) ? null : { x: token.x, y: token.y };
+        if (at) await token.update({ x: 1500, y: 300 });
+        const group = C.ITEM_CATEGORIES.tool?.limitGroup ?? null, gear = [];
+        const slot = i => i.getFlag("${MOD}", "category") === "tool" || (group !== null && C.ITEM_CATEGORIES[i.getFlag("${MOD}", "category")]?.limitGroup === group);
+        if (!INV.canCarry(aiko, "tool").ok) for (const i of aiko.items.contents.filter(i => slot(i) && !INV.isStashed(i))) {
+            gear.push([i.id, i.getFlag("${MOD}", "location") ?? null]);
+            await i.update({ "flags.${MOD}.location": INV.LOCATIONS.vault });
+        }
+        const made = {};
+        for (const [key, name] of Object.entries(${JSON.stringify(h17Names)})) {
+            made[key] = (await INV.grantItem(a, { name, category: "tool", tier: 1, override: true, quiet: true }))?.id ?? null;
+        }
+        if (made.plant) await a.items.get(made.plant).update({ "flags.${MOD}.broken": true });
+        const bullet = await T.createTruthBullet(a, { name: "SEC H17 bullet", realType: "neutral", visibility: "obvious",
+            playerText: ${JSON.stringify(h17Text)}, analyzedText: ${JSON.stringify(h17Reading)} });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs"), m = S.sheetMarkStore.get("${ids.botan}")?.items ?? {};
+        return { ...made, bullet: bullet?.id ?? null, at, gear, together: M.sameRoom(aiko, a), free: INV.canCarry(aiko, "tool").ok,
+            held: Object.values(made).every(id => m[id]) && m[made.plant]?.flags?.["${MOD}"]?.broken === true,
+            actions: a.system?.resources?.actions?.value ?? null };`, { timeout: 30000 });
+    await settle(600);
+    // The GM's own hooks beside the module's: each write on the Tools and the bullet as it was heard - which, by whom (the
+    // audit's put-back is "back", the module's books "kept") and the fields it named - each copy made on Aiko, and each ask.
+    // The ask is heard ahead of the module's own listener: the harness awaits a channel's listeners in turn
+    // (client-entry.mjs, "socketMsg"), so one behind it heard the ask only once the module had answered it: on the first
+    // run of this block (e29run/r2h17, 06.10.2026) the hand-over's and the plant's asks were heard after the copies they
+    // made, and so, with this fix in, after their put-backs too.
+    const h17Asks = ["handover.item", "action.plant", "analyze.resolve"];
+    await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"); globalThis.__h17Heard = [];
+        const by = (userId, options) => options?.drpgWrite?.reason === "auditPutBack" ? "back" : options?.[T.NOT_AN_EDIT] ? "kept"
+            : game.users.get(userId)?.isGM ? "gm" : "player";
+        const what = ${JSON.stringify(Object.fromEntries([...Object.keys(h17Names), "bullet"].map(key => [h17Was[key], key])))};
+        const named = changes => Object.keys(foundry.utils.flattenObject(changes ?? {})).filter(k => !k.startsWith("_")).sort().join(",");
+        globalThis.__h17Asked = (payload, senderId) => ${JSON.stringify(h17Asks)}.includes(payload?.action)
+            && globalThis.__h17Heard.push(["asked", payload.action, senderId === "${p2.userId}" ? "p2" : senderId]);
+        game.socket._handlers.get("${SOCKET}").unshift(globalThis.__h17Asked);
+        globalThis.__h17Hooks = [
+            ["updateItem", Hooks.on("updateItem", (doc, changes, options, userId) => what[doc.id] && globalThis.__h17Heard.push([what[doc.id], by(userId, options), named(changes)]))],
+            ["createItem", Hooks.on("createItem", (doc, options, userId) => doc.parent?.id === "${ids.aiko}" && doc.name.startsWith("SEC H17")
+                && globalThis.__h17Heard.push(["aiko", by(userId, options), doc.name]))]];
+        return true;`);
+    // p2's writes, each `[item id, changes]`, sent in one burst behind the blocker's roles, and at once the ask `ask` names.
+    const h17Ask = (writes, ask) => p2.eval(`const a = game.actors.get("${ids.botan}"), o = { drpgAutomated: true };
+        const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        await Promise.all([a.items.get("${h17Was.blocker}").update({ "flags.${MOD}.roles": ${JSON.stringify(crimeRole)} }, o),
+            ${writes.map(([id, changes]) => `a.items.get("${id}").update(${JSON.stringify(changes)}, o)`).join(", ")}]);
+        void B.${ask}.catch(() => null); return true;`);
+    // Each case's copies taken off Aiko and the blocker's roles off it, so that the next case starts from Botan's Tools alone.
+    const h17AsWas = () => gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), aiko = game.actors.get("${ids.aiko}");
+        const k = game.actors.get("${ids.botan}").items.get("${h17Was.blocker}"), fixed = [];
+        await A.sheetAuditIdle();
+        const copies = aiko.items.filter(i => i.name.startsWith("SEC H17")).map(i => i.id);
+        if (copies.length) { await aiko.deleteEmbeddedDocuments("Item", copies); fixed.push("copies:" + copies.length); }
+        if (k?.getFlag("${MOD}", "roles")?.length) { await k.update({ "flags.${MOD}.roles": foundry.data.operators.ForcedDeletion.create() }); fixed.push("roles"); }
+        await A.sheetAuditIdle(); return fixed;`);
+    // One item case: p2's `writes` on the Tool `key` names and `ask`; then up to 8 s for Aiko's copy, the GM's audit idle,
+    // and the copy's roles, tier and broken read in Aiko's mark and on each client for `want`.
+    const h17Item = async (key, writes, ask, want) => {
+        await gm.eval(`globalThis.__h17Heard.length = 0; return true;`);
+        await h17Ask(writes, ask);
+        const name = JSON.stringify(h17Names[key]);
+        const mark = await gm.eval(`const aiko = game.actors.get("${ids.aiko}"), end = Date.now() + 8000;
+            while (!aiko.items.some(i => i.name === ${name}) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            await A.sheetAuditIdle();
+            const id = aiko.items.find(i => i.name === ${name})?.id ?? null, c = id ? S.sheetMarkStore.get("${ids.aiko}")?.items?.[id] ?? null : null;
+            const f = c?.flags?.["${MOD}"] ?? {};
+            return c ? [Array.isArray(f.roles) ? f.roles : [], f.tier ?? null, Boolean(f.broken)] : null;`);
+        const docs = await h16Docs(`const i = game.actors.get("${ids.aiko}").items.find(i => i.name === ${name}), roles = i?.getFlag("${MOD}", "roles");
+            return i ? [Array.isArray(roles) ? roles : [], i.getFlag("${MOD}", "tier") ?? null, Boolean(i.getFlag("${MOD}", "broken"))] : null;`, want);
+        const heard = await gm.eval(`return globalThis.__h17Heard.splice(0);`);
+        const restored = await h17AsWas();
+        const same = seen => JSON.stringify(seen) === JSON.stringify(want);
+        return { ok: docs.length === 4 && docs.every(same) && same(mark), docs, mark, heard, restored };
+    };
+    // The bullet's case: p2's text and the Analyze on `rolled`, the text's put-back held until the Analyze's write; then up
+    // to 12 s for the GMs to be told and the bullet analysed, the GM's audit idle, each client read, the GMs' copy, and
+    // what the GMs were told since.
+    const h17Bullet = async rolled => {
+        const from = await gm.eval(`return game.messages.size;`);
+        const told = `const S = await import("${repoUrl}/scripts/secret.mjs");
+            const n = key => game.messages.contents.slice(${from}).map(m => S.contentOf(m) || m.content || "")
+                .filter(s => s.includes(game.i18n.format(key, { player: "", bullet: "" }).slice(-40))).length;
+            const told = () => ({ reverted: n("DRPG.TruthBullet.editReverted"), unrestored: n("DRPG.TruthBullet.editUnrestored") });`;
+        const doc = `game.actors.get("${ids.botan}").items.get("${h17Was.bullet}")`;
+        await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"), b = ${doc}, update = b.update;
+            globalThis.__h17Held = false; globalThis.__h17Heard.length = 0;
+            // The put-back of p2's text, held on its way out until the GM's write analysing the bullet has been heard: one write, once.
+            b.update = function (data, options) {
+                if (!options?.[T.NOT_AN_EDIT] || !("${h17TextField}" in (data ?? {}))) return update.call(this, data, options);
+                delete b.update;
+                globalThis.__h17Held = true;
+                return new Promise(resolve => {
+                    const go = () => { Hooks.off("updateItem", globalThis.__h17Release); clearTimeout(globalThis.__h17Late); resolve(update.call(b, data, options)); };
+                    globalThis.__h17Late = setTimeout(go, 8000);
+                    globalThis.__h17Release = Hooks.on("updateItem", (doc, changes) => doc.id === "${h17Was.bullet}"
+                        && foundry.utils.getProperty(changes ?? {}, "flags.${MOD}.analyzed") === true && go());
+                });
+            };
+            return true;`);
+        await h17Ask([[h17Was.bullet, { [h17TextField]: h17Forged }]], `requestAnalyzeResolve({ actorId: "${ids.botan}", itemId: "${h17Was.bullet}",
+            total: ${Number(rolled?.total ?? 0)}, isCritical: true, rollId: ${JSON.stringify(rolled?.messageId ?? null)} })`);
+        await gm.eval(`${told} const b = ${doc}, end = Date.now() + 12000;
+            while ((told().reverted + told().unrestored < 1 || !b?.getFlag("${MOD}", "analyzed")) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+        const want = [h17Text, true, true, false, true];
+        const docs = await h16Docs(`const b = ${doc}, d = String(b?.system?.description ?? "");
+            return [b?.getFlag("${MOD}", "playerText") ?? null, d.includes(${JSON.stringify(h17Text)}), d.includes(${JSON.stringify(h17Reading)}),
+                d.includes(${JSON.stringify(h17Forged)}), Boolean(b?.getFlag("${MOD}", "analyzed"))];`, want);
+        const copy = await gm.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"), b = ${doc};
+            const c = b ? T.bulletGuardStatus(b.uuid).copy ?? null : null, d = String(c?.["system.description"] ?? "");
+            return c && [c["${h17TextField}"] ?? null, d.includes(${JSON.stringify(h17Text)}) && !d.includes(${JSON.stringify(h17Forged)})];`);
+        const said = await gm.eval(`${told} return told();`);
+        const held = await gm.eval(`return globalThis.__h17Held === true;`);
+        const heard = await gm.eval(`return globalThis.__h17Heard.splice(0);`);
+        const restored = await h17AsWas();
+        const same = (seen, wanted) => JSON.stringify(seen) === JSON.stringify(wanted);
+        return { ok: docs.length === 4 && docs.every(seen => same(seen, want)) && same(said, { reverted: 1, unrestored: 0 }) && same(copy, [h17Text, true]),
+            rolled, held, docs, told: said, copy, heard, restored };
+    };
+    const h17Flag = key => `flags.${MOD}.${key}`;
+    let h17 = null;
+    try {
+        h17 = {
+            hand: await h17Item("hand", [[h17Was.hand, { [h17Flag("roles")]: crimeRole }]],
+                `requestGiveItem({ fromId: "${ids.botan}", toId: "${ids.aiko}", itemId: "${h17Was.hand}" })`, [[], 1, false]),
+            plant: await (async () => {
+                // The hand's roll and the unseen one, both Botan's, drawn by the GM on a critical: the plant lands, unseen.
+                const handRolled = await drawnRoll(p2, ids.botan, "steal", "hand", { hope: 7, fear: 7 });
+                const unseenRolled = await drawnRoll(p2, ids.botan, "palm", "shadow", { hope: 7, fear: 7 });
+                await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+                return { rolls: [handRolled, unseenRolled], ...await h17Item("plant", [[h17Was.plant, { [h17Flag("broken")]: false, [h17Flag("tier")]: 3 }]],
+                    `requestPlant({ plannerId: "${ids.botan}", victimId: "${ids.aiko}", itemId: "${h17Was.plant}", total: ${Number(handRolled.total ?? 0)},
+                        isCritical: true, unseenTotal: ${Number(unseenRolled.total ?? 0)}, unseenCritical: true,
+                        rollId: ${JSON.stringify(handRolled.messageId)}, unseenRollId: ${JSON.stringify(unseenRolled.messageId)} })`, [[], 1, true]) };
+            })(),
+            broke: await h17Item("broke", [[h17Was.broke, { [h17Flag("broken")]: true }]],
+                `requestGiveItem({ fromId: "${ids.botan}", toId: "${ids.aiko}", itemId: "${h17Was.broke}" })`, [[], 1, true]),
+            analyze: await (async () => {
+                const rolled = await drawnRoll(p2, ids.botan, "analyze", "head", { hope: 7, fear: 7 });
+                await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+                return h17Bullet(rolled);
+            })()
+        };
+    } finally {
+        await gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), B = await import("${repoUrl}/scripts/truth-bullets.mjs");
+            for (const [name, id] of globalThis.__h17Hooks ?? []) Hooks.off(name, id);
+            if (globalThis.__h17Asked) game.socket.off("${SOCKET}", globalThis.__h17Asked);
+            if (globalThis.__h17Release !== undefined) Hooks.off("updateItem", globalThis.__h17Release);
+            clearTimeout(globalThis.__h17Late);
+            const a = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}"), b = a.items.get("${h17Was.bullet}"), uuid = b?.uuid ?? null;
+            if (b && Object.prototype.hasOwnProperty.call(b, "update")) delete b.update;
+            await A.sheetAuditIdle();
+            for (const who of [a, aiko]) {
+                const made = who.items.filter(i => i.name.startsWith("SEC H17")).map(i => i.id);
+                if (made.length) await who.deleteEmbeddedDocuments("Item", made);
+            }
+            if (uuid) await B.dropSecret(uuid);
+            for (const [id, was] of ${JSON.stringify(h17Was.gear ?? [])}) {
+                await aiko.items.get(id)?.update({ "flags.${MOD}.location": was ?? foundry.data.operators.ForcedDeletion.create() });
+            }
+            ${h17Was.at ? `await canvas.scene.tokens.get("TOKAIKO000000000").update(${JSON.stringify(h17Was.at)});` : ""}
+            const actions = ${JSON.stringify(h17Was.actions ?? null)};
+            if (actions !== null && a.system?.resources?.actions?.value !== actions) {
+                const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+                await trustedWrite(a, { "system.resources.actions.value": actions }, { reason: "gmRuling" });
+            }
+            await A.sheetAuditIdle(); return true;`, { timeout: 30000 });
+    }
+    const h17Ready = Boolean(h17 && h17Was.hand && h17Was.plant && h17Was.broke && h17Was.blocker && h17Was.bullet && h17Was.held
+        && h17Was.together && h17Was.free);
+    // p2's write of the case's Tool or bullet heard, then its ask, and no put-back of that write before the ask; the
+    // bullet's put-back held, and heard after the Analyze's write.
+    const h17Ordered = (key, action) => {
+        const heard = h17?.[key]?.heard ?? [], asked = heard.findIndex(h => h[0] === "asked" && h[1] === action);
+        const target = key === "analyze" ? "bullet" : key;
+        const putBack = h => h[0] === target && (h[1] === "back" || (h[1] === "kept" && String(h[2]).split(",").includes(h17TextField)));
+        const ordered = h16InOrder(heard, { 0: target, 1: "player" }, { 0: "asked", 1: action, 2: "p2" }) && !heard.slice(0, asked).some(putBack);
+        if (key !== "analyze") return ordered;
+        const analysed = heard.findIndex(h => h[0] === "bullet" && h[1] === "kept" && String(h[2]).split(",").includes(h17Flag("analyzed")));
+        return ordered && h17?.analyze?.held === true && analysed >= 0 && analysed < heard.findIndex(putBack);
+    };
+    // What a case read, brief enough for the 2000 characters a check keeps, as `h16Brief`.
+    const h17Brief = value => JSON.parse(JSON.stringify(value ?? null, (k, v) => typeof v === "string"
+        ? v.split(`flags.${MOD}.`).join("").replace(/^SEC H17 /, "") : v));
+    const h17Check = (name, key, action, flow) => {
+        const c = h17?.[key] ?? null, ordered = h17Ordered(key, action);
+        check(name, h17Ready && Boolean(c?.ok) && ordered, JSON.stringify(h17Brief({ ready: h17Ready, ordered,
+            ...(c ? { ...c, heard: (c.heard ?? []).map(row => h17Brief(row).join(" / ")) } : {}) })), { flow });
+    };
+    h17Check("SECURITY: a player's console giving their Tool what it serves as and at once asking to hand it over has the copy holding the roles the GMs hold, on every client and in the receiver's mark", "hand", "handover.item", "give-take-stash");
+    h17Check("SECURITY: a player's console raising their broken Tool's tier and mending it and at once asking to plant it has the copy holding the tier the GMs hold and broken, on every client and in the victim's mark", "plant", "action.plant", "give-take-stash");
+    h17Check("SECURITY: a player's console breaking their Tool and at once asking to hand it over has the copy broken, on every client and in the receiver's mark: a write that stands is the GMs' too", "broke", "handover.item", "give-take-stash");
+    h17Check("SECURITY: a player's console writing their Truth Bullet's text and at once asking for an Analyze of it has the description rebuilt from the GMs' text with the reading, the text put back on every client, the GMs told, and the GMs' copy holding the GMs' text and description", "analyze", "analyze.resolve", "analyze");
+
+    /*
      * The load-time record ran on the GM, once (the E03 review measured it running
      * 0 times), and the GM holds a copy of every bullet in the world now - the ones
      * made during this scenario by a GM's write. The fixture world has no bullet at

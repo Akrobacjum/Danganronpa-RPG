@@ -4909,7 +4909,7 @@ const REGRESSIONS = [
         const handover = stripComments(sources.get("handover.mjs") ?? "");
         ok(/isEclipse\(\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })), "a handover is not refused during an Eclipse on the GM's side");
         const give = bodyOf(handover, "export async function giveItem(", { until: "\n}\n" });
-        ok(give.indexOf("isStashed(item)") >= 0 && give.indexOf("isStashed(item)") < give.indexOf("BEDROOM_KEY_FLAG"),
+        ok(give.indexOf("isStashed(held)") >= 0 && give.indexOf("isStashed(held)") < give.indexOf("BEDROOM_KEY_FLAG"),
             "a key lying in a stash can still be handed over");
     }],
 
@@ -4924,7 +4924,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const analyze = stripComments(sources.get("analyze.mjs") ?? "");
         const resolve = bodyOf(analyze, "export async function resolveAnalyze(", { until: "\n}\n" });
-        ok(/!undo && !isAnalysable\(item, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
+        ok(/!undo && !isAnalysable\(held, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
         ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });

@@ -22,7 +22,7 @@
 
 import { MODULE_ID, FLAGS, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
-import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
+import { createTruthBullet, truthBulletData, secretOf, isTruthBullet, bulletAsHeld } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error, isPrimaryGm, forcedDeletion } from "./utils.mjs";
 import { answerKeysRefusal, lootTraceStore, deathStore } from "./gm-stores.mjs";
 
@@ -246,11 +246,15 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
        costs nothing, so nothing is handed back. */
     const notOpen = await answerKeysRefusal();
     if (notOpen) return { refused: notOpen };
-    const data = truthBulletData(item);
+    /* AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026): what the copy is minted from - its name, its text, what it
+       shows and whether it was read, which decide whether the copy is born with the reading - is read off the GMs'
+       copy of the bullet (truth-bullets.mjs `bulletAsHeld`), never off a player's write of it still waiting for its
+       put-back. */
+    const data = truthBulletData(bulletAsHeld(item));
     const secret = secretOf(item.uuid);
     if (!secret.realType) {
         await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.answerKeyMissing", {
-            name: foundry.utils.escapeHTML(item.name)
+            name: foundry.utils.escapeHTML(data.name)
         })}</p>`);
         return null;
     }
@@ -268,14 +272,14 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         if (copiedRemnants(to).has(secret.remnantId)) {
             await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasIt", {
                 who: foundry.utils.escapeHTML(to.name),
-                name: foundry.utils.escapeHTML(item.name)
+                name: foundry.utils.escapeHTML(data.name)
             })}</p>`);
             return null;
         }
     }
 
     const copy = await createTruthBullet(to, {
-        name: item.name,
+        name: data.name,
         realType: secret.realType,
         shownType: data.shownType,
         analyzed: data.analyzed,
@@ -319,16 +323,16 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         <h3>${game.i18n.localize("DRPG.Handover.receivedBullet")}</h3>
         <p>${game.i18n.format("DRPG.Handover.receivedBulletFrom", {
             who: foundry.utils.escapeHTML(from.name),
-            name: foundry.utils.escapeHTML(item.name)
+            name: foundry.utils.escapeHTML(data.name)
         })}</p>
         ${data.playerText ? `<p>${foundry.utils.escapeHTML(data.playerText)}</p>` : ""}`);
 
     await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.shared", {
-        name: foundry.utils.escapeHTML(item.name),
+        name: foundry.utils.escapeHTML(data.name),
         who: foundry.utils.escapeHTML(to.name)
     })}</p>`);
 
-    log(`${from.name} shared the Truth Bullet "${item.name}" with ${to.name}.`);
+    log(`${from.name} shared the Truth Bullet "${data.name}" with ${to.name}.`);
     return copy;
 }
 
@@ -393,32 +397,36 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
             return null;
         }
     }
-    if (isTruthBullet(item)) {
+    // As the GMs hold it, from here to the grant (E29 fix r2-H17, `giveItem`): a body's owner can still write it.
+    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const held = await itemAsHeld(body, item.id);
+    if (!held) return null;
+    if (isTruthBullet(held)) {
         // They perish at death and should never be here to take.
         warn("Refused to loot a Truth Bullet from a body.");
         return null;
     }
 
-    const category = item.getFlag(MODULE_ID, "category");
+    const category = held.getFlag(MODULE_ID, "category");
     if (!category) return null;
     // The loot picker already filters these out; the authority has to agree
     // with it (ITEM-06): a stash across the map is not on the body.
-    if (isStashed(item)) {
-        warn(`Refused to loot "${item.name}" from ${body.name}: it is in a stash, not on the body.`);
+    if (isStashed(held)) {
+        warn(`Refused to loot "${held.name}" from ${body.name}: it is in a stash, not on the body.`);
         return null;
     }
 
-    const name = item.name;
+    const name = held.name;
     const taken = await grantItem(taker, {
         reason: "gmRuling",
         name,
         category,
-        tier: item.getFlag(MODULE_ID, "tier") ?? null,
-        description: item.system?.description ?? "",
-        img: item.img,
+        tier: held.getFlag(MODULE_ID, "tier") ?? null,
+        description: held.system?.description ?? "",
+        img: held.img,
         // Roles included since E9 - see `preservedFlags`. A crowbar off a body
         // is still a crowbar that can be swung.
-        extraFlags: preservedFlags(item)
+        extraFlags: preservedFlags(held)
     });
     // `grantItem` puts it in the stash when the hands are full and says so, so
     // "no room" is not a failure here - only a refusal is.
@@ -446,7 +454,7 @@ export async function lootBody({ takerId, bodyId, itemId, askedBy = null } = {})
        bullet is owed by the death's row in the GMs' store and given by the publication
        (chapter.mjs `publishDeath`), dated when and where the item was taken. The taker knows
        what they took; the GMs have the row. */
-    const loot = await lootRecord(taker, item, name, trace);
+    const loot = await lootRecord(taker, held, name, trace);
     if (isDeceased(body)) await mintLootBullet(taker, body, loot);
     else await oweLootBullet(body, loot);
 
@@ -721,29 +729,41 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     if (!checked) return null;
     const { from, to, item } = checked;
 
+    /*
+     * THE ITEM AS THE GMS HOLD IT (E29 fix r2-H17, 06.10.2026). Everything below, down to the copy `grantItem` makes,
+     * reads `held`: the item once every write queued on the giver has been judged, with the fields the sheet audit
+     * judges - its place, category, tier, roles, kind, broken and wear among them - as its mark holds them
+     * (sheet-audit.mjs `itemsAsHeld`, which says why the wait is enough here). Read once, with no await between the
+     * read and the grant: roles, a tier or a mend a player's console wrote a moment before asking stay off the copy,
+     * which a GM makes and every client takes as the GMs'. The deletion is the document's.
+     */
+    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const held = await itemAsHeld(from, item.id);
+    if (!held) return null;
+
     // Something in a stash is not in a hand, and only a hand can give (ITEM-06).
     // The sheet hides the button on a stash row; the API and a hand-built
     // packet did not. Asked FIRST (E03; audit S08-33): below it sat after the
     // key branch, so a key lying in a stash across the map could still be
     // copied to anybody standing next to its owner.
-    if (isStashed(item)) {
+    if (isStashed(held)) {
         await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.stashed", {
-            name: foundry.utils.escapeHTML(item.name)
+            name: foundry.utils.escapeHTML(held.name)
         })}</p>`);
         return null;
     }
 
     // Truth Bullets are copied, never moved - see `shareBullet`.
-    if (isTruthBullet(item)) return shareBullet({ fromId, toId, itemId });
+    if (isTruthBullet(held)) return shareBullet({ fromId, toId, itemId });
 
     // So are keys, for the same reason in a different shape: handing somebody
     // the key to your room should not take you out of it. The copy carries the
     // room flag, which is the only thing that makes a key a key.
-    if (item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG)) return shareKey({ from, to, item });
+    if (held.getFlag(MODULE_ID, BEDROOM_KEY_FLAG)) return shareKey({ from, to, item: held });
 
-    const category = item.getFlag(MODULE_ID, "category");
+    const category = held.getFlag(MODULE_ID, "category");
     if (!category) {
-        warn(`Handover refused: "${item.name}" is not an item this module tracks.`);
+        warn(`Handover refused: "${held.name}" is not an item this module tracks.`);
         return null;
     }
 
@@ -757,17 +777,17 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
         return null;
     }
 
-    const name = item.name;
+    const name = held.name;
     const copy = await grantItem(to, {
         reason: "gmRuling",
         name,
         category,
-        tier: item.getFlag(MODULE_ID, "tier") ?? null,
-        description: item.system?.description ?? "",
-        img: item.img,
+        tier: held.getFlag(MODULE_ID, "tier") ?? null,
+        description: held.system?.description ?? "",
+        img: held.img,
         // A ruined thing stays ruined on the other side of the table. Without
         // this, handing the murder weapon to an accomplice repaired it.
-        extraFlags: preservedFlags(item)
+        extraFlags: preservedFlags(held)
     });
 
     if (!copy) {
