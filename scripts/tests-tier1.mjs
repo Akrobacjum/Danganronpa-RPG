@@ -21,7 +21,7 @@ import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { MUSIC_STATES, musicMap } from "./music.mjs";
 import {
     ok, needs, env, world, equal, must, wait, settle, until, cascadeAvailable, LIVE_PROBE,
-    moduleSources, otherSources, stripComments, bodyOf, fnSource, STANDING, watchLog
+    moduleSources, otherSources, stripComments, bodyOf, fnSource, topLevelFunction, STANDING, watchLog
 } from "./tests-kit.mjs";
 
 /* ==========================================================================
@@ -5668,6 +5668,59 @@ const INVARIANTS = [
         ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
         const click = fnSource(stripComments(sources.get("roll-draw.mjs") ?? ""), "onRenderUnwitnessed");
         ok(/\baskToDecide\(/.test(click) && !/\bdecideUnwitnessed\(/.test(click), "the GMs' card's buttons decide on the GM who clicked, not through askToDecide");
+    }],
+
+    ["R290 - a GM's job of a student's means reads no maximum off the document but through the readers the census names", async () => {
+        /*
+         * E29 fix r2-H27, 06.10.2026. A GM's job in a student's audit queue (sheet-audit.mjs `gmMeansWrite`, and
+         * `meansWrite`'s GM branch) writes the student's means from the values the GMs hold, and a maximum it reads off
+         * the document is a player's write the audit has not put back yet - three fix groups found one each by reading
+         * (r2-H24 actions.mjs `refundAction`, r2-H25 roll-draw.mjs `modifyFromHeld`, r2-H27 reroll.mjs `giveBack` and
+         * despair-award.mjs `adjustCritHopeTopUp`). H27's census (E29-handoff-fixW.md, its section) read every such job
+         * and, one level down, the functions of its file it calls; this holds the census: every `resourceMax(` and every
+         * read of `system.resources` off a document - the strings blanked, so a write's key is no read - inside a job's
+         * arguments or a top-level function of the same file they call (`topLevelFunction`'s slice, to the next
+         * declaration), is one the list below names with the census's reason, and every row of the list is still read
+         * (a row the source no longer holds would be the list rotting). An arrow helper (`const f = () =>`) is not
+         * followed; the census reads those by hand.
+         */
+        const accepted = new Map([
+            ["roll-draw.mjs modifyFromHeld", "the document's resources beside the held ones (`before`), to tell what Daggerheart would write (`dhWrites`)"],
+            ["roll-draw.mjs modifyFromHeld > fromHeld", "the document's value, which Daggerheart's sum starts from, moved to the GMs'"],
+            ["roll-draw.mjs modifyFromHeld > heldValues", "the document's maximum only where the GMs hold none (`top`)"]
+        ]);
+        const blank = text => text.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g, m => " ".repeat(m.length));
+        const argumentsOf = (src, open) => {
+            let depth = 0, quote = null;
+            for (let i = open; i < src.length; i++) {
+                const c = src[i];
+                if (quote) { if (c === "\\") i++; else if (c === quote) quote = null; continue; }
+                if (c === "\"" || c === "'" || c === "`") quote = c;
+                else if (c === "(") depth++;
+                else if (c === ")" && --depth === 0) return src.slice(open, i + 1);
+            }
+            return src.slice(open);
+        };
+        const enclosing = (src, at) => [...src.slice(0, at).matchAll(/^(?:export )?(?:async )?function (\w+)\s*\(/gm)].pop()?.[1] ?? "?";
+        const READ = /resourceMax\(|\bsystem\??\.resources\b/;
+        const found = [], seen = new Set();
+        for (const [file, raw] of await otherSources()) {
+            if (file === "sheet-audit.mjs") continue;
+            const src = stripComments(raw);
+            for (const call of src.matchAll(/\b(?:gmMeansWrite|meansWrite)\(/g)) {
+                const job = argumentsOf(src, call.index + call[0].length - 1), fn = enclosing(src, call.index);
+                const callees = [...new Set([...blank(job).matchAll(/\b([a-zA-Z_]\w*)\(/g)].map(m => m[1]))]
+                    .filter(name => name !== fn && topLevelFunction(src, name) !== null);
+                for (const [where, body] of [[`${file} ${fn}`, job], ...callees.map(name => [`${file} ${fn} > ${name}`, topLevelFunction(src, name)])]) {
+                    if (!READ.test(blank(body))) continue;
+                    seen.add(where);
+                    if (!accepted.has(where)) found.push(where);
+                }
+            }
+        }
+        ok(!found.length, `a GM's job of a student's means reads a maximum or the resources off the document through a reader the census does not name: ${found.join("; ")}`);
+        const rotten = [...accepted.keys()].filter(where => !seen.has(where));
+        ok(!rotten.length, `the census names a reader the source no longer holds: ${rotten.join("; ")}`);
     }]
 ];
 

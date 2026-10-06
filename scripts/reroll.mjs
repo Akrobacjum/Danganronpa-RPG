@@ -750,7 +750,13 @@ async function markReplacedCard(row, before, after) {
  * A REROLL THAT DOES NOT STAND IS GIVEN BACK WHOLE (E32+E07 fix r1-G3, 02.10.2026; E08+E28
  * C4a). The card gets its first rolls again, and the Hope paid comes back as +3 on the Hope
  * the GMs hold now (since fix r2-H5 their value, in the character's audit queue, as
- * `makeReroll` pays it), never the number held before: a grant that landed in between stays. What a
+ * `makeReroll` pays it), never the number held before: a grant that landed in between stays -
+ * and held to the Hope maximum the GMs hold (sheet-audit.mjs `meansMaxHeld`, since fix r2-H27).
+ * Read off the document, that maximum was one a console's write of the scars had lowered until
+ * the audit's put-back landed, and the GM's write of the lower Hope became the GMs' value:
+ * measured at 414ebd2 (06.10.2026, e29run/r2h27red) by tier 2 ("a Reroll's give-back and a
+ * critical's second Hope are held to the Hope maximum the GMs hold"), the 3 given back to 1
+ * under a maximum lowered from 6 to 3 made 3 on the sheet and in the mark, for 4. What a
  * replay's own undo put back stays put back - each undo checks before it writes, so a late
  * refusal has written nothing of its own. The journal row goes with it. The harness has no
  * Daggerheart roll to throw again; the suite drives this with a roll of its own, and a real
@@ -763,10 +769,9 @@ async function giveBack(actor, message, firstRolls, cost) {
     if (rerollJournalStore.has(actor.id)) await rerollJournalStore.patch(actor.id, { phase: "givingBack" });
     await putFirstRollBack(message, firstRolls);
     try {
-        const { gmMeansWrite } = await import("./sheet-audit.mjs");
-        const { resourceMax } = await import("./character.mjs");
+        const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
         await gmMeansWrite(actor, ({ hope }) => trustedWrite(actor,
-            { "system.resources.hope.value": Math.min(resourceMax(actor, "hope") || STARTING.hopeMax, hope + cost) }, { reason: "refund" }));
+            { "system.resources.hope.value": Math.min(meansMaxHeld(actor, "hope") || STARTING.hopeMax, hope + cost) }, { reason: "refund" }));
     } catch (err) {
         error(`Could not give back the ${cost} Hope a Reroll that did not stand had taken`, err);
     }

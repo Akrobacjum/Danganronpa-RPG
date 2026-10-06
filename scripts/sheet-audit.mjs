@@ -872,8 +872,10 @@ function heldMark(actor) {
  * the GMs hold no mark of their own. A player's write of a maximum is put back with `lockPlayerResources` on
  * (`LOCK_NAMED_MAX`) and stands on the sheet until its put-back lands, and for good where it fails. For a GM's
  * give-back held to the end of a track - a Reroll's rewind of a crisis action's marks (murder.mjs `undoLastCrisis`) and
- * of a clean-up's Sanity (cleanup.mjs `undoLastCleanup`) - read in the job `gmMeansWrite` runs, as the value is.
- * Prepared: the end of a track, not a sheet's maximum to write over (`numberHeld`).
+ * of a clean-up's Sanity (cleanup.mjs `undoLastCleanup`) - read in the job `gmMeansWrite` runs, as the value is; so
+ * too, since fix r2-H27, for a Reroll's price given back (reroll.mjs `giveBack`) and a critical's second Hope
+ * (despair-award.mjs `adjustCritHopeTopUp`), the last two jobs that read Hope's maximum off the document (tier 1's R290
+ * holds the census of such reads). Prepared: the end of a track, not a sheet's maximum to write over (`numberHeld`).
  */
 export function meansMaxHeld(actor, key) {
     return maxHeld(actor, heldMark(actor), key);

@@ -372,7 +372,7 @@ async function inConsoleWindow(student, player, { honest = {}, forged, paths, du
     const sheet = path => foundry.utils.getProperty(student._source, path) ?? null;
     const marked = path => {
         const mark = sheetMarkStore.get(student.id) ?? {};
-        return foundry.utils.getProperty({ system: { resources: mark.resources, traits: mark.traits, experiences: mark.experiences },
+        return foundry.utils.getProperty({ system: { resources: mark.resources, traits: mark.traits, experiences: mark.experiences, scars: mark.scars },
             flags: { [MODULE_ID]: mark.flags } }, path) ?? null;
     };
     if (Object.keys(honest).length) await trustedWrite(student, honest, { reason: "gmRuling" });
@@ -30112,6 +30112,78 @@ const SCENARIOS = [
             + "(the scars' verdict and the scars on the sheet and in the GMs' mark, with the setting on and off; in the put-back's window, the "
             + "verdict, the scars, Hope's maximum on the document and as the GMs hold it; the Hope given on the sheet and in the mark; an "
             + "effect on the scars: its verdict, and whether it is left)");
+    }],
+
+    ["a Reroll's give-back and a critical's second Hope are held to the Hope maximum the GMs hold", async () => {
+        /*
+         * E29 fix r2-H27, 06.10.2026; found by fix r2-H25 (its "found, not fixed"). Two GM jobs write a student's Hope
+         * from the Hope the GMs hold (sheet-audit.mjs `gmMeansWrite`) and read its maximum off the document: a Reroll
+         * that does not stand gives its price back (reroll.mjs `giveBack`), and a Reroll into a critical pays the
+         * module's second Hope (despair-award.mjs `adjustCritHopeTopUp`). Daggerheart's scars set that maximum - the
+         * world's setting less them - and a console's write of them stands on the document until the audit's put-back
+         * lands (for good where it fails), so each job stopped at the lowered maximum and the GM's write became the GMs'
+         * value. On the GM's copy of the student prepared as Daggerheart prepares Hope's maximum (`preparedAs`), in the
+         * window a console's write of the scars leaves (`inConsoleWindow`, the put-back refused), a roll of the
+         * student's kept on the GMs is rerolled on this GM (`rerollOnGm`, as fix r2-H5's test does) with the players'
+         * Hope automation on: from 4 Hope under 3 scars (a maximum of 3 for the GMs' 6) into a Reroll that cannot be
+         * thrown, and from 5 Hope under 4 scars (a maximum of 2) into a critical. Read per Reroll: what it answered,
+         * and the Hope on the sheet and in the GMs' mark. Expected the price given back whole (1 + 3) and the second
+         * Hope paid (2 + 1), both under the GMs' 6. At 414ebd2 (06.10.2026, e29run/r2h27red): 3 and 3, 2 and 2.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { livingStudents } = await import("./chapter.mjs");
+        const R = await import("./reroll.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const { meansMaxHeld, sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [who] = livingStudents().filter(player);
+        const p = player(who);
+        const SCARS = "system.scars", HOPE = "system.resources.hope.value";
+        const [scarsWas, hopeWas] = [foundry.utils.getProperty(who._source, SCARS), foundry.utils.getProperty(who._source, HOPE)];
+        const messages = [], read = [];
+        must(!await hopeCallRefusal(who), `${who.name} may not spend a Hope Call now - this would measure the bar, not the Reroll`);
+        const unprepare = preparedAs(who, system => { system.resources.hope.max = STARTING.hopeMax - (system.scars ?? 0); });
+        try {
+            await withDhAutomation({ hopeFear: { players: true }, countdownAutomation: false }, async () => {
+                await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, false);
+                const first = { hope: 9, fear: 4 };
+                for (const [hope, scars, next, fails] of [[4, 3, { hope: 10, fear: 3 }, true], [5, 4, { hope: 7, fear: 7 }, false]]) {
+                    let made = null;
+                    const [[onSheet, inMark]] = await inConsoleWindow(who, p, { honest: { [SCARS]: 0, [HOPE]: hope }, forged: { [SCARS]: scars }, paths: [HOPE] },
+                        async () => {
+                            const [top, held] = [Number(who.system.resources.hope.max), meansMaxHeld(who, "hope")];
+                            must(top === STARTING.hopeMax - scars && held === STARTING.hopeMax,
+                                `the console's scars did not lower the document's Hope maximum under the GMs' - this would measure nothing (${top} on the document, ${held} held)`);
+                            const message = await thrownFresh(who, first, () => null, { remember: true });
+                            messages.push(message.id);
+                            must(rerollBookmarkStore.get(who.id)?.messageId === message.id, "the roll to take back is not the one the GMs keep - this would measure nothing");
+                            await trustedWrite(who, { [HOPE]: hope }, { reason: "gmRuling" });
+                            await sheetAuditIdle();
+                            const stand = rerollableRoll(message, { first, next, onReroll: async () => {
+                                if (fails) throw new Error("SUITE E29 fix r2-H27: a Reroll that cannot be thrown");
+                            } });
+                            try {
+                                made = await R.rerollOnGm(who, game.user);
+                            } finally {
+                                stand.putBack();
+                            }
+                            await settle();
+                        });
+                    read.push([Array.isArray(made?.lines) ? "made" : made?.say ?? made?.refused ?? null, onSheet, inMark]);
+                }
+            });
+        } finally {
+            unprepare?.();
+            for (const id of messages) await game.messages.get(id)?.delete();
+            await sheetAuditIdle();
+            await who.update({ [SCARS]: scarsWas === undefined ? forcedDeletion() : scarsWas, [HOPE]: hopeWas });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([["DRPG.Reroll.failed", 4, 4], ["made", 3, 3]]),
+            "a Reroll's give-back or a critical's second Hope stopped at a Hope maximum a console's scars had lowered and the GMs' audit had not put back, "
+                + "or the GM's write of it became the mark (per Reroll: the answer, the Hope on the sheet and in the GMs' mark - the GMs' maximum 6, the document's 3 and 2)");
     }],
 
     ["a player's write that raises a resource's maximum banks no credit beyond the maximum the GMs hold", async () => {
