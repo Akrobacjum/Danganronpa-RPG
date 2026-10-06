@@ -4858,11 +4858,15 @@ const REGRESSIONS = [
         ok(/"ownership\.default": OBSERVER/.test(bodyOf(anonymity, "async function lowerOwnership(", { until: "\n}\n" })),
             "lowerOwnership does not put the default back to Observer");
         const bullets = stripComments(sources.get("truth-bullets.mjs") ?? "");
-        const watcher = bodyOf(bullets, "function watchBulletEdits(", { length: 2400 });
-        ok(/Hooks\.on\("updateItem", async \(item, changes, options, userId\)/.test(watcher),
+        /* E29 fix r2-H12: the item's own update and its student's (`bulletWrites`) reach one judge, `onBulletWrite`. */
+        const watcher = bodyOf(bullets, "function watchBulletEdits(", { until: "\n}\n" });
+        const judge = bodyOf(bullets, "async function onBulletWrite(", { until: "\n}\n" });
+        ok(/Hooks\.on\("updateItem", onBulletWrite\)/.test(watcher) && judge.startsWith("async function onBulletWrite(item, changes, options, userId)"),
             "the bullet watcher does not know who made the change");
-        ok(watcher.includes("revertPlayerBulletEdit("), "a player's edit of a bullet is not put back");
-        ok(watcher.indexOf("revertPlayerBulletEdit(") < watcher.indexOf("FROM_REMNANT"),
+        ok(/Hooks\.on\("updateActor", [^\n]*\n[^\n]*bulletWrites\(actor, changes\)[^\n]*onBulletWrite\(item, wrote, options, userId\)/.test(watcher),
+            "a bullet written through its student's update does not reach the judge of its own update");
+        ok(judge.includes("revertPlayerBulletEdit("), "a player's edit of a bullet is not put back");
+        ok(judge.indexOf("revertPlayerBulletEdit(") < judge.indexOf("FROM_REMNANT"),
             "the player's edit is looked at after the watcher has already returned for the trace's own writes");
         const guard = stripComments(sources.get("resource-guard.mjs") ?? "");
         for (const flag of ["playerText", "analyzedText", "shownType", "analyzed", "lockedChapter"]) {

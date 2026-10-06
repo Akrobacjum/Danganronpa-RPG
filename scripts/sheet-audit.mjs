@@ -1895,6 +1895,16 @@ function itemsNamed(changes) {
 }
 
 /**
+ * The items a student's update writes, read as `parentItems` reads them: id -> what its entry writes, or - the
+ * list written whole - each item the student holds now -> null. Null when it writes no `items`. truth-bullets.mjs
+ * finds a bullet written through its student here (fix r2-H12) rather than reading the list a third way.
+ */
+export function itemsWritten(actor, changes) {
+    if (!names(changes, "items")) return null;
+    return itemsNamed(changes) ?? new Map((actor.items?.contents ?? []).map(item => [item.id, null]));
+}
+
+/**
  * A GM's write of a student's items through its update (r2-H10): each it names - every one, the list written
  * whole - as the hook saw it, and each the GMs held that is gone, are the mark's.
  */

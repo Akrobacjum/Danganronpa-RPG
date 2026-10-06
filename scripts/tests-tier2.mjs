@@ -13603,6 +13603,66 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM's text for a Truth Bullet written through its student's update goes up to its trace and down to every copy", async () => {
+        /*
+         * E29 fix r2-H12, 06.10.2026. A GM's write of a bullet through its student's update - `items: [{ _id,
+         * flags }]`, which fires no item hook in the harness, only `updateActor` - is the bullet's own write, so it
+         * goes up to the trace the bullet came from, as a GM's edit on the item's own sheet does (the test above, its
+         * fourth part), and the trace sends it down to every copy. 30-security drives a player's writes that way and
+         * the GMs' copy; this is the trace's half. At dd67545 (e29run/r2h12red) the GM's text stayed on the copy it
+         * was written to: the trace and the other copy kept the trace's words.
+         */
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const F = bullets.TRUTH_BULLET_FLAGS;
+
+        needs(world.atLeast("sceneOnScreen"), "the fixture stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms"), "the fixture is built beside a token standing in a room");
+        const scene = canvas?.scene;
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "Foundry has a token standing in a room on the scene on screen, and roomOfToken places none of them");
+        const [writer, holder] = cast(2);
+        const TEXT = `Chalk dust on the sill ${Date.now() % 100000}`;
+        let token = null;
+        const made = [];
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
+                note: "test fixture - a bullet written through its student"
+            });
+            ok(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "Suite fixture chalk", playerText: "A pale mark." });
+            for (const actor of [writer, holder]) {
+                const item = await bullets.createTruthBullet(actor, {
+                    name: "Suite fixture chalk", realType: "resolution", visibility: "obvious",
+                    playerText: "A pale mark.", remnantId: token.id, sceneId: scene.id
+                });
+                ok(item, `no bullet was created for ${actor.name}`);
+                made.push(item);
+            }
+            await settle();
+            await writer.update({ items: [{ _id: made[0].id, flags: { [MODULE_ID]: { [F.playerText]: TEXT } } }] });
+            const textOf = (actor, item) => actor.items.get(item.id)?.getFlag(MODULE_ID, F.playerText) ?? null;
+            await until(() => remnants.remnantPublic(token)?.playerText === TEXT && textOf(holder, made[1]) === TEXT);
+            equal(JSON.stringify([textOf(writer, made[0]), remnants.remnantPublic(token)?.playerText ?? null, textOf(holder, made[1])]),
+                JSON.stringify([TEXT, TEXT, TEXT]),
+                "a GM's text written through the student's update did not reach the trace, or the trace did not send it to the other copy");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) {
+                    await scene.deleteEmbeddedDocuments("Token", [token.id]);
+                }
+            }
+        }
+    }],
+
     ["a Key and a Final keep their reading for an Analyze, like any trace", async () => {
         /*
          * Dawid, 21.09: every trace works like an ordinary one - a description,

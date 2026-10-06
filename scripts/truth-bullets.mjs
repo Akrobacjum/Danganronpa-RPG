@@ -42,8 +42,9 @@ import {
 } from "./utils.mjs";
 import { playSfxFor } from "./sfx.mjs";
 import { bulletStore, bulletRefCopy, backupCase, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
-import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
+import { gmStoresQuiet, whenGmStoresAudible, stableJson } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
+import { itemsWritten } from "./sheet-audit.mjs";
 
 /** The one inventory category a Truth Bullet ever has. */
 export const BULLET_CATEGORY = "truthBullet";
@@ -1293,80 +1294,122 @@ function watchBulletEdits() {
         refreshGuard(item);
     });
     Hooks.on("deleteItem", item => { guards.delete(item.uuid); });
-    Hooks.on("updateItem", async (item, changes, options, userId) => {
-        try {
-            // Every GM's copy follows a GM's write - the next primary may be any
-            // of them. Memory only: nothing is written, so no GM doubles anything.
-            const touched = isTruthBullet(item) ? guardedPathsIn(changes) : [];
-            const author = game.users.get(userId ?? "");
-            if (touched.length && author?.isGM && game.user?.isGM) refreshGuard(item);
-            /*
-             * THE PRIMARY GM, not "a GM" - and with two Gamemasters at this
-             * table that is not pedantry. `updateItem` fires on every client,
-             * so `isGM` alone had both of them writing the same patch to the
-             * trace, each one pushing it back down onto every copy and each
-             * one syncing the ledger to the other. One rename became two
-             * cascades. Same rule the trap relay and the search tokens use.
-             */
-            if (!isPrimaryGm()) return;
-            if (touched.length && !author?.isGM) {
-                await revertPlayerBulletEdit(item, touched, author);
-                return;
-            }
-            if (options?.[FROM_REMNANT]) return;              // the trace talking
-            if (options?.[NOT_AN_EDIT]) return;               // the module keeping books
-            if (!isTruthBullet(item)) return;
-
-            // The row's since E05 C13: this runs on the primary GM, which holds it.
-            const ref = bulletRefOf(item);
-            if (!ref) return;                                  // not copied from a trace
-            const [sceneId, tokenId] = String(ref).split(".");
-            if (!sceneId || !tokenId) return;
-
-            // Only the things the trace owns. A GM ticking `identified` or
-            // burning an analysis is not describing the object.
-            const patch = {};
-            if (changes.name !== undefined) patch.name = item.name;
-            const flags = changes.flags?.[MODULE_ID] ?? {};
-            if (flags[TRUTH_BULLET_FLAGS.playerText] !== undefined) {
-                patch.playerText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "";
-            }
-            if (flags[TRUTH_BULLET_FLAGS.analyzedText] !== undefined) {
-                patch.analyzedText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzedText) ?? "";
-            }
-            /*
-             * The description is edited on the item sheet as HTML, and the flag
-             * is the same sentence in plain text. A GM typing into the sheet
-             * changes only the first, so it is read back and stripped - without
-             * this, editing a bullet the ordinary way would write the name to the
-             * trace and silently drop the words.
-             *
-             * THE ANALYSIS PARAGRAPH IS CUT OUT BEFORE THE SCRAPE, and it has to
-             * be. `bulletDescription` renders two blocks into this one field, so
-             * a flat `textContent` would fold the lab reading - and the heading
-             * in front of it - into `playerText` and then push that sentence
-             * down onto every copy of the trace, including the copies held by
-             * people who have not analysed anything. One GM opening a bullet's
-             * sheet would publish the answer to the whole table.
-             *
-             * Cut by the class `bulletDescription` stamps, which is the only
-             * thing here that knows the two halves apart.
-             */
-            if (changes.system?.description !== undefined && patch.playerText === undefined) {
-                // A template, whose content is inert: read for its text, never run.
-                const wrap = document.createElement("template");
-                wrap.innerHTML = String(item.system?.description ?? "");
-                for (const block of wrap.content.querySelectorAll(".drpg-bullet-analysis")) block.remove();
-                patch.playerText = wrap.content.textContent.replace(/\s+/g, " ").trim();
-            }
-            if (!Object.keys(patch).length) return;
-
-            const { setRemnantPublicById } = await import("./remnants.mjs");
-            await setRemnantPublicById(sceneId, tokenId, patch);
-        } catch (err) {
-            error("Could not carry a Truth Bullet's edit back to its trace", err);
-        }
+    Hooks.on("updateItem", onBulletWrite);
+    Hooks.on("updateActor", (actor, changes, options, userId) => {
+        for (const [item, wrote] of bulletWrites(actor, changes)) void onBulletWrite(item, wrote, options, userId);
     });
+}
+
+/**
+ * A write of a Truth Bullet, by its own update or through its student's (`bulletWrites`, fix r2-H12): every
+ * GM's copy follows a GM's, the primary GM puts a player's back, and a GM's goes up to the trace it came from.
+ */
+async function onBulletWrite(item, changes, options, userId) {
+    try {
+        // Every GM's copy follows a GM's write - the next primary may be any
+        // of them. Memory only: nothing is written, so no GM doubles anything.
+        const touched = isTruthBullet(item) ? guardedPathsIn(changes) : [];
+        const author = game.users.get(userId ?? "");
+        if (touched.length && author?.isGM && game.user?.isGM) refreshGuard(item);
+        /*
+         * THE PRIMARY GM, not "a GM" - and with two Gamemasters at this
+         * table that is not pedantry. `updateItem` fires on every client,
+         * so `isGM` alone had both of them writing the same patch to the
+         * trace, each one pushing it back down onto every copy and each
+         * one syncing the ledger to the other. One rename became two
+         * cascades. Same rule the trap relay and the search tokens use.
+         */
+        if (!isPrimaryGm()) return;
+        if (touched.length && !author?.isGM) {
+            await revertPlayerBulletEdit(item, touched, author);
+            return;
+        }
+        if (options?.[FROM_REMNANT]) return;              // the trace talking
+        if (options?.[NOT_AN_EDIT]) return;               // the module keeping books
+        if (!isTruthBullet(item)) return;
+
+        // The row's since E05 C13: this runs on the primary GM, which holds it.
+        const ref = bulletRefOf(item);
+        if (!ref) return;                                  // not copied from a trace
+        const [sceneId, tokenId] = String(ref).split(".");
+        if (!sceneId || !tokenId) return;
+
+        // Only the things the trace owns. A GM ticking `identified` or
+        // burning an analysis is not describing the object.
+        const patch = {};
+        if (changes.name !== undefined) patch.name = item.name;
+        const flags = changes.flags?.[MODULE_ID] ?? {};
+        if (flags[TRUTH_BULLET_FLAGS.playerText] !== undefined) {
+            patch.playerText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "";
+        }
+        if (flags[TRUTH_BULLET_FLAGS.analyzedText] !== undefined) {
+            patch.analyzedText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzedText) ?? "";
+        }
+        /*
+         * The description is edited on the item sheet as HTML, and the flag
+         * is the same sentence in plain text. A GM typing into the sheet
+         * changes only the first, so it is read back and stripped - without
+         * this, editing a bullet the ordinary way would write the name to the
+         * trace and silently drop the words.
+         *
+         * THE ANALYSIS PARAGRAPH IS CUT OUT BEFORE THE SCRAPE, and it has to
+         * be. `bulletDescription` renders two blocks into this one field, so
+         * a flat `textContent` would fold the lab reading - and the heading
+         * in front of it - into `playerText` and then push that sentence
+         * down onto every copy of the trace, including the copies held by
+         * people who have not analysed anything. One GM opening a bullet's
+         * sheet would publish the answer to the whole table.
+         *
+         * Cut by the class `bulletDescription` stamps, which is the only
+         * thing here that knows the two halves apart.
+         */
+        if (changes.system?.description !== undefined && patch.playerText === undefined) {
+            // A template, whose content is inert: read for its text, never run.
+            const wrap = document.createElement("template");
+            wrap.innerHTML = String(item.system?.description ?? "");
+            for (const block of wrap.content.querySelectorAll(".drpg-bullet-analysis")) block.remove();
+            patch.playerText = wrap.content.textContent.replace(/\s+/g, " ").trim();
+        }
+        if (!Object.keys(patch).length) return;
+
+        const { setRemnantPublicById } = await import("./remnants.mjs");
+        await setRemnantPublicById(sceneId, tokenId, patch);
+    } catch (err) {
+        error("Could not carry a Truth Bullet's edit back to its trace", err);
+    }
+}
+
+/*
+ * A BULLET WRITTEN THROUGH ITS STUDENT (E29 fix r2-H12, 06.10.2026; found by fix r2-H10). A student's update can
+ * carry its items - each named by its id, or the whole list replaced - and such a write fires no `updateItem`
+ * here (the harness fires only `updateActor`; Foundry v14 is not measured, as sheet-audit.mjs says of the same
+ * road), so the guard above never heard it: at dd67545 a player's console text written so stayed on every client
+ * with no word to the GMs, and a GM's stayed off its trace and out of the GMs' copy, so the player's next edit
+ * by the item's own road went back to the words before the GM's (e29run/r2h12red). Each bullet the write
+ * reaches, read as the audit reads the student's items (sheet-audit.mjs `itemsWritten`), is handed to
+ * `onBulletWrite` with what it changed, shaped as its own update's changes are - one road, so a player's is put
+ * back by the primary GM, a GM's is every GM's copy and goes up to the trace, and the trace's own writes and the
+ * module's bookkeeping are told apart by the same options.
+ *
+ * WHAT IT CHANGED IS WHAT DIFFERS FROM THIS GM'S COPY, whatever form the entry wrote it in: a list written whole
+ * repeats every field, and a bullet it leaves as it was is put back by nothing and told to nobody. A bullet this
+ * browser holds no copy of has every field its entry names counted - all of them, the list written whole - as its
+ * own update's are: there is nothing to compare them with, and a player's is told to the GMs as staying. Were
+ * Foundry to fire `updateItem` for such a write as well, a bullet would be judged twice - by reading, a player's
+ * put back and told twice, the second put-back writing what the first did.
+ */
+function bulletWrites(actor, changes) {
+    if (!game.user?.isGM) return [];
+    const out = [];
+    for (const [id, entry] of itemsWritten(actor, changes) ?? []) {
+        const item = actor.items?.get(id) ?? null;
+        if (!isTruthBullet(item)) continue;
+        const guard = guards.get(item.uuid) ?? null, now = guardedValues(item);
+        const paths = guard ? Object.keys(now).filter(path => stableJson(now[path]) !== stableJson(guard[path]))
+            : entry ? guardedPathsIn(entry) : Object.keys(now);
+        if (paths.length) out.push([item, foundry.utils.expandObject(Object.fromEntries(paths.map(path => [path, now[path]])))]);
+    }
+    return out;
 }
 
 /* ==========================================================================

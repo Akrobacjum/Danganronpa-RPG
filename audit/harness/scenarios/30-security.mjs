@@ -3192,6 +3192,85 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     await settle(800);
 
     /*
+     * A BULLET WRITTEN THROUGH ITS STUDENT (E29 fix r2-H12, 06.10.2026; found by fix r2-H10). The backstop's edit
+     * above, sent through Botan's update instead - `items: [{ _id, flags }]`, which fires no item hook here, only
+     * `updateActor` - is put back on every client in one write and told to the GMs as put back; a GM's new text sent
+     * the same way stands on every client and is what the GMs' copy holds, so p2's later edit by the item's own road
+     * goes back to the GM's words, not the older ones; and Botan's whole list written back (v14's forced replacement)
+     * puts back a bullet text it changed, and nothing - no write, no word to the GMs - when it changed nothing.
+     * Between them the GM puts the bullet back by its own road, so each starts from `bulletBefore` whatever the one
+     * before it left: without that, the first red run read the fourth red only because the third had left its text.
+     * At dd67545 (06.10.2026, e29run/r2h12red) the first three were red - p2's text, written through Botan's items or
+     * his whole list, stayed on every client, nothing put it back and the GMs were told nothing, and p2's later edit
+     * went back to the words before the GM's - and the fourth was green, as a guard is: it turns red when the fix
+     * counts a field the list repeats unchanged as written (the mutant in e29run/r2h12m).
+     */
+    await p2.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs"); globalThis.__bulletPutBacks = 0;
+        if (!globalThis.__bulletPutBackHook) {
+            globalThis.__bulletPutBackHook = true;
+            Hooks.on("updateItem", (i, c, o) => { if (i.id === "${bullet}" && o?.[T.NOT_AN_EDIT]) globalThis.__bulletPutBacks++; });
+        }
+        return true;`);
+    const putBacks = () => p2.eval(`const n = globalThis.__bulletPutBacks; globalThis.__bulletPutBacks = 0; return n;`);
+    // Up to 6 s for p2 to hear a put-back and the GM to read the bullet as `want`, then the other clients' turn.
+    const readAfterPutBack = async want => {
+        await p2.eval(`const end = Date.now() + 6000; while (!globalThis.__bulletPutBacks && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return true;`);
+        await gm.eval(`const end = Date.now() + 6000; const read = () => { ${readBullet} };
+            while (JSON.stringify(read()) !== ${JSON.stringify(JSON.stringify(want))} && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return true;`);
+        await settle(800);
+        return Promise.all([gm, p1, p2, p3].map(c => c.eval(readBullet)));
+    };
+    const viaBotan = (client, entry, opts = ", { drpgAutomated: true }") => client.eval(`await game.actors.get("${ids.botan}").update({
+        items: [{ _id: "${bullet}", ...${JSON.stringify(entry)} }] }${opts}); return true;`);
+    const wholeBotan = text => p2.eval(`const a = game.actors.get("${ids.botan}"), list = a.items.contents.map(i => i.toObject());
+        ${text === null ? "" : `foundry.utils.setProperty(list.find(i => i._id === "${bullet}"), "flags.${MOD}.playerText", ${JSON.stringify(text)});`}
+        await a.update({ items: foundry.data.operators.ForcedReplacement.create(list) }, { drpgAutomated: true }); return true;`);
+    const restoreBullet = async () => {
+        await gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+            await b.update({ "flags.${MOD}.playerText": ${JSON.stringify(bulletBefore.text)}, "flags.${MOD}.analyzed": ${bulletBefore.analyzed} }); return true;`);
+        await settle(800);
+    };
+
+    let saidFrom = await gm.eval(`return game.messages.size;`);
+    await viaBotan(p2, { flags: { [MOD]: { playerText: "SEC through Botan", analyzed: true } } });
+    const parentEdit = { after: await readAfterPutBack(bulletBefore), putBacks: await putBacks(), told: await gmSaid(saidFrom) };
+    check("SECURITY: a player's console writing what their Truth Bullet says or is through their student's update is put back on every client, and the GMs are told so",
+        Boolean(bullet) && everyClient(parentEdit.after, bulletBefore) && parentEdit.putBacks === 1 && parentEdit.told.reverted && !parentEdit.told.unrestored,
+        JSON.stringify({ bulletBefore, parentEdit }));
+    await restoreBullet();
+
+    const gmText = { text: "SEC words the GM wrote", analyzed: bulletBefore.analyzed };
+    await viaBotan(gm, { flags: { [MOD]: { playerText: gmText.text } } }, "");
+    await gm.eval(`const end = Date.now() + 6000; const read = () => { ${readBullet} };
+        while (read().text !== ${JSON.stringify(gmText.text)} && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return true;`);
+    await settle(800);
+    const gmWrote = await Promise.all([gm, p1, p2, p3].map(c => c.eval(readBullet)));
+    await putBacks();
+    await p2.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        await b.update({ "flags.${MOD}.playerText": "SEC after the GM" }, { drpgAutomated: true }); return true;`);
+    const laterEdit = { after: await readAfterPutBack(gmText), putBacks: await putBacks() };
+    check("SECURITY: a GM's new text for a Truth Bullet written through its student's update stands on every client, and a player's later edit of it is put back to the GM's words",
+        everyClient(gmWrote, gmText) && everyClient(laterEdit.after, gmText) && laterEdit.putBacks === 1, JSON.stringify({ gmText, gmWrote, laterEdit }));
+    await restoreBullet();
+
+    saidFrom = await gm.eval(`return game.messages.size;`);
+    await putBacks();
+    await wholeBotan("SEC the whole list");
+    const wholeEdit = { after: await readAfterPutBack(bulletBefore), putBacks: await putBacks(), told: await gmSaid(saidFrom) };
+    check("SECURITY: a Truth Bullet's text changed in its student's whole item list written back is put back on every client, and the GMs are told so",
+        everyClient(wholeEdit.after, bulletBefore) && wholeEdit.putBacks === 1 && wholeEdit.told.reverted && !wholeEdit.told.unrestored,
+        JSON.stringify({ bulletBefore, wholeEdit }));
+    await restoreBullet();
+    saidFrom = await gm.eval(`return game.messages.size;`);
+    await putBacks();
+    await wholeBotan(null);
+    await settle(2000);
+    const wholeSame = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readBullet))), putBacks: await putBacks(), told: await gmSaid(saidFrom) };
+    check("SECURITY: a student's whole item list written back as it stands puts nothing back on their Truth Bullet and tells the GMs nothing",
+        everyClient(wholeSame.after, bulletBefore) && wholeSame.putBacks === 0 && !wholeSame.told.reverted && !wholeSame.told.unrestored,
+        JSON.stringify({ bulletBefore, wholeSame }));
+
+    /*
      * The load-time record ran on the GM, once (the E03 review measured it running
      * 0 times), and the GM holds a copy of every bullet in the world now - the ones
      * made during this scenario by a GM's write. The fixture world has no bullet at
