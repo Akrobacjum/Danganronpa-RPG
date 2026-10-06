@@ -371,12 +371,14 @@ export const TIMING = {
     gmStoreSyncMs: 8000,
     /** How long an Analyze or a handover of a Truth Bullet waits for this GM's stores to
      *  open and hear the other GMs before it refuses (gm-stores.mjs `answerKeysOpen`; E04's
-     *  fix round 10, 26.09.2026). Not `gmStoreSyncMs` itself: that clock starts at the hello,
+     *  fix round 10, 26.09.2026), and a drawn roll for the GMs' marks (roll-draw.mjs
+     *  `marksOpen`; E29 fix r2-H3). Not `gmStoreSyncMs` itself: that clock starts at the hello,
      *  after the open's claims, so a request that came during the claims would be refused a
      *  moment before a timed-out exchange let it through. Twice it: the exchange's own bound
      *  and as long again for the claims (how long a real browser's take is not measured; the
      *  exchange at a real table is LIVE-E04-02). Far under `rulingMs`, the asking player's
-     *  own clock, so the refusal reaches them before they stop listening (R189). */
+     *  own clock, so the refusal reaches them before they stop listening (R189); under a
+     *  draw's, roll-draw.mjs `DRAW_ANSWER_MS` (30 s), with its pick's wait (2 s) besides. */
     gmStoreOpenMs: 16000,
     /** How far ahead of this client's clock a GM store stamp is believed: past it, the
      *  stamp is kept as sent, the clock is not moved further, and the sender is named once. */
@@ -3880,9 +3882,10 @@ export const CLEANUP = {
  *     experience, Breakdown's one die, the hostile Call's grace;
  *   - `label` is the line a flag names it by (`DRPG.Rolls.legal.*`).
  * The advantage dice of every row are summed and capped at roll-dialog.mjs `ADVANTAGE_CAP`, as the
- * roll window sums them (`advantageSources`). Monokuma's rolls are a GM's and are not drawn. From
- * C9 the GM reads the list and still only observes: a roll that differs is flagged to the GMs and
- * stands as drawn.
+ * roll window sums them (`advantageSources`). Monokuma's rolls are a GM's and are not drawn. In C9
+ * the GM read the list and only observed: a roll that differed was flagged to the GMs and stood as
+ * drawn. From C10 the GM throws the roll this list makes (roll-draw.mjs `legalRollOf`): what the
+ * roller's window put on beyond it is a claim, recorded and flagged to the GMs, never counted.
  */
 /** How long before a draw a hostile Call - a disadvantage, a negative bonus - is armed to count whether the roll names it or not (the owner's Q3 (a), 05.10.2026), in ms. */
 export const HOSTILE_GRACE = 60_000;

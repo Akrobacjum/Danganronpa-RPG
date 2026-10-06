@@ -711,6 +711,16 @@ export async function armedCallsHeld(actor) {
  */
 export async function itemsAsHeld(actor) {
     await judgedFor(actor?.id);
+    return itemsHeldNow(actor);
+}
+
+/*
+ * `itemsAsHeld` without its wait, for a road that has made the wait itself and reads in one step from its end: a GM's
+ * draw (roll-draw.mjs `expectedFor`, through `actorHeldNow`; the merge of the side line's fix r2-H20 with the main
+ * line's fix r2-H3, 06.10.2026). Read without the wait, a write heard and not judged yet is read as the mark held the
+ * item before it - a write the judgement would keep included.
+ */
+export function itemsHeldNow(actor) {
     const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
     // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
     const copies = mark && !mark.flags?.[FLAGS.monokuma] ? mark.items ?? {} : null;
@@ -761,7 +771,13 @@ export async function flagsAsHeld(actor) {
  * the use they follow, and none writes what a judgement waits for (a use's consumption, a roll's card).
  */
 export async function actorAsHeld(actor) {
-    const items = await itemsAsHeld(actor);
+    await judgedFor(actor?.id);
+    return actorHeldNow(actor);
+}
+
+/** `actorAsHeld` without its wait (`itemsHeldNow`'s note): a GM's draw reads a weapon, a tool and a Cleaning Tool in hand off it in its one step (roll-draw.mjs `situationReading`). */
+export function actorHeldNow(actor) {
+    const items = itemsHeldNow(actor);
     return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
         items: Object.assign([...items], { get: id => items.find(item => item.id === id) }) };
 }

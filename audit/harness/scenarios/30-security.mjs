@@ -1174,6 +1174,59 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify(statAsked) === JSON.stringify([[false, "notThere"], [false, "notThere"], [false, "badRequest"], [true, "hand"]])
             && statAfter.cards === 1 && statAfter.pressed === 1 && statAfter.logged === 3 && statAfter.kept === "hand",
         JSON.stringify({ statProjects, statAsked, statAfter }), { flow: "trait-ruling" });
+    /* A RULING IS A GM'S CARD'S (E29 fix r2-H2, 05.10.2026; the round-2 security review's B2). The GM read a statistic's pick
+       (roll-draw.mjs `gmPickOf`) and a Dynamic action's difficulty (gm-bridge.mjs `dynamicRulingOf`) off any card carrying a
+       `ruling`, the document's flag first, whoever wrote it: the review's console posted one and the GM threw Body for a
+       clean-up, which does not list it, as the GM's pick (its probe 96 H, at 070b72b's runtime). Here p1's console posts a pick
+       card for a project stored without a statistic, naming the highest of the four a project lists as Aiko's sheet holds
+       them, and draws a Work on it claiming that one; then the GM settles a pick card of its own for the project naming
+       another it lists, p1's console posts a second card, newer, and draws again. Then the GM posts a difficulty card for
+       Aiko, and p1's console a newer one. Read on the GM: each Work's statistic thrown, the card that held it and its
+       statistic flags, and the difficulty its reader finds. The cards and the project are deleted after. At a4a7f25's
+       runtime (e29run/r2h2red/30.log) both Works were thrown on the claimed Hand, each held by a card of p1's - the second by
+       the newer one, over the GM's - with nothing flagged, and the difficulty read was p1's 3. */
+    phase("a pick or a difficulty only a GM's card makes", { flow: "trait-ruling" });
+    const forgery = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const { ACTIONS, TRAITS } = await import("${repoUrl}/scripts/config.mjs");
+        const a = game.actors.get("${ids.aiko}"), value = t => Number(a.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const highest = listed.reduce((h, t) => (value(t) > value(h) ? t : h)), lowest = listed.reduce((l, t) => (value(t) < value(l) ? t : l));
+        return { project: (await P.createProject({ name: "SEC r2-H2 no statistic", target: 6, room: null, trait: null }))?.id ?? null,
+            highest, lowest, other: listed.find(t => t !== highest && t !== lowest) ?? null };`, { timeout: 60000 });
+    const forgedRuling = ruling => p1.eval(`const m = await ChatMessage.create({ content: "<p>SEC r2-H2</p>",
+            whisper: game.users.filter(u => u.isGM).map(u => u.id), flags: { "${MOD}": { ruling: ${JSON.stringify(ruling)} } } });
+        return m?.id ?? null;`);
+    const pickOf = trait => ({ type: "trait", actorId: ids.aiko, kind: "project", key: forgery.project, variant: null, trait });
+    const workOn = async () => {
+        const { messageId } = await drawnRoll(p1, ids.aiko, "project", forgery.highest, { hope: 9, fear: 4 }, { context: { projectId: forgery.project } });
+        return gm.eval(`const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(messageId ?? "none")}));
+            return r ? { thrown: r.scored?.trait ?? null, pick: r.legal?.pick ?? null, from: r.legal?.traitFrom ?? null,
+                flags: (r.flags ?? []).filter(f => f.kind === "trait" || f.kind === "pick").map(f => [f.kind, f.expected, f.claimed]) } : null;`);
+    };
+    const forgedPick = await forgedRuling(pickOf(forgery.highest));
+    const forgedAlone = await workOn();
+    const gmPick = await gm.eval(`const { whisperToGms } = await import("${repoUrl}/scripts/utils.mjs");
+        const { settleCall } = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const m = await whisperToGms("<p>SEC r2-H2 the GM's pick</p>");
+        if (m) await settleCall(m, "SEC r2-H2", ${JSON.stringify(pickOf(forgery.other))});
+        return m?.id ?? null;`);
+    const forgedAfter = await forgedRuling(pickOf(forgery.highest));
+    const forgedBeside = await workOn();
+    const gmDifficulty = await gm.eval(`const m = await ChatMessage.create({ content: "<p>SEC r2-H2 the GM's difficulty</p>", whisper: [game.user.id],
+            flags: { "${MOD}": { ruling: { type: "dynamic", actorId: "${ids.aiko}", tier: 1 } } } });
+        return m?.id ?? null;`);
+    const forgedDifficulty = await forgedRuling({ type: "dynamic", actorId: ids.aiko, tier: 3 });
+    await settle(300);
+    const difficulty = await gm.eval(`return (await import("${repoUrl}/scripts/gm-bridge.mjs")).dynamicRulingOf({ actorId: "${ids.aiko}", at: Date.now() })?.tier ?? null;`);
+    await gm.eval(`for (const id of ${JSON.stringify([forgedPick, gmPick, forgedAfter, gmDifficulty, forgedDifficulty])}) await game.messages.get(id ?? "")?.delete();
+        if (${JSON.stringify(forgery.project)}) await (await import("${repoUrl}/scripts/projects.mjs")).deleteProject(${JSON.stringify(forgery.project)});
+        return true;`, { timeout: 60000 });
+    check("SECURITY: a pick card or a difficulty card p1's console writes is no GM's ruling: its Work is thrown on the lowest a project lists and flagged, a GM's own pick beside a newer forged one holds, and the GM's difficulty stands",
+        Boolean(forgery.project && forgery.other && forgedPick && gmPick && forgedAfter && gmDifficulty && forgedDifficulty) && forgery.highest !== forgery.lowest
+            && JSON.stringify(forgedAlone) === JSON.stringify({ thrown: forgery.lowest, pick: null, from: "gm", flags: [["trait", forgery.lowest, forgery.highest], ["pick", "1", "0"]] })
+            && JSON.stringify(forgedBeside) === JSON.stringify({ thrown: forgery.other, pick: gmPick, from: "gm", flags: [["trait", forgery.other, forgery.highest]] })
+            && difficulty === 1,
+        JSON.stringify({ forgery, forgedPick, gmPick, forgedAfter, forgedAlone, forgedBeside, forgedDifficulty, difficulty }), { flow: "trait-ruling" });
     const PLACE = `{ teleport: true, movementAction: "displace", animate: false }`;
     const stoodBotan = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const actor = game.actors.get("${ids.botan}"); const t = canvas.scene.tokens.find(x => x.actorId === actor.id);
@@ -1956,7 +2009,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
        GM: the newest record's dice (faces, how many thrown), its critical against its dice, and the kind and the skips
        its message keeps. Then a draw naming no action whose roll adds `(10)`: refused, told, and nothing written.
        At 33bc497's runtime the GM's record read dice [[1,2],[1,1]], a critical, a reaction and the three skips, and the
-       `(10)` draw was written (drawn messages 19 -> 20, records 22 -> 23). */
+       `(10)` draw was written (drawn messages 19 -> 20, records 22 -> 23). Since E29 fix r2-H1 a packet's options may
+       not carry `skips` at all - it is refused, the next check's rule - so this roll asks the critical and the kind
+       alone, and the skips read are the GM's own. */
     const termsFrom = await gm.eval(`return Date.now();`);
     const readNewest = `const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const row = Object.values(S.rollStore?.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom})
@@ -1966,7 +2021,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             kind: m?.rolls?.[0]?.options?.actionType ?? null, skips: m?.rolls?.[0]?.options?.skips ?? null } : null;`;
     const forgedDice = { ...unthrown, formula: "2d1kh + 1d1 + 0",
         terms: [die("HopeDie", { number: 2, faces: 1, modifiers: ["kh"] }), unthrown.terms[1], die("FearDie", { faces: 1 }), ...unthrown.terms.slice(3)],
-        options: { ...unthrown.options, guaranteedCritical: true, actionType: "reaction", skips: { resources: true, updateCountdowns: true, triggers: true } } };
+        options: { ...unthrown.options, guaranteedCritical: true, actionType: "reaction" } };
     await p1.eval(`${payFor(ids.aiko)}
         game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "gm-terms-draw", actorId: "${ids.aiko}", nonce: "SECDRAWNONCE",
             actionKey: "search", claimed: true, loaded: null, costs: [], roll: ${JSON.stringify(forgedDice)} }, ${toGms});
@@ -1984,6 +2039,24 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: a roll.draw holding a term that is neither a die, a number nor + or - is refused, and the GM writes no message and keeps no record",
         JSON.stringify(parenthesis.after) === JSON.stringify(parenthesis.before)
         && parenthesis.reasons.some(r => /holds a term no roll of this game is built of/.test(r)) && parenthesis.told === 1, JSON.stringify(parenthesis));
+    /* A DRAWN ROLL'S OPTIONS ARE THE GM'S (E29 fix r2-H1, 05.10.2026; review round 2's sec B1). The GM threw a drawn roll with
+       every option its packet carried beyond the ones it wrote over, and Daggerheart's resource step pays the difference from
+       a `rerolledRoll` (dualityRoll.mjs `addDualityResourceUpdates`): the review's console took one of the GM's Fear with a
+       Hope result (its probe 99 P1, at 070b72b's runtime: 1 -> 0, no flag on the record). The GM now writes every option itself
+       (roll-draw.mjs `drawnOptions`), and a packet holding a key past the ones a window may say is refused (bridge-guards.mjs
+       `guardDrawnRoll`). p1's console asks a draw naming no action whose options carry a `rerolledRoll` of a Fear result, the
+       GM's dice set to a Hope result (9 and 2) and its Fear to 2 first: refused and told, nothing written, the Fear still 2.
+       At 070b72b's runtime (this file kept, e29run/r2h1bred): drawn (drawn messages 21 -> 22, records 24 -> 25), the Fear
+       2 -> 1, nothing refused. */
+    const fearWas = await gm.eval(`return game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear);`);
+    await gm.eval(`await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, 2); globalThis.__forceRoll = { hope: 9, fear: 2 }; return true;`);
+    const rerolledDraw = await askedDraw("rerolled-draw", { actionKey: null, costs: [],
+        roll: { ...unthrown, options: { ...unthrown.options, rerolledRoll: { result: { duality: -1 }, isCritical: false } } } });
+    await gm.eval(`delete globalThis.__forceRoll; await game.settings.set(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Resources.Fear, ${Number(fearWas) || 0}); return true;`);
+    check("SECURITY: a roll.draw whose options carry Daggerheart's rerolledRoll is refused and told, and the GM writes nothing and its Fear does not move",
+        rerolledDraw.before.fear === 2 && JSON.stringify(rerolledDraw.after) === JSON.stringify(rerolledDraw.before)
+        && rerolledDraw.reasons.some(r => /options hold what no roll of this game is drawn with: rerolledRoll/.test(r)) && rerolledDraw.told === 1,
+        JSON.stringify(rerolledDraw), { flow: "gm-rolls-total" });
     /* AN ARMED CALL IS THE GMS' (E29 C8, 05.10.2026; the plan's 1.5 item 5 and 3.3). p1's console writes a Loaded Die onto
        Aiko's armed list itself - a Call nobody paid for, past its own browser's courtesy - pays one of Aiko's actions and asks
        a Search's draw naming it, among its Calls and as its loaded mark. Read on the GM once its audit has judged Aiko's
@@ -2068,6 +2141,73 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     check("SECURITY: a console's roll.draw is thrown on the GM's own list - a 5 nothing of Aiko's explains is not counted, is flagged to the GMs, and its roller alone is told",
         Boolean(five) && five.total === five.hope + five.fear + eye && five.flags.includes("modifier") && five.claim === eye + 5 && five.scored === eye
         && five.toGms === 1 && five.p1 === true && five.p2 === false, JSON.stringify({ eye, five }), { flow: "gm-rolls-total" });
+    /* WHAT THE GM THROWS IS READ IN ONE STEP (E29 fix r2-H3, 06.10.2026; the round-2 security review's M1). The GM read a
+       drawn roll's list after the roll's own waits - a pick's, up to two seconds - off Aiko as she stood then, so a write that
+       landed during them and that the GMs' audit had not put back yet was thrown: the review's probe 99 P3, at 070b72b's
+       runtime, had p1's console make effects guaranteeing a critical, four every 10 ms, while a clean-up waited for a pick,
+       and the GM threw a critical. Here the audit's put-back waits behind a GM's own write of Aiko's means, which holds the
+       audit's queue while it is on its way (sheet-audit.mjs `gmMeansWrite`), so the put-back lands when this check lets that
+       write go rather than wherever a flood leaves it. p1's console pays one of Aiko's actions and asks a Work's draw on a
+       project stored without a statistic (Hope 3, Fear 8), which waits for a pick nobody makes; once the GM has taken the
+       payment, the GM's write is begun, and p1's console makes one such effect and writes the four statistics a project lists
+       at 9; four seconds after the draw was asked the GM's write goes. Read on the GM once its audit is idle: the record's
+       critical and the critical its list read, the statistic thrown and its value against Aiko's as the GMs hold her, and
+       what of the effect and the 9s is left. At 7a040b9's runtime (e29run/r2h3red/30.log): both critical, and Hand thrown at
+       the 9 where the GMs hold Body lowest at 0; nothing left - the audit put the effect and the 9s back after the throw. */
+    const midway = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const { ACTIONS, TRAITS } = await import("${repoUrl}/scripts/config.mjs");
+        const a = game.actors.get("${ids.aiko}"), value = t => Number(a.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        globalThis.__forceRoll = { hope: 3, fear: 8 };
+        return { from: Date.now(), project: (await P.createProject({ name: "SEC r2-H3 no statistic", target: 6, room: null, trait: null }))?.id ?? null,
+            dh: Object.fromEntries(listed.map(t => [t, TRAITS[t].dh])), held: Object.fromEntries(listed.map(t => [t, value(t)])),
+            lowest: listed.reduce((l, t) => (value(t) < value(l) ? t : l)) };`, { timeout: 60000 });
+    const midAsked = Date.now();
+    await p1.eval(`${payFor(ids.aiko)}
+        game.socket.emit("${SOCKET}", { action: "roll.draw", userId: game.user.id, requestId: "midway-draw", actorId: "${ids.aiko}", nonce: "SECMIDDRAWNONCE",
+            actionKey: "project", claimed: true, loaded: null, costs: [], trait: ${JSON.stringify(midway.dh[midway.lowest] ?? null)},
+            context: { projectId: ${JSON.stringify(midway.project)} }, roll: ${JSON.stringify({ ...unthrown, options: { ...unthrown.options, drpgRollNonce: "SECMIDDRAWNONCE" } })} }, ${toGms});
+        return true;`);
+    // The payment taken is the draw begun (roll-draw.mjs `drawRefusal`): the GM's write is begun within the pick's wait.
+    const paidFor = `return (await import("${repoUrl}/scripts/roll-draw.mjs")).paymentsOf("${ids.aiko}").some(t => t.kinds.includes("project"));`;
+    for (let i = 0; i < 40 && !(await gm.eval(paidFor)); i++) await settle(50);
+    await settle(200);
+    await gm.eval(`const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        let release = null; const gate = new Promise(r => { release = r; });
+        globalThis.__secMidway = { release, writing: A.gmMeansWrite(game.actors.get("${ids.aiko}"), () => gate) };
+        return true;`);
+    await p1.eval(`const a = game.actors.get("${ids.aiko}");
+        await a.createEmbeddedDocuments("ActiveEffect", [{ name: "SEC r2-H3 critical",
+            system: { changes: [{ key: "system.rules.roll.guaranteedCritical", type: "override", value: "true" }] } }]);
+        await a.update(${JSON.stringify(Object.fromEntries(Object.values(midway.dh).map(k => [`system.traits.${k}.value`, 9])))}, { drpgAutomated: true });
+        return true;`);
+    const midSeen = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        return { effect: a.effects.contents.some(e => e.name === "SEC r2-H3 critical"),
+            nines: ${JSON.stringify(Object.values(midway.dh))}.every(k => Number(a.system.traits?.[k]?.value) === 9) };`);
+    await settle(Math.max(0, 4000 - (Date.now() - midAsked)));
+    await gm.eval(`globalThis.__secMidway?.release?.(); await globalThis.__secMidway?.writing; return true;`);
+    let mid = null;
+    for (let i = 0; i < 100 && !mid; i++) {
+        mid = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            const r = Object.values(S.rollStore?.entries() ?? {}).filter(x => x?.actorId === "${ids.aiko}" && x.actionKey === "project" && x.at >= ${midway.from})
+                .sort((x, y) => (y.at ?? 0) - (x.at ?? 0))[0] ?? null;
+            return r ? { critical: r.isCritical, listed: r.legal?.read?.kind?.critical ?? null, trait: r.scored?.trait ?? null, value: r.scored?.traitValue ?? null } : null;`);
+        if (!mid) await settle(100);
+    }
+    const midLeft = await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        delete globalThis.__forceRoll; delete globalThis.__secMidway;
+        const a = game.actors.get("${ids.aiko}"), held = ${JSON.stringify(midway.held)}, dh = ${JSON.stringify(midway.dh)};
+        const effects = a.effects.contents.filter(e => e.name === "SEC r2-H3 critical").map(e => e.id);
+        const raised = Object.keys(held).filter(t => (Number(a.system.traits?.[dh[t]]?.value) || 0) !== held[t]);
+        if (effects.length) await a.deleteEmbeddedDocuments("ActiveEffect", effects);
+        if (raised.length) await a.update(Object.fromEntries(raised.map(t => ["system.traits." + dh[t] + ".value", held[t]])));
+        if (${JSON.stringify(midway.project)}) await (await import("${repoUrl}/scripts/projects.mjs")).deleteProject(${JSON.stringify(midway.project)});
+        return { effects: effects.length, raised };`, { timeout: 60000 });
+    check("SECURITY: what p1's console writes on Aiko while the GM's draw waits for a pick is not thrown - no critical, the statistic at the GMs' value - and the GMs' audit puts it back",
+        Boolean(midway.project) && midSeen.effect === true && midSeen.nines === true
+            && JSON.stringify(mid) === JSON.stringify({ critical: false, listed: false, trait: midway.lowest, value: midway.held[midway.lowest] })
+            && midLeft.effects === 0 && midLeft.raised.length === 0,
+        JSON.stringify({ midway, midSeen, mid, midLeft }), { flow: "gm-rolls-total" });
     // The draws above are this check's alone: their records and messages go.
     await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const ids = Object.entries(S.rollStore?.entries() ?? {}).filter(([, r]) => r?.actorId === "${ids.aiko}" && r.at >= ${termsFrom});

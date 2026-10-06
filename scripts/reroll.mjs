@@ -114,7 +114,10 @@ async function rerollKeepingDice(original, actor, message, bookmark = null) {
  * the GM drew and threw from its own list is rebuilt whole from the record's `scored` since
  * E29 C11 - its formula, statistic, experiences and every other number the GM counted, with no
  * effects to read again (roll-draw.mjs `rollOnRecord`, whose note says why): the roll it is
- * handed and the record's statistic and experiences, which were the packet's, are not read. A roll
+ * handed and the record's statistic and experiences, which were the packet's, are not read - and
+ * since fix r2-H3 nor is the character: the data Daggerheart's constructor reads the statistic's and
+ * the experiences' values from is the record's too (`data`). Any other roll is rebuilt off the
+ * character once every write heard on it has been judged (sheet-audit.mjs `judgedFor`). A roll
  * the module threw that the bookmark does not name is refused rather than
  * thrown weaker: the Reroll's whole point is not to hand back a worse roll
  * than the one paid to replace. A roll the module did not throw is its own
@@ -130,7 +133,7 @@ export async function rollAsThrown(original, actor, message, bookmark = null) {
     const scored = rollOnRecord(record);
     if (scored) {
         const options = foundry.utils.deepClone(original.options ?? {});
-        options.data = actor.getRollData();
+        options.data = scored.data;
         options.roll = { ...(options.roll ?? {}), ...scored.roll };
         if (!scored.roll.trait) delete options.roll.trait;
         options.experiences = scored.experiences;
@@ -149,10 +152,15 @@ export async function rollAsThrown(original, actor, message, bookmark = null) {
     const trait = kept ? TRAITS[kept.trait]?.dh ?? (TRAIT_BY_DH[kept.trait] ? kept.trait : null) : null;
     if (!trait) throw new Error(`no statistic is kept for roll ${message.id}`);
     const options = foundry.utils.deepClone(original.options ?? {});
-    options.data = actor.getRollData();
     options.roll = { ...(options.roll ?? {}), trait };
     options.experiences = Array.isArray(kept.experiences) ? [...kept.experiences] : [];
+    // The character as the GMs hold it: read once every write heard on it has been judged (fix r2-H3).
+    // Daggerheart's `getActionRelevantEffects` awaits nothing (baseAction.mjs:368-380, 2.10.5), so no
+    // write lands between the wait and the constructor, which reads the data and the effects.
+    const { judgedFor } = await import("./sheet-audit.mjs");
+    await judgedFor(actor?.id);
     options.effects = await game.system?.api?.data?.actions?.actionsTypes?.base?.getActionRelevantEffects?.(actor) ?? [];
+    options.data = actor.getRollData();
     return new original.constructor(original._formula ?? original.formula, {}, options);
 }
 
@@ -254,10 +262,17 @@ export async function rollTarget(original, actor = null) {
     return subject?.system?.partner ?? subject ?? null;
 }
 
+/**
+ * The Reroll's resource step, written as a drawn roll's is (roll-draw.mjs `modifyFromHeld`, E29 fix
+ * r2-H5): Daggerheart's `modifyResource` adds each change to the value the document holds, so on a
+ * student each change is moved to start from the GMs' value, in the student's audit queue.
+ */
 async function modifyRollActor(original, updates, actor) {
     if (!updates.length) return;
     const target = await rollTarget(original, actor);
-    if (target?.modifyResource) await target.modifyResource(updates);
+    if (!target?.modifyResource) return;
+    const { modifyFromHeld } = await import("./roll-draw.mjs");
+    await modifyFromHeld(target, updates);
 }
 
 /**
@@ -465,7 +480,7 @@ async function rerollRefusal(actor, sender, cost) {
     const message = game.messages.get(row.messageId) ?? null;
     if (!message) return { why: "the roll is no longer in the chat", say: "DRPG.Reroll.messageGone" };
     if (!message.rolls?.[0]) return { why: "that message holds no roll to throw again", say: "DRPG.Reroll.notARoll" };
-    const { hopeCallRefusal, hopeHeld } = await import("./calls.mjs");
+    const { hopeCallRefusal } = await import("./calls.mjs");
     const barred = await hopeCallRefusal(actor);
     if (barred) return { why: `the buyer may not spend a Hope Call now (${barred})`, said: barred };
     if (row.actionKey === "crisis") {
@@ -473,7 +488,10 @@ async function rerollRefusal(actor, sender, cost) {
         const last = murderState()?.lastCrisis ?? null;
         if (last?.actorId === actor.id && crisisKilled(last)) return { why: "that crisis action killed somebody; the death stands", say: "DRPG.Reroll.deathStands" };
     }
-    const held = hopeHeld(actor);
+    // The Hope the GMs hold, as the payment reads it (`makeReroll`, fix r2-H5); a player's `reroll.ask`
+    // reaches here once the character's writes this GM heard are judged (gm-bridge.mjs's `prepare`).
+    const { meansHeld } = await import("./sheet-audit.mjs");
+    const held = meansHeld(actor).hope;
     if (held < cost) return { why: `the buyer holds ${held} Hope, the Call costs ${cost}`, said: game.i18n.format("DRPG.Calls.notEnoughHope", { call: HOPE_CALLS.reroll.label, cost, held }) };
     const refusal = await replayRefusal(actor, row);
     if (refusal) return { why: refusal, say: REPLAY_SAYS[refusal] ?? null };
@@ -552,19 +570,36 @@ async function makeReroll(actor, sender) {
      * between the read and the write, and a character who no longer holds the cost is refused
      * with nothing paid. A row cut at `paying` is told, not given back (`recoverOne`): whether
      * the write landed cannot be read back out of the world.
+     *
+     * PAID FROM THE HOPE THE GMS HOLD, IN THE CHARACTER'S AUDIT QUEUE (E29 fix r2-H5, 06.10.2026;
+     * review round 2 sec M5 = cor M2). The Hope was the document's, and the judge takes a GM's
+     * write as the GMs' value: a forged Hope the audit had not put back yet was spent, and what
+     * was left became their value - fix r1-G5's shape for a Call bought on the GM, which this road
+     * kept. Measured at 5a29623 by tier 2 (e29run/r2h5q): the GMs at 2 under a forged 5, a
+     * Reroll was bought and 2 left in the sheet and the mark; at 3 the same; at 3 with the forged
+     * 5 heard while the payment left, bought with the sheet put back to 3 over the payment and 2
+     * in the mark. So the read and the write are one job of the queue (sheet-audit.mjs
+     * `gmMeansWrite`), from the GMs' value (`meansHeld`), as the Call's are; `rerollRefusal`
+     * asks the same value first, and so do the refund (`giveBack`), the roll's own resource step
+     * (`modifyRollActor`) and the critical's second Hope (despair-award.mjs
+     * `adjustCritHopeTopUp`), each of which moved the forged Hope there too.
      */
-    const { hopeHeld } = await import("./calls.mjs");
+    const { gmMeansWrite } = await import("./sheet-audit.mjs");
     journalling.add(actor.id);
     // `gm` is the client making it, `first` and `action` what a GM told of a Reroll cut short
     // is told (`recoverRerollJournal`).
     await journal({ phase: "paying", hope: cost, messageId: message.id, firstRolls, at: Date.now(), by: sender?.id ?? null,
         gm: game.user.id, first: before.total ?? null, action: row.actionKey ?? null });
-    const held = hopeHeld(actor);
-    if (held < cost) {
+    const paid = await gmMeansWrite(actor, async ({ hope }) => {
+        if (hope < cost) return { held: hope, left: null };
+        await trustedWrite(actor, { "system.resources.hope.value": hope - cost }, { reason: "reroll" });
+        return { held: hope, left: hope - cost };
+    });
+    if (paid.left === null) {
         await rerollJournalStore.drop(actor.id);
-        return { refused: `the buyer holds ${held} Hope, the Call costs ${cost}`, said: game.i18n.format("DRPG.Calls.notEnoughHope", { call: HOPE_CALLS.reroll.label, cost, held }) };
+        return { refused: `the buyer holds ${paid.held} Hope, the Call costs ${cost}`,
+            said: game.i18n.format("DRPG.Calls.notEnoughHope", { call: HOPE_CALLS.reroll.label, cost, held: paid.held }) };
     }
-    await trustedWrite(actor, { "system.resources.hope.value": held - cost }, { reason: "reroll" });
     await journal({ phase: "paid" });
     if (cutHere("paid")) return { cut: "paid" };
 
@@ -714,7 +749,8 @@ async function markReplacedCard(row, before, after) {
 /**
  * A REROLL THAT DOES NOT STAND IS GIVEN BACK WHOLE (E32+E07 fix r1-G3, 02.10.2026; E08+E28
  * C4a). The card gets its first rolls again, and the Hope paid comes back as +3 on the Hope
- * held now, never the number held before: a grant that landed in between stays. What a
+ * the GMs hold now (since fix r2-H5 their value, in the character's audit queue, as
+ * `makeReroll` pays it), never the number held before: a grant that landed in between stays. What a
  * replay's own undo put back stays put back - each undo checks before it writes, so a late
  * refusal has written nothing of its own. The journal row goes with it. The harness has no
  * Daggerheart roll to throw again; the suite drives this with a roll of its own, and a real
@@ -727,10 +763,10 @@ async function giveBack(actor, message, firstRolls, cost) {
     if (rerollJournalStore.has(actor.id)) await rerollJournalStore.patch(actor.id, { phase: "givingBack" });
     await putFirstRollBack(message, firstRolls);
     try {
-        const { hopeHeld } = await import("./calls.mjs");
+        const { gmMeansWrite } = await import("./sheet-audit.mjs");
         const { resourceMax } = await import("./character.mjs");
-        const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-        await trustedWrite(actor, { "system.resources.hope.value": Math.min(max, hopeHeld(actor) + cost) }, { reason: "refund" });
+        await gmMeansWrite(actor, ({ hope }) => trustedWrite(actor,
+            { "system.resources.hope.value": Math.min(resourceMax(actor, "hope") || STARTING.hopeMax, hope + cost) }, { reason: "refund" }));
     } catch (err) {
         error(`Could not give back the ${cost} Hope a Reroll that did not stand had taken`, err);
     }

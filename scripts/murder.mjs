@@ -1000,7 +1000,7 @@ export function freeResolutionFor(side, state = murderState()) {
  * THE WEAPON AS THE GMS HOLD IT, ON THE GM'S DRAW (E29 fix r2-H20, 06.10.2026). `held` is what
  * the weapon is read off: the actor on the roller's browser (`takeCrisisAction`, its window's
  * die), and on the GM's draw (roll-draw.mjs `situationReading`, the die the GM throws) the
- * actor as the GMs hold its items (sheet-audit.mjs `actorAsHeld`).
+ * actor as the GMs hold its items (sheet-audit.mjs `actorHeldNow`, read in the draw's one step).
  */
 export function crisisSituational(actor, key, state = murderState(), held = actor) {
     const side = sideOf(actor, state);

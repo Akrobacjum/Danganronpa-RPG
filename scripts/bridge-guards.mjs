@@ -301,6 +301,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that is not a duality roll nobody has thrown$/],
     // E08+E28 fix r2-H8: one with a term that is neither a die, a number nor + or - (guardDrawnRoll).
     ["badRequest", /^that roll holds a term no roll of this game is built of$/],
+    // E29 fix r2-H1: one whose options hold a key past the ones a window may say (guardDrawnRoll).
+    ["badRequest", /^that roll's options hold what no roll of this game is drawn with: .*$/],
     // E08+E28 C14: a result taken from the GMs' record of its roll (rollRefusal).
     ["rollUnknown", /^no roll the GM drew is named$/],
     ["rollNotYours", /^that roll is not the sender's character's$/],
@@ -322,6 +324,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["rollThrown", /^a roll of that action is being thrown already$/],
     ["badRequest", /^no crisis action that throws a roll is named$/],
     ["cannotNow", /^that character has no opening roll to throw now$/],
+    // E29 fix r2-H3: a draw asked before this GM's marks of the characters opened, and none opened in time (roll-draw.mjs `marksOpen`).
+    ["cannotNow", /^the GMs' marks of the characters are not open on this GM's browser$/],
     ["badRequest", /^that roll's window asks a cost no roll of this game pays$/],
     // E08+E28 fix r2-H2: progress that names no roll is a Hope Call's, paid for once (guardCallProgress).
     ["badRequest", /^no Call that adds progress is named$/],
@@ -944,6 +948,14 @@ export async function guardRollAuthor(sender, payload, ctx) {
  * reads its advantage die as the third die it holds (`dAdvantage`), and the GM writes those dice
  * itself (roll-draw.mjs `onGmTerms`; since E29 C10 the whole roll, `legalRollOf`); any other die is
  * a whole number of dice of a whole number of faces.
+ *
+ * AND ITS OPTIONS ARE THE ONES A WINDOW MAY SAY (E29 fix r2-H1, 05.10.2026; review round 2's sec
+ * B1). The GM writes every option of the roll it throws from its own list (roll-draw.mjs "THE GM'S
+ * OWN OPTIONS"); a packet's options may hold only the keys of that list a window also says, each
+ * written over, and the empty `data` (roll-draw.mjs `DRAWN_OPTIONS`, which the roller's browser
+ * sends and nothing more). One holding any other key - Daggerheart's `rerolledRoll`, which its
+ * resource step pays the difference from, a `skips` - is refused, told and logged rather than
+ * thrown without it: no window of this game sends one.
  */
 const DRAWN_TERMS_MAX = 64;
 const DRAWN_FORMULA_MAX = 512;
@@ -965,7 +977,10 @@ export async function guardDrawnRoll(sender, payload, ctx) {
         && !terms.some(term => Array.isArray(term?.results) && term.results.length)
         && typeof payload.nonce === "string" && payload.nonce.length > 0 && roll.options?.[ROLL_NONCE] === payload.nonce;
     if (fits && !terms.every(drawnTermFits)) return "that roll holds a term no roll of this game is built of";
-    return fits ? null : "that is not a duality roll nobody has thrown";
+    if (!fits) return "that is not a duality roll nobody has thrown";
+    const { DRAWN_OPTIONS } = await import("./roll-draw.mjs");
+    const unlisted = Object.keys(roll.options).find(key => !DRAWN_OPTIONS.includes(key));
+    return unlisted === undefined ? null : `that roll's options hold what no roll of this game is drawn with: ${unlisted.slice(0, 40)}`;
 }
 
 /*
