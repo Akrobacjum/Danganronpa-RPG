@@ -901,11 +901,12 @@ async function onGmTerms(json, actor, { key = null, claimed = true, nonce = null
  *     highest kept of several, at the list's faces - `applyAdvantage`'s shape (dualityRoll.mjs:143-168);
  *   - one number per flat source, each labelled in `options.roll.modifiers` as Daggerheart labels
  *     its own (dualityRoll.mjs `applyBaseBonus`, d20Roll.mjs `configureModifiers`): the statistic's
- *     value off the character as this GM holds it - the statistic the list names, else the one the
- *     roller chose (a statistic from the sheet, after a Resolve, where a pick was due and none was
- *     made); the experiences an Experience Call bought, at their value here; the Calls' bonus; a
- *     hindering Call's; and the part of the claim the list cannot read - the effects a window toggles
- *     - clamped into the range the character's effects allow (`effectRange`);
+ *     value off the character as this GM holds it - the statistic the list names (where a pick was
+ *     due and none came, the lowest the action lists, since fix r2-H2), else the one the roller
+ *     chose (a statistic from the sheet, after a Resolve); the experiences an Experience Call
+ *     bought, at their value here; the Calls' bonus; a hindering Call's; and the part of the claim
+ *     the list cannot read - the effects a window toggles - clamped into the range the character's
+ *     effects allow (`effectRange`);
  *   - `options.roll.trait`, `.advantage` and `options.experiences` to match, its kind and critical as
  *     `onGmTerms` writes them, no `skips`, no `extraFormula`, no `baseModifiers` - and, since fix
  *     r2-H1, nothing else of the packet's options ("THE GM'S OWN OPTIONS" below).
@@ -1189,9 +1190,10 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
  *   - the statistic (`trait`), from the first row of `TRAIT_SOURCES` that answers (fix r1-G10): an
  *     armed Resolve's roll is the player's pick; the opening's as the GM picked it; Eye for a
  *     Search; the project's own for a Work on it or a Sabotage of it; for an action that lists
- *     several, the newest pick card for this character no drawn roll has used yet - waited for a
- *     moment, as the card's meta can land after the answer, and flagged (`pick`) when there is
- *     none; for one that lists one - an action, a crisis action, a clean-up's step, Tamper's door,
+ *     several, the newest pick card a GM wrote for this character and that action, naming a
+ *     statistic it lists, that no drawn roll has used yet - waited for a moment, as the card's
+ *     meta can land after the answer - and where none came, the lowest it lists, flagged
+ *     (`pick`); for one that lists one - an action, a crisis action, a clean-up's step, Tamper's door,
  *     a Palm's cover - that one. A roll that names no action - a statistic from the sheet, a
  *     concealment - is held to no statistic;
  *   - the flat modifier: the statistic's value off the character as this GM holds it, one
@@ -1315,6 +1317,18 @@ const TOLD_AS = Object.freeze({ palm: Object.freeze({ key: "palm", part: "unseen
  * step - through Tamper's door Tamper's first, which cleanup.mjs `cleanupTrait` rolls whatever
  * the step - or an action of the table, whole or the part its key is told for (`TOLD_AS`). `[]`
  * for none this GM knows.
+ *
+ * TAMPER'S DOOR IS THE PACKET'S WORD WHERE AN HONEST BROWSER SAYS IT, AND NOWHERE ELSE (E29 fix
+ * r2-H2, 05.10.2026; the round-2 reviews' sec m2 = cor m5, by reading). `cleanupVia` held any
+ * clean-up to Tamper's one statistic, so a roll of Stage 6's cleaner, whose step lists three and
+ * waits for a GM's pick, skipped the pick by saying it. An honest browser says it only for a
+ * roller who is not Stage 6's cleaner (action-rolls.mjs `viaAction = !stageSix`; Stage 6's own
+ * doors say nothing), and the GMs take a statistic ruling for a clean-up from the cleaner alone
+ * (bridge-guards.mjs `guardTraitRuling`): so it is honoured only for a roller this GM does not
+ * hold to be the cleaner of its incident (cleanup.mjs `isCleaner`). The fix list's first way;
+ * the door is not read from that state outright, which would hold a roll of moving the body
+ * outside Stage 6 to Tamper's statistic too (tier 2's test of every definition of one statistic
+ * draws one there, at Body).
  */
 async function listedFor(actor, key, context) {
     const { listedTraits } = await import("./trait-ruling.mjs");
@@ -1324,7 +1338,9 @@ async function listedFor(actor, key, context) {
         return listedTraits({ kind: "crisis", key: crisis, variant: crisisVariant(actor, crisis) });
     }
     if (key === "project" || key === "sabotage") return listedTraits({ kind: "project", key: projectNamed(key, context) });
-    if (key === "cleanup" && context.cleanupVia === true) return (ACTIONS.tamper?.traits ?? []).slice(0, 1);
+    if (key === "cleanup" && context.cleanupVia === true && !(await import("./cleanup.mjs")).isCleaner(actor)) {
+        return (ACTIONS.tamper?.traits ?? []).slice(0, 1);
+    }
     if (key === "cleanup") return listedTraits({ kind: "cleanup", key: cleanupStepOf(context) });
     return listedTraits({ kind: "action", ...(Object.hasOwn(TOLD_AS, key ?? "") ? TOLD_AS[key] : { key }) });
 }
@@ -1334,19 +1350,51 @@ function cleanupStepOf(context) {
     return Object.hasOwn(CLEANUP.actions ?? {}, context?.cleanupKey ?? "") ? context.cleanupKey : "cleanup";
 }
 
-/** The pick kind of a GM's statistic card (trait-ruling.mjs) an action's roll is held to. */
-function pickKindOf(actionKey) {
-    if (actionKey === "crisis" || actionKey === "cleanup") return actionKey;
-    if (actionKey === "project" || actionKey === "sabotage") return "project";
-    return "generic";
+/**
+ * The definition a GM's statistic card names for a roll (`{ kind, key, variant }`, as messenger-app.mjs
+ * `rulePickTrait` keeps it), read as `listedFor` reads the roll's: a crisis action at the variant
+ * the character rolls here, the project a Work or a Sabotage names, the clean-up's step, or an
+ * action of the generic table.
+ */
+async function pickSpecOf(actor, key, context) {
+    if (key === "crisis") {
+        const { crisisVariant } = await import("./murder.mjs");
+        const crisis = context.crisis ?? null;
+        return { kind: "crisis", key: crisis, variant: crisisVariant(actor, crisis) };
+    }
+    if (key === "project" || key === "sabotage") return { kind: "project", key: projectNamed(key, context), variant: null };
+    if (key === "cleanup") return { kind: "cleanup", key: pickKeyOf("cleanup", cleanupStepOf(context)), variant: null };
+    return { kind: "generic", key, variant: null };
 }
 
 /**
- * The newest pick card a GM settled for this character and kind within the Reroll's window
- * (`{ trait, pick }`, the card's id), or null - also when a drawn roll's record names that card
- * already, so an older pick nobody rolled is never the one a roll is held to.
+ * The key a statistic card is asked under, for matching: a clean-up's step that rolls the
+ * clean-up's own list is the clean-up's, as the two roads ask - cleanup.mjs asks "cleanup" for an
+ * erase whose roll names "eraseTrace", and "misleadingTrail" for a trail, both rolling the
+ * clean-up's three. Every other key as it is.
  */
-function gmPickOf(actor, kind) {
+const pickKeyOf = (kind, key) => (kind === "cleanup" && !CLEANUP.actions?.[key]?.traits ? "cleanup" : key ?? null);
+
+/**
+ * The newest pick card a GM wrote for this character and this definition (`spec`, `pickSpecOf`)
+ * within the Reroll's window (`{ trait, pick }`, the card's id), or null - also when a drawn
+ * roll's record names that card already, so an older pick nobody rolled is never the one a roll
+ * is held to, and when the statistic it names is not one the definition lists here (`listed`).
+ *
+ * A PICK IS A GM'S CARD, FOR THE ROLL'S OWN DEFINITION (E29 fix r2-H2, 05.10.2026; the round-2
+ * security review's B2 and m1). Until this fix every card carrying a `ruling` was read, whoever
+ * wrote it, and the newest held whichever action of its kind the character rolled next, to
+ * whatever statistic it named. A GM keeps a real pick in its card's meta (gm-bridge.mjs
+ * `settleCall`), which a player's own card may not carry (secret.mjs `GM_META`), but this read the
+ * document's flag first: the review's console posted a card with the flag on it and the GM threw
+ * Body for a clean-up, which does not list it, recorded as the GM's pick with nothing flagged (its
+ * probe 96 H, at 070b72b's runtime; at a4a7f25's, tier 2's test of this fix and 30-security read a
+ * Work held by a card a player wrote, by a GM's card for another project, and to an Eye a project
+ * does not list - e29run/r2h2red). Now a card counts only where a GM wrote it (secret.mjs
+ * `cardWriter`, as the away card's buttons are read below), for this definition - its kind, its
+ * key (`pickKeyOf`) and its variant the roll's - naming a statistic the definition lists.
+ */
+function gmPickOf(actor, spec, listed) {
     const since = Date.now() - TIMING.rerollWindowMinutes * 60_000;
     // `expected` is a record's name for it before E29 C9 (`legal` since): a row of the Reroll's window across the update.
     const used = new Set(Object.values(rollStore.entries() ?? {}).map(row => (row?.legal ?? row?.expected)?.pick).filter(Boolean));
@@ -1355,11 +1403,16 @@ function gmPickOf(actor, kind) {
         const message = messages[i];
         if (typeof message.timestamp === "number" && message.timestamp < since) break;
         const ruling = cardFlag(message, "ruling");
-        if (ruling?.type !== "trait" || ruling.actorId !== actor.id || ruling.kind !== kind) continue;
-        return used.has(message.id) ? null : { trait: traitKeyOf(ruling.trait), pick: message.id };
+        if (ruling?.type !== "trait" || ruling.actorId !== actor.id || ruling.kind !== spec.kind || !cardWriter(message)?.isGM) continue;
+        if (pickKeyOf(ruling.kind, ruling.key) !== spec.key || (ruling.variant || null) !== (spec.variant ?? null)) continue;
+        const trait = traitKeyOf(ruling.trait);
+        return used.has(message.id) || !listed.includes(trait) ? null : { trait, pick: message.id };
     }
     return null;
 }
+
+/** Of the statistics `listed`, the one this GM holds lowest on the character, the first listed of equals - what a roll whose pick did not come is thrown on (the `gm` row below). */
+const lowestOf = (actor, listed) => listed.reduce((low, trait) => (traitValueOf(actor, trait) < traitValueOf(actor, low) ? trait : low));
 
 /*
  * WHERE A ROLL'S STATISTIC COMES FROM IS ONE TABLE (E29 fix r1-G10, 05.10.2026; audit S18-01, the
@@ -1377,9 +1430,17 @@ function gmPickOf(actor, kind) {
  *   - `search`: Search's one statistic - the `fixed` rule's case under the name its record has
  *     carried since E08+E28 C12b, which a later stage gives a rule of its own (S18-09);
  *   - `project`: the project's own, for a Work on it or a Sabotage of it;
- *   - `gm`: where the definition lists several, the newest pick card for this character no drawn
- *     roll has used yet (`gmPickOf`), waited for a moment as the card's meta can land after the
- *     answer - and where there is none, no statistic, which `checkRoll` flags (`pick`);
+ *   - `gm`: where the definition lists several, the newest pick card a GM wrote for this character
+ *     and this definition no drawn roll has used yet (`gmPickOf`), waited for a moment as the
+ *     card's meta can land after the answer - and where none came, the lowest statistic the
+ *     definition lists as this GM holds the character (`lowestOf`), which `checkRoll` flags
+ *     (`pick`). Until fix r2-H2 (the round-2 security review's M2) it was none, and the roll was
+ *     thrown on the statistic its packet claimed, any of the six: the review's console rolled a
+ *     clean-up claiming Hand with no pick, and the GM threw Hand (its probe 99 P3, at 070b72b's
+ *     runtime). A claim never chooses the statistic of a roll a GM was to pick. The stage plan
+ *     names none for a pick that does not come (its 3.2 and the owner's answer of 28.09 say the
+ *     GM picks), so the rule is the round-2 fix list's: the lowest, a statistic the action lists
+ *     that no roller gains by not asking;
  *   - `fixed`: where it lists one, that one - an action of the table, a crisis action, a clean-up's
  *     step, Tamper's door, a part of an action told under a key of its own (`TOLD_AS`).
  * The definition is this GM's config (`listedFor`); the packet names only which. S18-01 has the
@@ -1402,15 +1463,15 @@ const TRAIT_SOURCES = Object.freeze([
         const project = allProjects().find(p => p.id === projectNamed(key, context));
         return project?.trait ? { trait: traitKeyOf(project.trait) } : null;
     } },
-    { from: "gm", read: async (actor, { key, listed }) => {
+    { from: "gm", read: async (actor, { key, context, listed }) => {
         if (listed.length < 2) return null;
-        const kind = pickKindOf(key);
-        let found = gmPickOf(actor, kind);
+        const spec = await pickSpecOf(actor, key, context);
+        let found = gmPickOf(actor, spec, listed);
         for (const end = Date.now() + PICK_WAIT_MS; !found && Date.now() < end;) {
             await new Promise(resolve => setTimeout(resolve, 100));
-            found = gmPickOf(actor, kind);
+            found = gmPickOf(actor, spec, listed);
         }
-        return found?.trait ? found : { trait: null };
+        return found ?? { trait: lowestOf(actor, listed) };
     } },
     { from: "fixed", read: (actor, { listed }) => (listed.length === 1 ? { trait: listed[0] } : null) }
 ]);
@@ -1554,7 +1615,9 @@ function countedIn(expected, part) {
 /**
  * The claim against what the GM threw (E29 C10: `scored` and `claim`, `legalRollOf`; until C10 the
  * roll as thrown against the expectation): `[{ kind, expected, claimed }]`, empty when nothing differs.
- * Kinds: `trait`, `pick` (a statistic a GM was to pick, and no pick was made; fix r2-H8),
+ * Kinds: `trait`, `pick` (a statistic a GM was to pick, and no pick was made; fix r2-H8 - the
+ * roll thrown on the lowest its action lists since fix r2-H2, and `trait` beside it where the
+ * claim had another),
  * `modifier` (the flat sum past the statistic, which `trait` says), `dice` (a die beyond Hope,
  * Fear and the advantage die), `advantage`, `stash` (a hidden stash the packet did not name). A
  * `modifier` or an `advantage` flag names the list's rows that made the GM's number (`from`, E29 C9),
@@ -1565,7 +1628,7 @@ function checkRoll({ scored, claim }, told, expected) {
     if (expected.stashDie && told.context.stashDie !== true) flags.push({ kind: "stash", expected: "1", claimed: "0" });
     if (!expected.checked || !scored) return flags;
     if (expected.trait && claim.trait !== expected.trait) flags.push({ kind: "trait", expected: expected.trait, claimed: claim.trait ?? "-" });
-    if (expected.traitFrom === "gm" && !expected.trait) flags.push({ kind: "pick", expected: "1", claimed: "0" });
+    if (expected.traitFrom === "gm" && !expected.pick) flags.push({ kind: "pick", expected: "1", claimed: "0" });
     if (claim.flat - claim.traitValue !== scored.flat - scored.traitValue || claim.experiences.length > scored.experiences.length) {
         flags.push({ kind: "modifier", expected: signed(scored.flat), claimed: signed(claim.flat), from: countedIn(expected, "flat") });
     }

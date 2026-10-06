@@ -5315,6 +5315,11 @@ const SCENARIOS = [
          * at a turn of theirs, the turn passed round between them, and the Search is drawn once the
          * fight is closed. Read and expected as before; the two fighters' Hope, Sanity and Health are
          * put back as the test found them.
+         * NO PICK IS NO STATISTIC OF THE CLAIM'S (E29 fix r2-H2, 05.10.2026; the round-2 security
+         * review's M2). The third roll, its pick used, was held to none and thrown on the Eye it
+         * claimed, which a Strike does not list - [[], null] at a4a7f25's runtime (e29run/r2h2red).
+         * Now it is thrown on the lowest a Strike lists as the GM holds the character, and its Eye is
+         * flagged.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -5323,7 +5328,7 @@ const SCENARIOS = [
         const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [theirs, victim] = livingStudents().filter(playerOf);
         const player = playerOf(theirs);
-        const { TRAITS } = await import("./config.mjs");
+        const { TRAITS, CRISIS_ACTIONS } = await import("./config.mjs");
         const { whisperToGms } = await import("./utils.mjs");
         const { settleCall } = await import("./gm-bridge.mjs");
         const had = new Set(game.messages.contents.map(m => m.id));
@@ -5372,12 +5377,15 @@ const SCENARIOS = [
                 if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
             }
         }
+        // The third had no pick to take: since fix r2-H2 it is thrown on the lowest a Strike lists, as the GM holds the character.
+        const value = t => Number(theirs.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const lowest = CRISIS_ACTIONS.strike.traits.reduce((low, t) => (value(t) < value(low) ? t : low));
         equal(stableJson(read), stableJson([
             [[], "hand"],
             [[["trait", "body", "eye"]], "body"],
-            [[], null],
+            [[["trait", lowest, "eye"]], lowest],
             [[["trait", "eye", "hand"]], "eye"]
-        ]), "a drawn roll's statistic was not held to the GM's newest unused pick, a used pick was held again, or a Search's Hand went unflagged (per draw: flags, expected statistic)");
+        ]), "a drawn roll's statistic was not held to the GM's newest unused pick, a used pick was held again, one with no pick to take was not thrown on the lowest a Strike lists, or a Search's Hand went unflagged (per draw: flags, expected statistic)");
     }],
 
     ["a drawn roll is thrown on the GM's dice: the faces, the keep and the critical a packet names are not the roll's", async () => {
@@ -5579,7 +5587,10 @@ const SCENARIOS = [
          * in a fight (C12b's pick test's setting), neither packet saying a GM picked: after a card
          * picking Body, a roll of Eye; a turn later, a roll of Hand, with no card made for it. Read:
          * each record's statistic and pick flags and the statistic it expected. At 33bc497's runtime:
-         * [[[],null],[[],null]].
+         * [[[],null],[[],null]]. Since E29 fix r2-H2 (05.10.2026; the round-2 security review's M2)
+         * the roll with no pick is thrown on the lowest a Strike lists as the GM holds the character,
+         * not on its claim, which until then it was: [[["pick","1","0"]],null] at a4a7f25's runtime
+         * (e29run/r2h2red).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a crisis roll is drawn at its character's turn, so a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -5588,7 +5599,7 @@ const SCENARIOS = [
         const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [theirs, victim] = livingStudents().filter(playerOf);
         const player = playerOf(theirs);
-        const { TRAITS } = await import("./config.mjs");
+        const { TRAITS, CRISIS_ACTIONS } = await import("./config.mjs");
         const { whisperToGms } = await import("./utils.mjs");
         const { settleCall } = await import("./gm-bridge.mjs");
         const had = new Set(game.messages.contents.map(m => m.id));
@@ -5627,8 +5638,174 @@ const SCENARIOS = [
                 if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
             }
         }
-        equal(stableJson(read), stableJson([[[["trait", "body", "eye"]], "body"], [[["pick", "1", "0"]], null]]),
-            "a crisis roll's statistic was not held to the GM's pick without the packet's word, or a pick never made went unflagged (per draw: flags, expected statistic)");
+        // The second had no pick: since fix r2-H2 it is thrown on the lowest a Strike lists, its claimed Hand flagged where that is another.
+        const value = t => Number(theirs.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const lowest = CRISIS_ACTIONS.strike.traits.reduce((low, t) => (value(t) < value(low) ? t : low));
+        equal(stableJson(read), stableJson([[[["trait", "body", "eye"]], "body"],
+            [[...(lowest === "hand" ? [] : [["trait", lowest, "hand"]]), ["pick", "1", "0"]], lowest]]),
+            "a crisis roll's statistic was not held to the GM's pick without the packet's word, or a pick never made went unflagged or was not thrown on the lowest a Strike lists (per draw: flags, expected statistic)");
+    }],
+
+    ["a statistic pick is a GM's card for the roll's own action, naming a statistic it lists, and with none the GM throws the lowest it lists, never the claim", async () => {
+        /*
+         * E29 fix r2-H2, 05.10.2026; the round-2 security review's B2, m1 and M2. The GM held a drawn
+         * roll whose definition lists several statistics to the newest pick card for its character and
+         * kind (roll-draw.mjs `gmPickOf`) - whoever wrote the card, whichever action of that kind it
+         * was for, whatever statistic it named - and with none it threw the statistic its packet
+         * claimed. Two projects stored without a statistic, whose roll lists four (config.mjs
+         * `ACTIONS.project`), and Works on the first drawn from the character's player, each claiming
+         * the highest of the four as the GM holds the character: after a pick card the player wrote,
+         * naming that one (B2); after a GM's card for the other project, naming it (m1); after a GM's
+         * card for this one naming Eye, which a project does not list (m1); after a GM's card for this
+         * one naming the claim's (the control: held to it); and with no new card, the newest used (M2).
+         * Then the difficulty a GM set on a Dynamic action's card (gm-bridge.mjs `dynamicRulingOf`): a
+         * GM's card, then a newer one the player wrote. Read: each draw's statistic and pick flags, the
+         * statistic thrown and whose card held it; the difficulty read. At a4a7f25's runtime
+         * (e29run/r2h2red), the seeded character's highest Hand and lowest Body: the player's card and
+         * the other project's held the Work to its Hand, the Eye card to Eye, the one with no new card
+         * was thrown on its Hand with the pick flag alone, and the player's 3 was the difficulty:
+         * [[[],"hand","player"],[[],"hand","another project"],[[["trait","eye","hand"]],"eye","eye"],
+         * [[],"hand","GM"],[[["pick","1","0"]],"hand",null],3].
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const P = await import("./projects.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { ACTIONS, TRAITS } = await import("./config.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall, dynamicRulingOf } = await import("./gm-bridge.mjs");
+        const value = t => Number(theirs.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const highest = listed.reduce((high, t) => (value(t) > value(high) ? t : high));
+        const lowest = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
+        must(value(highest) > value(lowest), `${theirs.name}'s statistics a project lists are all equal - the claim and the lowest would read the same`);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const made = [], drawn = [], cards = {};
+        const gmCard = async (label, ruling) => {
+            const m = await whisperToGms("<p>SUITE r2-H2 pick</p>");
+            must(m, "no card to settle a pick on - this would measure nothing");
+            await settleCall(m, "SUITE r2-H2", ruling);
+            cards[m.id] = label;
+        };
+        const playerCard = async (label, ruling) => {
+            const m = await ChatMessage.create({ content: `<p>SUITE r2-H2 ${label}</p>`, author: player.id, whisper: [game.user.id],
+                flags: { [MODULE_ID]: { ruling } } });
+            must(m && m.author?.id === player.id, "no card of the player's to read - this would measure nothing");
+            cards[m.id] = label;
+        };
+        const pick = (projectId, trait) => ({ type: "trait", actorId: theirs.id, kind: "project", key: projectId, variant: null, trait });
+        const read = [];
+        const draw = async projectId => {
+            const F = await drawnForPlayer(player, theirs, { actionKey: "project", trait: highest,
+                edit: p => ({ ...p, context: { ...(p.context ?? {}), projectId } }) });
+            drawn.push(F);
+            must(F.record, `the GM kept no record of the Work (${F.verdict}) - this would measure nothing`);
+            read.push([(F.record.flags ?? []).filter(f => f.kind === "trait" || f.kind === "pick").map(f => [f.kind, f.expected, f.claimed]),
+                F.record.scored?.trait ?? null, cards[F.record.legal?.pick] ?? F.record.legal?.pick ?? null]);
+        };
+        try {
+            for (const name of ["SUITE r2-H2 project", "SUITE r2-H2 another project"]) {
+                made.push((await P.createProject({ name, target: 6, room: null, trait: null }))?.id ?? null);
+            }
+            must(made.every(Boolean), "a project stored without a statistic was not made - this would measure nothing");
+            const [mine, another] = made;
+            await playerCard("player", pick(mine, highest));
+            await draw(mine);
+            await gmCard("another project", pick(another, highest));
+            await draw(mine);
+            await gmCard("eye", pick(mine, "eye"));
+            await draw(mine);
+            await gmCard("GM", pick(mine, highest));
+            await draw(mine);
+            await draw(mine);
+            const difficulty = await ChatMessage.create({ content: "<p>SUITE r2-H2 difficulty</p>", whisper: [game.user.id],
+                flags: { [MODULE_ID]: { ruling: { type: "dynamic", actorId: theirs.id, tier: 1 } } } });
+            await playerCard("player's difficulty", { type: "dynamic", actorId: theirs.id, tier: 3 });
+            must(difficulty, "no difficulty card of the GM's to read - this would measure nothing");
+            read.push(dynamicRulingOf({ actorId: theirs.id, at: Date.now() })?.tier ?? null);
+        } finally {
+            for (const F of [...drawn].reverse()) await F.putBack();
+            D.forgetPayments?.(theirs.id);
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const id of made.filter(Boolean)) await P.deleteProject(id).catch(() => {});
+        }
+        const none = [[["trait", lowest, highest], ["pick", "1", "0"]], lowest, null];
+        equal(stableJson(read), stableJson([none, none, none, [[], highest, "GM"], none, 1]),
+            "a pick card a player wrote, a GM's for another project or naming a statistic a project does not list held the Work, a GM's own pick did not, a roll with no pick was thrown on its claim rather than the lowest it lists, or a player's difficulty card was read over the GM's (per Work: statistic flags, thrown, whose card; the difficulty)");
+    }],
+
+    ["a clean-up's statistic is Stage 6's to pick: Tamper's door is the packet's word only for a roller who is not the cleaner, and a GM's pick holds the step it was asked for", async () => {
+        /*
+         * E29 fix r2-H2, 05.10.2026; the round-2 reviews' sec m2 = cor m5, and m1's match by action.
+         * The GM held any clean-up whose packet said it came through Tamper's door (`cleanupVia`) to
+         * Tamper's one statistic (roll-draw.mjs `listedFor`), so Stage 6's cleaner, whose erase lists
+         * three and waits for a GM's pick, skipped the pick by saying so; an honest browser says it
+         * only for a roller who is not the cleaner (action-rolls.mjs `viaAction = !stageSix`). And a
+         * pick card is matched to the roll's own action since the same fix: cleanup.mjs asks one for
+         * an erase as "cleanup", whose roll names "eraseTrace", and one for a trail as
+         * "misleadingTrail" (roll-draw.mjs `pickKeyOf`). What the GM expects of a clean-up
+         * (`expectedFor`: the statistic, and the row that gave it): an erase said to come through the
+         * door, by a student with no incident running, by the killer of a direct murder ended by a
+         * Finishing blow - the cleaner of its Stage 6 - and by its victim; then the cleaner's erase
+         * after a GM's card asked as cleanup.mjs asks it, and their trail after one asked for a trail.
+         * At a4a7f25's runtime (e29run/r2h2red) the cleaner's erase said to come through the door was
+         * held to Tamper's Shadow, nobody asked; the two picks held their rolls then too, a card's kind
+         * alone being matched: [["shadow","fixed"],["shadow","fixed"],["shadow","fixed"],["shadow","gm"],["hand","gm"]].
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Stage 6 is a fight's, so a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { isCleaner } = await import("./cleanup.mjs");
+        const { ACTIONS, CLEANUP, TRAITS } = await import("./config.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { whisperToGms } = await import("./utils.mjs");
+        const { settleCall } = await import("./gm-bridge.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(playerOf);
+        const found = [killer, victim].map(a => [a, ["hope", "stress", "hitPoints"].map(k => [k, a.system.resources[k]?.value])]);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const value = t => Number(killer.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = CLEANUP.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const lowest = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
+        const [erased, trailed] = listed.filter(t => t !== lowest);
+        const [door] = ACTIONS.tamper.traits;
+        must(listed.length === 3 && erased && trailed, `the clean-up lists ${listed.length} statistic(s) - this would measure nothing`);
+        const expected = async (actor, context) => {
+            const e = await D.expectedFor(actor, { actionKey: "cleanup", context });
+            return [e.trait ?? null, e.traitFrom ?? null];
+        };
+        const card = async (key, trait) => {
+            const m = await whisperToGms("<p>SUITE r2-H2 clean-up pick</p>");
+            must(m, "no card to settle a pick on - this would measure nothing");
+            await settleCall(m, "SUITE r2-H2", { type: "trait", actorId: killer.id, kind: "cleanup", key, variant: null, trait });
+        };
+        const viaDoor = { cleanupVia: true, cleanupKey: "eraseTrace" };
+        const read = [];
+        try {
+            read.push(await expected(killer, viaDoor));
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: true, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && isCleaner(killer) && !isCleaner(victim),
+                `the fixture's Stage 6, its killer cleaning, did not come: ${stableJson(M.murderState())}`);
+            read.push(await expected(killer, viaDoor), await expected(victim, viaDoor));
+            await card("cleanup", erased);
+            read.push(await expected(killer, { cleanupKey: "eraseTrace" }));
+            await card("misleadingTrail", trailed);
+            read.push(await expected(killer, { cleanupKey: "misleadingTrail" }));
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const [a, values] of found) {
+                const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
+                if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
+            }
+        }
+        equal(stableJson(read), stableJson([[door, "fixed"], [lowest, "gm"], [door, "fixed"], [erased, "gm"], [trailed, "gm"]]),
+            "a clean-up said to come through Tamper's door was held to Tamper's statistic for the cleaner or not for another, or a GM's pick asked as an erase or a trail is asked did not hold that roll (per reading: statistic, row)");
     }],
 
     ["a crisis roll's weapon die is the GM's reading: a packet that names none is expected it, and flagged", async () => {

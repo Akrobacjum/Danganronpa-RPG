@@ -1575,18 +1575,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        crisis menu, so no GM was asked its statistic (`pick`, fix r2-H8's), and it lacks the die a trap's
        victim is owed (murder.mjs `crisisSituational`), which the GM counts since C9 and the harness's
        roll, with no roll window, cannot carry (`advantage`, +1 against 0, from the situation). Measured
-       on C9's tree (e29run/c9a1): those two flags on that roll, none on the eight others. */
+       on C9's tree (e29run/c9a1): those two flags on that roll, none on the eight others. With no pick the
+       GM threw that roll on the statistic it claimed until E29 fix r2-H2 (the round-2 security review's M2;
+       its record held to none); since, on the lowest the trap victim's table lists as the GM holds Aiko,
+       read here on the GM, and its claim is flagged beside the pick where that is another (the seeded
+       Aiko's lowest is the Body she claims, so no `trait` flag is expected of this world). At a4a7f25's runtime
+       (e29run/r2h2red/13.log) this check was the one red of 79: the record held that roll to no statistic. */
     phase("what the GM counted on the incident's rolls", { flow: "gm-rolls-total" });
     const counted = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         return Object.values(S.rollStore.entries()).filter(r => ["murderOpening", "crisis", "cleanup"].includes(r?.actionKey)).sort((a, b) => a.at - b.at)
             .map(r => ({ action: r.actionKey, crisis: r.crisis ?? null, actor: game.actors.get(r.actorId)?.name ?? r.actorId, messageId: r.messageId ?? null,
                 from: r.legal?.situationFrom ?? null,
                 situation: r.legal?.read?.situation ?? null, trait: r.legal?.trait ?? null, traitFrom: r.legal?.traitFrom ?? null,
-                flags: (r.flags ?? []).map(f => [f.kind, f.expected, f.claimed, f.from ?? []]) }));`, { timeout: 30000 });
+                thrown: r.scored?.trait ?? null, flags: (r.flags ?? []).map(f => [f.kind, f.expected, f.claimed, f.from ?? []]) }));`, { timeout: 30000 });
     const pastTheMenu = counted.filter(r => r.messageId === trapRoll.id);
-    check("the GM read every incident roll's situation itself, and flagged none of the openings, crisis actions and Stage 6 rolls but the trap victim's thrown past the crisis menu: no pick asked, and a trap's victim's die its roll cannot carry here",
+    const trapLowest = await gm.eval(`const { listedTraits } = await import("${repoUrl}/scripts/trait-ruling.mjs");
+        const { TRAITS } = await import("${repoUrl}/scripts/config.mjs");
+        const a = game.actors.get("${ids.aiko}"), value = t => Number(a.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        return listedTraits({ kind: "crisis", key: "leaveClue", variant: "indirectVictim" }).reduce((l, t) => (l === null || value(t) < value(l) ? t : l), null);`);
+    check("the GM read every incident roll's situation itself, and flagged none of the openings, crisis actions and Stage 6 rolls but the trap victim's thrown past the crisis menu: no pick asked - thrown on the lowest its table lists - and a trap's victim's die its roll cannot carry here",
         counted.length > 1 && counted.every(r => r.from === "gm") && pastTheMenu.length === 1
-            && JSON.stringify(pastTheMenu[0].flags) === JSON.stringify([["pick", "1", "0", []], ["advantage", "+1", "0", ["situation"]]])
+            && pastTheMenu[0].trait === trapLowest && pastTheMenu[0].thrown === trapLowest && pastTheMenu[0].traitFrom === "gm"
+            && JSON.stringify(pastTheMenu[0].flags) === JSON.stringify([...(trapLowest === "body" ? [] : [["trait", trapLowest, "body", []]]),
+                ["pick", "1", "0", []], ["advantage", "+1", "0", ["situation"]]])
             && counted.every(r => r.messageId === trapRoll.id || r.flags.length === 0),
-        JSON.stringify(counted), { flow: "gm-rolls-total" });
+        JSON.stringify({ trapLowest, counted }), { flow: "gm-rolls-total" });
 }

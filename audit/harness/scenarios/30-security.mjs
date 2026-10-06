@@ -1046,6 +1046,59 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         JSON.stringify(statAsked) === JSON.stringify([[false, "notThere"], [false, "notThere"], [false, "badRequest"], [true, "hand"]])
             && statAfter.cards === 1 && statAfter.pressed === 1 && statAfter.logged === 3 && statAfter.kept === "hand",
         JSON.stringify({ statProjects, statAsked, statAfter }), { flow: "trait-ruling" });
+    /* A RULING IS A GM'S CARD'S (E29 fix r2-H2, 05.10.2026; the round-2 security review's B2). The GM read a statistic's pick
+       (roll-draw.mjs `gmPickOf`) and a Dynamic action's difficulty (gm-bridge.mjs `dynamicRulingOf`) off any card carrying a
+       `ruling`, the document's flag first, whoever wrote it: the review's console posted one and the GM threw Body for a
+       clean-up, which does not list it, as the GM's pick (its probe 96 H, at 070b72b's runtime). Here p1's console posts a pick
+       card for a project stored without a statistic, naming the highest of the four a project lists as Aiko's sheet holds
+       them, and draws a Work on it claiming that one; then the GM settles a pick card of its own for the project naming
+       another it lists, p1's console posts a second card, newer, and draws again. Then the GM posts a difficulty card for
+       Aiko, and p1's console a newer one. Read on the GM: each Work's statistic thrown, the card that held it and its
+       statistic flags, and the difficulty its reader finds. The cards and the project are deleted after. At a4a7f25's
+       runtime (e29run/r2h2red/30.log) both Works were thrown on the claimed Hand, each held by a card of p1's - the second by
+       the newer one, over the GM's - with nothing flagged, and the difficulty read was p1's 3. */
+    phase("a pick or a difficulty only a GM's card makes", { flow: "trait-ruling" });
+    const forgery = await gm.eval(`const P = await import("${repoUrl}/scripts/projects.mjs");
+        const { ACTIONS, TRAITS } = await import("${repoUrl}/scripts/config.mjs");
+        const a = game.actors.get("${ids.aiko}"), value = t => Number(a.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        const listed = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+        const highest = listed.reduce((h, t) => (value(t) > value(h) ? t : h)), lowest = listed.reduce((l, t) => (value(t) < value(l) ? t : l));
+        return { project: (await P.createProject({ name: "SEC r2-H2 no statistic", target: 6, room: null, trait: null }))?.id ?? null,
+            highest, lowest, other: listed.find(t => t !== highest && t !== lowest) ?? null };`, { timeout: 60000 });
+    const forgedRuling = ruling => p1.eval(`const m = await ChatMessage.create({ content: "<p>SEC r2-H2</p>",
+            whisper: game.users.filter(u => u.isGM).map(u => u.id), flags: { "${MOD}": { ruling: ${JSON.stringify(ruling)} } } });
+        return m?.id ?? null;`);
+    const pickOf = trait => ({ type: "trait", actorId: ids.aiko, kind: "project", key: forgery.project, variant: null, trait });
+    const workOn = async () => {
+        const { messageId } = await drawnRoll(p1, ids.aiko, "project", forgery.highest, { hope: 9, fear: 4 }, { context: { projectId: forgery.project } });
+        return gm.eval(`const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(messageId ?? "none")}));
+            return r ? { thrown: r.scored?.trait ?? null, pick: r.legal?.pick ?? null, from: r.legal?.traitFrom ?? null,
+                flags: (r.flags ?? []).filter(f => f.kind === "trait" || f.kind === "pick").map(f => [f.kind, f.expected, f.claimed]) } : null;`);
+    };
+    const forgedPick = await forgedRuling(pickOf(forgery.highest));
+    const forgedAlone = await workOn();
+    const gmPick = await gm.eval(`const { whisperToGms } = await import("${repoUrl}/scripts/utils.mjs");
+        const { settleCall } = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const m = await whisperToGms("<p>SEC r2-H2 the GM's pick</p>");
+        if (m) await settleCall(m, "SEC r2-H2", ${JSON.stringify(pickOf(forgery.other))});
+        return m?.id ?? null;`);
+    const forgedAfter = await forgedRuling(pickOf(forgery.highest));
+    const forgedBeside = await workOn();
+    const gmDifficulty = await gm.eval(`const m = await ChatMessage.create({ content: "<p>SEC r2-H2 the GM's difficulty</p>", whisper: [game.user.id],
+            flags: { "${MOD}": { ruling: { type: "dynamic", actorId: "${ids.aiko}", tier: 1 } } } });
+        return m?.id ?? null;`);
+    const forgedDifficulty = await forgedRuling({ type: "dynamic", actorId: ids.aiko, tier: 3 });
+    await settle(300);
+    const difficulty = await gm.eval(`return (await import("${repoUrl}/scripts/gm-bridge.mjs")).dynamicRulingOf({ actorId: "${ids.aiko}", at: Date.now() })?.tier ?? null;`);
+    await gm.eval(`for (const id of ${JSON.stringify([forgedPick, gmPick, forgedAfter, gmDifficulty, forgedDifficulty])}) await game.messages.get(id ?? "")?.delete();
+        if (${JSON.stringify(forgery.project)}) await (await import("${repoUrl}/scripts/projects.mjs")).deleteProject(${JSON.stringify(forgery.project)});
+        return true;`, { timeout: 60000 });
+    check("SECURITY: a pick card or a difficulty card p1's console writes is no GM's ruling: its Work is thrown on the lowest a project lists and flagged, a GM's own pick beside a newer forged one holds, and the GM's difficulty stands",
+        Boolean(forgery.project && forgery.other && forgedPick && gmPick && forgedAfter && gmDifficulty && forgedDifficulty) && forgery.highest !== forgery.lowest
+            && JSON.stringify(forgedAlone) === JSON.stringify({ thrown: forgery.lowest, pick: null, from: "gm", flags: [["trait", forgery.lowest, forgery.highest], ["pick", "1", "0"]] })
+            && JSON.stringify(forgedBeside) === JSON.stringify({ thrown: forgery.other, pick: gmPick, from: "gm", flags: [["trait", forgery.other, forgery.highest]] })
+            && difficulty === 1,
+        JSON.stringify({ forgery, forgedPick, gmPick, forgedAfter, forgedAlone, forgedBeside, forgedDifficulty, difficulty }), { flow: "trait-ruling" });
     const PLACE = `{ teleport: true, movementAction: "displace", animate: false }`;
     const stoodBotan = await gm.eval(`const M = await import("${repoUrl}/scripts/movement.mjs");
         const actor = game.actors.get("${ids.botan}"); const t = canvas.scene.tokens.find(x => x.actorId === actor.id);

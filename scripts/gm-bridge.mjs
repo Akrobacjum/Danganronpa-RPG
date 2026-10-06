@@ -28,7 +28,7 @@ import {
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
 
-import { contentOf, cardFlag } from "./secret.mjs";
+import { contentOf, cardFlag, cardWriter } from "./secret.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
@@ -992,6 +992,11 @@ async function traceBandOf(record) {
  * kept in a card's meta (messenger-app.mjs `ruleSetDifficulty`, `settleCall`) within a Reroll's
  * reach of the roll, as a GM's pick of a statistic is found (roll-draw.mjs `gmPickOf`), or null.
  * `record` needs `actorId` and `at`; the Reroll's replay reads it too (reroll.mjs `settleDynamic`).
+ * A card counts only where a GM wrote it (secret.mjs `cardWriter`; E29 fix r2-H2, 05.10.2026, the
+ * round-2 security review's B2): until then any card's `ruling` was read, the document's flag
+ * first - at a4a7f25's runtime a card a player's browser posted after a GM's was the difficulty
+ * read (tier 2 and 30-security, e29run/r2h2red), and with it, by reading, the band of that
+ * character's trace and of its Reroll.
  */
 export function dynamicRulingOf(record) {
     const since = (record.at ?? 0) - TIMING.rerollWindowMinutes * 60_000;
@@ -1000,7 +1005,7 @@ export function dynamicRulingOf(record) {
         const message = messages[i];
         if (typeof message.timestamp === "number" && message.timestamp < since) break;
         const ruling = cardFlag(message, "ruling");
-        if (ruling?.type === "dynamic" && ruling.actorId === record.actorId) return ruling;
+        if (ruling?.type === "dynamic" && ruling.actorId === record.actorId && cardWriter(message)?.isGM) return ruling;
     }
     return null;
 }
