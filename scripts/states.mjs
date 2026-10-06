@@ -190,6 +190,13 @@ function shouldHave(actor, state) {
 const running = new Map();
 
 export async function syncStates(actor) {
+    /*
+     * A GM'S (E33 C1a, 06.10.2026; R220's census). Every road here is a GM's - the primary's hook
+     * above, the sheet's wand after `initCharacter`, `syncAll` at `ready` - and the function is
+     * `game.drpg.syncStates`, so a player's console toggled the two conditions, and deleted the
+     * system's, on any student it could write. Refused before the queue, so nothing is chained.
+     */
+    if (!game.user.isGM) return null;
     if (!actor || actor.type !== "character") return null;
     if (isMonokuma(actor)) return null;
 

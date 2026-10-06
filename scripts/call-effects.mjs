@@ -1172,6 +1172,10 @@ async function gatherEffect(actor, call, choice, done) {
 
 // --- destroy an item ---
 async function destroyItemEffect(actor, call, choice, done) {
+    // A GM'S (E33 C1a, 06.10.2026; R220's census). Contraband is a Despair Call, bought on a GM's
+    // browser (calls.mjs `spendDespairCallFor`); `applyCall` is exported, and handed it on a
+    // player's console this deleted the item, with no Despair spent.
+    if (!game.user.isGM) throw new NothingToDo();
     const name = choice.item.name;
     await choice.item.delete();
     done.push(game.i18n.format("DRPG.Calls.destroyed", { item: name }));

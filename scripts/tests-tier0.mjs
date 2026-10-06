@@ -6607,7 +6607,8 @@ const REGRESSIONS = [
          * name are not seen. The reader is run first on a fixture with nine planted faults. Red before C1:
          * 37 `automatedUpdate` calls in 17 files, 37 more in tier 2, eight bare writes of a
          * protected item flag (wear, broken, the creation, a stash and a retrieve, a Reroll's two
-         * give-backs, the bullets' migration). E33 extends it.
+         * give-backs, the bullets' migration). E33 C1a extends it with the census below: every
+         * other document write, judged.
          */
         const guard = await import("./resource-guard.mjs");
         ok(Array.isArray(guard.WRITE_REASONS), "resource-guard.mjs has no list of a write's reasons");
@@ -6686,6 +6687,292 @@ const REGRESSIONS = [
         must(read.roads + read.calls > 30, `the reader found ${read.roads} road(s) and ${read.calls} call(s) of a forwarder - it would measure nothing`);
         log(`R220: ${read.roads} road(s), ${read.calls} call(s) of a forwarder and ${read.writes} other write(s) read; ${problems.length} problem(s)`);
         ok(!problems.length, `${problems.length} module write(s) without a reason of the list: ${problems.slice(0, 12).join("; ")}`);
+
+        /*
+         * THE CENSUS (E33 C1a, 06.10.2026; audit S17-12's test, its first half; E33's plan 2.1). The
+         * roads are E29's half: a write that takes one names its reason. This half reads every OTHER
+         * document write in the same files - `update`, `setFlag`, `unsetFlag`, the embedded trio,
+         * `toggleStatusEffect`, a document's `delete()` (a Map's or a Set's `delete(key)` is counted
+         * aside), a document class's `create(` (any other `create(` aside) and the static
+         * `*Documents` - and each one passes for exactly one reason, judged by the top-level
+         * declaration it stands in:
+         *   (b) A GATE before it in that declaration, in a block that holds it: `if (!game.user.isGM)`,
+         *       `if (!game.user?.isGM)` or `if (!isPrimaryGm())`, alone or OR-ed with more, then a
+         *       `return` or a `throw` (or a block that ends in one); or the write inside
+         *       `if (game.user.isGM [&& ...]) { ... }`. One after the write is no gate.
+         *   (c) NOT A STUDENT'S: a NOT_A_STUDENT row [file, declaration, receiver, what] - the
+         *       receiver as the call reads it, with the arguments of its calls dropped; `what` is
+         *       what reading the code found it to be.
+         *   (d) A GM ROAD: a GM_ROADS row [file, declaration, caller] for a declaration with no gate
+         *       that only gated code reaches. Every place the module names it outside its own
+         *       declaration (a call, a value handed on; not an import) must stand in a caller its
+         *       rows list, and each such caller has the gate before it or is a GM road itself, down
+         *       to a gate; api.mjs names none of them. A table (a `const`) is reached through its entries, which this reader cannot
+         *       follow: its row holds its runner's gate, and it is not exported (migrate.mjs's
+         *       CLAUSES - `migrationStatus` reads their keys and runs none).
+         *   (e) UNTIL_C1B: a row [file, declaration, receiver, what] for a player's road still bare -
+         *       C1b puts each on the roads and takes this list away, as R218's WAITING went.
+         * A row that judges nothing the earlier reasons have not is stale and red, so a site holds
+         * one reason. Why rows and not a call graph: GM-side code is reached through the bridge's
+         * `run` table and dynamic imports, which a scan cannot follow, and a gate in the function is
+         * the one thing that is both checkable here and refuses a console. Measured at 5641a767
+         * (1.2.68's release merge), C1a's tables over the code before C1a: 155 document writes read,
+         * 75 behind a gate, 94 deletes and creates aside (a Map's or a Set's, a texture's or a data
+         * operator's); of the other 80, 43 judged by 36 rows not a student's, 21 in 16 GM roads (20
+         * rows), 13 by 11 player roads until C1b - and five problems: `syncStates` (so `syncOnce`
+         * and `clearSystemConditions` under it), reroll.mjs `settleSearch` and Contraband's
+         * `destroyItemEffect`, which C1a gates, and anonymity.mjs `lowerOwnership`, which refused a
+         * player in a form this reader does not read and now says it in one it does. At 070b72b
+         * (E29 C12) the same 155 writes stood behind the same gates and rows, with 85 aside: the
+         * commits between added nine deletes of a Map's or a Set's keys, and moved one GM road's
+         * caller (truth-bullets.mjs `onBulletWrite`, E29 fix r2-H12, out of `watchBulletEdits`).
+         */
+        const WRITES = /\.\s*(update|setFlag|unsetFlag|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments|toggleStatusEffect|delete|create|createDocuments|updateDocuments|deleteDocuments)\s*\(/g;
+        const DOCUMENT_CLASS = /(?:^|\.)(?:Actor|Item|ActiveEffect|ChatMessage|Combat|Combatant|Folder|JournalEntry|JournalEntryPage|Macro|Playlist|PlaylistSound|RollTable|TableResult|Scene|User|Cards|TokenDocument|RegionDocument|implementation|documentClass)$/;
+        const GATE = /\bif\s*\(\s*(?:[^;{}&]*\|\|\s*)?!\s*(?:game\.user\??\.isGM|isPrimaryGm\(\s*\))\s*(?:\|\|[^;{}]*)?\)\s*(?:return\b|throw\b|\{[^{}]*?\b(?:return|throw)\b)/g;
+        const GATE_BLOCK = /\bif\s*\(\s*(?:game\.user\??\.isGM|isPrimaryGm\(\s*\))\s*(?:&&[^;{}]*)?\)\s*\{/g;
+        // From `from` to `to` the braces never close below where they stood at `from` (`floor` 0),
+        // or never close the block `from` opens (`floor` 1).
+        const holds = (blank, from, to, floor) => {
+            let depth = 0;
+            for (let i = from; i < to; i++) {
+                if (blank[i] === "{") depth++;
+                else if (blank[i] === "}" && --depth < floor) return false;
+            }
+            return true;
+        };
+        const reading = (file, raw) => {
+            const code = blankComments(raw), blank = blankLiterals(code);
+            const tops = [...blank.matchAll(/^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm)]
+                .map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? "(top level)", fn: Boolean(m[1]), table: Boolean(m[3]) }));
+            const imports = [...blank.matchAll(/^(?:import\b|export\s*[{*])[^;]*;/gm)].map(m => [m.index, m.index + m[0].length]);
+            const topAt = i => tops.filter(t => t.at <= i).pop() ?? { at: 0, name: "(top level)", fn: false, table: false };
+            const gatedAt = i => {
+                const top = topAt(i), stretch = blank.slice(top.at, i);
+                return [...stretch.matchAll(GATE)].some(g => holds(blank, top.at + g.index, i, 0))
+                    || [...stretch.matchAll(GATE_BLOCK)].some(g => holds(blank, top.at + g.index + g[0].length - 1, i, 1));
+            };
+            return { file, code, blank, tops, imports, topAt, gatedAt, line: i => lineAt(code, i) };
+        };
+        // The receiver as the call reads it, back from its dot over names, dots, `?.` and bracketed
+        // stretches, whose insides are dropped: `game.actors.get(id)?.items` reads `game.actors.get().items`.
+        const receiverOf = (blank, dot) => {
+            let i = dot;
+            while (i > 0) {
+                const c = blank[i - 1];
+                if (/[\w$.?]/.test(c)) { i--; continue; }
+                if (c !== ")" && c !== "]") break;
+                const open = c === ")" ? "(" : "[";
+                let depth = 0, j = i - 1;
+                for (; j >= 0; j--) if (blank[j] === c) depth++; else if (blank[j] === open && --depth === 0) break;
+                i = Math.max(j, 0);
+            }
+            let out = "", depth = 0;
+            for (const c of blank.slice(i, dot).replace(/[\s?]/g, "")) {
+                if (c === "(" || c === "[") { if (!depth++) out += c; } else if (c === ")" || c === "]") { if (!--depth) out += c; } else if (!depth) out += c;
+            }
+            return out;
+        };
+        const censusIn = read => {
+            const sites = [];
+            let aside = 0;
+            for (const m of read.blank.matchAll(WRITES)) {
+                const kind = m[1], receiver = receiverOf(read.blank, m.index);
+                if (kind === "delete" && !/^\s*[){]/.test(read.code.slice(m.index + m[0].length))) { aside++; continue; }
+                if (kind === "create" && !DOCUMENT_CLASS.test(receiver)) { aside++; continue; }
+                sites.push({ file: read.file, line: read.line(m.index), fn: read.topAt(m.index).name, receiver, kind, gated: read.gatedAt(m.index) });
+            }
+            return { sites, aside };
+        };
+        const judge = (sites, reads, api, { NOT_A_STUDENT, GM_ROADS, UNTIL_C1B }) => {
+            const out = [], used = new Set();
+            const key = (...parts) => parts.join("|");
+            const notStudent = new Map(NOT_A_STUDENT.map(r => [key(r[0], r[1], r[2]), r]));
+            const until = new Map(UNTIL_C1B.map(r => [key(r[0], r[1], r[2]), r]));
+            const roads = new Map();
+            for (const row of GM_ROADS) roads.set(key(row[0], row[1]), [...roads.get(key(row[0], row[1])) ?? [], row]);
+            const ownSite = new Set();
+            for (const s of sites) {
+                if (s.gated) continue;
+                const k = key(s.file, s.fn, s.receiver);
+                if (notStudent.has(k)) used.add(notStudent.get(k));
+                else if (roads.has(key(s.file, s.fn))) ownSite.add(key(s.file, s.fn));
+                else if (until.has(k)) used.add(until.get(k));
+                else out.push(`${s.file}:${s.line} ${s.fn} writes ${s.receiver}.${s.kind} with no gate before it and no row`);
+            }
+            // Where each GM road is named outside its declaration: [file, line, caller, gated].
+            const named = new Map();
+            for (const [file, name] of [...roads.values()].map(rows => rows[0])) {
+                const at = [];
+                for (const read of reads.values()) {
+                    for (const m of read.blank.matchAll(new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`, "g"))) {
+                        const top = read.topAt(m.index);
+                        if ((read.file === file && top.name === name) || read.imports.some(([a, b]) => m.index >= a && m.index < b)) continue;
+                        at.push({ file: read.file, line: read.line(m.index), caller: top.name, gated: read.gatedAt(m.index) });
+                    }
+                }
+                named.set(key(file, name), at);
+            }
+            // Grounded: every place it is named is gated, or stands in a grounded GM road (a fixed point).
+            const table = k => roads.get(k)[0][1] && reads.get(roads.get(k)[0][0])?.tops.find(t => t.name === roads.get(k)[0][1])?.table;
+            const grounded = new Set();
+            for (let moved = true; moved;) {
+                moved = false;
+                for (const k of roads.keys()) {
+                    if (grounded.has(k)) continue;
+                    const file = roads.get(k)[0][0];
+                    const places = table(k) ? named.get(k).filter(p => roads.get(k).some(r => r[2] === p.caller)) : named.get(k);
+                    if (places.length && places.every(p => p.gated || [...roads.keys()].some(o => o !== k && grounded.has(o) && o.endsWith(`|${p.caller}`)))) {
+                        grounded.add(k);
+                        moved = true;
+                    }
+                }
+            }
+            const callerOf = new Set([...roads.values()].flat().map(r => r[2]));
+            for (const [k, rows] of roads) {
+                const [file, name] = rows[0];
+                if (new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(api)) out.push(`${file} ${name} is a GM road, and api.mjs names it`);
+                if (table(k) && new RegExp(`^export\\s+(?:const|let|var)\\s+${name}\\b|^export\\s*\\{[^}]*\\b${name}\\b`, "m").test(reads.get(file)?.blank ?? "")) out.push(`${file} ${name} is a GM road's table, and it is exported`);
+                for (const p of named.get(k)) {
+                    if (!table(k) && !rows.some(r => r[2] === p.caller)) out.push(`${p.file}:${p.line} ${p.caller} reaches the GM road ${name}, and no row of it names that caller`);
+                }
+                for (const row of rows) {
+                    if (!named.get(k).some(p => p.caller === row[2])) out.push(`${file} ${name}: the row naming ${row[2]} is stale - ${row[2]} does not reach it`);
+                }
+                if (!grounded.has(k)) out.push(`${file} ${name} is reached where no gate stands before it: ${named.get(k).filter(p => !p.gated).map(p => `${p.file}:${p.line} ${p.caller}`).join(", ") || "by nothing this reader sees"}`);
+                if (!ownSite.has(k) && !callerOf.has(name)) out.push(`${file} ${name}: its GM road rows are stale - it writes nothing the earlier reasons leave, and no GM road names it as a caller`);
+            }
+            for (const [list, rows] of [["NOT_A_STUDENT", NOT_A_STUDENT], ["UNTIL_C1B", UNTIL_C1B]]) {
+                for (const row of rows) if (!used.has(row)) out.push(`${list} row ${row.slice(0, 3).join(" ")} is stale - it judges no write the earlier reasons leave`);
+            }
+            return out;
+        };
+        const NOT_A_STUDENT = [
+            ["call-effects.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
+            ["cleanup.mjs", "undoLastCleanup", "scene.tokens.get()", "the trace token a clean-up left behind"],
+            ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
+            ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
+            ["monocub.mjs", "postMeddleRoll", "ChatMessage", "the meddle roll's chat card"],
+            ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
+            ["murder.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
+            ["murder.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
+            ["murder.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
+            ["music.mjs", "pausePlaylist", "playlist", "a playlist paused"],
+            ["music.mjs", "clearHeld", "playlist", "a playlist let go"],
+            ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
+            ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
+            ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
+            ["projects-ui.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
+            ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
+            ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
+            ["remnants.mjs", "retuneRemnant", "token", "a Remnant's token, replaced by its retuned one"],
+            ["remnants.mjs", "stripAnswerKey", "token", "a Remnant token's flags"],
+            ["remnants.mjs", "neutraliseDeltaName", "target", "a Remnant token's own actor (its delta), renamed"],
+            ["reroll.mjs", "makeReroll", "message", "the rerolled roll's chat card"],
+            ["reroll.mjs", "markReplacedCard", "card", "the replaced card's flag"],
+            ["reroll.mjs", "putFirstRollBack", "message", "the first roll's card, put back"],
+            ["season-setup.mjs", "deleteMessages", "ChatMessage", "the chat log, cleared by the reset"],
+            ["season-setup.mjs", "wipeSeason", "scene", "the season's tokens on the scene"],
+            ["season-setup.mjs", "wipeSeason", "region", "a room's region flags"],
+            ["secret.mjs", "post", "ChatMessage", "a secret's card"],
+            ["tables.mjs", "addResult", "table", "a pool table's result"],
+            ["tables.mjs", "editResult", "result", "a pool table's result"],
+            ["tables.mjs", "dropResult", "table", "a pool table's result"],
+            ["tables.mjs", "wirePaneHeading", "current()", "a pool table, renamed"],
+            ["tables.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
+            ["tables.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],
+            ["tables.mjs", "createPoolFrom", "RollTable", "a new pool table"],
+            ["utils.mjs", "privately", "ChatMessage", "a whispered chat card"],
+            ["vault.mjs", "applyRoomRows", "region", "a room's region flags, from the room set-up"]
+        ];
+        const GM_ROADS = [
+            ["analyze.mjs", "lockOut", "resolveAnalyze"],
+            ["analyze.mjs", "identify", "resolveAnalyze"],
+            ["chapter.mjs", "destroyBullets", "killCharacter"],
+            ["chapter.mjs", "destroyBullets", "publishDeath"],
+            ["character.mjs", "stampStartingSheet", "initCharacter"],
+            ["gm-items.mjs", "takeItemDialog", "openItemManager"],
+            ["migrate.mjs", "CLAUSES", "migrate1_2_0"],
+            ["murder.mjs", "undoLastCrisis", "applyCrisisAction"],
+            ["observe.mjs", "undoPrevious", "scoreObserve"],
+            ["observe.mjs", "scoreObserve", "resolveObserve"],
+            ["season-setup.mjs", "wipeSeason", "resetSeason"],
+            ["states.mjs", "syncOnce", "syncStates"],
+            ["states.mjs", "clearSystemConditions", "syncOnce"],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "onBulletWrite"],
+            ["utils.mjs", "replaceFlag", "writeNote"],
+            ["utils.mjs", "replaceFlag", "settleNoteFlags"],
+            ["utils.mjs", "replaceFlag", "liftNotes"],
+            ["utils.mjs", "replaceFlag", "wipeSeason"],
+            ["vault.mjs", "forgetStashFound", "setStash"],
+            ["vault.mjs", "forgetAllStashesFound", "wipeSeason"]
+        ];
+        const UNTIL_C1B = [
+            ["actions.mjs", "spendAction", "actor", "a free action's grant, spent"],
+            ["actions.mjs", "takeBackRefund", "actor", "a refunded action taken back (reached from a clean-up's and a Reroll's replay, on a GM)"],
+            ["actions.mjs", "takeMove", "actor", "a free Move's grant and the Move spent"],
+            ["actions.mjs", "restoreFreeMove", "actor", "a free Move given back"],
+            ["call-effects.mjs", "consumeCalls", "actor", "the armed Calls, spent"],
+            ["call-effects.mjs", "spendCallsByNonce", "actor", "the armed Calls a roll used, spent"],
+            ["sheet.mjs", "commitUltimate", "actor", "the Ultimate, chosen"],
+            ["sheet.mjs", "tidyBiography", "actor", "the biography's text, tidied"],
+            ["sheet.mjs", "setUltimate", "actor", "the Ultimate, set"],
+            ["use-items.mjs", "toggleEquipped", "previous", "the item put down when another is readied"],
+            ["use-items.mjs", "toggleEquipped", "item", "an item readied or put down"]
+        ];
+
+        // The reader over a planted file first: a bare write, a road, a gate before, a gate after, a gate
+        // in a closure that does not hold the write, a block gate, a Map's delete and a texture's create,
+        // a comment and a string, and GM roads - one reached from an ungated door, one down a chain.
+        const PLANTED_WRITES = [
+            "export async function bare(actor, n) { await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, n); }",
+            "export async function road(actor, n) { await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: n }, { reason: \"call\" }); }",
+            "export async function gated(actor, n) {",
+            "    if (!game.user.isGM) return null;",
+            "    await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, n);",
+            "}",
+            "export async function late(actor, n) { await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, n); if (!game.user.isGM) return null; }",
+            "export async function nested(actor, n) { const f = () => { if (!game.user?.isGM) return; }; f(); await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, n); }",
+            "export async function block(actor) { if (game.user.isGM && actor) { await actor.update({ a: 1 }); } await actor.unsetFlag(MODULE_ID, \"x\"); }",
+            "export function aside(map) { map.delete(\"k\"); /* item.update({}) */ const s = \"doc.update({})\"; return PIXI.RenderTexture.create({ s }); }",
+            "async function helper(item) { await game.actors.get(item.id)?.items?.get(\"x\")?.delete(); await Item.createDocuments([]); }",
+            "export async function door(item) { if (!isPrimaryGm()) return; await helper(item); }",
+            "export async function open(item) { await helper(item); }",
+            "async function chain(actor) { await actor.update({ b: 1 }); }",
+            "export async function chained(actor) { await chain(actor); }",
+            "export async function top(actor) { if (!game.user.isGM || !actor) return; await chained(actor); }"
+        ].join("\n");
+        const planted = reading("planted.mjs", PLANTED_WRITES);
+        const plantedCensus = censusIn(planted);
+        equal(JSON.stringify([plantedCensus.sites.map(s => `${s.fn} ${s.receiver}.${s.kind}${s.gated ? " gated" : ""}`), plantedCensus.aside]),
+            JSON.stringify([["bare actor.setFlag", "gated actor.setFlag gated", "late actor.setFlag", "nested actor.setFlag", "block actor.update gated",
+                "block actor.unsetFlag", "helper game.actors.get().items.get().delete", "helper Item.createDocuments", "chain actor.update"], 2]),
+            "the census does not read the planted writes as they are - a road, a gate before, after, in a closure, a block gate, a Map's delete, a texture, a comment and a string");
+        equal(JSON.stringify(judge(plantedCensus.sites, new Map([["planted.mjs", planted]]), "game.drpg = { chained };", {
+            NOT_A_STUDENT: [["planted.mjs", "helper", "Item", "planted"], ["planted.mjs", "gated", "actor", "planted, and gated"]],
+            GM_ROADS: [["planted.mjs", "helper", "door"], ["planted.mjs", "chain", "chained"], ["planted.mjs", "chained", "top"]],
+            UNTIL_C1B: [["planted.mjs", "bare", "actor", "planted"]]
+        }).map(p => p.split(" ").slice(0, 4).join(" "))), JSON.stringify([
+            "planted.mjs:7 late writes actor.setFlag", "planted.mjs:8 nested writes actor.setFlag", "planted.mjs:9 block writes actor.unsetFlag",
+            "planted.mjs:13 open reaches the", "planted.mjs helper is reached", "planted.mjs chained is a", "NOT_A_STUDENT row planted.mjs gated"
+        ]), "the census does not judge the planted rows as they are - a write with no reason, a GM road reached from an ungated door, one api.mjs names, a stale row");
+
+        const reads = new Map((await otherSources()).map(([file, raw]) => [file, reading(file, raw)]));
+        must(reads.has("api.mjs"), "api.mjs is not among the module's sources - the GM roads cannot be checked against it");
+        const census = { sites: [], aside: 0 };
+        for (const [file, read] of reads) {
+            if (file === "resource-guard.mjs") continue;
+            const found = censusIn(read);
+            census.sites.push(...found.sites);
+            census.aside += found.aside;
+        }
+        const gated = census.sites.filter(s => s.gated).length;
+        must(census.sites.length >= 150 && gated >= 70,
+            `the census read ${census.sites.length} document write(s), ${gated} of them gated - fewer than 150 and 70 at 070b72b, so it would measure nothing`);
+        const unjudged = judge(census.sites, reads, reads.get("api.mjs").blank, { NOT_A_STUDENT, GM_ROADS, UNTIL_C1B });
+        log(`R220: the census read ${census.sites.length} document write(s) (${census.aside} delete(s) and create(s) aside): ${gated} gated, `
+            + `${NOT_A_STUDENT.length} row(s) not a student's, ${GM_ROADS.length} GM road row(s), ${UNTIL_C1B.length} player road(s) until C1b; ${unjudged.length} problem(s)`);
+        ok(!unjudged.length, `${unjudged.length} write(s) or row(s) the census cannot judge: ${unjudged.slice(0, 12).join("; ")}`);
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {

@@ -337,6 +337,24 @@ async function asPlayerItemWrite(kind, student, target, player, stamp = null, wr
 }
 
 /**
+ * A CONSOLE'S CALL, MADE FROM THE GM'S SUITE (E33 C1a, 06.10.2026). Tier 2 runs on a GM's browser, and
+ * the gates R220's census reads refuse a player's. While `call` starts, `game.user.isGM` reads false -
+ * an own property over the User's getter, taken off again before anything else on this browser runs:
+ * an async function runs up to its first `await` before it hands back its promise, so only what it
+ * does before then is done as a player, and a gate at its top is exactly that. A write made after an
+ * `await` is made as the GM, which is what a missing gate looks like here. Answers `call`'s promise.
+ * A gate below an `await` would read as missing; the ones this tests stand first.
+ */
+function asConsole(call) {
+    Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+    try {
+        return call();
+    } finally {
+        delete game.user.isGM;
+    }
+}
+
+/**
  * A PLAYER'S WRITE HEARD WHILE THE GM'S OWN IS ON ITS WAY (E29 fix r1-G5, 05.10.2026). At the next
  * write this GM makes of `student`'s Hope - in its `preUpdateActor`, before it leaves this browser -
  * `write`, already on the sheet with the audit's aside, is handed to the judge as `player`'s, as the
@@ -30735,6 +30753,73 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson(["specific", "flagged", "flagged", "stands", "that roll has already settled that action", null]),
             "a Search's record kept no goal, or a find on a specific Search or on a stash's stood, or a find on a fresh record did not, or a theft on a "
                 + "record a find stood on was taken, or one on a fresh record refused (the goal, the three verdicts, the two thefts' refusals)");
+    }],
+
+    ["a console's call of a newly gated GM function changes nothing: syncStates", async () => {
+        /* E33 C1a, 06.10.2026; R220's census. `game.drpg.syncStates` brings a student's two
+           conditions into line with their tracks, and every road to it is a GM's; on a player's
+           browser it toggled them on any student that browser could write. A Breakdown put on a
+           student with Sanity to spare is what a pass takes off: the console's call leaves it. At
+           070b72b the pass ran (as the GM here: it starts after the queue's first `await`) and took
+           it off. */
+        const [student] = cast(1);
+        const { STATES } = await import("./config.mjs");
+        const { isBrokenDown } = await import("./character.mjs");
+        const { syncStates } = await import("./states.mjs");
+        const id = STATES.breakdown.id, held = () => student.statuses?.has?.(id) ?? false;
+        must(!isBrokenDown(student) && !held(), `${student.name} is in Breakdown already - a pass would leave the condition, and this would measure nothing`);
+        let read = null;
+        try {
+            await student.toggleStatusEffect(id, { active: true });
+            must(held(), "the Breakdown condition could not be put on the student");
+            const answer = await asConsole(() => syncStates(student));
+            await settle();
+            read = [answer, held()];
+        } finally {
+            if (held()) await student.toggleStatusEffect(id, { active: false });
+        }
+        equal(JSON.stringify(read), JSON.stringify([null, true]), "a player's console brought a student's conditions into line (its answer, the Breakdown still on)");
+    }],
+
+    ["a console's call of a newly gated GM function changes nothing: settleSearch", async () => {
+        /* E33 C1a, 06.10.2026; R220's census. A Search's Reroll is settled on the GM that replays it
+           (reroll.mjs `rerollOnGm`, `replayAction`), and `settleSearch` is exported: handed a
+           bookmark on a player's browser it took the item the bookmark named off the sheet. At
+           070b72b it did (as the GM here, after its first `await`), and said so. */
+        const [student] = cast(1);
+        const { settleSearch } = await import("./reroll.mjs");
+        const [item] = await student.createEmbeddedDocuments("Item", [{ name: "SUITE E33 C1a a Search's find", type: "loot" }]);
+        must(item, "the find could not be put on the student");
+        const done = [];
+        let read = null;
+        try {
+            const answer = await asConsole(() => settleSearch(student, { claimed: true, itemId: item.id, category: null }, { total: 1, isCritical: false }, done));
+            await settle();
+            read = [answer, Boolean(student.items.get(item.id)), done.length];
+        } finally {
+            await student.items.get(item.id)?.delete();
+        }
+        equal(JSON.stringify(read), JSON.stringify([{}, true, 0]), "a player's console settled a Search's Reroll (its answer, the find still on the sheet, the lines it said)");
+    }],
+
+    ["a console's call of a newly gated GM function changes nothing: Contraband", async () => {
+        /* E33 C1a, 06.10.2026; R220's census. Contraband is a Despair Call, bought on a GM's browser
+           (calls.mjs `spendDespairCallFor`); `applyCall` is exported, and handed Contraband on a
+           player's browser it deleted the item, with no Despair spent. At 070b72b it did: no effect
+           before it awaits, so the delete started in the console's turn, and it took the item. */
+        const [student] = cast(1);
+        const { applyCall } = await import("./call-effects.mjs");
+        const [item] = await student.createEmbeddedDocuments("Item", [{ name: "SUITE E33 C1a contraband", type: "loot" }]);
+        must(item, "the item could not be put on the student");
+        let read = null;
+        try {
+            const answer = await asConsole(() => applyCall(student, "contraband", "despair", { item }));
+            await settle();
+            read = [answer?.failed ?? null, answer?.lines?.length ?? null, Boolean(student.items.get(item.id))];
+        } finally {
+            await student.items.get(item.id)?.delete();
+        }
+        equal(JSON.stringify(read), JSON.stringify([true, 0, true]), "a player's console destroyed an item with Contraband (failed, the lines it said, the item still on the sheet)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
