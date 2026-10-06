@@ -2838,13 +2838,32 @@ async function undoLastCrisis({ actorId, key, before = null }) {
      * only the break was given back: a pack of two was one after its Reroll. The quantity
      * the row's `before` names comes back - the player's word, so one charge at most,
      * the one a use takes.
+     *
+     * COUNTED AS THE GMS HOLD IT (E29 fix r2-H23, 06.10.2026; found by fix r2-H22's reading). "One
+     * charge at most" was one more than the pack's count on the sheet, where a player's raise the
+     * audit puts back stands until its put-back lands, and for good where the put-back fails; written
+     * as the GM's, the count given back is the GMs' from then on, and the raise's put-back, read when
+     * written (sheet-audit.mjs, fix r2-H16), finds its path moved and writes nothing. Measured at
+     * e253b3a (e29run/r2h23red): a pack of two used to one, raised to 5 by the player's console with
+     * its put-back refused, ended its Reroll at 6 on the sheet and in the GMs' mark where the row's
+     * `before` named 9 - four charges more than the GMs' one and the one given back - and at 5 on the
+     * sheet and 1 in the mark where it named an honest 2, the use's charge not given back.
+     * The count is now read off the item as the GMs hold it (`itemAsHeld`: once every write queued on
+     * the student has been judged, the mark's count). The wait holds up nothing that holds it up, by
+     * reading: all a judgement waits for that it does not do itself is its own writer's consumption
+     * of an item (sheet-audit.mjs `consumedBy`) or roll card (`callsCover`, which passes a GM's card
+     * over), each for at most `JUDGE_WAIT_MS`; this rewind and the replay after it write as a GM, and
+     * the replay waits on the same queue as it begins (`applyCrisisAction`'s `actorAsHeld`).
      */
     const used = receipt.usedItemId ? resourcesBefore(before) : null;
     if (receipt.usedItemId) {
         try {
-            const item = game.actors.get(actorId)?.items?.get(receipt.usedItemId);
+            const { itemAsHeld } = await import("./sheet-audit.mjs");
+            const owner = game.actors.get(actorId);
+            const asHeld = owner?.items?.has(receipt.usedItemId) ? await itemAsHeld(owner, receipt.usedItemId) : null;
+            const item = asHeld ? owner.items.get(asHeld.id) : null;
             if (item) await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false }, { reason: "reroll" });
-            const qty = Number(item?.system?.quantity ?? 1);
+            const qty = Number(asHeld?.system?.quantity ?? 1);
             if (item && typeof used?.qty === "number" && used.qty > qty) await trustedWrite(item, { "system.quantity": qty + 1 }, { reason: "reroll" });
         } catch (err) {
             error("Could not give back the item a rerolled crisis action used", err);
@@ -2899,17 +2918,36 @@ async function undoLastCrisis({ actorId, key, before = null }) {
      * (`marksBack`), never fewer marks than the receipt's. A victim's own action is put back
      * once, as the actor's: the receipt's victim values are the same reading, taken after the
      * heal, and written second they wrote the heal back (13-murder-signals, A1, 03.10.2026).
+     *
+     * READ AS THE GMS HOLD THEM (E29 fix r2-H23, 06.10.2026). The end of the track the marks put back
+     * stop at, and the Hope the use's Hope is taken off, were read off the sheet, where a player's
+     * write the audit puts back - a lowered maximum, a raised Hope - stands until its put-back lands,
+     * and for good where the put-back fails; written as the GM's, what was computed from it is the
+     * GMs' from then on. Measured at e253b3a (e29run/r2h23red): a tier 3 use from 1 Hope and 4 Health
+     * marks - 2 Hope given, 2 marks healed - then the player's console raising the Hope to 6 and
+     * lowering the Health maximum to 1, its put-back refused: the rewind left 4 Hope and 1 Health mark
+     * on the sheet and in the GMs' mark, where the GMs' 3 Hope and maximum give 1 and 4. Both are now
+     * the GMs' (`meansHeld`, `meansMaxHeld`), read and written in one job of the student's queue
+     * (sheet-audit.mjs `gmMeansWrite`), as the Reroll's payment reads and writes the Hope (fix r2-H5),
+     * so that a write heard meanwhile is judged after these, from them; its wait holds up nothing
+     * that holds it up, as the charge's above. The marks themselves come from the receipt and the
+     * row's `before`, the victim's from the receipt; the sheet is read only to pass over a write that
+     * would change nothing (`restoreResource`).
      */
     const actor = game.actors.get(actorId);
-    await restoreResource(actor, "stress", marksBack(actor, "stress", receipt.actorStress, used?.stress));
-    await restoreResource(actor, "hitPoints", marksBack(actor, "hitPoints", receipt.actorHp, used?.hp));
-    /* And the Hope the use gave (fix r1-G6, 04.10.2026; the round-1 review's m5), off the Hope held
-       now: the Reroll's own price and anything granted since stay. The receipt's, not the row's -
-       the row keeps the first throw's facts, and a second Reroll takes back what the replay's use
-       gave, or nothing where the replay missed (no `usedItemId`). */
-    if (receipt.usedItemId && receipt.hopeGranted > 0) {
-        await restoreResource(actor, "hope", Math.max(0, resourceValue(actor, "hope") - receipt.hopeGranted));
-    }
+    const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
+    if (actor) await gmMeansWrite(actor, async held => {
+        const max = field => meansMaxHeld(actor, field);
+        await restoreResource(actor, "stress", marksBack(receipt.actorStress, used?.stress, max("stress")));
+        await restoreResource(actor, "hitPoints", marksBack(receipt.actorHp, used?.hp, max("hitPoints")));
+        /* And the Hope the use gave (fix r1-G6, 04.10.2026; the round-1 review's m5), off the Hope held
+           now: the Reroll's own price and anything granted since stay. The receipt's, not the row's -
+           the row keeps the first throw's facts, and a second Reroll takes back what the replay's use
+           gave, or nothing where the replay missed (no `usedItemId`). */
+        if (receipt.usedItemId && receipt.hopeGranted > 0) {
+            await restoreResource(actor, "hope", Math.max(0, held.hope - receipt.hopeGranted));
+        }
+    });
     const victim = receipt.victimId && receipt.victimId !== actorId ? game.actors.get(receipt.victimId) : null;
     await restoreResource(victim, "hitPoints", receipt.victimHp);
     await restoreResource(victim, "stress", receipt.victimStress);
@@ -2938,10 +2976,9 @@ async function undoLastCrisis({ actorId, key, before = null }) {
     return true;
 }
 
-/** The marks an undo puts back: the receipt's `was`, or the `claimed` more, up to the track's end. */
-function marksBack(actor, field, was, claimed) {
+/** The marks an undo puts back: the receipt's `was`, or the `claimed` more, up to the track's end `max` (the GMs', fix r2-H23). */
+function marksBack(was, claimed, max) {
     if (typeof was !== "number" || typeof claimed !== "number" || claimed <= was) return was;
-    const max = actor ? resourceMax(actor, field) : 0;
     return max > 0 ? Math.min(claimed, max) : claimed;
 }
 

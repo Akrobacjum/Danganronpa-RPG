@@ -712,7 +712,8 @@ export async function armedCallsHeld(actor) {
  * `rotEverything`, fix r2-H19), a GM's ruling on an item used (use-items.mjs `grantItemEffect`, H19) and an
  * Objection's evidence (trial.mjs `seizeFloor`, H20); the object a tie of a trace to the crime names
  * (bridge-guards.mjs `guardTieTraceHolder`, H21); and through this list itself a Reroll's plant (reroll.mjs
- * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (chapter.mjs `bulletsHeldBy`, H22).
+ * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (chapter.mjs `bulletsHeldBy`, H22); and through
+ * `itemAsHeld` the count a Reroll gives a used item's charge back to (murder.mjs `undoLastCrisis`, H23).
  */
 export async function itemsAsHeld(actor) {
     await judgedFor(actor?.id);
@@ -852,6 +853,21 @@ export function meansHeld(actor) {
 }
 
 /*
+ * A STUDENT'S RESOURCE MAXIMUM AS THE GMS HOLD IT (E29 fix r2-H23, 06.10.2026), where `meansHeld` holds the value: the
+ * prepared maximum with the mark's sheet maximum for the sheet's (`maxHeld`, as a judgement bounds the mark), on the
+ * primary; the document's on any other browser and where the GMs hold no mark of their own. A player's write of a
+ * maximum is put back with `lockPlayerResources` on (`LOCK_NAMED_MAX`) and stands on the sheet until its put-back
+ * lands, and for good where it fails. For a GM's give-back held to the end of a track - a Reroll's rewind of a crisis
+ * action's marks (murder.mjs `undoLastCrisis`) and of a clean-up's Sanity (cleanup.mjs `undoLastCleanup`) - read in
+ * the job `gmMeansWrite` runs, as the value is.
+ */
+export function meansMaxHeld(actor, key) {
+    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
+    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
+    return maxHeld(actor, mark && !mark.flags?.[FLAGS.monokuma] ? mark : null, key);
+}
+
+/*
  * A GM'S WRITE OF A STUDENT'S MEANS, MADE FOR A PLAYER (E29 fix r1-G5, 05.10.2026; review round 1
  * sec M1). A Call bought on the GM (gm-bridge.mjs `call.arm`) and a drawn roll's resource step
  * (roll-draw.mjs `DrawnResources`) write a student's Hope on the primary for the player who asked,
@@ -871,6 +887,9 @@ export function meansHeld(actor) {
  * meanwhile is judged after it, from it (`hopeLeft`). With it, the same probe read as expected in 24
  * runs of 24 (e29run/r1g5q/q1-probe.log). `write(held)` answers what its caller needs; an error in it
  * is the caller's, and the queue goes on.
+ * Since fix r2-H23 a Reroll's rewind writes in such a job too: the Hope a use gave taken back and the marks put back
+ * to the end of the track the GMs hold (murder.mjs `undoLastCrisis`), and a clean-up's Sanity (cleanup.mjs
+ * `undoLastCleanup`).
  */
 export function gmMeansWrite(actor, write) {
     if (actor?.documentName !== "Actor" || actor.type !== "character") return (async () => write(meansHeld(actor)))();
@@ -1419,7 +1438,7 @@ function bounded(actor, mark, key, n) {
     return Math.max(0, Number.isFinite(max) ? Math.min(max, n) : n);
 }
 
-/** A resource's maximum as the GMs hold it (`bounded`): the document's, with the mark's sheet maximum for the one the write left - Hope's aside. */
+/** A resource's maximum as the GMs hold it (`bounded`, `meansMaxHeld`): the document's, with the mark's sheet maximum for the one the write left - Hope's aside. */
 function maxHeld(actor, mark, key) {
     const prepared = Number(actor.system?.resources?.[key]?.max);
     if (key === "hope") return prepared;

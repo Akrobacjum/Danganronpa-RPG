@@ -2550,16 +2550,36 @@ async function undoLastCleanup(actor, tokenId) {
                attempt moved; a receipt from before `stressAfter` existed still
                writes the old value, which is what it recorded. A give-back, so the
                GMs' audit takes the credit the attempt left (fix r2-H6,
-               resource-guard.mjs `stampOf`). */
+               resource-guard.mjs `stampOf`).
+               HELD TO THE MAXIMUM THE GMS HOLD (E29 fix r2-H23, 06.10.2026). The ceiling
+               was the Sanity maximum on the sheet, where a player's lowered maximum
+               stands until the audit's put-back lands, and for good where it fails;
+               written as the GM's, the marks given back are the GMs' from then on.
+               Measured at e253b3a (e29run/r2h23red): a clean-up attempted at 3 marks
+               and charged, then the player's console lowering the maximum to 1, its
+               put-back refused: its Reroll left 1 mark on the sheet and in the GMs'
+               mark, not the 3 before it. Now the ceiling is the GMs' (sheet-audit.mjs
+               `meansMaxHeld`), read and written in one job of the student's queue
+               (`gmMeansWrite`), as murder.mjs `undoLastCrisis` reads the end of its
+               marks. The marks themselves are read off the sheet as before: a
+               player's write of them stands - a mark taken as a price, one cleared
+               flagged or listed (`gainVerdict`) - and the mark moves with it. The
+               wait holds up nothing that holds it up, by reading: all a judgement
+               waits for that it does not do itself is its own writer's consumption
+               of an item or roll card, and this rewind writes as a GM;
+               `resolveCleanup` waits on the same queue after it (`actorAsHeld`). */
             const moved = typeof receipt.stressAfter === "number"
                 ? receipt.stressAfter - receipt.stressBefore : null;
-            const ceiling = resourceMax(actor, "stress") || Infinity;
-            const value = moved === null
-                ? receipt.stressBefore
-                : Math.min(ceiling, Math.max(0, resourceValue(actor, "stress") - moved));
-            await trustedWrite(actor, {
-                "system.resources.stress.value": value
-            }, { reason: "reroll", giveBack: true });
+            const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
+            await gmMeansWrite(actor, async () => {
+                const ceiling = meansMaxHeld(actor, "stress") || Infinity;
+                const value = moved === null
+                    ? receipt.stressBefore
+                    : Math.min(ceiling, Math.max(0, resourceValue(actor, "stress") - moved));
+                await trustedWrite(actor, {
+                    "system.resources.stress.value": value
+                }, { reason: "reroll", giveBack: true });
+            });
         } catch (err) {
             error("Could not refund the Sanity a rerolled clean-up spent", err);
         }

@@ -1187,23 +1187,28 @@ async function swingFixture(identity = null) {
  * and gives 2 Hope, the killer at their most Hope after it and 2 below it before (`before.hope`).
  * `aside` (fix r2-H20): an update written to the pack after the first use and before the Reroll
  * where the GMs' mark does not see it (sheet-audit.mjs `AUDIT_ASIDE`, a failed put-back's state).
+ * `consoleWrite` (fix r2-H23): an update of the pack the player's console writes at the same moment,
+ * judged as theirs (`asPlayerItemWrite`), its put-back refused by a hook of this GM's while the Reroll
+ * is made, as scenario 30 refuses one, and the hook taken off before the read, which then holds the
+ * count the GMs' mark holds (`marked`). `qty`: the count the row's `before` names, the player's word.
  */
-async function useItemRerolled(next, { tier = 1, aside = null } = {}) {
+async function useItemRerolled(next, { tier = 1, aside = null, consoleWrite = null, qty = 2 } = {}) {
     const { ITEM_FLAGS, isBroken } = await import("./inventory.mjs");
-    const audit = aside ? await import("./sheet-audit.mjs") : null;
+    const audit = aside || consoleWrite ? await import("./sheet-audit.mjs") : null;
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
     const { trustedWrite } = await import("./resource-guard.mjs");
     const { resourceMax } = await import("./character.mjs");
     const { M, killer, putBack } = await swingFixture();
     const player = game.users.find(u => !u.isGM && u.active && killer.testUserPermission(u, "OWNER"));
     const max = resourceMax(killer, "hope");
-    let F = null;
+    let F = null, veto = null;
     try {
         if (tier === 3) must(max >= 5, `${killer.name} holds at most ${max} Hope - a use's 2 and a Reroll's 3 would not fit`);
         const [pack] = await killer.createEmbeddedDocuments("Item", [{ name: "SUITE E08 C6b pack", type: "loot", system: { quantity: 2 },
             flags: { [MODULE_ID]: { [ITEM_FLAGS.category]: "usable", [ITEM_FLAGS.tier]: tier, ...(tier === 3 ? {} : { [ITEM_FLAGS.kind]: "healing" }) } } }]);
         await killer.update({ "system.resources.hitPoints.value": tier === 3 ? 3 : 2 });
         F = await playerRollBookmark(player, killer, "crisis", {}, { record: { total: 20 } });
-        const before = { hp: tier === 3 ? 3 : 2, stress: killer.system.resources.stress.value, qty: 2 };
+        const before = { hp: tier === 3 ? 3 : 2, stress: killer.system.resources.stress.value, qty };
         if (tier === 3) {
             before.hope = max - 2;
             await trustedWrite(killer, { "system.resources.hope.value": max }, { reason: "gmRuling" });
@@ -1218,7 +1223,6 @@ async function useItemRerolled(next, { tier = 1, aside = null } = {}) {
         const scored = M.murderState()?.lastCrisis?.hopeGranted ?? 0;
         await trustedWrite(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) }, { reason: "gmRuling" });
         if (aside) {
-            const { sheetMarkStore } = await import("./gm-stores.mjs");
             await audit.sheetAuditIdle();
             await pack.update(aside, { [audit.AUDIT_ASIDE]: true });
             await audit.sheetAuditIdle();
@@ -1227,14 +1231,32 @@ async function useItemRerolled(next, { tier = 1, aside = null } = {}) {
                 && foundry.utils.getProperty(marked, path) !== value),
             `the write did not stand on the pack alone, outside the GMs' mark - this would measure nothing: ${stableJson(aside)}`);
         }
+        if (consoleWrite) {
+            await audit.sheetAuditIdle();
+            veto = Hooks.on("preUpdateItem", (doc, changes, options) =>
+                doc.id === pack.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+            const { verdict } = await asPlayerItemWrite("updateItem", killer, pack, player, null, consoleWrite);
+            await audit.sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[pack.id] ?? null;
+            must(verdict === "putBack" && marked && Object.entries(consoleWrite).every(([path, value]) => foundry.utils.getProperty(killer.items.get(pack.id), path) === value
+                && foundry.utils.getProperty(marked, path) !== value),
+            `the player's write was not judged a put-back left on the pack alone, outside the GMs' mark - this would measure nothing: ${stableJson([verdict, consoleWrite])}`);
+        }
         const { out } = await rerollAgain(killer, F.message, { hope: 9, fear: 4 }, next);
+        if (veto !== null) {
+            Hooks.off("preUpdateItem", veto);
+            veto = null;
+            await audit.sheetAuditIdle();
+        }
         const now = killer.items.get(pack.id);
         const read = { replayed: Array.isArray(out?.lines), hp: killer.system.resources.hitPoints.value, qty: Number(now?.system?.quantity ?? 0),
             broken: isBroken(now), usedAgain: M.murderState()?.lastCrisis?.usedItemId === pack.id, usedFor: F.row()?.facts?.usedFor ?? null };
+        if (consoleWrite) read.marked = Number(sheetMarkStore.get(killer.id)?.items?.[pack.id]?.system?.quantity ?? 0);
         // A tier 3's Hope: what the first use was read to give, how far below the most the killer holds now, and the replay's.
         return tier === 3 ? { ...read, scored, belowMax: max - killer.system.resources.hope.value,
             replayGave: M.murderState()?.lastCrisis?.hopeGranted ?? 0 } : read;
     } finally {
+        if (veto !== null) Hooks.off("preUpdateItem", veto);
         await F?.putBack();
         await putBack();
         await audit?.sheetAuditIdle();
@@ -11124,6 +11146,33 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson({ replayed: true, hp: 1, qty: 1, broken: false, usedAgain: true, usedFor: "hitPoints" }),
             "the replay of a Use an item healed by a tier a write had left on the pack outside the GMs' mark "
             + "(replayed, Health marks, quantity, broken, receipt's item, the reserve healed)");
+    }],
+
+    ["a Reroll gives a used item's charge back off the count the GMs hold, not one a player's console raised", async () => {
+        /*
+         * E29 fix r2-H23, 06.10.2026; found by fix r2-H22, which read it and measured nothing. The undo of Use an item
+         * gives back the charge the use took where the row's `before` - the player's word - names more than there is
+         * (murder.mjs `undoLastCrisis`, E08+E28 C6b), and read what there is off the pack, where a player's raise the
+         * audit puts back stands until its put-back lands, and for good where the put-back fails. Written as the GM's,
+         * the count given back is the GMs' from then on, and the raise's put-back, read when written (fix r2-H16),
+         * finds its path moved and writes nothing. The second test's use above (`useItemRerolled`: a Tier 1 healing
+         * pack of two, one after the use, its Reroll a miss with Hope on 4 and 2), with the player's console raising
+         * the pack to 5 after the use, its put-back refused while the Reroll is made (`consoleWrite`), and a `before`
+         * naming 9 - forged - or 2. Read: as `useItemRerolled` reads, and the count the GMs' mark holds.
+         * At e253b3a (06.10.2026, e29run/r2h23red), with 9: the pack at 6 on the sheet and in the mark, four charges
+         * minted; with 2: at 5 on the sheet - the raise its refused put-back left - and 1 in the mark, the use's
+         * charge not given back (a cost to its writer only, as fix r2-H22 read it). 2 and 2 for both since.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the rewind reads - this would measure nothing");
+        const raised = { "system.quantity": 5 };
+        const forged = await useItemRerolled({ hope: 4, fear: 2 }, { consoleWrite: raised, qty: 9 });
+        const honest = await useItemRerolled({ hope: 4, fear: 2 }, { consoleWrite: raised, qty: 2 });
+        const back = { replayed: true, hp: 2, qty: 2, broken: false, usedAgain: false, usedFor: "hitPoints", marked: 2 };
+        equal(stableJson([forged, honest]), stableJson([back, back]),
+            "a Reroll gave a used pack's charge back off a count a player's console raised (with a before of 9, of 2: replayed, "
+            + "Health marks, quantity, broken, receipt's item, the reserve healed, the GMs' count)");
     }],
 
     ["a bookmark note for another player's character is refused", async () => {
@@ -29431,6 +29480,124 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([0, "flagged"]),
             "a clean-up's Sanity given back by its Reroll left the price in the credit, or the player's refund of the same stood on it (the credit left, the verdict)");
+    }],
+
+    ["a Reroll's take-backs read the Hope and the maxima the GMs hold, not a player's write the audit has not put back", async () => {
+        /*
+         * E29 fix r2-H23, 06.10.2026; the siblings of a used item's charge (its test above, by Use an item's Reroll). A
+         * take-back computed from a means or a maximum read off the sheet - where a player's write the audit puts back
+         * stands until its put-back lands, and for good where the put-back fails - was written as a GM's, the GMs'
+         * value from then on: the Hope a use gave, taken back off the Hope on the sheet (murder.mjs `undoLastCrisis`);
+         * the marks a use healed, put back up to the sheet's Health maximum (`marksBack`); a clean-up's Sanity, given
+         * back down to the sheet's Sanity maximum (cleanup.mjs `undoLastCleanup`). The killer, at 1 Hope and 4 Health
+         * marks, uses a tier 3 pack - 2 Hope given and 2 marks healed, written here by the GM where the player's
+         * browser writes them - and the use is scored on the GM; the player's console then raises the Hope to the most
+         * it holds and lowers the Health maximum to 1, its put-back refused by a hook of the GM's, as scenario 30
+         * refuses one, and the rewind runs as reroll.mjs `settleCrisis` runs it, into a miss with Hope. `settleCrisis`
+         * comes after the Reroll's payment, which writes the Hope from the GMs' value (fix r2-H5) and so takes off a
+         * forged Hope heard before it: this one is heard between the payment and the rewind. Then a clean-up attempted
+         * at 3 Sanity marks is charged on the GM; the console lowers the Sanity maximum to 1, refused the same way, and
+         * the clean-up's Reroll takes the attempt back. Read: the Hope, the Health marks and the Sanity marks, each on
+         * the sheet and in the GMs' mark. At e253b3a (06.10.2026, e29run/r2h23red): [[4, 4, 1, 1], [1, 1]] - the most
+         * Hope (6) less the use's 2, not the GMs' 3 less it; and 1 Health mark and 1 Sanity mark where the maxima the
+         * GMs hold put back 4 and 3.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
+        needs(world.atLeast("sceneOnScreen"), "the clean-up's trace is placed on the scene on screen");
+        const M = await import("./murder.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { resourceMax } = await import("./character.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the take-backs read - this would measure nothing");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const R = "system.resources", HOPE = `${R}.hope.value`, HP = `${R}.hitPoints.value`, HP_MAX = `${R}.hitPoints.max`;
+        const SANITY = `${R}.stress.value`, SANITY_MAX = `${R}.stress.max`;
+        const sheet = path => foundry.utils.getProperty(killer._source, path);
+        const marked = key => sheetMarkStore.get(killer.id)?.resources?.[key] ?? {};
+        const had = new Set([...killer.items, ...victim.items].map(item => item.id));
+        const was = Object.fromEntries([HOPE, HP, HP_MAX, SANITY_MAX].map(path => [path, sheet(path)]));
+        const most = { hope: resourceMax(killer, "hope"), hitPoints: Number(sheet(HP_MAX)), stress: Number(sheet(SANITY_MAX)) };
+        // The killer's put-back refused on the GM: the state a put-back that failed leaves.
+        let veto = null, crisis = null, cleanup = null;
+        const refuseBack = () => {
+            veto = Hooks.on("preUpdateActor", (doc, changes, options) =>
+                doc.id === killer.id && options?.drpgWrite?.reason === "auditPutBack" ? false : undefined);
+        };
+        const allowBack = async () => {
+            if (veto !== null) Hooks.off("preUpdateActor", veto);
+            veto = null;
+            await sheetAuditIdle();
+        };
+        must(most.hope >= 4 && most.hitPoints >= 4 && most.stress >= 5, `${killer.name}'s maxima cannot hold the fixture's values: ${stableJson(most)}`);
+        try {
+            await fightOpen(M, killer, victim);
+            const [pack] = await killer.createEmbeddedDocuments("Item", [{ name: "Tier 2 H23 pack", type: "loot", system: { quantity: 2 },
+                flags: { [MODULE_ID]: { category: "usable", tier: 3 } } }]);
+            await turnFor(M, killer, "useItem");
+            await trustedWrite(killer, { [HOPE]: 1, [HP]: 4 }, { reason: "gmRuling" });
+            const before = { hp: 4, stress: killer.system.resources.stress.value, qty: 2, hope: 1 };
+            await trustedWrite(killer, { [HOPE]: 3, [HP]: 2 }, { reason: "gmRuling" });
+            await pack.update({ "system.quantity": 1 });
+            await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 20, isCritical: false, withHope: true, usedItemId: pack.id, before });
+            await settle();
+            const scored = M.murderState()?.lastCrisis ?? null;
+            must(scored?.hopeGranted === 2 && scored.actorHp === 2,
+                `the use was not scored with the 2 Hope it gave and the 2 Health marks it left - this would measure nothing: ${stableJson(scored)}`);
+            await auditFromScratch(killer);
+            refuseBack();
+            const forged = await asPlayerWrite(killer, { [HOPE]: most.hope, [HP_MAX]: 1 }, player(killer));
+            await sheetAuditIdle();
+            must(forged?.verdict === "putBack" && sheet(HOPE) === most.hope && sheet(HP_MAX) === 1 && marked("hope").value === 3
+                && marked("hitPoints").max === most.hitPoints,
+            `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
+                stableJson([forged?.verdict ?? null, sheet(HOPE), sheet(HP_MAX), marked("hope"), marked("hitPoints")])}`);
+            await M.resolveCrisisAction({ actorId: killer.id, key: "useItem", total: 0, isCritical: false, withHope: true, undo: true,
+                again: { choice: null, usedItemId: pack.id, usedFor: "hitPoints", before } });
+            await settle();
+            await allowBack();
+            crisis = [sheet(HOPE), marked("hope").value ?? null, sheet(HP), marked("hitPoints").value ?? null];
+        } finally {
+            await allowBack();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const actor of [killer, victim]) {
+                const made = actor.items.filter(item => !had.has(item.id)).map(item => item.id);
+                if (made.length) await actor.deleteEmbeddedDocuments("Item", made);
+            }
+            await trustedWrite(killer, was, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        const F = await cleanupFixture(killer, "SUITE E29 H23 a trace scrubbed and rerolled");
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            await killer.update({ [SANITY]: 3 });
+            await auditFromScratch(killer);
+            await F.scrub(0, { price: null });
+            await settle();
+            must(sheet(SANITY) > 3, `the fixture's attempt took no Sanity - this would measure nothing: ${sheet(SANITY)} marks`);
+            refuseBack();
+            const forged = await asPlayerWrite(killer, { [SANITY_MAX]: 1 }, player(killer));
+            await sheetAuditIdle();
+            must(forged?.verdict === "putBack" && sheet(SANITY_MAX) === 1 && marked("stress").max === most.stress,
+                `the player's write was not judged a put-back left on the sheet alone, outside the GMs' mark - this would measure nothing: ${
+                    stableJson([forged?.verdict ?? null, sheet(SANITY_MAX), marked("stress")])}`);
+            await F.scrub(30, { undo: true });
+            await settle();
+            await allowBack();
+            cleanup = [sheet(SANITY), marked("stress").value ?? null];
+        } finally {
+            await allowBack();
+            await F.putBack();
+            if (sheet(SANITY_MAX) !== was[SANITY_MAX]) await trustedWrite(killer, { [SANITY_MAX]: was[SANITY_MAX] }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        equal(stableJson([crisis, cleanup]), stableJson([[1, 1, 4, 4], [3, 3]]),
+            "a Reroll's take-back read a Hope or a maximum a player's console wrote that the GMs' audit had not put back "
+            + "(the crisis's Hope and Health marks, the clean-up's Sanity marks; each on the sheet and in the GMs' mark)");
     }],
 
     ["a player's write that raises a resource's maximum banks no credit beyond the maximum the GMs hold", async () => {
