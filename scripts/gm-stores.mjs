@@ -876,7 +876,9 @@ export const cleanupAttemptStore = defineGmStore({
  * `crisis` (the crisis action a crisis roll was drawn for), `incident` (the incident's turn it was
  * drawn in, or null) and `superseded` (the later roll of its action that replaced it, or null:
  * fix r2-H1, roll-draw.mjs `keepRecord`), `project` (the project a Work's or a Sabotage's roll was
- * drawn for, or null: fix r2-H2), and `at`. Written by the primary GM as it draws a player's roll (roll-draw.mjs `drawOnGm`), and by
+ * drawn for, or null: fix r2-H2), `tokenSpentAt` (on a Search, when the primary spent its room's
+ * token for it: search-tokens.mjs `SearchTokens.markSpent`, E29 fix r2-H11), and `at`. Written by
+ * the primary GM as it draws a player's roll (roll-draw.mjs `drawOnGm`), and by
  * the GM a Reroll of it is made on; read by the guard that ties a drawn message to its roller
  * (bridge-guards.mjs `guardRollAuthor`) and by the resolutions that take its result (`rollRefusal`). Synced between the GMs and not backed up: a
  * row is worth a roll's resolution and its Reroll, minutes long, and is swept past
@@ -889,6 +891,55 @@ export const cleanupAttemptStore = defineGmStore({
  */
 export const rollStore = defineGmStore({
     name: "rolls", key: SETTINGS.gmRolls,
+    kind: "ledger", resetGroup: "actions", backup: false, sync: true,
+    exists: () => false
+});
+
+/**
+ * WHAT THE GMS JUDGE A PLAYER'S WRITE AGAINST (E29 C3, 05.10.2026; audit S02-41; the plan's 2.3).
+ * A row per character, keyed by its actor id: the values its last judged write left - `traits`,
+ * `experiences`, `resources` (each value and maximum), `rules`, `bonuses`, the module `flags` only
+ * a GM writes and `pendingCall`, and `effects` (each one's data, so a deleted one can be made
+ * again under its id); since C6 `items` (each module item's data, likewise - and since E29 fix
+ * r1-G2 each class's, and `levelData`, Daggerheart's level-up selections; since fix r2-H25 `scars`, Daggerheart's
+ * scars, which set Hope's maximum), since G3 `itemEffects`
+ * (the effects on each of its items, by item - an item's copy in `items` holds none) and `finds` (the
+ * Search records a find stood on, each with the item: one find a record). Written by the primary after every verdict and every GM's write, and filled
+ * from the documents when its stores hydrate and a character has none (sheet-audit.mjs). Synced
+ * between the GMs, so the next primary judges against the same marks; not backed up - the
+ * documents a restore brings back are the marks' source, and a backup's would judge them against
+ * the sheets of the day it was made. Cut by the reset's "advancement" group: the step that puts
+ * every sheet back writes each student as a GM, which is that student's new mark (the plan named
+ * a "season" group, which the reset window does not have), and the primary fills the mark of every
+ * student that step writes nothing on as the cut is applied (`onCut`, E29 fix r1-G6). No player copy - R182 has nothing to ask
+ * of it - and no old key.
+ */
+export const sheetMarkStore = defineGmStore({
+    name: "sheetMarks", key: SETTINGS.gmSheetMarks,
+    kind: "ledger", resetGroup: "advancement", backup: false, sync: true,
+    exists: actorId => Boolean(game.actors?.has(actorId)),
+    // A student the reset's steps write nothing on would have no mark until the next hydration (E29 fix r1-G6).
+    onCut: () => {
+        import("./sheet-audit.mjs").then(m => m.refillMarks())
+            .catch(err => error("The GMs' marks of the sheets could not be filled again after a reset", err));
+    }
+});
+
+/**
+ * THE WRITES THE GMS PUT BACK OR LISTED (E29 C3, 05.10.2026; the plan's 2.3). A row per write,
+ * keyed by a random id: `actorId`, `itemId`, `userId` (the writer), `reason` and `ref` (what the
+ * write's stamp claimed, resource-guard.mjs `WRITE_STAMP`), `change` (`{ path: [before, after] }`),
+ * `verdict` ("putBack", "flagged", "listed", or "covered" for a write that stood on credit or a judge, E29 fix r1-G4),
+ * `covered` (the credit a refund took), `messageId` (the GMs' whisper, or their card of a flagged write),
+ * `decided` (a flagged write's Undo or Keep, C5: `{ by, at, how, undone, moved }`) and `at`; a write on an item
+ * names it in `itemId`, and a deleted one keeps its data in `data` for an Undo (C6). Written by
+ * the primary as it judges, read by `game.drpg.sheetWrites()`. Synced, not backed up, and swept
+ * past a day as the next is written; cut by the reset's "actions" group, beside the rolls. Its
+ * `exists` answers no for every key, as the rolls' does: a row's key is no document. No player
+ * copy - R182 has nothing to ask of it - and no old key.
+ */
+export const sheetWriteStore = defineGmStore({
+    name: "sheetWrites", key: SETTINGS.gmSheetWrites,
     kind: "ledger", resetGroup: "actions", backup: false, sync: true,
     exists: () => false
 });

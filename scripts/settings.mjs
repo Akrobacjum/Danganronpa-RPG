@@ -362,6 +362,14 @@ export const SETTINGS = {
      * total, its roller and its character. Synced, not backed up; no player copy.
      */
     gmRolls: "gmRolls",
+    /**
+     * WHAT THE GMS JUDGE A PLAYER'S WRITE AGAINST (E29 C3, 1.2.68): a GM store (gm-stores.mjs
+     * `sheetMarkStore`), a row per character - the values its last judged write left. And THE
+     * WRITES THEY PUT BACK OR LISTED (`sheetWriteStore`), a row per write, kept a day. Both synced,
+     * not backed up; no player copy.
+     */
+    gmSheetMarks: "gmSheetMarks",
+    gmSheetWrites: "gmSheetWrites",
     /** The Daggerheart version this GM was last told its rolls are not drawn by the GM on (E08+E28 C12a, roll-draw.mjs). */
     rollDrawWarned: "rollDrawWarned",
     /** The rolls the GM drew that this browser's user rolled, by world and user, read again after a reload (E08+E28 fix r2-H7, private-rolls.mjs). */
@@ -1377,6 +1385,20 @@ export function registerSettings() {
         type: Object,
         default: {}
     });
+    // The GMs' audit of a sheet (E29 C3): no `onChange` - shown nowhere but `game.drpg.sheetWrites()`,
+    // read by the judge on the primary (sheet-audit.mjs).
+    game.settings.register(MODULE_ID, SETTINGS.gmSheetMarks, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+    game.settings.register(MODULE_ID, SETTINGS.gmSheetWrites, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
     /* The Daggerheart version this browser's GM was told its players' rolls are not drawn
        by the GM on (E08+E28 C12a, roll-draw.mjs `announceRollDraw`): once per version, as
        the relay warning above. */
@@ -1807,6 +1829,12 @@ export function registerSettings() {
         }
     });
 
+    /* It governs both layers (the owner's Q2 (a), 05.10.2026; E29 C7 says so in its hint): on,
+       a player's own edit of Actions, Hope, Health, Sanity or a statistic is put back or flagged
+       on the primary GM (sheet-audit.mjs), at the write or, made with no GM watching, at the
+       primary's ready, and the pips and the token HUD's bars are display-only for players
+       (danganronpa.css, hud.mjs); off, those edits are listed and stand. Items and effects are
+       judged either way. */
     game.settings.register(MODULE_ID, SETTINGS.lockPlayerResources, {
         name: "DRPG.Settings.lockPlayerResources.name",
         hint: "DRPG.Settings.lockPlayerResources.hint",

@@ -29,7 +29,8 @@
  * the player's browser, the menu (E32+E07 C15, 1c). A trap's card opens the GM's murder
  * window on the student the trap read, and opens nothing until the GM confirms (E32+E07 C14, part 2).
  * The GM's tracker names whose opening roll it waits for, and lists the fight's last turns, which
- * no participant's copy holds (E32+E07 C17, 0 and 1d).
+ * no participant's copy holds (E32+E07 C17, 0 and 1d). What the killer's own browser writes in the
+ * fight names to a bystander's hooks only a reason the GMs' audit reads (E29 fix r1-G7, 1c).
  *
  * Cast: Chie (p3) kills Aiko (p1); Botan (p2) is nowhere near it. In part 4
  * (E32 C5a) Botan is her accomplice, and turns on her at Stage 6.
@@ -577,6 +578,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return (await INV.grantItem(game.actors.get("${ids.chie}"), { name: "Suite tool snapped in the fight", category: "tool", tier: 0 }))?.id ?? null;`, { timeout: 60000 });
     await settle(600);
     for (const c of [p1, p2, p3]) await c.eval(DICE_NET);
+    /* What p2's own hooks receive of the writes on Chie and her items from here (E29 fix r1-G7: read below). */
+    await p2.eval(`const seen = globalThis.__g7Seen = [];
+        const row = (kind, d, o, u) => ({ kind, id: d.id, user: u ?? null, stamp: o?.drpgWrite ?? null });
+        globalThis.__g7Hooks = [
+            ["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (d.id === "${ids.chie}") seen.push(row("updateActor", d, o, u)); })],
+            ["updateItem", Hooks.on("updateItem", (d, c, o, u) => { if (d.parent?.id === "${ids.chie}") seen.push(row("updateItem", d, o, u)); })]];
+        return true;`);
     const broke = await p3.eval(`const U = await import("${repoUrl}/scripts/use-items.mjs");
         const a = game.actors.get("${ids.chie}"); const had = new Set(game.messages.contents.map(m => m.id));
         const name = await U.breakOnDespair(a, a.items.get("${toolId}"), { withFear: true, isCritical: false });
@@ -598,6 +606,32 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         && brokeSeen.bystander.docs === 1 && brokeSeen.bystander.veiled && !brokeSeen.bystander.named && brokeSeen.bystander.everybody,
         JSON.stringify({ toolId, broke, brokeSeen }));
 
+    /* WHAT A BYSTANDER'S BROWSER READS OF THE KILLER'S OWN WRITES (E29 fix r1-G7, 05.10.2026; the
+       round-1 security review's M2). The tool's wear above was written on p3's browser, and so is a
+       clean-up's concealment Sanity (cleanup.mjs `markResolutionStress`, called here as
+       `concealFromWitnesses` calls it on the killer's browser, on a track the GM clears first);
+       p2's hooks kept the options of both as they arrived (the harness forwards them; whether a
+       real Foundry does is LIVE-E29-01). A player's write names only a reason the GMs' audit reads
+       off it (resource-guard.mjs `stampOf`): the Sanity `price`, the wear none. Red before the
+       fix (C8's runtime, 05.10): `itemWear` with the tool's id on the wear, `concealment` on the
+       Sanity. Chie's Sanity is put back. */
+    const sanityWas = await gm.eval(`const a = game.actors.get("${ids.chie}"), was = a.system.resources.stress.value;
+        await a.update({ "system.resources.stress.value": 0 }); return was;`);
+    await settle(300);
+    const marked = await p3.eval(`const C = await import("${repoUrl}/scripts/cleanup.mjs");
+        return await C.markResolutionStress(game.actors.get("${ids.chie}"));`, { timeout: 30000 });
+    await settle(600);
+    const killerSeen = await p2.eval(`for (const [name, id] of globalThis.__g7Hooks ?? []) Hooks.off(name, id);
+        const seen = (globalThis.__g7Seen ?? []).filter(w => w.user === "${p3.userId}"); delete globalThis.__g7Seen; delete globalThis.__g7Hooks; return seen;`);
+    await gm.eval(`await game.actors.get("${ids.chie}").update({ "system.resources.stress.value": ${Number(sanityWas) || 0} }); return true;`);
+    {
+        const wear = killerSeen.filter(w => w.kind === "updateItem" && w.id === toolId), sanity = killerSeen.filter(w => w.kind === "updateActor");
+        check("p2, a bystander: the killer's own browser's writes in the fight name only a reason the GMs' audit reads - a concealment's Sanity `price`, a tool's wear none",
+            marked === true && wear.length > 0 && wear.every(w => w.stamp === null)
+                && sanity.length === 1 && JSON.stringify(sanity[0].stamp) === JSON.stringify({ reason: "price", ref: null }),
+            JSON.stringify({ marked, killerSeen }));
+    }
+
     /* A USE IN THE FIGHT, AND A BYSTANDER'S, EACH FROM ITS PLAYER'S OWN BROWSER (E06 fix r2-G2,
        28.09.2026; review round 2's MJ2 and m6). The victim takes "Use an item" with a tier 1 kit
        on p1's browser, as the review measured it; the bystander, on p2's, drinks a kit of their
@@ -614,15 +648,15 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             support: game.i18n.format("DRPG.Calls.armedForYou", { what: game.i18n.localize("DRPG.Calls.grants.advantage") }) };`);
     const handed = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const M = await import("${repoUrl}/scripts/murder.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         if (!M.isTheirTurn(game.actors.get("${ids.aiko}"))) await M.passTurn();
         const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
         const kit = (a, name) => INV.grantItem(a, { name, category: "usable", tier: 1, goal: "healing", quiet: true });
-        await automatedUpdate(botan, { "system.resources.hope.value": Math.max(1, botan.system?.resources?.hope?.value ?? 0) });
+        await trustedWrite(botan, { "system.resources.hope.value": Math.max(1, botan.system?.resources?.hope?.value ?? 0) }, { reason: "gmRuling" });
         // A pack of two and a Health mark for it to heal, for the Reroll after the cards (E08+E28 C6b).
         const aikoKit = (await kit(aiko, "Suite kit used in the fight"))?.id ?? null, hpWas = aiko.system.resources.hitPoints.value;
         await aiko.items.get(aikoKit ?? "")?.update({ "system.quantity": 2 });
-        await automatedUpdate(aiko, { "system.resources.hitPoints.value": Math.max(1, hpWas) });
+        await trustedWrite(aiko, { "system.resources.hitPoints.value": Math.max(1, hpWas) }, { reason: "gmRuling" });
         return { kit: aikoKit, hpWas, hpSet: aiko.system.resources.hitPoints.value, drink: (await kit(botan, "Suite kit a bystander drinks"))?.id ?? null,
             tool: (await INV.grantItem(botan, { name: "Suite tool a bystander breaks", category: "tool", tier: 1, quiet: true }))?.id ?? null,
             turn: M.isTheirTurn(aiko) };`, { timeout: 60000 });
@@ -687,7 +721,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        pack's quantity and whether it is broken; on the GM, the replay's receipt naming no item.
        Aiko's Hope and Health are put back. */
     const reuse = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get(aiko.id) ?? null;
         const m = game.messages.get(row?.messageId ?? "");
         class Thrown {
@@ -701,10 +735,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         }
         if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
         const hope = aiko.system.resources.hope.value;
-        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, hope) });
+        await trustedWrite(aiko, { "system.resources.hope.value": Math.max(3, hope) }, { reason: "gmRuling" });
         const drawn = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(m);
         return { messageId: m?.id ?? null, usedItemId: row?.facts?.usedItemId ?? null, before: row?.facts?.before ?? null, hope, hp: aiko.system.resources.hitPoints.value,
-            qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0), drawn: drawn ? { total: drawn.total, versions: (drawn.versions ?? []).length } : null };`, { timeout: 60000 });
+            qty: Number(aiko.items.get("${handed.kit}")?.system?.quantity ?? 0), drawn: drawn ? { total: drawn.total, versions: (drawn.versions ?? []).length, scored: JSON.stringify(drawn.scored ?? null) } : null };`, { timeout: 60000 });
     const reusedAsked = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
         return Boolean(await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll"));`, { timeout: 60000 });
     await settle(1200);
@@ -715,8 +749,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         drawn: await gm.eval(`const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(game.messages.get(${JSON.stringify(reuse.messageId)}));
             return r ? { total: r.total, withHope: r.withHope, versions: (r.versions ?? []).map(v => v.total) } : null;`) };
     await gm.eval(`const m = game.messages.get(${JSON.stringify(reuse.messageId)}); if (m) delete m.rolls;
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
-        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(reuse.hope) || 0}, "system.resources.hitPoints.value": ${Number(handed.hpWas) || 0} });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(reuse.hope) || 0}, "system.resources.hitPoints.value": ${Number(handed.hpWas) || 0} }, { reason: "gmRuling" });
         return true;`, { timeout: 60000 });
     check("reroll: a Reroll of the victim's Use an item, made on the GM, gives back the Health mark it healed and the pack's charge - on the GM and on the roller's browser",
         reusedAsked === true && Boolean(reuse.messageId) && reuse.usedItemId === handed.kit && reuse.qty === 1
@@ -731,6 +765,27 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         reusedAsked === true && reuse.drawn?.versions === 0 && Number.isFinite(reuse.drawn?.total) && reused.drawn?.total === 6 && reused.drawn.withHope === true
             && JSON.stringify(reused.drawn.versions) === JSON.stringify([reuse.drawn.total]),
         JSON.stringify({ before: reuse.drawn, after: reused.drawn }), { flow: "reroll" });
+    /* A CRISIS REROLL'S CARD IS THE ROLL THE GM THREW (E29 C11, 05.10.2026; the stage plan's 3.7). The
+       Reroll above rebuilt Aiko's drawn Use an item and wrote it into the message: since C11 from the
+       GMs' record of what the GM threw (`scored`, roll-draw.mjs `rollOnRecord`) - its dice at the list's
+       faces, its advantage dice, one number per source the GM counted - where until then it was the roll
+       the message held (here the scenario's stand-in, `1d12 + 1d12`) with the packet's statistic put
+       back. The stand-in throws again what it is built from, so the formula the card holds after the
+       Reroll is the one the Reroll was built from. Read on the GM: that formula against the one the
+       record's `scored` writes, and `scored` before and after the Reroll. Red at C10's runtime:
+       `1d12+1d12`. */
+    const rerollCard = await gm.eval(`const m = game.messages.get(${JSON.stringify(reuse.messageId)});
+        const r = (await import("${repoUrl}/scripts/roll-draw.mjs")).drawnRecordOf(m);
+        const s = r?.scored ?? null, read = r?.legal?.read ?? null;
+        if (!s || !read) return { scored: Boolean(s), read: Boolean(read) };
+        const n = Math.abs(s.advantage), up = s.advantage > 0;
+        const want = "1d" + read.hopeDie + "+1d" + read.fearDie
+            + (n ? (up ? "+" : "-") + n + "d" + read.advantageDie[up ? "advantage" : "disadvantage"] + (n > 1 ? "kh" : "") : "")
+            + s.modifiers.map(x => (x.value < 0 ? "-" : "+") + Math.abs(x.value)).join("");
+        return { formula: String(m?.rolls?.[0]?.formula ?? "").replace(/\\s+/g, ""), want, scored: JSON.stringify(s) };`, { timeout: 30000 });
+    check("reroll: the card of the victim's rerolled Use an item holds the roll the GM threw - its dice and the numbers it counted, from its record - and the record keeps what it scored",
+        reusedAsked === true && typeof rerollCard.want === "string" && rerollCard.formula === rerollCard.want && rerollCard.scored === reuse.drawn?.scored,
+        JSON.stringify({ rerollCard, before: reuse.drawn?.scored ?? null }), { flow: "reroll" });
     await gm.eval(`for (const [a, i] of [["${ids.aiko}", "${handed.kit}"], ["${ids.botan}", "${handed.drink}"], ["${ids.botan}", "${handed.tool}"]]) await game.actors.get(a).items.get(i)?.delete();
         await game.actors.get("${ids.chie}").unsetFlag("${MOD}", "pendingCall"); return true;`, { timeout: 60000 });
     check("fight: the victim's Use an item and a Support bought for the killer are carded veiled - their words to their player alone, and no browser holds a document of theirs, or of the rest the action brought, naming a student or a player",
@@ -805,9 +860,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         return true;`;
     for (const c of [p1, p2, p3]) { await c.eval(DICE_NET); await c.eval(REWRITES); }
     const hopeWas = await gm.eval(`${STAND}
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const aiko = game.actors.get("${ids.aiko}"), was = aiko.system.resources.hope.value;
-        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(3, was) });
+        await trustedWrite(aiko, { "system.resources.hope.value": Math.max(3, was) }, { reason: "gmRuling" });
         return was;`, { timeout: 60000 });
     const rerolled = await p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
         const out = await C.spendHopeCall(game.actors.get("${ids.aiko}"), "reroll");
@@ -817,8 +872,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         played: globalThis.__dsnShown.filter(c => !c.synchronize && c.messageID === null && c.total === 13).map(c => c.user) };`;
     const rewriteSeen = { roller: await p1.eval(REWRITE_READ), bystander: await p2.eval(REWRITE_READ), killer: await p3.eval(REWRITE_READ) };
     await gm.eval(`const m = game.messages.get("${open.id}"); if (m) delete m.rolls;
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
-        await automatedUpdate(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(hopeWas) || 0} });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        await trustedWrite(game.actors.get("${ids.aiko}"), { "system.resources.hope.value": ${Number(hopeWas) || 0} }, { reason: "gmRuling" });
         return true;`, { timeout: 60000 });
     const sentTo = who => JSON.stringify(rewriteSeen[who].sent) === JSON.stringify([{ id: open.id, by: p1.userId }])
         && JSON.stringify(rewriteSeen[who].played) === JSON.stringify([p1.userId]);
@@ -1115,8 +1170,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             .sort((a, b) => b.at - a.at)[0] ?? null;
         for (let i = 0; i < 60 && !newest(); i++) await new Promise(r => setTimeout(r, 100));
         const r = newest();
-        return r ? { trait: r.expected?.trait ?? null, from: r.expected?.traitFrom ?? null, situation: r.expected?.situationFrom ?? null,
-            advantage: r.expected?.advantage ?? null, flags: r.flags ?? null } : null;`, { timeout: 30000 });
+        return r ? { trait: r.legal?.trait ?? null, from: r.legal?.traitFrom ?? null, situation: r.legal?.situationFrom ?? null,
+            advantage: r.legal?.advantage ?? null, flags: r.flags ?? null } : null;`, { timeout: 30000 });
     check("trap: the victim's opening roll is drawn and held to the GM's pick (Eye) and to the opening's own die, read by the GM - nothing flagged",
         openingDrawn?.trait === "eye" && openingDrawn.from === "opening" && openingDrawn.situation === "gm" && openingDrawn.advantage === 0
         && Array.isArray(openingDrawn.flags) && openingDrawn.flags.length === 0, JSON.stringify(openingDrawn), { flow: "murder-incident" });
@@ -1457,7 +1512,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         const drawn = game.messages.contents.filter(m => !had.has(m.id)).map(m => D.drawnRecordOf(m)).filter(r => r?.actionKey === "murderOpening");
         return { stage: M.murderState()?.stage ?? null, records: drawn.map(r => ({ actorId: r.actorId, resolved: r.resolved ?? [] })) };`, { timeout: 60000 });
     const sixPlaced = await gm.eval(`const M = await import("${repoUrl}/scripts/murder.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const chie = game.actors.get("${ids.chie}"), floor = canvas.scene;
         const mine = floor.tokens.find(t => t.actorId === "${ids.chie}"), body = floor.tokens.find(t => t.actorId === "${ids.daichi}");
         globalThis.__h6Six = { body: body ? { id: body.id, x: body.x, y: body.y } : null,
@@ -1468,7 +1523,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         }
         if (mine && body) await body.update({ x: mine.x, y: mine.y });
         await chie.update({ "system.resources.stress.value": 0 });
-        await automatedUpdate(chie, { "system.resources.hope.value": Math.max(3, globalThis.__h6Six.was.hope) });
+        await trustedWrite(chie, { "system.resources.hope.value": Math.max(3, globalThis.__h6Six.was.hope) }, { reason: "gmRuling" });
         await new Promise(r => setTimeout(r, 800));
         return { stage: M.murderState()?.stage ?? null, moved: Boolean(mine && body) };`, { timeout: 60000 });
     await settle(800);
@@ -1494,7 +1549,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const settled = { trail: await gm.eval(SETTLED(trail.messageId)), carried: await gm.eval(SETTLED(carried.messageId)) };
     await p3.eval(`globalThis.__dialogAuto = globalThis.__h6Auto; delete globalThis.__h6Auto; return true;`);
     await gm.eval(`const C = await import("${repoUrl}/scripts/chapter.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const { body, was } = globalThis.__h6Six ?? {};
         delete globalThis.__h6Six;
         await game.drpg.endMurder({ reason: "suite", followUp: false });
@@ -1502,11 +1557,47 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         if (C.isDeadForGm(daichi)) await C.reviveCharacter(daichi, { quiet: true });
         const token = body ? canvas.scene.tokens.get(body.id) : null;
         if (token) await token.update({ x: body.x, y: body.y });
-        if (was) { await chie.update({ "system.resources.stress.value": was.stress }); await automatedUpdate(chie, { "system.resources.hope.value": was.hope }); }
+        if (was) { await chie.update({ "system.resources.stress.value": was.stress }); await trustedWrite(chie, { "system.resources.hope.value": was.hope }, { reason: "gmRuling" }); }
         return true;`, { timeout: 60000 });
     check("the killer's player's opening, trail and body move each name the roll the GM drew, which settles it: the incident begins, and both Stage 6 actions are carried out",
         honestOpening.stage === "incident" && JSON.stringify(honestOpening.records) === JSON.stringify([{ actorId: ids.chie, resolved: ["murderOpening"] }])
             && sixPlaced.stage === "resolution" && sixPlaced.moved && trail.rolled && carried.rolled && carried.here === true
             && JSON.stringify(settled) === JSON.stringify({ trail: { actionKey: "cleanup", resolved: ["cleanup"] }, carried: { actionKey: "cleanup", resolved: ["cleanup"] } }),
         JSON.stringify({ honestOpening, sixPlaced, trail, carried, settled }), { flow: "murder-incident" });
+
+    /* WHAT THE GM COUNTED ON THE INCIDENT'S ROLLS (E29 C9, 05.10.2026; the stage plan's 3.2). Every roll
+       of this file's incidents a player's browser threw - the openings, the crisis actions, the trail and
+       the body move - was drawn on the GM, which reads what each may add up to from its own list
+       (config.mjs `LEGAL_ROLL_MODIFIERS`): the statistic, the situation's dice per action (the Night,
+       a weapon, a trap's victim, a Cleaning Tool), the Calls. Read on the GM: each record's action, the
+       situation it read and the flags it raised. One roll is flagged, and for two reasons this file
+       gives it: the trap victim's roll of the fight above is thrown straight at `rollTrait`, past the
+       crisis menu, so no GM was asked its statistic (`pick`, fix r2-H8's), and it lacks the die a trap's
+       victim is owed (murder.mjs `crisisSituational`), which the GM counts since C9 and the harness's
+       roll, with no roll window, cannot carry (`advantage`, +1 against 0, from the situation). Measured
+       on C9's tree (e29run/c9a1): those two flags on that roll, none on the eight others. With no pick the
+       GM threw that roll on the statistic it claimed until E29 fix r2-H2 (the round-2 security review's M2;
+       its record held to none); since, on the lowest the trap victim's table lists as the GM holds Aiko,
+       read here on the GM, and its claim is flagged beside the pick where that is another (the seeded
+       Aiko's lowest is the Body she claims, so no `trait` flag is expected of this world). At a4a7f25's runtime
+       (e29run/r2h2red/13.log) this check was the one red of 79: the record held that roll to no statistic. */
+    phase("what the GM counted on the incident's rolls", { flow: "gm-rolls-total" });
+    const counted = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Object.values(S.rollStore.entries()).filter(r => ["murderOpening", "crisis", "cleanup"].includes(r?.actionKey)).sort((a, b) => a.at - b.at)
+            .map(r => ({ action: r.actionKey, crisis: r.crisis ?? null, actor: game.actors.get(r.actorId)?.name ?? r.actorId, messageId: r.messageId ?? null,
+                from: r.legal?.situationFrom ?? null,
+                situation: r.legal?.read?.situation ?? null, trait: r.legal?.trait ?? null, traitFrom: r.legal?.traitFrom ?? null,
+                thrown: r.scored?.trait ?? null, flags: (r.flags ?? []).map(f => [f.kind, f.expected, f.claimed, f.from ?? []]) }));`, { timeout: 30000 });
+    const pastTheMenu = counted.filter(r => r.messageId === trapRoll.id);
+    const trapLowest = await gm.eval(`const { listedTraits } = await import("${repoUrl}/scripts/trait-ruling.mjs");
+        const { TRAITS } = await import("${repoUrl}/scripts/config.mjs");
+        const a = game.actors.get("${ids.aiko}"), value = t => Number(a.system.traits?.[TRAITS[t]?.dh]?.value) || 0;
+        return listedTraits({ kind: "crisis", key: "leaveClue", variant: "indirectVictim" }).reduce((l, t) => (l === null || value(t) < value(l) ? t : l), null);`);
+    check("the GM read every incident roll's situation itself, and flagged none of the openings, crisis actions and Stage 6 rolls but the trap victim's thrown past the crisis menu: no pick asked - thrown on the lowest its table lists - and a trap's victim's die its roll cannot carry here",
+        counted.length > 1 && counted.every(r => r.from === "gm") && pastTheMenu.length === 1
+            && pastTheMenu[0].trait === trapLowest && pastTheMenu[0].thrown === trapLowest && pastTheMenu[0].traitFrom === "gm"
+            && JSON.stringify(pastTheMenu[0].flags) === JSON.stringify([...(trapLowest === "body" ? [] : [["trait", trapLowest, "body", []]]),
+                ["pick", "1", "0", []], ["advantage", "+1", "0", ["situation"]]])
+            && counted.every(r => r.messageId === trapRoll.id || r.flags.length === 0),
+        JSON.stringify({ trapLowest, counted }), { flow: "gm-rolls-total" });
 }

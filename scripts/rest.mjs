@@ -17,7 +17,6 @@ import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { roomOfActor, roomsKnownToMe } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
-import { resourceMax, resourceValue } from "./character.mjs";
 import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 // One room map for the whole module (audit C3): `workingScene()`, which is what
 // a GM resolving somebody else's rest means by "this scene", not `canvas.scene`.
@@ -95,8 +94,8 @@ export async function setRestRoom(roomName, { short = null, long = null } = {}) 
  * their own when the clock moves rather than needing a reset pass.
  * ========================================================================== */
 
-/** The stamp that identifies "this rest, in this window". */
-function restStamp(kind, clock) {
+/** The stamp that identifies "this rest, in this window" (read by the GMs' audit too: sheet-audit.mjs `restCovers`). */
+export function restStamp(kind, clock) {
     return kind === "long" ? `s${clock.session}` : `d${clock.day ?? 1}:${clock.timeOfDay}`;
 }
 
@@ -118,9 +117,9 @@ export function restSpent(actor, kind, clock = null) {
     return restsTaken(actor)[kind] === restStamp(kind, now);
 }
 
-async function markRestTaken(actor, kind, clock) {
-    const all = { ...restsTaken(actor), [kind]: restStamp(kind, clock) };
-    await actor.setFlag(MODULE_ID, FLAGS.restsTaken, all);
+/** The "used up" stamp for this rest, as a path of the one write that also carries its benefits. */
+function restTakenUpdate(actor, kind, clock) {
+    return { [`flags.${MODULE_ID}.${FLAGS.restsTaken}`]: { ...restsTaken(actor), [kind]: restStamp(kind, clock) } };
 }
 
 /**
@@ -199,14 +198,15 @@ export async function takeRest(actor, kind = "short", {
 
         if (cost > 0 && !await spendAction(actor, cost)) return null;
 
-        // The benefits first, the "used up" stamp second. The other order meant
-        // a failed write left the rest spent and nothing restored - and a long
-        // rest is once per session, so that is a session's worth of recovery
-        // gone to a database hiccup.
-        const applied = await applyRest(actor, kind, picks);
+        // The benefits and the "used up" stamp in ONE write (E29 C1, 05.10.2026). They
+        // were two, benefits first, so a failed write could not leave the rest spent and
+        // nothing restored - a long rest is once per session. One write keeps that and
+        // gives the GMs' side one change to judge with its stamp beside it: a Rest's gains
+        // are covered by the stamp moving (the plan's 2.5), and as two writes the gains
+        // arrived with nothing to say which Rest they were.
         // Relief does not use the allowance up, which is half of what it buys:
         // the Short Rest this character had before it is still there.
-        if (!ignoreLimit) await markRestTaken(actor, kind, clock);
+        const applied = await applyRest(actor, kind, picks, { stamp: ignoreLimit ? null : clock, relief: free });
 
         if (!quiet) {
             await whisperToOwner(actor, `${cardHead({ action: kindLabel(kind), room })}
@@ -321,53 +321,56 @@ async function choosePicks(kind, count) {
  * recovering means subtracting. A long rest clears the track; a short rest
  * clears half, rounded up in the character's favour.
  */
-async function applyRest(actor, kind, picks) {
+async function applyRest(actor, kind, picks, { stamp = null, relief = false } = {}) {
     const full = kind === "long";
-    const update = {};
+    const update = stamp ? restTakenUpdate(actor, kind, stamp) : {};
     const applied = [];
     const { overflowBlocksHope } = await import("./overflow.mjs");
     const hopeBlocked = overflowBlocksHope();
+    const { trustedWrite } = await import("./resource-guard.mjs");
 
-    for (const pick of picks) {
-        const opt = REST.options[pick];
+    // From the means the GMs hold on a GM's client - a rest a GM gives, a Relief bought there - in one step
+    // (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's raised Hope, not put back yet, was rested on top
+    // there. A player's own rest reads its sheet, as before.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    return meansWrite(actor, async (held, maxOf) => {
+        for (const pick of picks) {
+            const opt = REST.options[pick];
 
-        if (pick === "sleep") {
-            const marks = resourceValue(actor, "hitPoints");
-            const healed = full ? marks : Math.ceil(marks / 2);
-            update["system.resources.hitPoints.value"] = marks - healed;
-            applied.push(`${opt.label}: ${healed} Health recovered`);
+            if (pick === "sleep") {
+                const marks = held.hitPoints;
+                const healed = full ? marks : Math.ceil(marks / 2);
+                update["system.resources.hitPoints.value"] = marks - healed;
+                applied.push(`${opt.label}: ${healed} Health recovered`);
+            }
+
+            if (pick === "meal") {
+                const marks = held.stress;
+                const cleared = full ? marks : Math.ceil(marks / 2);
+                update["system.resources.stress.value"] = marks - cleared;
+                applied.push(`${opt.label}: ${cleared} Sanity cleared`);
+            }
+
+            if (pick === "breath" && hopeBlocked) {
+                // The picker greys Breath under the Despair darkening; this is the
+                // authority for a pick that got past it (CALL-05).
+                applied.push(`${opt.label}: ${game.i18n.localize("DRPG.Overflow.noHopeNow")}`);
+            } else if (pick === "breath") {
+                const gain = full ? 2 : 1;
+                const max = maxOf("hope") || STARTING.hopeMax;
+                const next = Math.min(max, held.hope + gain);
+                update["system.resources.hope.value"] = next;
+                applied.push(`${opt.label}: +${gain} Hope`);
+            }
         }
 
-        if (pick === "meal") {
-            const marks = resourceValue(actor, "stress");
-            const cleared = full ? marks : Math.ceil(marks / 2);
-            update["system.resources.stress.value"] = marks - cleared;
-            applied.push(`${opt.label}: ${cleared} Sanity cleared`);
-        }
-
-        if (pick === "breath" && hopeBlocked) {
-            // The picker greys Breath under the Despair darkening; this is the
-            // authority for a pick that got past it (CALL-05).
-            applied.push(`${opt.label}: ${game.i18n.localize("DRPG.Overflow.noHopeNow")}`);
-        } else if (pick === "breath") {
-            const gain = full ? 2 : 1;
-            const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-            const next = Math.min(max, resourceValue(actor, "hope") + gain);
-            update["system.resources.hope.value"] = next;
-            applied.push(`${opt.label}: +${gain} Hope`);
-        }
-    }
-
-    // Marked as automation: none of these three paths are in `GUARDED` today,
-    // so a plain `actor.update()` happens to work - but Rest is the one place
-    // in the module that wrote resources without the marker, and the day any
-    // of the three joins the guarded list this call silently starts failing for
-    // players while every other resource change in the module keeps working.
-    if (Object.keys(update).length) {
-        const { automatedUpdate } = await import("./resource-guard.mjs");
-        await automatedUpdate(actor, update);
-    }
-    return applied;
+        // Through the module's road: Health and Sanity are in the courtesy guard's
+        // `GUARDED`, so a plain `actor.update()` from a player's browser would lose them.
+        // `ref` "relief" is a Relief's free rest, which the GMs' side covers by that Call's
+        // payment rather than by the room, the allowance and the action.
+        if (Object.keys(update).length) await trustedWrite(actor, update, { reason: "rest", ref: relief ? "relief" : null });
+        return applied;
+    });
 }
 
 function kindLabel(kind) {

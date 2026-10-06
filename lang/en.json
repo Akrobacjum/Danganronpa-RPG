@@ -262,7 +262,7 @@
       },
       "lockPlayerResources": {
         "name": "Players cannot edit Actions, Hope, Health, Sanity or statistics",
-        "hint": "Those move through play - spend an action, take a rest, earn a Level Up. Health and Sanity are included: damage arrives from a crisis, a Call, a failed roll or a rest, never from clicking a pip. GMs are unaffected."
+        "hint": "Those move through play - spend an action, take a rest, earn a Level Up. On, a player's own edits of them are put back or flagged to the GMs, and their pips are display-only for players; off, they are only listed for the GMs. Items and effects are judged either way, and so is what changed while no GM was connected, when one returns. GMs are unaffected."
       },
       "chargeMovement": {
         "name": "Crossing rooms costs a Move",
@@ -2455,7 +2455,7 @@
         "monocub.meddle": "Confusion",
         "body.loot": "Take from the body",
         "advancement.apply": "Level Up",
-        "call.arm": "A Call for somebody else",
+        "call.arm": "A Call bought for a roll",
         "daggerheart": "A Daggerheart change",
         "remnant.tieForItem": "Tie a trace to the crime",
         "observe.target": "Choose what to Observe",
@@ -2463,6 +2463,7 @@
         "advancement.offer": "Level Up offer",
         "advancement.ask": "Your Level Up offers",
         "call.approve": "Hope Call approval",
+        "call.yes": "A GM's yes to a Hope Call",
         "dynamic.difficulty": "Dynamic action difficulty",
         "trait.ruling": "The GM's pick of a statistic",
         "trap.event": "A report for the traps",
@@ -2470,6 +2471,7 @@
         "roll.bookmark": "What a roll did, kept for a Reroll",
         "roll.draw": "A roll for the GM to throw",
         "roll.grant": "A grant of rolls thrown with no GM connected",
+        "audit.decide": "A GM's decision on a sheet change flagged to the GMs",
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
         "searchTokens.spend": "Spend a search token",
@@ -2531,7 +2533,10 @@
         "rollReplaced": "A later roll of the same action replaced the roll it names.",
         "notPaid": "The GM's client saw no action paid for that roll. Take the action again.",
         "rollThrown": "That action's roll has been thrown already.",
-        "callNotPaid": "The GM's client saw no Hope paid for that Call."
+        "callNotPaid": "The GM's client saw no Hope paid for that Call.",
+        "callNotApproved": "The GM's client holds no GM's yes for that Call. Ask for it again.",
+        "itemNotDecided": "No GM has decided yet on that item, which a player made on a sheet: it changes no hands until one does.",
+        "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
@@ -2942,11 +2947,50 @@
       "gmReasked": "The GM has been asked to rule again on the new result.",
       "rulingVoid": "Rerolled: {old} no longer stands, the result is now {new}. Please rule again."
     },
+    "Audit": {
+      "putBack": "{player} changed {name}'s sheet by hand; the GM's client put it back:",
+      "listTitle": "Writes on a student's sheet the GMs put back, flagged or listed: {n}",
+      "field": {
+        "traits": "Statistics",
+        "experience": "Experiences",
+        "max": "A maximum",
+        "rules": "Roll rules",
+        "bonuses": "Bonuses",
+        "levelData": "Level Up choices",
+        "scars": "Scars",
+        "flag": "The module's records",
+        "effect": "An effect",
+        "hope": "Hope",
+        "actions": "Actions",
+        "hitPoints": "Health",
+        "stress": "Sanity",
+        "grant": "Free actions and moves",
+        "itemFlag": "An item's record",
+        "itemQuantity": "An item's count",
+        "itemLocation": "Where an item is kept",
+        "itemDeleted": "An item taken off the sheet",
+        "itemCreated": "An item added to the sheet",
+        "pendingCall": "Calls armed for the next roll"
+      },
+      "credit": "Given back from what was paid before: {what}",
+      "flagged": "{player} changed {name}'s sheet by hand, and nothing the module knows of covers it. It stands until a GM decides:",
+      "undo": "Undo",
+      "keep": "Keep",
+      "undone": "{gm} undid it.",
+      "kept": "{gm} kept it.",
+      "changedSince": "{gm} chose Undo, but {fields} changed again since; that was not written over.",
+      "expired": "This can no longer be decided: the GMs keep the record of a flagged change for a day, and this one's is gone.",
+      "awayTitle": "Sheet changes made while no GM was watching",
+      "awayPutBack": "Put back at once, as it would have been with a GM watching:",
+      "awayLine": "{name} - {field} ({path}): {before} -> {after}",
+      "undoAll": "Undo all",
+      "acceptAll": "Accept all"
+    },
     "Rolls": {
       "rewritePutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",
       "rewriteNotPutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; this browser did not see that roll thrown, so its dice could not be put back.",
       "notDrawnHere": "Daggerheart {version} builds its rolls in a way this module was not written for, so the players' rolls are thrown in their own browsers and not drawn by the GM. Said once for this version.",
-      "unexpected": "The GM drew {name}'s roll, and it carried what the GM did not expect: {list}. The roll stands as drawn; game.drpg.rollFlags() lists it.",
+      "unexpected": "The GM drew {name}'s roll and counted it as the GMs hold it; not counted as the roll claimed: {list}. game.drpg.rollFlags() lists it.",
       "flagLine": "{what} {claimed}, expected {expected}",
       "flagsTitle": "Drawn rolls with something the GM did not expect: {n}",
       "flagKind": {
@@ -2957,6 +3001,25 @@
         "advantage": "advantage dice",
         "stash": "hidden stash not named"
       },
+      "flagFrom": "{line} (the GM counted: {list})",
+      "counted": "The GM counted {list}",
+      "notCounted": "{counted}; not counted: {list}.",
+      "legal": {
+        "hopeDie": "the Hope die's faces",
+        "fearDie": "the Despair die's faces",
+        "advantageDie": "the advantage die's faces",
+        "trait": "the statistic",
+        "experience": "an experience an Experience Call bought",
+        "callBonus": "a Call's bonus",
+        "effects": "bonuses from active effects",
+        "calls": "a Call's dice",
+        "hostile": "a hindering Call armed before the roll",
+        "breakdown": "Breakdown",
+        "situation": "the situation",
+        "loadedDie": "the Loaded Die",
+        "stashStep": "the hidden stash's step",
+        "kind": "the roll's kind"
+      },
       "waitsForGm": "An action roll waits for a GM: no GM is connected, so the action was not taken and nothing was paid.",
       "unwitnessed": "Thrown with no GM connected - the GM will see it.",
       "awayTitle": "Rolls made while no GM was connected",
@@ -2964,6 +3027,7 @@
       "awayHope": "+{n} Hope",
       "awayDespair": "+1 Despair",
       "awayNothing": "nothing (a reaction)",
+      "awayClaimed": "(the roll claimed {claimed}; the GM's list gives {legal})",
       "grantAll": "Grant all",
       "grantNone": "Grant none"
     },
@@ -3515,7 +3579,9 @@
         "cleanupAttempts": "Each character's last clean-up, kept so a Reroll can take it back",
         "rerollJournal": "A Reroll the GM is making, step by step, so a reload in the middle can be put right",
         "rolls": "The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them",
-        "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found"
+        "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
+        "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
+        "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day"
       },
       "row": {
         "traces": {

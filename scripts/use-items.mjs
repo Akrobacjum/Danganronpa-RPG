@@ -13,7 +13,7 @@
  *   USE      a Usable Item, spent on the spot. What it restores comes from
  *            USABLE_EFFECTS plus the item's KIND: every usable is a healing
  *            item (Health) or a stress-relief item (Sanity), decided by which item
- *            table it belongs to - see `usableKindOf`. Tiers 1 and 2 apply
+ *            table it came from - see `usableKindOf`. Tiers 1 and 2 apply
  *            that kind's resource without asking; tier 3 is the one tier that
  *            still offers the Health-or-Sanity choice, with 2 Hope on top either
  *            way; tier 0 is "open to creative use" and has no table entry, so
@@ -39,7 +39,7 @@ import { resourceValue, resourceMax } from "./character.mjs";
 // `discardRemnantType`. `murder.mjs` imports this file back, so it is reached
 // dynamically inside the function; `settings.mjs` does not and can be static.
 import { bodyDiscovery } from "./settings.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite, trustedDelete } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
 
@@ -197,12 +197,15 @@ export function readiedItem(actor) {
  * @param {Actor}     actor
  * @param {Item|null} tool  Captured BEFORE the roll.
  * @param {object}    roll  What `rollTrait` returned.
+ * @param {object}    [held]  The tool as the GMs hold it, where a GM's road read it so (the
+ *   crisis's swing, murder.mjs `wearSwing`; E29 fix r2-H18): whether it is broken and how much
+ *   it can take are read off it, and the wear is written to `tool` (inventory.mjs `wearItem`).
  * @returns {Promise<string|null>} the name of what broke, or null.
  */
-export async function breakOnDespair(actor, tool, roll) {
+export async function breakOnDespair(actor, tool, roll, held = tool) {
     if (!tool || !roll) return null;
     if (!roll.withFear || roll.isCritical) return null;
-    if (isBroken(tool)) return null;
+    if (isBroken(held)) return null;
 
     let outcome = null;
     try {
@@ -216,7 +219,7 @@ export async function breakOnDespair(actor, tool, roll) {
          * us to, which is what keeps the break on the roll that caused it: the
          * hand is emptied here, not by something sweeping up after the incident.
          */
-        outcome = await wearItem(tool);
+        outcome = await wearItem(tool, { reason: "itemWear", ref: tool.id, held });
         if (!outcome) return null;
     } catch (err) {
         // A tool that failed to wear is a great deal better than an action
@@ -229,7 +232,7 @@ export async function breakOnDespair(actor, tool, roll) {
         try {
             await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.woreOnDespair", {
                 item: foundry.utils.escapeHTML(tool.name),
-                left: outcome.left, total: durabilityOf(tool)
+                left: outcome.left, total: durabilityOf(held)
             })}</p>`, { flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
         } catch {
             // The wear is recorded; the sentence about it is a courtesy.
@@ -336,22 +339,30 @@ export function isUsable(item) {
  * Which kind of usable this item is: "healing", "stress", or null when the
  * module honestly does not know.
  *
- * The item tables are asked first and outrank the flag on the item, because the
- * tables are what the GM edits: move "Pills" from Sanity Relief to Healing and
- * every jar of pills in every inventory changes with it, including the ones
- * found last week. The flag answers when the tables cannot - an item drawn off
- * a room's own pool, or renamed on the sheet - and a name that sits in tables
- * of BOTH kinds falls back to the flag too, since the search that found it knew
- * which of the two it was.
+ * THE KIND IT WAS MADE AS (E29 fix r2-H8, 06.10.2026; review round 2 sec m4 =
+ * cor m2). The flag the item was made with answers first - the kind of the table
+ * its Search drew it from, or the one the item tables gave its name when it was
+ * handed over (inventory.mjs `grantItem`) - and only a GM changes it (the GMs'
+ * audit puts a player's write of it back, sheet-audit.mjs `ITEM_FIXED`). The
+ * tables answer for an item made with none. Until this fix the tables were asked
+ * first, so that a GM moving "Pills" from Sanity Relief to Healing changed every
+ * jar already found; but the name is the player's to write, and a module item
+ * renamed after a usable of the other kind healed that kind, and the audit
+ * judged the use by the same reading (`itemCovers`): measured at 0d86603
+ * (06.10.2026, e29run/r2h8red) by tier 2 - a healing usable renamed "Chewing
+ * gum" read as Sanity Relief, and its use on Sanity stood; since, it reads as
+ * healing and the use is flagged. A GM's edit of the tables now reaches the items
+ * made after it, as the GM's handbook already said ("the kind comes from the
+ * table it was drawn from").
  */
 export function usableKindOf(item) {
     if (!item) return null;
 
-    const assigned = usableKindFor(item.name);
-    if (USABLE_KINDS[assigned]) return assigned;
-
     const flagged = item.getFlag(MODULE_ID, ITEM_FLAGS.kind);
-    return USABLE_KINDS[flagged] ? flagged : null;
+    if (USABLE_KINDS[flagged]) return flagged;
+
+    const assigned = usableKindFor(item.name);
+    return USABLE_KINDS[assigned] ? assigned : null;
 }
 
 /**
@@ -401,25 +412,32 @@ function usedStamp(actor, item) {
  * stamp: the first use's card stands, and a trap that watches for the item heard it then
  * (traps.mjs `onChatMessage`). A creative use is the GM's ruling, not asked again of the die:
  * it counts as used and restores nothing.
+ *
+ * `held` (E29 fix r2-H20, 06.10.2026; as H19's ruling) is the item as the GMs hold it, where a
+ * GM's road read it so - the replay's use (murder.mjs `afterCrisisRoll`, from `applyCrisisAction`'s
+ * `held`): whether it is a usable, broken or stashed, its tier and its kind are read off it, and
+ * its count by `consume`; the writes go to `item`, the document. Until this fix (4d1532c,
+ * e29run/r2h20red, 06.10.2026) the replay of a Tier 1 healing pack given tier 3 where the GMs'
+ * mark did not see it healed 2 Health marks, not 1.
  */
-export async function useItem(actor, item, { again = null } = {}) {
-    if (!actor || !isUsable(item)) return null;
+export async function useItem(actor, item, { again = null, held = item } = {}) {
+    if (!actor || !isUsable(held)) return null;
 
     // An opened kit is an empty box. It is still in the bag, and it still takes
     // up the slot - see `consume` below and BROKEN_ITEMS in config.mjs.
-    if (isBroken(item)) {
+    if (isBroken(held)) {
         ui.notifications.warn(game.i18n.format("DRPG.Items.brokenUseless", {
             item: item.name
         }));
         return null;
     }
 
-    if (isStashed(item)) {
+    if (isStashed(held)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.useStashed"));
         return null;
     }
 
-    const tier = tierOf(item);
+    const tier = tierOf(held);
     const effect = USABLE_EFFECTS[tier];
 
     // Tier 0 is "a random, seemingly useless object, open to creative use" -
@@ -441,7 +459,7 @@ export async function useItem(actor, item, { again = null } = {}) {
         asked = true;
         amounts = { [choice]: effect.amount, ...(effect.bonus ?? {}) };
     } else {
-        const kind = usableKindOf(item);
+        const kind = usableKindOf(held);
         const resource = USABLE_KINDS[kind]?.resource;
         if (resource) {
             amounts = { [resource]: effect.amount };
@@ -476,8 +494,8 @@ export async function useItem(actor, item, { again = null } = {}) {
     // Read BEFORE `consume`, which may clear the flags along with the item.
     const stamp = usedStamp(actor, item);
 
-    const restored = await restore(actor, amounts);
-    await consume(item);
+    const restored = await restore(actor, amounts, { reason: "itemUse", ref: item.id });
+    await consume(item, { reason: "itemUse", held });
     if (again) return restored;
 
     const summary = describe(restored);
@@ -615,43 +633,49 @@ async function confirmUse(item, preview, pointless) {
  * actually restored is reported rather than what was offered: a character with
  * one mark of Health who drinks a Tier 2 kit recovers one, not two.
  */
-async function restore(actor, amounts) {
-    const update = {};
-    const done = {};
+async function restore(actor, amounts, { reason, ref }) {
     // Under the Despair darkening a Hope write is stripped; reporting it as
     // restored would be the card lying (CALL-05). `wouldRestore` asks the same.
     const hopeBlocked = overflowBlocksHope();
 
-    for (const [key, amount] of Object.entries(amounts)) {
-        if (key === "hope") {
-            if (hopeBlocked) continue;
-            const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-            const held = resourceValue(actor, "hope");
-            const next = Math.min(max, held + amount);
-            if (next !== held) {
-                update["system.resources.hope.value"] = next;
-                done.hope = next - held;
+    // From the means the GMs hold on a GM's client - a ruling's (`grantItemEffect`) - in one step (sheet-audit.mjs
+    // `meansWrite`, E29 fix r2-H24): a console's raised Hope, not put back yet, was restored on top there. A player's
+    // own use reads its sheet, as before.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    return meansWrite(actor, async (held, maxOf) => {
+        const update = {};
+        const done = {};
+        for (const [key, amount] of Object.entries(amounts)) {
+            if (key === "hope") {
+                if (hopeBlocked) continue;
+                const max = maxOf("hope") || STARTING.hopeMax;
+                const next = Math.min(max, held.hope + amount);
+                if (next !== held.hope) {
+                    update["system.resources.hope.value"] = next;
+                    done.hope = next - held.hope;
+                }
+                continue;
             }
-            continue;
+
+            // Health and Sanity; anything the GMs do not hold is read as it stands.
+            const marks = held[key] ?? resourceValue(actor, key);
+            const next = Math.max(0, marks - amount);
+            if (next !== marks) {
+                update[`system.resources.${key}.value`] = next;
+                done[key] = marks - next;
+            }
         }
 
-        const marks = resourceValue(actor, key);
-        const next = Math.max(0, marks - amount);
-        if (next !== marks) {
-            update[`system.resources.${key}.value`] = next;
-            done[key] = marks - next;
+        if (Object.keys(update).length) {
+            try {
+                await trustedWrite(actor, update, { reason, ref });
+            } catch (err) {
+                error("Could not apply what the item restored", err);
+                return {};
+            }
         }
-    }
-
-    if (Object.keys(update).length) {
-        try {
-            await automatedUpdate(actor, update);
-        } catch (err) {
-            error("Could not apply what the item restored", err);
-            return {};
-        }
-    }
-    return done;
+        return done;
+    });
 }
 
 function describe(restored) {
@@ -668,12 +692,15 @@ function describe(restored) {
  * `break`, not `delete`. The empty packet is still in the bag and still counts
  * against the two you may carry, so using the last of your kit is a moment that
  * costs you something afterwards as well as at the time - see BROKEN_ITEMS.
+ *
+ * `held` is the item as the GMs hold it, where a GM's road read it so (E29 fix r2-H19: a
+ * ruling, `grantItemEffect`): the count is read off it and written to `item`, the document.
  */
-async function consume(item) {
-    const quantity = Number(item.system?.quantity ?? 1);
+async function consume(item, { reason, held = item }) {
+    const quantity = Number(held.system?.quantity ?? 1);
     try {
-        if (quantity > 1) await item.update({ "system.quantity": quantity - 1 });
-        else await breakItem(item);
+        if (quantity > 1) await trustedWrite(item, { "system.quantity": quantity - 1 }, { reason, ref: item.id });
+        else await breakItem(item, { reason, ref: item.id });
     } catch (err) {
         error("Could not consume the item", err);
     }
@@ -820,7 +847,7 @@ export async function discardBroken(actor, item) {
     }
 
     try {
-        await item.delete();
+        await trustedDelete(item, { reason: "discard" });
     } catch (err) {
         error("Could not remove the discarded item", err);
     }
@@ -852,10 +879,22 @@ export async function discardBroken(actor, item) {
 export async function grantItemEffect(actor, item, amounts = {}, { consumeItem = true } = {}) {
     if (!game.user.isGM || !actor) return null;
 
-    const stamp = usedStamp(actor, item);
+    /*
+     * AS THE GMS HOLD IT (E29 fix r2-H19, 06.10.2026). The identity the card is stamped with - a trap watching it
+     * reads the card (traps.mjs) - and the count the consumption spends are read off the item as the GMs hold it
+     * (sheet-audit.mjs `itemAsHeld`), each just before its use: until this fix both were read off the item as it
+     * stood, where a write of the player's the audit puts back stands until its put-back lands, or for good where it
+     * fails: at 68150ec (e29run/r2h19red) a ruling on a usable the GMs hold one of spent one of the two written there,
+     * so did not break it, and stamped its card with the identity written there. An item not on `actor` is read as it
+     * stands, as before. The wait holds up nothing that holds it up, by reading: an item used waits for its own
+     * user's consumption, and a ruling's is the GM's.
+     */
+    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const heldNow = async () => item ? await itemAsHeld(actor, item.id) ?? item : null;
+    const stamp = usedStamp(actor, await heldNow());
 
-    const restored = await restore(actor, amounts);
-    if (item && consumeItem) await consume(item);
+    const restored = await restore(actor, amounts, { reason: "gmRuling", ref: item?.id ?? null });
+    if (item && consumeItem) await consume(item, { reason: "gmRuling", held: await heldNow() });
 
     const summary = describe(restored);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.used", {

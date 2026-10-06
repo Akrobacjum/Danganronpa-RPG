@@ -13,17 +13,17 @@
 import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
 import { isDeceased } from "./settings.mjs";
 import { isWounded } from "./character.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
 import { overflowActionPenalty, overflowFloor, overflowBlocksFreeMove } from "./overflow.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
  * How many actions this character should get when a new time of day starts.
+ * `wounded` is the sheet's unless the caller read it as the GMs hold it (`resetActionsFor`).
  * @returns {{total: number, wounded: boolean}}
  */
-export function actionBudget(actor) {
-    const wounded = isWounded(actor);
+export function actionBudget(actor, { wounded = isWounded(actor) } = {}) {
 
     /*
      * A DARKENED TIME OF DAY COSTS AN ACTION (Z10), and it stacks with Wounded
@@ -92,16 +92,21 @@ export function canPayFor(actor, cost = 1) {
     return freeActionsLeft(actor) > 0 || actionsLeft(actor) >= cost;
 }
 
-/** Bank some. Both Calls come through here - see `applyCall`. */
-export async function grantFreeActions(actor, n = 1) {
+/**
+ * Bank some. Both Calls come through here - see `applyCall` - and so does a Burst handed
+ * back (`refundAction`). Through the module's road with its reason since E29 C4: the GMs'
+ * audit covers a grant by the Call's price (`call`, `ref` the Call) or by a grant spent
+ * before it (`refund`), and lists one that names neither.
+ */
+export async function grantFreeActions(actor, n = 1, { reason = "call", ref = null } = {}) {
     if (!actor || n <= 0) return false;
-    await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, freeActionsLeft(actor) + n);
+    await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) + n }, { reason, ref });
     return true;
 }
 
-export async function grantFreeMoves(actor, n = 1) {
+export async function grantFreeMoves(actor, n = 1, { reason = "call", ref = null } = {}) {
     if (!actor || n <= 0) return false;
-    await actor.setFlag(MODULE_ID, FLAGS.freeMoveGrants, freeMovesLeft(actor) + n);
+    await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: freeMovesLeft(actor) + n }, { reason, ref });
     return true;
 }
 
@@ -169,7 +174,7 @@ export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
         return false;
     }
 
-    await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - amount });
+    await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - amount }, { reason: "spend" });
 
     /*
      * EVERY SPEND, NOT ONLY THE ACTION GRID - trap 44, decided here.
@@ -204,10 +209,14 @@ export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
  */
 export async function refundAction(actor, amount = 1, receipt = null) {
     if (!actor || amount <= 0) return false;
-    if (receipt?.grant) return grantFreeActions(actor, 1);
+    if (receipt?.grant) return grantFreeActions(actor, 1, { reason: "refund" });
 
-    const next = Math.min(actionsMax(actor), actionsLeft(actor) + amount);
-    await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: next });
+    // The actions and their maximum as the GMs hold them on a GM's client (sheet-audit.mjs `meansWrite`, E29 fix r2-H24):
+    // a console's raised maximum, not put back yet, lifted the refund there. A player's browser reads its sheet, as before.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    await meansWrite(actor, ({ actions }, maxOf) => trustedWrite(actor,
+        { [`system.resources.${ACTIONS_RESOURCE}.value`]: Math.min(maxOf(ACTIONS_RESOURCE) ?? STARTING.actions, actions + amount) },
+        { reason: "refund" }));
     return true;
 }
 
@@ -230,7 +239,7 @@ export async function takeBackRefund(actor, amount = 1, receipt = null) {
         return { grant: true, amount };
     }
     if (!receipt?.grant && actionsLeft(actor) >= amount) {
-        await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsLeft(actor) - amount });
+        await trustedWrite(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: actionsLeft(actor) - amount }, { reason: "spend" });
         playSfx("actionSpent");
         return { grant: false, amount };
     }
@@ -248,8 +257,11 @@ export async function setActions(actor, value) {
         ui.notifications.warn(game.i18n.localize("DRPG.Guard.blocked"));
         return false;
     }
-    const clamped = Math.max(0, Math.min(actionsMax(actor), value));
-    await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: clamped });
+    // Held to the maximum the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24), not one a console raised.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    await meansWrite(actor, (held, maxOf) => trustedWrite(actor,
+        { [`system.resources.${ACTIONS_RESOURCE}.value`]: Math.max(0, Math.min(maxOf(ACTIONS_RESOURCE) ?? STARTING.actions, value)) },
+        { reason: "gmRuling" }));
     return true;
 }
 
@@ -342,24 +354,28 @@ export async function resetActionsFor(actor, { keepGrants = false } = {}) {
     const dead = isDeceased(actor);
     if (dead && !actor.getFlag(MODULE_ID, FLAGS.monocub)) return null;
 
-    const { total, wounded } = actionBudget(actor);
-    await automatedUpdate(actor, {
-        [`system.resources.${ACTIONS_RESOURCE}.value`]: total,
-        [`system.resources.${ACTIONS_RESOURCE}.max`]: total,
-        ...(keepGrants ? {} : {
-            [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false,
-            // What makes Sprint and Burst last "until the end of this time of
-            // day" without anything measuring time - see the note above
-            // `freeActionsLeft`. Zeroed rather than deleted: `-=key` does
-            // nothing in this Foundry without a forced replacement, and a grant
-            // that survived its own expiry is a Call the player gets to spend
-            // twice.
-            [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0,
-            [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
-        })
+    // Wounded as the GMs hold the Health (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's raised Health
+    // maximum, not put back yet, refilled a wounded student's whole budget on the GM.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    return meansWrite(actor, async ({ hitPoints }, maxOf) => {
+        const { total, wounded } = actionBudget(actor, { wounded: (maxOf("hitPoints") ?? 0) - hitPoints <= 0 });
+        await trustedWrite(actor, {
+            [`system.resources.${ACTIONS_RESOURCE}.value`]: total,
+            [`system.resources.${ACTIONS_RESOURCE}.max`]: total,
+            ...(keepGrants ? {} : {
+                [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false,
+                // What makes Sprint and Burst last "until the end of this time of
+                // day" without anything measuring time - see the note above
+                // `freeActionsLeft`. Zeroed rather than deleted: `-=key` does
+                // nothing in this Foundry without a forced replacement, and a grant
+                // that survived its own expiry is a Call the player gets to spend
+                // twice.
+                [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: 0,
+                [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: 0
+            })
+        }, { reason: "setup" });
+        return { actor, total, wounded };
     });
-
-    return { actor, total, wounded };
 }
 
 /**

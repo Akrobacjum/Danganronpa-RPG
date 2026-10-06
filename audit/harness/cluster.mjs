@@ -124,7 +124,7 @@ function canWrite(userId, op) {
         const doc = world.collections.Actor.find(a => a._id === op.docId);
         if (action === "create" || action === "delete") return false;
         if (!doc) return false;
-        return actorOwned(doc, userId); // update + embedded ops on owned actor
+        return actorOwned(doc, userId); // update + embedded ops on owned actor, its items' effects included (`via`, E29 fix r1-G3)
     }
     if (collName === "Scene") {
         // players may update tokens of actors they own; nothing else
@@ -192,33 +192,31 @@ function applyOp(userId, op, onLegacyKey = null) {
             return { broadcast: { t: "apply", action: "delete", collName, docId: op.docId, userId, options: op.options }, result: op.docId };
         }
         case "embedded-create": {
-            const doc = list.find(d => d._id === op.docId);
-            if (!doc) throw new Error(`${collName} ${op.docId} does not exist`);
-            const key = embKey(collName, op.embeddedName);
+            const { doc, key, via } = embeddedHost(list, collName, op);
             doc[key] = doc[key] ?? [];
             const docs = op.payload.map(d => ({ ...U.deepClone(d), _id: d._id && !doc[key].some(x => x._id === d._id) ? d._id : U.randomID() }));
             for (const d of docs) ensureEmbeddedIds(op.embeddedName, d);
             doc[key].push(...docs);
-            return { broadcast: { t: "apply", action: "embedded-create", collName, docId: op.docId, embeddedName: op.embeddedName, docs, userId, options: op.options }, result: docs.map(d => d._id) };
+            return { broadcast: { t: "apply", action: "embedded-create", collName, docId: op.docId, ...via, embeddedName: op.embeddedName, docs, userId, options: op.options }, result: docs.map(d => d._id) };
         }
         case "embedded-update": {
-            const doc = list.find(d => d._id === op.docId);
-            if (!doc) throw new Error(`${collName} ${op.docId} does not exist`);
-            const key = embKey(collName, op.embeddedName);
+            const { doc, key, via } = embeddedHost(list, collName, op);
             for (const u of op.payload) {
                 const raw = (doc[key] ?? []).find(d => d._id === u._id);
                 if (!raw) continue;
                 const { _id, ...changes } = u;
-                U.applyUpdate(raw, changes, { onLegacyKey: path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }) });
+                /* An embedded document is a parent too (E29 fix r2-H8, 06.10.2026): an actor's item updated with its
+                   `effects` merges them by id, as the actor's own list does (futil.mjs `applyDocChanges`). Applied
+                   as a plain update the list was replaced by the patch - measured by the fix's probe at 0d86603, a
+                   Tool's effect changed through the Tool's update lost its name. */
+                U.applyDocChanges(op.embeddedName, raw, changes, { onLegacyKey: path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }) });
             }
-            return { broadcast: { t: "apply", action: "embedded-update", collName, docId: op.docId, embeddedName: op.embeddedName, updates: op.payload, userId, options: op.options }, result: op.payload.map(u => u._id) };
+            return { broadcast: { t: "apply", action: "embedded-update", collName, docId: op.docId, ...via, embeddedName: op.embeddedName, updates: op.payload, userId, options: op.options }, result: op.payload.map(u => u._id) };
         }
         case "embedded-delete": {
-            const doc = list.find(d => d._id === op.docId);
-            if (!doc) throw new Error(`${collName} ${op.docId} does not exist`);
-            const key = embKey(collName, op.embeddedName);
+            const { doc, key, via } = embeddedHost(list, collName, op);
             doc[key] = (doc[key] ?? []).filter(d => !op.payload.includes(d._id));
-            return { broadcast: { t: "apply", action: "embedded-delete", collName, docId: op.docId, embeddedName: op.embeddedName, ids: op.payload, userId, options: op.options }, result: op.payload };
+            return { broadcast: { t: "apply", action: "embedded-delete", collName, docId: op.docId, ...via, embeddedName: op.embeddedName, ids: op.payload, userId, options: op.options }, result: op.payload };
         }
         default: throw new Error(`unknown op ${op.action}`);
     }
@@ -229,6 +227,20 @@ function embKey(collName, embeddedName) {
     const k = map[collName]?.[embeddedName];
     if (!k) throw new Error(`no embedded ${embeddedName} in ${collName}`);
     return k;
+}
+
+/*
+ * Where an embedded write lands: in the world document the op names, or - `via`, an effect on an actor's
+ * item (E29 fix r1-G3, 05.10.2026; lib/shim.mjs `_embeddedOp`) - in that document's own embedded one.
+ * Answers the document, the list's key in it, and the `via` the broadcast carries to the clients.
+ */
+function embeddedHost(list, collName, op) {
+    const root = list.find(d => d._id === op.docId);
+    if (!root) throw new Error(`${collName} ${op.docId} does not exist`);
+    if (!op.via) return { doc: root, key: embKey(collName, op.embeddedName), via: {} };
+    const doc = (root[embKey(collName, op.via.embeddedName)] ?? []).find(d => d._id === op.via.id);
+    if (!doc) throw new Error(`${op.via.embeddedName} ${op.via.id} does not exist in ${collName} ${op.docId}`);
+    return { doc, key: embKey(op.via.embeddedName, op.embeddedName), via: { via: { embeddedName: op.via.embeddedName, id: op.via.id } } };
 }
 
 /* ------------------------------ clients ----------------------------------- */

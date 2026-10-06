@@ -35,7 +35,7 @@ import { MODULE_ID, FLAGS, PRICE_CHAINS, STARTING } from "./config.mjs";
 import { getClock, isDeadForGm } from "./settings.mjs";
 import { canPayFor, freeActionsLeft, actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
+import { trustedWrite, HOPE_REFUND } from "./resource-guard.mjs";
 import { overflowBlocksHope } from "./overflow.mjs";
 import { plural, whisperToOwner, debug } from "./utils.mjs";
 
@@ -192,17 +192,19 @@ export async function payPrice(actor, key, { skip = [], quiet = false } = {}) {
         return { key, pay: "action", amount: quote.amount, grant: Boolean(receipt.grant) };
     }
 
-    if (quote.pay === "hope") {
-        const held = resourceValue(actor, "hope");
-        if (held < quote.amount) return null;
-        await automatedUpdate(actor, { "system.resources.hope.value": held - quote.amount });
-        return { key, pay: "hope", amount: quote.amount, grant: false };
-    }
-
-    const marks = resourceValue(actor, "stress");
-    if (roomLeft(actor, "stress") < quote.amount) return null;
-    await automatedUpdate(actor, { "system.resources.stress.value": marks + quote.amount });
-    return { key, pay: "stress", amount: quote.amount, grant: false };
+    /* The Hope, the marks and the Sanity maximum as the GMs hold them on a GM's client - the Objection's, charged on the
+       primary (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's Hope or maximum, not put back yet, paid
+       there. A player's browser reads its sheet, as before. */
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const pay = quote.pay === "hope" ? "hope" : "stress";
+    const paid = await meansWrite(actor, async (held, maxOf) => {
+        const room = pay === "hope" ? held.hope : (maxOf("stress") ?? 0) - held.stress;
+        if (room < quote.amount) return false;
+        const next = pay === "hope" ? held.hope - quote.amount : held.stress + quote.amount;
+        await trustedWrite(actor, { [`system.resources.${pay}.value`]: next }, { reason: "price" });
+        return true;
+    });
+    return paid ? { key, pay, amount: quote.amount, grant: false } : null;
 }
 
 /**
@@ -226,11 +228,14 @@ export async function refundPrice(actor, receipt, { quiet = false } = {}) {
     }
 
     if (receipt.pay === "hope") {
-        const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-        const held = resourceValue(actor, "hope");
-        await automatedUpdate(actor,
-            { "system.resources.hope.value": Math.min(max, held + receipt.amount) },
-            { [HOPE_REFUND]: true });
+        // From the Hope the GMs hold on a GM's client (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's raised
+        // Hope, not put back yet, was given back on top there. A player's browser reads its sheet, as before.
+        const { meansWrite } = await import("./sheet-audit.mjs");
+        const { held, max } = await meansWrite(actor, async ({ hope }, maxOf) => {
+            const top = maxOf("hope") || STARTING.hopeMax;
+            await trustedWrite(actor, { "system.resources.hope.value": Math.min(top, hope + receipt.amount) }, { reason: "refund" });
+            return { held: hope, max: top };
+        });
         // Already full counts as landed: there was nowhere for it to go, and that
         // is not the same as the refund being eaten.
         const landed = resourceValue(actor, "hope") > held || held >= max;
@@ -254,9 +259,9 @@ export async function refundPrice(actor, receipt, { quiet = false } = {}) {
     }
 
     const marks = resourceValue(actor, "stress");
-    await automatedUpdate(actor, {
+    await trustedWrite(actor, {
         "system.resources.stress.value": Math.max(0, marks - receipt.amount)
-    });
+    }, { reason: "refund" });
     if (!quiet) await tellRefund(actor, receipt);
     return true;
 }

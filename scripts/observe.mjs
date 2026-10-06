@@ -27,8 +27,8 @@
 import { MODULE_ID, OBSERVE_FAIL_STRESS, PROJECT_OBSERVE, TIMES_OF_DAY, TIMING } from "./config.mjs";
 import { rankForObserve } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
-import { resourceValue, resourceMax } from "./character.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
+import { resourceValue } from "./character.mjs";
 import {
     dialogContent, whisperToOwner, whisperToGms, ownerOf, ownerIdsOf, log, warn, error, debug
 } from "./utils.mjs";
@@ -740,13 +740,14 @@ async function undoPrevious(actor, entry) {
     }
 
     // Sanity taken for a miss that is no longer a miss has to come back, or a
-    // Reroll would charge for a failure it just erased.
+    // Reroll would charge for a failure it just erased. A give-back, so the GMs'
+    // audit takes the credit the miss left (fix r2-H6, resource-guard.mjs `stampOf`).
     if (previous.stress) {
         const marks = resourceValue(actor, "stress");
         const next = Math.max(0, marks - previous.stress);
         if (next !== marks) {
             try {
-                await automatedUpdate(actor, { "system.resources.stress.value": next });
+                await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "reroll", giveBack: true });
             } catch (err) {
                 error("Could not return the Sanity a reroll undid", err);
             }
@@ -777,18 +778,20 @@ async function undoPrevious(actor, entry) {
  */
 export async function chargeObserveMiss(actor, { total = null, dc = null } = {}) {
     if (!actor) return 0;
-    const marks = resourceValue(actor, "stress");
-    const max = resourceMax(actor, "stress");
-    const next = Math.min(max, marks + OBSERVE_FAIL_STRESS);
-    const marked = next - marks;
-
-    if (marked > 0) {
-        try {
-            await automatedUpdate(actor, { "system.resources.stress.value": next });
-        } catch (err) {
-            error("Could not apply the Sanity from a failed Observe", err);
+    // Held to the marks and the maximum the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's
+    // lowered maximum, not put back yet, took the mark off the miss.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const marked = await meansWrite(actor, async ({ stress: marks }, maxOf) => {
+        const next = Math.min(maxOf("stress") ?? 0, marks + OBSERVE_FAIL_STRESS);
+        if (next - marks > 0) {
+            try {
+                await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "price" });
+            } catch (err) {
+                error("Could not apply the Sanity from a failed Observe", err);
+            }
         }
-    }
+        return next - marks;
+    });
 
     /*
      * It costs 1 Sanity and looks exactly like a success until the card is read.

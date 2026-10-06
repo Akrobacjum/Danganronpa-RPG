@@ -437,6 +437,15 @@ for (const { id, version } of versions.modules) addModule(id, { title: COMPANION
    knows which is which (dualityRoll.mjs `createBaseDice`, `fromData`, 2.10.5). */
 class HopeDie extends Die {}
 class FearDie extends Die {}
+/* And its advantage dice (die/advantageDie.mjs, die/disadvantageDie.mjs, 2.10.5): the fifth term a roll
+   rebuilt from its JSON names (E29 C9, 05.10.2026). Until C9 the harness had no class for them, so a
+   packet carrying one was rebuilt as a plain die, read by the GM as a die beyond Hope, Fear and the
+   advantage die (roll-draw.mjs `checkRoll`, kind `dice`) and as no advantage at all: the suite could
+   not hand the GM a roll whose window had put a Call's die on. Daggerheart's constructor adds its
+   letter (`a`, `d`) to the modifiers; these do not, as the HopeDie and FearDie above add no `h`, `f`
+   (roll-draw.mjs `diceShape` reads a die without its class's letter). */
+class AdvantageDie extends Die {}
+class DisadvantageDie extends Die {}
 
 /* A face the harness was told to show, as the `randomUniform` that draws it: Foundry maps u to
    `ceil((1 - u) * faces)`, so the middle of the face's band, u = 1 - (f - 0.5) / faces, lands on f
@@ -483,17 +492,33 @@ class DualityRollMock extends RollImpl {
      * postRoll hooks and the message; dualityRoll.mjs:246-251, :318-334: `dualityUpdate`). Not
      * modelled: the keybindings and the temporary modifiers (nothing headless presses a key),
      * the countdowns `dualityUpdate` ticks and `handleTriggers` (the harness has neither), the
-     * advantage dice `fromData` re-classes (the harness's formula has none), `toMessage`'s item
-     * actions and reload. The message is the harness's as before C10 (`toMessage` below).
+     * advantage dice the roll window puts on (the harness's formula has none; a packet the suite
+     * edits may carry one, which `fromData` and `dAdvantage` below read as Daggerheart's do, E29 C9),
+     * `toMessage`'s item actions and reload. The message is the harness's as before C10 (`toMessage` below).
      */
     static JSON_CLASS = "DualityRoll";
     /* A critical the options guarantee, as Daggerheart's constructor takes it (dualityRoll.mjs:13,
        2.10.5, re-read 05.10.2026 for E08+E28 fix r2-H8): a critical whatever the dice, with neither
        Hope nor Fear (:89-101). Until then the mock read the dice alone, so a roll whose options
        named one could not be told from any other here. */
+    /* WHAT DAGGERHEART'S CONSTRUCTOR READS (E29 fix r2-H1, 05.10.2026; review round 2's cor B1). A
+       roll whose own data is empty, as one `fromData` rebuilds is, takes its options' (dhRoll.mjs:11),
+       and d20Roll.mjs `constructFormula` -> `configureModifiers` then reads, before any modifier is
+       written: the statistic's value off that data where `options.roll.trait` names one
+       (dualityRoll.mjs:174), `options.source.item` (:185) and `options.data.system` (d20Roll.mjs:103),
+       none of them with `?.` (2.6.5 and 2.10.5 alike). Until this fix the mock read none of it: the
+       suite was green on every drawn roll while Daggerheart's own classes threw a TypeError on the
+       JSON one is rebuilt from (e29-review/cor-r2-fromdata/probe.mjs, on the packet's shape;
+       e29run/scratch/r2h1-probe, on what a headless draw handed `fromData`). Read here as Daggerheart reads them, so a roll it could
+       not build is not built here either; what they say is not used - the harness's formula carries the
+       statistic already (`createRollInstance`), and a rebuilt roll's terms are its JSON's. */
     constructor(formula, data = {}, options = {}) {
         super(formula, data, options);
+        if (!this.data || !Object.keys(this.data).length) this.data = options.data;
         this.createBaseDice();
+        if (options.roll?.trait) void this.data.traits?.[options.roll.trait];
+        void options.source.item;
+        void options.data.system?.experiences;
         this.guaranteedCritical = options?.guaranteedCritical;
     }
     get advantageNumber() { return this._adv ?? 1; }
@@ -512,6 +537,9 @@ class DualityRollMock extends RollImpl {
     }
     get dHope() { return this.dice[0]; }
     get dFear() { return this.dice[1]; }
+    /* dualityRoll.mjs:49-55: the third die, where it is of the advantage dice's classes. */
+    get dAdvantage() { return this.dice[2] instanceof AdvantageDie ? this.dice[2] : null; }
+    get dDisadvantage() { return this.dice[2] instanceof DisadvantageDie ? this.dice[2] : null; }
     get isCritical() {
         if (this.guaranteedCritical) return true;
         return Boolean(this.dHope?._evaluated && this.dFear?._evaluated) && this.dHope.total === this.dFear.total;
@@ -569,12 +597,15 @@ class DualityRollMock extends RollImpl {
      * `CONFIG.Dice.randomUniform` for this one evaluation: the next draws, in the order the dice
      * ask for them, then the randomiser again - as a scripted randomiser is at a table. So a
      * Loaded Die, which answers the first draw itself (forced-roll.mjs), hands the script's first
-     * face to the Fear die: `{ hope: 5, fear: 3 }` with a Loaded Die throws 12 and 5.
+     * face to the Fear die: `{ hope: 5, fear: 3 }` with a Loaded Die throws 12 and 5. An
+     * `advantage` face scripts the third draw, the one advantage die a roll throws after its two
+     * (E29 C10: from then the GM throws the die its own list holds - a tool in hand, a trap's
+     * victim - which no window of the harness put on, and a scenario reading a band names its face).
      */
     static async buildEvaluate(roll, config = {}, message = {}) {
         const D = globalThis.CONFIG.Dice;
         const forced = config?.drpgDrawn ? null : relayedFacesOf(roll) ?? globalThis.__forceRoll;
-        const script = forced ? [forced.hope, forced.fear].map((face, i) => typeof face === "number" ? uniformFor(face, roll.dice[i]?.faces ?? 12) : null) : null;
+        const script = forced ? [forced.hope, forced.fear, forced.advantage].map((face, i) => typeof face === "number" ? uniformFor(face, roll.dice[i]?.faces ?? 12) : null) : null;
         const real = D.randomUniform;
         if (script) D.randomUniform = () => script.shift() ?? real();
         try {
@@ -629,10 +660,13 @@ class DualityRollMock extends RollImpl {
         return addDualityResourceUpdates(config);
     }
 
-    /* dualityRoll.mjs:122-129: the first and the third term are the Hope and the Fear die. */
+    /* dualityRoll.mjs:122-129: the first and the third term are the Hope and the Fear die, and the fifth
+       the advantage die its options say it is (E29 C9) - a fifth term named one already stays it. */
     static fromData(data) {
         if (data?.terms?.[0]) data.terms[0].class = "HopeDie";
         if (data?.terms?.[2]) data.terms[2].class = "FearDie";
+        const type = data?.options?.roll?.advantage?.type;
+        if (type && data.terms[4]?.faces) data.terms[4].class = type === 1 ? "AdvantageDie" : "DisadvantageDie";
         return super.fromData(data);
     }
 
@@ -657,8 +691,12 @@ class DualityRollMock extends RollImpl {
             options: { ...configKeys(config), title: config.title ?? "", headerTitle: config.headerTitle ?? "", source: { actor: config.source.actor },
                 data: config.data, effects: [...(actor?.effects?.contents ?? [])].map(e => e.toObject?.() ?? e),
                 experiences: [...(config.experiences ?? [])],
+                // The roll's own modifiers where its options hold them, as Daggerheart's message keeps the
+                // roll whole (a roll the GM drew, whose modifiers it wrote, E29 C10); else the statistic's,
+                // the one the harness's formula adds.
                 roll: { trait: traitKey, type: config.actionType,
-                    modifiers: traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
+                    modifiers: Array.isArray(roll.options?.roll?.modifiers) ? JSON.parse(JSON.stringify(roll.options.roll.modifiers))
+                        : traitKey ? [{ label: `DAGGERHEART.CONFIG.Traits.${traitKey}.name`, value: mod }] : [] },
                 actionType: config.actionType }
         };
         const message = await classes.ChatMessage.create({
@@ -1148,7 +1186,7 @@ globalThis.CONFIG = {
     Region: { documentClass: classes.Region },
     /* Foundry's randomiser, which every die draws from (lib/shim.mjs `Die`): `Math.random` here,
        a Mersenne Twister at a table. A test may script it, as forced-roll.mjs does (E08+E28 C10). */
-    Dice: { rolls: [RollImpl], types: [], terms: {}, termTypes: { HopeDie, FearDie }, randomUniform: () => Math.random() },
+    Dice: { rolls: [RollImpl], types: [], terms: {}, termTypes: { HopeDie, FearDie, AdvantageDie, DisadvantageDie }, randomUniform: () => Math.random() },
     queries: {},
     canvasTextStyle: {},
     fontDefinitions: {},
@@ -1331,34 +1369,41 @@ function applyRemote(msg) {
         return;
     }
     if (action.startsWith("embedded-")) {
-        const parent = coll(collName).get(msg.docId);
+        const root = coll(collName).get(msg.docId);
+        /* An effect on an actor's item comes `via` that item (E29 fix r1-G3; lib/shim.mjs `_embeddedOp`): it lands
+           in the item's own list and collection, and in the actor's raw copy of the item where that is another object. */
+        const viaKey = msg.via ? findEmbKey(collName, msg.via.embeddedName) : null;
+        const parent = msg.via ? root?._collections[viaKey]?.get(msg.via.id) : root;
         if (!parent) return;
-        const embKey = findEmbKey(collName, msg.embeddedName);
+        const embKey = findEmbKey(parent.documentName, msg.embeddedName);
+        const held = msg.via ? (root._source[viaKey] ?? []).find(d => d._id === msg.via.id) : null;
+        const lists = [parent._source, ...(held && held !== parent._source ? [held] : [])];
         const cls = classes[msg.embeddedName] ?? classes.BaseDocument;
         const kind = action.slice("embedded-".length);
         if (kind === "create") {
-            parent._source[embKey] = parent._source[embKey] ?? [];
             for (const d of msg.docs) {
-                parent._source[embKey].push(U.deepClone(d));
+                for (const src of lists) (src[embKey] = src[embKey] ?? []).push(U.deepClone(d));
                 const doc = new cls(d, { parent });
                 parent._collections[embKey]?.set(doc.id, doc);
                 hooks.callAll(`create${msg.embeddedName}`, doc, options, userId);
             }
         } else if (kind === "update") {
             for (const u of msg.updates) {
-                const raw = (parent._source[embKey] ?? []).find(d => d._id === u._id);
+                const raws = lists.map(src => (src[embKey] ?? []).find(d => d._id === u._id)).filter(Boolean);
                 const doc = parent._collections[embKey]?.get(u._id);
-                if (!raw || !doc) continue;
+                if (!raws.length || !doc) continue;
                 const { _id, ...changes } = u;
-                U.applyUpdate(raw, changes);
+                // An item's own `effects` merge by id, and its collection follows them, as an actor's do (fix r2-H8; cluster.mjs).
+                for (const raw of raws) U.applyDocChanges(msg.embeddedName, raw, changes);
                 // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
-                if (doc._source !== raw) U.applyUpdate(doc._source, changes);
+                if (!raws.includes(doc._source)) U.applyDocChanges(msg.embeddedName, doc._source, changes);
+                rebuildEmbedded(doc);
                 hooks.callAll(`update${msg.embeddedName}`, doc, revive(U.expandObject(U.deepClone(changes))), options, userId);
             }
         } else if (kind === "delete") {
             for (const id of msg.ids) {
                 const doc = parent._collections[embKey]?.get(id);
-                parent._source[embKey] = (parent._source[embKey] ?? []).filter(d => d._id !== id);
+                for (const src of lists) src[embKey] = (src[embKey] ?? []).filter(d => d._id !== id);
                 parent._collections[embKey]?.delete(id);
                 if (doc) hooks.callAll(`delete${msg.embeddedName}`, doc, options, userId);
             }
@@ -1367,7 +1412,7 @@ function applyRemote(msg) {
 }
 
 function rebuildEmbedded(doc) {
-    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
+    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Item: { ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
     if (!emb) return;
     for (const [docName, key] of Object.entries(emb)) {
         const raw = doc._source[key];

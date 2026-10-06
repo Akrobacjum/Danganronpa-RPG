@@ -1131,7 +1131,12 @@ function evidenceByStudent() {
  * The count applies `sweepTruthBullets`'s own rule rather than an approximation
  * of it, so the confirm cannot promise a number the sweep will not deliver. The
  * window this replaces had exactly that bug once, in its other checkbox, and it
- * took a measured run to notice.
+ * took a measured run to notice. The rule, not the reader: the count reads the
+ * documents (`bulletsOf`), the sweep the bullets as the GMs hold them since E29
+ * fix r2-H22 (chapter.mjs `bulletsHeldBy`); the two part only where a
+ * document's category is not the one the GMs hold (one a player's write moved
+ * whose put-back has not landed, an item a player's write made that no GM has
+ * decided on), by reading.
  */
 export async function confirmSweepBullets() {
     if (!game.user.isGM) return 0;

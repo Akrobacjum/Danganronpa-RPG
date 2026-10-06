@@ -1255,10 +1255,14 @@ export function createGmStoreEngine(env) {
      * Level Ups on offer (the owner's Q4) - so a copy that held something under the
      * new cut calls its spec's `onCut` once. `seenCuts` is the cut each copy was last
      * read under, per world, from the store's open.
+     *
+     * A store's `onCut` is called once its watermark has risen, on each GM (E29 fix r1-G6,
+     * 05.10.2026): the GMs' marks of the sheets are filled again by the primary as a reset
+     * takes them (sheet-audit.mjs `refillMarks`), rather than at its next hydration.
      */
     function applyCuts(clock = env.clock()) {
         const cuts = isPlain(clock?.resetCuts) ? clock.resetCuts : {};
-        const done = [];
+        const done = [], risen = [];
         for (const st of stores.values()) {
             const cut = cuts[st.spec.resetGroup];
             if (!Number.isFinite(cut)) continue;
@@ -1268,7 +1272,12 @@ export function createGmStoreEngine(env) {
             if (raiseCleared(w.section, cut, st.spec)) {
                 w.needsWrite = true;
                 done.push(schedule(st));
+                if (typeof st.spec.onCut === "function") risen.push(st.spec);
             }
+        }
+        for (const spec of risen) {
+            try { spec.onCut(); }
+            catch (err) { env.log.error(`The store "${spec.name}" could not be filled again after a reset`, err); }
         }
         const wid = worldId();
         for (const cs of copies.values()) {

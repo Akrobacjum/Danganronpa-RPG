@@ -371,12 +371,14 @@ export const TIMING = {
     gmStoreSyncMs: 8000,
     /** How long an Analyze or a handover of a Truth Bullet waits for this GM's stores to
      *  open and hear the other GMs before it refuses (gm-stores.mjs `answerKeysOpen`; E04's
-     *  fix round 10, 26.09.2026). Not `gmStoreSyncMs` itself: that clock starts at the hello,
+     *  fix round 10, 26.09.2026), and a drawn roll for the GMs' marks (roll-draw.mjs
+     *  `marksOpen`; E29 fix r2-H3). Not `gmStoreSyncMs` itself: that clock starts at the hello,
      *  after the open's claims, so a request that came during the claims would be refused a
      *  moment before a timed-out exchange let it through. Twice it: the exchange's own bound
      *  and as long again for the claims (how long a real browser's take is not measured; the
      *  exchange at a real table is LIVE-E04-02). Far under `rulingMs`, the asking player's
-     *  own clock, so the refusal reaches them before they stop listening (R189). */
+     *  own clock, so the refusal reaches them before they stop listening (R189); under a
+     *  draw's, roll-draw.mjs `DRAW_ANSWER_MS` (30 s), with its pick's wait (2 s) besides. */
     gmStoreOpenMs: 16000,
     /** How far ahead of this client's clock a GM store stamp is believed: past it, the
      *  stamp is kept as sent, the clock is not moved further, and the sender is named once. */
@@ -1891,6 +1893,11 @@ export const HOPE_CALLS = {
          *
          * So `needsGm` makes the player write what they intend and sends it for
          * approval; the Hope is charged when the GM says yes, and not before.
+         * And the Call is armed only with that yes (E29 fix r2-H4, 05.10.2026):
+         * the primary GM keeps the yes a GM gives on the card for that one
+         * purchase, and a player's `call.arm` of a `needsGm` Call takes it
+         * (bridge-guards.mjs `guardArmGmYes`). Until then only the asking browser
+         * waited for the ruling, and a console armed both with none asked.
          */
         needsGm: true,
         label: "Ultimate", icon: "fa-star", cost: 1, target: "none", grants: "advantage",
@@ -3860,6 +3867,45 @@ export const CLEANUP = {
         aloneNote: "Nobody else is in the room, so there is nothing to hide."
     }
 };
+
+/*
+ * WHAT MAY ADD TO A DRAWN ROLL (E29 C9, 05.10.2026; audit S17-12, its second half; the stage plan's 3.2).
+ * Until 1.2.68 what a roll the GM draws for a player may add up to lived in two functions'
+ * bodies (roll-draw.mjs `expectedFor` and `checkRoll`), and half of it was the roller's word: a
+ * crisis roll's weapon die, a tool in hand, a clean-up's tool, the dice a Call or the situation
+ * gave were whatever the roller's browser had armed. This is the one list of it, each row read on
+ * the GM by one reader of the same name (roll-draw.mjs `LEGAL_READERS`) from what that GM holds:
+ *   - `kind` says how it reaches the roll: the faces of a die, a flat number, advantage dice, the
+ *     face a die is forced to, a step taken after the dice, or the roll's own kind;
+ *   - `reader` names where the GM reads it (a path on the character or the store it comes from);
+ *   - `bound` is the number the reader holds it to: a die's faces where the rules say none, one
+ *     experience, Breakdown's one die, the hostile Call's grace;
+ *   - `label` is the line a flag names it by (`DRPG.Rolls.legal.*`).
+ * The advantage dice of every row are summed and capped at roll-dialog.mjs `ADVANTAGE_CAP`, as the
+ * roll window sums them (`advantageSources`). Monokuma's rolls are a GM's and are not drawn. In C9
+ * the GM read the list and only observed: a roll that differed was flagged to the GMs and stood as
+ * drawn. From C10 the GM throws the roll this list makes (roll-draw.mjs `legalRollOf`): what the
+ * roller's window put on beyond it is a claim, recorded and flagged to the GMs, never counted.
+ */
+/** How long before a draw a hostile Call - a disadvantage, a negative bonus - is armed to count whether the roll names it or not (the owner's Q3 (a), 05.10.2026), in ms. */
+export const HOSTILE_GRACE = 60_000;
+
+export const LEGAL_ROLL_MODIFIERS = Object.freeze([
+    { key: "hopeDie", kind: "faces", reader: "system.rules.dualityRoll.defaultHopeDice", bound: 12, label: "DRPG.Rolls.legal.hopeDie" },
+    { key: "fearDie", kind: "faces", reader: "system.rules.dualityRoll.defaultFearDice", bound: 12, label: "DRPG.Rolls.legal.fearDie" },
+    { key: "advantageDie", kind: "faces", reader: "system.rules.roll.advantageFaces", bound: 6, label: "DRPG.Rolls.legal.advantageDie" },
+    { key: "trait", kind: "flat", reader: "system.traits", bound: null, label: "DRPG.Rolls.legal.trait" },
+    { key: "experience", kind: "flat", reader: "system.experiences", bound: 1, label: "DRPG.Rolls.legal.experience" },
+    { key: "callBonus", kind: "flat", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.callBonus" },
+    { key: "effects", kind: "flat", reader: "appliedEffects", bound: null, label: "DRPG.Rolls.legal.effects" },
+    { key: "calls", kind: "dice", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.calls" },
+    { key: "hostile", kind: "dice", reader: "pendingCall", bound: HOSTILE_GRACE, label: "DRPG.Rolls.legal.hostile" },
+    { key: "breakdown", kind: "dice", reader: "system.resources.stress", bound: -1, label: "DRPG.Rolls.legal.breakdown" },
+    { key: "situation", kind: "dice", reader: "actionKey", bound: null, label: "DRPG.Rolls.legal.situation" },
+    { key: "loadedDie", kind: "face", reader: "pendingCall", bound: null, label: "DRPG.Rolls.legal.loadedDie" },
+    { key: "stashStep", kind: "after", reader: "vault", bound: null, label: "DRPG.Rolls.legal.stashStep" },
+    { key: "kind", kind: "kind", reader: "appliedEffects", bound: null, label: "DRPG.Rolls.legal.kind" }
+].map(row => Object.freeze(row)));
 
 /**
  * The playlist the GM's "put a track on now" control draws from.

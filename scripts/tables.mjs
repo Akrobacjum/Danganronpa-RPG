@@ -269,11 +269,12 @@ export const USABLE_GOALS = {
 /**
  * Which kind of usable an item of this name is, read off the tables.
  *
- * The world's Healing and Sanity Relief tables are the authority - they are
- * what the GM edits, so an item moved from one to the other changes what it
- * does the next time anybody drinks it, with no flag to chase. The built-in
- * pools only answer when no world table knows the name at all (a world where
- * the tables were never installed).
+ * The world's Healing and Sanity Relief tables are the authority on a name -
+ * they are what the GM edits. An item already made keeps the kind it was made
+ * with (its flag, which outranks this since E29 fix r2-H8: use-items.mjs
+ * `usableKindOf`), so a name moved from one table to the other changes the items
+ * made after it. The built-in pools only answer when no world table knows the
+ * name at all (a world where the tables were never installed).
  *
  * @returns {"healing"|"stress"|"both"|null} `"both"` when the name sits in
  *   tables of both kinds - genuinely ambiguous, the caller decides what that

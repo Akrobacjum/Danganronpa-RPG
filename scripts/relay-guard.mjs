@@ -43,8 +43,10 @@
  * WHAT IT DOES NOT DO. It narrows, it does not referee. Still taken as sent: a
  * player's Hope, Stress and Health on their own character, and the resources of
  * an actor that is not a student (companions included), each between 0 and its
- * maximum; their own items' charges (not below 0; the item's own maximum is a
- * formula this file does not evaluate) and quantities (whole, not below 0); a
+ * maximum - except that on their own student a gain stands only as far as the
+ * GMs' audit covers it (sheet-audit.mjs `relayGainRefusal`, E29 C4); their own
+ * items' charges (not below 0; the item's own maximum is a formula this file does
+ * not evaluate) and quantities (whole, not below 0; a module item's only lower); a
  * Fear step of one either way, never refused, only pointed out past
  * `FEAR_STEPS_NOTED`; a tick of one on any automated countdown that is not a
  * project, and any change between 0 and its start to a countdown the player
@@ -113,12 +115,18 @@ const status = {
 const originals = [];
 let wrapper = null;
 let backstopOn = false;
+/* The GMs' audit (sheet-audit.mjs), taken without a static import: it imports the GM stores,
+   which import this file, and the static graph has no cycle (R161). It is asked for at `init`; a
+   packet judged before it has loaded is judged as before C4 (`liveWorld`). */
+let sheetAudit = null;
 
 /* ==========================================================================
  * INSTALLING
  * ========================================================================== */
 
 export function registerRelayGuard() {
+    import("./sheet-audit.mjs").then(audit => { sheetAudit = audit; })
+        .catch(err => error("Could not load the GMs' audit the relay guard asks about a gain", err));
     ensureWrapped();
     Hooks.once("setup", ensureWrapped);
     Hooks.once("ready", () => {
@@ -392,8 +400,8 @@ function judgeDocument(data, sender, world) {
     const kind = doc.documentName;
     let why;
     if (kind === "Actor" && doc.type === "party") why = partyRefusal(doc, flat, sender, world);
-    else if (kind === "Actor") why = actorRefusal(doc, flat, sender);
-    else if (kind === "Item") why = itemRefusal(doc, flat, sender);
+    else if (kind === "Actor") why = actorRefusal(doc, flat, sender, world);
+    else if (kind === "Item") why = itemRefusal(doc, flat, sender, world);
     else if (kind === "Scene") why = sceneRefusal(doc, flat);
     else why = `a change to a ${kind}`;
     // A string is a shape Daggerheart does not send; `{ refused }` is one it does.
@@ -419,7 +427,7 @@ const RESOURCE_VALUE = /^system\.resources\.([\w-]+)\.value$/;
  * `takeDamage`, damageField.mjs). The game keeps it to the GM; nobody at the
  * table did anything wrong by asking.
  */
-function actorRefusal(doc, flat, sender) {
+function actorRefusal(doc, flat, sender, world = {}) {
     for (const [key, value] of Object.entries(flat)) {
         const match = RESOURCE_VALUE.exec(key);
         if (!match) return `"${key}" on ${doc.name}`;
@@ -433,11 +441,13 @@ function actorRefusal(doc, flat, sender) {
     if (doc.type === "character" && !doc.testUserPermission(sender, "OWNER")) {
         return { refused: `the resources of ${doc.name}, another student` };
     }
-    return null;
+    // E29 C4: on their own student, a gain is asked of the GMs' audit, as the player's own write is.
+    const gain = doc.type === "character" ? world.gainRefusal?.(doc, flat, sender) : null;
+    return gain ? { refused: gain } : null;
 }
 
 /** An item's own charges or count, on an item a character of the sender's holds. */
-function itemRefusal(doc, flat, sender) {
+function itemRefusal(doc, flat, sender, world = {}) {
     if (doc.parent?.documentName !== "Actor" || !doc.testUserPermission(sender, "OWNER")) {
         return `${doc.name}, an item the sender does not hold`;
     }
@@ -449,6 +459,14 @@ function itemRefusal(doc, flat, sender) {
         }
         if (key === "system.quantity") {
             if (!Number.isInteger(number) || number < 0) return `the quantity of ${doc.name} set to ${value}`;
+            // E29 C4: a module item's count only falls here; what adds one is the GM's. E29 fix r2-H21: it falls
+            // from the item as the GMs hold it too (sheet-audit.mjs `itemsHeldNow`), where a write of the sender's
+            // own moved the document.
+            const held = world.itemHeld?.(doc) ?? null;
+            const ours = Object.keys(doc._source?.flags?.[MODULE_ID] ?? {}).length || held?.getFlag(MODULE_ID, "category");
+            if (ours && number > Math.min(Number(doc.system?.quantity ?? 0), Number((held ?? doc).system?.quantity ?? 0))) {
+                return { refused: `more of ${doc.name}` };
+            }
             continue;
         }
         return `"${key}" on ${doc.name}`;
@@ -765,6 +783,9 @@ function liveWorld() {
         fearChangedAt: () => fearChangedAt,
         changedAt: id => changedAt.get(id) ?? 0,
         message: id => game.messages.get(id ?? "") ?? null,
+        gainRefusal: (doc, flat, sender) => sheetAudit?.relayGainRefusal(doc, flat, sender) ?? null,
+        // E29 fix r2-H21: an item as the GMs hold it, for the count `itemRefusal` lets fall.
+        itemHeld: doc => sheetAudit?.itemsHeldNow(doc.parent)?.find(item => item.id === doc.id) ?? null,
         tokenFor,
         now: () => Date.now()
     };

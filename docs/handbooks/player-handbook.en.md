@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.67, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.68, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -40,6 +40,8 @@ At character creation the spread is **+2, +1, +1, 0, 0, -1**, placed where you l
 | Experiences | 2, at +2 each | - |
 | Starting item | one Tier 2 item tied to your Ultimate, agreed with the GM | - |
 
+Your numbers move through play: an action spent, a roll, a Rest, an item used, a Call, a Level Up. The pips on your sheet, on the Party sheet and on your token are there to read, not to click (not yet checked at a table). A change made to your sheet by hand anyway is checked by the GM's browser: a statistic, a maximum or Hope that nothing in play covers is put back at once and you are told; Health, Sanity or actions go to the GMs, who decide. A change made while no GM is connected is checked when one returns.
+
 ### Two states you do not want
 
 | State | When | Effect |
@@ -58,7 +60,7 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die (both d
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you. That is where Monokuma's money comes from - your bad luck and your risks.
 - A **critical** earns 2 Hope and nothing else (it does not clear Sanity here, unlike plain Daggerheart).
 
-The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose. While a GM is connected, the dice of an action roll and of a statistic you click on your sheet are thrown by the GM's browser: they fall on your screen, in your colours, as your throw, and you read the result as before. What the window adds to the dice is compared with what the GM expected.
+The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose. While a GM is connected, the dice of an action roll and of a statistic you click on your sheet are thrown by the GM's browser: they fall on your screen, in your colours, as your throw, and you read the result as before. What is added to the dice is the GM's too: the GM's browser counts the statistic, the experiences, the bonuses and the advantage dice your action, your Calls and where you stand give, so the total on your card is the GM's. Anything the window put on beyond that is not counted, and a card of your own says what the GM counted and what it did not.
 
 **With no GM connected** an action waits: pressing it tells you that an action roll waits for a GM, and nothing is paid. Any other roll - a statistic from your sheet, a reaction - is still thrown, and its card says that it was thrown with no GM connected and that the GM will see it. It moves no Hope, Sanity or Despair until a GM, back at the table, grants it.
 
@@ -337,13 +339,13 @@ Hope is yours. You hold at most **6**. It comes back when rolls go your way (+1 
 | **Ultimate** | 1 | Advantage on a roll your Ultimate genuinely applies to. Waits for the GM the same way. |
 | **Contribution** | 2 | +1 progress to a project being worked on in the room you are in. |
 | **Sprint** | 2 | One more room crossing this time of day without paying an action for it. |
-| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. |
+| **Reroll** | 3 | Reroll your last action. It reverts the previous outcome - the trace, the item, the Sanity go with it. The old card stays, its total struck through and a line under its header with the old and the new total. Some things stand: a hand already in a pocket, a trail already planted, a trace the GM has written on or somebody has already found. A clean-up or an Analyze whose first attempt can no longer be taken back is refused, and nothing is spent. A crisis action that killed somebody cannot be rerolled: the death stands. The GM's browser makes the Reroll and takes the Hope; with no GM connected it is not made, and nothing is spent. If the roll is gone from the chat, it is refused and nothing is spent. A rolled-again roll counts what the GM counted the first time. |
 | **Resolve** | 3 | For one roll, choose which statistic to add yourself. |
 | **Burst** | 4 | Your next action costs nothing - the whole action, however many it would have cost. |
 | **Relief** | 4 | Take a Short Rest right now: no action, no marked room, and it does not use up this time of day's. |
 | **Loaded Die** | 6 | On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too. |
 
-A Call that affects a roll waits on your next roll and is spent the moment you throw. One armed on you after your roll window opened is not part of that roll: the window says so, and it waits for your next one. Sprint and Burst bank instead and last until the time of day ends.
+A Call that affects a roll - Support, Experience, Ultimate, Resolve, Loaded Die - is bought on the GM's browser, which takes the Hope: with no GM connected it cannot be bought, and nothing is spent (read in the code, not measured for a Call). It waits on your next roll and is spent the moment you throw. One armed on you after your roll window opened is not part of that roll: the window says so, and it waits for your next one - unless it hinders you (a disadvantage or a negative bonus) and was armed more than a minute before a roll the GM's browser throws, which counts it whether the window shows it or not. Sprint and Burst bank instead and last until the time of day ends.
 
 > [!IMPORTANT]
 > Nobody can spend Hope Calls during an Eclipse, while Silenced by Monokuma, or while the overflow's Silence darkens the time of day.
@@ -471,7 +473,7 @@ A Truth Bullet card shows:
 
 The pack can be grouped by Chapter or by Location. A Truth Bullet is the only thing you can present at a trial.
 
-You cannot rename or edit an item. What a thing is called is part of the evidence.
+Your sheet does not let you rename an item or change its picture or description: what a thing is called is part of the evidence. A change made anyway stays and is recorded for the GMs - except on a Truth Bullet, where the GM's browser puts it back.
 
 ### Reading the difficulty ladder
 

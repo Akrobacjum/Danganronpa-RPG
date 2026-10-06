@@ -16,19 +16,19 @@ import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING,
     LEVEL_UP, LEVEL_UP_OPTIONS, ACTIONS, DYNAMIC_THRESHOLDS
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, error, cardHead, esc } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc } from "./utils.mjs";
 import {
     firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll, guardShareSecret,
     guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
-    guardArmBuyerHope, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
+    guardArmBuyerHope, guardArmGmYes, noteCallYes, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
     guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
     playersOnly, canSeeProject, inRange, as, pick, judge, replyForMe, bridgeRequest, resendOnGmReady
 } from "./bridge-guards.mjs";
 // R148 and anything else that asked gm-bridge.mjs for it keep finding it here (E31).
 export { removalRefusal } from "./bridge-guards.mjs";
 
-import { contentOf, cardFlag } from "./secret.mjs";
+import { contentOf, cardFlag, cardWriter } from "./secret.mjs";
 import { gmStoresQuiet, whenGmStoresAudible } from "./gm-store.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
@@ -45,10 +45,14 @@ const ACTION_ECLIPSE_MOVE = "eclipse.move";
 const ACTION_ARM = "call.arm";
 const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
+/** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
+const ACTION_AUDIT_DECIDE = "audit.decide";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
 const ACTION_TRAIT_RULING = "trait.ruling";
 /** player -> GM: "may I spend this Call, and here is what for". */
 const ACTION_HOPE_CALL = "call.approve";
+/** GM -> primary GM: a GM's yes on that card, kept for the arm it allows (E29 fix r2-H4; `answerHopeCall`). */
+const ACTION_CALL_YES = "call.yes";
 const ACTION_OBSERVE_TARGET = "observe.target";
 const ACTION_OBSERVE_RESOLVE = "observe.resolve";
 const ACTION_CLEANUP_TRACES = "cleanup.traces";
@@ -489,10 +493,12 @@ function palmRolls(actor) {
 }
 
     // And into them. Same guards as the theft, mirrored - the sender has to own
-    // the character whose pocket the item is leaving.
+    // the character whose pocket the item is leaving. An item no GM has decided on
+    // is refused out loud (E29 fix r2-H21); every other refusal of a plant, a theft
+    // or a stash theft is the GM's log, as it was.
 async function handlePlant(payload, sender, ctx) {
     const { plantOnPerson } = await import("./vault.mjs");
-    await plantOnPerson({
+    const out = await plantOnPerson({
         plannerId: payload.plannerId,
         victimId: payload.victimId,
         itemId: payload.itemId,
@@ -501,6 +507,7 @@ async function handlePlant(payload, sender, ctx) {
         unseenTotal: payload.unseenTotal,
         unseenCritical: payload.unseenCritical
     });
+    if (out?.refused) return { refused: out.refused };
 }
 
     // Looking for a hiding place. The finder owns their own sheet and could
@@ -521,7 +528,7 @@ async function handleFindStash(payload, sender, ctx) {
     // arithmetic wrong, so it does none of it.
 async function handleSteal(payload, sender, ctx) {
     const { stealFromPerson } = await import("./vault.mjs");
-    await stealFromPerson({
+    const out = await stealFromPerson({
         thiefId: payload.thiefId,
         victimId: payload.victimId,
         itemId: payload.itemId,
@@ -530,13 +537,14 @@ async function handleSteal(payload, sender, ctx) {
         unseenTotal: payload.unseenTotal,
         unseenCritical: payload.unseenCritical
     });
+    if (out?.refused) return { refused: out.refused };
 }
 
     // Taking something out of somebody else's stash writes to two sheets, one of
     // which the thief has no business writing to.
 async function handleVaultSteal(payload, sender, ctx) {
     const { stealFromVault } = await import("./vault.mjs");
-    await stealFromVault({
+    const out = await stealFromVault({
         thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
         // Set only by the Search action, which pays for the concealment it is
         // beating. See the note in `stealFromVault`. Since E08+E28 C15 a packet
@@ -550,6 +558,7 @@ async function handleVaultSteal(payload, sender, ctx) {
         // word again (bridge-guards.mjs, "TWO PACKETS PASS WITH NO RECORD").
         clumsy: payload.clumsy
     });
+    if (out?.refused) return { refused: out.refused };
 }
 
 /*
@@ -566,8 +575,12 @@ async function handleVaultSteal(payload, sender, ctx) {
  */
 async function searchTheftOf(record) {
     const { searchTier } = await import("./action-rolls.mjs");
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
     const { hit } = searchTier(record, record.used?.stash?.change ?? 0);
     if (!hit && !record.isCritical) return { why: "that roll did not find the stash" };
+    // A Search ends in a find or in a stash's loot, never both (`performSearch`): a record a find
+    // already stood on (sheet-audit.mjs `searchFind`, the mark's `finds`) takes no theft (E29 fix r1-G8).
+    if (sheetMarkStore.get(record.actorId)?.finds?.[record.rollId]) return { why: "that roll has already settled that action" };
     return { fields: { viaSearch: true, clumsy: Boolean(record.withFear) && !record.isCritical } };
 }
 
@@ -789,6 +802,12 @@ async function handleHopeCall(payload, sender, ctx) {
     return askHopeCallByCard(payload, ctx);
 }
 
+/** The run of `call.yes` (E29 fix r2-H4): another GM's yes on a Call's card, kept and sent on by this primary. */
+async function handleCallYes(payload, sender) {
+    return yesOnPrimary(payload.rid, payload.asker)
+        ? { reply: true } : { refused: "nothing was carried out: the primary GM holds no ask of that Call under that request" };
+}
+
 async function handleDifficulty(payload, sender, ctx) {
     return askDynamicByCard(payload, ctx);
 }
@@ -971,7 +990,7 @@ async function traceBandOf(record) {
         const { sabotageHit, sabotageExtrasHeld } = await import("./action-rolls.mjs");
         const { rerollBookmarkStore } = await import("./gm-stores.mjs");
         const row = rerollBookmarkStore.get(record.actorId);
-        const hit = sabotageHit(record, sabotageExtrasHeld(record, row?.messageId === record.messageId ? row.claims : null));
+        const hit = sabotageHit(record, await sabotageExtrasHeld(record, row?.messageId === record.messageId ? row.claims : null));
         band = hit ? hit.remnant : ACTIONS.sabotage.failureRemnant;
     } else if (record.actionKey === "dynamic") {
         const ruled = DYNAMIC_THRESHOLDS[dynamicRulingOf(record)?.tier];
@@ -986,6 +1005,11 @@ async function traceBandOf(record) {
  * kept in a card's meta (messenger-app.mjs `ruleSetDifficulty`, `settleCall`) within a Reroll's
  * reach of the roll, as a GM's pick of a statistic is found (roll-draw.mjs `gmPickOf`), or null.
  * `record` needs `actorId` and `at`; the Reroll's replay reads it too (reroll.mjs `settleDynamic`).
+ * A card counts only where a GM wrote it (secret.mjs `cardWriter`; E29 fix r2-H2, 05.10.2026, the
+ * round-2 security review's B2): until then any card's `ruling` was read, the document's flag
+ * first - at a4a7f25's runtime a card a player's browser posted after a GM's was the difficulty
+ * read (tier 2 and 30-security, e29run/r2h2red), and with it, by reading, the band of that
+ * character's trace and of its Reroll.
  */
 export function dynamicRulingOf(record) {
     const since = (record.at ?? 0) - TIMING.rerollWindowMinutes * 60_000;
@@ -994,7 +1018,7 @@ export function dynamicRulingOf(record) {
         const message = messages[i];
         if (typeof message.timestamp === "number" && message.timestamp < since) break;
         const ruling = cardFlag(message, "ruling");
-        if (ruling?.type === "dynamic" && ruling.actorId === record.actorId) return ruling;
+        if (ruling?.type === "dynamic" && ruling.actorId === record.actorId && cardWriter(message)?.isGM) return ruling;
     }
     return null;
 }
@@ -1016,13 +1040,13 @@ export function dynamicRulingOf(record) {
  */
 async function progressOf(record, payload) {
     const { projectProgress, projectExtrasHeld } = await import("./action-rolls.mjs");
-    const { progress } = projectProgress(record, projectExtrasHeld(record, { relief: payload.relief, bonus: payload.bonus }, payload.countdownId));
+    const { progress } = projectProgress(record, await projectExtrasHeld(record, { relief: payload.relief, bonus: payload.bonus }, payload.countdownId));
     return progress > 0 ? { fields: { amount: progress } } : { why: "that roll earned no progress" };
 }
 
 async function repairOf(record, payload) {
     const { sabotageHit, sabotageRepairScale, sabotageExtrasHeld } = await import("./action-rolls.mjs");
-    const { penalty, relief } = sabotageExtrasHeld(record, { penalty: payload.penalty, relief: payload.relief });
+    const { penalty, relief } = await sabotageExtrasHeld(record, { penalty: payload.penalty, relief: payload.relief });
     const hit = sabotageHit(record, { penalty, relief });
     return { fields: { difficulty: hit ? sabotageRepairScale(record, (Number(record.total) || 0) + penalty, relief) : 0 } };
 }
@@ -1132,15 +1156,17 @@ async function handleLoot(payload, sender, ctx) {
     // being a Truth Bullet - `lootBody` checks itself, because the GM's own
     // button goes through the same door. It answers null when it took nothing,
     // with its reason on the GM's console; the asker is told only that nothing
-    // was carried out, whichever reason it was (E31 review).
+    // was carried out, whichever reason it was (E31 review) - but for an item no
+    // GM has decided on, which it answers with its reason (E29 fix r2-H21).
     const taken = await lootBody({
         takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId, askedBy: sender.isGM ? null : sender.id
     });
+    if (taken?.refused) return { refused: taken.refused };
     if (!taken) return { refused: "nothing was carried out: lootBody took nothing" };
 }
 
 async function handleArm(payload, sender, ctx, prepared) {
-    // What a player may arm on somebody else, and who pays - see `guardArmPlayerCall`.
+    // What a player may arm on somebody else or on their own character (E29 C8), and who pays - see `guardArmPlayerCall`.
     // The beneficiary was read once, in the declaration's `prepare` - before any
     // guard imports - and is handed down, so a character deleted in between fails
     // the write (and the player's Hope goes back) instead of being re-read as nobody.
@@ -1154,8 +1180,8 @@ async function handleArm(payload, sender, ctx, prepared) {
     const call = HOPE_CALLS[payload.call.key] ?? DESPAIR_CALLS[payload.call.key];
     const kind = HOPE_CALLS[payload.call.key] ? "hope" : "despair";
 
-    // Appended, not written over: Calls stack (CALL-02).
-    await appendArmedCall(actor, armedEntry(payload.call, call, kind));
+    // Appended, not written over: Calls stack (CALL-02). Armed on that GM's word (E29 fix r2-H7, `by`).
+    await appendArmedCall(actor, armedEntry(payload.call, call, kind), { by: sender });
     debug(`Armed ${payload.call.key} on ${actor.name} on behalf of ${sender.name}.`);
     void tellBeneficiary(actor, kind, call.grants);
     return { reply: { ok: true, left: null } };
@@ -1198,10 +1224,12 @@ async function tellBeneficiary(actor, kind, grants) {
 }
 
 /**
- * A player's Support on somebody else's character: checked, charged and armed on
- * this side, in that order, and refunded if the arming itself fails. Asks its own
- * guards (the declaration's `runGuards`): the player's road has checks the GM's
- * does not, and the replayed purchase below answers "armed" between them.
+ * A player's Call - a Support on somebody else's character, or since E29 C8 a Call on
+ * their own: checked, charged and armed on this side, in that order, and refunded if
+ * the arming itself fails. Asks its own guards (the declaration's `runGuards`): the
+ * player's road has checks the GM's does not, and the replayed purchase below answers
+ * "armed" between them. The buyer is told by the answer; only somebody else is
+ * whispered to.
  */
 async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     const who = await firstRefusal(sender, payload, ctx, guardArmBuyer, guardArmOtherCharacter);
@@ -1214,30 +1242,35 @@ async function armPaidByPlayer(actor, sender, payload, ctx, prepared) {
     // Not a guard, and asked before the three below: it answers "armed" rather
     // than refusing, and a purchase already paid for can fail the Hope check it
     // passed the first time.
-    const { appendArmedCall, pendingCalls, hopeHeld, automatedUpdate, HOPE_REFUND } = prepared;
+    const { appendArmedCall, pendingCalls, gmMeansWrite, trustedWrite } = prepared;
     const nonce = String(payload.call.nonce ?? "").slice(0, 32);
     if (nonce && pendingCalls(actor).some(entry => entry.nonce === nonce)) return { reply: { ok: true, left: null } };
 
-    // `hopeHeld` came before the guards (`prepare`), so the Hope read below follows
-    // the guard's own read with nothing awaited in between but the guards themselves.
     // `guardArmLiving` is asked after every refusal a living beneficiary would get as
-    // well (E05 fix r2-G3): see its note.
-    const why = await firstRefusal(sender, payload, ctx, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmLiving);
+    // well (E05 fix r2-G3): see its note. A Call that waits for the GM's yes takes the one
+    // the primary kept for it just before (E29 fix r2-H4): see `guardArmGmYes`.
+    const why = await firstRefusal(sender, payload, ctx, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmGmYes, guardArmLiving);
     if (why) return { refused: why };
-    const held = hopeHeld(buyer);
-
-    await automatedUpdate(buyer, { "system.resources.hope.value": held - call.cost });
+    // Paid from the Hope the GMs hold, in the buyer's audit queue (sheet-audit.mjs `gmMeansWrite`,
+    // E29 fix r1-G5): a forged Hope that landed while the guards ran is judged before this write or
+    // after it, never under it - so `guardArmBuyerHope`'s question is asked again here, of that value.
+    const paid = await gmMeansWrite(buyer, async ({ hope }) => {
+        if (hope < call.cost) return { held: hope, left: null };
+        await trustedWrite(buyer, { "system.resources.hope.value": hope - call.cost }, { reason: "call" });
+        return { held: hope, left: hope - call.cost };
+    });
+    if (paid.left === null) return { refused: `the buyer holds ${paid.held} Hope, the Call costs ${call.cost}` };
     try {
-        await appendArmedCall(actor, armedEntry(payload.call, call, "hope"));
+        // The player's own purchase: armed on their word, so it carries no GM's `by` (E29 fix r2-H7).
+        await appendArmedCall(actor, armedEntry(payload.call, call, "hope"), { by: sender });
     } catch (err) {
         error(`Could not arm ${payload.call.key} on ${actor.name}; the Hope goes back`, err);
-        const now = hopeHeld(buyer);
-        await automatedUpdate(buyer, { "system.resources.hope.value": now + call.cost }, { [HOPE_REFUND]: true });
+        await gmMeansWrite(buyer, ({ hope }) => trustedWrite(buyer, { "system.resources.hope.value": hope + call.cost }, { reason: "refund" }));
         return { refused: "the Call could not be armed" };
     }
     debug(`Armed ${payload.call.key} on ${actor.name}, paid by ${buyer.name} on this side.`);
-    void tellBeneficiary(actor, "hope", call.grants);
-    return { reply: { ok: true, left: held - call.cost } };
+    if (buyer.id !== actor.id) void tellBeneficiary(actor, "hope", call.grants);
+    return { reply: { ok: true, left: paid.left } };
 }
 
 async function handleDespair(payload, sender, ctx) {
@@ -1301,6 +1334,12 @@ async function handleReroll(payload, sender) {
     const out = await rerollOnGm(game.actors.get(payload.actorId), sender);
     if (out?.refused) return { refused: out.refused };
     return { reply: { lines: out?.lines ?? [] } };
+}
+
+/** The run of `audit.decide` (E29 C5): the primary's own decision (sheet-audit.mjs `decideWrite`), recorded as the asking GM's. */
+async function handleAuditDecide(payload, sender) {
+    const { decideWrite } = await import("./sheet-audit.mjs");
+    return { reply: await decideWrite(payload.rowId, payload.keep, sender.id) };
 }
 
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
@@ -1555,10 +1594,27 @@ export const BRIDGE_ACTIONS = table({
         label: "DRPG.Bridge.what.call.approve",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
         // `cost` and `actorName` are sent and never read: the price comes from HOPE_CALLS
-        // here, the name from the character (E02; E31).
-        sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text }),
+        // here, the name from the character (E02; E31). `nonce` names the purchase a GM's
+        // yes is kept for (E29 fix r2-H4; `yesOnPrimary`).
+        sanitize: pick({ actorId: as.id, key: as.text, callLabel: as.text, effect: as.text, note: as.text, nonce: as.text }),
         run: handleHopeCall,
         answer: "reply", patient: true, resend: true, timeoutMs: TIMING.hopeCallRulingMs
+    },
+    /*
+     * A GM'S YES IS KEPT ON THE PRIMARY (E29 fix r2-H4, 05.10.2026; the round-2 reviews' sec M4
+     * and cor M1). Any GM answers the card, and the primary judges the arm the yes allows
+     * (bridge-guards.mjs `guardArmGmYes`), so the yes goes by the primary: it is kept there and
+     * sent on to the player from there, before the player's browser can ask to arm. Another GM's
+     * yes asks the primary here, the shape `audit.decide` has. A GM's alone: a player's yes to
+     * their own ask is the hole this closes.
+     */
+    [ACTION_CALL_YES]: {
+        label: "DRPG.Bridge.what.call.yes",
+        guards: [gmOnly("only a GM says yes to a Call")],
+        sanitize: pick({ rid: as.text, asker: as.id }),
+        run: handleCallYes,
+        answer: "reply",
+        claims: { asker: "yesOnPrimary (gm-bridge.mjs) keeps a yes only for an ask this primary holds under that request, made by that user" }
     },
     [ACTION_DIFFICULTY]: {
         label: "DRPG.Bridge.what.dynamic.difficulty",
@@ -1776,17 +1832,22 @@ export const BRIDGE_ACTIONS = table({
         ],
         // The player's road asks these itself, around a replayed purchase that is
         // answered rather than refused (`armPaidByPlayer`); `guardArmLiving` last of all.
-        runGuards: [guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmLiving],
+        runGuards: [guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed, guardArmNotHeld, guardArmBuyerHope, guardArmGmYes, guardArmLiving],
         // The beneficiary read once, and every import the two roads make, before
-        // the guards - never later than the handler made them.
+        // the guards - never later than the handler made them. And the buyer's and
+        // the beneficiary's writes this GM has heard judged first (E29 C8): the
+        // guards read the Hope and the armed list the GMs hold, not a forged value
+        // the audit has not put back yet (sheet-audit.mjs `judgedFor`) - and the
+        // purchase asks the Hope again where it pays, of the GMs' value (fix r1-G5).
         prepare: async payload => {
             const effects = await import("./call-effects.mjs");
-            const calls = await import("./calls.mjs");
             const guard = await import("./resource-guard.mjs");
+            const audit = await import("./sheet-audit.mjs");
+            await audit.judgedFor(payload?.actorId, payload?.call?.from);
             return {
                 actor: game.actors.get(payload?.actorId ?? ""),
                 appendArmedCall: effects.appendArmedCall, pendingCalls: effects.pendingCalls,
-                hopeHeld: calls.hopeHeld, automatedUpdate: guard.automatedUpdate, HOPE_REFUND: guard.HOPE_REFUND
+                gmMeansWrite: audit.gmMeansWrite, trustedWrite: guard.trustedWrite
             };
         },
         sanitize: pick({ actorId: as.id, call: as.raw }),
@@ -1850,6 +1911,14 @@ export const BRIDGE_ACTIONS = table({
     [ACTION_REROLL]: {
         label: "DRPG.Bridge.what.reroll.ask",
         guards: [knownSender, owns("actorId", "sender does not own that character")],
+        // The character's writes this GM has heard judged first (E29 fix r2-H5), as `call.arm`'s are:
+        // the Reroll's checks read the Hope the GMs hold, and its payment asks it again where it pays
+        // (reroll.mjs `rerollRefusal`, `makeReroll`).
+        prepare: async payload => {
+            const { judgedFor } = await import("./sheet-audit.mjs");
+            await judgedFor(payload?.actorId);
+            return null;
+        },
         sanitize: pick({ actorId: as.id }),
         run: handleReroll,
         answer: "reply"
@@ -1862,6 +1931,21 @@ export const BRIDGE_ACTIONS = table({
      * of this world, and it weighs what a player's words may. Not resent to a GM who reloads: a
      * card posted before the reload would be posted twice.
      */
+    /*
+     * UNDO OR KEEP, DECIDED ON THE PRIMARY GM (E29 C5, 05.10.2026; the plan's 2.9). A player's
+     * write the GMs' audit flagged is decided once: another GM's click on the card asks the
+     * primary (sheet-audit.mjs `askToDecideWrite`), whose decisions run one after another and
+     * mark the row decided before they write - the shape `roll.grant` (private-rolls.mjs) gives
+     * Grant all. A GM's alone: a player has nothing to decide.
+     */
+    [ACTION_AUDIT_DECIDE]: {
+        label: "DRPG.Bridge.what.audit.decide",
+        guards: [gmOnly("only a GM decides a write flagged to the GMs")],
+        sanitize: pick({ rowId: as.id, keep: as.bool }),
+        run: handleAuditDecide,
+        answer: "reply",
+        claims: { rowId: "decideWrite (sheet-audit.mjs) decides only a row the GMs flagged and nobody has decided, once, on the primary" }
+    },
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",
         guards: [knownSender, guardCardSpeaker, guardCardReaders],
@@ -2116,9 +2200,21 @@ export function requestRemnantEdit(sceneId, tokenId, patch) {
  */
 const askedByCard = new Set();
 
+/**
+ * The Calls' asks this primary put on a card, by request (E29 fix r2-H4): who asked, for which
+ * character, which Call and which purchase - what a GM's yes is kept for (`yesOnPrimary`), read
+ * from the ask as it arrived and never from the card's buttons. The oldest go first.
+ */
+const callAsks = new Map();
+const CALL_ASKS_KEPT = 100;
+
 async function askHopeCallByCard(payload, ctx) {
     if (!ctx.requestId || askedByCard.has(ctx.requestId)) return { later: true };
     askedByCard.add(ctx.requestId);
+    callAsks.set(ctx.requestId, {
+        userId: ctx.asker, actorId: payload.actorId ?? "", key: payload.key ?? "", nonce: payload.nonce ?? ""
+    });
+    while (callAsks.size > CALL_ASKS_KEPT) callAsks.delete(callAsks.keys().next().value);
     const actor = game.actors.get(payload.actorId ?? "");
     const data = { rid: ctx.requestId, asker: ctx.asker, by: payload.actorId ?? "" };
     /*
@@ -2214,14 +2310,41 @@ export function answerTraitRuling(requestId, asker, trait) {
 }
 
 /**
- * A GM's answer to a Hope Call card, sent to the player who asked: the request's
- * `bridge.done`, `true` to allow and `false` to refuse. Returns true once sent,
- * as it always did (40-flow reads it).
+ * A GM's answer to a Hope Call card, for the player who asked: the request's `bridge.done`,
+ * `true` to allow and `false` to refuse. A no is sent from here; a yes goes by the primary
+ * (`call.yes`), which keeps it for the arm it allows and sends it on (E29 fix r2-H4). Answers
+ * true once sent (40-flow and 33-bridge-paths read it), false when the primary kept no yes -
+ * the card stays open.
  */
-export function answerHopeCall(requestId, asker, verdict) {
+export async function answerHopeCall(requestId, asker, verdict) {
     if (!game.user.isGM || !requestId || !asker) return false;
+    if (verdict) {
+        const res = await ask(ACTION_CALL_YES, { rid: requestId, asker }, {
+            onPrimary: true, local: () => yesOnPrimary(requestId, asker) });
+        return res.ok && res.value === true;
+    }
     game.socket.emit(SOCKET_EVENT, {
-        action: ACTION_DONE, requestId, userId: asker, value: Boolean(verdict)
+        action: ACTION_DONE, requestId, userId: asker, value: false
+    }, { recipients: [asker] });
+    return true;
+}
+
+/**
+ * A GM's yes to a Call's ask, on the primary (E29 fix r2-H4): kept for the ask this primary holds
+ * under that request (bridge-guards.mjs `noteCallYes`), then sent to the player who asked, once.
+ * False for an ask it does not hold - one already answered yes, or one a primary that has gone put
+ * up (the player's browser gives up on it at its clock and nothing is spent; it asks again).
+ */
+function yesOnPrimary(requestId, asker) {
+    const asked = callAsks.get(requestId ?? "");
+    if (!asked || asked.userId !== asker) {
+        warn(`A GM's yes to a Call was not kept: this primary GM holds no ask of ${game.users.get(asker ?? "")?.name ?? asker} under that request.`);
+        return false;
+    }
+    callAsks.delete(requestId);
+    noteCallYes(asked);
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_DONE, requestId, userId: asker, value: true
     }, { recipients: [asker] });
     return true;
 }
@@ -2242,13 +2365,15 @@ export function answerDynamic(requestId, asker, ruling) {
  * a question only a person can answer, so the clock is generous, there is no
  * clock for the "got it" (`patient`), and the question is asked again when a
  * GM's world has loaded. Nothing is charged on this side - see `spendHopeCall`,
- * which pays only against a yes - so a failure says "Nothing was spent."
+ * which pays only against a yes - so a failure says "Nothing was spent." `nonce`
+ * names the purchase: the primary keeps a GM's yes for it, and the arm that follows
+ * names it again (E29 fix r2-H4; bridge-guards.mjs `guardArmGmYes`).
  *
  * @returns {Promise<object>} the bridge's result; `value` true to allow, false to refuse.
  */
 export function requestHopeCallApproval(
-    { actorId, actorName, key, callLabel, effect, cost, note }, timeoutMs = TIMING.hopeCallRulingMs) {
-    return ask(ACTION_HOPE_CALL, { actorId, actorName, key, callLabel, effect, cost, note }, { timeoutMs, nothingSpent: true });
+    { actorId, actorName, key, callLabel, effect, cost, note, nonce }, timeoutMs = TIMING.hopeCallRulingMs) {
+    return ask(ACTION_HOPE_CALL, { actorId, actorName, key, callLabel, effect, cost, note, nonce }, { timeoutMs, nothingSpent: true });
 }
 
 /**
@@ -2372,7 +2497,7 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
 /**
  * A player's Level Up picks, sent to the GM who offered it (N-2, Dawid 20.09).
  *
- * `applyAdvancement` writes through `automatedUpdate`, which bypasses the resource
+ * `applyAdvancement` writes through `trustedWrite`, which bypasses the resource
  * guard on purpose - so it is GM-only, and it has to stay that way. The player
  * picks; the GM's client checks the offer again and writes.
  */

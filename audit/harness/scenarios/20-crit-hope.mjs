@@ -1,7 +1,7 @@
 /** Measure end-to-end Hope delta on a critical (action roll): +2 or +3? */
 export const layers = ["ci"];
 
-export async function run({ gm, check, phase, settle, repoUrl }) {
+export async function run({ gm, p1, check, phase, settle, repoUrl, IDS }) {
     phase("a critical and a Hope roll", { flow: "private-rolls" });
     const out = await gm.eval(`
         const actor = game.actors.getName("Chie Mori");
@@ -94,4 +94,47 @@ export async function run({ gm, check, phase, settle, repoUrl }) {
     check("gm: a Reroll into a critical pays the second Hope only with the players' Hope and Fear automation on",
         rerolled.off?.message && rerolled.on?.message && rerolled.off.made && rerolled.on.made && rerolled.off.moved === -3 && rerolled.on.moved === -2,
         JSON.stringify(rerolled), { flow: "reroll" });
+
+    /* A PLAYER'S OWN DAGGERHEART ROLL, THROUGH THE RELAY (E29 C4, 05.10.2026; the plan's 2.5, 2.7). A roll the GM
+       does not draw - Daggerheart's own build on a player's browser - posts its card and then asks the GM's relay
+       for its Hope (actor.mjs `modifyResource`). p1 posts Aiko's duality card with Hope, as Daggerheart writes it,
+       and asks for +1; asks for +1 again with no new roll; then posts a critical and asks for its Hope (CRITICAL,
+       config.mjs: 2). Read on the GM: Aiko's Hope after each, and the refusals p1 was told (code `relay`). Before
+       C4 the second +1 landed as well. */
+    phase("a player's own roll's Hope through the relay", { flow: "sheet-audit" });
+    const SOCKET = "module.danganronpa-rpg";
+    const hopeWas = await gm.eval(`const a = game.actors.get("${IDS.aiko}"); const was = { value: a.system.resources.hope.value, max: a.system.resources.hope.max };
+        await a.update({ "system.resources.hope.value": 2, "system.resources.hope.max": 12 }); return was;`);
+    const card = (hope, fear) => `const a = game.actors.get("${IDS.aiko}");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: ${hope + fear}, evaluated: true, dHope: { total: ${hope} }, dFear: { total: ${fear} },
+            dice: [{ faces: 12, total: ${hope}, results: [{ result: ${hope}, active: true }] }, { faces: 12, total: ${fear}, results: [{ result: ${fear}, active: true }] }],
+            options: { actionType: "action" } };
+        const m = await ChatMessage.create({ author: game.user.id, speaker: ChatMessage.getSpeaker({ actor: a }), content: '<div class="dice-roll">Duality</div>',
+            rolls: [roll], system: { roll } });
+        globalThis.__c4Cards.push(m.id);`;
+    const ask = n => `await game.actors.get("${IDS.aiko}").modifyResource([{ key: "hope", value: ${n} }]);`;
+    const hopeOnGm = `return game.actors.get("${IDS.aiko}").system.resources.hope.value;`;
+    const relayRead = [];
+    try {
+        await settle(400);
+        await p1.eval(`globalThis.__c4Cards = []; globalThis.__c4Told = [];
+            game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused") globalThis.__c4Told.push(payload.reason); });
+            ${card(9, 4)} ${ask(1)} return true;`);
+        await settle(1500);
+        relayRead.push(await gm.eval(hopeOnGm));
+        await p1.eval(`${ask(1)} return true;`);
+        await settle(1500);
+        relayRead.push(await gm.eval(hopeOnGm));
+        await p1.eval(`${card(7, 7)} ${ask(2)} return true;`);
+        await settle(1500);
+        relayRead.push(await gm.eval(hopeOnGm));
+        relayRead.push(await p1.eval(`return globalThis.__c4Told.slice();`));
+    } finally {
+        await p1.eval(`for (const id of globalThis.__c4Cards ?? []) await game.messages.get(id)?.delete(); return true;`);
+        await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": ${hopeWas.value}, "system.resources.hope.max": ${hopeWas.max} });
+            return true;`);
+    }
+    check("p1: a Daggerheart roll with Hope covers its one Hope through the relay once, a second ask with no roll is refused and told, and a critical covers its two",
+        JSON.stringify(relayRead) === JSON.stringify([3, 3, 5, ["relay"]]), JSON.stringify({ hopeWas, relayRead }), { flow: "sheet-audit" });
 }

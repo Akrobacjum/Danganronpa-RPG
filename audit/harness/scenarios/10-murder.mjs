@@ -20,6 +20,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         botan: game.actors.getName("Botan Kage").id
     };`);
 
+    /* What p1's own hooks receive of every write on Chie and Daichi and on their items, from the
+       opening to the body's discovery (E29 fix r1-G7: read after the discovery, below). */
+    await p1.eval(`const watched = new Set(["${ids.chie}", "${ids.daichi}"]), seen = globalThis.__g7Seen = [];
+        const row = (kind, actor, options, userId) => ({ kind, actor: actor?.id ?? null, user: userId ?? null,
+            module: options?.drpgAutomated === true, stamp: options?.drpgWrite ?? null });
+        globalThis.__g7Hooks = [
+            ["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (watched.has(d.id)) seen.push(row("updateActor", d, o, u)); })],
+            ["updateItem", Hooks.on("updateItem", (d, c, o, u) => { if (watched.has(d.parent?.id)) seen.push(row("updateItem", d.parent, o, u)); })],
+            ["createItem", Hooks.on("createItem", (d, o, u) => { if (watched.has(d.parent?.id)) seen.push(row("createItem", d.parent, o, u)); })],
+            ["deleteItem", Hooks.on("deleteItem", (d, o, u) => { if (watched.has(d.parent?.id)) seen.push(row("deleteItem", d.parent, o, u)); })]];
+        return true;`);
+
     // -- 1. opening the murder ------------------------------------------------
     phase("opening", { flow: "murder-incident" });
     const open = await gm.eval(`
@@ -190,11 +202,11 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         while (Cl.cleanupBlocker(game.actors.get("${ids.chie}")) !== null && Date.now() < end) await new Promise(r => setTimeout(r, 100));
         return Cl.cleanupBlocker(game.actors.get("${ids.chie}"));`, { timeout: 30000 });
     const sixSet = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const chie = game.actors.get("${ids.chie}"), floor = canvas.scene, at = floor.tokens.find(t => t.actorId === chie.id);
         const was = { stress: chie.system.resources.stress.value, hope: chie.system.resources.hope.value };
         await chie.update({ "system.resources.stress.value": 0 });
-        await automatedUpdate(chie, { "system.resources.hope.value": Math.max(3, was.hope) });
+        await trustedWrite(chie, { "system.resources.hope.value": Math.max(3, was.hope) }, { reason: "gmRuling" });
         const trace = await R.placeRemnant({ type: "incident", visibility: "evident", x: at.x, y: at.y, scene: floor, note: "E08 C17 10 a trace Chie's player scrubs" });
         return { was, id: trace?.id ?? null, scene: floor.id };`, { timeout: 60000 });
     const sixThrown = await p3.eval(`const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
@@ -228,12 +240,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const sixAfter = await gm.eval(SIX_READ);
     await gm.eval(`const m = game.messages.get(${JSON.stringify(sixThrown.messageId ?? "none")}); if (m) delete m.rolls;
         const R = await import("${repoUrl}/scripts/remnants.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const chie = game.actors.get("${ids.chie}");
         const t = game.scenes.get(${JSON.stringify(sixSet.scene)})?.tokens.get(${JSON.stringify(sixSet.id ?? "none")});
         if (t) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
         await chie.update({ "system.resources.stress.value": ${Number(sixSet.was?.stress) || 0} });
-        await automatedUpdate(chie, { "system.resources.hope.value": ${Number(sixSet.was?.hope) || 0} });
+        await trustedWrite(chie, { "system.resources.hope.value": ${Number(sixSet.was?.hope) || 0} }, { reason: "gmRuling" });
         return true;`, { timeout: 60000 });
     check("p3: Chie's Stage 6 erase, thrown on her player's browser, is scored on the GMs' record of its roll, and its Reroll erases again and keeps the draw as the record's first version",
         sixCast === null && Boolean(sixSet.id) && sixThrown.rolled === true && Boolean(sixThrown.messageId) && sixFirst.stands === false
@@ -277,6 +289,38 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("gm: the discovery breaks the gloves the killer scrubbed with and put away, and takes their row",
         gloves.placed && gloves.written && glovesAfter.broken === true && glovesAfter.row === false, JSON.stringify({ gloves, glovesAfter }));
 
+    /*
+     * WHAT A BYSTANDER'S BROWSER READS OF THE INCIDENT'S WRITES (E29 fix r1-G7, 05.10.2026; the
+     * round-1 security review's M2). p1 plays Aiko, who is in no part of the incident; its hooks
+     * kept every write on Chie and Daichi from the opening on (above) with the options they
+     * arrived with - the harness forwards them, and whether a real Foundry does is LIVE-E29-01.
+     * The module's writes the GM made - on Chie's sheet through the clean-up, its Reroll and the
+     * Stage 6 erase, on the gloves the discovery broke, and whatever the blow wrote on Daichi -
+     * name no reason: nothing judges a GM's write, and only the GMs' audit's own put-back and Undo
+     * would name theirs. Chie's player's writes from her own browser (the Stage 6 erase) name only
+     * a reason the GMs' audit reads off a player's write (resource-guard.mjs `stampOf`). What is
+     * required to have been seen is what lands on every run: nine such writes on Chie's sheet and
+     * one on her gloves, measured 05.10 on three runs. The blow's writes on Daichi do not land on
+     * every run - none on three of six runs of this file that day, some on the other three - so
+     * they are read where they land and not required. Red before the fix (C8's runtime, 05.10):
+     * p1 read `concealment` four times and `reroll` three times on Chie's sheet, `incident` on her
+     * gloves, and on that run `incident` three times on Daichi's.
+     */
+    const heard = await p1.eval(`for (const [name, id] of globalThis.__g7Hooks ?? []) Hooks.off(name, id);
+        const seen = globalThis.__g7Seen ?? []; delete globalThis.__g7Seen; delete globalThis.__g7Hooks; return seen;`);
+    {
+        const JUDGED = ["spend", "refund", "price", "call", "rest", "itemUse", "stash", "retrieve", "discard", "searchFind"];
+        const byGm = heard.filter(w => w.user === gm.userId), byPlayers = heard.filter(w => w.user !== gm.userId);
+        const gmNamed = byGm.filter(w => w.stamp !== null && !["auditPutBack", "auditUndo"].includes(w.stamp?.reason));
+        const playersNamed = byPlayers.filter(w => w.stamp !== null && !JUDGED.includes(w.stamp?.reason));
+        const moduleWrites = (actor, kind) => byGm.filter(w => w.module && w.actor === actor && w.kind === kind).length;
+        check("p1, a bystander: the incident's and the clean-up's writes the GM made on Chie and Daichi name no reason, and her player's name only one the GMs' audit reads",
+            moduleWrites(ids.chie, "updateActor") > 0 && moduleWrites(ids.chie, "updateItem") > 0 && gmNamed.length === 0 && playersNamed.length === 0,
+            JSON.stringify({ chie: [moduleWrites(ids.chie, "updateActor"), moduleWrites(ids.chie, "updateItem")], daichi: moduleWrites(ids.daichi, "updateActor"),
+                players: byPlayers.length, gmNamed, playersNamed }).slice(0, 1500),
+            { flow: "murder-incident" });
+    }
+
     // -- 5. traces: place a Remnant, observe it into a Truth Bullet ----------
     phase("traces", { flow: "trace-remnant" });
     /* WHAT THE TRACE SAYS IS A MARKER (E30, 24.09.2026). It was `label: "Bloodied
@@ -308,6 +352,55 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const truthStr = JSON.stringify(truthLeak.flags ?? {});
     check("p2: remnant truth NOT in token flags", !truthStr.includes(secret.note) && !truthStr.includes(secret.subject), truthStr.slice(0, 300));
     await canary.scan({ phase: "traces" });
+
+    // -- 5b. a knife on a student's sheet, from its player's console ----------
+    /*
+     * A BROKEN KNIFE, MENDED AND THROWN AWAY BY HAND (E29 C6, 05.10.2026; audit S08-57; the plan's 2.6).
+     * The GM gives Aiko a broken, bloodied knife. p1's console unsets `broken`: the GMs put it back, and the
+     * knife is broken again on every client that holds it. Then p1's console deletes it - no discard, no
+     * roll, no trace: the GMs get one card, and their Undo makes it again under its id with its flags. Before
+     * C6 the knife stayed mended, and once deleted it was gone.
+     */
+    phase("a knife mended and thrown away from a console", { flow: "sheet-audit" });
+    const knifeSet = await gm.eval(`const [k] = await game.actors.get("${ids.aiko}").createEmbeddedDocuments("Item", [{ name: "E29 C6 10 bloodied knife",
+            type: "loot", system: { quantity: 1 }, flags: { "${MOD}": { category: "crimeTool", tier: 2, drpgItemId: "E29C6BLOODKNIFE1", broken: { at: Date.now() } } } }],
+            { drpgIgnoreCarryLimit: true });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { id: k?.id ?? null, from: Date.now() };`, { timeout: 30000 });
+    const readKnife = `const k = game.actors.get("${ids.aiko}")?.items.get("${knifeSet.id}");
+        return k ? { broken: Boolean(k.getFlag("${MOD}", "broken")), identity: k.getFlag("${MOD}", "drpgItemId") ?? null, category: k.getFlag("${MOD}", "category") ?? null } : null;`;
+    const knifeRows = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"); const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const rows = verdict => Object.entries(S.sheetWriteStore?.entries?.() ?? {}).filter(([, r]) => r?.itemId === "${knifeSet.id}" && r.verdict === verdict && r.at >= ${knifeSet.from});
+        const until = async (test, ms = 8000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+    let knife = null;
+    try {
+        await p1.eval(`await game.actors.get("${ids.aiko}").items.get("${knifeSet.id}")?.unsetFlag("${MOD}", "broken"); return true;`);
+        const mended = await gm.eval(`${knifeRows} await until(() => rows("putBack").length > 0); await A.sheetAuditIdle();
+            return { rows: rows("putBack").length };`, { timeout: 30000 });
+        await settle(800);
+        const mendedOn = await Promise.all([gm, p1, p2, p3].map(c => c.eval(readKnife)));
+        await p1.eval(`await game.actors.get("${ids.aiko}").items.get("${knifeSet.id}")?.delete(); return true;`);
+        const asked = await gm.eval(`${knifeRows} await until(() => rows("flagged").length > 0); await A.sheetAuditIdle();
+            const [id, row] = rows("flagged")[0] ?? [];
+            const gone = !game.actors.get("${ids.aiko}").items.has("${knifeSet.id}"), card = Boolean(game.messages.get(row?.messageId ?? ""));
+            const decided = id ? await A.askToDecideWrite(id, false) : null;
+            await until(() => game.actors.get("${ids.aiko}").items.has("${knifeSet.id}"));
+            await A.sheetAuditIdle();
+            return { gone, card, undone: decided?.undone ?? null };`, { timeout: 30000 });
+        await settle(800);
+        knife = { mended, mendedOn, asked, back: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readKnife))) };
+    } finally {
+        await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await game.actors.get("${ids.aiko}")?.items.get("${knifeSet.id}")?.delete(); return true;`);
+    }
+    const KNIFE = JSON.stringify({ broken: true, identity: "E29C6BLOODKNIFE1", category: "crimeTool" });
+    check("p1: a broken knife mended from a console is broken again on every client that holds it, put back by the GMs",
+        Boolean(knife) && Boolean(knifeSet.id) && knife.mended.rows === 1 && knife.mendedOn[0] !== null && knife.mendedOn[1] !== null
+            && knife.mendedOn.every(v => v === null || JSON.stringify(v) === KNIFE), JSON.stringify({ knifeSet, knife }), { flow: "sheet-audit" });
+    check("p1: a knife deleted from a console is flagged to the GMs on one card, and their Undo makes it again under its id with its flags on every client",
+        Boolean(knife) && knife.asked.gone && knife.asked.card && JSON.stringify(knife.asked.undone) === JSON.stringify([`items.${knifeSet.id}`])
+            && knife.back[0] !== null && knife.back[1] !== null && knife.back.every(v => v === null || JSON.stringify(v) === KNIFE),
+        JSON.stringify({ knifeSet, knife }), { flow: "sheet-audit" });
 
     // -- 6. vote --------------------------------------------------------------
     phase("trial", { flow: "class-trial" });

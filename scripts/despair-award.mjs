@@ -175,22 +175,34 @@ export async function awardRollDespair(actor, delta) {
  * apply to a roll that becomes a crit on its second try - nor get reversed when
  * a crit stops being one.
  *
- * Clamped to [0, max] so neither direction overflows or goes negative.
+ * Clamped to [0, max] so neither direction overflows or goes negative - the
+ * maximum the GMs hold (sheet-audit.mjs `meansMaxHeld`, since E29 fix r2-H27).
+ * Read off the document, it was one a console's write of the scars had lowered
+ * until the audit's put-back landed, and the second Hope went unpaid: measured
+ * at 414ebd2 (06.10.2026, e29run/r2h27red) by tier 2 ("a Reroll's give-back and
+ * a critical's second Hope are held to the Hope maximum the GMs hold"), a Reroll
+ * into a critical from 2 Hope under a maximum lowered from 6 to 2 left 2 on the
+ * sheet and in the mark, for 3.
+ *
+ * Moved from the Hope the GMs hold, as a job of the character's audit queue
+ * (sheet-audit.mjs `gmMeansWrite`, E29 fix r2-H5): read off the document, it
+ * moved a forged Hope the audit had not put back yet, and the GMs took the
+ * write as their value - reroll.mjs `makeReroll` says what that measured.
  */
 export async function adjustCritHopeTopUp(actor, delta) {
     if (!actor || !delta) return;
     try {
         const { STARTING } = await import("./config.mjs");
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
 
-        const hope = actor.system?.resources?.hope;
-        const held = hope?.value ?? 0;
-        const max = hope?.max || STARTING.hopeMax;
-        const next = Math.min(max, Math.max(0, held + delta));
-        if (next === held) return;
-
-        await automatedUpdate(actor, { "system.resources.hope.value": next });
-        debug(`${actor.name}: crit top-up ${delta > 0 ? "paid" : "reversed"}, now ${next}/${max}.`);
+        await gmMeansWrite(actor, async ({ hope: held }) => {
+            const max = meansMaxHeld(actor, "hope") || STARTING.hopeMax;
+            const next = Math.min(max, Math.max(0, held + delta));
+            if (next === held) return;
+            await trustedWrite(actor, { "system.resources.hope.value": next }, { reason: "gmRuling" });
+            debug(`${actor.name}: crit top-up ${delta > 0 ? "paid" : "reversed"}, now ${next}/${max}.`);
+        });
     } catch (err) {
         error("Could not adjust the critical's second Hope", err);
     }

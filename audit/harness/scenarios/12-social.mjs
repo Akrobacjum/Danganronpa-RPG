@@ -135,8 +135,8 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
         const A = await import("${repoUrl}/scripts/action-rolls.mjs");
         const actor = game.actors.get("${ids.aiko}");
         const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
-        if (actionsLeft(actor) < 1) await automatedUpdate(actor, { "system.resources.actions.value": 1 });
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        if (actionsLeft(actor) < 1) await trustedWrite(actor, { "system.resources.actions.value": 1 }, { reason: "gmRuling" });
         await spendAction(actor, 1, { quiet: true });
         const thrown = actor.rollTrait;
         let held = false, letGo = null;
@@ -211,6 +211,50 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     await settle(200);
     check("PRIVACY: with rolls not forced private p2 reads Aiko's drawn statistic headed by Aiko, as the GM's dice packet names her, and its log draws it again (S2-2)",
         Boolean(open.id) && aikos(onP2Open) && onP2Open.redrawn === 1, JSON.stringify({ open, onP2Open }));
+
+    /* THE ROLLER'S COPY IS THE GM'S ROLL (E29 C10, 05.10.2026; the stage plan's 3.6; the owner's Q1 (a)). Aiko's window puts
+       on a bonus the GMs do not hold - p1's own configuration hook adds 5 to her roll, as a bonus field would, and lists it
+       among the roll's modifiers - and she throws a statistic from her sheet, which the GM draws (roll-draw.mjs `legalRollOf`)
+       and her browser plays back (`rollerCopyOf`). Read on p1: what her browser holds of the roll (`config.roll`'s total and
+       modifiers, the message's total); on the GM: the record's total, flat sums and flags, and the roller's line; on p1 and
+       p2: whether the words of a card since the roll say that line. Until C10 her browser read the 5 in its modifiers and the
+       GM counted it. */
+    phase("a drawn roll's claim");
+    const claimHad = { p1: await p1.eval(`return game.messages.contents.map(m => m.id);`), p2: await p2.eval(`return game.messages.contents.map(m => m.id);`) };
+    const claimRoll = await p1.eval(`
+        const actor = game.actors.get("${ids.aiko}");
+        const force = globalThis.__forceRoll;
+        globalThis.__forceRoll = { hope: 7, fear: 4 };
+        const T = foundry.dice.terms;
+        const hook = Hooks.on(game.system.id + ".postDualityRollConfiguration", (roll, config) => {
+            roll.terms.push(new T.OperatorTerm({ operator: "+" }), new T.NumericTerm({ number: 5 }));
+            config.roll = { ...(config.roll ?? {}), modifiers: [...(config.roll?.modifiers ?? []), { label: "C10 a window's bonus", value: 5 }] };
+        });
+        try {
+            const cfg = await actor.rollTrait("instinct", {});
+            return { id: cfg?.message?.id ?? null, total: cfg?.roll?.total ?? null, modifiers: (cfg?.roll?.modifiers ?? []).map(m => m?.value),
+                message: cfg?.message?.rolls?.[0]?.total ?? null };
+        } finally { Hooks.off(game.system.id + ".postDualityRollConfiguration", hook); globalThis.__forceRoll = force; }`, { timeout: 60000 });
+    await settle(400);
+    const claimOnGm = await gm.eval(`const D = await import("${repoUrl}/scripts/roll-draw.mjs");
+        const row = D.drawnRecordOf(game.messages.get(${JSON.stringify(claimRoll.id)}));
+        return row ? { total: row.total, claim: row.claim?.flat ?? null, scored: row.scored?.flat ?? null, flags: (row.flags ?? []).map(f => f.kind),
+            told: typeof D.rollerLine === "function" ? D.rollerLine(row) : null,
+            instinct: Number(game.actors.get("${ids.aiko}")?.system?.traits?.instinct?.value) || 0 } : null;`);
+    const heardClaim = (client, had) => client.eval(`const { wordsOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const told = ${JSON.stringify(claimOnGm?.told ?? null)};
+        if (!told) return null;
+        for (const m of game.messages.contents.filter(m => !${JSON.stringify(had)}.includes(m.id))) {
+            if (String(await wordsOf(m, 1500) ?? "").includes(foundry.utils.escapeHTML(told))) return true;
+        }
+        return false;`);
+    const claimHeard = { p1: await heardClaim(p1, claimHad.p1), p2: await heardClaim(p2, claimHad.p2) };
+    const v = claimOnGm?.instinct ?? null;
+    check("ROLLS: Aiko's browser reads the roll the GM threw - a 5 her window put on and the GMs do not hold is not counted, not in her modifiers, and told to her alone",
+        Boolean(claimRoll.id) && Boolean(claimOnGm) && claimRoll.total === 7 + 4 + v && claimRoll.message === claimRoll.total && claimOnGm.total === claimRoll.total
+        && JSON.stringify(claimRoll.modifiers) === JSON.stringify([v]) && claimOnGm.claim === v + 5 && claimOnGm.scored === v
+        && claimOnGm.flags.includes("modifier") && claimHeard.p1 === true && claimHeard.p2 === false,
+        JSON.stringify({ claimRoll, claimOnGm, claimHeard }));
 
     // --- inventory carry limit (Gear = 2 shared slots) ---
     phase("inventory");

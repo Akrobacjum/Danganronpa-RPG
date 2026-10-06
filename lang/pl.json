@@ -262,7 +262,7 @@
       },
       "lockPlayerResources": {
         "name": "Gracze nie edytują akcji, Hope, Health, Sanity ani statystyk",
-        "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Health i Sanity też: obrażenia przychodzą z kryzysu, Calla, nieudanego rzutu albo odpoczynku, nigdy z kliknięcia w pole. GM-ów to nie dotyczy."
+        "hint": "Te zmieniają się przez grę - wydaj akcję, odpocznij, zdobądź Level Up. Włączone: ręczne zmiany gracza są cofane albo zgłaszane GM-om, a ich pola są dla graczy tylko do odczytu; wyłączone: są tylko odnotowywane dla GM-ów. Przedmioty i efekty są oceniane zawsze, tak samo jak to, co zmieniło się bez połączonego GM-a - gdy któryś wróci. GM-ów to nie dotyczy."
       },
       "chargeMovement": {
         "name": "Przejście między pokojami kosztuje Move",
@@ -2545,12 +2545,13 @@
           "offer": "Oferta Level Up",
           "ask": "Twoje oferty Level Up"
         },
-        "call.arm": "Call dla kogoś innego",
+        "call.arm": "Call kupiony na rzut",
         "daggerheart": "Zmiana w Daggerheart",
         "remnant.tieForItem": "Powiązanie śladu ze zbrodnią",
         "observe.target": "Wybór celu Observe",
         "cleanup.traces": "Ślady w zasięgu",
         "call.approve": "Zgoda na Hope Call",
+        "call.yes": "Zgoda GM-a na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",
         "trait.ruling": "Wybór statystyki przez GM-a",
         "trap.event": "Zgłoszenie dla pułapek",
@@ -2558,6 +2559,7 @@
         "roll.bookmark": "Co zrobił rzut, zapisane na Reroll",
         "roll.draw": "Rzut do wykonania przez GM-a",
         "roll.grant": "Przyznanie rzutów rzuconych bez GM-a",
+        "audit.decide": "Decyzja GM-a o zmianie karty zgłoszonej GM-om",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "searchTokens.spend": "Wydanie Search Tokena",
@@ -2619,7 +2621,10 @@
         "rollReplaced": "Wskazany rzut został zastąpiony późniejszym rzutem tej samej akcji.",
         "notPaid": "Klient GM-a nie widział zapłaty za akcję tego rzutu. Wykonaj akcję jeszcze raz.",
         "rollThrown": "Rzut tej akcji już padł.",
-        "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call."
+        "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call.",
+        "callNotApproved": "Klient GM-a nie ma zgody GM-a na ten Call. Poproś o nią jeszcze raz.",
+        "itemNotDecided": "Żaden GM nie zdecydował jeszcze o tym przedmiocie, który gracz dodał do karty: do tego czasu nie zmienia właściciela.",
+        "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GM-a",
@@ -3054,11 +3059,50 @@
       "gmReasked": "GM został poproszony o ponowną decyzję na podstawie nowego wyniku.",
       "rulingVoid": "Przerzut: {old} już nie obowiązuje, wynik to teraz {new}. Zdecyduj ponownie."
     },
+    "Audit": {
+      "putBack": "Ręczna zmiana karty postaci {name} od {player} - klient GM-a ją cofnął:",
+      "listTitle": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów: {n}",
+      "field": {
+        "traits": "Statystyki",
+        "experience": "Doświadczenia",
+        "max": "Maksimum",
+        "rules": "Zasady rzutu",
+        "bonuses": "Premie",
+        "levelData": "Wybory Level Up",
+        "scars": "Blizny",
+        "flag": "Zapisy modułu",
+        "effect": "Efekt",
+        "hope": "Hope",
+        "actions": "Akcje",
+        "hitPoints": "Health",
+        "stress": "Sanity",
+        "grant": "Darmowe akcje i ruchy",
+        "itemFlag": "Zapis przedmiotu",
+        "itemQuantity": "Liczba sztuk przedmiotu",
+        "itemLocation": "Miejsce przechowywania przedmiotu",
+        "itemDeleted": "Przedmiot usunięty z karty",
+        "itemCreated": "Przedmiot dodany do karty",
+        "pendingCall": "Calle uzbrojone na następny rzut"
+      },
+      "credit": "Zwrócone z tego, co zapłacono wcześniej: {what}",
+      "flagged": "Ręczna zmiana karty postaci {name} od {player}, której nie pokrywa nic, o czym wie moduł. Zostaje, dopóki GM nie zdecyduje:",
+      "undo": "Cofnij",
+      "keep": "Zostaw",
+      "undone": "Cofnięte przez: {gm}.",
+      "kept": "Zostawione przez: {gm}.",
+      "changedSince": "Cofnij od {gm} - nie nadpisano tego, co od tamtej pory znów się zmieniło: {fields}.",
+      "expired": "Tego nie da się już rozstrzygnąć: GM-owie trzymają zapis zgłoszonej zmiany przez dobę, a ten już zniknął.",
+      "awayTitle": "Zmiany na kartach postaci zrobione, gdy żaden GM nie patrzył",
+      "awayPutBack": "Cofnięte od razu, tak jak przy patrzącym GM-ie:",
+      "awayLine": "{name} - {field} ({path}): {before} -> {after}",
+      "undoAll": "Cofnij wszystko",
+      "acceptAll": "Zostaw wszystko"
+    },
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",
       "rewriteNotPutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); ta przeglądarka nie widziała tego rzutu, więc nie dało się przywrócić jego kości.",
       "notDrawnHere": "Daggerheart {version} buduje rzuty inaczej, niż zakłada ten moduł, więc rzuty graczy wykonują się w ich przeglądarkach, a nie u GM-a. Ta wiadomość pojawia się raz dla tej wersji.",
-      "unexpected": "GM wylosował rzut postaci {name}, a w rzucie było coś, czego GM się nie spodziewał: {list}. Rzut zostaje taki, jak go wylosowano; game.drpg.rollFlags() go wymienia.",
+      "unexpected": "GM wylosował rzut postaci {name} i policzył go według tego, co mają GM-owie; nie policzono tak, jak podawał rzut: {list}. game.drpg.rollFlags() go wymienia.",
       "flagLine": "{what} {claimed}, oczekiwano {expected}",
       "flagsTitle": "Wylosowane rzuty z czymś, czego GM się nie spodziewał: {n}",
       "flagKind": {
@@ -3069,6 +3113,25 @@
         "advantage": "kości przewagi",
         "stash": "niezgłoszona ukryta skrytka"
       },
+      "flagFrom": "{line} (GM policzył: {list})",
+      "counted": "GM policzył {list}",
+      "notCounted": "{counted}; nie policzono: {list}.",
+      "legal": {
+        "hopeDie": "ścianki kości Hope",
+        "fearDie": "ścianki kości Despair",
+        "advantageDie": "ścianki kości przewagi",
+        "trait": "statystyka",
+        "experience": "doświadczenie kupione Callem Experience",
+        "callBonus": "premia z Calla",
+        "effects": "premie z aktywnych efektów",
+        "calls": "kości z Calli",
+        "hostile": "utrudniający Call uzbrojony przed rzutem",
+        "breakdown": "Breakdown",
+        "situation": "sytuacja",
+        "loadedDie": "Loaded Die",
+        "stashStep": "krok ukrytej skrytki",
+        "kind": "rodzaj rzutu"
+      },
       "waitsForGm": "Rzut akcji czeka na GM-a: żaden GM nie jest połączony, więc akcja się nie odbyła i nic nie zapłacono.",
       "unwitnessed": "Rzucono bez połączonego GM-a - GM to zobaczy.",
       "awayTitle": "Rzuty wykonane bez połączonego GM-a",
@@ -3076,6 +3139,7 @@
       "awayHope": "+{n} Hope",
       "awayDespair": "+1 Despair",
       "awayNothing": "nic (reakcja)",
+      "awayClaimed": "(rzut podał {claimed}; lista GM-a daje {legal})",
       "grantAll": "Przyznaj wszystkie",
       "grantNone": "Nie przyznawaj"
     },
@@ -4752,7 +4816,9 @@
         "cleanupAttempts": "Ostatnie sprzątanie każdej postaci, zachowane, by Reroll mógł je cofnąć",
         "rerollJournal": "Reroll, który właśnie robi GM, krok po kroku, by przeładowanie w połowie dało się naprawić",
         "rolls": "Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają",
-        "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała"
+        "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
+        "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
+        "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę"
       },
       "row": {
         "traces": {

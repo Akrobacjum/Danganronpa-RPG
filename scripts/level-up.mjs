@@ -13,7 +13,7 @@
  */
 
 import { MODULE_ID, FLAGS, LEVEL_UP, LEVEL_UP_OPTIONS, TRAITS, STARTING } from "./config.mjs";
-import { listExperiences, resourceMax } from "./character.mjs";
+import { listExperiences } from "./character.mjs";
 import { log, error, isPrimaryGm, ownerIdsOf } from "./utils.mjs";
 import { offerStore, offerCopy, deferredOfferStore } from "./gm-stores.mjs";
 import { gmStoresQuiet } from "./gm-store.mjs";
@@ -526,10 +526,12 @@ function readForm(dialog, picks) {
  */
 export async function applyAdvancement(actor, picks, kind = "standard", { reasons = null } = {}) {
     // Same guard as `openAdvancement`, and for the same reason. This is also on
-    // `game.drpg`, and it writes through `automatedUpdate` - which bypasses the
+    // `game.drpg`, and it writes through `trustedWrite` - which bypasses the
     // resource guard by design - so without it a player could raise their own
     // max Health and traits from the console with a single call, walking straight
-    // past the check the dialog in front of it makes.
+    // past the check the dialog in front of it makes. Since E29 C3 the primary GM
+    // puts such a rise from a player's browser back as well (sheet-audit.mjs); this
+    // gate keeps the road a GM's, which is what makes its write the student's new mark.
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -539,9 +541,9 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     const update = {};
     const summary = [];
 
-    // Start from current values and accumulate.
-    let hpMax = resourceMax(actor, "hitPoints");
-    let stressMax = resourceMax(actor, "stress");
+    // Accumulate the rises; what they rise from is read as the GMs hold it, when the write is made (below).
+    let hpUp = 0;
+    let stressUp = 0;
     const traitDeltas = {};
     const experienceDeltas = {};
     const newExperiences = {};
@@ -549,12 +551,12 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     for (const pick of picks) {
         switch (pick.option) {
             case "hp":
-                hpMax += 1;
+                hpUp += 1;
                 summary.push(LEVEL_UP_OPTIONS.hp.label);
                 break;
 
             case "stress":
-                stressMax += 1;
+                stressUp += 1;
                 summary.push(LEVEL_UP_OPTIONS.stress.label);
                 break;
 
@@ -594,36 +596,58 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         }
     }
 
-    if (hpMax !== resourceMax(actor, "hitPoints")) update["system.resources.hitPoints.max"] = hpMax;
-    if (stressMax !== resourceMax(actor, "stress")) update["system.resources.stress.max"] = stressMax;
-
-    for (const [key, delta] of Object.entries(traitDeltas)) {
-        const current = actor.system.traits?.[key]?.value ?? 0;
-        update[`system.traits.${key}.value`] = current + delta;
-    }
-
-    for (const [id, delta] of Object.entries(experienceDeltas)) {
-        const current = actor.system.experiences?.[id]?.value ?? 0;
-        update[`system.experiences.${id}.value`] = current + delta;
-    }
-
     for (const [id, data] of Object.entries(newExperiences)) {
         update[`system.experiences.${id}`] = data;
     }
 
-    if (!Object.keys(update).length) {
+    if (!hpUp && !stressUp && !Object.keys(traitDeltas).length && !Object.keys(experienceDeltas).length && !Object.keys(update).length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Advance.nothingToApply"));
         return null;
     }
 
     try {
-        // Marked as automation: `system.traits` is guarded against hand-editing,
-        // so a plain update would have the trait rise silently stripped while the
-        // Health and Sanity rises went through - a half-applied advancement.
-        const { automatedUpdate } = await import("./resource-guard.mjs");
-        const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
-        update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;
-        await automatedUpdate(actor, update);
+        // The one road, named `levelUp`. Until E29 C2 this said the road kept the
+        // resource guard from stripping the trait rise and leaving a half-applied
+        // advancement - true of a player's browser, but the gate above makes this a
+        // GM's, where the guard stands aside (audit S03-45: "guarded against
+        // hand-editing" overstated it). That guard runs on the writer's own browser and
+        // is a courtesy; what keeps the module's own roads off a student's traits and
+        // Health and Sanity maxima on a player's console is that each road writing
+        // them - this one, `initCharacter` and `restoreStartingSheet` - is a GM's
+        // (R79, R221). And since E29 C3 what a console writes there by hand is put back
+        // by the primary GM (sheet-audit.mjs), which takes this write, a GM's, as the
+        // student's new mark.
+        //
+        // AS THE GMS HOLD THEM (E29 fix r2-H24, 06.10.2026). The maxima, the statistics, the experiences and the
+        // advances each rise from what the GMs hold, read in one job of the student's queue (sheet-audit.mjs
+        // `meansWrite`, `numberHeld`): read off the sheet, a console's rise the audit had not put back yet was
+        // written on as this GM's, the student's mark from then on. The job writes and awaits nothing else.
+        //
+        // AS THE SHEET HOLDS THEM, NOT AS DAGGERHEART PREPARES THEM (E29 fix r2-H25, 06.10.2026; found by fix
+        // r2-H24). This writes the sheet, which Daggerheart prepares again: it adds a class's hit points to Health's
+        // maximum and a Level Up's picks to a statistic or a maximum (character.mjs `prepareBaseData`, 2.10.5). The
+        // maxima rose from the prepared one (`meansWrite`'s `maxOf`, the end of a track) and the rest from the
+        // prepared value with the GMs' for the sheet's, so the sheet took the class's hit points and a pick a second
+        // time: at 525a186 (06.10.2026, e29run/r2h25red; tier 2, "a GM's Level Up rises from the sheet's maximum"), +1
+        // Health and +1 to a statistic over a class's 5 hit points and a pick of +1 wrote 12 and 2 for 7 and 1. Each
+        // now rises from the sheet's value as the GMs hold it (`numberHeld`).
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { meansWrite, numberHeld } = await import("./sheet-audit.mjs");
+        const taken = await meansWrite(actor, async () => {
+            const from = path => numberHeld(actor, path) ?? 0;
+            if (hpUp) update["system.resources.hitPoints.max"] = from("system.resources.hitPoints.max") + hpUp;
+            if (stressUp) update["system.resources.stress.max"] = from("system.resources.stress.max") + stressUp;
+            for (const [key, delta] of Object.entries(traitDeltas)) {
+                update[`system.traits.${key}.value`] = from(`system.traits.${key}.value`) + delta;
+            }
+            for (const [id, delta] of Object.entries(experienceDeltas)) {
+                update[`system.experiences.${id}.value`] = from(`system.experiences.${id}.value`) + delta;
+            }
+            const taken = from(`flags.${MODULE_ID}.${FLAGS.advances}`) + 1;
+            update[`flags.${MODULE_ID}.${FLAGS.advances}`] = taken;
+            await trustedWrite(actor, update, { reason: "levelUp" });
+            return taken;
+        });
         /* AN OFFER IS SPENT BY BEING TAKEN (N-2). Withdrawn here rather than at the
            three call sites - the GM's own picker, a player's picks arriving over the
            socket, and the API - because this is the one place that writes an

@@ -54,7 +54,6 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * and who deleted her items, while p1 asks. `REROLL_READ` takes the stand-in and the hooks off.
      */
     const REROLL_ARM = (first, next) => `const S = await import("${REPO}/scripts/gm-stores.mjs");
-        const { automatedUpdate } = await import("${REPO}/scripts/resource-guard.mjs");
         const aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get("${ids.aiko}");
         const m = game.messages.get(row?.messageId ?? "");
         class Thrown {
@@ -68,7 +67,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         }
         if (m) Object.defineProperty(m, "rolls", { configurable: true, get: () => [new Thrown("1d12 + 1d12", {}, {})] });
         const hopeWas = aiko.system.resources.hope.value;
-        await automatedUpdate(aiko, { "system.resources.hope.value": Math.max(4, hopeWas) });
+        await aiko.update({ "system.resources.hope.value": Math.max(4, hopeWas) });
         const w = globalThis.__rerollWrites = { hope: [], rolls: [], items: [], hooks: [], messageId: m?.id ?? null, hopeWas,
             hopeAt: aiko.system.resources.hope.value,
             row: row ? { actionKey: row.actionKey, claims: row.claims, facts: row.facts, by: row.by, reportMessageId: row.reportMessageId ?? null } : null };
@@ -84,18 +83,29 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         const card = game.messages.contents.slice(at).map(m => String(S.contentOf(m) ?? "")).find(t => t.includes("Reroll")) ?? null;
         return { made: Boolean(out), card: card ? card.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400) : null };`;
     const REROLL_READ = `const S = await import("${REPO}/scripts/gm-stores.mjs");
-        const { automatedUpdate } = await import("${REPO}/scripts/resource-guard.mjs");
         const w = globalThis.__rerollWrites, aiko = game.actors.get("${ids.aiko}"), row = S.rerollBookmarkStore.get("${ids.aiko}");
         for (const [name, id] of w.hooks) Hooks.off(name, id);
         const m = game.messages.get(w.messageId ?? ""); if (m) delete m.rolls;
         const out = { hope: w.hope, rolls: w.rolls, items: w.items, paid: w.hopeAt - aiko.system.resources.hope.value,
             row: row ? { total: row.total, claims: row.claims, facts: row.facts, rerolled: row.rerolled ?? false } : null,
             journal: Boolean(S.rerollJournalStore.has("${ids.aiko}")), gm: game.user.id };
-        await automatedUpdate(aiko, { "system.resources.hope.value": w.hopeWas });
+        await aiko.update({ "system.resources.hope.value": w.hopeWas });
         return out;`;
 
     // ---- 0. season setup basics: Monokuma pool, clock at day 1 morning ----------------------
     phase("season setup", { flow: "clock-day" });
+    /* The GMs' audit of a sheet (E29 C3, the plan's section 6): every write on a student patches its mark on
+       the primary when it moves it. Counted from here to the end of the day, with the rows it writes (below). */
+    await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
+        globalThis.__markPatches = 0; globalThis.__itemPatches = 0; globalThis.__auditFrom = Date.now();
+        const store = S.sheetMarkStore;
+        if (store && !store.__counted) {
+            const patch = store.patch;
+            // Those that move a student's module items (E29 C6) counted apart as well: they are the C6 share of the traffic.
+            store.patch = (...args) => { globalThis.__markPatches++; if ("items" in (args[1] ?? {})) globalThis.__itemPatches++; return patch.apply(store, args); };
+            store.__counted = true;
+        }
+        return true;`);
     await gm.eval(`
         await game.drpg.setMonokuma(game.actors.get("${ids.monokuma}"), true).catch(() => {});
         await game.drpg.setClock({ chapter: 1, day: 1, session: 1, timeOfDay: "morning", phase: "dailyLife", campaign: "QA season" });
@@ -241,7 +251,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             actionKey: r?.actionKey ?? null, total: r?.total ?? null, faces: [r?.hope ?? null, r?.fear ?? null],
             same: Boolean(r) && r.hope === roll?.dHope?.total && r.fear === roll?.dFear?.total && r.total === roll?.total,
             hoped: Boolean(r?.withHope || r?.isCritical), hope: globalThis.__c12aHope,
-            flags: r?.flags ?? null, expected: r ? { trait: r.expected?.trait, from: r.expected?.traitFrom, situation: r.expected?.situationFrom } : null };`);
+            flags: r?.flags ?? null, expected: r ? { trait: r.legal?.trait, from: r.legal?.traitFrom, situation: r.legal?.situationFrom } : null };`);
     const p1Drawn = await p1.eval(`const P = await import("${REPO}/scripts/private-rolls.mjs");
         const m = game.messages.get(${JSON.stringify(drawnSearch.id)});
         return { me: game.user.id, subject: P.keptRollSubject(m), shown: globalThis.__dsnShown.filter(s => s.user === game.user.id && !s.synchronize).map(s => s.total) };`);
@@ -353,7 +363,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             if (!hit) continue;
             const rid = hit[1].match(/data-rid="([^"]+)"/)?.[1]; const asker = hit[1].match(/data-asker="([^"]+)"/)?.[1];
             const B = await import("${REPO}/scripts/gm-bridge.mjs");
-            const sent = B.answerHopeCall(rid, asker, true);
+            const sent = await B.answerHopeCall(rid, asker, true);
             return { found: true, sent, rid, asker, text: html.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 200) };
         }
         return { found: false, n: msgs.length };`, { timeout: 30000 });
@@ -363,6 +373,67 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
     console.log("[qa] p2 notifications after Ultimate:", JSON.stringify(asked.notifs));
     const gmNotifs = await notifs(gm);
     console.log("[qa] gm notifications after Ultimate:", JSON.stringify(gmNotifs));
+
+    /* A CALL ON ONE'S OWN CHARACTER IS BOUGHT ON THE GM (E29 C8, 05.10.2026; the plan's 3.3). p1 buys an Experience for
+       Aiko from her sheet's own road (calls.mjs `spendHopeCall`), the GM says yes on the card in p1's thread, and p1 then
+       throws a statistic of Aiko's, drawn by the GM. Read on the GM: who wrote Aiko's Hope and her armed list from the ask
+       to the end of the roll, her Hope paid, the entry armed and its time, and the roll's record - the Calls it used. Aiko's
+       list is emptied first and put back after, her Hope too. Until C8 p1's browser paid the Hope and armed the Call itself. */
+    phase("a Call on one's own character", { flow: "call-arm" });
+    const ownWas = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await a.update({ "system.resources.hope.value": 3 });
+        await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        const w = globalThis.__ownCallWrites = { hope: [], calls: [], from: Date.now() };
+        w.hook = Hooks.on("updateActor", (d, c, o, u) => {
+            if (d.id !== a.id) return;
+            if (foundry.utils.hasProperty(c, "system.resources.hope")) w.hope.push(u ?? null);
+            if (foundry.utils.hasProperty(c, "flags.${MOD}.pendingCall") || foundry.utils.hasProperty(c, "flags.${MOD}.-=pendingCall")) w.calls.push(u ?? null);
+        });
+        return was;`);
+    let ownCall = null;
+    try {
+        const ownAsk = p1.eval(`const C = await import("${REPO}/scripts/calls.mjs");
+            const r = await C.spendHopeCall(game.actors.get("${ids.aiko}"), "experience", { note: "E29 C8 an Experience of Aiko's own" });
+            return r === null ? null : typeof r;`, { timeout: 90000 });
+        await settle(1500);
+        const ownCard = await gm.eval(`
+            const S = await import("${REPO}/scripts/secret.mjs"), B = await import("${REPO}/scripts/gm-bridge.mjs");
+            for (const m of game.drpg.messengerThreadMessages("${p1.userId}").slice().reverse()) {
+                const hit = S.contentOf(m).match(/data-drpg-call="approveCall"([^>]*)>/);
+                if (!hit) continue;
+                const rid = hit[1].match(/data-rid="([^"]+)"/)?.[1], asker = hit[1].match(/data-asker="([^"]+)"/)?.[1];
+                return { found: true, sent: await B.answerHopeCall(rid, asker, true) };
+            }
+            return { found: false };`, { timeout: 30000 });
+        const bought = await ownAsk;
+        const armed = await gm.eval(`const a = game.actors.get("${ids.aiko}"), w = globalThis.__ownCallWrites;
+            const f = a.getFlag("${MOD}", "pendingCall"), e = (Array.isArray(f) ? f : f ? [f] : []).find(x => x?.key === "experience") ?? null;
+            return { hope: a.system.resources.hope.value, nonce: e?.nonce ?? null, at: typeof e?.at === "number" && e.at >= w.from };`);
+        const rolled = await p1.eval(`const A = await import("${REPO}/scripts/action-rolls.mjs");
+            globalThis.__forceRoll = { hope: 7, fear: 4 };
+            try { return (await A.rollTrait(game.actors.get("${ids.aiko}"), "eye", {}))?.total ?? null; } finally { delete globalThis.__forceRoll; }`, { timeout: 60000 });
+        await settle(800);
+        const counted = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs"), w = globalThis.__ownCallWrites;
+            const row = Object.values(S.rollStore.entries()).filter(r => r?.actorId === "${ids.aiko}" && r.at >= w.from).sort((a, b) => b.at - a.at)[0] ?? null;
+            return { used: row?.used?.calls ?? null, total: row?.total ?? null, hopeBy: [...new Set(w.hope)], callsBy: [...new Set(w.calls)], gm: game.user.id };`);
+        ownCall = { card: ownCard, bought, armed, rolled, counted };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"), w = globalThis.__ownCallWrites, was = ${JSON.stringify(ownWas)};
+            if (w?.hook) Hooks.off("updateActor", w.hook);
+            delete globalThis.__ownCallWrites;
+            await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hope.value": was.hope });
+            if (was.calls) await a.setFlag("${MOD}", "pendingCall", was.calls); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("gm: p1's Experience on Aiko is paid and armed by the GM after its yes - every write of her Hope and armed list the GM's - and her drawn roll counts it",
+        Boolean(ownCall) && ownCall.card.found && ownCall.bought === "object" && ownCall.armed.hope === 2 && Boolean(ownCall.armed.nonce)
+            && ownCall.armed.at === true && ownCall.counted.hopeBy.length > 0 && ownCall.counted.hopeBy.every(u => u === ownCall.counted.gm)
+            && ownCall.counted.callsBy.length > 0 && ownCall.counted.callsBy.every(u => u === ownCall.counted.gm)
+            && (ownCall.counted.used ?? []).includes(ownCall.armed.nonce) && ownCall.counted.total === ownCall.rolled,
+        JSON.stringify(ownCall), { flow: "call-arm" });
 
     // ---- 4. messenger both ways -------------------------------------------------------------
     phase("the messenger", { flow: "messenger" });
@@ -697,9 +768,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * touched. Daggerheart's window is not in the harness, so p1 holds a stand-in for Aiko's,
      * handed to roll-dialog.mjs's two hooks as tier 2's `rollWindow` does. The GM arms a Support
      * on Aiko, p1 opens the window on it, the GM arms an Obstacle - a GM's flag write, which p1's
-     * `updateActor` sees - and p1 submits. Read: on p1 whether the window was redrawn and the line
-     * it carries; on the GM, Aiko's armed list once p1's close has landed. Aiko's list is emptied
-     * first and put back after. Until C7 nothing redrew p1's window and its close spent both.
+     * `updateActor` sees - and p1 submits; the roll the window was for follows its close, as
+     * Daggerheart writes it. Read: on p1 whether the window was redrawn and the line it carries; on
+     * the GM, Aiko's armed list once p1's close has landed and the GMs' audit has let the Support's
+     * spend stand on that roll - a Call the GM armed stands taken only behind a roll of the player's
+     * (E29 fix r2-H7, sheet-audit.mjs `callsCover`; without the roll it is put back). Aiko's list is
+     * emptied first and put back after. Until C7 nothing redrew p1's window and its close spent both.
      */
     phase("a Call armed while the roll window is open", { flow: "call-arm" });
     const armOnAiko = (key, kind, grants) => gm.eval(`const E = await import("${REPO}/scripts/call-effects.mjs");
@@ -729,17 +803,25 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             expect: game.i18n.format("DRPG.Calls.waitsNextRoll", { what: game.i18n.localize("DRPG.Calls.grants.disadvantage") }) };
         await D.onCloseApplication(win);
         delete globalThis.__waitingWindow;
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "reaction" } };
+        out.rolled = (await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: game.actors.get("${ids.aiko}") }),
+            content: '<div class="dice-roll">Duality</div>', rolls: [roll], system: { roll } }))?.id ?? null;
         return out;`, { timeout: 30000 });
-    const aikoArmed = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+    const aikoArmed = await gm.eval(`const a = game.actors.get("${ids.aiko}"), A = await import("${REPO}/scripts/sheet-audit.mjs");
         const keys = () => { const f = a.getFlag("${MOD}", "pendingCall"); return (Array.isArray(f) ? f : f ? [f] : []).map(e => e?.key); };
         for (let i = 0; i < 50 && keys().includes("support"); i++) await new Promise(r => setTimeout(r, 100));
+        await A.sheetAuditIdle();
         return keys();`, { timeout: 30000 });
     check("p1: an Obstacle the GM arms while Aiko's roll window is open redraws it with a line that it waits, and the window's close spends the Support alone",
         supportArmed && obstacleArmed && windowOpen.armed.join() === "support" && windowClosed.redrawn === true
-            && windowClosed.line === windowClosed.expect && aikoArmed.join() === "obstacle",
+            && windowClosed.line === windowClosed.expect && Boolean(windowClosed.rolled) && aikoArmed.join() === "obstacle",
         JSON.stringify({ supportArmed, obstacleArmed, windowOpen, windowClosed, aikoArmed }), { flow: "call-arm" });
     await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(aikoCallsWere)};
-        if (was) await a.setFlag("${MOD}", "pendingCall", was); else await a.unsetFlag("${MOD}", "pendingCall"); return true;`);
+        if (was) await a.setFlag("${MOD}", "pendingCall", was); else await a.unsetFlag("${MOD}", "pendingCall");
+        await game.messages.get(${JSON.stringify(windowClosed.rolled ?? null)} ?? "")?.delete();
+        return true;`);
 
     // ---- 6c. a project's work: a project with no statistic asks the GM once ------------------
     /*
@@ -966,8 +1048,10 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * because the trace's packet leaves before `noteRollContext` tells the GMs the relief. p1 sabotages
      * a project in Aiko's room holding a tier-1 tool readied (any tool she held put down for it), on
      * forced dice with Fear that come to 11 with her Eye - the first band only with the tool's relief
-     * of 1. The harness's drawn total is the dice and the statistic: the +1 the tool arms in the roll
-     * window does not reach it (05.10.2026, at a75e3f1: 4 and 6 came to 10 with an Eye of 0). "Rolls
+     * of 1. From E29 C10 the GM throws the tool's advantage die its own list holds (roll-draw.mjs
+     * `legalRollOf`), which the harness's roll window never put on: its face is scripted to 1 here
+     * (`advantage`, client-entry.mjs `buildEvaluate`), so the dice and the Eye still come to 11 -
+     * unscripted, its face was the randomiser's (C10's first run: a total of 14, not the 11 asked). "Rolls
      * grant Despair" is off for it, and Daggerheart's Fear put back after it. Read on the GM: the
      * roll's record, the tool, the freeze and its repair, and the band of the trace. Red at a75e3f1:
      * the trace "hidden", a miss's band.
@@ -988,8 +1072,8 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
         return { project, tool: tool?.id ?? null, readied: U.equippedFor(actor, "tool")?.id ?? null, put, despair,
             fear: game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear), eye: Number(actor.system.traits?.instinct?.value ?? 0) };`, { timeout: 30000 });
     await settle(600);
-    // 11 = hope + fear + Eye, Fear the higher die and never a critical.
-    const toolSum = 11 - toolSetup.eye, toolDice = { hope: Math.floor((toolSum - 1) / 2), fear: toolSum - Math.floor((toolSum - 1) / 2) };
+    // 11 = hope + fear + the tool's die (a 1) + Eye, Fear the higher die and never a critical.
+    const toolSum = 10 - toolSetup.eye, toolDice = { hope: Math.floor((toolSum - 1) / 2), fear: toolSum - Math.floor((toolSum - 1) / 2), advantage: 1 };
     const toolSab = await p1.eval(`globalThis.__forceRoll = ${JSON.stringify(toolDice)};
         const actor = game.actors.get("${ids.aiko}"); let r = null, err = null;
         try { r = await game.drpg.performAction(actor, "sabotage", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
@@ -1419,6 +1503,173 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && !thrownDynamic.err && thrownDynamic.success === true
             && dynamicGm.ruling?.tier === 0 && JSON.stringify(dynamicGm.resolved) === JSON.stringify(["trace"]),
         JSON.stringify({ ruled, thrownDynamic, dynamicGm }), { flow: "action-roll" });
+
+    /*
+     * A PLAYER'S REST AND AN ITEM USED, EACH WRITE NAMING ITS REASON (E29 C1, 05.10.2026; audit
+     * S17-12). p1 takes a Short Rest (Meal) and uses a Tier 1 healing kit, its windows answered on
+     * p1's browser. Since C4 the Rest is taken where the GMs' audit allows one: the GM marks the room
+     * Aiko stands in for a Short Rest first where it was not one, and unmarks it after (the day's check below
+     * reads that neither write was put back or listed). The GM records
+     * every write on Aiko and her items that p1's user made, with the `drpgWrite` its options
+     * carried here: the stamp crossing to the GM is what every later judge of the stage reads (the
+     * harness passes options through; a real Foundry's forwarding is LIVE-E29-01). Expected: the
+     * action's spend, then ONE Rest write with the Sanity and the `restsTaken` stamp, then the
+     * kit's Health and its break, both naming the kit. The GM's fixture writes in this file are
+     * plain updates: the courtesy guard stands aside for a GM and nothing judges a GM's write, so
+     * the file runs on the code before C1 as well - which is how this check's red is read.
+     */
+    phase("a player's Rest and an item used, each write naming its reason");
+    const restSet = await gm.eval(`const INV = await import("${REPO}/scripts/inventory.mjs");
+        const M = await import("${REPO}/scripts/movement.mjs"), REST = await import("${REPO}/scripts/rest.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), r = aiko.system.resources;
+        const room = M.roomOfActor(aiko), roomWas = room ? REST.restRooms("short").includes(room) : null;
+        if (room && !roomWas) await REST.setRestRoom(room, { short: true });
+        const was = { hp: r.hitPoints.value, stress: r.stress.value, actions: r.actions.value,
+            rests: aiko.getFlag("${MOD}", "restsTaken") ?? null, grants: aiko.getFlag("${MOD}", "freeActionGrants") ?? null };
+        await aiko.update({ "system.resources.hitPoints.value": 2, "system.resources.stress.value": 2,
+            "system.resources.actions.value": Math.max(1, was.actions), "flags.${MOD}.freeActionGrants": 0 });
+        if (was.rests) await aiko.unsetFlag("${MOD}", "restsTaken");
+        const kit = await INV.grantItem(aiko, { name: "Scenario 40 C1 kit", category: "usable", tier: 1, goal: "healing", override: true, quiet: true });
+        const w = globalThis.__c1Writes = { actor: [], items: [], hooks: [] };
+        const row = (c, o, u) => ({ user: u ?? null, stamp: o?.drpgWrite ?? null, paths: Object.keys(foundry.utils.flattenObject(c)).filter(k => k !== "_id" && !k.startsWith("_stats")).sort() });
+        w.hooks.push(["updateActor", Hooks.on("updateActor", (d, c, o, u) => { if (d.id === aiko.id) w.actor.push(row(c, o, u)); })]);
+        w.hooks.push(["updateItem", Hooks.on("updateItem", (d, c, o, u) => { if (d.parent?.id === aiko.id) w.items.push({ id: d.id, ...row(c, o, u) }); })]);
+        return { was, kit: kit?.id ?? null, room, roomWas };`);
+    await settle(400);
+    const restRun = await p1.eval(`const R = await import("${REPO}/scripts/rest.mjs");
+        const U = await import("${REPO}/scripts/use-items.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = { wait: Object.getOwnPropertyDescriptor(D, "wait"), confirm: Object.getOwnPropertyDescriptor(D, "confirm") };
+        D.wait = async () => ["meal"]; D.confirm = async () => true;
+        const aiko = game.actors.get("${ids.aiko}");
+        try {
+            const rest = await R.takeRest(aiko, "short", { quiet: true });
+            const used = await U.useItem(aiko, aiko.items.get("${restSet.kit}"));
+            return { rested: Boolean(rest), used, me: game.user.id };
+        } finally {
+            for (const k of ["wait", "confirm"]) { if (own[k]) Object.defineProperty(D, k, own[k]); else delete D[k]; }
+        }`, { timeout: 30000 });
+    await settle(800);
+    const restSeen = await gm.eval(`const w = globalThis.__c1Writes; delete globalThis.__c1Writes;
+        for (const [name, id] of w.hooks) Hooks.off(name, id);
+        const aiko = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(restSet.was)};
+        const out = { actor: w.actor.filter(x => x.user === "${restRun.me}"), items: w.items.filter(x => x.user === "${restRun.me}") };
+        await aiko.update({ "system.resources.hitPoints.value": was.hp, "system.resources.stress.value": was.stress,
+            "system.resources.actions.value": was.actions });
+        await aiko.unsetFlag("${MOD}", "restsTaken");
+        if (was.rests) await aiko.setFlag("${MOD}", "restsTaken", was.rests);
+        if (was.grants === null) await aiko.unsetFlag("${MOD}", "freeActionGrants");
+        else await aiko.setFlag("${MOD}", "freeActionGrants", was.grants);
+        await aiko.items.get("${restSet.kit}")?.delete();
+        if (${JSON.stringify(restSet.room)} && !${restSet.roomWas}) await (await import("${REPO}/scripts/rest.mjs")).setRestRoom(${JSON.stringify(restSet.room)}, { short: false });
+        return out;`);
+    {
+        const STRESS = "system.resources.stress.value", STAMP = `flags.${MOD}.restsTaken.short`;
+        const reasons = restSeen.actor.map(x => x.stamp?.reason ?? null);
+        const rest = restSeen.actor.filter(x => x.stamp?.reason === "rest");
+        const healed = restSeen.actor.find(x => x.stamp?.reason === "itemUse");
+        const broke = restSeen.items.find(x => x.id === restSet.kit);
+        check("p1: a Rest is the action's spend and ONE write of its benefit and its stamp, and an item used names the item on its Health and its break - each stamp seen on the GM",
+            restSet.kit !== null && restSet.room !== null && restRun.rested && restRun.used?.hitPoints === 1
+                && JSON.stringify(reasons) === JSON.stringify(["spend", "rest", "itemUse"])
+                && rest.length === 1 && rest[0].paths.includes(STRESS) && rest[0].paths.includes(STAMP) && rest[0].stamp.ref === null
+                && healed?.stamp.ref === restSet.kit && broke?.stamp?.reason === "itemUse" && broke.stamp.ref === restSet.kit
+                && broke.paths.includes(`flags.${MOD}.broken.at`),
+            JSON.stringify({ restSet, restRun, restSeen }).slice(0, 1500));
+    }
+
+    /*
+     * A STASH, A RETRIEVE AND A DISCARD OF THE DAY (E29 C6, 05.10.2026; the plan's 2.6). The GM gives Aiko a
+     * stash in the room she stands in, a Tool and a broken one. p1 stows the Tool, discards the broken one and
+     * takes the Tool out again - the window, the roll, the trace - as a player does from the sheet. Each is a
+     * write on a module item from p1's browser that the GMs' audit judges: none may be put back or flagged
+     * (the day's check below reads that), and here each must have done what it says.
+     */
+    phase("a stash, a retrieve and a discard of the day", { flow: "sheet-audit" });
+    const dayItems = await gm.eval(`const INV = await import("${REPO}/scripts/inventory.mjs");
+        const V = await import("${REPO}/scripts/vault.mjs"); const M = await import("${REPO}/scripts/movement.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), room = M.roomOfActor(aiko), had = room ? Boolean(V.stashIn(room, aiko.id)) : null;
+        if (room && !had) await V.setStash(room, aiko.id, { present: true });
+        const tool = await INV.grantItem(aiko, { name: "Scenario 40 stashed tool", category: "tool", tier: 1, override: true, quiet: true });
+        const broken = await INV.grantItem(aiko, { name: "Scenario 40 broken tool", category: "tool", tier: 1, override: true, quiet: true });
+        if (broken) await INV.breakItem(broken);
+        await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { room, had, tool: tool?.id ?? null, broken: broken?.id ?? null, patches: globalThis.__markPatches };`, { timeout: 30000 });
+    let dayRun = null;
+    try {
+        await settle(400);
+        dayRun = await p1.eval(`const V = await import("${REPO}/scripts/vault.mjs"); const U = await import("${REPO}/scripts/use-items.mjs");
+            const aiko = game.actors.get("${ids.aiko}"), item = id => aiko.items.get(id ?? "");
+            const stowed = await V.stow(aiko, item(${JSON.stringify(dayItems.tool)}));
+            const inStash = item(${JSON.stringify(dayItems.tool)})?.getFlag("${MOD}", "location") ?? null;
+            // The broken one goes before the Tool comes out: a broken Tool still takes a slot of the two (Gear).
+            await U.discardBroken(aiko, item(${JSON.stringify(dayItems.broken)}));
+            const retrieved = await V.retrieve(aiko, item(${JSON.stringify(dayItems.tool)}));
+            return { stowed, inStash, retrieved, discarded: !item(${JSON.stringify(dayItems.broken)}) };`, { timeout: 90000 });
+        await settle(800);
+    } finally {
+        dayRun = { ...(dayRun ?? {}), gm: await gm.eval(`const R = await import("${REPO}/scripts/remnants.mjs"); const V = await import("${REPO}/scripts/vault.mjs");
+            await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const aiko = game.actors.get("${ids.aiko}");
+            const out = { tool: aiko.items.get(${JSON.stringify(dayItems.tool)})?.getFlag("${MOD}", "location") ?? null, broken: aiko.items.has(${JSON.stringify(dayItems.broken)}) };
+            const left = R.remnantsOn(canvas.scene).filter(t => R.remnantData(t)?.subject === "Scenario 40 broken tool");
+            out.traces = left.length;
+            for (const t of left) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
+            for (const id of [${JSON.stringify(dayItems.tool)}, ${JSON.stringify(dayItems.broken)}]) await aiko.items.get(id ?? "")?.delete();
+            if (${JSON.stringify(dayItems.room)} && !${dayItems.had}) await V.setStash(${JSON.stringify(dayItems.room)}, aiko.id, { present: false });
+            await (await import("${REPO}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            out.patches = globalThis.__markPatches;
+            return out;`, { timeout: 30000 }) };
+    }
+    check("p1: a Tool stowed in a stash of Aiko's where she stands and taken out again, and a broken Tool discarded, each do what they say on the GM",
+        Boolean(dayItems.room) && Boolean(dayItems.tool) && Boolean(dayItems.broken) && dayRun.stowed === true && dayRun.inStash === "vault"
+            && dayRun.retrieved === true && dayRun.discarded === true && dayRun.gm.tool === "carried" && dayRun.gm.broken === false && dayRun.gm.traces === 1,
+        JSON.stringify({ dayItems, dayRun }), { flow: "sheet-audit" });
+
+    /*
+     * THE DAY, AS THE GMS' AUDIT SAW IT (E29 C3, 05.10.2026; the plan's section 6, "store traffic"). Every write
+     * above - the GM's and the players' own, a Search and its find, a Rest, Calls, projects, a stash, a retrieve and
+     * a discard - went past the judge on
+     * the primary. None may be put back: a module road that writes what a roll is built from on a player's browser
+     * would be a false alarm at every table, and none flagged (C5: a refund, a Rest or an item no judge covered
+     * would put a card with Undo before the GMs). What is listed is a Call a player's browser armed (`pendingCall`,
+     * until C8). And the marks' traffic: 76 patches of `sheetMarks` in this day, measured on the harness on
+     * 05.10.2026 (e29run/c3a1, one run; one listed row, a Call armed) - the plan's section 6 asked for the
+     * number. The bound allows a quarter more: a write judged after the next one has landed read both in
+     * the document, so two writes could move a mark once or twice - until E29 fix r1-G1, since which a write
+     * moves the mark only by what it named, as its hook saw it. C6 (05.10.2026) puts each module item in the
+     * mark, and every write on one moves it: 111 patches in each of two runs on the harness (e29run/c6a1, with
+     * the stash, the retrieve and the discard above), 35 of them moving items in the second - the first did not
+     * count them apart - and the other 76 the number C3 measured. Read again for G1 (05.10.2026, one run each,
+     * e29run/r1g1q): 114 patches at C9 (65e5aec), 115 with G1, 35 of them items in both.
+     * Since E29 fix r1-G4 (the plan's 2.4 and 2.8; review round 1 sec m3, cor m10) a write no judgement reads is
+     * listed and one that stood on credit or a judge has a `covered` row. Measured on the harness on 05.10.2026
+     * (e29run/r1g4q, one run): three listed rows, each an item's `equipped` taken off as a module road writes it
+     * with something it judges - a Tool worn out (`itemWear`), the kit used up (`itemUse`, inventory.mjs
+     * `breakItem`) and a Tool stowed (`stash`) - and three covered rows: the item used (its Health), the Rest
+     * (its stamp and its Sanity) and the Search's find; 115 patches, 35 of them items, as at G1.
+     * Since E29 fix r2-H7 (06.10.2026) a fourth covered row, with no reason (the window's spend names
+     * none): the Support the GM armed on Aiko in 6b+, which p1's window spent as it closed, stood on p1's
+     * roll (sheet-audit.mjs `callsCover`). Measured on the harness on 06.10.2026 (e29run/r2h7, one run):
+     * those four, 115 patches, 35 of them items.
+     */
+    phase("the day's writes, as the GMs' audit saw them", { flow: "sheet-audit" });
+    const auditDay = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
+        await (await import("${REPO}/scripts/sheet-audit.mjs").catch(() => ({}))).sheetAuditIdle?.();
+        const rows = Object.values(S.sheetWriteStore?.entries?.() ?? {}).filter(r => r?.at >= globalThis.__auditFrom);
+        return { store: Boolean(S.sheetMarkStore), patches: globalThis.__markPatches, itemPatches: globalThis.__itemPatches,
+            putBack: rows.filter(r => r.verdict === "putBack").map(r => Object.keys(r.change ?? {})),
+            listed: rows.filter(r => r.verdict === "listed").flatMap(r => Object.keys(r.change ?? {}).map(k => (r.reason ?? "-") + ":" + k.replace(/^items\.[^.]+/, "items.<id>"))),
+            flagged: rows.filter(r => r.verdict === "flagged").map(r => Object.keys(r.change ?? {})),
+            covered: rows.filter(r => r.verdict === "covered").map(r => (r.reason ?? "-") + ":" + Object.keys(r.change ?? {}).map(k => k.replace(/^items\.[^.]+/, "items.<id>")).sort().join(",") + (r.covered ? ":" + JSON.stringify(r.covered) : "")).sort() };`);
+    const MARK_PATCHES_MEASURED = 111;
+    const COVERED_MEASURED = [`-:flags.${MOD}.pendingCall`, "itemUse:system.resources.hitPoints.value", `rest:flags.${MOD}.restsTaken,system.resources.stress.value`, "searchFind:items.<id>"];
+    check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed and an item's readiness, has a covered row for the Rest, the item used, the find and the Call a roll's window spent, and patches its marks within a quarter of the measured count",
+        auditDay.store && auditDay.putBack.length === 0 && auditDay.flagged.length === 0
+            && auditDay.listed.every(entry => entry.endsWith(`:flags.${MOD}.pendingCall`) || entry.endsWith(`:items.<id>.flags.${MOD}.equipped`))
+            && JSON.stringify(auditDay.covered) === JSON.stringify(COVERED_MEASURED)
+            && auditDay.patches > 0 && auditDay.patches <= Math.ceil(MARK_PATCHES_MEASURED * 1.25),
+        JSON.stringify({ ...auditDay, c6Phase: [dayItems.patches, dayRun?.gm?.patches] }).slice(0, 1500), { flow: "sheet-audit" });
 
     // ---- 7. uncaught errors ------------------------------------------------------------------
     phase("errors");

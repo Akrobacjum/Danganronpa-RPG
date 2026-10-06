@@ -66,7 +66,7 @@ is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
 
 ## What the suite's four numbers mean
 
-`738 passed, 0 failed, 17 skipped` (headless, 05.10.2026, 1.2.67), and a fourth,
+`863 passed, 0 failed, 17 skipped` (headless, 06.10.2026, 1.2.68), and a fourth,
 `red`, printed only when it is not zero.
 
 - **passed** counts a test that ran at least one `ok()` or `equal()`; one that
@@ -219,8 +219,8 @@ report, the Level Up catch-up, a Search's look for a planted item and a plant
 handed back. Daggerheart's relay keeps its own table and log line, and tells the
 player with the code `relay`.
 
-**Layer two (E28, 1.2.67; E29).** The numbers - totals, dice, Hope paid - are
-checked against the roll the GM holds. Since E28 a player's action roll and a
+**Layer two (E28, 1.2.67; E29, 1.2.68).** The numbers - totals, dice, Hope paid,
+what a sheet holds - are checked against what the GMs hold. Since E28 a player's action roll and a
 statistic clicked on the sheet, thrown while a GM is connected, are drawn on the
 primary GM's browser (`roll-draw.mjs`): the dice are the GM's, the resolutions
 the GM runs read their result off the GMs' record of the roll (the store
@@ -233,34 +233,67 @@ every one of Daggerheart's steps, and refuses a roll built of anything but dice,
 numbers and + or -. A roll is drawn for an action its
 character is taking - one whose payment the GM saw the player make, the crisis
 turn, the opening - and once; a resolution takes only the newest roll of its
-action, and a roll's window costs nothing but its experiences' Hope. What a roll adds to
-its dice - the statistic, the experiences, the bonus, how many advantage dice,
-a die beyond those - is
-still configured in the roller's browser: one outside the GM's record is flagged
-(`game.drpg.rollFlags()`, a whisper to the GMs), not refused, until E29.
+action, and a roll's window costs nothing but its experiences' Hope. Since E29
+what a drawn roll adds to its dice is the GM's as well: the primary GM throws the
+roll its own list makes (`LEGAL_ROLL_MODIFIERS` in config.mjs, each part read in
+roll-draw.mjs from what the GMs hold - the statistic by the action's rule or a GM's
+pick, an experience only with an Experience Call the GMs hold armed, the Calls'
+bonus and dice, each action's situation, Breakdown, a hindering Call armed long
+enough before the roll), and what the roller's window configured is a claim: a
+difference is recorded on the roll (`game.drpg.rollFlags()`), whispered to the GMs
+and named on a card to the roller, and never counted. The Calls that change a roll
+are bought on the primary GM (`call.arm`, which takes the Hope there - an Experience
+or an Ultimate only with the yes a GM gave on its card, which the primary keeps), so
+a drawn roll applies only the Calls the GMs hold armed, and a Reroll throws again
+from what the GM counted (the record's `scored`), never from a claim.
 
-What stays open: a roll thrown with no GM connected (an action waits; any other
-roll is stamped and moves nothing until a GM grants it, on the dice the player's
-browser reports); every roll on a Daggerheart build the draw was not written for
-(thrown in the player's browser, the GM told once per version); Daggerheart's
-own item rolls, its damage rolls and the rest of its rolls, none of them drawn;
-a player's own character's Hope, Stress and Health within each resource's bounds
-(owner permission and the relay's own-character rule), the resources of any
-actor that is not a student (companions included), Fear one step at a time, and
-the countdowns the rules tick or the GM gave them - all through the relay, which
-no module roll needs any more and which E29 may refuse; `relay-guard.mjs` lists
-the rest. A player's own action budget is the owner's to write as well, so a
-console that hands itself back the action it paid for has paid, as far as the GM
-can see; so is a Hope Call's price, and a Call's progress, added once for each
-payment of it the GM saw, is paid on the roller's browser. So is a Call a player
-arms on their own character: a drawn roll that names one is thrown with it - a
-Loaded Die's 12 included - until E29 has those Calls bought on the GM. A trace an action
+The sheet is the other half of layer two (E29). A player's writes on a student
+they own - its resources, statistics, maxima, rules and bonuses, the module's
+flags, its module items and the effects on either - are judged on the primary GM,
+one after another per student, against what the GMs hold (`sheet-audit.mjs`, the
+store `sheetMarks`). Every module write goes through one road that names its
+reason from a closed list (`trustedWrite`, `trustedCreate`, `trustedDelete`,
+`WRITE_REASONS` in resource-guard.mjs); a reason is a claim, like a packet field,
+and the GM checks the evidence it names - a payment it saw, a Rest's stamp, room
+and picks, an item used and spent, a Call's price, a Search's record. What
+nothing covers is put back at once and the writer told (Hope as a delta,
+statistics, maxima, rules, bonuses, the GM-only flags, an armed Call added -
+or, where it hinders or a GM armed it, taken off with no roll of the player's
+behind it - a module item's protected flags, an effect that counts), or flagged
+to the GMs on a card
+with Undo and Keep (Health, Sanity, actions, the free grants, a module item
+deleted or created); the rest is listed (`game.drpg.sheetWrites()`). What changed
+while no GM was connected is compared at the primary GM's ready and goes the same
+way, the rest on one card. With `lockPlayerResources` off the fields its text
+names are only listed; items and effects are judged either way. The relay's own
+requests for a student are held to the same rule (`relay-guard.mjs`). The guard on
+the writer's own browser - resource-guard.mjs's hooks, and the display-only pips
+on the sheet, the Party sheet and the token HUD - is a courtesy: it keeps an honest
+sheet honest and tells the player early, a console steps past it, and the
+protection is the primary GM's.
+
+What stays open: a roll not drawn - one thrown with no GM connected (an action
+waits; any other roll is stamped and moves nothing until a GM grants it, on the
+dice the player's browser reports, and the GMs' card shows what it claimed beside
+what the list would give), every roll on a Daggerheart build the draw was not
+written for (thrown in the player's browser, the GM told once per version), and
+Daggerheart's own item rolls, its damage rolls and the rest of its rolls; the
+Hope such a roll earns, which the GM credits against that player's roll message
+of the last minute, whose dice are that browser's; the Calls such a roll's
+window spends there, where one that hinders or that a GM armed stands taken off
+only behind that player's roll message about the character, which a console can
+write first; the resources of any actor
+that is not a student (companions included), Fear one step at a time, and the
+countdowns the rules tick or the GM gave them - all through the relay;
+`relay-guard.mjs` lists the rest. A Hope Call that changes no roll is paid on the
+roller's browser - a fall, which always stands - and what it grants is judged
+against that payment. A trace an action
 leaves is placed at the roller's browser's request: the GM holds a Search's,
 Sabotage's or Dynamic action's to the band its drawn roll reaches, but a console
 that asks for none leaves no trace at all, and a Work's trace on an indirect
-murder takes the band its request names. And three readings still made on the roller's browser: the Search's
-item, drawn and granted on the roller's own sheet (its tier from a drawn total,
-the grant still the player's); a concealment roll's reading; and Listen's lines,
+murder takes the band its request names. And three readings still made on the roller's browser: which
+item a Search draws (granted on the roller's own sheet; the GM holds its tier to
+what the Search's record earns); a concealment roll's reading; and Listen's lines,
 since every browser holds the tokens.
 
 The Reroll is the GM's own transaction (E08): asked of the primary GM, paid,
@@ -507,7 +540,7 @@ and the 1.2.56 performance baseline, not yet measured (`audit/perf-baseline.json
 Generated by `node tools/registry.mjs --write` from the tier files; see "Numbering new tests".
 
 <!-- r-registry:start -->
-Next free: R220. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 for A5, written in E12; R121 for A4 (E22); R122 for A1 (E23); R123-R124 for A6 (E24).
+Next free: R291. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 for A5, written in E12; R121 for A4 (E22); R122 for A1 (E23); R123-R124 for A6 (E24).
 
 | R | Tier | Since | Test |
 | --- | --- | --- | --- |
@@ -731,6 +764,9 @@ Next free: R220. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 fo
 | R217 | 1 | E08 | the GM's draw is on the build it was written for, and leaves any other build alone |
 | R218 | 0 | E08 | no declaration takes a roll's result from the packet |
 | R219 | 1 | E08 | what one client must decide is decided on the primary GM: another GM asks it, as a player does |
+| R220 | 0 | E29 | a module write names a reason of the closed list |
+| R221 | 0 | E29 | the starting sheet is written only on a GM's browser |
+| R290 | 1 | E29 | a GM's job of a student's means reads no maximum off the document but through the readers the census names |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 

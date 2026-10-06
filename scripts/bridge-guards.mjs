@@ -143,9 +143,10 @@ export async function firstRefusal(sender, payload, ctx, ...guards) {
  * the patterns below - anchored, the first that matches wins. R164 reads every
  * reason the guards, the runs and the functions they hand the question to can
  * give, out of the source, and holds each to exactly one pattern; a text none
- * takes would be told as `refused`, with a debug line naming it. Three codes
- * have no pattern: `relay` (relay-guard.mjs tells its own), and `noGm` and
- * `noAnswer`, which only the asking player's client can know. `refused`, the
+ * takes would be told as `refused`, with a debug line naming it. Four codes
+ * have no pattern: `relay` (relay-guard.mjs tells its own), `sheetPutBack`
+ * (sheet-audit.mjs tells its own: a write the GMs put back, E29 C3), and `noGm`
+ * and `noAnswer`, which only the asking player's client can know. `refused`, the
  * fallback, is also the code of a run that carried out nothing ("nothing was
  * carried out: ..."): a run answers a done only for work done, and which of its
  * resolver's silent reasons applied is not told (E31 review).
@@ -157,7 +158,8 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "relay", "failed", "refused", "noGm", "noAnswer"
+    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "itemNotDecided", "relay", "sheetPutBack", "failed",
+    "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -228,6 +230,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["notASupport", /^".*" is not a Hope Call a player can buy for somebody else$/],
     ["notASupport", /^".*" is not aimed at another player$/],
     ["notASupport", /^a Call for somebody else, aimed at the buyer$/],
+    // E29 C8: a Call on the buyer's own character that is not one (call-effects.mjs ownArmRefusal).
+    ["notASupport", /^".*" is not a Hope Call a player can buy for their own character$/],
+    ["notASupport", /^".*" is aimed at somebody else$/],
     ["hopeBarred", /^the buyer may not spend a Hope Call now \(.*\)$/],
     ["notEnoughHope", /^the buyer holds .+ Hope, the Call costs .+$/],
     // E08+E28 C8: what only the GM's own Reroll takes back, asked by a player (guardUndoIsTheGms, gmOnly in gm-bridge.mjs).
@@ -296,6 +301,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that is not a duality roll nobody has thrown$/],
     // E08+E28 fix r2-H8: one with a term that is neither a die, a number nor + or - (guardDrawnRoll).
     ["badRequest", /^that roll holds a term no roll of this game is built of$/],
+    // E29 fix r2-H1: one whose options hold a key past the ones a window may say (guardDrawnRoll).
+    ["badRequest", /^that roll's options hold what no roll of this game is drawn with: .*$/],
     // E08+E28 C14: a result taken from the GMs' record of its roll (rollRefusal).
     ["rollUnknown", /^no roll the GM drew is named$/],
     ["rollNotYours", /^that roll is not the sender's character's$/],
@@ -317,10 +324,17 @@ export const REASON_PATTERNS = Object.freeze([
     ["rollThrown", /^a roll of that action is being thrown already$/],
     ["badRequest", /^no crisis action that throws a roll is named$/],
     ["cannotNow", /^that character has no opening roll to throw now$/],
+    // E29 fix r2-H3: a draw asked before this GM's marks of the characters opened, and none opened in time (roll-draw.mjs `marksOpen`).
+    ["cannotNow", /^the GMs' marks of the characters are not open on this GM's browser$/],
     ["badRequest", /^that roll's window asks a cost no roll of this game pays$/],
     // E08+E28 fix r2-H2: progress that names no roll is a Hope Call's, paid for once (guardCallProgress).
     ["badRequest", /^no Call that adds progress is named$/],
-    ["callNotPaid", /^no payment of that character's stands for that Call$/]
+    ["callNotPaid", /^no payment of that character's stands for that Call$/],
+    // E29 fix r2-H4: a Call that waits for the GM's yes, armed with none kept for it (guardArmGmYes).
+    ["callNotApproved", /^no GM's yes stands for that Call$/],
+    // E29 fix r2-H21: an item a player's browser made that no GM has decided on yet changes no hands (sheet-audit.mjs
+    // `creationRefusal`, asked by the copy roads of handover.mjs and vault.mjs).
+    ["itemNotDecided", /^no GM has decided yet on an item a player made on a sheet: ".*"$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -389,7 +403,10 @@ function emitTo(userId, packet) {
  * of the screen is in. Moved here from gm-bridge.mjs with `sayNotDone` (E31).
  */
 export function requestLabel(action) {
-    const key = `DRPG.Bridge.what.${action}`;
+    /* A write the GMs' audit put back (E29 C3, sheet-audit.mjs) is no request: it is named by
+       the field it changed, `sheet.<kind>`, with the label the GMs' whisper gives that field. */
+    const field = /^sheet\.(\w+)$/.exec(String(action ?? ""))?.[1];
+    const key = field ? `DRPG.Audit.field.${field}` : `DRPG.Bridge.what.${action}`;
     return game.i18n.has(key) ? game.i18n.localize(key) : String(action ?? "?");
 }
 
@@ -622,17 +639,27 @@ export async function guardSabotageRoom(sender, payload, ctx) {
  * a crisis action, so the incident is at its incident stage and the holder
  * is one of its participants - the victim included, whose Self-defence and
  * Role reversal swing a weapon too.
+ *
+ * AS THE GMS HOLD THE OBJECT (E29 fix r2-H21, 06.10.2026; the class sweep of fixes r2-H17 to r2-H20). An object's
+ * identity (`drpgItemId`) is a field the sheet audit fixes (sheet-audit.mjs `ITEM_FIXED`), and a participant's write
+ * of one on an item of their own stands on the document until its put-back lands, or for good where it fails - so the
+ * holding was read off a write the GMs put back, and the traces of an object no participant the sender plays holds
+ * could be tied to the crime (remnants.mjs `tieTraceForItem`). The holding is read off the participants' items as the
+ * GMs hold them (`itemsAsHeld`). The wait holds up nothing that holds it up, by reading: the honest sender asks for the tie
+ * after its roll and before its crisis packet, and what a judgement waits for (a use's consumption, a find's record)
+ * it waits for at most `JUDGE_WAIT_MS` from when the write was heard.
  */
 export async function guardTieTraceHolder(sender, payload, ctx) {
     const identity = payload.identity;
     const { murderState, participantIds } = await import("./murder.mjs");
+    const { itemsAsHeld } = await import("./sheet-audit.mjs");
     const state = murderState();
     const cast = state?.stage === "incident" ? new Set(participantIds(state)) : new Set();
-    const holds = Boolean(identity) && game.actors.some(actor =>
-        cast.has(actor.id)
-        && ownsActor(sender, actor.id)
-        && actor.items.some(item => item.getFlag(MODULE_ID, "drpgItemId") === identity));
-    return holds ? null : "no participant of the running incident the sender plays holds that object";
+    const theirs = identity ? game.actors.filter(actor => cast.has(actor.id) && ownsActor(sender, actor.id)) : [];
+    for (const actor of theirs) {
+        if ((await itemsAsHeld(actor)).some(item => item.getFlag(MODULE_ID, "drpgItemId") === identity)) return null;
+    }
+    return "no participant of the running incident the sender plays holds that object";
 }
 
 /**
@@ -719,8 +746,21 @@ export function guardArmCharacter(sender, payload, ctx) {
  */
 export async function guardArmPlayerCall(sender, payload, ctx) {
     if (sender.isGM) return null;
-    const { playerArmRefusal } = await import("./call-effects.mjs");
-    return playerArmRefusal(payload.call);
+    const { playerArmRefusal, ownArmRefusal } = await import("./call-effects.mjs");
+    return armedOnBuyer(payload) ? ownArmRefusal(payload.call) : playerArmRefusal(payload.call);
+}
+
+/*
+ * AND ON THE BUYER'S OWN CHARACTER (E29 C8, 05.10.2026; the plan's 3.3). A Call that arms the
+ * buyer's own next roll - Experience, Ultimate, Resolve, a Loaded Die - was written and paid on
+ * the player's browser until 1.2.68; it comes here now as a Support does, and is checked, paid
+ * and armed on the same road (gm-bridge.mjs `armPaidByPlayer`). Which of the two roads a packet
+ * is on is read from the packet's two ids, the buyer's and the beneficiary's: the same character,
+ * and only a Call aimed at nobody else passes (`ownArmRefusal`); two, and only one aimed at
+ * another player (`playerArmRefusal`). `owns` has tied the buyer to the sender before either.
+ */
+function armedOnBuyer(payload) {
+    return armBuyerId(payload) === payload.actorId;
 }
 
 /*
@@ -773,9 +813,9 @@ export function guardArmBuyer(sender, payload, ctx) {
     return game.actors.get(armBuyerId(payload)) ? null : "the paying character does not exist";
 }
 
-/** And be somebody other than the character the Call is armed on. */
+/** And, for a Call aimed at another player, be somebody other than the character it is armed on (E29 C8: any other is the buyer's own). */
 export function guardArmOtherCharacter(sender, payload, ctx) {
-    if (sender.isGM) return null;
+    if (sender.isGM || HOPE_CALLS[payload.call?.key]?.target !== "player") return null;
     const buyer = game.actors.get(armBuyerId(payload));
     return buyer && buyer.id === game.actors.get(payload.actorId)?.id
         ? "a Call for somebody else, aimed at the buyer" : null;
@@ -796,6 +836,49 @@ export async function guardArmBuyerHope(sender, payload, ctx) {
     const { hopeHeld } = await import("./calls.mjs");
     const held = hopeHeld(game.actors.get(armBuyerId(payload)));
     return held < call.cost ? `the buyer holds ${held} Hope, the Call costs ${call.cost}` : null;
+}
+
+/*
+ * A CALL THAT WAITS FOR THE GM'S YES IS ARMED ONLY WITH IT (E29 fix r2-H4, 05.10.2026; the round-2
+ * reviews' sec M4 and cor M1). Experience and Ultimate wait for a GM's ruling (config.mjs `needsGm`),
+ * and until this fix only the asking player's browser waited for it: since E29 C8 the GM arms a
+ * player's Call itself (`call.arm`), and nothing it held said that a GM had said yes - the review's
+ * probe (98, Q1) armed an Ultimate and an Experience from p1's console with no ruling asked, each
+ * answered "armed", Aiko's Hope 3 -> 1. Now the primary keeps each yes a GM gives on the ruling card
+ * (gm-bridge.mjs `yesOnPrimary`), for the user who asked, the character, the Call and the purchase's
+ * own name (its nonce: the asking browser sends it with the ask and again with the arm, calls.mjs
+ * `spendHopeCall`), and a player's arm of such a Call takes it, once. In memory on the primary, as
+ * each roll's first dice are (reroll-receipts.mjs): a primary that reloads between the yes and the
+ * arm holds none, and the arm is refused before anything is paid.
+ *
+ * A minute: the asking browser sends the arm as soon as the yes reaches it, and a yes held back is
+ * the GM's for that moment of the story, not for a later roll. Asked after the buyer's own refusals
+ * (the Hope, a Call already held), so one of those leaves the yes for the purchase it was given for,
+ * and before `guardArmLiving`, which stays last (`armPaidByPlayer`).
+ */
+const callYeses = new Map();
+const CALL_YES_MS = 60 * 1000;
+const CALL_YES_KEPT = 100;
+
+function callYesKey(userId, actorId, key, nonce) {
+    return [userId, actorId, key, String(nonce ?? "").slice(0, 32)].join("|");
+}
+
+/** The primary keeps a GM's yes to one user's ask (gm-bridge.mjs `yesOnPrimary`); the oldest go first. */
+export function noteCallYes({ userId, actorId, key, nonce }) {
+    const yes = callYesKey(userId, actorId, key, nonce);
+    callYeses.delete(yes);
+    callYeses.set(yes, Date.now());
+    while (callYeses.size > CALL_YES_KEPT) callYeses.delete(callYeses.keys().next().value);
+}
+
+/** A player's Call that waits for the GM's yes takes the one kept for this purchase, or is refused. */
+export function guardArmGmYes(sender, payload, ctx) {
+    if (sender.isGM || !HOPE_CALLS[payload.call?.key]?.needsGm) return null;
+    const yes = callYesKey(sender.id, armBuyerId(payload), payload.call.key, payload.call.nonce);
+    const given = callYeses.get(yes);
+    callYeses.delete(yes);
+    return given !== undefined && Date.now() - given <= CALL_YES_MS ? null : "no GM's yes stands for that Call";
 }
 
 /**
@@ -876,8 +959,16 @@ export async function guardRollAuthor(sender, payload, ctx) {
  * packet's. Daggerheart's own dice only where `fromData` reads them (dualityRoll.mjs:122-129) -
  * the Hope die first, the Fear die third, an advantage or disadvantage die fifth - since a throw
  * reads its advantage die as the third die it holds (`dAdvantage`), and the GM writes those dice
- * itself (roll-draw.mjs `onGmTerms`); any other die is a whole number of dice of a whole number
- * of faces.
+ * itself (roll-draw.mjs `onGmTerms`; since E29 C10 the whole roll, `legalRollOf`); any other die is
+ * a whole number of dice of a whole number of faces.
+ *
+ * AND ITS OPTIONS ARE THE ONES A WINDOW MAY SAY (E29 fix r2-H1, 05.10.2026; review round 2's sec
+ * B1). The GM writes every option of the roll it throws from its own list (roll-draw.mjs "THE GM'S
+ * OWN OPTIONS"); a packet's options may hold only the keys of that list a window also says, each
+ * written over, and the empty `data` (roll-draw.mjs `DRAWN_OPTIONS`, which the roller's browser
+ * sends and nothing more). One holding any other key - Daggerheart's `rerolledRoll`, which its
+ * resource step pays the difference from, a `skips` - is refused, told and logged rather than
+ * thrown without it: no window of this game sends one.
  */
 const DRAWN_TERMS_MAX = 64;
 const DRAWN_FORMULA_MAX = 512;
@@ -899,7 +990,10 @@ export async function guardDrawnRoll(sender, payload, ctx) {
         && !terms.some(term => Array.isArray(term?.results) && term.results.length)
         && typeof payload.nonce === "string" && payload.nonce.length > 0 && roll.options?.[ROLL_NONCE] === payload.nonce;
     if (fits && !terms.every(drawnTermFits)) return "that roll holds a term no roll of this game is built of";
-    return fits ? null : "that is not a duality roll nobody has thrown";
+    if (!fits) return "that is not a duality roll nobody has thrown";
+    const { DRAWN_OPTIONS } = await import("./roll-draw.mjs");
+    const unlisted = Object.keys(roll.options).find(key => !DRAWN_OPTIONS.includes(key));
+    return unlisted === undefined ? null : `that roll's options hold what no roll of this game is drawn with: ${unlisted.slice(0, 40)}`;
 }
 
 /*

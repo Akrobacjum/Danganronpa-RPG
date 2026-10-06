@@ -132,7 +132,9 @@ function* records(dump) {
             else if (m.action === "embedded-create" || m.action === "embedded-update") {
                 const key = embeddedKey(m.embeddedName);
                 for (const d of (m.action === "embedded-create" ? m.docs : m.updates) ?? []) {
-                    yield { ...at, surface: "document", where, base: `${m.docId}.${key}.${d?._id ?? ""}`, value: d };
+                    // An effect on an actor's item comes `via` that item (E29 fix r1-G3): "<id>.items.<itemId>.effects.<childId>".
+                    const via = m.via ? `.${embeddedKey(m.via.embeddedName)}.${m.via.id}` : "";
+                    yield { ...at, surface: "document", where, base: `${m.docId}${via}.${key}.${d?._id ?? ""}`, value: d };
                 }
             }
         } else if (w.kind === "setting") {

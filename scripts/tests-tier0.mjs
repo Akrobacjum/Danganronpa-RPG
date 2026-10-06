@@ -3708,7 +3708,7 @@ const REGRESSIONS = [
          * second question, and the answer can be the player.
          *
          * THE APPLY DOES NOT MOVE. `applyAdvancement` writes through
-         * `automatedUpdate`, which bypasses the resource guard by design, so a player
+         * `trustedWrite`, which bypasses the resource guard by design, so a player
          * who could call it could raise their own maxima from the console. The player
          * PICKS; their picks go to the GM's client, which checks the offer again and
          * writes. Every assertion here is about that boundary.
@@ -4297,7 +4297,7 @@ const REGRESSIONS = [
 
         /* A decline is a ruling, not a refund - the whole point of where this sits. */
         const decline = bodyOf(src, "export async function declineReshapeRuling");
-        ok(!/refundPrice|handBack|automatedUpdate/.test(decline.slice(0, 900)),
+        ok(!/refundPrice|handBack|trustedWrite/.test(decline.slice(0, 900)),
             "declining hands the price back, which turns every ruling into a free retry");
 
         /* And the GM's card reaches both. */
@@ -4858,12 +4858,25 @@ const REGRESSIONS = [
         ok(/"ownership\.default": OBSERVER/.test(bodyOf(anonymity, "async function lowerOwnership(", { until: "\n}\n" })),
             "lowerOwnership does not put the default back to Observer");
         const bullets = stripComments(sources.get("truth-bullets.mjs") ?? "");
-        const watcher = bodyOf(bullets, "function watchBulletEdits(", { length: 2400 });
-        ok(/Hooks\.on\("updateItem", async \(item, changes, options, userId\)/.test(watcher),
+        /* E29 fix r2-H12: the item's own update and its student's (`bulletWrites`) reach one judge, `onBulletWrite`. */
+        const watcher = bodyOf(bullets, "function watchBulletEdits(", { until: "\n}\n" });
+        const judge = bodyOf(bullets, "async function onBulletWrite(", { until: "\n}\n" });
+        ok(/Hooks\.on\("updateItem", onBulletWrite\)/.test(watcher) && judge.startsWith("async function onBulletWrite(item, changes, options, userId)"),
             "the bullet watcher does not know who made the change");
-        ok(watcher.includes("revertPlayerBulletEdit("), "a player's edit of a bullet is not put back");
-        ok(watcher.indexOf("revertPlayerBulletEdit(") < watcher.indexOf("FROM_REMNANT"),
+        ok(/Hooks\.on\("updateActor", [^\n]*\n[^\n]*bulletWrites\(actor, changes\)[^\n]*onBulletWrite\(item, wrote, options, userId\)/.test(watcher),
+            "a bullet written through its student's update does not reach the judge of its own update");
+        ok(judge.includes("revertPlayerBulletEdit("), "a player's edit of a bullet is not put back");
+        ok(judge.indexOf("revertPlayerBulletEdit(") < judge.indexOf("FROM_REMNANT"),
             "the player's edit is looked at after the watcher has already returned for the trace's own writes");
+        /* E29 fix r2-H13: what a bullet's write touched is read with the sheet audit's reader of a write's forms. */
+        ok(bodyOf(bullets, "export function guardedPathsIn(", { until: "\n}\n" }).includes("reachOf(changes)"),
+            "a bullet's guarded fields are read off a write by a reader of their own, not by sheet-audit.mjs's reachOf");
+        /* E29 fix r2-H14: a player's edit is put back once the sheet audit has judged every write queued on the bullet's student, whatever it named. */
+        ok(/\n\s*await judgedFor\(item\.parent\?\.id\);\s*await revertPlayerBulletEdit\(/.test(judge),
+            "a player's edit of a bullet can be put back before the sheet audit has judged the writes queued on its student");
+        /* E29 fix r2-H16: a GM's write moves the GMs' copy of a bullet by the fields it touched; whole, it took a player's value waiting for its put-back. */
+        ok(/\brefreshGuard\(item, touched\)/.test(judge) && !/\brefreshGuard\(item\)/.test(judge),
+            "a GM's write takes a bullet into the GMs' copy whole, a player's value waiting for its put-back with it");
         const guard = stripComments(sources.get("resource-guard.mjs") ?? "");
         for (const flag of ["playerText", "analyzedText", "shownType", "analyzed", "lockedChapter"]) {
             ok(bodyOf(guard, "const BULLET_GUARDED", { length: 400 }).includes(`"${flag}"`),
@@ -4896,7 +4909,7 @@ const REGRESSIONS = [
         const handover = stripComments(sources.get("handover.mjs") ?? "");
         ok(/isEclipse\(\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })), "a handover is not refused during an Eclipse on the GM's side");
         const give = bodyOf(handover, "export async function giveItem(", { until: "\n}\n" });
-        ok(give.indexOf("isStashed(item)") >= 0 && give.indexOf("isStashed(item)") < give.indexOf("BEDROOM_KEY_FLAG"),
+        ok(give.indexOf("isStashed(held)") >= 0 && give.indexOf("isStashed(held)") < give.indexOf("BEDROOM_KEY_FLAG"),
             "a key lying in a stash can still be handed over");
     }],
 
@@ -4911,7 +4924,7 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const analyze = stripComments(sources.get("analyze.mjs") ?? "");
         const resolve = bodyOf(analyze, "export async function resolveAnalyze(", { until: "\n}\n" });
-        ok(/!undo && !isAnalysable\(item, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
+        ok(/!undo && !isAnalysable\(held, chapter\)/.test(resolve), "a fresh Analyze does not ask whether the bullet may be analysed");
         ok(/analysedChapter !== chapter/.test(resolve), "an undo does not ask for a throw in this chapter");
         const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
         const six = bodyOf(cleanup, "export async function resolveStageSix(", { until: "\n}\n" });
@@ -5468,6 +5481,11 @@ const REGRESSIONS = [
             searchTheftOf: "why", traceBandOf: "why", progressOf: "why",
             // E08+E28 fix r2-H1: the draw of a player's roll, held to the action it is for before it is thrown.
             drawOnGm: "refused", drawRefusal: "returns",
+            // E29 C8: a Call on the buyer's own character, the other half of `guardArmPlayerCall`.
+            ownArmRefusal: "returns",
+            // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
+            creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
+            stealFromPerson: "refused", stealFromVault: "refused",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -5964,7 +5982,10 @@ const REGRESSIONS = [
             "chapter.mjs markDeceased status": "the token's marker, written with the flag",
             "chapter.mjs reviveCharacter flag": "the one unwrite",
             "chapter.mjs reviveCharacter status": "the marker, taken off with it",
-            "voice.mjs registerVoice flag": "the updateActor hook reads the change's key, not the actor"
+            "voice.mjs registerVoice flag": "the updateActor hook reads the change's key, not the actor",
+            // E29 C3: the GMs' audit holds the GM-only flags in a student's mark and puts a player's write of one back;
+            // it names the flag among the others and never asks whether a student is dead.
+            "sheet-audit.mjs GM_FLAGS flag": "a GM-only flag, held in the GMs' mark and put back"
         };
         const census = files => {
             const out = [];
@@ -6292,13 +6313,14 @@ const REGRESSIONS = [
             "the reader does not find the three planted firsts, or finds the comment's or the string's");
 
         // The functions that take a list's first, and the definition each reads; measured 02.10.2026.
-        // roll-draw.mjs expectedFor (E08+E28 C12b, 04.10.2026) holds a drawn Search to Search's
-        // one trait, and only while it lists one.
+        // roll-draw.mjs held a drawn Search to Search's one trait with a first of its own from E08+E28
+        // C12b (04.10.2026) until E29 fix r1-G10, whose table of sources (`TRAIT_SOURCES`) reads each
+        // definition's list whole and takes a statistic from it only where it lists one; Tamper's door
+        // takes Tamper's first with a `slice`, as `cleanupTrait` takes it - no `[0]` for this to read.
         const FIRSTS = {
             "action-rolls.mjs chooseSearchCategory": ACTIONS.search,
             "action-rolls.mjs performPalm": ACTIONS.palm,
-            "cleanup.mjs cleanupTrait": ACTIONS.tamper,
-            "roll-draw.mjs expectedFor": ACTIONS.search
+            "cleanup.mjs cleanupTrait": ACTIONS.tamper
         };
         const sites = [];
         for (const [file, text] of await otherSources()) for (const fn of firstsIn(text)) sites.push(`${file} ${fn}`);
@@ -6564,6 +6586,161 @@ const REGRESSIONS = [
             "monocub.meddle is no declaration of the bridge's, or a Meddle's packet carries a result the GM would read");
         const problems = problemsOf(all, WAITING);
         ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
+    }],
+
+    ["R220 - a module write names a reason of the closed list", async () => {
+        /*
+         * E29 C1, 05.10.2026; audit S17-12; the plan's 2.2. Every write the module makes on a
+         * student's resources, and every write of a module item's protected flags, goes through
+         * resource-guard.mjs's three roads (`trustedWrite`, `trustedCreate`, `trustedDelete`) and
+         * names its reason, a literal of `WRITE_REASONS`; the GMs' side judges a player's write by
+         * the evidence that reason points at. Read live, every file but resource-guard.mjs:
+         * nothing calls `automatedUpdate` or sets the marker (`[SYSTEM_WRITE]`, `drpgAutomated:`)
+         * by hand; every road's options name a listed reason, or forward the `reason` of one of
+         * FORWARDERS - the helpers that write for their callers, whose every call outside the
+         * suite then names one (the suite's own calls take their default, "gmRuling"); and outside
+         * the suite no `update`, `setFlag`, `unsetFlag` or embedded write names a protected flag of
+         * inventory.mjs's ITEM_FLAGS (category, tier, drpgItemId, wear, broken, location,
+         * stashRoom, and since E29 fix r1-G2 roles and usableKind - though not `"roles"` as a bare
+         * string: tables.mjs writes a table entry's flag of that name, which this reader cannot
+         * tell from an item's). It reads a call's own text: flags built elsewhere and handed in by
+         * name are not seen. The reader is run first on a fixture with nine planted faults. Red before C1:
+         * 37 `automatedUpdate` calls in 17 files, 37 more in tier 2, eight bare writes of a
+         * protected item flag (wear, broken, the creation, a stash and a retrieve, a Reroll's two
+         * give-backs, the bullets' migration). E33 extends it.
+         */
+        const guard = await import("./resource-guard.mjs");
+        ok(Array.isArray(guard.WRITE_REASONS), "resource-guard.mjs has no list of a write's reasons");
+        const listed = new Set(guard.WRITE_REASONS ?? []);
+        equal(JSON.stringify([...listed]), JSON.stringify(["spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash",
+            "retrieve", "discard", "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
+            "auditPutBack", "auditUndo"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
+        const FORWARDERS = [["inventory.mjs", "grantItem", true], ["inventory.mjs", "breakItem", true], ["inventory.mjs", "wearItem", true],
+            ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false],
+            // E29 C4: the Burst and Sprint grants go through the road, their reason the caller's (a Call, or a refund).
+            ["actions.mjs", "grantFreeActions", true], ["actions.mjs", "grantFreeMoves", true]];
+        const PROTECTED = /\bITEM_FLAGS\s*\.\s*(?:category|tier|identity|wear|broken|location|stashRoom|roles|kind)\b|\$\{MODULE_ID\}\.(?:-=)?(?:category|tier|drpgItemId|wear|broken|location|stashRoom|roles|usableKind)\b|^\s*"(?:category|tier|drpgItemId|wear|broken|location|stashRoom|usableKind)"\s*$/m;
+        const named = text => text.match(/\breason\s*:\s*"([^"\n]*)"/)?.[1] ?? null;
+        const forwarding = (file, blank, at) => {
+            const fn = [...blank.slice(0, at).matchAll(/^(?:export )?(?:async )?function (\w+)\(/gm)].pop()?.[1];
+            return FORWARDERS.some(([home, name]) => home === file && name === fn);
+        };
+        const read = { roads: 0, calls: 0, writes: 0 };
+        const problemsIn = (file, raw, suite) => {
+            const code = blankComments(raw), blank = blankLiterals(code), out = [];
+            const at = i => `${file}:${lineAt(code, i)}`;
+            const argsOf = m => callArgs(blank, m.index + m[0].length - 1).args.map(a => code.slice(a.start, a.end));
+            const defined = m => /function\s+$/.test(blank.slice(Math.max(0, m.index - 24), m.index));
+            for (const m of blank.matchAll(/\bautomatedUpdate\s*\(|\[\s*SYSTEM_WRITE\s*\]|\bdrpgAutomated\s*:/g)) {
+                out.push(`${at(m.index)} writes past the roads (${m[0].replace(/\s+/g, "")})`);
+            }
+            for (const m of blank.matchAll(/\btrusted(Write|Create|Delete)\s*\(/g)) {
+                if (defined(m)) continue;
+                read.roads++;
+                const options = argsOf(m)[m[1] === "Delete" ? 1 : 2] ?? "";
+                const reason = named(options);
+                if (reason !== null && !listed.has(reason)) out.push(`${at(m.index)} names "${reason}", which is not on the list`);
+                else if (reason === null && !(/\breason\b/.test(options) && forwarding(file, blank, m.index))) out.push(`${at(m.index)} names no reason`);
+            }
+            if (suite) return out;
+            for (const [home, name, exported] of FORWARDERS) {
+                if (!exported && home !== file) continue;
+                for (const m of blank.matchAll(new RegExp(`\\b${name}\\s*\\(`, "g"))) {
+                    if (defined(m)) continue;
+                    read.calls++;
+                    const all = argsOf(m).join(",");
+                    const reason = named(all);
+                    if (reason !== null && !listed.has(reason)) out.push(`${at(m.index)} hands ${name} "${reason}", which is not on the list`);
+                    else if (reason === null && !(/\breason\b/.test(all) && forwarding(file, blank, m.index))) out.push(`${at(m.index)} calls ${name} without naming its reason`);
+                }
+            }
+            for (const m of blank.matchAll(/\.\s*(?:update|setFlag|unsetFlag|updateEmbeddedDocuments|createEmbeddedDocuments)\s*\(/g)) {
+                read.writes++;
+                if (argsOf(m).some(arg => PROTECTED.test(arg))) out.push(`${at(m.index)} writes a module item's protected flag past the roads`);
+            }
+            return out;
+        };
+        const PLANTED = [
+            "await automatedUpdate(actor, { a: 1 });",
+            "await actor.update({ a: 1 }, { [SYSTEM_WRITE]: true });",
+            "await trustedWrite(actor, { a: 1 }, { reason: \"spend\", ref: null });",
+            "await trustedWrite(actor, { a: 1 }, { reason: \"whim\" });",
+            "await trustedDelete(item);",
+            "await item.setFlag(MODULE_ID, ITEM_FLAGS.broken, false);",
+            "await item.update({ [`flags.${MODULE_ID}.wear`]: forcedDeletion(), \"system.quantity\": 1 });",
+            "await grantItem(actor, { name: \"x\", category: \"tool\", tier: 1 });",
+            "// await automatedUpdate(actor, {}); and \"trustedWrite(a, b)\" in a string",
+            "await item.update({ \"system.quantity\": 1 }); await breakItem(item, { reason: \"itemUse\" });",
+            "await item.setFlag(MODULE_ID, ITEM_FLAGS.roles, [\"crimeTool\"]);",
+            "await item.update({ [`flags.${MODULE_ID}.usableKind`]: \"stress\" });"
+        ].join("\n");
+        equal(JSON.stringify(problemsIn("planted.mjs", PLANTED, false).map(p => Number(p.match(/^planted\.mjs:(\d+) /)?.[1]))),
+            JSON.stringify([1, 2, 4, 5, 8, 6, 7, 11, 12]),
+            "the reader does not see the planted writes as they are - a call past the roads, the marker by hand, an unlisted reason, none, a forwarder's call without one, a protected flag set and unset, a comment and a string, an item's roles and usable kind written by hand");
+        read.roads = read.calls = read.writes = 0;
+        const others = new Set((await otherSources()).map(([file]) => file));
+        const problems = [];
+        for (const [file, raw] of await moduleSources()) {
+            if (file !== "resource-guard.mjs") problems.push(...problemsIn(file, raw, !others.has(file)));
+        }
+        must(read.roads + read.calls > 30, `the reader found ${read.roads} road(s) and ${read.calls} call(s) of a forwarder - it would measure nothing`);
+        log(`R220: ${read.roads} road(s), ${read.calls} call(s) of a forwarder and ${read.writes} other write(s) read; ${problems.length} problem(s)`);
+        ok(!problems.length, `${problems.length} module write(s) without a reason of the list: ${problems.slice(0, 12).join("; ")}`);
+    }],
+
+    ["R221 - the starting sheet is written only on a GM's browser", async () => {
+        /*
+         * E29 C2, 05.10.2026; audit S03-45 (its code part). `initCharacter` writes a student's
+         * maxima, Health, Sanity and Hope and stamps the season's baseline; `restoreStartingSheet`
+         * writes the traits, the experiences and the advance counter. Both are reachable from a
+         * console (`game.drpg.initCharacter`, or an import), and until C2 neither asked who was
+         * calling - the sheet's wand and the season reset in front of them are a GM's, the
+         * functions were not. Now every function of character.mjs that writes is either exported
+         * and refuses a player's browser before its first write (the gate `applyAdvancement` has,
+         * R79), or private and called only from such a one - `stampStartingSheet`, from
+         * `initCharacter` after its gate. Red at 025bf9e: both exported writers ungated.
+         */
+        const GATE = /if \(!game\.user\.isGM\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Panel\.gmOnly"\)\);\s*return null;\s*\}/;
+        const WRITE = /(?<!function )\b(?:trustedWrite|trustedCreate|trustedDelete|grantItem|stampStartingSheet)\(|\.(?:update|setFlag|unsetFlag|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments|delete)\(/;
+        const read = src => {
+            const fns = [...src.matchAll(/^(export )?(?:async )?function (\w+)\(/gm)]
+                .map(m => ({ name: m[2], exported: Boolean(m[1]), body: fnSource(src, m[2]) }));
+            // The gate stands in `fn` before the first match of `what`.
+            const gatedBefore = (fn, what) => { const gate = fn.body.search(GATE); return gate >= 0 && gate < fn.body.search(what); };
+            const writers = fns.filter(fn => fn.body.search(WRITE) >= 0);
+            const problems = [];
+            for (const fn of writers) {
+                if (fn.exported) {
+                    if (!gatedBefore(fn, WRITE)) problems.push(fn.name);
+                    continue;
+                }
+                const call = new RegExp(`(?<!function )\\b${fn.name}\\(`);
+                const callers = fns.filter(other => other !== fn && call.test(other.body));
+                if (!callers.length || callers.some(c => !c.exported || !gatedBefore(c, call))) problems.push(fn.name);
+            }
+            return { writers: writers.map(fn => fn.name), problems };
+        };
+
+        // The reader over a planted file: a gate after the write, no gate, a private writer reached
+        // from an ungated export, and one of each shape that is right.
+        const PLANTED = [
+            "export async function late(a) { await a.update({ x: 1 }); if (!game.user.isGM) { ui.notifications.warn(game.i18n.localize(\"DRPG.Panel.gmOnly\")); return null; } }",
+            "export async function bare(a) { await a.setFlag(\"m\", \"k\", 0); }",
+            "async function hidden(a) { await trustedWrite(a, {}, { reason: \"setup\" }); }",
+            "export function leak(a) { return hidden(a); }",
+            "export async function right(a) { if (!game.user.isGM) {\n ui.notifications.warn(game.i18n.localize(\"DRPG.Panel.gmOnly\"));\n return null;\n }\n await helper(a); await a.update({}); }",
+            "async function helper(a) { await a.unsetFlag(\"m\", \"k\"); }",
+            "export function reads(a) { return a.system.traits; }"
+        ].join("\n");
+        equal(JSON.stringify(read(PLANTED)), JSON.stringify({ writers: ["late", "bare", "hidden", "right", "helper"], problems: ["late", "bare", "hidden"] }),
+            "the reader does not see the planted writers as they are - a gate after the write, none, a private writer behind an ungated export");
+
+        const sources = new Map(await otherSources());
+        const found = read(stripComments(sources.get("character.mjs") ?? ""));
+        ok(["initCharacter", "restoreStartingSheet", "stampStartingSheet"].every(name => found.writers.includes(name)),
+            `the reader found ${JSON.stringify(found.writers)} writing in character.mjs - it would measure nothing`);
+        equal(JSON.stringify(found.problems), "[]",
+            "a function of character.mjs writes a student's starting sheet on a player's browser - no GM gate before its first write, or a private writer reached from one without");
     }]
 ];
 

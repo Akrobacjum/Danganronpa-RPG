@@ -79,12 +79,12 @@ export async function setMonokuma(actor, value = true) {
     await actor.setFlag(MODULE_ID, FLAGS.monokuma, Boolean(value));
 
     if (value) {
-        const { automatedUpdate } = await import("./resource-guard.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
         const { ACTIONS_RESOURCE } = await import("./config.mjs");
-        await automatedUpdate(actor, {
+        await trustedWrite(actor, {
             [`system.resources.${ACTIONS_RESOURCE}.value`]: 0,
             "system.resources.hope.value": 0
-        }).catch(() => {});
+        }, { reason: "setup" }).catch(() => {});
     }
 
     log(`${actor.name} is ${value ? "now" : "no longer"} a Monokuma.`);

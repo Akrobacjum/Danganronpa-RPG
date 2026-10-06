@@ -16,7 +16,7 @@
 
 import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { automatedUpdate, HOPE_REFUND } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { getClock } from "./settings.mjs";
 import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
@@ -180,10 +180,14 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
          * a socket message and waiting for your own dialog works, and is a
          * needlessly long way round to open the dialog directly.
          */
+        // The purchase's own name, sent with the ask and again with the arm: the GM's yes to a
+        // Call that waits for one is kept on the primary for it, and the arm takes it there
+        // (E29 fix r2-H4; bridge-guards.mjs `guardArmGmYes`).
+        const nonce = foundry.utils.randomID();
         if (call.needsGm) {
             const ask = {
                 actorId: actor.id, actorName: actor.name, key,
-                callLabel: call.label, effect: callEffect(call), cost: call.cost, note
+                callLabel: call.label, effect: callEffect(call), cost: call.cost, note, nonce
             };
 
             /*
@@ -245,14 +249,39 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
          * pay it. The GM now takes the Hope when it arms the Call (`handleArm`),
          * and refuses when there is not enough; this client charges nothing and,
          * when the Call does not land, has nothing to give back.
+         *
+         * AND SO IS EVERY CALL THAT ARMS A ROLL (E29 C8, 05.10.2026; the plan's 3.3).
+         * Experience, Ultimate, Resolve and the Loaded Die arm the buyer's own
+         * character, which this client can write, so they were paid and armed here
+         * - and a console armed them for nothing. A player's Call that `grants`
+         * anything is bought on the primary GM now, whoever it is for
+         * (call-effects.mjs `armCall`); with no GM connected the bridge says so and
+         * nothing is paid. The Ultimate's and the Experience's yes is still the card
+         * above, asked first.
          */
-        const gmPays = !game.user.isGM && call.target === "player" && Boolean(call.grants)
-            && Boolean(choice?.target) && !choice.target.isOwner;
-        if (!gmPays) await automatedUpdate(actor, { "system.resources.hope.value": held - call.cost });
+        const gmPays = !game.user.isGM && Boolean(call.grants);
+        /* From the Hope the GMs hold where a GM buys on a sheet (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a
+           console's raised Hope, not put back yet, paid there. The question above is asked again of that value. A
+           player's browser reads its sheet, as before. */
+        const { meansWrite } = await import("./sheet-audit.mjs");
+        if (!gmPays) {
+            const paid = await meansWrite(actor, async ({ hope }) => {
+                if (hope < call.cost) return { held: hope, left: null };
+                await trustedWrite(actor, { "system.resources.hope.value": hope - call.cost }, { reason: "call" });
+                return { held: hope, left: hope - call.cost };
+            });
+            if (paid.left === null) {
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.notEnoughHope", {
+                    call: call.label, cost: call.cost, held: paid.held
+                }));
+                return null;
+            }
+            held = paid.held;
+        }
 
         // Do the thing, not just charge for it.
         const { applyCall } = await import("./call-effects.mjs");
-        const { lines: done, failed } = await applyCall(actor, key, "hope", choice);
+        const { lines: done, failed } = await applyCall(actor, key, "hope", choice, { nonce });
 
         if (failed && gmPays) {
             ui.notifications.warn(game.i18n.format("DRPG.Calls.notArmedNotCharged", { call: call.label }));
@@ -264,11 +293,9 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         // rather than restoring `held`: a roll may have granted Hope in between,
         // and writing the old number would quietly erase it.
         if (failed) {
-            const now = hopeHeld(actor);
-            const max = resourceMax(actor, "hope") || STARTING.hopeMax;
-            await automatedUpdate(actor, {
-                "system.resources.hope.value": Math.min(max, now + call.cost)
-            }, { [HOPE_REFUND]: true });
+            await meansWrite(actor, ({ hope: now }, maxOf) => trustedWrite(actor, {
+                "system.resources.hope.value": Math.min(maxOf("hope") || STARTING.hopeMax, now + call.cost)
+            }, { reason: "refund" }));
             ui.notifications.warn(game.i18n.format("DRPG.Calls.refunded", {
                 call: call.label, cost: call.cost
             }));

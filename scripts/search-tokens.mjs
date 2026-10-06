@@ -122,6 +122,20 @@ export class SearchTokens {
     }
 
     /**
+     * Mark, on the GMs' record of the sender's newest Search of that character, that this GM spent
+     * its token (`tokenSpentAt`): a find stands only on a Search so marked (sheet-audit.mjs
+     * `searchFind`, E29 fix r2-H11). On the primary GM, from `runSpend`, after a spend that
+     * succeeded. A method here, like `takePlant`, so that R166 - which runs the spend's real run
+     * for a player at tier 1, the token stubbed - stubs this write as well, and tier 1 writes
+     * nothing at a table where that player searched minutes ago. By reading, not measured: the
+     * harness holds no Search record when tier 1 runs, so it would see no write either way.
+     */
+    static async markSpent(sender, actorId) {
+        const { rollStore, rollId, row } = await newestSearch(sender, actorId);
+        if (row && !row.tokenSpentAt) await rollStore.patch(rollId, { tokenSpentAt: Date.now() });
+    }
+
+    /**
      * How long a "the GM just told me" count is trusted.
      *
      * It only exists to bridge the gap until the world setting arrives, and the
@@ -448,9 +462,60 @@ async function runSpend(payload, sender, ctx) {
     // Only a spend that SUCCEEDED earns a look for a plant: a refused search
     // is not a search, and a plant handed out for one would be a free item
     // from a sealed or exhausted room. The look itself comes later, from a
-    // Search that found something - see `SearchTokens.takePlant`.
-    if (ok) searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), Date.now());
+    // Search that found something - see `SearchTokens.takePlant`. And only it
+    // marks the Search's record a find may stand on (`SearchTokens.markSpent`).
+    if (ok) {
+        searchedBy.set(searchKey(sender.id, sceneId, payload.roomName), Date.now());
+        await SearchTokens.markSpent(sender, payload.actorId);
+    } else await settleUnclaimed(sender, payload.actorId);
     return { reply: { ok, left: SearchTokens.left(payload.roomName, sceneId) } };
+}
+
+/*
+ * A SEARCH WHOSE TOKEN WAS REFUSED FINDS NOTHING (E29 fix r2-H9, 06.10.2026; review round 2 cor m3).
+ * The searcher's browser ends a Search whose token this GM refused - a room picked clean, or sealed -
+ * without a find (action-rolls.mjs `searchUnclaimed`), but the GMs' record of its roll stayed as the
+ * draw wrote it, and an item a player's console created named after that record stood as the Search's
+ * find (sheet-audit.mjs `searchFind`; red at 2f2747d, the tier-2 test "a Search whose token the GM
+ * refused"). The refusal settles the record's "search" now, as a stash's theft does (bridge-guards.mjs
+ * `rollsFor`), and the find's judge refuses a settled record. The packet names no roll, so the record
+ * is the newest Search of the character drawn for the sender: the draw writes it before it answers
+ * (roll-draw.mjs `keepRecord`, which also marks the older unsettled one `superseded`), and the spend
+ * follows the answer. A refusal after a roll this GM did not draw finds an older Search, whose find
+ * was asked after its own spend - by reading, not measured.
+ *
+ * AND A SEARCH THAT ASKED FOR NO TOKEN FINDS NOTHING EITHER (E29 fix r2-H11, 06.10.2026; found by
+ * fix r2-H9). Until then a find named after a Search that never asked for its token was judged on
+ * the record alone (the plan's 2.6), and stood (red at 3654512, the tier-2 test "a find named after
+ * a Search whose token was never spent"): a console that drew a Search and skipped the spend had
+ * what the refusal above closes. A spend that succeeds marks the same record - the newest Search
+ * of the character drawn for the sender (`SearchTokens.markSpent`) - and the find's judge asks for
+ * that mark. A player's Search draws its roll, then spends, and only then draws the find
+ * (action-rolls.mjs `performSearch`, and `grantDrawn`, the one road that names a record): the
+ * Daily Life day of 40-flow flags its find when the spend marks nothing. The rest by reading, not
+ * measured: a plant is handed only after a spend (`runTakePlant`); a Reroll keeps the record and
+ * its mark, and grants as `reroll`; a spend that reaches this GM before its roll's record does
+ * marks the Search before it, and the new one stays unmarked - the stricter side.
+ */
+async function settleUnclaimed(sender, actorId) {
+    const { rollStore, rollId, row } = await newestSearch(sender, actorId);
+    const resolved = Array.isArray(row?.resolved) ? row.resolved : [];
+    if (row && !resolved.includes("search")) await rollStore.patch(rollId, { resolved: [...resolved, "search"] });
+}
+
+/**
+ * The GMs' record of the newest Search of `actorId` drawn for `sender` that no later one replaced
+ * (roll-draw.mjs `keepRecord`), as `{ rollStore, rollId, row }` - `row` null when there is none, or
+ * when the sender does not play that character. What a spend settles or marks.
+ */
+async function newestSearch(sender, actorId) {
+    const { rollStore } = await import("./gm-stores.mjs");
+    if (!ownsActor(sender, actorId)) return { rollStore, rollId: null, row: null };
+    await rollStore.whenHydrated();
+    const [rollId = null, row = null] = Object.entries(rollStore.entries() ?? {})
+        .filter(([, r]) => r?.actorId === actorId && r.userId === sender.id && r.actionKey === "search" && !r.superseded)
+        .sort(([, a], [, b]) => (Number(b.at) || 0) - (Number(a.at) || 0))[0] ?? [];
+    return { rollStore, rollId, row };
 }
 
 /**
@@ -519,11 +584,12 @@ export const SEARCH_ACTIONS = table({
     [ACTION_SPEND]: {
         label: "DRPG.Bridge.what.searchTokens.spend",
         guards: [knownSender, guardSearchRoom],
-        // The character is the guard's to find, off the packet as it came; the run never reads it.
-        sanitize: pick({ roomName: as.text, sceneId: as.id }),
+        // The character is the guard's to find, off the packet as it came; the run reads it only to
+        // settle a refused Search's record, for a character the sender plays (`settleUnclaimed`).
+        sanitize: pick({ roomName: as.text, sceneId: as.id, actorId: as.id }),
         run: runSpend,
         answer: "reply", timeoutMs: TIMING.searchTokenAckMs,
-        claims: { sceneId: guardSearchRoom }
+        claims: { sceneId: guardSearchRoom, actorId: guardSearchRoom }
     },
     [ACTION_TAKE_PLANT]: {
         label: "DRPG.Bridge.what.searchTokens.takePlant",

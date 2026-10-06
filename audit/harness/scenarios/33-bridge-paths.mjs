@@ -82,9 +82,9 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     /** An action of `actorId`'s paid on its player's browser, as an action pays before its roll - since E08+E28 fix r2-H1 the
         GM draws a roll only for an action whose payment it saw (roll-draw.mjs `drawRefusal`). Code for that player's eval. */
     const payFor = actorId => `{ const { spendAction, actionsLeft } = await import("${repoUrl}/scripts/actions.mjs");
-        const { automatedUpdate } = await import("${repoUrl}/scripts/resource-guard.mjs");
+        const { trustedWrite } = await import("${repoUrl}/scripts/resource-guard.mjs");
         const who = game.actors.get("${actorId}");
-        if (actionsLeft(who) < 1) await automatedUpdate(who, { "system.resources.actions.value": 1 });
+        if (actionsLeft(who) < 1) await trustedWrite(who, { "system.resources.actions.value": 1 }, { reason: "gmRuling" });
         await spendAction(who, 1, { quiet: true }); }`;
     /** One packet from p1 that its own client never sends: another player's character, in another player's name. */
     const forgeFromP1 = (action, requestId, fields) => p1.eval(`game.socket.emit("${SOCKET}",
@@ -272,6 +272,59 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("A7: an Assistant GM's Level Up offer is recorded by the primary, and withdrawn the same way",
         offer === "standard" && a7b.withdrawn === null && !a7b.logged.length && notFailed(offered) && notFailed(withdrawnAnswer),
         JSON.stringify(a7b));
+
+    /* A13. AN ASSISTANT GM'S YES TO A CALL (E29 fix r2-H4, 05.10.2026; the round-2 reviews' sec M4 and cor M1).
+       An Experience waits for a GM's yes, and the primary arms a player's only with the yes it kept for that
+       purchase (bridge-guards.mjs `guardArmGmYes`), so a yes given on another GM's screen goes by the primary
+       (`call.yes`). p1 buys an Experience for Aiko through her sheet's own road (calls.mjs `spendHopeCall`), the
+       card goes up in p1's thread, and the Assistant - who is not the primary - says yes on it: the primary keeps
+       the yes and sends it on, p1's browser asks for the arm, and the primary charges and arms it. Read: the
+       Assistant's answer, p1's, Aiko's Hope and armed list, and the refusals logged on the GM and told to p1.
+       Aiko's Hope and armed list are put back after. */
+    phase("an Assistant GM's yes to a Call", { flow: "hope-call" });
+    const a13was = await gm.eval(`const a = game.actors.get("${IDS.aiko}");
+        const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await a.update({ "system.resources.hope.value": 3 });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return was;`);
+    await clearFailures(gm);
+    mark = await refusedCount(p1);
+    let a13 = null;
+    try {
+        const bought = p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+            const r = await C.spendHopeCall(game.actors.get("${IDS.aiko}"), "experience", { note: "E29 fix r2-H4: an Assistant's yes" });
+            return r === null ? null : typeof r;`, { timeout: 90000 });
+        await settle(1500);
+        const card = await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+            for (const m of game.drpg.messengerThreadMessages("${IDS.p1}").slice().reverse()) {
+                const hit = S.contentOf(m).match(/data-drpg-call="approveCall"([^>]*)>/);
+                if (hit) return { rid: hit[1].match(/data-rid="([^"]+)"/)?.[1] ?? null, asker: hit[1].match(/data-asker="([^"]+)"/)?.[1] ?? null };
+            }
+            return null;`);
+        const yes = card ? await ag.eval(`const U = ${utils};
+            return { primary: U.isPrimaryGm(), sent: await ${bridge}.answerHopeCall(${JSON.stringify(card.rid)}, ${JSON.stringify(card.asker)}, true) };`,
+            { timeout: 30000 }) : null;
+        // A yes that was not kept leaves p1's browser waiting out its five minutes: the primary says no, so it stops.
+        if (card && yes?.sent !== true) await gm.eval(`await ${bridge}.answerHopeCall(${JSON.stringify(card.rid)}, ${JSON.stringify(card.asker)}, false); return true;`);
+        const answer = await bought;
+        await settle(900);
+        const after = await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const a = game.actors.get("${IDS.aiko}"), f = a.getFlag("${MOD}", "pendingCall");
+            return { hope: a.system.resources.hope.value, armed: (Array.isArray(f) ? f : f ? [f] : []).map(e => e?.key ?? null) };`);
+        a13 = { card, yes, answer, after, logged: [...await refusalsLogged(gm, "call.yes"), ...await refusalsLogged(gm, "call.arm")],
+            told: await refusedSince(p1, mark) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${IDS.aiko}"), was = ${JSON.stringify(a13was)};
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hope.value": was.hope });
+            if (was.calls) await a.setFlag("${MOD}", "pendingCall", was.calls); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("A13: an Assistant GM's yes to p1's Experience is kept by the primary, which arms it and charges it once - refused nowhere",
+        Boolean(a13?.card?.rid) && a13.yes?.primary === false && a13.yes.sent === true && a13.answer === "object"
+            && a13.after.hope === 2 && JSON.stringify(a13.after.armed) === JSON.stringify(["experience"])
+            && !a13.logged.length && !a13.told.length, JSON.stringify(a13), { flow: "hope-call" });
 
     /* ------------------------------------- A. Daggerheart's own packets for a player */
 
@@ -799,6 +852,8 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
 
     /* ------------------------------------------------------- C. no GM at all */
 
+    // C's Resolve below needs the Hope p1's browser counts before it asks (E29 C8): 3, written by the Assistant while it is here.
+    await ag.eval(`await game.actors.get("${IDS.aiko}").update({ "system.resources.hope.value": 3 }); return true;`);
     await disconnect("ag");
     await settle(800);
     phase("no GM at the table");
@@ -832,6 +887,16 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
     check("C: with no GM connected, p1's pre-session note settles at once as kept in p1's browser, sends nothing, and says so once",
         settledAtOnce(c4) && c4.answer === "kept" && keptC.unsent === true && keptC.text === "E05 33 C kept note"
         && keptC.status === keptC.kept && !keptC.kept.startsWith("DRPG."), JSON.stringify({ c4, keptC }), { flow: "pre-session-note" });
+    /* E29 C8 (05.10.2026; the plan's 3.3): a Call on p1's own character - a Resolve, 3 Hope, all Aiko holds - is bought on
+       the GM now, so with no GM connected it settles at once, sends nothing, and arms and pays nothing; the bridge says there
+       is no GM, and the Call's own line that nothing was taken follows it. Until C8 p1's browser paid and armed it itself. */
+    const c5 = await offline("call.arm", `(await import("${repoUrl}/scripts/calls.mjs")).spendHopeCall(game.actors.get("${IDS.aiko}"), "determination")`);
+    const c5After = await p1.eval(`const a = game.actors.get("${IDS.aiko}"), f = a.getFlag("${MOD}", "pendingCall");
+        return { hope: a.system.resources.hope.value, resolve: (Array.isArray(f) ? f : f ? [f] : []).some(e => e?.grants === "trait"),
+            noGm: game.i18n.localize("DRPG.Bridge.why.noGm") };`);
+    check("C: with no GM connected, p1's Resolve on its own character settles at once, sends nothing, arms and pays nothing, and says there is no GM",
+        c5.answer === null && c5.ms < 1000 && c5.sent === 0 && c5After.hope === 3 && c5After.resolve === false
+        && c5.said.some(m => m.includes(c5.label) && m.includes(c5After.noGm)), JSON.stringify({ c5, c5After }), { flow: "call-arm" });
     const sentence = [c1, c2, c3].map(c => (c.said[0] ?? "").split(c.label).join("{what}"));
     check("C: the three say the same sentence apart from what they name", sentence.every(s => s && s === sentence[0]), JSON.stringify(sentence));
 

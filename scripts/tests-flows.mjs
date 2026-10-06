@@ -70,8 +70,10 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["analyze.resolve"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
         entry: { api: ["discoverBody"] }, scenarios: ["10-murder"], status: "covered", stage: "<=1.2.50" },
-    { id: "call-arm", what: "A Call armed on a character: paid on the caller's side, armed by the GM",
-        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow"], status: "partial", stage: "E39" },
+    // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
+    // one on the flag and draws a roll naming it, 33 asks for one with no GM connected.
+    { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
+        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths"], status: "partial", stage: "E39" },
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask"], sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E40" },
@@ -102,10 +104,14 @@ export const FLOWS = Object.freeze([
     // E08+E28 C18 (04.10.2026): 15-held drops the GM - an action refused, a statistic stamped - and a GM's
     // return grants it on the GMs' card. Fix r2-H7 (05.10.2026): another GM's click on that card asks the
     // primary (`roll.grant`); the harness has one GM, so 15 clicks it on the primary and R219 reads the waiter.
+    // E29 C9 (05.10.2026): what a drawn roll may add up to is the GM's list (config.mjs LEGAL_ROLL_MODIFIERS); 13 reads
+    // what the GM counted on every roll of its incidents.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
-        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held"], status: "covered", stage: "1.2.67" },
+        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals"], status: "covered", stage: "1.2.67" },
+    // E29 fix r2-H4 (05.10.2026): a GM's yes is kept on the primary for the arm it allows (`call.yes`) - 40 says it on
+    // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
-        entry: { bridge: ["call.approve"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["call.approve", "call.yes"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: [], status: "planned", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",
@@ -158,6 +164,27 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["observe.target", "observe.resolve", "searchTokens.spend", "searchTokens.takePlant", "searchTokens.returnPlant"],
             sockets: ["search-tokens.mjs"] },
         scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "partial", stage: "E39" },
+    // E29 C3 (05.10.2026): a player's own write on their student - Daggerheart's sheet, the HUD, a console - judged on
+    // the primary GM (sheet-audit.mjs), no socket of the module's. 30-security writes a statistic, a maximum, a rule,
+    // a GM-only flag and an effect from p1's console; 40 reads a day's writes for false alarms; 61 a statistic
+    // with two GMs and a late one. C4 (05.10.2026): Hope - 30 raises p1's by hand, through Daggerheart's
+    // relay and before a Call; 20 has p1's own Daggerheart roll cover its Hope through the relay once; 40's
+    // day takes a Rest in a rest room. C5 (05.10.2026): Health and actions p1 raises from the console are
+    // flagged on the GMs' card, and 30 undoes them from it; 61 has two GMs undo one write at once
+    // (`audit.decide`, decided on the primary). C6 (05.10.2026): the module's items - 30 raises a count and stashes
+    // from a room with no stash of Aiko's, both put back; 10 unbreaks a knife (put back) and deletes it (flagged,
+    // the GMs' Undo makes it again under its id); 40's day stashes, retrieves and discards with no alarm. C7
+    // (05.10.2026): 15 has p1's console raise Agility and heal a Health mark with no GM connected - at the GM's
+    // return Agility is put back and the mark is asked about on one card, whose own Undo heals it back - and
+    // reads a student's token HUD bars display-only for p1. Covered at the 1.2.68 release (06.10.2026): each of
+    // the six scenarios tags checks with this flow (30 40, 40 4, 61 8, 20 2, 10 3, 15 6 - grep that day); the
+    // write is judged from p1's console and through Daggerheart's relay, compared at ready in 15 (a GM away and
+    // back) and 61's W, and decided by two GMs at once in 61's V (`askToDecideWrite`, the card button's road).
+    // Not driven, so the audit's live checks instead (AUDIT 9.2, LIVE-E29-02 and -05): the Party sheet's pips,
+    // CSS no client of the harness computes, and two GMs clicking the card itself.
+    { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
+        entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
+        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held"], status: "covered", stage: "1.2.68" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",

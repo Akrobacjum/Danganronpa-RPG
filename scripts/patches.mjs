@@ -61,7 +61,7 @@ export const PATCHES = [
         target: "DualityRoll.build",
         owner: "daggerheart",
         file: "roll-draw.mjs",
-        why: "A player's action roll is configured in their browser and drawn by the primary GM (E08+E28 C12a).",
+        why: "A player's action roll is configured in their browser and drawn by the primary GM (E08+E28 C12a), who throws it from its own list of what may add to it (E29 C10); its Reroll is thrown from the same (E29 C11).",
         when: "always, unless the build is not the one the draw was written for (then never, and the GMs are told once per version)",
         probe: () => {
             const fn = game.system?.api?.dice?.DualityRoll?.build;

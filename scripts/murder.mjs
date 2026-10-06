@@ -57,7 +57,7 @@ import { RECORD, onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, whenGmStor
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax, marksOf, reserveOf, reserveChange, reserveNote } from "./character.mjs";
 import { youOrThem } from "./secret.mjs";
-import { automatedUpdate } from "./resource-guard.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken, isStashed, servesAs, wearOf } from "./inventory.mjs";
 import { equippedFor, breakOnDespair, isEquipped, readiedItems, tierOf, EQUIPPED_FLAG } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
@@ -996,8 +996,13 @@ export function freeResolutionFor(side, state = murderState()) {
  * clue at 12. `advantageNext[side]` names the action it was earned on now, and only that
  * action is helped. A `true` from an incident running since 1.2.65 still reads as before,
  * for any action, once.
+ *
+ * THE WEAPON AS THE GMS HOLD IT, ON THE GM'S DRAW (E29 fix r2-H20, 06.10.2026). `held` is what
+ * the weapon is read off: the actor on the roller's browser (`takeCrisisAction`, its window's
+ * die), and on the GM's draw (roll-draw.mjs `situationReading`, the die the GM throws) the
+ * actor as the GMs hold its items (sheet-audit.mjs `actorHeldNow`, read in the draw's one step).
  */
-export function crisisSituational(actor, key, state = murderState()) {
+export function crisisSituational(actor, key, state = murderState(), held = actor) {
     const side = sideOf(actor, state);
     const def = CRISIS_ACTIONS[key];
     if (!state || !def) return 0;
@@ -1005,8 +1010,8 @@ export function crisisSituational(actor, key, state = murderState()) {
     if ((state.hindered?.[side]?.[key] ?? 0) > 0) situational -= 1;
     const earned = state.advantageNext?.[side];
     if (earned === key || earned === true) situational += 1;
-    if (def.weaponAdvantage && hasWeapon(actor)) situational += 1;
-    if (def.unarmedDisadvantage && !hasWeapon(actor)) situational -= 1;
+    if (def.weaponAdvantage && hasWeapon(held)) situational += 1;
+    if (def.unarmedDisadvantage && !hasWeapon(held)) situational -= 1;
     // Guide, p. 20: "Ofiara otrzymuje advantage na kazdy rzut." Dying alone to a
     // trap is the one situation the guide compensates outright, and it applies
     // to every crisis roll they make rather than to a particular action.
@@ -1490,9 +1495,12 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
         if (victim) {
-            await automatedUpdate(victim, {
-                "system.resources.stress.value": resourceMax(victim, "stress")
-            });
+            // To the end of the track the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's
+            // lowered maximum, not put back yet, was the end this filled to.
+            const { meansWrite } = await import("./sheet-audit.mjs");
+            await meansWrite(victim, (held, maxOf) => trustedWrite(victim, {
+                "system.resources.stress.value": maxOf("stress") ?? 0
+            }, { reason: "incident" }));
         }
     }
     await tellGms(prose[band], { keys });
@@ -1967,8 +1975,10 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
  * GM making it - the striker's browser is not part of the replay - read, not measured at a table.
  *
  * @param {object|null} again  `{ choice, resource }` of the first throw, on a replay.
+ * @param {object} held  the actor as the GMs hold its items (`applyCrisisAction`'s `held`), on a replay:
+ *   the item used again is read off it (use-items.mjs `useItem`'s `held`; E29 fix r2-H20).
  */
-async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
+async function afterCrisisRoll(actor, def, roll, itemId, again = null, held = actor) {
     // Asked here, while the person who threw the dice is still looking at them.
     const choice = roll.isCritical ? again?.choice ?? await askCriticalTarget(def) : null;
 
@@ -1984,7 +1994,9 @@ async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
      * side does what only it can: the trace, the turn, the drain, and the
      * receipt that lets a Reroll put the thing back. The Reroll's replay uses it
      * again on the GM's, with no window: the questions were asked once, and the
-     * first use's answer is the row's (`usedFor`, see `noteCrisisFact`).
+     * first use's answer is the row's (`usedFor`, see `noteCrisisFact`); what it
+     * decides by - usable, broken, stashed, tier, kind - is read as the GMs hold
+     * the item (`held`, fix r2-H20).
      *
      * SUCCESS IS NOT ENOUGH. The guide's row: a critical or a success with Hope
      * and the item goes in; a success with DESPAIR leaves the trace and nothing
@@ -2008,7 +2020,8 @@ async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
             // and the turn are spent either way - a player who changes their
             // mind at the last dialog has still done the thing on the clock.
             // A replay's use asks nothing (`again`), on the first use's resource.
-            const restored = item ? await useItem(actor, item, again ? { again: { resource: again.resource ?? null } } : {}) : null;
+            const restored = item ? await useItem(actor, item, again
+                ? { again: { resource: again.resource ?? null }, held: held.items.get(itemId) ?? null } : {}) : null;
             if (restored) {
                 usedItemId = item.id;
                 hopeGranted = Number(restored.hope) || 0;
@@ -2071,8 +2084,8 @@ function hasWeapon(actor) {
  * anyway (see `grantImprovisedWeapon`), so the broken one staying in the way is
  * not a reason to withhold it.
  */
-function carriesWeapon(actor) {
-    return carriedFor(actor, "crimeTool").some(i => !isBroken(i));
+function carriesWeapon(held) {
+    return carriedFor(held, "crimeTool").some(i => !isBroken(i));
 }
 
 /**
@@ -2114,12 +2127,24 @@ async function chooseWeapon(actor, weapon) {
  * and the name is a claim: it counts only on an action that swings (the same two markers)
  * and for a Crime Tool the actor carries and holds ready - as the bridge's own check
  * (gm-bridge.mjs `handleCrisis`) it cannot name somebody else's. A Reroll's replay swings
- * what its receipt recorded (`recorded`), whatever became of it since.
+ * what its receipt recorded (`recorded`), whether or not it is still readied.
+ *
+ * NOT A BROKEN ONE (E29 fix r2-H20, 06.10.2026; found by fix r2-H18). The module's own rule
+ * (use-items.mjs `equippedFor`: "Broken and stashed are excluded here ... this is what the
+ * incident asks for its weapon") was not asked here: `breakItem` puts a breaking weapon down
+ * (inventory.mjs), and the sheet's Ready refuses a broken one (use-items.mjs `toggleEquipped`),
+ * but `equipped` is the player's to write and no judged field (sheet-audit.mjs `ITEM_FIXED`'s
+ * note), so a console's write readied a ruined knife again, the packet named it, and the swing
+ * took it and dealt its tier. Read off `held`, as the GMs hold the break. A replay's weapon is
+ * whole again by then where its first throw broke it (`undoLastCrisis` gives the break back
+ * before the replay). Until this fix (4d1532c, e29run/r2h20red, 06.10.2026) a Tier 1 knife
+ * the GM broke and a write readied again was swung on a hit with Fear: 2 Health marks, not
+ * an unarmed hit's 1, the knife on the receipt, and no weapon improvised.
  */
-function swungWeapon(actor, def, id, recorded = false) {
+function swungWeapon(held, def, id, recorded = false) {
     if (!id || !(def.weaponAdvantage || def.weaponDamage)) return null;
-    const item = actor.items?.get(id);
-    if (!item || !servesAs(item, "crimeTool") || isStashed(item)) return null;
+    const item = held.items?.get(id);
+    if (!item || !servesAs(item, "crimeTool") || isStashed(item) || isBroken(item)) return null;
     return recorded || isEquipped(item) ? item : null;
 }
 
@@ -2135,7 +2160,10 @@ function swungWeapon(actor, def, id, recorded = false) {
 async function wearSwing(actor, weapon, { withHope, isCritical, rolled }) {
     if (!weapon || !rolled || isBroken(weapon)) return null;
     const was = { itemId: weapon.id, wear: wearOf(weapon), equipped: isEquipped(weapon) };
-    await breakOnDespair(actor, weapon, { withFear: !withHope && !isCritical, isCritical });
+    // The document takes the wear, counted on from the GMs' (`weapon` is the item as they hold it, fix r2-H18).
+    const tool = actor.items?.get(weapon.id);
+    if (!tool) return null;
+    await breakOnDespair(actor, tool, { withFear: !withHope && !isCritical, isCritical }, weapon);
     const now = actor.items?.get(weapon.id) ?? weapon;
     return wearOf(now) !== was.wear || isBroken(now) ? was : null;
 }
@@ -2190,6 +2218,7 @@ async function grantImprovisedWeapon(actor, def, band, done) {
 
     const { grantItem } = await import("./inventory.mjs");
     const item = await grantItem(actor, {
+        reason: "incident",
         name: def.unarmedImprovises.name,
         category: "crimeTool",
         tier,
@@ -2304,8 +2333,8 @@ function resourcesBefore(raw) {
  * Hope change of another kind that lands between the player's reading and this one is counted
  * in, up to that bound; not measured at a table.
  */
-function hopeTheUseGave(actor, usedItemId, before) {
-    const item = usedItemId ? actor?.items?.get(usedItemId) : null;
+function hopeTheUseGave(actor, held, usedItemId, before) {
+    const item = usedItemId ? held.items?.get(usedItemId) : null;
     const bonus = Number(USABLE_EFFECTS[tierOf(item)]?.bonus?.hope) || 0;
     const was = resourcesBefore(before)?.hope;
     if (!item || !bonus || typeof was !== "number") return 0;
@@ -2362,6 +2391,23 @@ async function applyCrisisAction({
         return null;
     }
 
+    /*
+     * THE ACTOR'S THINGS AS THE GMS HOLD THEM (E29 fix r2-H18, 06.10.2026; H17's seam). What this action decides by
+     * an item - the weapon it swung, which has to serve as a Crime Tool, lie in no stash and be readied (`swungWeapon`);
+     * the tier its damage reads (`chooseWeapon`); whether anything to swing is carried at all (`carriesWeapon`);
+     * whether the swing wears the weapon, and from what wear (`wearSwing`); the bonus a used item's tier pays
+     * (`hopeTheUseGave`) - is read off `held`: the actor's items once every write queued on them has been judged, the
+     * fields the sheet audit judges as its mark holds them (sheet-audit.mjs `actorAsHeld`). Read once, here: after a
+     * replay's rewind, which gave back what the first throw took, and before the incident's state is read, so that
+     * its wait falls before that read and not between it and its use. Writes go to the documents. Until this fix the
+     * action read the documents: at 0c75739 (e29run/r2h18red, 06.10.2026) a readied Tier 1 knife given tier 3 where
+     * the mark did not see it dealt 3 Health marks on a hit with Fear, not 2, and did not break; and with the knife
+     * put in a stash so, the unarmed swing improvised a weapon for the killer.
+     * Since fix r2-H20 the item a replay uses again is read off `held` too (`afterCrisisRoll`).
+     */
+    const { actorAsHeld } = await import("./sheet-audit.mjs");
+    const held = await actorAsHeld(game.actors.get(actorId));
+
     const state = murderState();
     const actor = game.actors.get(actorId);
     const def = CRISIS_ACTIONS[key];
@@ -2374,7 +2420,7 @@ async function applyCrisisAction({
     let hopeGranted = 0;
     if (undo && again) {
         ({ choice, usedItemId, hopeGranted } = await afterCrisisRoll(actor, def, { total, isCritical, withHope }, again.usedItemId,
-            { choice: again.choice ?? null, resource: again.usedFor ?? null }));
+            { choice: again.choice ?? null, resource: again.usedFor ?? null }, held));
     }
 
     // What this roll swung (`swungWeapon`): the damage is read off it, the Despair
@@ -2382,7 +2428,7 @@ async function applyCrisisAction({
     // fix r1-G3 (02.10.2026; review S-m3) a first throw that swung nothing fell through
     // to the packet's `swungId`, and a knife readied between the throw and the Reroll was
     // swung by the replay - its tier dealt, its wear taken, its name in the swing memo.
-    const weapon = undo ? swungWeapon(actor, def, replayed, true) : swungWeapon(actor, def, swungId);
+    const weapon = undo ? swungWeapon(held, def, replayed, true) : swungWeapon(held, def, swungId);
 
     // The swing memo, in the cast. Its own sub-key only (E04): two actors swinging
     // on two GMs' clients both stay.
@@ -2415,7 +2461,7 @@ async function applyCrisisAction({
     const receipt = openReceipt(actorId, key, state);
     receipt.swungId = weapon?.id ?? null;
     // A replay's use ran on this GM and said what it gave; a first throw's is read (fix r1-G6).
-    if (!undo) hopeGranted = hopeTheUseGave(actor, usedItemId, before);
+    if (!undo) hopeGranted = hopeTheUseGave(actor, held, usedItemId, before);
     if (roll) await noteCrisisFact(rolls, actorId, roll, { key, choice, usedItemId, swungId: weapon?.id ?? null, before, receipt });
 
     /*
@@ -2459,7 +2505,7 @@ async function applyCrisisAction({
     // 1.2.66 the player's browser wore the knife before this ran, a Tier 1 knife
     // broke on a Despair hit, and the hit counted as unarmed - 1 Health, not 2,
     // and an improvised weapon for the killer holding the knife.
-    const wasUnarmed = def.unarmedImprovises ? !weapon && !carriesWeapon(actor) : false;
+    const wasUnarmed = def.unarmedImprovises ? !weapon && !carriesWeapon(held) : false;
 
     if (success) {
         receipt.remnant = refOf(await applyRemnant(actor, def.remnant?.[band], def, band, done, false, side));
@@ -2795,14 +2841,33 @@ async function undoLastCrisis({ actorId, key, before = null }) {
      * only the break was given back: a pack of two was one after its Reroll. The quantity
      * the row's `before` names comes back - the player's word, so one charge at most,
      * the one a use takes.
+     *
+     * COUNTED AS THE GMS HOLD IT (E29 fix r2-H23, 06.10.2026; found by fix r2-H22's reading). "One
+     * charge at most" was one more than the pack's count on the sheet, where a player's raise the
+     * audit puts back stands until its put-back lands, and for good where the put-back fails; written
+     * as the GM's, the count given back is the GMs' from then on, and the raise's put-back, read when
+     * written (sheet-audit.mjs, fix r2-H16), finds its path moved and writes nothing. Measured at
+     * e253b3a (e29run/r2h23red): a pack of two used to one, raised to 5 by the player's console with
+     * its put-back refused, ended its Reroll at 6 on the sheet and in the GMs' mark where the row's
+     * `before` named 9 - four charges more than the GMs' one and the one given back - and at 5 on the
+     * sheet and 1 in the mark where it named an honest 2, the use's charge not given back.
+     * The count is now read off the item as the GMs hold it (`itemAsHeld`: once every write queued on
+     * the student has been judged, the mark's count). The wait holds up nothing that holds it up, by
+     * reading: all a judgement waits for that it does not do itself is its own writer's consumption
+     * of an item (sheet-audit.mjs `consumedBy`) or roll card (`callsCover`, which passes a GM's card
+     * over), each for at most `JUDGE_WAIT_MS`; this rewind and the replay after it write as a GM, and
+     * the replay waits on the same queue as it begins (`applyCrisisAction`'s `actorAsHeld`).
      */
     const used = receipt.usedItemId ? resourcesBefore(before) : null;
     if (receipt.usedItemId) {
         try {
-            const item = game.actors.get(actorId)?.items?.get(receipt.usedItemId);
-            await item?.setFlag(MODULE_ID, ITEM_FLAGS.broken, false);
-            const qty = Number(item?.system?.quantity ?? 1);
-            if (item && typeof used?.qty === "number" && used.qty > qty) await item.update({ "system.quantity": qty + 1 });
+            const { itemAsHeld } = await import("./sheet-audit.mjs");
+            const owner = game.actors.get(actorId);
+            const asHeld = owner?.items?.has(receipt.usedItemId) ? await itemAsHeld(owner, receipt.usedItemId) : null;
+            const item = asHeld ? owner.items.get(asHeld.id) : null;
+            if (item) await trustedWrite(item, { [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false }, { reason: "reroll" });
+            const qty = Number(asHeld?.system?.quantity ?? 1);
+            if (item && typeof used?.qty === "number" && used.qty > qty) await trustedWrite(item, { "system.quantity": qty + 1 }, { reason: "reroll" });
         } catch (err) {
             error("Could not give back the item a rerolled crisis action used", err);
         }
@@ -2826,11 +2891,11 @@ async function undoLastCrisis({ actorId, key, before = null }) {
         try {
             const item = game.actors.get(actorId)?.items?.get(receipt.wore.itemId);
             const other = item ? readiedItems(item.parent).some(i => i.id !== item.id) : true;
-            await item?.update({
+            if (item) await trustedWrite(item, {
                 [`flags.${MODULE_ID}.${ITEM_FLAGS.wear}`]: receipt.wore.wear,
                 [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: false,
                 [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: receipt.wore.equipped && !other
-            });
+            }, { reason: "reroll" });
         } catch (err) {
             error("Could not give back the wear a rerolled swing took", err);
         }
@@ -2856,17 +2921,36 @@ async function undoLastCrisis({ actorId, key, before = null }) {
      * (`marksBack`), never fewer marks than the receipt's. A victim's own action is put back
      * once, as the actor's: the receipt's victim values are the same reading, taken after the
      * heal, and written second they wrote the heal back (13-murder-signals, A1, 03.10.2026).
+     *
+     * READ AS THE GMS HOLD THEM (E29 fix r2-H23, 06.10.2026). The end of the track the marks put back
+     * stop at, and the Hope the use's Hope is taken off, were read off the sheet, where a player's
+     * write the audit puts back - a lowered maximum, a raised Hope - stands until its put-back lands,
+     * and for good where the put-back fails; written as the GM's, what was computed from it is the
+     * GMs' from then on. Measured at e253b3a (e29run/r2h23red): a tier 3 use from 1 Hope and 4 Health
+     * marks - 2 Hope given, 2 marks healed - then the player's console raising the Hope to 6 and
+     * lowering the Health maximum to 1, its put-back refused: the rewind left 4 Hope and 1 Health mark
+     * on the sheet and in the GMs' mark, where the GMs' 3 Hope and maximum give 1 and 4. Both are now
+     * the GMs' (`meansHeld`, `meansMaxHeld`), read and written in one job of the student's queue
+     * (sheet-audit.mjs `gmMeansWrite`), as the Reroll's payment reads and writes the Hope (fix r2-H5),
+     * so that a write heard meanwhile is judged after these, from them; its wait holds up nothing
+     * that holds it up, as the charge's above. The marks themselves come from the receipt and the
+     * row's `before`, the victim's from the receipt; the sheet is read only to pass over a write that
+     * would change nothing (`restoreResource`).
      */
     const actor = game.actors.get(actorId);
-    await restoreResource(actor, "stress", marksBack(actor, "stress", receipt.actorStress, used?.stress));
-    await restoreResource(actor, "hitPoints", marksBack(actor, "hitPoints", receipt.actorHp, used?.hp));
-    /* And the Hope the use gave (fix r1-G6, 04.10.2026; the round-1 review's m5), off the Hope held
-       now: the Reroll's own price and anything granted since stay. The receipt's, not the row's -
-       the row keeps the first throw's facts, and a second Reroll takes back what the replay's use
-       gave, or nothing where the replay missed (no `usedItemId`). */
-    if (receipt.usedItemId && receipt.hopeGranted > 0) {
-        await restoreResource(actor, "hope", Math.max(0, resourceValue(actor, "hope") - receipt.hopeGranted));
-    }
+    const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
+    if (actor) await gmMeansWrite(actor, async held => {
+        const max = field => meansMaxHeld(actor, field);
+        await restoreResource(actor, "stress", marksBack(receipt.actorStress, used?.stress, max("stress")));
+        await restoreResource(actor, "hitPoints", marksBack(receipt.actorHp, used?.hp, max("hitPoints")));
+        /* And the Hope the use gave (fix r1-G6, 04.10.2026; the round-1 review's m5), off the Hope held
+           now: the Reroll's own price and anything granted since stay. The receipt's, not the row's -
+           the row keeps the first throw's facts, and a second Reroll takes back what the replay's use
+           gave, or nothing where the replay missed (no `usedItemId`). */
+        if (receipt.usedItemId && receipt.hopeGranted > 0) {
+            await restoreResource(actor, "hope", Math.max(0, held.hope - receipt.hopeGranted));
+        }
+    });
     const victim = receipt.victimId && receipt.victimId !== actorId ? game.actors.get(receipt.victimId) : null;
     await restoreResource(victim, "hitPoints", receipt.victimHp);
     await restoreResource(victim, "stress", receipt.victimStress);
@@ -2895,18 +2979,24 @@ async function undoLastCrisis({ actorId, key, before = null }) {
     return true;
 }
 
-/** The marks an undo puts back: the receipt's `was`, or the `claimed` more, up to the track's end. */
-function marksBack(actor, field, was, claimed) {
+/** The marks an undo puts back: the receipt's `was`, or the `claimed` more, up to the track's end `max` (the GMs', fix r2-H23). */
+function marksBack(was, claimed, max) {
     if (typeof was !== "number" || typeof claimed !== "number" || claimed <= was) return was;
-    const max = actor ? resourceMax(actor, field) : 0;
     return max > 0 ? Math.min(claimed, max) : claimed;
 }
 
+/**
+ * A resource put back as it stood before the action taken back. A give-back (fix r2-H6,
+ * resource-guard.mjs `stampOf`): what it returns - the marks the action made on either side -
+ * takes the credit the action left in the GMs' audit. What it takes away - the Hope a use gave -
+ * is a fall the marker keeps out of the credit since fix r2-H8, as an Undo's is (`gmLedger`): it
+ * paid for nothing, and a refund of it is no refund.
+ */
 async function restoreResource(actor, field, value) {
     if (!actor || typeof value !== "number") return;
     if (resourceValue(actor, field) === value) return;
     try {
-        await automatedUpdate(actor, { [`system.resources.${field}.value`]: value });
+        await trustedWrite(actor, { [`system.resources.${field}.value`]: value }, { reason: "reroll", giveBack: true });
     } catch (err) {
         error(`Could not restore ${field} while taking a crisis action back`, err);
     }
@@ -3124,12 +3214,20 @@ async function applyDamage(actor, state, def, band, done, failed = false, choice
  * said. Returns whether anything landed.
  */
 async function takeReserves(actor, { hitPoints = 0, stress = 0 }, done) {
-    const sanity = reserveChange(actor, "stress", -stress);
-    const health = reserveChange(actor, "hitPoints", -(hitPoints + sanity.overflow));
-    const update = { ...health.update, ...sanity.update };
-    if (!Object.keys(update).length) return false;
-    await automatedUpdate(actor, update);
-    const note = landedNote(actor, [health, sanity]);
+    // From the marks and the maxima the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a console's lowered
+    // maximum, not put back yet, read as a reserve spent already, and the loss went to Health or nowhere.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const changes = await meansWrite(actor, async (held, maxOf) => {
+        const at = key => ({ marks: held[key], max: maxOf(key) });
+        const sanity = reserveChange(actor, "stress", -stress, at("stress"));
+        const health = reserveChange(actor, "hitPoints", -(hitPoints + sanity.overflow), at("hitPoints"));
+        const update = { ...health.update, ...sanity.update };
+        if (!Object.keys(update).length) return null;
+        await trustedWrite(actor, update, { reason: "incident" });
+        return [health, sanity];
+    });
+    if (!changes) return false;
+    const note = landedNote(actor, changes);
     if (note) done.push(note);
     return true;
 }
@@ -3325,10 +3423,10 @@ async function thirdLeaves(actor) {
 async function swapRoles(state, done, { restores = false } = {}) {
     const victim = game.actors.get(state.victimId);
     if (restores && victim) {
-        await automatedUpdate(victim, {
+        await trustedWrite(victim, {
             "system.resources.stress.value": 0,
             "system.resources.hitPoints.value": 0
-        });
+        }, { reason: "incident" });
     }
     // Everything that described the OLD arrangement of the fight is cleared,
     // not only the two hindrance stores.
@@ -3534,16 +3632,20 @@ async function spendStress(actor, done) {
      * way out free, and the incident lost the one currency that was still
      * moving it towards an ending.
      *
-     * `automatedUpdate` is what carries it, so the Wounded marker arrives the
+     * `trustedWrite` is what carries it, so the Wounded marker arrives the
      * way it always does - `states.mjs` watches `updateActor` and does not care
      * who wrote the change. And a full Health track does not kill: the incident
      * ends because both tracks are now full, which is `isSpent`, and the caller
      * asks `checkVictimSpent` two lines later.
      */
-    const health = reserveChange(actor, "hitPoints", -RESOLUTION_HEALTH_COST);
+    // From the Health the GMs hold (sheet-audit.mjs `meansWrite`, E29 fix r2-H24), as `takeReserves` reads it.
+    const { meansWrite } = await import("./sheet-audit.mjs");
+    const health = await meansWrite(actor, async (held, maxOf) => {
+        const change = reserveChange(actor, "hitPoints", -RESOLUTION_HEALTH_COST, { marks: held.hitPoints, max: maxOf("hitPoints") });
+        if (change.landed) await trustedWrite(actor, change.update, { reason: "incident" });
+        return change;
+    });
     if (!health.landed) return;
-
-    await automatedUpdate(actor, health.update);
     done.push(landedNote(actor, [health]));
 }
 

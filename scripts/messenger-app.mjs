@@ -667,11 +667,13 @@ async function askItemEffect(item) {
 /** What each button on a ruling card does. GM side, by construction. */
     // A Hope Call that needed the GM's say-so (COMM-04). The verdict goes back
     // to the asking client over the packet the old dialog used; the player's
-    // own `spendHopeCall` charges the Hope on a yes.
+    // own `spendHopeCall` asks the GM to arm it on a yes, and the GM charges the
+    // Hope then. A yes goes by the primary, which keeps it for that arm (E29 fix
+    // r2-H4): one it could not keep leaves the card open.
 async function ruleApproveCallOrRefuseCall(action, data) {
     const { answerHopeCall } = await import("./gm-bridge.mjs");
     const yes = action === "approveCall";
-    if (!answerHopeCall(data.rid, data.asker, yes)) return null;
+    if (!(await answerHopeCall(data.rid, data.asker, yes))) return null;
     return settled(yes ? "DRPG.Bridge.settledApproved" : "DRPG.Bridge.settledDeclined");
 }
 
