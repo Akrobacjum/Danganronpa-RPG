@@ -996,8 +996,13 @@ export function freeResolutionFor(side, state = murderState()) {
  * clue at 12. `advantageNext[side]` names the action it was earned on now, and only that
  * action is helped. A `true` from an incident running since 1.2.65 still reads as before,
  * for any action, once.
+ *
+ * THE WEAPON AS THE GMS HOLD IT, ON THE GM'S DRAW (E29 fix r2-H20, 06.10.2026). `held` is what
+ * the weapon is read off: the actor on the roller's browser (`takeCrisisAction`, its window's
+ * die), and on the GM's draw (roll-draw.mjs `situationReading`, the die the GM throws) the
+ * actor as the GMs hold its items (sheet-audit.mjs `actorAsHeld`).
  */
-export function crisisSituational(actor, key, state = murderState()) {
+export function crisisSituational(actor, key, state = murderState(), held = actor) {
     const side = sideOf(actor, state);
     const def = CRISIS_ACTIONS[key];
     if (!state || !def) return 0;
@@ -1005,8 +1010,8 @@ export function crisisSituational(actor, key, state = murderState()) {
     if ((state.hindered?.[side]?.[key] ?? 0) > 0) situational -= 1;
     const earned = state.advantageNext?.[side];
     if (earned === key || earned === true) situational += 1;
-    if (def.weaponAdvantage && hasWeapon(actor)) situational += 1;
-    if (def.unarmedDisadvantage && !hasWeapon(actor)) situational -= 1;
+    if (def.weaponAdvantage && hasWeapon(held)) situational += 1;
+    if (def.unarmedDisadvantage && !hasWeapon(held)) situational -= 1;
     // Guide, p. 20: "Ofiara otrzymuje advantage na kazdy rzut." Dying alone to a
     // trap is the one situation the guide compensates outright, and it applies
     // to every crisis roll they make rather than to a particular action.
@@ -1967,8 +1972,10 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
  * GM making it - the striker's browser is not part of the replay - read, not measured at a table.
  *
  * @param {object|null} again  `{ choice, resource }` of the first throw, on a replay.
+ * @param {object} held  the actor as the GMs hold its items (`applyCrisisAction`'s `held`), on a replay:
+ *   the item used again is read off it (use-items.mjs `useItem`'s `held`; E29 fix r2-H20).
  */
-async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
+async function afterCrisisRoll(actor, def, roll, itemId, again = null, held = actor) {
     // Asked here, while the person who threw the dice is still looking at them.
     const choice = roll.isCritical ? again?.choice ?? await askCriticalTarget(def) : null;
 
@@ -1984,7 +1991,9 @@ async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
      * side does what only it can: the trace, the turn, the drain, and the
      * receipt that lets a Reroll put the thing back. The Reroll's replay uses it
      * again on the GM's, with no window: the questions were asked once, and the
-     * first use's answer is the row's (`usedFor`, see `noteCrisisFact`).
+     * first use's answer is the row's (`usedFor`, see `noteCrisisFact`); what it
+     * decides by - usable, broken, stashed, tier, kind - is read as the GMs hold
+     * the item (`held`, fix r2-H20).
      *
      * SUCCESS IS NOT ENOUGH. The guide's row: a critical or a success with Hope
      * and the item goes in; a success with DESPAIR leaves the trace and nothing
@@ -2008,7 +2017,8 @@ async function afterCrisisRoll(actor, def, roll, itemId, again = null) {
             // and the turn are spent either way - a player who changes their
             // mind at the last dialog has still done the thing on the clock.
             // A replay's use asks nothing (`again`), on the first use's resource.
-            const restored = item ? await useItem(actor, item, again ? { again: { resource: again.resource ?? null } } : {}) : null;
+            const restored = item ? await useItem(actor, item, again
+                ? { again: { resource: again.resource ?? null }, held: held.items.get(itemId) ?? null } : {}) : null;
             if (restored) {
                 usedItemId = item.id;
                 hopeGranted = Number(restored.hope) || 0;
@@ -2114,12 +2124,24 @@ async function chooseWeapon(actor, weapon) {
  * and the name is a claim: it counts only on an action that swings (the same two markers)
  * and for a Crime Tool the actor carries and holds ready - as the bridge's own check
  * (gm-bridge.mjs `handleCrisis`) it cannot name somebody else's. A Reroll's replay swings
- * what its receipt recorded (`recorded`), whatever became of it since.
+ * what its receipt recorded (`recorded`), whether or not it is still readied.
+ *
+ * NOT A BROKEN ONE (E29 fix r2-H20, 06.10.2026; found by fix r2-H18). The module's own rule
+ * (use-items.mjs `equippedFor`: "Broken and stashed are excluded here ... this is what the
+ * incident asks for its weapon") was not asked here: `breakItem` puts a breaking weapon down
+ * (inventory.mjs), and the sheet's Ready refuses a broken one (use-items.mjs `toggleEquipped`),
+ * but `equipped` is the player's to write and no judged field (sheet-audit.mjs `ITEM_FIXED`'s
+ * note), so a console's write readied a ruined knife again, the packet named it, and the swing
+ * took it and dealt its tier. Read off `held`, as the GMs hold the break. A replay's weapon is
+ * whole again by then where its first throw broke it (`undoLastCrisis` gives the break back
+ * before the replay). Until this fix (4d1532c, e29run/r2h20red, 06.10.2026) a Tier 1 knife
+ * the GM broke and a write readied again was swung on a hit with Fear: 2 Health marks, not
+ * an unarmed hit's 1, the knife on the receipt, and no weapon improvised.
  */
 function swungWeapon(held, def, id, recorded = false) {
     if (!id || !(def.weaponAdvantage || def.weaponDamage)) return null;
     const item = held.items?.get(id);
-    if (!item || !servesAs(item, "crimeTool") || isStashed(item)) return null;
+    if (!item || !servesAs(item, "crimeTool") || isStashed(item) || isBroken(item)) return null;
     return recorded || isEquipped(item) ? item : null;
 }
 
@@ -2378,6 +2400,7 @@ async function applyCrisisAction({
      * action read the documents: at 0c75739 (e29run/r2h18red, 06.10.2026) a readied Tier 1 knife given tier 3 where
      * the mark did not see it dealt 3 Health marks on a hit with Fear, not 2, and did not break; and with the knife
      * put in a stash so, the unarmed swing improvised a weapon for the killer.
+     * Since fix r2-H20 the item a replay uses again is read off `held` too (`afterCrisisRoll`).
      */
     const { actorAsHeld } = await import("./sheet-audit.mjs");
     const held = await actorAsHeld(game.actors.get(actorId));
@@ -2394,7 +2417,7 @@ async function applyCrisisAction({
     let hopeGranted = 0;
     if (undo && again) {
         ({ choice, usedItemId, hopeGranted } = await afterCrisisRoll(actor, def, { total, isCritical, withHope }, again.usedItemId,
-            { choice: again.choice ?? null, resource: again.usedFor ?? null }));
+            { choice: again.choice ?? null, resource: again.usedFor ?? null }, held));
     }
 
     // What this roll swung (`swungWeapon`): the damage is read off it, the Despair

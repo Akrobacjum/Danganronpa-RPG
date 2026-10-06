@@ -1172,9 +1172,12 @@ async function swingFixture(identity = null) {
  * quantity and whether it is broken, whether the replay's receipt names the pack, and the reserve
  * the row says the use healed. `tier` 3 (fix r1-G6): a pack of no kind that heals 2 Health marks
  * and gives 2 Hope, the killer at their most Hope after it and 2 below it before (`before.hope`).
+ * `aside` (fix r2-H20): an update written to the pack after the first use and before the Reroll
+ * where the GMs' mark does not see it (sheet-audit.mjs `AUDIT_ASIDE`, a failed put-back's state).
  */
-async function useItemRerolled(next, { tier = 1 } = {}) {
+async function useItemRerolled(next, { tier = 1, aside = null } = {}) {
     const { ITEM_FLAGS, isBroken } = await import("./inventory.mjs");
+    const audit = aside ? await import("./sheet-audit.mjs") : null;
     const { trustedWrite } = await import("./resource-guard.mjs");
     const { resourceMax } = await import("./character.mjs");
     const { M, killer, putBack } = await swingFixture();
@@ -1201,6 +1204,16 @@ async function useItemRerolled(next, { tier = 1 } = {}) {
             `the first Use an item was not scored with the pack on the row and the receipt - this would measure nothing: ${stableJson([used, F.row()?.facts ?? null])}`);
         const scored = M.murderState()?.lastCrisis?.hopeGranted ?? 0;
         await trustedWrite(killer, { "system.resources.hope.value": Math.max(3, killer.system.resources.hope.value) }, { reason: "gmRuling" });
+        if (aside) {
+            const { sheetMarkStore } = await import("./gm-stores.mjs");
+            await audit.sheetAuditIdle();
+            await pack.update(aside, { [audit.AUDIT_ASIDE]: true });
+            await audit.sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[pack.id] ?? null;
+            must(marked && Object.entries(aside).every(([path, value]) => foundry.utils.getProperty(killer.items.get(pack.id), path) === value
+                && foundry.utils.getProperty(marked, path) !== value),
+            `the write did not stand on the pack alone, outside the GMs' mark - this would measure nothing: ${stableJson(aside)}`);
+        }
         const { out } = await rerollAgain(killer, F.message, { hope: 9, fear: 4 }, next);
         const now = killer.items.get(pack.id);
         const read = { replayed: Array.isArray(out?.lines), hp: killer.system.resources.hitPoints.value, qty: Number(now?.system?.quantity ?? 0),
@@ -1211,6 +1224,7 @@ async function useItemRerolled(next, { tier = 1 } = {}) {
     } finally {
         await F?.putBack();
         await putBack();
+        await audit?.sheetAuditIdle();
     }
 }
 
@@ -2711,6 +2725,85 @@ const SCENARIOS = [
             "an unarmed swing improvised a weapon for a killer whose Crime Tool a write had stashed outside the GMs' mark (stood, items handed)");
     }],
 
+    ["a crisis swing on the GM swings no broken weapon, readied again or not", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; found by fix r2-H18. The swing (murder.mjs `swungWeapon`) took the weapon a packet
+         * named where the killer carried it and held it ready, and did not ask whether it was broken: a break puts a
+         * weapon down (inventory.mjs `breakItem`), but `equipped` is the player's to write and no judged field, so a
+         * console readied a ruined knife again and the swing dealt its tier. At the killer's turn (`swingFixture`) the
+         * GM breaks the readied Tier 1 knife, it is readied again, and the killer swings it on a hit with Fear. Read:
+         * whether the action stood, the victim's Health marks (a Tier 1 weapon deals 2, an unarmed hit the bare 1),
+         * whether the receipt records the knife, and how many things the killer was handed (a broken weapon is none,
+         * murder.mjs `carriesWeapon`, so an unarmed hit improvises one). Until this fix (4d1532c, e29run/r2h20red,
+         * 06.10.2026): stood, 2 Health marks, the knife on the receipt, and nothing handed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const INV = await import("./inventory.mjs");
+        const { M, killer, knife, putBack, health, handed } = await swingFixture();
+        let read = null;
+        try {
+            await INV.breakItem(knife, { reason: "gmRuling" });
+            await knife.update({ [`flags.${MODULE_ID}.equipped`]: true });
+            const now = killer.items.get(knife.id);
+            must(INV.isBroken(now) && now?.getFlag(MODULE_ID, "equipped") === true, "the knife is not broken and readied again - this would measure nothing");
+            const done = await M.resolveCrisisAction({ actorId: killer.id, key: "weaponAttack", total: 99, isCritical: false, withHope: false, swungId: knife.id });
+            await settle();
+            read = [Boolean(done?.success), health(), M.murderState()?.lastCrisis?.swungId === knife.id, handed()];
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([true, 1, false, 1]),
+            "a crisis swing swung a broken weapon a write had readied again (stood, Health marks, the receipt's weapon, items handed)");
+    }],
+
+    ["a GM's draw reads a crisis weapon, a tool and a Cleaning Tool in hand as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. The die a GM's draw throws for the situation (roll-draw.mjs
+         * `situationReading`) read the character's items as they stood: whether a weapon is in hand on a crisis swing,
+         * a tool on a project's roll, a Cleaning Tool on a clean-up's. At the killer's turn (`swingFixture`) the GM
+         * stows any other Crime Tool, tool and Cleaning Tool the killer carries, gives the readied knife the roles of a
+         * tool and a Cleaning Tool and puts it in a stash, and the knife is taken out and readied again where the GMs'
+         * mark does not see it (the audit's aside, a failed put-back's state). Read: the situation row the GM expects
+         * (`expectedFor`) of a crisis swing (-1 unarmed, 0 armed), a project and a clean-up (1 with a tool in hand, else
+         * 0). Until this fix (4d1532c, e29run/r2h20red, 06.10.2026): 0, 1 and 1.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the draw reads - this would measure nothing");
+        const INV = await import("./inventory.mjs");
+        const D = await import("./roll-draw.mjs");
+        const { equippedFor } = await import("./use-items.mjs");
+        const { cleaningTool } = await import("./cleanup.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { killer, knife, putBack } = await swingFixture();
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, stowed = [];
+        const ROLES = ["crimeTool", "tool", "cleaningTool"];
+        let read = null;
+        try {
+            for (const i of killer.items.filter(i => i.id !== knife.id && ROLES.some(role => INV.servesAs(i, role)) && !INV.isStashed(i))) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            await knife.update({ [flag("roles")]: ["tool", "cleaningTool"], [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H20 a drawer" });
+            await sheetAuditIdle();
+            await knife.update({ [flag("location")]: INV.LOCATIONS.carried, [flag("stashRoom")]: forcedDeletion(), [`flags.${MODULE_ID}.equipped`]: true },
+                { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(killer.id)?.items?.[knife.id]?.flags?.[MODULE_ID] ?? null;
+            must(marked?.location === INV.LOCATIONS.vault && [equippedFor(killer, "crimeTool"), equippedFor(killer, "tool"), cleaningTool(killer)].every(i => i?.id === knife.id),
+                "the knife did not stand in hand as a weapon, a tool and a Cleaning Tool on the document alone, the GMs' mark keeping it in a stash - this would measure nothing");
+            const situation = async (actionKey, context = {}) => (await D.expectedFor(killer, { actionKey, context })).read?.situation ?? null;
+            read = [await situation("crisis", { crisis: "weaponAttack" }), await situation("project"), await situation("cleanup")];
+        } finally {
+            for (const [i, was] of stowed) if (killer.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            await putBack();
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([-1, 0, 0]),
+            "a GM's draw read a weapon, a tool or a Cleaning Tool a write had taken out of a stash outside the GMs' mark (crisis swing, project, clean-up)");
+    }],
+
     ["a Reroll's rewind that meets a close rewinds nothing, and the incident stays closed", async () => {
         /*
          * E32+E07 fix r1-G3, 02.10.2026; review C-M2. The rewind (`undoLastCrisis`) put the
@@ -3621,6 +3714,138 @@ const SCENARIOS = [
                 try { await doc?.delete(); } catch { /* already gone */ }
             }
         }
+    }],
+
+    ["a clean-up and a body moved on the GM are eased by the gloves as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. The tier of the Cleaning Tool in hand lowers a clean-up's number
+         * (cleanup.mjs `cleanupDc`, through `resolveCleanup`) and Move the body's (`resolveStageSix`, its
+         * `toolBonusPerTier`), and both read it off the killer's items as they stood, where a player's write the audit
+         * puts back stands until its put-back lands, or for good where it fails. Two students with players, each standing
+         * in a named room: the killer, readied Tier 1 gloves in hand (`inHand`), kills; in Stage 6 the gloves are given
+         * tier 3 where the GMs' mark does not see it (the audit's aside, a failed put-back's state); the killer scrubs an
+         * evident trace on a total one short of the number Tier 1 gloves leave, the body is laid where the killer stands,
+         * and the killer moves it on 14 (16, less the tier). Read: whether the scrub removed the trace and whether it
+         * still stands, and whether the move succeeded. Until this fix (4d1532c, e29run/r2h20red, 06.10.2026): the trace
+         * removed and gone, and the move succeeded.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("studentsInRooms", 2), "the body is carried off from the room the killer stands in");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the clean-up reads - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const scene = canvas?.scene;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const [killer, victim] = livingStudents().filter(a => player(a) && tokenOf(a) && locateActor(a)?.room);
+        must(killer && victim, "no two students with players stand in named rooms on the scene on screen");
+        const body = tokenOf(victim), mine = tokenOf(killer), was = { x: body.x, y: body.y };
+        const tokens = new Set(scene.tokens.map(t => t.id));
+        let gloves = null, read = null;
+        try {
+            gloves = await inHand(killer, "cleaningTool", "SUITE r2-H20 gloves given a tier");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            const trace = await placeRemnant({ type: "incident", visibility: "evident", x: mine.x, y: mine.y, scene,
+                note: "SUITE r2-H20 a trace the killer scrubs" });
+            must(trace, "the fixture's trace was not placed");
+            const dc = CL.cleanupDc("evident", killer);
+            await sheetAuditIdle();
+            await gloves.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.tier}`]: 3 }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = S.sheetMarkStore.get(killer.id)?.items?.[gloves.id]?.flags?.[MODULE_ID] ?? null;
+            must(CL.cleanupDc("evident", killer) === dc - 2 && marked?.[INV.ITEM_FLAGS.tier] === 1,
+                "the tier did not stand on the gloves alone, outside the GMs' mark, or moved no number - this would measure nothing");
+            const scrub = await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: dc - 1, isCritical: false, withHope: true });
+            await settle();
+            await body.update({ x: mine.x, y: mine.y });
+            must(CL.bodyIsHere(killer), "the body does not lie in the killer's room - this would measure nothing");
+            const move = await CL.resolveStageSix({ actorId: killer.id, key: "moveBody", targetId: null, total: 14, isCritical: false, withHope: true });
+            await settle();
+            read = [Boolean(scrub?.removed), Boolean(scene.tokens.get(trace.id)), move?.success ?? move?.refused ?? null];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            if (scene.tokens.has(body.id)) await body.update({ x: was.x, y: was.y });
+            for (const token of scene.tokens.filter(t => !tokens.has(t.id))) await token.delete();
+            try { await gloves?.delete(); } catch { /* already gone */ }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([false, true, false]),
+            "a clean-up or a body moved was eased by a tier a write had left on the gloves outside the GMs' mark (trace removed, trace standing, move succeeded)");
+    }],
+
+    ["a discovery breaks the gloves the GMs hold in the killer's hands, not spared by a stash a write of the player's left", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. The discovery breaks the Cleaning Tools a clean-up used (cleanup.mjs
+         * `destroyCleaningTools`) and leaves alone one gone from the killer, broken or put in their stash since
+         * (`rememberedTools`) - read off the killer's items as they stood, where a player's write the audit puts back
+         * stands until its put-back lands, or for good where it fails. As C12's test above: the killer kills wearing Tier
+         * 1 gloves (`inHand`) and scrubs a trace in Stage 6, which writes the gloves down; then the gloves are put in a
+         * stash where the GMs' mark does not see it (the audit's aside, a failed put-back's state), and the body is
+         * found. Read: whether the gloves broke, and whether the discovery named them. Until this fix (4d1532c,
+         * e29run/r2h20red, 06.10.2026): neither.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the discovery reads - this would measure nothing");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const INV = await import("./inventory.mjs");
+        const { placeRemnant } = await import("./remnants.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`;
+        let gloves = null, trace = null, read = null;
+        try {
+            gloves = await inHand(killer, "cleaningTool", "SUITE r2-H20 gloves stashed by a write");
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            trace = await placeRemnant({ type: "incident", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                note: "SUITE r2-H20 a trace the killer scrubs" });
+            must(trace, "the fixture's trace was not placed");
+            await CL.resolveCleanup({ actorId: killer.id, tokenId: trace.id, total: 30, isCritical: false, withHope: true });
+            await settle();
+            must((S.usedToolStore?.get(killer.id)?.cleaning ?? []).includes(gloves.id), "the clean-up did not write the gloves down - this would measure nothing");
+            await sheetAuditIdle();
+            await gloves.update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H20 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = S.sheetMarkStore.get(killer.id)?.items?.[gloves.id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.isStashed(killer.items.get(gloves.id)) && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the gloves alone, outside the GMs' mark - this would measure nothing");
+            const broke = await CL.destroyCleaningTools([victim.id]);
+            read = [INV.isBroken(killer.items.get(gloves.id)), broke.includes(gloves.name)];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            for (const doc of [gloves, trace]) {
+                try { await doc?.delete(); } catch { /* already gone */ }
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, true]),
+            "the discovery spared gloves a write had put in a stash outside the GMs' mark (broken, named)");
     }],
 
     ["a discovery breaks the gloves of the bodies it found, and a betrayer's stay while their victim is unfound", async () => {
@@ -9539,6 +9764,67 @@ const SCENARIOS = [
         }
     }],
 
+    ["a Reroll's find counts the searcher's hands as the GMs hold them, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam (its copy roads' `counted`). A Reroll of a Search that finds again hands
+         * the new find over on the GM (reroll.mjs `settleSearch`), held to the carry cap (inventory.mjs `grantItem`),
+         * which was counted on the searcher's sheet as it stood: a slot a player's write had emptied a moment before - a
+         * stash the audit puts back - took the find into the hand. A player's Search for a Tool is bookmarked
+         * (`playerRollBookmark`); the GM stows every Murder Weapon, Cleaning Tool and Tool the character carries and hands
+         * over two Tools, which fills the two slots they share (config.mjs `LIMIT_GROUPS`); one of the two is put in a
+         * stash where the GMs' mark does not see it (the audit's aside, a failed put-back's state); and the Search is
+         * replayed on a total that finds. Read: the finds the replay put in the character's hands (a find a full hand has
+         * no room for goes to the stash, or is refused where there is none). Until this fix (4d1532c, e29run/r2h20red,
+         * 06.10.2026): one.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the Search is made where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the replay reads - this would measure nothing");
+        const R = await import("./reroll.mjs");
+        const INV = await import("./inventory.mjs");
+        const { ITEM_CATEGORIES } = await import("./config.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const flag = key => `flags.${MODULE_ID}.${INV.ITEM_FLAGS[key]}`, stowed = [], tools = [];
+        const inGear = i => ITEM_CATEGORIES[i.getFlag(MODULE_ID, INV.ITEM_FLAGS.category)]?.limitGroup === "gear" && !INV.isStashed(i);
+        // The replay's line for a draw, whatever it drew: `DRPG.Reroll.itemDrawn` up to its first blank.
+        const drawnHead = game.i18n.localize("DRPG.Reroll.itemDrawn").split("{")[0];
+        const F = await playerRollBookmark(player, actor, "search", { category: "tool", goal: "any", tier: 1 });
+        const had = new Set(actor.items.map(i => i.id)), messages = new Set(game.messages.contents.map(m => m.id));
+        const tokens = new Set(where.scene.tokens.map(t => t.id));
+        let read = null;
+        try {
+            must(F.verdict === true && F.row()?.actionKey === "search", `the Search was not bookmarked - this would measure nothing: ${stableJson(F.row())}`);
+            for (const i of actor.items.filter(inGear)) {
+                stowed.push([i, i.getFlag(MODULE_ID, INV.ITEM_FLAGS.location)]);
+                await i.update({ [flag("location")]: INV.LOCATIONS.vault });
+            }
+            for (const n of [1, 2]) tools.push(await INV.grantItem(actor, { name: `SUITE r2-H20 a Tool in the bag ${n}`, category: "tool", tier: 1, quiet: true }));
+            must(tools.every(Boolean) && !INV.canCarry(actor, "tool").ok, "the two slots are not full of the fixture's Tools - this would measure nothing");
+            await sheetAuditIdle();
+            await tools[0].update({ [flag("location")]: INV.LOCATIONS.vault, [flag("stashRoom")]: "SUITE r2-H20 a drawer" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(actor.id)?.items?.[tools[0].id]?.flags?.[MODULE_ID] ?? null;
+            must(INV.canCarry(actor, "tool").ok && marked && marked.location !== INV.LOCATIONS.vault,
+                "the stash did not stand on the Tool alone, outside the GMs' mark - this would measure nothing");
+            const done = [];
+            await R.settleSearch(actor, R.replayBookmark(F.row()), { total: 30, isCritical: false, withHope: true, withFear: false }, done);
+            await settle();
+            must(drawnHead && done.some(line => line.startsWith(drawnHead)), `the replay drew nothing - this would measure nothing: ${stableJson(done)}`);
+            read = actor.items.filter(i => !had.has(i.id) && !tools.some(t => t?.id === i.id) && !INV.isStashed(i)).length;
+        } finally {
+            for (const item of [...actor.items]) if (!had.has(item.id)) await item.delete();
+            for (const [i, was] of stowed) if (actor.items.has(i.id)) await i.update({ [flag("location")]: was ?? forcedDeletion() });
+            for (const token of where.scene.tokens.filter(t => !tokens.has(t.id))) await token.delete();
+            for (const m of game.messages.contents.filter(m => !messages.has(m.id))) await m.delete();
+            await F.putBack();
+            await sheetAuditIdle();
+        }
+        equal(read, 0, "a Reroll's find went into a hand whose slot a write had emptied outside the GMs' mark (finds carried)");
+    }],
+
     ["a Reroll while the GM describes the find is refused before the Hope is paid, and one after it replays", async () => {
         /*
          * E08+E28 C6a, 03.10.2026; audit S05-22. An Observe's result is written on the GM's
@@ -9841,6 +10127,27 @@ const SCENARIOS = [
             { belowMax: 5, broken: false, hp: 3, qty: 2, replayGave: 0, replayed: true, scored: 2, usedAgain: false, usedFor: "hitPoints" },
             { belowMax: 3, broken: false, hp: 1, qty: 1, replayGave: 2, replayed: true, scored: 2, usedAgain: true, usedFor: "hitPoints" }]),
         "a tier 3 Use an item's Reroll kept the Hope of a use it took back, or its replay's use paid none (miss, hit)");
+    }],
+
+    ["a Reroll's replay of Use an item uses the item as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. The replay a Reroll of Use an item makes on the GM uses the item again
+         * (murder.mjs `afterCrisisRoll`, use-items.mjs `useItem`), and what the use decides by - whether it is a usable,
+         * broken or stashed, its tier and its kind - was read off the item as it stood, where a player's write the audit
+         * puts back stands until its put-back lands, or for good where it fails. The first test's use above
+         * (`useItemRerolled`: a Tier 1 healing pack, the Reroll a hit with Hope on 11 and 5), with the pack given tier 3
+         * where the GMs' mark does not see it (`aside`) after the first use and before the Reroll - a tier 3 heals 2 and
+         * adds 2 Hope (config.mjs `USABLE_EFFECTS`). Read: as `useItemRerolled` reads. Until this fix (4d1532c,
+         * e29run/r2h20red, 06.10.2026): 0 Health marks - the replay healed a tier 3's 2 - and the rest as now.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the replay reads - this would measure nothing");
+        const { ITEM_FLAGS } = await import("./inventory.mjs");
+        const read = await useItemRerolled({ hope: 11, fear: 5 }, { aside: { [`flags.${MODULE_ID}.${ITEM_FLAGS.tier}`]: 3 } });
+        equal(stableJson(read), stableJson({ replayed: true, hp: 1, qty: 1, broken: false, usedAgain: true, usedFor: "hitPoints" }),
+            "the replay of a Use an item healed by a tier a write had left on the pack outside the GMs' mark "
+            + "(replayed, Health marks, quantity, broken, receipt's item, the reserve healed)");
     }],
 
     ["a bookmark note for another player's character is refused", async () => {
@@ -19482,6 +19789,73 @@ const SCENARIOS = [
             });
             await settle();
         }
+    }],
+
+    ["an Objection's evidence is a Truth Bullet as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
+        /*
+         * E29 fix r2-H20, 06.10.2026; H18's seam. An objection's card takes the floor only with a Truth Bullet of the
+         * objector's for evidence (trial.mjs `seizeFloor`), and whether the item is one is its category - a field the
+         * sheet audit judges - read off the item as it stood, where a player's write the audit puts back stands until
+         * its put-back lands, or for good where it fails. A Tool of the objector's is made a Truth Bullet where the GMs'
+         * mark does not see it (the audit's aside, a failed put-back's state), and in a Class Trial with the floor open
+         * the card naming it is posted, as C6's test above posts one. Read: whether the objector holds the floor,
+         * whether the card was marked refused, and the objector's actions (one before). Until this fix (4d1532c,
+         * e29run/r2h20red, 06.10.2026): the floor held, the card not refused, and no action left.
+         */
+        const [who, other] = cast(2);
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the objection reads - this would measure nothing");
+        const { TRIAL_FLAGS } = await import("./trial.mjs");
+        const floorMod = await import("./trial-floor.mjs");
+        const INV = await import("./inventory.mjs");
+        const { isTruthBullet } = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        const queue = foundry.utils.deepClone(getSetting(SETTINGS.trialQueue) ?? {});
+        const before = { actions: who.system.resources.actions.value, max: who.system.resources.actions.max,
+            grants: who.getFlag(MODULE_ID, FLAGS.freeActionGrants) ?? 0 };
+        let tool = null, message = null, read = null;
+        try {
+            tool = await INV.grantItem(who, { name: "SUITE r2-H20 a Tool called evidence", category: "tool", tier: 1, override: true, quiet: true });
+            must(tool, "the fixture's Tool was not made");
+            await sheetAuditIdle();
+            await tool.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.category}`]: "truthBullet" }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            const marked = sheetMarkStore.get(who.id)?.items?.[tool.id]?.flags?.[MODULE_ID] ?? null;
+            must(isTruthBullet(who.items.get(tool.id)) && marked?.[INV.ITEM_FLAGS.category] === "tool",
+                "the Tool was not made a Truth Bullet on the sheet alone, outside the GMs' mark - this would measure nothing");
+            await setClock({ ...clock, phase: "classTrial" });
+            await floorMod.startFloor({});
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, 0);
+            await who.update({ "system.resources.actions.value": 1, "system.resources.actions.max": 2 });
+            await settle();
+            message = await ChatMessage.create({
+                content: "<p>suite r2-H20 objection</p>",
+                speaker: ChatMessage.getSpeaker({ actor: who }),
+                flags: { [MODULE_ID]: {
+                    [TRIAL_FLAGS.present]: true, [TRIAL_FLAGS.objection]: true, [TRIAL_FLAGS.presenter]: who.name,
+                    [TRIAL_FLAGS.item]: tool.id, [TRIAL_FLAGS.target]: other.id, [TRIAL_FLAGS.targetName]: other.name,
+                    [TRIAL_FLAGS.chapter]: getClock().chapter, popupKind: "none"
+                } }
+            });
+            await until(() => message.getFlag(MODULE_ID, TRIAL_FLAGS.refused) || floorMod.trialFloor()?.holderId === who.id);
+            await settle();
+            read = [floorMod.trialFloor()?.holderId === who.id, Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.refused)),
+                who.system.resources.actions.value];
+        } finally {
+            try { await message?.delete(); } catch { /* already gone */ }
+            try { await tool?.delete(); } catch { /* already gone */ }
+            await floorMod.endFloor();
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, queue);
+            await setClock(clock);
+            await who.setFlag(MODULE_ID, FLAGS.freeActionGrants, before.grants);
+            await who.update({ "system.resources.actions.max": before.max, "system.resources.actions.value": before.actions });
+            await sheetAuditIdle();
+            await settle();
+        }
+        equal(stableJson(read), stableJson([false, true, 1]),
+            "an objection took the floor with a Tool a write had made a Truth Bullet outside the GMs' mark (holds the floor, refused, actions)");
     }],
 
     ["Analyze outside a Class Trial still costs exactly one action", async () => {

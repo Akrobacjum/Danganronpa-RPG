@@ -424,9 +424,12 @@ export function cleaningTool(actor) {
  * C2-m2): `victims`, the running incident's victim for its killers, a Blackened's register row's
  * victims after the close - so the discovery breaks the gloves of the bodies it found, and not
  * a betrayer's whose victim nobody has found yet (`destroyCleaningTools`).
+ *
+ * The tool is read off `asHeld`: the character as the GMs hold its items, on a GM's attempt (E29 fix r2-H20,
+ * `resolveCleanup`'s note); a tool a player's write made, readied or kept whole is not the one written down.
  */
-async function noteCleaningTool(actor) {
-    const tool = cleaningTool(actor);
+async function noteCleaningTool(actor, asHeld = actor) {
+    const tool = cleaningTool(asHeld);
     if (!game.user.isGM || !tool) return;
     const state = murderState();
     const running = killerIds(state).includes(actor.id);
@@ -1256,8 +1259,11 @@ async function cleanupRefusal(actor, token, data, viaAction) {
     return null;
 }
 
-/** Score the attempt: the threshold after every relief, the band, and the outcome row the table gives it. */
-function cleanupVerdict(actor, data, { total, isCritical, withHope, mode }) {
+/**
+ * Score the attempt: the threshold after every relief, the band, and the outcome row the table gives it. `held` is
+ * the character as the GMs hold its items (E29 fix r2-H20, `resolveCleanup`'s note): its readied tool's tier.
+ */
+function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
     /*
      * LYING IS EASIER THAN ERASING (Z5) - the transform road takes its relief
      * off the same threshold, after the tool and after the fresh-scene window.
@@ -1268,7 +1274,7 @@ function cleanupVerdict(actor, data, { total, isCritical, withHope, mode }) {
     const transforming = mode === "transform";
     const relief = transforming ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
     const dc = (() => {
-        const base = cleanupDc(data.visibility, actor);
+        const base = cleanupDc(data.visibility, held);
         return base === null ? null : Math.max(0, base - relief);
     })();
     const success = isCritical || (dc !== null && total >= dc);
@@ -1593,9 +1599,22 @@ export async function resolveCleanup({
         await forgetAttempt(actorId);
         return refused;
     }
-    await noteCleaningTool(actor);
+    /*
+     * THE GLOVES AS THE GMS HOLD THEM (E29 fix r2-H20, 06.10.2026; H18's seam). The tool written down for the
+     * discovery (`noteCleaningTool`) and the tier that lowers the trace's number (`cleanupDc`) are read off the
+     * character's items as the GMs hold them (sheet-audit.mjs `actorAsHeld`): a tier, a role, a break or a stash a
+     * player's browser wrote and the audit puts back is not read, nor one whose put-back failed. Read once, after the
+     * refusals and before anything is written; the wait holds up nothing that holds it up, by reading: the attempt
+     * comes after its roll and writes no use's consumption and no roll's card. The player's own quote (`attemptCleanup`,
+     * the dialog) still reads the sheet: the GM decides. Until this fix (4d1532c, e29run/r2h20red, 06.10.2026) Tier 1
+     * gloves given tier 3 where the GMs' mark did not see it scrubbed an evident trace on a total one short of the
+     * number Tier 1 gloves leave, and Move the body succeeded on 14.
+     */
+    const { actorAsHeld } = await import("./sheet-audit.mjs");
+    const held = await actorAsHeld(actor);
+    await noteCleaningTool(actor, held);
 
-    const verdict = cleanupVerdict(actor, data, { total, isCritical, withHope, mode });
+    const verdict = cleanupVerdict(held, data, { total, isCritical, withHope, mode });
     const { transforming, dc, success, band, outcome } = verdict;
 
     // Everything needed to put this attempt back, recorded before it happens.
@@ -2157,9 +2176,12 @@ export async function resolveStageSix({
         return { refused: "that student cannot be framed" };
     }
     if (key === "moveBody" && !bodyIsHere(actor)) return { refused: "the body is not in the killer's room" };
-    await noteCleaningTool(actor);
+    // The tool written down and the tier of its relief, as the GMs hold them (`resolveCleanup`'s note, fix r2-H20).
+    const { actorAsHeld } = await import("./sheet-audit.mjs");
+    const held = await actorAsHeld(actor);
+    await noteCleaningTool(actor, held);
 
-    const relief = def.toolBonusPerTier ? cleaningTier(actor) * def.toolBonusPerTier : 0;
+    const relief = def.toolBonusPerTier ? cleaningTier(held) * def.toolBonusPerTier : 0;
     const threshold = Math.max(0, (def.threshold ?? 0) - relief);
     const success = isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
@@ -3062,6 +3084,16 @@ async function destroyTools(actor, categories) {
     if (!game.user.isGM || !actor || !categories?.length) return [];
 
     const { breakItem } = await import("./inventory.mjs");
+    /*
+     * AS THE GMS HOLD THEM (E29 fix r2-H20, 06.10.2026; H18's seam). What is broken is chosen off the killer's items
+     * as the GMs hold them (sheet-audit.mjs `actorAsHeld`) - a stash, a break or a role a player's browser wrote and
+     * the audit puts back spares nothing and arms nothing - and the documents are broken. The wait holds up nothing
+     * that holds it up, by reading: a close and a discovery write no use's consumption and no roll's card. Until this
+     * fix (4d1532c, e29run/r2h20red, 06.10.2026) gloves a clean-up wrote down, put in a stash where the GMs' mark did
+     * not see it, were neither broken nor named by the discovery.
+     */
+    const { actorAsHeld } = await import("./sheet-audit.mjs");
+    const held = await actorAsHeld(actor);
     const destroyed = [];
     for (const category of categories) {
         /*
@@ -3081,8 +3113,8 @@ async function destroyTools(actor, categories) {
          * list before the write, so a write that failed was still reported to
          * the owner as ruined. `breakItem` answers whether it held.
          */
-        const items = rememberedTools(actor, category) ?? [equippedFor(actor, category)].filter(Boolean);
-        for (const item of items) {
+        const items = rememberedTools(held, category) ?? [equippedFor(held, category)].filter(Boolean);
+        for (const item of items.map(each => actor.items.get(each.id)).filter(Boolean)) {
             try {
                 if (await breakItem(item, { reason: "incident" })) destroyed.push(item.name);
             } catch (err) {

@@ -1387,8 +1387,21 @@ function openingSideOf(actor, context, state) {
     return side && state?.stage === "openingRoll" && state[`${side}Id`] === actor.id ? side : null;
 }
 
-/** The situation's dice of a roll, read on this GM for its action - the `situation` row; see the note above. */
+/*
+ * The situation's dice of a roll, read on this GM for its action - the `situation` row; see the note above.
+ * A CRISIS WEAPON, A TOOL, A CLEANING TOOL AS THE GMS HOLD THEM (E29 fix r2-H20, 06.10.2026; H18's seam). Whether a
+ * weapon, a tool or a Cleaning Tool is in hand is read off the character's items as the GMs hold them (sheet-audit.mjs
+ * `actorAsHeld`): a role, a tier, a break or a stash a player's browser wrote and the audit puts back is not read,
+ * nor one whose put-back failed. Read for these three actions only, once a draw (`throwDrawn`; a claim read away from
+ * a draw names no action), after the wait the draw already makes at its top (`armedCallsHeld`, C8) and on its
+ * footing: this one waits for the writes heard since, and no judgement waits for anything the draw makes before its
+ * dice - its Calls are spent here after them, and a find comes after its roll (by reading, not measured). Until this
+ * fix (4d1532c, e29run/r2h20red, 06.10.2026) a readied knife a write took out of the stash the GMs' mark keeps it in
+ * read as a weapon in hand on a crisis swing (0, not an unarmed -1) and as a tool and a Cleaning Tool on a project's
+ * and a clean-up's roll (1 each, not 0).
+ */
 async function situationReading(actor, { key, context }) {
+    const asHeld = async () => (await import("./sheet-audit.mjs")).actorAsHeld(actor);
     if (key === "search") return searchOdds(actor, roomOfActor(actor), context.category ?? null, await import("./vault.mjs")).situational;
     if (key === "murderOpening") {
         // The Night's die, the opening roll's own (murder.mjs `throwOpeningRoll`, `rollTrait`'s `situational`).
@@ -1400,17 +1413,17 @@ async function situationReading(actor, { key, context }) {
     if (key === "crisis") {
         const crisis = typeof context.crisis === "string" && Object.hasOwn(CRISIS_ACTIONS, context.crisis) ? context.crisis : null;
         const { crisisSituational } = await import("./murder.mjs");
-        return crisis ? crisisSituational(actor, crisis) : 0;
+        return crisis ? crisisSituational(actor, crisis, undefined, await asHeld()) : 0;
     }
     if (key === "project" || key === "sabotage") {
         // A tool in hand is worth a die (action-rolls.mjs, "A TOOL IN HAND IS WORTH A DIE").
         const { equippedFor } = await import("./use-items.mjs");
-        return equippedFor(actor, "tool") ? 1 : 0;
+        return equippedFor(await asHeld(), "tool") ? 1 : 0;
     }
     if (key === "cleanup") {
         // A Cleaning Tool's die, but not on a body moved (cleanup.mjs `attemptCleanup`, Stage 6's actions).
         const { cleaningTool } = await import("./cleanup.mjs");
-        return CLEANUP.toolAdvantage && cleaningTool(actor) && cleanupStepOf(context) !== "moveBody" ? 1 : 0;
+        return CLEANUP.toolAdvantage && cleaningTool(await asHeld()) && cleanupStepOf(context) !== "moveBody" ? 1 : 0;
     }
     return 0;
 }

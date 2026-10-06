@@ -412,25 +412,32 @@ function usedStamp(actor, item) {
  * stamp: the first use's card stands, and a trap that watches for the item heard it then
  * (traps.mjs `onChatMessage`). A creative use is the GM's ruling, not asked again of the die:
  * it counts as used and restores nothing.
+ *
+ * `held` (E29 fix r2-H20, 06.10.2026; as H19's ruling) is the item as the GMs hold it, where a
+ * GM's road read it so - the replay's use (murder.mjs `afterCrisisRoll`, from `applyCrisisAction`'s
+ * `held`): whether it is a usable, broken or stashed, its tier and its kind are read off it, and
+ * its count by `consume`; the writes go to `item`, the document. Until this fix (4d1532c,
+ * e29run/r2h20red, 06.10.2026) the replay of a Tier 1 healing pack given tier 3 where the GMs'
+ * mark did not see it healed 2 Health marks, not 1.
  */
-export async function useItem(actor, item, { again = null } = {}) {
-    if (!actor || !isUsable(item)) return null;
+export async function useItem(actor, item, { again = null, held = item } = {}) {
+    if (!actor || !isUsable(held)) return null;
 
     // An opened kit is an empty box. It is still in the bag, and it still takes
     // up the slot - see `consume` below and BROKEN_ITEMS in config.mjs.
-    if (isBroken(item)) {
+    if (isBroken(held)) {
         ui.notifications.warn(game.i18n.format("DRPG.Items.brokenUseless", {
             item: item.name
         }));
         return null;
     }
 
-    if (isStashed(item)) {
+    if (isStashed(held)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.useStashed"));
         return null;
     }
 
-    const tier = tierOf(item);
+    const tier = tierOf(held);
     const effect = USABLE_EFFECTS[tier];
 
     // Tier 0 is "a random, seemingly useless object, open to creative use" -
@@ -452,7 +459,7 @@ export async function useItem(actor, item, { again = null } = {}) {
         asked = true;
         amounts = { [choice]: effect.amount, ...(effect.bonus ?? {}) };
     } else {
-        const kind = usableKindOf(item);
+        const kind = usableKindOf(held);
         const resource = USABLE_KINDS[kind]?.resource;
         if (resource) {
             amounts = { [resource]: effect.amount };
@@ -488,7 +495,7 @@ export async function useItem(actor, item, { again = null } = {}) {
     const stamp = usedStamp(actor, item);
 
     const restored = await restore(actor, amounts, { reason: "itemUse", ref: item.id });
-    await consume(item, { reason: "itemUse" });
+    await consume(item, { reason: "itemUse", held });
     if (again) return restored;
 
     const summary = describe(restored);

@@ -1177,6 +1177,12 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
     let drawnName = null;
     let drawn = null;
     let granted = null;
+    // The searcher's hands as the GMs hold them (E29 fix r2-H20, 06.10.2026; as H18's copy roads): the find's carry
+    // cap is counted on them (inventory.mjs `grantItem`'s `counted`), not on a slot a player's browser emptied a
+    // moment before with a write the audit puts back. Read as each grant is made, after the first find was taken
+    // back; nothing a judgement waits for comes from a replay's grant. Until this fix (4d1532c, e29run/r2h20red,
+    // 06.10.2026) a replay's find went into the hands, in a slot a stash written outside the GMs' mark had emptied.
+    const counted = async () => (await import("./sheet-audit.mjs")).actorAsHeld(actor);
     if (held) {
         const { grantItem } = await import("./inventory.mjs");
         const roles = held.getFlag(MODULE_ID, ITEM_FLAGS.roles) ?? [];
@@ -1184,7 +1190,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
         granted = drawn ? await grantItem(actor, {
             reason: "reroll",
             name: drawn.name, category: bookmark.category ?? null, tier, goal: bookmark.goal ?? null, roles,
-            extraFlags: { [ITEM_FLAGS.identity]: plant.identity }
+            extraFlags: { [ITEM_FLAGS.identity]: plant.identity }, counted: await counted()
         }) : null;
         if (granted) {
             itemId = granted.id;
@@ -1206,7 +1212,7 @@ export async function settleSearch(actor, bookmark, after, done, rerolled = null
             granted = await grantItem(actor, {
                 reason: "reroll",
                 name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null,
-                roles: drawn.roles ?? []
+                roles: drawn.roles ?? [], counted: await counted()
             });
             if (granted) itemId = granted.id;
             done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier }));
