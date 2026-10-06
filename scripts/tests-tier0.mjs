@@ -4871,6 +4871,9 @@ const REGRESSIONS = [
         /* E29 fix r2-H13: what a bullet's write touched is read with the sheet audit's reader of a write's forms. */
         ok(bodyOf(bullets, "export function guardedPathsIn(", { until: "\n}\n" }).includes("reachOf(changes)"),
             "a bullet's guarded fields are read off a write by a reader of their own, not by sheet-audit.mjs's reachOf");
+        /* E29 fix r2-H14: a player's edit is put back once the sheet audit has judged every write queued on the bullet's student, whatever it named. */
+        ok(/\n\s*await judgedFor\(item\.parent\?\.id\);\s*await revertPlayerBulletEdit\(/.test(judge),
+            "a player's edit of a bullet can be put back before the sheet audit has judged the writes queued on its student");
         const guard = stripComments(sources.get("resource-guard.mjs") ?? "");
         for (const flag of ["playerText", "analyzedText", "shownType", "analyzed", "lockedChapter"]) {
             ok(bodyOf(guard, "const BULLET_GUARDED", { length: 400 }).includes(`"${flag}"`),

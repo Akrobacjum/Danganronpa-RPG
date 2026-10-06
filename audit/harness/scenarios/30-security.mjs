@@ -3353,6 +3353,85 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         JSON.stringify({ bulletBefore, scopeSame }));
 
     /*
+     * A GUARDED FIELD WRITTEN BESIDE ONE THE SHEET AUDIT JUDGES (E29 fix r2-H14, 06.10.2026; found by fix r2-H13).
+     * p2's console renames Botan's bullet and, in the same write, gives it `roles` - what it serves as, which is the
+     * audit's (sheet-audit.mjs `ITEM_FIXED`) - or raises its count; by the bullet's own update, and the roles again
+     * through Botan's (`items: [{ _id, name, flags }]`). The name is the guard's to put back and tell, as above; the
+     * roles and the count are the audit's, put back with a row; and once the audit has judged every write on Botan
+     * its mark holds the bullet as it was. Then p2 writes the same roles or count alone, by the same road: put back
+     * again, with a row and the GMs told - the first write left nothing in the mark for it to stand on. "Told" is
+     * read off each put-back row of the bullet: the GM holds the whisper the row names (sheet-audit.mjs `record`).
+     * Each read waits for what it reads - the GM's document and rows, `sheetAuditIdle`, each client's document - up
+     * to a deadline, never a fixed delay; after each pair the GM writes back whatever of the bullet a red run left
+     * (`servedAsWas`).
+     *
+     * At 600b1be (06.10.2026, e29run/r2h14red: 177/180) all three were red. Each first write was put back on every
+     * client, with its row and the GMs told of the name, but the mark held p2's `["crimeTool"]` or count 3 - the
+     * guard's put-back, a GM's write that landed before the audit's, taken into it whole - and the second write then
+     * stood on every client with no row.
+     */
+    const readServed = `const b = game.actors.get("${ids.botan}").items.get("${bullet}");
+        return b ? [b.name, b.getFlag("${MOD}", "roles") ?? null, b.system?.quantity ?? null] : null;`;
+    const servedBefore = await gm.eval(readServed);
+    // Up to 8 s for the GM to read the bullet as before and hold a put-back row of it since `from`, then for its audit to
+    // be idle; up to 6 s for each client to read the bullet as before. `rows` names the bullet's fields the audit put
+    // back; `whispered`, that the GM holds the whisper each of those rows names.
+    const servedAfter = async from => {
+        const want = JSON.stringify(JSON.stringify(servedBefore));
+        const audit = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"), A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            const read = () => { ${readServed} }, ours = k => k.startsWith("items.${bullet}.");
+            const backs = () => Object.values(S.sheetWriteStore.entries() ?? {})
+                .filter(r => r?.actorId === "${ids.botan}" && r.verdict === "putBack" && r.at >= ${from} && Object.keys(r.change ?? {}).some(ours));
+            const end = Date.now() + 8000;
+            while ((JSON.stringify(read()) !== ${want} || !backs().length) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await A.sheetAuditIdle();
+            return { rows: backs().flatMap(r => Object.keys(r.change).filter(ours).map(k => k.split(".").pop())).sort(),
+                whispered: backs().length > 0 && backs().every(r => game.messages.has(r.messageId ?? "")) };`);
+        const docs = await Promise.all([gm, p1, p2, p3].map(c => c.eval(`const read = () => { ${readServed} }, end = Date.now() + 6000;
+            while (JSON.stringify(read()) !== ${want} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            return read();`)));
+        const mark = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"); await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const held = S.sheetMarkStore.get("${ids.botan}")?.items?.["${bullet}"];
+            return held ? [held.name, held.flags?.["${MOD}"]?.roles ?? null, held.system?.quantity ?? null] : null;`);
+        return { ...audit, docs, mark };
+    };
+    const servedAsWas = () => gm.eval(`const b = game.actors.get("${ids.botan}").items.get("${bullet}"), was = ${JSON.stringify(servedBefore)}, patch = {};
+        if (b.name !== was[0]) patch.name = was[0];
+        if (JSON.stringify(b.getFlag("${MOD}", "roles") ?? null) !== JSON.stringify(was[1])) patch["flags.${MOD}.roles"] = was[1] ?? foundry.data.operators.ForcedDeletion.create();
+        if ((b.system?.quantity ?? null) !== was[2]) patch["system.quantity"] = was[2];
+        if (Object.keys(patch).length) await b.update(patch);
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return Object.keys(patch);`);
+    const servedPair = async (field, first, again) => {
+        const from = await gm.eval(`return Date.now();`), said = await gm.eval(`return game.messages.size;`);
+        await first();
+        const one = { ...await servedAfter(from), told: await gmSaid(said) };
+        const fromAgain = await gm.eval(`return Date.now();`);
+        await again();
+        const two = await servedAfter(fromAgain);
+        const restored = await servedAsWas();
+        const asWas = seen => JSON.stringify(seen) === JSON.stringify(servedBefore);
+        const ok = one.docs.length === 4 && one.docs.every(asWas) && one.told.reverted && !one.told.unrestored && JSON.stringify(one.rows) === JSON.stringify([field])
+            && one.whispered && asWas(one.mark) && two.docs.every(asWas) && JSON.stringify(two.rows) === JSON.stringify([field]) && two.whispered && asWas(two.mark);
+        return { ok, one, two, restored };
+    };
+    const ownWrite = fields => p2.eval(`await game.actors.get("${ids.botan}").items.get("${bullet}").update(${JSON.stringify(fields)}, { drpgAutomated: true }); return true;`);
+    const crimeRole = ["crimeTool"], raisedCount = (servedBefore?.[2] ?? 1) + 2;
+
+    const rolesOwn = await servedPair("roles", () => ownWrite({ name: "SEC H14 renamed", [`flags.${MOD}.roles`]: crimeRole }),
+        () => ownWrite({ [`flags.${MOD}.roles`]: crimeRole }));
+    check("SECURITY: a player's console renaming their Truth Bullet and writing what it serves as in one write has both put back, and the same roles written again are put back too, the GMs told each time",
+        Boolean(bullet) && rolesOwn.ok, JSON.stringify({ servedBefore, rolesOwn }));
+    const countOwn = await servedPair("quantity", () => ownWrite({ name: "SEC H14 renamed", "system.quantity": raisedCount }),
+        () => ownWrite({ "system.quantity": raisedCount }));
+    check("SECURITY: a player's console renaming their Truth Bullet and raising its count in one write has both put back, and the same count written again is put back too, the GMs told each time",
+        Boolean(bullet) && countOwn.ok, JSON.stringify({ servedBefore, countOwn }));
+    const rolesViaBotan = await servedPair("roles", () => viaBotan(p2, { name: "SEC H14 renamed through Botan", flags: { [MOD]: { roles: crimeRole } } }),
+        () => viaBotan(p2, { flags: { [MOD]: { roles: crimeRole } } }));
+    check("SECURITY: a player's console renaming their Truth Bullet and writing what it serves as through their student's update has both put back, and the same roles written again are put back too, the GMs told each time",
+        Boolean(bullet) && rolesViaBotan.ok, JSON.stringify({ servedBefore, rolesViaBotan }));
+
+    /*
      * The load-time record ran on the GM, once (the E03 review measured it running
      * 0 times), and the GM holds a copy of every bullet in the world now - the ones
      * made during this scenario by a GM's write. The fixture world has no bullet at

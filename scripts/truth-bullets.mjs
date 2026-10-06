@@ -1346,19 +1346,29 @@ async function onBulletWrite(item, changes, options, userId) {
         if (!isPrimaryGm()) return;
         if (touched.length && !author?.isGM) {
             /*
-             * AFTER THE SHEET AUDIT HAS JUDGED IT, a write that took the category (fix r2-H13). The put-back
-             * is a GM's write, and the audit's mark takes an item as a GM's write leaves it: landing before
-             * the audit's own put-back of the category, it leaves an item the mark does not hold
-             * (sheet-audit.mjs `itemsAfter`). Put back at once, p2's three writes in scenario 30 left the mark
-             * without the bullet each time (its note "not held", e29run/r2h13/30-run2.log, and m6 in
-             * e29run/r2h13m; at 528a72d, which put nothing back, the mark held the item as the document did:
-             * e29run/r2h13red, 06.10.2026). The audit's hooks are registered at `init` and these at `ready`,
-             * so its judgement of this write is queued by now. A write that leaves the category is put back
-             * at once, as before; were it to name a field the audit judges beside a guarded one - a count
-             * with a name - the same order would leave the player's count in the mark and the document's
-             * put back (read, not measured).
+             * AFTER THE SHEET AUDIT HAS JUDGED EVERY WRITE QUEUED ON THE STUDENT, whatever this one named and
+             * by either road (fix r2-H13 for a write that took the category, fix r2-H14 for every write). The
+             * put-back is a GM's write, and the audit's mark takes an item whole as a GM's write leaves it
+             * (sheet-audit.mjs `stood`, `itemsAfter`): landing before the audit's own put-back of the same
+             * write, it carried into the mark what the audit was putting back. A write that took the category
+             * left no bullet in the mark (fix r2-H13: scenario 30's note "not held", e29run/r2h13/30-run2.log,
+             * and m6 in e29run/r2h13m). One that kept it and named `roles` or a raised count beside a name, by
+             * the bullet's own update or through its student's, left the player's value in the mark while the
+             * document was put back, and the same write made again then stood with no row and no word: at
+             * 600b1be p2's `roles` beside a name stayed `["crimeTool"]` in the mark over a document holding none,
+             * by either road, and a count raised 1 -> 3 beside one stayed 3 over the document's 1, and the same
+             * roles or count alone then stood on every client with no row (scenario 30's three checks after fix
+             * r2-H13's, e29run/r2h14red, 06.10.2026). The audit's hooks are registered at `init` and these at
+             * `ready`, so its judgement of this write is queued by now; the copy is read as the put-back is
+             * written, so a GM's write in between wins. A bullet no student holds - a world item, an NPC's - has
+             * nothing queued (`judgedFor` passes it over) and is put back at once. By reading, a judgement awaits
+             * nothing but module imports, timers of at most sheet-audit.mjs `JUDGE_WAIT_MS` and writes that
+             * settle when Foundry answers them, none of them this put-back's, and one that throws is caught by its
+             * queue (`inOrder`); what holds the put-back is the player's own writes on the student heard back to
+             * back, each before the one before it is judged - for as long as they last - or a write Foundry never
+             * answers (not measured).
              */
-            if (!isTruthBullet(item)) await judgedFor(item.parent?.id);
+            await judgedFor(item.parent?.id);
             await revertPlayerBulletEdit(item, touched, author);
             return;
         }
