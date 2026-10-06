@@ -33,7 +33,7 @@ module's.
 
 - **Broken, 1 item:** since 2.9.0, Daggerheart deletes the module's
   `system.resources.actions` whenever the acting client updates or deletes an
-  item on a character (E24, section 6).
+  item on a character (E24, section 5).
 - **At risk, needs the live probe:** secrecy of Projects under the new countdown
   ownership model (E03), and sheet trait rolls that skip the roll window (E16).
 - **Dead code or dead diagnostics, no crash:** the dice colouring on reroll and
@@ -42,9 +42,6 @@ module's.
   listens to, the roll-window template and class, the character-sheet nesting
   the module injects into, every data path the module reads or writes on actors
   (except the Actions resource above), and 92 of the 94 translation overrides.
-- **The GM relay (`DhGMUpdate` / `DhGMCreate`) is unchanged and still
-  validates nothing.** Two lines changed between the tags. Neither adds a check.
-  Details are in section 4.
 
 ---
 
@@ -121,7 +118,7 @@ Daggerheart hooks available but unused by the module keep the same names:
 | Module | Path | 2.6.5 | 2.10.5 | Consequence |
 | --- | --- | --- | --- | --- |
 | everywhere; about 180 reads and writes of `system.resources.{hitPoints,stress,hope}.{value,max}` | base resources | prepared in `ResourcesField.initialize` (`module/data/fields/actorField.mjs:67-96`) | **moved:** now prepared in `DhCreature.prepareBaseData` (`module/data/actor/creature.mjs:77-107`) and clamped by `clampResources` (:114). The `max` / `value` logic is the same by reading | No change expected. |
-| `scripts/resources.mjs:38-61`; writes in `scripts/actions.mjs:171-345`, `scripts/monocub.mjs:466`, `scripts/monokuma.mjs:85`, `scripts/murder.mjs:1875,2073`; guard in `scripts/resource-guard.mjs:49-55` | `system.resources.actions`, registered into `CONFIG.DH.RESOURCE.character.custom` and `.all` | `refreshConfig` at `i18nInit` (daggerheart.mjs:267-269) | Registration **unchanged**: `i18nInit` at daggerheart.mjs:304-316, `Homebrew.refreshConfig` at `module/data/settings/Homebrew.mjs:236-252`, `.all` rebuilt from `{...homebrew, ...custom, ...base}`. **New and destructive:** `_cleanupOptionalResources` (`module/documents/actor.mjs:230-257`, called at :1399 and :1408) | **BROKEN.** See section 6, E24-1. |
+| `scripts/resources.mjs:38-61`; writes in `scripts/actions.mjs:171-345`, `scripts/monocub.mjs:466`, `scripts/monokuma.mjs:85`, `scripts/murder.mjs:1875,2073`; guard in `scripts/resource-guard.mjs:49-55` | `system.resources.actions`, registered into `CONFIG.DH.RESOURCE.character.custom` and `.all` | `refreshConfig` at `i18nInit` (daggerheart.mjs:267-269) | Registration **unchanged**: `i18nInit` at daggerheart.mjs:304-316, `Homebrew.refreshConfig` at `module/data/settings/Homebrew.mjs:236-252`, `.all` rebuilt from `{...homebrew, ...custom, ...base}`. **New and destructive:** `_cleanupOptionalResources` (`module/documents/actor.mjs:230-257`, called at :1399 and :1408) | **BROKEN.** See section 5, E24-1. |
 | `scripts/action-rolls.mjs:1030`, `scripts/level-up.mjs:399,529-530`, `scripts/character.mjs:167` | `system.traits.<dh>.value` | `attributeField` | **unchanged** | Works. |
 | `scripts/level-up.mjs:502,534-539`, `scripts/character.mjs:170` | `system.experiences.<id>.{name,value,description,core}` | `module/data/actor/character.mjs:59-66` | **unchanged**, same lines | Works. |
 | `scripts/sheet.mjs:2050-2070`, `scripts/season-setup.mjs:760` | `system.biography.*`, `system.notes` | - | **unchanged** (no diff in schema or template) | Works. |
@@ -129,7 +126,7 @@ Daggerheart hooks available but unused by the module keep the same names:
 | none (0 hits) | `system.bonuses.*`, `system.rules.*` | persisted, with `bonuses.roll.{attack,trait,...}` | **changed:** `persisted: false`, and `bonuses.roll` collapsed to a single field | No effect on the module. |
 | `scripts/states.mjs:148,223`, `scripts/chapter.mjs:120,297` | status ids `vulnerable`, `deathMove`, `defeated`, `unconscious`, `dead` | `module/config/generalConfig.mjs` | **unchanged** | Works. |
 | `scripts/states.mjs:109-138`, `scripts/reroll.mjs:126-146,169-172` | setting `daggerheart.Automation`: `hopeFear.{gm,players}`, `countdownAutomation`, `vulnerableAutomation`, `defeated.enabled` | direct `game.settings.get` everywhere | Fields **unchanged** (`module/data/settings/Automation.mjs:9-28,74-78`). **Removed** fields `actionPoints` (migrated to `VariantRules.actionTokens` by `2_9_3.mjs`) and `roll.roll`; the module uses neither. **Changed behaviour:** Daggerheart now reads a cache, `game.system.settings.automation`, built at `i18nInit` (daggerheart.mjs:308-313) and refreshed by `onChange -> handleChange` (`module/systemRegistration/settings.mjs:88-91`, `Automation.mjs:204-206`) | The module's switch-off in `scripts/states.mjs:126` uses `game.settings.set`, so by reading the cache follows it. That `onChange` reaches every client before the first roll **needs the live probe.** |
-| `scripts/projects.mjs:461-545,1093-1319`, `scripts/calls.mjs:579`, `scripts/season-setup.mjs:783`, `scripts/observe.mjs:333` | setting `daggerheart.Countdowns`: `countdowns.<id>.{name,img,type,ownership,progress}`, including `ownership[userId] = 0` (NONE) and a `default` key | `defaultOwnership` field (`module/data/countdowns.mjs:10`); per-countdown ownership choices include NONE (`simpleOwnershiplevels`, :106); `getUserLevel` falls back to `defaultOwnership` (:208) | **changed behaviour** (since 2.7.0): `defaultOwnership` **removed**. New `hidden` boolean (`module/data/countdowns.mjs:117`). Ownership choices are now `countdownOwnershipLevels` = `{-1, 2, 3}`; **NONE is no longer a valid value** (`module/config/generalConfig.mjs:810-814`). `migrateData` rewrites any NONE to INHERIT and sets `hidden: true` (`countdowns.mjs:54-95`, see :84). INHERIT now resolves to OBSERVER, or to NONE when `hidden` (`getUserLevel`, :227). The tray filters on `visible` (`module/applications/ui/countdowns.mjs:138-147`) | **At risk.** See section 6, E03-2. |
+| `scripts/projects.mjs:461-545,1093-1319`, `scripts/calls.mjs:579`, `scripts/season-setup.mjs:783`, `scripts/observe.mjs:333` | setting `daggerheart.Countdowns`: `countdowns.<id>.{name,img,type,ownership,progress}`, including `ownership[userId] = 0` (NONE) and a `default` key | `defaultOwnership` field (`module/data/countdowns.mjs:10`); per-countdown ownership choices include NONE (`simpleOwnershiplevels`, :106); `getUserLevel` falls back to `defaultOwnership` (:208) | **changed behaviour** (since 2.7.0): `defaultOwnership` **removed**. New `hidden` boolean (`module/data/countdowns.mjs:117`). Ownership choices are now `countdownOwnershipLevels` = `{-1, 2, 3}`; **NONE is no longer a valid value** (`module/config/generalConfig.mjs:810-814`). `migrateData` rewrites any NONE to INHERIT and sets `hidden: true` (`countdowns.mjs:54-95`, see :84). INHERIT now resolves to OBSERVER, or to NONE when `hidden` (`getUserLevel`, :227). The tray filters on `visible` (`module/applications/ui/countdowns.mjs:138-147`) | **At risk.** See section 5, E03-1. |
 | `scripts/diagnostics.mjs:122-146` | setting `daggerheart.Appearance` `.diceSoNice` / `.diceSoNiceData` | `module/data/settings/Appearance.mjs:50,92` | **removed** in 2.10.0; the Dice So Nice data moved into Dice So Nice itself (migration `2_10_0-dsn.mjs`) | The dice diagnostic always prints "Could not read Daggerheart's Appearance settings." See E28-2. |
 | `scripts/reroll.mjs:104` | `CONFIG.DH.GENERAL.getDiceSoNicePresets` | `module/config/generalConfig.mjs:784` | **removed** in 2.8.0; 0 hits in 2.10.5 | Optional chaining: no throw, nothing painted. See E28-1. |
 | `scripts/reroll.mjs:141-144` | `game.system.api.applications.ui.DhCountdowns.updateCountdowns({type, undo})`, `CONFIG.DH.GENERAL.countdownProgressionTypes.fear.id` | `module/applications/ui/countdowns.mjs:329` | **unchanged** signature (:329); it now reads the automation cache (:331) | Works. |
@@ -240,120 +237,7 @@ They appear in Daggerheart's own English wherever Daggerheart draws them.
 
 ---
 
-## 4. The GM relay: `DhGMUpdate` / `DhGMCreate` in 2.10.5
-
-### 4.1 Where it is
-
-- Socket listener: `game.socket.on('system.daggerheart', handleSocketEvent)`,
-  registered during `init` at daggerheart.mjs:278 (2.6.5: daggerheart.mjs:250).
-- `handleSocketEvent({ action, data })`: `module/systemRegistration/socket.mjs:3-26`.
-  It destructures only the payload. **Foundry's second handler argument, the
-  sender's user id, is not read.** The module's own note on that argument is at
-  `scripts/gm-bridge.mjs:428-430`.
-- It turns socket messages into Hooks: `Hooks.callAll('DhGMUpdate', data)` (:6)
-  and `Hooks.callAll('DhGMCreate', data)` (:9). The hook payload carries no
-  sender either.
-- GM-side listeners are added by `registerSocketHooks()` (:56-116), called in
-  `ready` at daggerheart.mjs:391 (2.6.5: :337).
-- Sender side: `emitAsGM` (:131-138). A non-GM's request always goes over the
-  socket, even for a document that player owns.
-
-### 4.2 Every action it accepts in 2.10.5
-
-| Socket `action` | Sub-action | 2.10.5 line | What the GM client does | Sender check |
-| --- | --- | --- | --- | --- |
-| `DhGMUpdate` | `DhGMUpdateDocument` | socket.mjs:61-63 | `(await fromUuid(data.uuid)).update(data.data)`, on **any** UUID with **any** data | none |
-| `DhGMUpdate` | `DhGMUpdateEffect` | :64-67 | `EffectsField.applyEffects.call(document, data.data)`: applies the effects of the document at `data.uuid` to the targets in `data.data`, as GM (`module/data/fields/action/effectsField.mjs:47`) | none |
-| `DhGMUpdate` | `DhGMUpdateSetting` | :68-70 | `game.settings.set('daggerheart', data.uuid, data.data)`: **any** `daggerheart.*` setting | none |
-| `DhGMUpdate` | `DhGMUpdateFear` | :71-80 | sets `ResourcesFear` to `data.data`, clamped to `[0, homebrew.maxFear]` | none |
-| `DhGMUpdate` | `DhGMUpdateCountdowns` | :81-84 | `game.settings.set('daggerheart','Countdowns', data.data)`: **replaces the whole setting** | none |
-| `DhGMUpdate` | `DhGMUpdateSaveMessage` | :85-93 | `SaveField.updateSaveMessage(result, message, token)` on any message id (`saveField.mjs:138-145`) | none |
-| `DhGMUpdate` | any, with `data.refresh` | :96-102 | re-broadcasts a `DhRefresh` to everyone and calls it locally | none |
-| `DhGMCreate` | any `documentType` | :106-115 | `getDocumentClass(documentType).create(data, { parent: game.scenes.get(scene) })`: **any document type**, created as GM, not awaited | none |
-| `DhFearUpdate` | - | :11-12 | `Hooks.callAll('DhFearUpdate')` on every client | none; UI only |
-| `DhRefresh` | - | :14-15 | `Hooks.call('DhRefresh', data)`: re-renders tray, browser and dialogs | none; UI only |
-| `DowntimeTrigger` | - | :17-18 | hook -> `Party.downtimeMoveQuery` (`party-sheet.mjs:374-380`): opens a downtime window if the receiving client owns `actorId` | owner check on the receiver only |
-| `DhTagTeamStart`, `DhGroupRollStart` | - | :20-24 | hooks at daggerheart.mjs:434-456: open the tag-team or group-roll dialog for `data.partyId` on every client | none; UI only |
-
-Separate from the socket: `CONFIG.queries.armorSlot` and
-`CONFIG.queries.reactionRoll` are registered at socket.mjs:118-121 (2.6.5:
-:122-125). Those use Foundry's own `User#query` routing.
-
-### 4.3 What changed from 2.6.5
-
-`git diff 2.6.5 2.10.5 -- module/systemRegistration/socket.mjs` touches two
-behaviours:
-
-1. `DowntimeTrigger` now goes through a hook instead of a direct call.
-2. `UpdateFear` reads `maxFear` from the cache instead of `game.settings`.
-
-**No sender validation was added. There is no primary-GM check, and no
-allow-list of UUIDs, setting keys or document types.**
-
-### 4.4 Consequences
-
-By reading; nothing was executed here.
-
-- **Any player can make a connected GM perform any update.** For example:
-
-  ```js
-  game.socket.emit('system.daggerheart', {
-    action: 'DhGMUpdate',
-    data: { action: 'DhGMUpdateDocument', uuid: game.user.uuid, data: { role: 4 } }
-  })
-  ```
-
-  The GM client runs `User#update({ role: 4 })`: the player grants
-  themselves Gamemaster. Same code path as 2.6.5 (socket.mjs:57-63 there too).
-- **Any player can make the GM create any document.** Through `DhGMCreate` with
-  `documentType: 'User'` and `role: 4`, a player can create a new Gamemaster
-  account. With `ChatMessage`, a player can post a message whose author is the
-  GM. **Server-side permission outcomes need the live probe.**
-- **Any player can rewrite any world `daggerheart.*` setting.** That includes
-  `Countdowns` (every Project, secret murder plans included), `Automation` (it
-  can switch back on the Vulnerable and Defeated automation that
-  `scripts/states.mjs` turns off), `Homebrew`, `LevelTiers`, `ResourcesFear` and
-  `LastMigrationVersion`. World-scoped settings registered in 2.10.5:
-  `SpotlightRequestQueue`, `VariantRules`, `Automation`, `Metagaming`,
-  `Homebrew`, `LastMigrationVersion`, `LevelTiers`, `ResourcesFear`,
-  `Countdowns`, `CompendiumBrowserSettings`, `SpotlightTracker`, `ActiveParty`.
-- **The module's resource guard does not stand in the way.**
-  `scripts/resource-guard.mjs:122-126` returns early when `game.user.isGM`. A
-  relayed write executes on the GM's client, so the guard never inspects it.
-- **Every client with `isGM` executes each request, not one primary GM.** That
-  includes Assistant GMs (socket.mjs:58, :107). With two GMs online,
-  `DhGMCreate` creates two documents and `UpdateCountdowns` writes twice.
-- **A module cannot filter by sender at the hook level**, because the
-  `DhGMUpdate` / `DhGMCreate` hook payload has no sender. Enforcing a check
-  means intercepting the `system.daggerheart` socket listener itself. The
-  handler is not exported on `game.system.api`; that object holds only
-  `applications, data, models, documents, macros, dice, fields`
-  (daggerheart.mjs:135-143). **Whether it can be replaced cleanly needs the
-  live probe.**
-
-### 4.5 Legitimate traffic an E03 guard must keep working
-
-These module flows reach the relay today. Any allow-list has to pass them.
-
-| Module call | Daggerheart path | Relay sub-action |
-| --- | --- | --- |
-| `scripts/action-rolls.mjs:1007` `updates.updateResources()`; `scripts/reroll.mjs:183` `target.modifyResource(...)` | `DhActor#modifyResource` (`actor.mjs:930-1005`) | `UpdateDocument` on the sender's actor with `system.resources.*` (:986), and on the sender's items with cost paths (:995) |
-| Daggerheart's own pipeline on every duality roll with `countdownAutomation` on (`dualityRoll.mjs:318-331`), and `scripts/reroll.mjs:141` | `DhCountdowns.updateCountdowns` (`countdowns.mjs:329-363`) | `UpdateCountdowns` carrying the sender's **whole snapshot** of the setting (:358) |
-| a Fear result in a player's roll (`modifyResource` case `fear`) | `DhFearTracker.updateFear` (`fearTracker.mjs:195-201`) | `UpdateFear` |
-| Daggerheart features only: saves, party rolls, region placement, scene environments, countdown actions | `chatMessage.mjs:276,383`, `groupRollDialog.mjs:250`, `tagTeamDialog.mjs:291`, `sceneNavigation.mjs:71`, `countdownField.mjs:82` | `UpdateSaveMessage`, `UpdateDocument` on a party actor or scene, `DhGMCreate` `Region`, `UpdateCountdowns` |
-
-**Pre-existing in 2.6.5 and unchanged:** `CountdownField.execute`
-(`module/data/fields/action/countdownField.mjs:38-96`) builds
-`data = { countdowns: {} }` holding only the new countdowns. For a player it
-relays that object. The GM handler writes it as the **entire** `Countdowns`
-setting (socket.mjs:82). By reading, a player running any Daggerheart action
-that has a countdown part would wipe every existing countdown, which here means
-every Project. Whether any item in this game carries such an action **needs the
-live probe.**
-
----
-
-## 5. The roll-building flow in 2.10.5 vs 2.6.5
+## 4. The roll-building flow in 2.10.5 vs 2.6.5
 
 | Step | 2.6.5 | 2.10.5 | Change |
 | --- | --- | --- | --- |
@@ -391,7 +275,7 @@ There is no "GM rolls for the player" path in either version.
 
 ---
 
-## 6. Damage list
+## 5. Damage list
 
 Severity words: **BROKEN** (a code path is certain to misbehave), **AT RISK**
 (likely or conditional, needs the live probe), **DEAD** (code that now does
@@ -457,14 +341,7 @@ screenshot.
 
 ### E03 - the GM socket bridge and the Daggerheart relay
 
-**E03-1 AT RISK, security, unchanged from 2.6.5.** The relay accepts any
-update, any Daggerheart setting write and any document creation from any
-client. It executes on every GM and Assistant client, with no sender check
-(section 4). The module's resource guard is bypassed by construction.
-Confirmed by reading 2.10.5 `module/systemRegistration/socket.mjs:3-26,56-116`.
-Not executed.
-
-**E03-2 AT RISK, high, secrecy of Projects.** The countdown ownership model
+**E03-1 AT RISK, high, secrecy of Projects.** The countdown ownership model
 changed in 2.7.0: `defaultOwnership` removed, `hidden` added, and NONE is no
 longer a valid ownership value (section 3.3). The module writes explicit NONE
 per player (`ownershipMap`, `scripts/projects.mjs:1093-1101`) and a `default`
@@ -491,17 +368,17 @@ Even under (a), three things change:
 The comments at `scripts/projects.mjs:1079-1091,1206-1210,1245-1250` describe
 the 2.6.5 fallback and would be wrong on 2.10.5.
 
-**E03-3 AT RISK, conditional, pre-existing.** `CountdownField.execute`, relayed
+**E03-2 AT RISK, conditional, pre-existing.** `CountdownField.execute`, relayed
 for a player, overwrites the whole `Countdowns` setting with only the new
-countdowns (section 4.5). That would wipe every Project. It fires only if a
+countdowns. That would wipe every Project. It fires only if a
 player uses a Daggerheart action that has a countdown part.
 
-**E03-4 AT RISK, conditional, pre-existing.** With `countdownAutomation` on,
+**E03-3 AT RISK, conditional, pre-existing.** With `countdownAutomation` on,
 every player duality roll relays the player's whole snapshot of `Countdowns`
 (`countdowns.mjs:358`). That is a lost-update race against the GM's
 `writeCountdown` (`scripts/projects.mjs:1307-1319`).
 
-**E03-5 DEAD, 2 strings. Nearest stage; the Projects tray is this relay's UI.**
+**E03-4 DEAD, 2 strings. Nearest stage; the Projects tray is this relay's UI.**
 Two overridden keys no longer exist. 15 new countdown strings, such as "Hidden"
 and "Reveal Countdown", appear un-rebranded (section 3.5).
 
@@ -549,14 +426,14 @@ exists.
 **E28-3 COSMETIC.** Daggerheart roll formulas now read like
 `1d12h + 1d12f + 1d6a`. The module parses no Daggerheart formula. The only
 `roll.formula` it prints is its own core roll, at `scripts/monocub.mjs:191`.
-Multi-die advantage loses its `a` role (section 5). Daggerheart roll cards get
+Multi-die advantage loses its `a` role (section 4). Daggerheart roll cards get
 `themed theme-dark` (`chatMessage.mjs:47`).
 
 **E28-4 AT RISK, low.** `DualityRoll` rebuilt through
 `scripts/reroll.mjs:66-78` (`clone()` then `constructFormula`) now always uses
-d6 advantage dice (section 5). The module wants d6 anyway.
+d6 advantage dice (section 4). The module wants d6 anyway.
 
-**E28-5 note for the design, not damage.** Section 5 lists the hooks and
+**E28-5 note for the design, not damage.** Section 4 lists the hooks and
 switches that exist in both versions:
 
 - hooks `preRoll*`, `post*RollConfiguration`, `postRoll*`;
@@ -565,14 +442,13 @@ switches that exist in both versions:
 - `config.dialog.configure`.
 
 The pipeline, the dice and `randomUniform` all run on the roller's client.
-Resource writes for players go through the unauthenticated relay (E03-1).
 Daggerheart's only request/response channel to a document owner is Foundry's
 `User#query` (`CONFIG.queries.armorSlot` and `CONFIG.queries.reactionRoll`,
 socket.mjs:118-121).
 
 ---
 
-## 7. What this probe could not determine
+## 6. What this probe could not determine
 
 Each of these needs the live probe on a Foundry 14.364 or 14.365 table:
 
@@ -582,13 +458,10 @@ Each of these needs the live probe on a Foundry 14.364 or 14.365 table:
    once on first load; and the Dice So Nice role registration.
 2. E24-1: the Actions refill after an item update, and whether any migration
    run touches items on characters and so triggers it on the GM's client.
-3. E03-2: what `game.settings.set('daggerheart','Countdowns', ...)` does with
+3. E03-1: what `game.settings.set('daggerheart','Countdowns', ...)` does with
    `ownership: 0`. Is it migrated, or rejected?
-4. E03-1: server-side outcomes of the relay abuse (role change, `User`
-   creation), and whether the system socket listener can be wrapped from a
-   module.
-5. E16-2: a modifier-click on a sheet trait, on 2.6.5 and on 2.10.5.
-6. E28-1: dice colours on a fresh roll and on a reroll, with the installed Dice
+4. E16-2: a modifier-click on a sheet trait, on 2.6.5 and on 2.10.5.
+5. E28-1: dice colours on a fresh roll and on a reroll, with the installed Dice
    So Nice.
-7. Every visual consequence in sections 3.4 and E24-3: screenshots of the sheet,
+6. Every visual consequence in sections 3.4 and E24-3: screenshots of the sheet,
    the roll window, the Projects tray and the chat cards, before and after.
