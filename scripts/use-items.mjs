@@ -679,9 +679,12 @@ function describe(restored) {
  * `break`, not `delete`. The empty packet is still in the bag and still counts
  * against the two you may carry, so using the last of your kit is a moment that
  * costs you something afterwards as well as at the time - see BROKEN_ITEMS.
+ *
+ * `held` is the item as the GMs hold it, where a GM's road read it so (E29 fix r2-H19: a
+ * ruling, `grantItemEffect`): the count is read off it and written to `item`, the document.
  */
-async function consume(item, { reason }) {
-    const quantity = Number(item.system?.quantity ?? 1);
+async function consume(item, { reason, held = item }) {
+    const quantity = Number(held.system?.quantity ?? 1);
     try {
         if (quantity > 1) await trustedWrite(item, { "system.quantity": quantity - 1 }, { reason, ref: item.id });
         else await breakItem(item, { reason, ref: item.id });
@@ -863,10 +866,22 @@ export async function discardBroken(actor, item) {
 export async function grantItemEffect(actor, item, amounts = {}, { consumeItem = true } = {}) {
     if (!game.user.isGM || !actor) return null;
 
-    const stamp = usedStamp(actor, item);
+    /*
+     * AS THE GMS HOLD IT (E29 fix r2-H19, 06.10.2026). The identity the card is stamped with - a trap watching it
+     * reads the card (traps.mjs) - and the count the consumption spends are read off the item as the GMs hold it
+     * (sheet-audit.mjs `itemAsHeld`), each just before its use: until this fix both were read off the item as it
+     * stood, where a write of the player's the audit puts back stands until its put-back lands, or for good where it
+     * fails: at 68150ec (e29run/r2h19red) a ruling on a usable the GMs hold one of spent one of the two written there,
+     * so did not break it, and stamped its card with the identity written there. An item not on `actor` is read as it
+     * stands, as before. The wait holds up nothing that holds it up, by reading: an item used waits for its own
+     * user's consumption, and a ruling's is the GM's.
+     */
+    const { itemAsHeld } = await import("./sheet-audit.mjs");
+    const heldNow = async () => item ? await itemAsHeld(actor, item.id) ?? item : null;
+    const stamp = usedStamp(actor, await heldNow());
 
     const restored = await restore(actor, amounts, { reason: "gmRuling", ref: item?.id ?? null });
-    if (item && consumeItem) await consume(item, { reason: "gmRuling" });
+    if (item && consumeItem) await consume(item, { reason: "gmRuling", held: await heldNow() });
 
     const summary = describe(restored);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.used", {

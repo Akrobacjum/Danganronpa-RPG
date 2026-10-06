@@ -133,7 +133,7 @@
  * later write - a GM's included - is not written over but judged in its turn.
  */
 
-import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL, VAULT_LIMIT } from "./config.mjs";
+import { MODULE_ID, FLAGS, STATES, ACTIONS_RESOURCE, TIMING, REST, HOPE_CALLS, USABLE_EFFECTS, USABLE_KINDS, CRITICAL, VAULT_LIMIT, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { SETTINGS, getSetting, getClock } from "./settings.mjs";
 import { isPrimaryGm, primaryGmId, whisperToGms, esc, error, debug, forcedDeletion } from "./utils.mjs";
 import { onGmStoresHydrated, gmStoresHydrated, gmStoresQuiet, stableJson } from "./gm-store.mjs";
@@ -223,8 +223,20 @@ const ITEM_WRITES = new Set(["updateItem", "createItem", "deleteItem"]);
  * (`usableKind`). `grantItem` sets them on the item it makes, which is judged as an item created,
  * and only migrate.mjs writes `roles` on one that exists, on the primary GM (review round 1 sec M3
  * = cor M5, which measured a console's `roles` making a carried item serve as a crime tool, no row).
+ *
+ * AND THE ROOM A BEDROOM KEY OPENS (E29 fix r2-H19, 06.10.2026; found by fix r2-H17). A flag outside `ITEM_FLAGS`
+ * (config.mjs `BEDROOM_KEY_FLAG`) that only a GM writes: vault.mjs `grantBedroomKey` on the key it makes, and the copy
+ * roads carry it over (inventory.mjs `preservedFlags`). It was no part of this list, so a player's write of one was
+ * listed and stood, and a hand-over of the item it stood on made the receiver a real key to that room (handover.mjs
+ * `shareKey`, through `grantBedroomKey`), as a plant's copy carried it: at 68150ec (e29run/r2h19red) a key written by
+ * a player on a Tool and on an item not the module's was listed and left on each, a hand-over of a Tool or of an item
+ * not the module's that carried one made the receiver a key, and a plant's copy carried it; in scenario 30 p2's key
+ * and at once a hand-over made Aiko a key to Dorm B on every client, its row listed with no message to the GMs. It is
+ * the only such flag - a sweep of every module flag a road writes on an item (06.10.2026) found besides these the
+ * Truth Bullet's, which truth-bullets.mjs guards on its own, and `equipped`, which is the player's (use-items.mjs
+ * `toggleEquipped`).
  */
-const ITEM_FIXED = [ITEM_FLAGS.category, ITEM_FLAGS.tier, ITEM_FLAGS.identity, ITEM_FLAGS.roles, ITEM_FLAGS.kind];
+const ITEM_FIXED = [ITEM_FLAGS.category, ITEM_FLAGS.tier, ITEM_FLAGS.identity, ITEM_FLAGS.roles, ITEM_FLAGS.kind, BEDROOM_KEY_FLAG];
 
 /** Where a module item is kept: carried, or which stash. */
 const ITEM_PLACE = [ITEM_FLAGS.location, ITEM_FLAGS.stashRoom];
@@ -241,6 +253,14 @@ const CLASS_HIT_POINTS = "system.hitPoints";
 
 /** Every path of an item's write this file judges (the plan's 2.6): its count and the flags above, and a class's hit points. */
 const ITEM_JUDGED = ["system.quantity", ...[...ITEM_FIXED, ITEM_FLAGS.broken, ITEM_FLAGS.wear, ...ITEM_PLACE].map(flag => `flags.${MODULE_ID}.${flag}`)];
+
+/*
+ * The judged paths an item the GMs hold no copy of is read without (`itemFindings`' `before`, `itemsAsHeld`,
+ * `itemCovers`): its category, which would make it the module's, and since E29 fix r2-H19 a bedroom key's room, which
+ * makes any item a key where a key is read (handover.mjs `giveItem`, vault.mjs `keysHeldBy`). A player's write of
+ * either on such an item is put back, and neither is read off it as the GMs hold it.
+ */
+const ITEM_UNHELD = [ITEM_FLAGS.category, BEDROOM_KEY_FLAG].map(flag => `flags.${MODULE_ID}.${flag}`);
 
 /** The flag of the GMs' card of the changes made with no GM watching (C7): the ids of the rows it asks about. */
 const AWAY_CARD = "sheetAway";
@@ -676,7 +696,8 @@ export async function armedCallsHeld(actor) {
  * whether their put-back landed or failed, as `armedCallsHeld` reads a Call; every other field as the document
  * holds it, and every field where the GMs keep no mark of their own here - on a GM who is not the primary (its copy
  * may lag, `meansHeld`), the stores not hydrated, a Monokuma's, no student's. An item the mark holds no copy of is
- * read without a category, as its judgement reads one (`itemFindings`' `before`): the GMs hold no module item there.
+ * read without a category or a key (`ITEM_UNHELD`), as its judgement reads one (`itemFindings`' `before`): the GMs
+ * hold no module item there.
  * Each item is plain data read as an item is read (`itemLike`, with its `img`), taken in one step as the wait ends;
  * a write heard after it is judged on its own and moves nothing read here. A wait alone is enough for these roads,
  * unlike a GM's write of a student's means (`gmMeansWrite`): none writes a field of the item a put-back writes - each
@@ -696,7 +717,7 @@ export async function itemsAsHeld(actor) {
     return (actor?.items?.contents ?? []).map(item => {
         const data = docData(item), copy = copies?.[item.id] ?? null;
         const held = !copies ? data : copy ? withPaths(data, copy, isClassItem(data) ? [...ITEM_JUDGED, CLASS_HIT_POINTS] : ITEM_JUDGED)
-            : withPaths(data, {}, [`flags.${MODULE_ID}.${ITEM_FLAGS.category}`]);
+            : withPaths(data, {}, ITEM_UNHELD);
         return { ...itemLike(held), img: held.img ?? null };
     });
 }
@@ -704,6 +725,26 @@ export async function itemsAsHeld(actor) {
 /** One of a student's items as the GMs hold it (`itemsAsHeld`), or null where it is no longer on the student. */
 export async function itemAsHeld(actor, id) {
     return (await itemsAsHeld(actor)).find(item => item.id === id) ?? null;
+}
+
+/*
+ * A STUDENT'S MODULE FLAGS AS THE GMS HOLD THEM (E29 fix r2-H19, 06.10.2026), for a GM's road that decides by one
+ * through a reader a player's browser shares, handed this in the actor's place as `actorAsHeld` is: its id, name and
+ * type, and a `getFlag` that answers - once every write queued on the student has been judged (`judgedFor`) - a flag
+ * the mark holds (`MARKED_FLAGS`) with the mark's value and any other with the document's, and every flag with the
+ * document's wherever the GMs keep no mark of their own here, as `itemsAsHeld` reads. The mark's flags are taken in
+ * one step as the wait ends. The road: the Rot's death (overflow.mjs `rotEverything`, through settings.mjs
+ * `isDeceased`, one of the two readers of the flag R192 allows) - a death a player's console wrote, a GM's flag the
+ * audit puts back, spared every item of that student until the put-back landed, or for good where it failed. The
+ * wait holds up nothing that holds it up, by reading: no judgement waits for a GM's write.
+ */
+export async function flagsAsHeld(actor) {
+    await judgedFor(actor?.id);
+    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
+    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
+    const flags = mark && !mark.flags?.[FLAGS.monokuma] ? clone(mark.flags ?? {}) : null;
+    return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
+        getFlag: (scope, key) => flags && scope === MODULE_ID && MARKED_FLAGS.includes(key) ? flags[key] : actor?.getFlag?.(scope, key) };
 }
 
 /*
@@ -1437,7 +1478,7 @@ async function coverOf(actor, mark, credit, gains, moves, stamp, user, seen) {
         const covers = await restCovers(actor, mark, credit, gains, moves, stamp.ref, seen);
         return covers ? { ...none, covers, rest: true } : none;
     }
-    if (stamp.reason === "itemUse") return { ...none, covers: (await itemCovers(gains, stamp.ref, user, seen)) ?? {} };
+    if (stamp.reason === "itemUse") return { ...none, covers: (await itemCovers(gains, stamp.ref, user, seen, mark)) ?? {} };
     if (stamp.reason === "call") return { ...none, covers: callCovers(credit, gains, stamp.ref) };
     return none;
 }
@@ -1477,15 +1518,25 @@ async function restCovers(actor, mark, credit, gains, moves, ref, seen) {
 }
 
 /*
- * An item used (the plan's 2.5): the item the write names as it stood when the write was heard -
- * this student's, usable, not broken, not stashed, of a tier with a row in `USABLE_EFFECTS` - each
- * gain within that row (one of Health or Sanity, Hope only where the row adds it), and its
- * consumption (a count lowered, or broken) by the same user within `JUDGE_WAIT_MS` of the write.
+ * An item used (the plan's 2.5): the item the write names - this student's, usable, not broken, not
+ * stashed, of a tier with a row in `USABLE_EFFECTS` - each gain within that row (one of Health or
+ * Sanity, Hope only where the row adds it), and its consumption (a count lowered, or broken) by the
+ * same user within `JUDGE_WAIT_MS` of the write.
+ *
+ * READ AS THE GMS HOLD IT (E29 fix r2-H19, 06.10.2026). The fields this file judges (`ITEM_JUDGED`: the category,
+ * tier, kind, break and place among them) are the mark's, as the writes heard before the use left it (`mark`, its
+ * judgement's); the rest - the name, which a kind may be read from (fix r2-H8) - as the use's hook heard the item; an
+ * item the mark holds no copy of is read without a category (`ITEM_UNHELD`), so it is no usable. Until this fix the
+ * item was read whole as the hook heard it, where a write of the player's the audit puts back stands until its
+ * put-back lands, or for good where it fails: at 68150ec (e29run/r2h19red) a tier-1 kit raised there to tier 3 covered
+ * a use's 2 Hope and both Health marks, and a kind, a mend and a stash undone there each covered its use; in scenario
+ * 30 p1's tier and at once the use left Hope 4 on every client, the use's row covered.
  */
-async function itemCovers(gains, ref, user, seen) {
+async function itemCovers(gains, ref, user, seen, mark) {
     const src = seen.item;
     if (!src || src._id !== ref || !user) return null;
-    const item = itemLike(src);
+    const copy = mark?.items?.[ref] ?? null;
+    const item = itemLike(copy ? withPaths(src, copy, ITEM_JUDGED) : withPaths(src, {}, ITEM_UNHELD));
     const { isUsable, tierOf, usableKindOf } = await import("./use-items.mjs");
     if (!isUsable(item) || isBroken(item) || isStashed(item)) return null;
     const effect = USABLE_EFFECTS[tierOf(item)];
@@ -1725,7 +1776,8 @@ function withPaths(data, before, paths) {
  * Search's finds (`finds`). A row names the item itself as `items.<id>` and a field of it as
  * `items.<id>.<path>`. A module item is judged against its copy in the mark; an item the GMs hold
  * no copy of is not the module's, and only a category written onto it - which would make it one -
- * is put back. Any item made with an effect that counts (`carriedEffects`, G3) is put back whole.
+ * is put back, and since fix r2-H19 a bedroom key's room (`ITEM_UNHELD`). Any item made with an
+ * effect that counts (`carriedEffects`, G3) is put back whole.
  * Any other field of an item, and an item the GMs hold no copy of taken off the sheet - with the
  * effects it took with it named in its row - is listed; a Search's find is what its write stood
  * on (`stood`, G4). An item's effects are judged as their own, never as a field of the item -
@@ -1762,9 +1814,8 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
         return out;
     }
     if (!now) return out;
-    const CATEGORY = `flags.${MODULE_ID}.${ITEM_FLAGS.category}`;
-    const before = held ?? withPaths(now, {}, [CATEGORY]);
-    const moved = itemPathsOf(changes, held ?? now).filter(path => (held || path === CATEGORY)
+    const before = held ?? withPaths(now, {}, ITEM_UNHELD);
+    const moved = itemPathsOf(changes, held ?? now).filter(path => (held || ITEM_UNHELD.includes(path))
         && stableJson(foundry.utils.getProperty(before, path) ?? null) !== stableJson(foundry.utils.getProperty(now, path) ?? null));
     const back = [];
     for (const path of moved) {
@@ -1795,7 +1846,7 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
     }
     const undos = [...(effects?.undos ?? [])], paths = back.map(entry => entry.path);
     // The mark takes the paths the write reached as its hook saw them, less what is put back (fix r2-H15); an item it holds no
-    // copy of, whole, its category put back.
+    // copy of, whole, its category and key put back.
     out.items = itemsAfter(mark, item, withPaths(reached(held, now, changes), before, paths));
     if (back.length) {
         for (const path of paths) out.change[`${whole}.${path}`] = [clone(foundry.utils.getProperty(before, path)) ?? null, clone(foundry.utils.getProperty(now, path)) ?? null];

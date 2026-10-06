@@ -539,33 +539,47 @@ async function runOverflowEvent(key) {
  * still landing - about ninety-nine points a season that used to be deaths are
  * now just damage. Breaking things stays the business of Despair rolls, where a
  * player chose the risk.
+ *
+ * AS THE GMS HOLD THEM (E29 fix r2-H19, 06.10.2026). Whether a student is dead, and
+ * each item's tier, wear and break, are read as the GMs hold them (`isDeceased` handed
+ * sheet-audit.mjs `flagsAsHeld`, and `itemAsHeld`), the item afresh before each point
+ * it loses, with no await between the read and the write it decides. Until this fix
+ * they were read off the documents, where a write of the player's the audit puts
+ * back stands until its put-back lands, or for good where it fails: at 68150ec
+ * (e29run/r2h19red) a Tool whose wear the GMs hold at 1 wore from the document's 0
+ * to 1, and a Tool whose tier was lowered there to 1 and every Tool of a student
+ * made dead there were spared. Read afresh, the last point is counted afresh too,
+ * so a Despair's wear heard between two of the Rot's points no longer lets the
+ * second take it (by reading, not measured: the Rot takes one point unless a GM's
+ * rules say more).
  */
 async function rotEverything(amount) {
     const { durabilityLeft, isBroken, wearItem } = await import("./inventory.mjs");
     const { isDeceased } = await import("./chapter.mjs");
+    const { flagsAsHeld, itemAsHeld } = await import("./sheet-audit.mjs");
 
     let worn = 0, spared = 0;
     for (const actor of game.actors) {
         if (actor.type !== "character") continue;
         // The dead carry nothing that can get worse.
-        if (isDeceased(actor)) continue;
+        if (isDeceased(await flagsAsHeld(actor))) continue;
         for (const item of actor.items) {
-            if (isBroken(item)) continue;
+            for (let i = 0; i < amount; i++) {
+                const held = await itemAsHeld(actor, item.id);
+                if (!held || isBroken(held)) break;
 
-            // What can be taken without taking the last point. `durabilityLeft`
-            // already answers zero for anything broken, so this is the whole
-            // guard: one point left means nothing spare, means skip.
-            const spare = durabilityLeft(item) - 1;
-            if (spare <= 0) {
-                if (durabilityLeft(item) > 0) spared++;
-                continue;
-            }
+                // What can be taken without taking the last point. `durabilityLeft`
+                // already answers zero for anything broken, so this is the whole
+                // guard: one point left means nothing spare, means skip.
+                if (durabilityLeft(held) <= 1) {
+                    if (!i && durabilityLeft(held) > 0) spared++;
+                    break;
+                }
 
-            for (let i = 0; i < Math.min(amount, spare); i++) {
-                const result = await wearItem(item, { reason: "itemWear" });
+                const result = await wearItem(item, { reason: "itemWear", held });
                 if (!result) break;
                 worn++;
-                // Cannot happen while `spare` is respected, and checked anyway:
+                // Cannot happen while the last point is respected, and checked anyway:
                 // if it ever does, the loop stops rather than grinding an item
                 // that is already gone.
                 if (result.broke) break;
