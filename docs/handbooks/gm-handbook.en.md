@@ -244,7 +244,7 @@ With somebody else in the room the saboteur also rolls Shadow against **16** to 
 
 ### 6.1 Hope Calls (`HOPE_CALLS`)
 
-Spent from the character sheet, whispered to the player. A Call that changes a roll - Support, Experience, Ultimate, Resolve, Loaded Die - is bought on the primary GM's browser, which takes the Hope and arms it; with no GM connected it cannot be bought, and nothing is paid. A roll the primary GM's browser draws applies only the Calls the GMs hold armed; a roll thrown in the player's browser - with no GM connected, or on a Daggerheart whose rolls the module does not draw - spends there the Calls its window shows. Locked during an Eclipse, under a *Silence* darkening, for a player hit by the *Silence* Despair Call, and for the dead; they stay open in an incident and in a Class Trial. Two of them need your ruling.
+Spent from the character sheet, whispered to the player. A Call that changes a roll - Support, Experience, Ultimate, Resolve, Loaded Die - is bought on the primary GM's browser, which takes the Hope and arms it; with no GM connected it cannot be bought, and nothing is paid (read in the code: the GM's browser refuses the request before its price; measured for a Search, not for a Call). A roll the primary GM's browser draws applies only the Calls the GMs hold armed; a roll thrown in the player's browser - with no GM connected, or on a Daggerheart whose rolls the module does not draw - spends there the Calls its window shows (read in the code). Locked during an Eclipse, under a *Silence* darkening, for a player hit by the *Silence* Despair Call, and for the dead; they stay open in an incident and in a Class Trial. Two of them need your ruling.
 
 | Call | Cost | Effect | Needs the GM |
 |---|---|---|---|
@@ -259,7 +259,7 @@ Spent from the character sheet, whispered to the player. A Call that changes a r
 | Relief | 4 | Take a Short Rest now: no action, no rest room, does not use up this time of day's | no |
 | Loaded Die | 6 | On the next roll one die is set to 12 and the other is thrown; a critical only if that die is 12 too | no |
 
-**Approving Experience and Ultimate.** The player must write what they mean to do with it - an empty box cancels, because the ruling is about the sentence, not the Call. The request lands as a card in the player's messenger thread, visible to the player and every GM, with **Applies** and **Not this time**. Any GM may answer. The yes is kept by the primary GM's browser, which arms the Call only with it; a card put up by a primary GM who has since left cannot take a yes - the player asks again. Nothing is charged until a yes; a refusal or a silence costs the player nothing (the request times out after **five minutes**). If your browser reloads with the question open, the player's client asks again when you reconnect. Once answered, the card becomes a receipt in the thread.
+**Approving Experience and Ultimate.** The player must write what they mean to do with it - an empty box cancels, because the ruling is about the sentence, not the Call. The request lands as a card in the player's messenger thread, visible to the player and every GM, with **Applies** and **Not this time**. Any GM may answer. The yes is kept by the primary GM's browser, which arms the Call only with it; a card put up by a primary GM who has since left cannot take a yes - the player asks again (read in the code). Nothing is charged until a yes; a refusal or a silence costs the player nothing (the request times out after **five minutes**). If your browser reloads with the question open, the player's client asks again when you reconnect. Once answered, the card becomes a receipt in the thread.
 
 > [!TIP]
 > The question is the handbook's own: does the experience or the talent *genuinely* apply here?
@@ -300,7 +300,7 @@ Two GMs are normal. One of them is the **primary GM** (the connected full Gamema
 
 **Sheet changes made while no GM was watching.** A change made while no GM is connected is judged when the primary GM's world loads: what would have been put back is put back at once, and every other difference - a gain in Hope, Health, Sanity or actions, a Rest, an item taken off or added - goes on one card, **Sheet changes made while no GM was watching**, a row per student and field with its value before and after, **Undo** and **Keep** on each and **Undo all** and **Accept all** for the lot. A Rest or an item used while no GM was connected is on that card too.
 
-**The setting** *Players cannot edit Actions, Hope, Health, Sanity or statistics* governs all of this for the fields it names. On (the default), as above, and the pips on the character sheet and the Party sheet and the token HUD's bars are display-only for players. Off, a player's changes to those fields are listed, not put back or flagged. Items, effects and the module's records are judged either way.
+**The setting** *Players cannot edit Actions, Hope, Health, Sanity or statistics* governs all of this for the fields it names. On (the default), as above, and the pips on the character sheet and the Party sheet and the token HUD's bars are display-only for players (a table check, LIVE-E29-02, not yet run). Off, a player's changes to those fields are listed, not put back or flagged. Items, effects and the module's records are judged either way.
 
 ---
 

@@ -40,7 +40,7 @@ Przy tworzeniu postaci rozkład to **+2, +1, +1, 0, 0, -1**, rozłożony, jak ch
 | Doświadczenia | 2, po +2 każde | - |
 | Przedmiot startowy | jeden przedmiot Tier 2 powiązany z twoim Ultimate, uzgodniony z GMem | - |
 
-Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty przedmiot, Call, Level Up. Kropki na twojej karcie, na karcie drużyny i na twoim tokenie są do czytania, nie do klikania. Zmianę zrobioną mimo to na karcie ręcznie sprawdza przeglądarka GMa: statystyka, maksimum albo Hope, których nic w grze nie pokrywa, wracają od razu i dostajesz o tym wiadomość; Health, Sanity albo akcje trafiają do GMów, którzy decydują. Zmianę zrobioną, gdy nie jest połączony żaden GM, sprawdza się, gdy któryś wróci.
+Twoje liczby zmieniają się w grze: przez wydaną akcję, rzut, Rest, użyty przedmiot, Call, Level Up. Kropki na twojej karcie, na karcie drużyny i na twoim tokenie są do czytania, nie do klikania (jeszcze nie sprawdzone przy stole). Zmianę zrobioną mimo to na karcie ręcznie sprawdza przeglądarka GMa: statystyka, maksimum albo Hope, których nic w grze nie pokrywa, wracają od razu i dostajesz o tym wiadomość; Health, Sanity albo akcje trafiają do GMów, którzy decydują. Zmianę zrobioną, gdy nie jest połączony żaden GM, sprawdza się, gdy któryś wróci.
 
 ### Dwa stany, których nie chcesz
 
@@ -345,7 +345,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
 | **Loaded Die** | 6 | Przy następnym rzucie jedna kość jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. |
 
-Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane. Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny - chyba że ci utrudnia (utrudnienie albo ujemna premia) i nałożono go ponad minutę przed rzutem, który rzuca przeglądarka GMa: taki rzut go liczy, czy okno go pokazuje, czy nie. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
+Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane (odczytane z kodu, niezmierzone dla Calla). Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny - chyba że ci utrudnia (utrudnienie albo ujemna premia) i nałożono go ponad minutę przed rzutem, który rzuca przeglądarka GMa: taki rzut go liczy, czy okno go pokazuje, czy nie. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 
 > [!IMPORTANT]
 > Nikt nie wydaje Hope Calli podczas Eclipse, gdy Monokuma go uciszył (Silence) ani gdy Silence z overflow zaciemnia porę dnia.
