@@ -346,6 +346,9 @@ const itemOf = effect => effect?.parent?.documentName === "Item" ? effect.parent
 /** Where the mark holds an effect, and a row names it: `effects.<id>`, or `itemEffects.<item id>.<id>` (G3). */
 const effectPath = (itemId, id) => itemId ? `itemEffects.${itemId}.${id}` : `effects.${id}`;
 
+/** The mark's copy of an effect - the student's own, or one on its item `itemId` (G3) - or null. */
+const effectHeld = (mark, itemId, id) => (itemId ? mark?.itemEffects?.[itemId] : mark?.effects)?.[id] ?? null;
+
 /** Sets one effect in a mark - the student's own, or one on its item `itemId` (G3) - or takes it out where `data` is null. */
 function setEffect(mark, itemId, id, data) {
     mark.itemEffects ??= {};
@@ -355,21 +358,57 @@ function setEffect(mark, itemId, id, data) {
     if (itemId && !Object.keys(slot).length) delete mark.itemEffects[itemId];
 }
 
-/** The mark's items' effects with one item's taken in as its data holds them, or gone with it (G3). */
-function itemEffectsAfter(mark, itemId, data) {
+/*
+ * THE MARK TAKES WHAT A WRITE REACHED (E29 fix r2-H15, 06.10.2026; found by fix r2-H14). An item's or an effect's
+ * update moves the mark's copy of that document by the paths it reached (`reachOf`; an entry's, written through its
+ * student or its item), each as its hook saw it, and by nothing else of the hook's copy: that copy holds every write
+ * before it, and one of those may still wait for its put-back. A document the mark holds no copy of is taken whole,
+ * as one made is. Until this fix an item's or an effect's write took the hook's copy whole, though G1 had made a
+ * student's own paths move only so and refreshMark's comment said it of every write: measured on the harness by
+ * scenario 30 at d1445c0 (06.10.2026, e29run/r2h15red), p2's console wrote a Tool's `roles` and at once renamed it,
+ * the rename's hook holding the roles; the roles were put back on every client and stood in the mark, and the same
+ * roles written again then stood with no row. So did a count raised behind a rename, the roles through Botan's
+ * update, a penalty's +5 behind a write of its old name, and the roles behind a GM's rename in the window.
+ */
+function reached(held, data, changes) {
+    return held && data ? withPaths(held, data, reachOf(changes)) : clone(data) ?? null;
+}
+
+/** A write's `key` (`items`, `effects`) written as a list of entries named by their `_id`: id -> what the entry writes. Null for the list written whole. */
+function entriesNamed(changes, key) {
+    const list = changes?.[key];
+    if (!Array.isArray(list)) return null;
+    return new Map(list.filter(entry => entry?._id).map(({ _id, ...entry }) => [_id, foundry.utils.expandObject(entry)]));
+}
+
+/** The effects the mark holds on one host (`held`, by id) with each `named` one (id -> what its entry wrote) taken in by what its entry reached. */
+function effectsReached(held = {}, now = {}, named) {
+    const out = { ...held };
+    for (const [id, entry] of named) if (now[id]) out[id] = reached(held[id] ?? null, now[id], entry);
+    return out;
+}
+
+/**
+ * The mark's items' effects with one item's taken in as its data holds them, or gone with it (G3) - or, where its write named them
+ * by their id (`named`), only those, each by what its entry reached (fix r2-H15).
+ */
+function itemEffectsAfter(mark, itemId, data, named = null) {
     const out = { ...(mark?.itemEffects ?? {}) };
-    const effects = effectsIn(data);
+    const effects = named ? effectsReached(mark?.itemEffects?.[itemId], effectsIn(data), named) : effectsIn(data);
     if (Object.keys(effects).length) out[itemId] = effects;
     else delete out[itemId];
     return out;
 }
 
 /**
- * What an item's write that stands moves the mark by: the item as its hook saw it (C6) and, made or deleted, its effects with it
- * (G3) - or updated with them in its `changes` (fix r2-H8, `parentEffects`).
+ * What an item's write that stands moves the mark by: made or deleted, the item as its hook saw it (C6) and its effects with it
+ * (G3); updated, the paths it reached (`reached`, fix r2-H15) and, where its `changes` wrote them (fix r2-H8, `parentEffects`),
+ * its effects - each it named by what its entry reached, every one as the hook saw it where it wrote the list whole.
  */
-const itemMoves = (kind, mark, item, data, changes = {}) => ({ items: itemsAfter(mark, item, data),
-    ...(kind === "updateItem" && !names(changes, "effects") ? {} : { itemEffects: itemEffectsAfter(mark, item.id, data) }) });
+const itemMoves = (kind, mark, item, data, changes = {}) => kind !== "updateItem"
+    ? { items: itemsAfter(mark, item, data), itemEffects: itemEffectsAfter(mark, item.id, data) }
+    : { items: itemsAfter(mark, item, reached(mark?.items?.[item.id] ?? null, data, changes)),
+        ...(names(changes, "effects") ? { itemEffects: itemEffectsAfter(mark, item.id, data, entriesNamed(changes, "effects")) } : {}) };
 
 /** An item the mark holds, whole: its copy with the effects held on it (G3), as a deleted one is made again. */
 const wholeItem = (mark, id) => ({ ...clone(mark.items[id]), effects: Object.values(mark.itemEffects?.[id] ?? {}).map(clone) });
@@ -787,7 +826,9 @@ async function markWritten(actor, next) {
 /**
  * THE MARK MOVES BY WHAT WAS JUDGED (G1). After a GM's write, by the paths it named, as its hook
  * saw them; after a player's, by what of it stood (`markAfter`) - never by the document as it
- * stands when the judgement ends. A student with no mark takes the document whole (`markFrom`),
+ * stands when the judgement ends, nor, for an item or an effect, by the rest of the copy its hook
+ * saw, which holds the writes before it (`reached`, fix r2-H15). An item or an effect made, or one
+ * the mark holds no copy of, is taken whole. A student with no mark takes the document whole (`markFrom`),
  * as `fillMarks` does. Only the fields that differ are written, so a write the mark already holds
  * patches nothing. Answers whether it wrote.
  */
@@ -855,12 +896,14 @@ export function judgeWrite(kind, doc, changes, userId, options = {}, priors = nu
 async function judgeNow(kind, doc, actor, changes, userId, options, seen) {
     const user = game.users?.get(userId ?? "");
     const early = !gmStoresHydrated() && !options?.[AUDIT_ASIDE];
-    // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them, the effects
-    // written through either (r2-H8) and the items written through the student (r2-H10).
+    // What a write that stands moves the mark by: the paths, the item or the effect as its hook saw them - an update of
+    // either by the paths it reached (r2-H15) -, the effects written through either (r2-H8) and the items written through
+    // the student (r2-H10).
     const stood = mark => ITEM_WRITES.has(kind) ? itemMoves(kind, mark, doc, seen.item, changes)
-        : kind === "updateActor" ? { paths: seen.paths, effects: seen.effects ? effectMoves(mark?.effects, seen.effects) : [],
+        : kind === "updateActor" ? { paths: seen.paths, effects: seen.effects ? effectMoves(mark?.effects, seen.effects, entriesNamed(changes, "effects")) : [],
             ...(seen.items ? itemsMoved(mark, seen.items, itemsNamed(changes)) : {}) }
-            : { effect: { id: doc.id, itemId: itemOf(doc)?.id ?? null, data: seen.effect } };
+            : { effect: { id: doc.id, itemId: itemOf(doc)?.id ?? null, data: kind === "updateActiveEffect"
+                ? reached(effectHeld(mark, itemOf(doc)?.id ?? null, doc.id), seen.effect, changes) : seen.effect } };
     if (user?.isGM) {
         if (early) noteUnmarked(kind, doc, actor, changes);
         /* The GMs' own put-back moves nothing they hold: it writes back what the mark holds, and since G1
@@ -953,7 +996,7 @@ async function updateFindings(actor, mark, changes, user, options, seen) {
     const read = actorFindings(mark, changes, was);
     const sheet = read.taken.length ? callsOwed(read, await callsCover(actor, user, read.taken, seen.at)) : read;
     const means = await meansFindings(actor, mark, user, options, seen);
-    const effects = seen.effects ? parentEffects(actor, null, mark, seen.effects) : { back: [], listed: [], change: {}, undos: [], stood: [] };
+    const effects = seen.effects ? parentEffects(actor, null, mark, seen.effects, entriesNamed(changes, "effects")) : { back: [], listed: [], change: {}, undos: [], stood: [] };
     const items = seen.items ? await parentItems(actor, mark, changes, user, options, seen.items) : null;
     const back = [...sheet.back, ...means.back];
     return { back: [...back, ...effects.back], listed: [...sheet.listed, ...means.listed, ...effects.listed], flagged: [...sheet.flagged, ...means.flagged],
@@ -1685,20 +1728,22 @@ async function itemFindings(kind, item, actor, mark, changes, user, options, see
         out.listed.push({ path: `${whole}.${path}`, kind: "other" });
         out.change[`${whole}.${path}`] = [clone(was) ?? null, clone(is) ?? null];
     }
-    // The effects it wrote (fix r2-H8): each judged as one on the student, the ones that stand into the mark.
-    const effects = names(changes, "effects") ? parentEffects(item, id, mark, effectsIn(now)) : null;
+    // The effects it wrote (fix r2-H8): each judged as one on the student, the ones that stand into the mark - each it named by
+    // its id by what its entry reached (fix r2-H15), every one as the hook saw it where the student's list was written whole.
+    const effects = names(changes, "effects") ? parentEffects(item, id, mark, effectsIn(now), seen?.whole ? null : entriesNamed(changes, "effects")) : null;
     if (effects) {
         out.listed.push(...effects.listed);
         Object.assign(out.change, effects.change);
         for (const each of effects.stood) setEffect(out, id, each.id, each.data);
     }
-    const undos = [...(effects?.undos ?? [])];
+    const undos = [...(effects?.undos ?? [])], paths = back.map(entry => entry.path);
+    // The mark takes the paths the write reached as its hook saw them, less what is put back (fix r2-H15); an item it holds no
+    // copy of, whole, its category put back.
+    out.items = itemsAfter(mark, item, withPaths(reached(held, now, changes), before, paths));
     if (back.length) {
-        const paths = back.map(entry => entry.path);
         for (const path of paths) out.change[`${whole}.${path}`] = [clone(foundry.utils.getProperty(before, path)) ?? null, clone(foundry.utils.getProperty(now, path)) ?? null];
         const patch = putBackPatch(before, paths);
         undos.unshift(() => trustedWrite(item, patch, { reason: "auditPutBack" }));
-        out.items = itemsAfter(mark, item, withPaths(now, before, paths));
     }
     out.back = [...back.map(entry => ({ ...entry, path: `${whole}.${entry.path}` })), ...(effects?.back ?? [])];
     if (undos.length) out.undo = async () => {
@@ -1775,7 +1820,8 @@ async function searchFind(actor, mark, data, stamp, user) {
 /*
  * An effect created, changed or deleted on a student or on one of its items (G3), as its hook saw it
  * (`now`; G1): put back when it changes what the GMs hold (`touchesHeld`), before or after. One that
- * stands moves the mark (`moves`); one put back leaves the mark's copy as it was. Each put-back writes
+ * stands moves the mark (`moves`) - made, whole; changed, by the paths the write reached (`reached`,
+ * fix r2-H15); one put back leaves the mark's copy as it was. Each put-back writes
  * only what is still as the write left it, as a student's does (`putBackNow`): an effect a later write
  * deleted, made again or changed is that write's, and so is one whose item is gone since. Any other
  * effect made, changed or taken off - a Daggerheart condition, one an item does not transfer - is
@@ -1783,12 +1829,13 @@ async function searchFind(actor, mark, data, stamp, user) {
  */
 function effectFindings(kind, effect, mark, changes, now) {
     const item = itemOf(effect), host = effect.parent, id = effect.id, itemId = item?.id ?? null;
-    const held = (itemId ? mark.itemEffects?.[itemId] : mark.effects)?.[id] ?? null;
+    const held = effectHeld(mark, itemId, id);
     const counts = data => touchesHeld(data, { onItem: Boolean(item) });
     const path = effectPath(itemId, id);
     const standing = () => !item || Boolean(item.parent?.items?.get(itemId));
     const there = () => standing() ? host?.effects?.get(id) ?? null : null;
-    const none = { back: [], listed: [], change: {}, itemId, moves: { effect: { id, itemId, data: now } }, undo: async () => null };
+    const taken = kind === "updateActiveEffect" ? reached(held, now, changes) : now;
+    const none = { back: [], listed: [], change: {}, itemId, moves: { effect: { id, itemId, data: taken } }, undo: async () => null };
     const back = (change, undo) => ({ back: [{ path, kind: "effect" }], listed: [], change: { [path]: change }, itemId, moves: {}, undo });
     const takeOff = async () => there() ? trustedDelete(there(), { reason: "auditPutBack" }) : null;
     const listed = (was, is) => ({ ...none, listed: [{ path, kind: "effect" }], change: { [path]: [effectSummary(was), effectSummary(is)] } });
@@ -1824,8 +1871,11 @@ function effectFindings(kind, effect, mark, changes, now) {
  * written over a GM's penalty by p1's console stood on Aiko with a listed row, and on her Tool with none.
  * Were Foundry to fire the effect's own hook as well, the later of the two judgements (`inOrder`) would
  * write nothing - a put-back writes only what still stands as the write left it - and add a second row.
+ * One that stands moves the mark by what the write reached (fix r2-H15): each the write named by its id
+ * (`named`: id -> what its entry wrote) by what its entry reached, none it did not name; the list written
+ * whole, each as the hook saw it.
  */
-function parentEffects(host, itemId, mark, now) {
+function parentEffects(host, itemId, mark, now, named = null) {
     const held = (itemId ? mark.itemEffects?.[itemId] : mark.effects) ?? {};
     const out = { back: [], listed: [], change: {}, undos: [], stood: [] };
     for (const id of new Set([...Object.keys(held), ...Object.keys(now)])) {
@@ -1837,14 +1887,20 @@ function parentEffects(host, itemId, mark, now) {
         out.listed.push(...one.listed);
         Object.assign(out.change, one.change);
         if (one.back.length) out.undos.push(one.undo);
-        else out.stood.push({ id, itemId, data: is });
+        else if (!named) out.stood.push({ id, itemId, data: is });
+        else if (named.has(id) && is) out.stood.push({ id, itemId, data: reached(was, is, named.get(id)) });
     }
     return out;
 }
 
-/** A GM's write of a student's effects through its update (r2-H8): every one that differs from the mark's, as the hook saw it, is the mark's. */
-const effectMoves = (held = {}, now = {}) => [...new Set([...Object.keys(held), ...Object.keys(now)])]
-    .filter(id => stableJson(held[id] ?? null) !== stableJson(now[id] ?? null)).map(id => ({ id, itemId: null, data: now[id] ?? null }));
+/**
+ * A GM's write of a student's effects through its update (r2-H8): each it named by its id, by what its entry reached (fix r2-H15),
+ * or - the list written whole - every one that differs from the mark's, as the hook saw it, is the mark's.
+ */
+const effectMoves = (held = {}, now = {}, named = null) => named
+    ? [...named.keys()].filter(id => now[id]).map(id => ({ id, itemId: null, data: reached(held[id] ?? null, now[id], named.get(id)) }))
+    : [...new Set([...Object.keys(held), ...Object.keys(now)])]
+        .filter(id => stableJson(held[id] ?? null) !== stableJson(now[id] ?? null)).map(id => ({ id, itemId: null, data: now[id] ?? null }));
 
 /*
  * AN ITEM WRITTEN THROUGH ITS STUDENT (E29 fix r2-H10, 06.10.2026; found by fix r2-H8's probe). A student's
@@ -1881,7 +1937,7 @@ async function parentItems(actor, mark, changes, user, options, now) {
             else if (!effectsMoved && (!copy || stableJson(copy) === stableJson(itemCopy(data)))) continue;
             else write = { ...(copy ? bothPaths(copy, itemCopy(data)) : {}), ...(effectsMoved ? { effects: data.effects ?? [] } : {}) };
         }
-        const one = await itemFindings(kind, doc ?? { id, name: copy?.name ?? null }, actor, held, write ?? {}, user, options, { item: data });
+        const one = await itemFindings(kind, doc ?? { id, name: copy?.name ?? null }, actor, held, write ?? {}, user, options, { item: data, whole: !named });
         held = { ...held, items: one.items, itemEffects: one.itemEffects, ...(one.finds ? { finds: one.finds } : {}) };
         if (one.back.length || one.flagged.length || one.listed.length || one.stood?.length) found.push(one);
     }
@@ -1890,9 +1946,7 @@ async function parentItems(actor, mark, changes, user, options, now) {
 
 /** A student's update's `items` written as a list of entries named by their `_id`: id -> what the entry writes. Null for the list written whole. */
 function itemsNamed(changes) {
-    const list = changes?.items;
-    if (!Array.isArray(list)) return null;
-    return new Map(list.filter(entry => entry?._id).map(({ _id, ...entry }) => [_id, foundry.utils.expandObject(entry)]));
+    return entriesNamed(changes, "items");
 }
 
 /**
@@ -1906,14 +1960,17 @@ export function itemsWritten(actor, changes) {
 }
 
 /**
- * A GM's write of a student's items through its update (r2-H10): each it names - every one, the list written
- * whole - as the hook saw it, and each the GMs held that is gone, are the mark's.
+ * A GM's write of a student's items through its update (r2-H10): each it names as that item's own update moves the mark
+ * (`itemMoves`, fix r2-H15: by what its entry reached) - every one as the hook saw it, the list written whole - and each
+ * the GMs held that is gone, are the mark's.
  */
 function itemsMoved(mark, now, named) {
     let moved = { items: { ...(mark?.items ?? {}) }, itemEffects: { ...(mark?.itemEffects ?? {}) } };
     const ids = [...Object.keys(moved.items), ...Object.keys(moved.itemEffects)].filter(id => !now[id]);
     for (const id of new Set([...ids, ...(named ? [...named.keys()] : Object.keys(now)).filter(each => now[each])])) {
-        moved = { items: itemsAfter(moved, { id }, now[id] ?? null), itemEffects: itemEffectsAfter(moved, id, now[id] ?? null) };
+        const entry = now[id] ? named?.get(id) : null;
+        moved = entry ? { ...moved, ...itemMoves("updateItem", moved, { id }, now[id], entry) }
+            : { items: itemsAfter(moved, { id }, now[id] ?? null), itemEffects: itemEffectsAfter(moved, id, now[id] ?? null) };
     }
     return moved;
 }

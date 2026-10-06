@@ -3432,6 +3432,158 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         Boolean(bullet) && rolesViaBotan.ok, JSON.stringify({ servedBefore, rolesViaBotan }));
 
     /*
+     * WHAT THE MARK TAKES OF A WRITE BEHIND ANOTHER (E29 fix r2-H15, 06.10.2026; found by fix r2-H14). p2's console
+     * gives a Tool of Botan's `roles` - what it serves as, the audit's (sheet-audit.mjs `ITEM_FIXED`) - and renames it
+     * in a second write sent with the first, so the rename's hook holds the roles while they wait for their put-back.
+     * The roles are put back on every client with a row and the GMs told, and once the audit is idle its mark holds
+     * the Tool renamed and without the roles: the rename moved it by the name alone. Then p2 writes the same roles
+     * alone: put back again, with a row. The same for the Tool's count raised; for the roles and the rename each
+     * through Botan's update; for the GMs' penalty on Botan made a +5 under a new name and at once written back to its
+     * own name; and for the roles behind a GM's rename, which the GM's hook makes as it hears the roles, so that it
+     * lands before the audit's put-back. The GM's own hooks record what each write on the Tool or the penalty held
+     * when it was heard, and a pair counts only where the second write was heard holding the first one's value
+     * (`behindHeardHolding`): one whose writes landed the other way round would measure nothing. Each read waits for
+     * what it reads up to a deadline, as H14's do; after each pair the GM writes back whatever a red run left
+     * (`behindAsWas`).
+     *
+     * At d1445c0 (06.10.2026, e29run/r2h15red) all five were red alike: each first write was put back on every client
+     * with its row and the GMs told, but the mark held what was put back - the roles, the count 3, the +5 - taken in
+     * with the second write's copy, and the same write again then stood on every client with no row.
+     */
+    const behindWas = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), a = game.actors.get("${ids.botan}");
+        const tool = await INV.grantItem(a, { name: "SEC H15 tool", category: "tool", tier: 1, override: true, quiet: true });
+        const [penalty] = await a.createEmbeddedDocuments("ActiveEffect", [{ name: "SEC H15 penalty",
+            system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: -2 }] } }]);
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { tool: tool?.id ?? null, penalty: penalty?.id ?? null };`);
+    const readBehind = `const a = game.actors.get("${ids.botan}"), t = a.items.get("${behindWas.tool}"), e = a.effects.get("${behindWas.penalty}");
+        return [t?.name ?? null, t?.getFlag("${MOD}", "roles") ?? null, t?.system?.quantity ?? null, e?.name ?? null, e?.system?.changes?.[0]?.value ?? null];`;
+    const behindBefore = await gm.eval(readBehind);
+    const behindHeld = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"), m = S.sheetMarkStore.get("${ids.botan}");
+        return [Boolean(m?.items?.["${behindWas.tool}"]), Boolean(m?.effects?.["${behindWas.penalty}"])];`);
+    // The GM's own hooks beside the audit's: each write on the Tool or the penalty, and each of Botan's that writes his
+    // items, as it was heard - by whom (the audit's put-back is "back") and holding what.
+    await gm.eval(`globalThis.__behindHeard = [];
+        const by = (userId, options) => options?.drpgWrite?.reason === "auditPutBack" ? "back" : game.users.get(userId)?.isGM ? "gm" : "player";
+        const row = (t, e) => [t?.name ?? null, t?.getFlag("${MOD}", "roles") ?? null, t?.system?.quantity ?? null, e?.name ?? null, e?.system?.changes?.[0]?.value ?? null];
+        const heard = (kind, userId, options, t, e) => globalThis.__behindHeard.push(JSON.parse(JSON.stringify([kind, by(userId, options), ...row(t, e)])));
+        globalThis.__behindHooks = [
+            ["updateItem", Hooks.on("updateItem", (doc, changes, options, userId) => doc.id === "${behindWas.tool}"
+                && heard("item", userId, options, doc, doc.parent?.effects?.get("${behindWas.penalty}")))],
+            ["updateActor", Hooks.on("updateActor", (doc, changes, options, userId) => doc.id === "${ids.botan}" && "items" in (changes ?? {})
+                && heard("actor", userId, options, doc.items.get("${behindWas.tool}"), doc.effects.get("${behindWas.penalty}")))],
+            ["updateActiveEffect", Hooks.on("updateActiveEffect", (doc, changes, options, userId) => doc.id === "${behindWas.penalty}"
+                && heard("effect", userId, options, doc.parent?.items?.get("${behindWas.tool}"), doc))]];
+        return true;`);
+    // Up to 8 s for the GM to read `want` and hold a put-back row of the Tool or the penalty since `from`, then for its
+    // audit to be idle; up to 6 s for each client to read `want`. `rows` names what the audit put back (the Tool's field,
+    // or `effects`); `whispered`, that the GM holds the whisper each of those rows names; `mark`, the Tool and the
+    // penalty as the mark holds them.
+    const behindAfter = async (from, want) => {
+        const wanted = JSON.stringify(JSON.stringify(want));
+        const audit = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs"), A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            const read = () => { ${readBehind} }, ours = k => k.startsWith("items.${behindWas.tool}.") || k === "effects.${behindWas.penalty}";
+            const backs = () => Object.values(S.sheetWriteStore.entries() ?? {})
+                .filter(r => r?.actorId === "${ids.botan}" && r.verdict === "putBack" && r.at >= ${from} && Object.keys(r.change ?? {}).some(ours));
+            const end = Date.now() + 8000;
+            while ((JSON.stringify(read()) !== ${wanted} || !backs().length) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await A.sheetAuditIdle();
+            const m = S.sheetMarkStore.get("${ids.botan}"), t = m?.items?.["${behindWas.tool}"], e = m?.effects?.["${behindWas.penalty}"];
+            return { rows: backs().flatMap(r => Object.keys(r.change).filter(ours).map(k => k.startsWith("items.") ? k.split(".").pop() : "effects")).sort(),
+                whispered: backs().length > 0 && backs().every(r => game.messages.has(r.messageId ?? "")),
+                mark: [t?.name ?? null, t?.flags?.["${MOD}"]?.roles ?? null, t?.system?.quantity ?? null, e?.name ?? null, e?.system?.changes?.[0]?.value ?? null] };`);
+        const docs = await Promise.all([gm, p1, p2, p3].map(c => c.eval(`const read = () => { ${readBehind} }, end = Date.now() + 6000;
+            while (JSON.stringify(read()) !== ${wanted} && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            return read();`)));
+        return { ...audit, docs };
+    };
+    const behindAsWas = () => gm.eval(`const a = game.actors.get("${ids.botan}"), t = a.items.get("${behindWas.tool}"), e = a.effects.get("${behindWas.penalty}");
+        const was = ${JSON.stringify(behindBefore)}, patch = {}, fixed = [];
+        if (t?.name !== was[0]) patch.name = was[0];
+        if (JSON.stringify(t?.getFlag("${MOD}", "roles") ?? null) !== JSON.stringify(was[1])) patch["flags.${MOD}.roles"] = was[1] ?? foundry.data.operators.ForcedDeletion.create();
+        if ((t?.system?.quantity ?? null) !== was[2]) patch["system.quantity"] = was[2];
+        if (t && Object.keys(patch).length) { await t.update(patch); fixed.push(...Object.keys(patch)); }
+        if (e && (e.name !== was[3] || e.system?.changes?.[0]?.value !== was[4])) {
+            await e.update({ name: was[3], system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: was[4] }] } });
+            fixed.push("effect");
+        }
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return fixed;`);
+    // A write of `kind` heard from `by` holding each of `values`, by its place in the heard row (2 the Tool's name, 3 its
+    // roles, 4 its count, 5 the penalty's name, 6 its value): the second write's hook holding the first one's value.
+    const behindHeardHolding = (kind, by, values) => heard => heard.some(h => h[0] === kind && h[1] === by
+        && Object.entries(values).every(([at, value]) => JSON.stringify(h[at]) === JSON.stringify(value)));
+    const behindPair = async (want, field, first, again, ordered) => {
+        await gm.eval(`globalThis.__behindHeard.length = 0; return true;`);
+        const from = await gm.eval(`return Date.now();`);
+        await first();
+        const one = await behindAfter(from, want);
+        const heard = await gm.eval(`return globalThis.__behindHeard.splice(0);`);
+        const fromAgain = await gm.eval(`return Date.now();`);
+        await again();
+        const two = await behindAfter(fromAgain, want);
+        const restored = await behindAsWas();
+        const same = seen => JSON.stringify(seen) === JSON.stringify(want), rows = JSON.stringify([field]);
+        const ok = one.docs.length === 4 && one.docs.every(same) && JSON.stringify(one.rows) === rows && one.whispered && same(one.mark)
+            && two.docs.length === 4 && two.docs.every(same) && JSON.stringify(two.rows) === rows && two.whispered && same(two.mark);
+        return { ok, ordered: ordered(heard), one, two, heard, restored };
+    };
+    const behindTool = `game.actors.get("${ids.botan}").items.get("${behindWas.tool}")`;
+    const behindPenalty = `game.actors.get("${ids.botan}").effects.get("${behindWas.penalty}")`;
+    const behindOnce = fields => p2.eval(`await ${behindTool}.update(${JSON.stringify(fields)}, { drpgAutomated: true }); return true;`);
+    const behindTwice = (one, two) => p2.eval(`const t = ${behindTool};
+        await Promise.all([t.update(${JSON.stringify(one)}, { drpgAutomated: true }), t.update(${JSON.stringify(two)}, { drpgAutomated: true })]); return true;`);
+    const behindTwiceViaBotan = (one, two) => p2.eval(`const a = game.actors.get("${ids.botan}");
+        await Promise.all([a.update({ items: [{ _id: "${behindWas.tool}", ...${JSON.stringify(one)} }] }, { drpgAutomated: true }),
+            a.update({ items: [{ _id: "${behindWas.tool}", ...${JSON.stringify(two)} }] }, { drpgAutomated: true })]); return true;`);
+    const behindFive = { system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: 5 }] } };
+    const behindRenamed = name => [name, ...behindBefore.slice(1)];
+    const behindRoles = { [`flags.${MOD}.roles`]: crimeRole }, behindRaised = (behindBefore?.[2] ?? 1) + 2;
+    let behind = null;
+    try {
+        behind = {
+            roles: await behindPair(behindRenamed("SEC H15 renamed"), "roles", () => behindTwice(behindRoles, { name: "SEC H15 renamed" }),
+                () => behindOnce(behindRoles), behindHeardHolding("item", "player", { 2: "SEC H15 renamed", 3: crimeRole })),
+            count: await behindPair(behindRenamed("SEC H15 renamed"), "quantity", () => behindTwice({ "system.quantity": behindRaised }, { name: "SEC H15 renamed" }),
+                () => behindOnce({ "system.quantity": behindRaised }), behindHeardHolding("item", "player", { 2: "SEC H15 renamed", 4: behindRaised })),
+            botan: await behindPair(behindRenamed("SEC H15 renamed through Botan"), "roles",
+                () => behindTwiceViaBotan({ flags: { [MOD]: { roles: crimeRole } } }, { name: "SEC H15 renamed through Botan" }),
+                () => p2.eval(`await game.actors.get("${ids.botan}").update({ items: [{ _id: "${behindWas.tool}", flags: { "${MOD}": { roles: ${JSON.stringify(crimeRole)} } } }] },
+                    { drpgAutomated: true }); return true;`),
+                behindHeardHolding("actor", "player", { 2: "SEC H15 renamed through Botan", 3: crimeRole })),
+            effect: await behindPair(behindBefore, "effects", () => p2.eval(`const e = ${behindPenalty};
+                    await Promise.all([e.update(${JSON.stringify({ name: "SEC H15 boosted", ...behindFive })}), e.update({ name: "SEC H15 penalty" })]); return true;`),
+                () => p2.eval(`await ${behindPenalty}.update(${JSON.stringify(behindFive)}); return true;`),
+                behindHeardHolding("effect", "player", { 5: "SEC H15 penalty", 6: 5 })),
+            gm: await behindPair(behindRenamed("SEC H15 renamed by the GM"), "roles", async () => {
+                // The GM renames the Tool from its hook as p2's roles are heard: before the audit's put-back of them.
+                await gm.eval(`globalThis.__behindRename = Hooks.on("updateItem", (doc, changes, options, userId) => {
+                        if (doc.id !== "${behindWas.tool}" || game.users.get(userId)?.isGM) return;
+                        Hooks.off("updateItem", globalThis.__behindRename);
+                        void doc.update({ name: "SEC H15 renamed by the GM" });
+                    }); return true;`);
+                return behindOnce(behindRoles);
+            }, () => behindOnce(behindRoles), behindHeardHolding("item", "gm", { 2: "SEC H15 renamed by the GM", 3: crimeRole }))
+        };
+    } finally {
+        await gm.eval(`for (const [name, id] of globalThis.__behindHooks ?? []) Hooks.off(name, id);
+            Hooks.off("updateItem", globalThis.__behindRename);
+            const a = game.actors.get("${ids.botan}"), A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            await A.sheetAuditIdle();
+            if (a.effects.has("${behindWas.penalty}")) await a.deleteEmbeddedDocuments("ActiveEffect", ["${behindWas.penalty}"]);
+            if (a.items.has("${behindWas.tool}")) await a.deleteEmbeddedDocuments("Item", ["${behindWas.tool}"]);
+            await A.sheetAuditIdle(); return true;`);
+    }
+    const behindReady = Boolean(behind && behindWas.tool && behindWas.penalty) && behindHeld.every(Boolean);
+    const behindCheck = (name, key) => check(name, behindReady && behind[key].ok && behind[key].ordered,
+        JSON.stringify({ behindBefore, behindHeld, [key]: behind?.[key] ?? null }), { flow: "sheet-audit" });
+    behindCheck("SECURITY: a player's console giving their Tool what it serves as and at once renaming it has the roles put back and the mark holding the rename alone, and the same roles written again are put back too, the GMs told each time", "roles");
+    behindCheck("SECURITY: a player's console raising their Tool's count and at once renaming it has the count put back and the mark holding the rename alone, and the same count written again is put back too, the GMs told each time", "count");
+    behindCheck("SECURITY: a player's console giving their Tool what it serves as and at once renaming it, each through their student's update, has the roles put back and the mark holding the rename alone, and the same roles written again are put back too, the GMs told each time", "botan");
+    behindCheck("SECURITY: a player's console making a GM's penalty a +5 under a new name and at once writing its own name back has the +5 put back and the mark holding the penalty as the GM gave it, and the same +5 written again is put back too, the GMs told each time", "effect");
+    behindCheck("SECURITY: a player's console giving their Tool what it serves as while a GM renames it has the roles put back and the mark holding the GM's rename alone, and the same roles written again are put back too, the GMs told each time", "gm");
+
+    /*
      * The load-time record ran on the GM, once (the E03 review measured it running
      * 0 times), and the GM holds a copy of every bullet in the world now - the ones
      * made during this scenario by a GM's write. The fixture world has no bullet at

@@ -26812,6 +26812,138 @@ const SCENARIOS = [
     }],
 
     /*
+     * WHAT A GM'S WRITE OF AN ITEM OR AN EFFECT MOVES (E29 fix r2-H15, 06.10.2026; found by fix r2-H14). A write the
+     * audit has not judged waits on a Tool and on two penalties, one on the student and one on the Tool - the Tool's
+     * tier 3 and each penalty made a +5, written aside, as a player's write waiting for its put-back is - and the GM
+     * then writes each of them by another field: the Tool renamed by its own update and its count through the
+     * student's, the student's penalty renamed by its own update and again through the student's, the Tool's renamed
+     * through the Tool's. Each moves the mark by what it wrote and leaves the waiting write out of it; the student's
+     * items and then its effects written whole take all of it in, as their hooks saw it. At d1445c0 (06.10.2026,
+     * e29run/r2h15red) the Tool's rename took the waiting tier 3 into the mark, its count written through the student
+     * the Tool's penalty's +5, and the student's penalty's rename its +5.
+     */
+    ["a GM's write of an item or an effect moves the GMs' mark only by what it reached, whichever road, and by all of a list written whole", async () => {
+        const [student] = cast(1);
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const bonus = value => ({ system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value }] } });
+        const NAMES = ["Tier 2 H15 tool", "Tier 2 H15 penalty", "Tier 2 H15 tool penalty"];
+        const GMS = [`${NAMES[0]}, the GM's`, `${NAMES[1]}, the GM's`, `${NAMES[1]}, the GM's again`, `${NAMES[2]}, the GM's`];
+        let ids = null, seen = null;
+        const tool = () => student.items.get(ids.tool), own = () => student.effects.get(ids.own), onTool = () => tool()?.effects.get(ids.onTool);
+        // The Tool's name, tier and count, and each penalty's name and value, as the mark holds them.
+        const held = () => {
+            const mark = sheetMarkStore.get(student.id), item = mark?.items?.[ids.tool];
+            return [item?.name ?? null, item?.flags?.[MODULE_ID]?.tier ?? null, item?.system?.quantity ?? null,
+                ...[mark?.effects?.[ids.own], mark?.itemEffects?.[ids.tool]?.[ids.onTool]].flatMap(data => [data?.name ?? null, data?.system?.changes?.[0]?.value ?? null])];
+        };
+        const after = async write => {
+            await write();
+            await sheetAuditIdle();
+            return held();
+        };
+        try {
+            const made = await grantItem(student, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            const [penalty] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: NAMES[1], ...bonus(-2) }]);
+            const [toolPenalty] = made ? await made.createEmbeddedDocuments("ActiveEffect", [{ name: NAMES[2], ...bonus(-2) }]) : [];
+            ids = { tool: made?.id, own: penalty?.id, onTool: toolPenalty?.id };
+            await sheetAuditIdle();
+            must(made && penalty && toolPenalty && stableJson(held()) === stableJson([NAMES[0], 1, 1, NAMES[1], -2, NAMES[2], -2]),
+                "no Tool or penalty, or the mark does not hold them as the GM made them - this would measure nothing");
+            await tool().update({ flags: { [MODULE_ID]: { tier: 3 } } }, { [AUDIT_ASIDE]: true });
+            await own().update(bonus(5), { [AUDIT_ASIDE]: true });
+            await onTool().update(bonus(5), { [AUDIT_ASIDE]: true });
+            seen = [
+                await after(() => tool().update({ name: GMS[0] })),
+                await after(() => student.update({ items: [{ _id: ids.tool, system: { quantity: 2 } }] })),
+                await after(() => own().update({ name: GMS[1] })),
+                await after(() => student.update({ effects: [{ _id: ids.own, name: GMS[2] }] })),
+                await after(() => tool().update({ effects: [{ _id: ids.onTool, name: GMS[3] }] })),
+                await after(() => student.update({ items: replaced(student.items.contents.map(item => item.toObject())) })),
+                await after(() => student.update({ effects: replaced(student.effects.contents.map(effect => effect.toObject())) }))];
+        } finally {
+            await sheetAuditIdle();
+            const effects = student.effects.filter(effect => effect.name?.startsWith("Tier 2 H15 ")).map(effect => effect.id);
+            if (effects.length) await student.deleteEmbeddedDocuments("ActiveEffect", effects);
+            const items = student.items.filter(item => item.name?.startsWith("Tier 2 H15 ")).map(item => item.id);
+            if (items.length) await student.deleteEmbeddedDocuments("Item", items);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson([[GMS[0], 1, 1, NAMES[1], -2, NAMES[2], -2], [GMS[0], 1, 2, NAMES[1], -2, NAMES[2], -2],
+            [GMS[0], 1, 2, GMS[1], -2, NAMES[2], -2], [GMS[0], 1, 2, GMS[2], -2, NAMES[2], -2], [GMS[0], 1, 2, GMS[2], -2, GMS[3], -2],
+            [GMS[0], 3, 2, GMS[2], -2, GMS[3], 5], [GMS[0], 3, 2, GMS[2], 5, GMS[3], 5]]),
+            "a GM's write of an item or an effect did not move the mark by what it reached (the mark's Tool name, tier and count, its penalty's name "
+                + "and value and the Tool's penalty's, after each: the Tool renamed, its count through the student, the penalty renamed, again through "
+                + "the student, the Tool's penalty renamed through the Tool, the items written whole, the effects written whole)");
+    }],
+
+    /*
+     * WHAT A PLAYER'S EFFECT WRITTEN THROUGH ITS PARENT MOVES (E29 fix r2-H15, 06.10.2026). A player renames an Evasion
+     * effect - which the GMs hold nothing by, so the rename stands, listed - on the student through its update, and
+     * one on a Tool through the Tool's, each entry naming its effect by its id, while a description written aside
+     * waits on each. The mark takes the names and not the descriptions. Then the player writes the student's items
+     * whole, the Tool without its effect: that list names no entry, so the deletion, listed, is the mark's too. In
+     * play the first rule decides nothing that counts: `parentEffects` judges each effect by all it differs from the
+     * mark's copy, so a waiting change that counts is put back with the write behind it, and one that does not has
+     * been taken in by its own judgement, queued first; the descriptions are written aside here so that the rule
+     * itself is what is read. At d1445c0 (06.10.2026, e29run/r2h15red) both descriptions went into the mark with the
+     * names.
+     */
+    ["a player's effect written through its student's or its item's update moves the GMs' mark only by what its entry reached", async () => {
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { judgeWrite, sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const evasion = { system: { changes: [{ key: "system.evasion", type: "add", value: 1 }] } };
+        const NAMES = ["Tier 2 H15 dodge tool", "Tier 2 H15 dodge", "Tier 2 H15 tool dodge"], ASIDE = "Tier 2 H15 aside";
+        let ids = null, seen = null;
+        const tool = () => student.items.get(ids.tool);
+        // Each effect's name in the mark, and whether the mark holds the description written aside.
+        const held = () => {
+            const mark = sheetMarkStore.get(student.id);
+            return [mark?.effects?.[ids.own], mark?.itemEffects?.[ids.tool]?.[ids.onTool]].map(data => [data?.name ?? null, data?.description === ASIDE]);
+        };
+        // Written aside on the GM, then handed to the judge with the player's id: its verdict.
+        const judged = async (kind, doc, write) => {
+            await doc.update(write, { [AUDIT_ASIDE]: true });
+            const verdict = await judgeWrite(kind, doc, foundry.utils.expandObject(write), player.id);
+            await sheetAuditIdle();
+            return verdict?.verdict ?? null;
+        };
+        try {
+            const made = await grantItem(student, { name: NAMES[0], category: "tool", tier: 1, override: true, quiet: true });
+            const [dodge] = await student.createEmbeddedDocuments("ActiveEffect", [{ name: NAMES[1], ...evasion }]);
+            const [toolDodge] = made ? await made.createEmbeddedDocuments("ActiveEffect", [{ name: NAMES[2], ...evasion }]) : [];
+            ids = { tool: made?.id, own: dodge?.id, onTool: toolDodge?.id };
+            await sheetAuditIdle();
+            must(made && dodge && toolDodge && stableJson(held()) === stableJson([[NAMES[1], false], [NAMES[2], false]]),
+                "no Tool or Evasion effect, or the mark does not hold them as the GM made them - this would measure nothing");
+            await student.effects.get(ids.own).update({ description: ASIDE }, { [AUDIT_ASIDE]: true });
+            await tool().effects.get(ids.onTool).update({ description: ASIDE }, { [AUDIT_ASIDE]: true });
+            seen = [await judged("updateActor", student, { effects: [{ _id: ids.own, name: `${NAMES[1]}, renamed` }] }),
+                await judged("updateItem", tool(), { effects: [{ _id: ids.onTool, name: `${NAMES[2]}, renamed` }] }), held()];
+            const items = student.items.contents.map(item => item.toObject())
+                .map(data => data._id === ids.tool ? { ...data, effects: (data.effects ?? []).filter(effect => effect._id !== ids.onTool) } : data);
+            seen.push(await judged("updateActor", student, { items: replaced(items) }), held());
+        } finally {
+            await sheetAuditIdle();
+            const effects = student.effects.filter(effect => effect.name?.startsWith("Tier 2 H15 ")).map(effect => effect.id);
+            if (effects.length) await student.deleteEmbeddedDocuments("ActiveEffect", effects);
+            const items = student.items.filter(item => item.name?.startsWith("Tier 2 H15 ")).map(item => item.id);
+            if (items.length) await student.deleteEmbeddedDocuments("Item", items);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(seen), stableJson(["listed", "listed", [[`${NAMES[1]}, renamed`, false], [`${NAMES[2]}, renamed`, false]],
+            "listed", [[`${NAMES[1]}, renamed`, false], [null, false]]]),
+            "a player's effect written through its parent did not move the mark by what its entry reached (the verdict through the student, through "
+                + "the Tool; then each effect's name in the mark and whether the mark holds the description written aside; the verdict of the items "
+                + "written whole without the Tool's effect; the same of the mark after it)");
+    }],
+
+    /*
      * AN ITEM MADE OR DELETED WITH ITS EFFECTS (E29 fix r1-G3, 05.10.2026; review round 1 sec B3). An item a
      * player makes carrying an effect Daggerheart applies to the student and that counts is put back whole -
      * deleted, its row naming the item and the effect - where until this fix it was flagged as any item made and
