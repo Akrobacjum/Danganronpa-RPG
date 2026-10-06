@@ -108,8 +108,10 @@ export const FLOWS = Object.freeze([
     // what the GM counted on every roll of its incidents.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals"], status: "covered", stage: "1.2.67" },
+    // E29 fix r2-H4 (05.10.2026): a GM's yes is kept on the primary for the arm it allows (`call.yes`) - 40 says it on
+    // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
-        entry: { bridge: ["call.approve"] }, scenarios: ["40-flow", "30-security"], status: "covered", stage: "<=1.2.50" },
+        entry: { bridge: ["call.approve", "call.yes"] }, scenarios: ["40-flow", "30-security", "33-bridge-paths"], status: "covered", stage: "<=1.2.50" },
     { id: "levels-floor", what: "Levels and floors: a move between floors judged on the GM",
         entry: {}, scenarios: [], status: "planned", stage: "E39" },
     { id: "mastermind", what: "The Mastermind's doors: asked for and granted across clients",

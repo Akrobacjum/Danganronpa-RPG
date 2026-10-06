@@ -1393,9 +1393,11 @@ function applyRemote(msg) {
                 const doc = parent._collections[embKey]?.get(u._id);
                 if (!raws.length || !doc) continue;
                 const { _id, ...changes } = u;
-                for (const raw of raws) U.applyUpdate(raw, changes);
+                // An item's own `effects` merge by id, and its collection follows them, as an actor's do (fix r2-H8; cluster.mjs).
+                for (const raw of raws) U.applyDocChanges(msg.embeddedName, raw, changes);
                 // One object, not two, once a parent's update has rebuilt the collection (rebuildEmbedded).
-                if (!raws.includes(doc._source)) U.applyUpdate(doc._source, changes);
+                if (!raws.includes(doc._source)) U.applyDocChanges(msg.embeddedName, doc._source, changes);
+                rebuildEmbedded(doc);
                 hooks.callAll(`update${msg.embeddedName}`, doc, revive(U.expandObject(U.deepClone(changes))), options, userId);
             }
         } else if (kind === "delete") {
@@ -1410,7 +1412,7 @@ function applyRemote(msg) {
 }
 
 function rebuildEmbedded(doc) {
-    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
+    const emb = { Actor: { Item: "items", ActiveEffect: "effects" }, Item: { ActiveEffect: "effects" }, Scene: { Token: "tokens", Region: "regions", Wall: "walls" }, RollTable: { TableResult: "results" }, Playlist: { PlaylistSound: "sounds" } }[doc.documentName];
     if (!emb) return;
     for (const [docName, key] of Object.entries(emb)) {
         const raw = doc._source[key];

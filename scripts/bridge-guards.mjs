@@ -158,8 +158,8 @@ export const REASONS = Object.freeze([
     "actionLocked", "actionSpent", "actionBlocked", "actionDenied", "nothingLeft", "movedOn", "notThatRepair",
     "notWhereItStood", "alreadyDone", "nothingToUndo", "deathStands", "cannotNow", "cannotFrame", "notThere",
     "answerKeyMissing", "keysNotOpen", "rollUnknown", "rollNotYours", "rollOtherAction", "rollUsed", "rollStale",
-    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "relay", "sheetPutBack", "failed", "refused", "noGm",
-    "noAnswer"
+    "rollMissed", "projectFrozen", "rollReplaced", "notPaid", "rollThrown", "callNotPaid", "callNotApproved", "relay", "sheetPutBack", "failed",
+    "refused", "noGm", "noAnswer"
 ]);
 
 /**
@@ -329,7 +329,9 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that roll's window asks a cost no roll of this game pays$/],
     // E08+E28 fix r2-H2: progress that names no roll is a Hope Call's, paid for once (guardCallProgress).
     ["badRequest", /^no Call that adds progress is named$/],
-    ["callNotPaid", /^no payment of that character's stands for that Call$/]
+    ["callNotPaid", /^no payment of that character's stands for that Call$/],
+    // E29 fix r2-H4: a Call that waits for the GM's yes, armed with none kept for it (guardArmGmYes).
+    ["callNotApproved", /^no GM's yes stands for that Call$/]
 ].map(([code, pattern]) => Object.freeze([code, pattern])));
 
 /** The code of the closed list an English reason stands for: the first pattern that takes it, else `refused`. */
@@ -821,6 +823,49 @@ export async function guardArmBuyerHope(sender, payload, ctx) {
     const { hopeHeld } = await import("./calls.mjs");
     const held = hopeHeld(game.actors.get(armBuyerId(payload)));
     return held < call.cost ? `the buyer holds ${held} Hope, the Call costs ${call.cost}` : null;
+}
+
+/*
+ * A CALL THAT WAITS FOR THE GM'S YES IS ARMED ONLY WITH IT (E29 fix r2-H4, 05.10.2026; the round-2
+ * reviews' sec M4 and cor M1). Experience and Ultimate wait for a GM's ruling (config.mjs `needsGm`),
+ * and until this fix only the asking player's browser waited for it: since E29 C8 the GM arms a
+ * player's Call itself (`call.arm`), and nothing it held said that a GM had said yes - the review's
+ * probe (98, Q1) armed an Ultimate and an Experience from p1's console with no ruling asked, each
+ * answered "armed", Aiko's Hope 3 -> 1. Now the primary keeps each yes a GM gives on the ruling card
+ * (gm-bridge.mjs `yesOnPrimary`), for the user who asked, the character, the Call and the purchase's
+ * own name (its nonce: the asking browser sends it with the ask and again with the arm, calls.mjs
+ * `spendHopeCall`), and a player's arm of such a Call takes it, once. In memory on the primary, as
+ * each roll's first dice are (reroll-receipts.mjs): a primary that reloads between the yes and the
+ * arm holds none, and the arm is refused before anything is paid.
+ *
+ * A minute: the asking browser sends the arm as soon as the yes reaches it, and a yes held back is
+ * the GM's for that moment of the story, not for a later roll. Asked after the buyer's own refusals
+ * (the Hope, a Call already held), so one of those leaves the yes for the purchase it was given for,
+ * and before `guardArmLiving`, which stays last (`armPaidByPlayer`).
+ */
+const callYeses = new Map();
+const CALL_YES_MS = 60 * 1000;
+const CALL_YES_KEPT = 100;
+
+function callYesKey(userId, actorId, key, nonce) {
+    return [userId, actorId, key, String(nonce ?? "").slice(0, 32)].join("|");
+}
+
+/** The primary keeps a GM's yes to one user's ask (gm-bridge.mjs `yesOnPrimary`); the oldest go first. */
+export function noteCallYes({ userId, actorId, key, nonce }) {
+    const yes = callYesKey(userId, actorId, key, nonce);
+    callYeses.delete(yes);
+    callYeses.set(yes, Date.now());
+    while (callYeses.size > CALL_YES_KEPT) callYeses.delete(callYeses.keys().next().value);
+}
+
+/** A player's Call that waits for the GM's yes takes the one kept for this purchase, or is refused. */
+export function guardArmGmYes(sender, payload, ctx) {
+    if (sender.isGM || !HOPE_CALLS[payload.call?.key]?.needsGm) return null;
+    const yes = callYesKey(sender.id, armBuyerId(payload), payload.call.key, payload.call.nonce);
+    const given = callYeses.get(yes);
+    callYeses.delete(yes);
+    return given !== undefined && Date.now() - given <= CALL_YES_MS ? null : "no GM's yes stands for that Call";
 }
 
 /**

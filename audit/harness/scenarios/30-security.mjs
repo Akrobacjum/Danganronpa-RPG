@@ -177,6 +177,134 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
     check("control: the GM took the Support's price from Botan once",
         armOk.hope === arm.before.hope - 1, JSON.stringify({ before: arm.before.hope, after: armOk.hope }));
 
+    /* 4b2. A CALL THAT WAITS FOR THE GM'S YES, FROM p1'S CONSOLE (E29 fix r2-H4, 05.10.2026; the round-2
+       reviews' sec M4 and cor M1, their probe 98 Q1). Aiko at 3 Hope, her armed list emptied (4b's control left
+       a Support on it, which an Ultimate's advantage would meet first), and p1 sends what its own browser never
+       sends: an arm of an Ultimate and of an Experience with no ruling asked; the ask of an Experience, which puts
+       the card up in p1's thread; p1's own yes to that ask (`call.yes`); and the arm the ask named. Read on the
+       GM: Aiko's Hope, her armed list in the document and in the GMs' mark, and the refusals it logged - two
+       rows, the three arms' one sentence kept once with its count (utils.mjs `record`; a first run of this check
+       counted rows, 05.10.2026, and read 2 where it expected 4); on p1, every answer to the three arms and the
+       yes. Her list and Hope are put back after. Until this fix the first two were armed and paid, Hope 3 -> 1,
+       and nothing was told. */
+    phase("a Call that waits for the GM's yes", { flow: "hope-call" });
+    const yesWas = await gm.eval(`const a = game.actors.get("${ids.aiko}");
+        const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await a.update({ "system.resources.hope.value": 3 });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        (await import("${repoUrl}/scripts/utils.mjs")).clearSessionFailures();
+        return was;`);
+    let yesRoad = null;
+    try {
+        const told = await p1.eval(`
+            const got = [], mine = ["SECH4ULTIMATE", "SECH4EXPERIENCE", "SECH4ASK", "SECH4OWNYES", "SECH4ASKED"];
+            const on = payload => {
+                if (!mine.includes(payload?.requestId) || payload.userId !== game.user.id) return;
+                if (payload.action === "bridge.refused" || payload.action === "bridge.done") got.push([payload.requestId, payload.action, payload.reason ?? null]);
+            };
+            game.socket.on("${SOCKET}", on);
+            const toGms = { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) };
+            const arm = (key, grants, nonce) => ({ action: "call.arm", actorId: "${ids.aiko}", call: { key, kind: "hope", grants, from: "${ids.aiko}", nonce } });
+            for (const [requestId, packet] of [
+                ["SECH4ULTIMATE", arm("ultimate", "advantage", "SECH4ULTIMATE01")],
+                ["SECH4EXPERIENCE", arm("experience", "experience", "SECH4EXPERIENCE01")],
+                ["SECH4ASK", { action: "call.approve", actorId: "${ids.aiko}", key: "experience", note: "SEC H4", nonce: "SECH4EXPERIENCE02" }],
+                ["SECH4OWNYES", { action: "call.yes", rid: "SECH4ASK", asker: game.user.id }],
+                ["SECH4ASKED", arm("experience", "experience", "SECH4EXPERIENCE02")]
+            ]) {
+                game.socket.emit("${SOCKET}", { ...packet, userId: game.user.id, requestId }, toGms);
+                await new Promise(r => setTimeout(r, 1500));
+            }
+            game.socket.off?.("${SOCKET}", on);
+            return got;`, { timeout: 60000 });
+        await settle(600);
+        const after = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const a = game.actors.get("${ids.aiko}"), keys = v => (Array.isArray(v) ? v : v ? [v] : []).map(e => e?.key ?? null);
+            return { hope: a.system.resources.hope.value, doc: keys(a.getFlag("${MOD}", "pendingCall")),
+                mark: keys(S.sheetMarkStore.get("${ids.aiko}")?.flags?.pendingCall),
+                logged: (await import("${repoUrl}/scripts/utils.mjs")).sessionFailures()
+                    .filter(e => /Refused a "call\\.(arm|yes)"/.test(e.message)).map(e => [e.message, e.count]) };`);
+        yesRoad = { told, after };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(yesWas)};
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hope.value": was.hope });
+            if (was.calls) await a.setFlag("${MOD}", "pendingCall", was.calls); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("SECURITY: p1's console arms no Ultimate or Experience without a GM's yes, and its own yes is no GM's - each refused and told, nothing paid or armed",
+        Boolean(yesRoad) && JSON.stringify(yesRoad.told) === JSON.stringify([
+            ["SECH4ULTIMATE", "bridge.refused", "callNotApproved"], ["SECH4EXPERIENCE", "bridge.refused", "callNotApproved"],
+            ["SECH4OWNYES", "bridge.refused", "gmOnly"], ["SECH4ASKED", "bridge.refused", "callNotApproved"]])
+            && yesRoad.after.hope === 3 && !yesRoad.after.doc.length && !yesRoad.after.mark.length && yesRoad.after.logged.length === 2
+            && yesRoad.after.logged.some(([m, n]) => /"call\.arm".*: no GM's yes stands for that Call/.test(m) && n === 3)
+            && yesRoad.after.logged.some(([m, n]) => /"call\.yes".*: only a GM says yes to a Call/.test(m) && n === 1),
+        JSON.stringify(yesRoad), { flow: "hope-call" });
+
+    /* 4b3. A GM'S CALL IS NOT THE PLAYER'S TO DROP (E29 fix r2-H7, 06.10.2026; the round-2 reviews' sec M3 and cor M4,
+       the owner's Q3 (a) and the orchestrator's decision (b) of the same day). The GM arms an Obstacle on Aiko by its
+       own road (call-effects.mjs `armCall` on its browser), and p1's console writes her armed list without it, with no
+       roll of its own. Read on the GM once its audit has judged - it waits up to two seconds for a roll of p1's that
+       covers the write (sheet-audit.mjs `callsCover`): whether the document, the mark and the list the GMs hold armed
+       still name it, the rows since; on p1, what it was told. Then the control: the GMs' own spend (`spendCallsByNonce`)
+       takes it off, and it stays off. Until this fix the console's write stood - document, mark and held list all lost
+       it, with no row - and the next drawn roll threw no hostile die (the review's probe 99 P2 at 070b72b; this fix's
+       probe on 82830f9, e29run/scratch/r2h7-probe). Her list is put back after. */
+    phase("a GM's Call taken off", { flow: "call-arm" });
+    const obstacleWas = await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = a.getFlag("${MOD}", "pendingCall") ?? null;
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await (await import("${repoUrl}/scripts/call-effects.mjs")).armCall(a, { key: "obstacle", kind: "despair", grants: "disadvantage", nonce: "SECH7OBSTACLE001" });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return was;`);
+    const obstacleHeld = `const S = await import("${repoUrl}/scripts/gm-stores.mjs"), A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        await A.sheetAuditIdle();
+        const a = game.actors.get("${ids.aiko}"), named = v => (Array.isArray(v) ? v : v ? [v] : []).some(e => e?.nonce === "SECH7OBSTACLE001");
+        const held = await A.armedCallsHeld(a);
+        return { doc: named(a.getFlag("${MOD}", "pendingCall")), mark: named(S.sheetMarkStore.get("${ids.aiko}")?.flags?.pendingCall),
+            held: held ? held.has("SECH7OBSTACLE001") : null };`;
+    let takenOff = null;
+    try {
+        const armed = await gm.eval(obstacleHeld);
+        const from = await gm.eval(`return Date.now();`);
+        await p1.eval(`globalThis.__h7Told = [];
+            if (!globalThis.__h7ToldHook) {
+                globalThis.__h7ToldHook = true;
+                game.socket.on("${SOCKET}", payload => { if (payload?.action === "bridge.refused") globalThis.__h7Told.push(payload.reason); });
+            }
+            const a = game.actors.get("${ids.aiko}"), had = a.getFlag("${MOD}", "pendingCall");
+            await a.update({ "flags.${MOD}.pendingCall": (Array.isArray(had) ? had : had ? [had] : []).filter(e => e?.nonce !== "SECH7OBSTACLE001") });
+            return true;`);
+        const backIn = await gm.eval(`const a = game.actors.get("${ids.aiko}"), end = Date.now() + 8000;
+            const named = () => { const f = a.getFlag("${MOD}", "pendingCall"); return (Array.isArray(f) ? f : f ? [f] : []).some(e => e?.nonce === "SECH7OBSTACLE001"); };
+            await new Promise(r => setTimeout(r, 300));
+            while (!named() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            return Date.now() < end;`, { timeout: 30000 });
+        await settle(600);
+        const after = await gm.eval(obstacleHeld);
+        const rows = await gm.eval(`return (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetWrites({ quiet: true })
+            .filter(r => Date.parse(r.at) >= ${from} && r.character === "Aiko Hoshino" && r.change.includes("pendingCall")).map(r => r.verdict);`);
+        const told = await p1.eval(`return globalThis.__h7Told.slice();`);
+        await gm.eval(`await (await import("${repoUrl}/scripts/call-effects.mjs")).spendCallsByNonce(game.actors.get("${ids.aiko}"), ["SECH7OBSTACLE001"]);
+            return true;`);
+        await settle(600);
+        takenOff = { armed, backIn, after, rows, told, spent: await gm.eval(obstacleHeld) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}"), was = ${JSON.stringify(obstacleWas)};
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            if (was) await a.setFlag("${MOD}", "pendingCall", was); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("SECURITY: a GM's Obstacle p1's console takes off Aiko with no roll of its own is put back - on the document, in the mark and in what the GMs hold armed - with a row, and p1 is told",
+        Boolean(takenOff) && takenOff.armed.doc && takenOff.armed.mark && takenOff.backIn === true
+            && takenOff.after.doc && takenOff.after.mark && takenOff.after.held === true
+            && JSON.stringify(takenOff.rows) === JSON.stringify(["putBack"]) && takenOff.told.includes("sheetPutBack"),
+        JSON.stringify(takenOff), { flow: "call-arm" });
+    check("control: the GMs' own spend takes the Obstacle off Aiko, and it stays off",
+        Boolean(takenOff) && !takenOff.spent.doc && !takenOff.spent.mark && takenOff.spent.held === false,
+        JSON.stringify(takenOff?.spent ?? null), { flow: "call-arm" });
+
     // 4c. murder.crisis: p1 throws the finishing blow as Botan, the killer.
     //     The incident is opened the way 13-murder-signals opens one; the killer's
     //     player sits still so an opening roll cannot race the GM's.
@@ -2887,6 +3015,52 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, permissionDeni
         Boolean(consoleEffects) && everyClient(consoleEffects.gift.after, { gift: 0 })
             && JSON.stringify(consoleEffects.gift.rows) === JSON.stringify(["putBack:itemEffects,items"]) && consoleEffects.gift.told === 1,
         JSON.stringify(consoleEffects?.gift ?? null), { flow: "sheet-audit" });
+
+    /*
+     * A CONSOLE'S EFFECTS THROUGH THEIR PARENT (E29 fix r2-H8, 06.10.2026; review round 2 cor M5). The GM puts a
+     * penalty - 2 off every roll - on Aiko and one on a Tool she carries; p1's console turns each into a +5 through
+     * the parent's own update, `actor.update({ effects })` and `item.update({ effects })`, which fire no effect hook
+     * here, only the parent's. Expected: both back at -2 on every client, a put-back row each (the Tool's naming
+     * it), p1 told twice. At 0d86603 (06.10.2026, e29run/r2h8red) both +5s stood on every client, Aiko's with
+     * a listed row and the Tool's with none, and p1 was told nothing.
+     */
+    phase("a console's effects through their parent", { flow: "sheet-audit" });
+    const parentWas = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs"), a = game.actors.get("${ids.aiko}");
+        const penalty = name => ({ name, system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: -2 }] } });
+        const [own] = await a.createEmbeddedDocuments("ActiveEffect", [penalty("SEC H8 own penalty")]);
+        const tool = await INV.grantItem(a, { name: "E29 H8 30 tool", category: "tool", tier: 1, override: true, quiet: true });
+        const [onTool] = tool ? await tool.createEmbeddedDocuments("ActiveEffect", [penalty("SEC H8 tool penalty")]) : [];
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return { own: own?.id ?? null, tool: tool?.id ?? null, onTool: onTool?.id ?? null, from: Date.now() };`);
+    const readParent = `const a = game.actors.get("${ids.aiko}"), t = a.items.get("${parentWas.tool}");
+        return { own: a.effects.get("${parentWas.own}")?.system?.changes?.[0]?.value ?? null, tool: t?.effects?.get("${parentWas.onTool}")?.system?.changes?.[0]?.value ?? null };`;
+    const bonusFive = `system: { changes: [{ key: "system.bonuses.roll.bonus", type: "add", value: 5 }] }`;
+    // Up to 6 s for the GM to read `want` of `key`, every judgement finished.
+    const parentSettled = key => gm.eval(`const end = Date.now() + 6000; const read = () => { ${readParent} };
+        while (read().${key} !== -2 && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    let consoleParent = null;
+    try {
+        await toldSince();
+        await p1.eval(`await game.actors.get("${ids.aiko}").update({ effects: [{ _id: "${parentWas.own}", ${bonusFive} }] }); return true;`);
+        await parentSettled("own");
+        await p1.eval(`await game.actors.get("${ids.aiko}").items.get("${parentWas.tool}").update({ effects: [{ _id: "${parentWas.onTool}", ${bonusFive} }] }); return true;`);
+        await parentSettled("tool");
+        await settle(800);
+        consoleParent = { after: await Promise.all([gm, p1, p2, p3].map(c => c.eval(readParent))), told: await toldSince(),
+            rows: await gm.eval(`${audited} return Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.actorId === "${ids.aiko}" && r.at >= ${parentWas.from})
+                .map(r => r.verdict + ":" + (r.itemId === "${parentWas.tool}" ? "tool:" : "") + Object.keys(r.change ?? {}).map(k => k.split(".")[0]).sort().join(",")).sort();`) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${ids.aiko}");
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            if (a.effects.has("${parentWas.own}")) await a.deleteEmbeddedDocuments("ActiveEffect", ["${parentWas.own}"]);
+            if (a.items.has("${parentWas.tool}")) await a.deleteEmbeddedDocuments("Item", ["${parentWas.tool}"]);
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle(); return true;`);
+    }
+    check("SECURITY: an effect a player's console changes through its student's or its item's own update is put back on every client, a row each, the player told",
+        Boolean(consoleParent) && Boolean(parentWas.own && parentWas.onTool) && everyClient(consoleParent.after, { own: -2, tool: -2 })
+            && JSON.stringify(consoleParent.rows) === JSON.stringify(["putBack:effects", "putBack:tool:itemEffects"]) && consoleParent.told === 2,
+        JSON.stringify({ parentWas, consoleParent }), { flow: "sheet-audit" });
 
     /*
      * A CONSOLE'S CREDIT AND FREE USES (E29 fix r1-G4, 05.10.2026; review round 1 cor M1, cor M2, cor m9 = sec m3).

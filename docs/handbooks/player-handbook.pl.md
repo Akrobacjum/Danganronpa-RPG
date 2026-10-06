@@ -345,7 +345,7 @@ Hope jest twój. Masz najwyżej **6**. Wraca, gdy rzuty idą po twojej myśli (+
 | **Relief** | 4 | Weź Short Rest od razu: bez akcji, bez oznaczonego pokoju i nie zużywa tego z tej pory dnia. |
 | **Loaded Die** | 6 | Przy następnym rzucie jedna kość jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12. |
 
-Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane. Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
+Call wpływający na rzut - Support, Experience, Ultimate, Resolve, Loaded Die - kupuje się w przeglądarce GMa, która pobiera Hope: bez połączonego GMa nie da się go kupić i nic nie zostaje wydane. Czeka na twój następny rzut i jest zużyty w chwili rzutu. Call nałożony na ciebie po otwarciu okna rzutu nie wchodzi do tego rzutu: okno to mówi, a Call czeka na twój następny - chyba że ci utrudnia (utrudnienie albo ujemna premia) i nałożono go ponad minutę przed rzutem, który rzuca przeglądarka GMa: taki rzut go liczy, czy okno go pokazuje, czy nie. Sprint i Burst idą do zapasu i trwają do końca pory dnia.
 
 > [!IMPORTANT]
 > Nikt nie wydaje Hope Calli podczas Eclipse, gdy Monokuma go uciszył (Silence) ani gdy Silence z overflow zaciemnia porę dnia.

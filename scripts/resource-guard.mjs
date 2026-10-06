@@ -64,6 +64,13 @@ const SYSTEM_WRITE = "drpgAutomated";
 export const HOPE_REFUND = "drpgHopeRefund";
 
 /**
+ * Marks a GM's write that gives back what an earlier write took, whatever its reason - the
+ * Sanity or Health a Reroll's take-back returns (E29 fix r2-H6) - for the GMs' audit, which
+ * reads it as a refund (sheet-audit.mjs `judgeNow`). Unlike `HOPE_REFUND` it lifts nothing.
+ */
+export const GIVE_BACK = "drpgGiveBack";
+
+/**
  * Paths players may not set by hand.
  *
  * `hope.value` is deliberately NOT here (reread in E29 C7, 05.10.2026; audit S02-41).
@@ -261,12 +268,26 @@ const AUDIT_OWN = new Set(["auditPutBack", "auditUndo"]);
  * which a spend, a price and a refund do not need (they are judged on what was paid). `refund`
  * also sets `HOPE_REFUND`, the one marker the Despair darkening lets a Hope rise through.
  * An unlisted reason throws: the roads are async, so it arrives as the write's rejection.
+ *
+ * A GM'S GIVE-BACK SAYS SO, AND NOTHING MORE (E29 fix r2-H6, 05.10.2026; review round 2 sec M6 =
+ * cor M3). Since fix r1-G7 a GM's write leaves with no reason, so the GMs' audit could tell a
+ * refund only by `HOPE_REFUND`, which only `refund` sets: the three take-backs of a Reroll named
+ * `reroll` - an Observe's Sanity (observe.mjs `undoPrevious`), a clean-up's (cleanup.mjs
+ * `undoLastCleanup`), a crisis action's Sanity and Health (murder.mjs `restoreResource`) - took no
+ * credit, and a console's refund of the same payment stood on it: the review's probe 97 G on
+ * 070b72b, with a GM's Hope given back under that name, and at 25e0e5c (05.10.2026,
+ * e29run/r2h6red) tier 2 on each of the three roads - the 1 its payment left still in the
+ * credit, a player's refund of one mark standing on it. A road that gives back now says so
+ * (`giveBack`), and a GM's write carries `GIVE_BACK` for it - not the reason, and not
+ * `HOPE_REFUND`, which would lift the Despair darkening too. A player's write carries no
+ * `GIVE_BACK`: the judge reads it on a GM's write only, and a player's refund is named `refund`.
  */
-function stampOf(reason, ref, options) {
+function stampOf(reason, ref, { giveBack = false, ...options } = {}) {
     if (!WRITE_REASONS.includes(reason)) throw new Error(`a module write named "${reason}", which is not a reason of WRITE_REASONS`);
-    const goes = game.user?.isGM ? AUDIT_OWN.has(reason) : JUDGED.has(reason);
+    const gm = Boolean(game.user?.isGM);
+    const goes = gm ? AUDIT_OWN.has(reason) : JUDGED.has(reason);
     return { ...options, [SYSTEM_WRITE]: true, ...(goes ? { [WRITE_STAMP]: { reason, ref: ref ?? null } } : {}),
-        ...(reason === "refund" ? { [HOPE_REFUND]: true } : {}) };
+        ...(reason === "refund" ? { [HOPE_REFUND]: true } : {}), ...(giveBack && gm ? { [GIVE_BACK]: true } : {}) };
 }
 
 /** Update a document as the module, for `reason`. */

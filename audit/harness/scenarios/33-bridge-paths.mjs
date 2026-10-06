@@ -273,6 +273,59 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         offer === "standard" && a7b.withdrawn === null && !a7b.logged.length && notFailed(offered) && notFailed(withdrawnAnswer),
         JSON.stringify(a7b));
 
+    /* A13. AN ASSISTANT GM'S YES TO A CALL (E29 fix r2-H4, 05.10.2026; the round-2 reviews' sec M4 and cor M1).
+       An Experience waits for a GM's yes, and the primary arms a player's only with the yes it kept for that
+       purchase (bridge-guards.mjs `guardArmGmYes`), so a yes given on another GM's screen goes by the primary
+       (`call.yes`). p1 buys an Experience for Aiko through her sheet's own road (calls.mjs `spendHopeCall`), the
+       card goes up in p1's thread, and the Assistant - who is not the primary - says yes on it: the primary keeps
+       the yes and sends it on, p1's browser asks for the arm, and the primary charges and arms it. Read: the
+       Assistant's answer, p1's, Aiko's Hope and armed list, and the refusals logged on the GM and told to p1.
+       Aiko's Hope and armed list are put back after. */
+    phase("an Assistant GM's yes to a Call", { flow: "hope-call" });
+    const a13was = await gm.eval(`const a = game.actors.get("${IDS.aiko}");
+        const was = { hope: a.system.resources.hope.value, calls: a.getFlag("${MOD}", "pendingCall") ?? null };
+        await a.unsetFlag("${MOD}", "pendingCall");
+        await a.update({ "system.resources.hope.value": 3 });
+        await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+        return was;`);
+    await clearFailures(gm);
+    mark = await refusedCount(p1);
+    let a13 = null;
+    try {
+        const bought = p1.eval(`const C = await import("${repoUrl}/scripts/calls.mjs");
+            const r = await C.spendHopeCall(game.actors.get("${IDS.aiko}"), "experience", { note: "E29 fix r2-H4: an Assistant's yes" });
+            return r === null ? null : typeof r;`, { timeout: 90000 });
+        await settle(1500);
+        const card = await gm.eval(`const S = await import("${repoUrl}/scripts/secret.mjs");
+            for (const m of game.drpg.messengerThreadMessages("${IDS.p1}").slice().reverse()) {
+                const hit = S.contentOf(m).match(/data-drpg-call="approveCall"([^>]*)>/);
+                if (hit) return { rid: hit[1].match(/data-rid="([^"]+)"/)?.[1] ?? null, asker: hit[1].match(/data-asker="([^"]+)"/)?.[1] ?? null };
+            }
+            return null;`);
+        const yes = card ? await ag.eval(`const U = ${utils};
+            return { primary: U.isPrimaryGm(), sent: await ${bridge}.answerHopeCall(${JSON.stringify(card.rid)}, ${JSON.stringify(card.asker)}, true) };`,
+            { timeout: 30000 }) : null;
+        // A yes that was not kept leaves p1's browser waiting out its five minutes: the primary says no, so it stops.
+        if (card && yes?.sent !== true) await gm.eval(`await ${bridge}.answerHopeCall(${JSON.stringify(card.rid)}, ${JSON.stringify(card.asker)}, false); return true;`);
+        const answer = await bought;
+        await settle(900);
+        const after = await gm.eval(`await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            const a = game.actors.get("${IDS.aiko}"), f = a.getFlag("${MOD}", "pendingCall");
+            return { hope: a.system.resources.hope.value, armed: (Array.isArray(f) ? f : f ? [f] : []).map(e => e?.key ?? null) };`);
+        a13 = { card, yes, answer, after, logged: [...await refusalsLogged(gm, "call.yes"), ...await refusalsLogged(gm, "call.arm")],
+            told: await refusedSince(p1, mark) };
+    } finally {
+        await gm.eval(`const a = game.actors.get("${IDS.aiko}"), was = ${JSON.stringify(a13was)};
+            await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
+            await a.update({ "system.resources.hope.value": was.hope });
+            if (was.calls) await a.setFlag("${MOD}", "pendingCall", was.calls); else await a.unsetFlag("${MOD}", "pendingCall");
+            return true;`);
+    }
+    check("A13: an Assistant GM's yes to p1's Experience is kept by the primary, which arms it and charges it once - refused nowhere",
+        Boolean(a13?.card?.rid) && a13.yes?.primary === false && a13.yes.sent === true && a13.answer === "object"
+            && a13.after.hope === 2 && JSON.stringify(a13.after.armed) === JSON.stringify(["experience"])
+            && !a13.logged.length && !a13.told.length, JSON.stringify(a13), { flow: "hope-call" });
+
     /* ------------------------------------- A. Daggerheart's own packets for a player */
 
     phase("Daggerheart's own relay packets");

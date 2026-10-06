@@ -205,7 +205,11 @@ function applyOp(userId, op, onLegacyKey = null) {
                 const raw = (doc[key] ?? []).find(d => d._id === u._id);
                 if (!raw) continue;
                 const { _id, ...changes } = u;
-                U.applyUpdate(raw, changes, { onLegacyKey: path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }) });
+                /* An embedded document is a parent too (E29 fix r2-H8, 06.10.2026): an actor's item updated with its
+                   `effects` merges them by id, as the actor's own list does (futil.mjs `applyDocChanges`). Applied
+                   as a plain update the list was replaced by the patch - measured by the fix's probe at 0d86603, a
+                   Tool's effect changed through the Tool's update lost its name. */
+                U.applyDocChanges(op.embeddedName, raw, changes, { onLegacyKey: path => onLegacyKey?.(path, { embeddedName: op.embeddedName, embeddedId: _id }) });
             }
             return { broadcast: { t: "apply", action: "embedded-update", collName, docId: op.docId, ...via, embeddedName: op.embeddedName, updates: op.payload, userId, options: op.options }, result: op.payload.map(u => u._id) };
         }
