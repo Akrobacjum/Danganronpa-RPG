@@ -3664,20 +3664,37 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
     // roles, 4 its count, 5 the penalty's name, 6 its value): the second write's hook holding the first one's value.
     const behindHeardHolding = (kind, by, values) => heard => heard.some(h => h[0] === kind && h[1] === by
         && Object.entries(values).every(([at, value]) => JSON.stringify(h[at]) === JSON.stringify(value)));
+    /*
+     * A PAIR THAT LANDED THE OTHER WAY ROUND IS THROWN AGAIN (E33 fix r2-G4, 07.10.2026; the orchestrator's pre-list,
+     * "30's H15 order"). The count's pair read `ok` true and `ordered` false three times, each under three harness
+     * lanes and never alone (e33run/c2b, scratch/c7/30.run1.log, c11/30.log). `heard` is read only after the GM holds
+     * `want` and the put-back's row (`behindAfter`), and the GM's hooks record each write as it lands, so a late read
+     * was not it: the GM heard the first write, its put-back, then the rename - which the server applies in the order
+     * it receives them (cluster.mjs, "op") - and the rename's hook held the count already put back. Forced that way in
+     * a scratch copy (the rename sent once p2 holds the put-back), the check read exactly that at the base and green
+     * here on the second attempt (e33run/scratch/r2g4-meas). Such a pair measured nothing - not a put-back that failed
+     * - so it is thrown again from the state `behindAsWas` restored, up to three times; a pair whose put-backs did not
+     * hold (`ok` false) is never thrown again, and the check still asks `ok` and `ordered` of the attempt it reports.
+     * The attempt each check read is noted ("SEC H15: the attempt ..."), so a run that needed one says so.
+     */
     const behindPair = async (want, field, first, again, ordered) => {
-        await gm.eval(`globalThis.__behindHeard.length = 0; return true;`);
-        const from = await gm.eval(`return Date.now();`);
-        await first();
-        const one = await behindAfter(from, want);
-        const heard = await gm.eval(`return globalThis.__behindHeard.splice(0);`);
-        const fromAgain = await gm.eval(`return Date.now();`);
-        await again();
-        const two = await behindAfter(fromAgain, want);
-        const restored = await behindAsWas();
-        const same = seen => JSON.stringify(seen) === JSON.stringify(want), rows = JSON.stringify([field]);
-        const ok = one.docs.length === 4 && one.docs.every(same) && JSON.stringify(one.rows) === rows && one.whispered && same(one.mark)
-            && two.docs.length === 4 && two.docs.every(same) && JSON.stringify(two.rows) === rows && two.whispered && same(two.mark);
-        return { ok, ordered: ordered(heard), one, two, heard, restored };
+        let out = null;
+        for (let attempt = 1; attempt <= 3 && !(out && (!out.ok || out.ordered)); attempt++) {
+            await gm.eval(`globalThis.__behindHeard.length = 0; return true;`);
+            const from = await gm.eval(`return Date.now();`);
+            await first();
+            const one = await behindAfter(from, want);
+            const heard = await gm.eval(`return globalThis.__behindHeard.splice(0);`);
+            const fromAgain = await gm.eval(`return Date.now();`);
+            await again();
+            const two = await behindAfter(fromAgain, want);
+            const restored = await behindAsWas();
+            const same = seen => JSON.stringify(seen) === JSON.stringify(want), rows = JSON.stringify([field]);
+            const ok = one.docs.length === 4 && one.docs.every(same) && JSON.stringify(one.rows) === rows && one.whispered && same(one.mark)
+                && two.docs.length === 4 && two.docs.every(same) && JSON.stringify(two.rows) === rows && two.whispered && same(two.mark);
+            out = { attempt, ok, ordered: ordered(heard), one, two, heard, restored };
+        }
+        return out;
     };
     const behindTool = `game.actors.get("${ids.botan}").items.get("${behindWas.tool}")`;
     const behindPenalty = `game.actors.get("${ids.botan}").effects.get("${behindWas.penalty}")`;
@@ -3726,6 +3743,8 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
             await A.sheetAuditIdle(); return true;`);
     }
     const behindReady = Boolean(behind && behindWas.tool && behindWas.penalty) && behindHeld.every(Boolean);
+    note("SEC H15: the attempt each pair's check reads (1 unless a pair landed the other way round)",
+        JSON.stringify(Object.fromEntries(Object.entries(behind ?? {}).map(([key, pair]) => [key, pair?.attempt ?? null]))));
     const behindCheck = (name, key) => check(name, behindReady && behind[key].ok && behind[key].ordered,
         JSON.stringify({ behindBefore, behindHeld, [key]: behind?.[key] ?? null }), { flow: "sheet-audit" });
     behindCheck("SECURITY: a player's console giving their Tool what it serves as and at once renaming it has the roles put back and the mark holding the rename alone, and the same roles written again are put back too, the GMs told each time", "roles");

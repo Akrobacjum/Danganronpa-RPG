@@ -324,10 +324,7 @@ murder takes the band its request names. And three readings still made on the ro
 item a Search draws (granted on the roller's own sheet; the GM holds its tier to
 what the Search's record earns); a concealment roll's reading; and Listen's lines,
 since every browser holds the tokens. Of 83's forgeries two are watched, not
-caught: a card shaped as Daggerheart's item roll whose Hope the relay credits
-once (F4b, the open part above; the second ask is never applied), and a rewrite of
-a drawn card's rolls from the chat menu, which Foundry refuses to a player before
-any hook of the GM's runs, so it changes nothing and leaves no trace (F6a).
+caught (F4b, F6a); the scenario's comments say what each measures.
 
 The Reroll is the GM's own transaction (E08): asked of the primary GM, paid,
 thrown, taken back and replayed there, its steps written in the GMs' journal

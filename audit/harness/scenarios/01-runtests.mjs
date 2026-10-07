@@ -168,7 +168,8 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
        harness lanes of a fix group) and read 1702 s under a 3000 s bound patched into an
        export (k1c), the scenario 1993 s wall; Actions ran 1.2.68's suite in 1532 s wall (CI
        run 19 on main, 06.10.2026). So 3600, about twice k1c's reading (fix r1-G3), beside
-       run-all's 60 minutes. The time is recorded as a note. */
+       run-all's 72 minutes (E33 fix r2-G4: 60 until then, which ended a hung run before
+       this bound could name the test). The time is recorded as a note. */
     const started = Date.now();
     const trafficBefore = socketTraffic.length;
     const res = await gm.eval(`

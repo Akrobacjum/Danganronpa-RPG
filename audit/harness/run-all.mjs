@@ -60,12 +60,17 @@ const SUITE = "01-runtests";
    (E08+E28 C17's and C18's runs, tier 2 alone 884-893 s, then past 01-runtests' own 900 s
    bound) - so 30, beside that bound's 1500 s. By 07.10.2026 (E33's k1c, 899 tests, the
    suite beside two harness lanes of a fix group) tier 2 alone took 1702 s and the
-   scenario 1993 s wall, past both - so 60, beside that bound's 3600 s, the ratio kept;
-   ci.yml's suite job holds 70 minutes, above this one. The other scenarios took 0.4-62 s
+   scenario 1993 s wall, past both - so 60, beside that bound's 3600 s; that was a ratio
+   of 1.0, not the 1.2 of 30 minutes beside 1500 s, and the scenario's wall runs past its
+   tier-2 time (k1c 291 s; k2 1792 s and 2120 s wall, 328 s; k3 1825 s and 2185 s wall,
+   360 s, e33run/k2 and k3/01a.log), so a hung suite was ended here before the eval could
+   say which test hung (review round 2's cor D1). So 72 since E33 fix r2-G4: 1.2 times the
+   eval's 3600 s, which ends at about 3960 s wall by k3's overhead; ci.yml's suite job
+   holds 80 minutes, above this one. The other scenarios took 0.4-62 s
    on 24.09.2026; on 02.10.2026 the slowest were 61 at 255-259 s and 30 at 85-86 s,
    inside their 5 minutes, 61 not by much. A scenario may say otherwise with
    `export const timeoutMs`. */
-const SUITE_TIMEOUT_MS = 60 * 60_000;
+const SUITE_TIMEOUT_MS = 72 * 60_000;
 const SCENARIO_TIMEOUT_MS = 5 * 60_000;
 const LAYERS_RE = /export const layers = (\[[^\]]*\])/;
 const TIMEOUT_RE = /export const timeoutMs = (\d+)/;

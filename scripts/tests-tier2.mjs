@@ -10962,6 +10962,10 @@ const SCENARIOS = [
          * into one with Hope; rerolled again on this GM into 6 and 5 - 11, the first band only with the
          * relief. Read: whether it stood and the project's bar. Green at a75e3f1, which scored the claim
          * as it came; red with the record's newest duality read (the mutant r2h3-claimed-on-newest).
+         * The stand-in is the GM's message, as roll-draw.mjs `writeDrawnMessage` writes a drawn roll's
+         * (E33 fix r2-G4, 07.10.2026): since E33 fix r1-G2 a drawn flag on a player's message is a
+         * forgery whose record is never read (`drawnRecordOf` asks `isDrawnRoll`), and this test, which
+         * wrote the flags onto the player's own roll, read [true, 0] from then on (e33run/k2, k3).
          */
         needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the roll is a connected player's, as Foundry names only those");
@@ -10985,7 +10989,7 @@ const SCENARIOS = [
             // The statistic and experiences a drawn roll is thrown again with are the record's (reroll.mjs `rollAsThrown`).
             await rollStore.patch(record.rollId, { trait: "eye", experiences: [], withFear: false,
                 versions: [{ total: 11, withHope: false, withFear: true, isCritical: false }] });
-            await B.message.update({ [`flags.${MODULE_ID}.drawn`]: true, [`flags.${MODULE_ID}.rollId`]: record.rollId });
+            await B.message.update({ author: game.user.id, [`flags.${MODULE_ID}.drawn`]: true, [`flags.${MODULE_ID}.rollId`]: record.rollId });
             const project = await F.project(where.room);
             await rerollBookmarkStore.patch(actor.id, { facts: { ...(B.row()?.facts ?? {}), projectId: project, progress: 0 } });
             await trustedWrite(actor, { "system.resources.hope.value": Math.max(4, actor.system.resources.hope.value) }, { reason: "gmRuling" });
@@ -13613,6 +13617,11 @@ const SCENARIOS = [
          * roller's side with a count is 13-murder-signals', on p1 and p3. Never a millisecond: a
          * headless number is the harness's (audit/perf-baseline.json `headless.verdict`); the
          * table's run is LIVE-E33-05. perf() whispers its report: the card is deleted with the draw's.
+         * The trips added are told by what they hold, not by the list's length (E33 fix r2-G4,
+         * 07.10.2026): a browser keeps the last `TRIPS_KEPT` (50), and the length added read 0 in the
+         * whole suite (k3: [0,0,true,true,true,true]). This test's earlier form read exactly that alone
+         * once the GM's list was filled to 50 first (e33run/scratch/r2g4-meas), and 55 calls of
+         * `drawnForPlayer` stand before it in this list.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
         const { player, theirs } = playerAndCharacters();
@@ -13625,10 +13634,12 @@ const SCENARIOS = [
         try {
             must(typeof F.value?.messageId === "string", "the draw was not answered with a message - this would measure nothing");
             const after = D.drawTimings();
-            const trip = after.drew.at(-1) ?? null;
+            const newIn = side => { const old = new Set(before[side].map(t => stableJson(t))); return after[side].filter(t => !old.has(stableJson(t))); };
+            const added = { drew: newIn("drew"), drawn: newIn("drawn") };
+            const trip = added.drew.at(-1) ?? null;
             const text = await game.drpg.perf({ frames: 5 });
             const gmLine = String(text).match(/^  drawn here, packet in to answer out: (\d+), median/m);
-            read = [after.drew.length - before.drew.length, after.drawn.length - before.drawn.length,
+            read = [added.drew.length, added.drawn.length,
                 typeof trip?.written === "number" && trip.written >= 0 && typeof trip?.answered === "number" && trip.answered >= trip.written,
                 /^Rolls the GM drew/m.test(text), gmLine ? Number(gmLine[1]) === after.drew.length : null,
                 /^  drawn for this browser, asked to dice shown: none since this browser loaded$/m.test(text) === (after.drawn.length === 0)];

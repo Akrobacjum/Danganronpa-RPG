@@ -92,7 +92,14 @@ async function probes(doc) {
     const body = recordedBody(doc, now);
     if (body) ran.push(`perfReport body sha256 in this checkout ${now}: recorded as ${body.label}`);
     else couldNotRun.push({ needs: "perfReport's body in this checkout recorded in perfFunction", probe: `sha256 in this checkout ${now}`, why: "a run is comparable only with readings a recorded body took: record a revision first" });
-    const versions = recordedBodies(doc).map(b => b.version).filter(Boolean);
+    /* The served build must be the one this checkout's body is recorded for (E33 fix r2-G4, 07.10.2026; review
+       round 2's cor D2). Until then any recorded body's version passed - a server serving 1.2.56 beside a checkout
+       on the 1.2.69 body was a run, and `measure` filed its numbers under that body. Every recorded entry with this
+       checkout's hash counts rather than `recordedBody`'s first: a body unchanged across releases may be recorded
+       again under the newer version. Measured that day against a stub answering as a v14, the checkout on the
+       1.2.69 body: served 1.2.56 read "ran" before this and "could not run" after it; 1.2.69 "ran" and 1.2.70
+       "could not run" both times (e33run/scratch/r2g4-d2/probe.log). */
+    const versions = recordedBodies(doc).filter(b => b.sha256 === now).map(b => b.version).filter(Boolean);
 
     /* Foundry. */
     const base = process.env.FOUNDRY_URL || "http://127.0.0.1:30099";
@@ -108,8 +115,8 @@ async function probes(doc) {
         else couldNotRun.push({ needs: `Foundry VTT v14 on ${base}`, probe: `HTTP ${res.status}: ${body}`, why: "the server that answered is not a v14 with a world" });
         if (foundryUp) {
             const m = await fetch(new URL("/modules/danganronpa-rpg/module.json", base)).then(r => r.ok ? r.json() : null).catch(() => null);
-            if (versions.includes(m?.version)) ran.push(`the server has danganronpa-rpg ${m.version} installed, a version with a recorded perfReport body`);
-            else couldNotRun.push({ needs: `danganronpa-rpg at a recorded version (${versions.join(", ")}) installed on that server`, probe: `it serves ${m?.version ?? "no danganronpa-rpg module.json"}`, why: "a run is comparable only with readings a recorded body took" });
+            if (versions.includes(m?.version)) ran.push(`the server has danganronpa-rpg ${m.version} installed, the version this checkout's perfReport body is recorded for`);
+            else couldNotRun.push({ needs: `danganronpa-rpg at the version this checkout's perfReport body is recorded for (${versions.join(", ") || "none: the body is not recorded"}) installed on that server`, probe: `it serves ${m?.version ?? "no danganronpa-rpg module.json"}`, why: "a run's numbers are filed under this checkout's body, so the server must serve that body" });
         }
     } catch (err) {
         const { connectError } = await import(url.pathToFileURL(path.join(REPO, "audit", "gate", "gate-lib.mjs")).href);
