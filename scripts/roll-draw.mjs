@@ -17,7 +17,7 @@
  * statistic from the sheet (`sheetRollOf`), whose message keeps Daggerheart's card and is
  * read on the roller's browser alone (private-rolls.mjs `readableHere`). Daggerheart's own
  * item rolls (their source names an item or an action) and a Monocub's Meddle (a plain
- * `Roll`, which the GM throws itself since C17, monocub.mjs `meddleOnGm`) are not drawn; a GM's
+ * `Roll`, which the GM throws itself since C17, monocub.mjs `cubAbilityOnGm`) are not drawn; a GM's
  * own roll is its own; with no GM an action's roll is not made and any other roll is thrown here,
  * as in 1.2.66, stamped and moving nothing until a GM grants it (C18, "WITH NO GM CONNECTED"
  * below). What the roll adds up to beyond its dice - the

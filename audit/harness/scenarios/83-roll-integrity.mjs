@@ -539,8 +539,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     /* --------------------- L8. a Monocub's Confusion --------------------- */
 
     /* The GM marks Botan dead and makes him a Monocub, in Dorm A beside Aiko, with an action and a Hope; p2 helps
-       Aiko through Confusion (monocub.mjs `performMeddle`; the GM throws and scores it), and p1 throws her Eye. A
-       Meddle under 12 arms nothing (config.mjs MONOCUB.meddle): the details say what the dice gave. */
+       Aiko through Confusion (monocub.mjs `performCubAbility`, the `meddle` row of the Monocub's table since E33 C10;
+       the GM throws and scores it), and p1 throws her Eye. A Meddle under 12 arms nothing (config.mjs
+       MONOCUB.abilities.meddle): the details say what the dice gave. */
     phase("L8: a Monocub's Confusion on Aiko, then p1's roll", { flow: "monocub-meddle" });
     const l8Set = await gm.eval(`const C = await import("${SCRIPT("chapter")}"), Mc = await import("${SCRIPT("monocub")}");
         const b = game.actors.get("${botan}");
@@ -555,7 +556,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     /* Until A2 of E33 C4 this road lent p2's page a `Roll#getTooltip`, which the Monocub's card reads (monocub.mjs
        `postMeddleRoll`) and the harness's Roll lacked; lib/shim.mjs's Roll has its own since, so nothing is lent. */
     const l8Meddle = await p2.eval(`const Mc = await import("${SCRIPT("monocub")}");
-        const r = await Mc.performMeddle(game.actors.get("${botan}"), "${aiko}", true);
+        const r = await Mc.performCubAbility(game.actors.get("${botan}"), "meddle", { targetId: "${aiko}", choice: "help" });
         return r ? { total: r.total, isCritical: r.isCritical } : null;`, { timeout: 60000 });
     await settle(800);
     const l8Armed = await gm.eval(`const E = await import("${SCRIPT("call-effects")}");

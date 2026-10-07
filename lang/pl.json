@@ -2538,7 +2538,7 @@
         "murder.cleanup": "Sprzątanie",
         "murder.betrayal": "Zdrada",
         "murder.park": "Direct Murder",
-        "monocub.meddle": "Confusion",
+        "monocub.ability": "Zdolność Monocuba",
         "body.loot": "Przeszukanie ciała",
         "advancement": {
           "apply": "Level Up",
@@ -4304,29 +4304,31 @@
         }
       },
       "MONOCUB": {
-        "meddle": {
-          "label": "Confusion",
-          "thresholds": {
-            "0": {
-              "help": "Dajesz graczowi +1 do następnego rzutu.",
-              "hinder": "Nakładasz graczowi −1 na następny rzut.",
-              "helpTarget": "Coś uspokaja twoją rękę: +1 do następnego rzutu.",
-              "hinderTarget": "Coś cię rozprasza: −1 do następnego rzutu."
+        "abilities": {
+          "meddle": {
+            "label": "Confusion",
+            "thresholds": {
+              "0": {
+                "help": "Dajesz graczowi +1 do następnego rzutu.",
+                "hinder": "Nakładasz graczowi −1 na następny rzut.",
+                "helpTarget": "Coś uspokaja twoją rękę: +1 do następnego rzutu.",
+                "hinderTarget": "Coś cię rozprasza: −1 do następnego rzutu."
+              },
+              "1": {
+                "help": "Dajesz graczowi przewagę na następny rzut.",
+                "hinder": "Nakładasz graczowi utrudnienie na następny rzut.",
+                "helpTarget": "Coś uspokaja twoją rękę: przewaga na następny rzut.",
+                "hinderTarget": "Coś cię rozprasza: utrudnienie na następny rzut."
+              }
             },
-            "1": {
-              "help": "Dajesz graczowi przewagę na następny rzut.",
-              "hinder": "Nakładasz graczowi utrudnienie na następny rzut.",
-              "helpTarget": "Coś uspokaja twoją rękę: przewaga na następny rzut.",
-              "hinderTarget": "Coś cię rozprasza: utrudnienie na następny rzut."
-            }
-          },
-          "critical": {
-            "help": "Gracz odzyskuje akcję.",
-            "hinder": "Gracz marnuje akcję.",
-            "helpTarget": "Chwila szczęścia: odzyskujesz akcję.",
-            "hinderTarget": "Chwila zamętu: akcja przepada."
-          },
-          "failure": "Próba się nie udaje."
+            "critical": {
+              "help": "Gracz odzyskuje akcję.",
+              "hinder": "Gracz marnuje akcję.",
+              "helpTarget": "Chwila szczęścia: odzyskujesz akcję.",
+              "hinderTarget": "Chwila zamętu: akcja przepada."
+            },
+            "failure": "Próba się nie udaje."
+          }
         }
       },
       "MURDER_OPENING": {

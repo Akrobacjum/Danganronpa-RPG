@@ -2806,47 +2806,70 @@ export const MONOCUB = {
      * a Monocub searching a room, working a project or analysing evidence is a
      * dead student playing the game they are out of.
      *
-     * CONFUSION IS NOT HERE, and that is not an oversight. It is `MONOCUB.meddle`
-     * rather than an ACTIONS key - its own entry point, its own refusals - so a
-     * list of ACTIONS keys is the wrong place to name it. `meddleLocked` in
-     * monocub.mjs is where its two windows are shut.
+     * CONFUSION IS NOT HERE, and that is not an oversight. It is a row of
+     * `MONOCUB.abilities` rather than an ACTIONS key - its own executor, its own
+     * refusals (monocub.mjs `performCubAbility`) - so a list of ACTIONS keys is
+     * the wrong place to name it. `CUB_LOCKS` in monocub.mjs is where its two
+     * windows are shut.
      */
     dispatchable: ["move"],
-    meddle: {
-        // Key stays `meddle` throughout the code; the Player Handbook names this
-        // action "Confusion", so that is the label every player and GM sees.
-        label: "Confusion",
-        icon: "fa-hand-sparkles",
-        /** Actions spent from the normal budget. */
-        cost: 1,
-        /** Hope spent on top of the action. Comes only from a GM's conversion. */
-        hopeCost: 1,
-        // The lower tier grants a flat +1/-1, the upper tier grants full
-        // advantage/disadvantage. Both are armed on the target's very next
-        // roll through the same Call machinery Support/Obstacle already use -
-        // which is also how "help a crisis action" falls out for free: an
-        // incident roll goes through the identical roll dialog.
-        // `help`/`hinder` are the Monocub's receipt; `helpTarget`/`hinderTarget`
-        // are what the student it happened to reads (DESP-06) - anonymous, in
-        // their own second person, never "the player".
-        thresholds: [
-            { min: 12, grants: "bonus",
-              help: "You grant the player +1 on their next roll.",
-              hinder: "You inflict −1 on the player's next roll.",
-              helpTarget: "Something steadies your hand: +1 on your next roll.",
-              hinderTarget: "Something rattles you: −1 on your next roll." },
-            { min: 16, grants: "advantage",
-              help: "You grant the player advantage on their next roll.",
-              hinder: "You inflict disadvantage on the player's next roll.",
-              helpTarget: "Something steadies your hand: advantage on your next roll.",
-              hinderTarget: "Something rattles you: disadvantage on your next roll." }
-        ],
-        critical: {
-            help: "The player gets the action back.", hinder: "The player wastes the action.",
-            helpTarget: "A moment's luck: you get the action back.",
-            hinderTarget: "A moment's confusion: the action is wasted."
-        },
-        failure: "The attempt fails."
+    /**
+     * THE MONOCUB'S ABILITIES, ONE ROW EACH (E33 C10, 07.10.2026; audit S09-48, D39).
+     * Rows are data and behaviour is named: `target`, `locks`, `roll` and `resolve`
+     * name entries of monocub.mjs's `CUB_TARGETS`, `CUB_LOCKS`, `CUB_ROLLS` and
+     * `CUB_RESOLVERS` (R301 holds every row to them), `choices` the buttons of the
+     * picker (labelled `DRPG.Monocub.<choice>`), `cost` the actions and `hopeCost`
+     * the Hope the Monocub's browser pays before the GM throws. A second ability is
+     * one row here and one resolver there; the fields the 1.4.0 rework adds
+     * (phases, caps, a GM-side payment) are E67's.
+     */
+    abilities: {
+        meddle: {
+            // Key stays `meddle` throughout the code; the Player Handbook names this
+            // action "Confusion", so that is the label every player and GM sees.
+            label: "Confusion",
+            icon: "fa-hand-sparkles",
+            /** Actions spent from the normal budget. */
+            cost: 1,
+            /** Hope spent on top of the action. Comes only from a GM's conversion. */
+            hopeCost: 1,
+            /** A living student in the Monocub's room (CUB_TARGETS). */
+            target: "roomStudent",
+            /** Help or Hinder: the picker's two buttons, the first the default. */
+            choices: ["help", "hinder"],
+            /** Shut in an Eclipse and a Class Trial (CUB_LOCKS; CALL-16, T-1) - on the picker and before paying only. */
+            locks: ["eclipse", "classTrial"],
+            /** "Stat: -": the flat 2d12 the GM throws (CUB_ROLLS). */
+            roll: "flat2d12",
+            /** Scored on the GM's own throw by `scoreMeddle` (CUB_RESOLVERS). */
+            resolve: "meddle",
+            // The lower tier grants a flat +1/-1, the upper tier grants full
+            // advantage/disadvantage. Both are armed on the target's very next
+            // roll through the same Call machinery Support/Obstacle already use -
+            // which is also how "help a crisis action" falls out for free: an
+            // incident roll goes through the identical roll dialog.
+            // `help`/`hinder` are the Monocub's receipt; `helpTarget`/`hinderTarget`
+            // are what the student it happened to reads (DESP-06) - anonymous, in
+            // their own second person, never "the player".
+                thresholds: [
+                { min: 12, grants: "bonus",
+                  help: "You grant the player +1 on their next roll.",
+                  hinder: "You inflict −1 on the player's next roll.",
+                  helpTarget: "Something steadies your hand: +1 on your next roll.",
+                  hinderTarget: "Something rattles you: −1 on your next roll." },
+                { min: 16, grants: "advantage",
+                  help: "You grant the player advantage on their next roll.",
+                  hinder: "You inflict disadvantage on the player's next roll.",
+                  helpTarget: "Something steadies your hand: advantage on your next roll.",
+                  hinderTarget: "Something rattles you: disadvantage on your next roll." }
+            ],
+            critical: {
+                help: "The player gets the action back.", hinder: "The player wastes the action.",
+                helpTarget: "A moment's luck: you get the action back.",
+                hinderTarget: "A moment's confusion: the action is wasted."
+            },
+            failure: "The attempt fails."
+        }
     }
 };
 

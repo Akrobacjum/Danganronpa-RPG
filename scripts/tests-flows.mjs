@@ -134,11 +134,13 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals"], status: "covered", stage: "<=1.2.50" },
     // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
     // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
-    // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice (monocub.mjs `meddleOnGm`); tier 2
-    // judges a Monocub's packet, and no scenario drove the Monocub's ask. E33 C4 (07.10.2026): 83 does - p2's dead
-    // Botan meddles in Aiko's next roll from p2's browser, and Aiko's roll spends it with no alarm.
+    // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice; tier 2 judges a Monocub's
+    // packet, and no scenario drove the Monocub's ask. E33 C4 (07.10.2026): 83 does - p2's dead Botan meddles in Aiko's
+    // next roll from p2's browser, and Aiko's roll spends it with no alarm. E33 C10: the Meddle is the `meddle` row of
+    // the Monocub's table, asked as `monocub.ability` (monocub.mjs `performCubAbility`, `cubAbilityOnGm`); 40 drives
+    // the ask end to end, 30 its forgeries.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
-        entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E45" },
+        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E45" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening

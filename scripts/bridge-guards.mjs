@@ -296,6 +296,10 @@ export const REASON_PATTERNS = Object.freeze([
     ["missing", /^no such roll message$/],
     ["badRequest", /^that message is not a roll the module threw$/],
     ["notYours", /^sender did not write that roll message$/],
+    // E33 C10: a Monocub's ability asked by key (monocub.mjs `cubAbilityRefusal`, asked by guardCubAbility).
+    ["badRequest", /^no such Monocub ability: /],
+    ["badRequest", /^".*" is not a choice of that ability$/],
+    ["actionDenied", /^that character is not a Monocub$/],
     ["cannotNow", /^that roll message is too old to report$/],
     // E08+E28 C12a: a roll sent for the GM to draw that is not one (guardDrawnRoll).
     ["badRequest", /^that is not a duality roll nobody has thrown$/],
@@ -728,6 +732,21 @@ export function armBuyerId(payload) {
 /** Refused out loud: the asker now waits for an answer (E03). Asked before the sender is, as it was. */
 export function guardArmCharacter(sender, payload, ctx) {
     return game.actors.get(payload.actorId) ? null : "no such character";
+}
+
+/*
+ * A MONOCUB'S ABILITY IS A ROW (E33 C10, 07.10.2026; audit S09-48, D39). The packet's
+ * `key` and `choice` are claims: the key must name a row of `MONOCUB.abilities`, the
+ * character the sender owns (`owns`, before this) must be a Monocub, and the choice one
+ * of the row's. Asked before the run and told to the asker, so an unknown key throws
+ * nothing and writes nothing; the target is the run's question (monocub.mjs
+ * `cubAbilityOnGm`, with the world as the GM holds it). A GM's packet is not asked:
+ * a GM's own browser runs the ability locally, where the run asks the same.
+ */
+export async function guardCubAbility(sender, payload, ctx) {
+    if (sender.isGM) return null;
+    const { cubAbilityRefusal } = await import("./monocub.mjs");
+    return cubAbilityRefusal(game.actors.get(payload.actorId), payload.key, payload.choice);
 }
 
 /*
@@ -1290,8 +1309,8 @@ export function pick(spec) {
  *
  * THE INCIDENT'S ROLLS (E08+E28 C17, 04.10.2026). An opening, a crisis action and every one of
  * Stage 6's actions are read off the record of the roll they name, as the rest are; a crisis
- * packet that names none threw none (`guardCrisisRoll`). A Meddle names no roll: the GM throws
- * its dice itself (monocub.mjs `meddleOnGm`), and its packet carries no result to read.
+ * packet that names none threw none (`guardCrisisRoll`). A Monocub's ability names no roll: the GM
+ * throws its dice itself (monocub.mjs `cubAbilityOnGm`), and its packet carries no result to read.
  * ========================================================================== */
 
 /** The packet fields a record's result goes in, unless a declaration's roll says otherwise (`into`). */

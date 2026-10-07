@@ -4918,6 +4918,77 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
         await gm.eval(`const u = game.users.get("${p1.userId}"); if (u.role !== 1) await u.update({ role: 1 }); return true;`);
     }
 
+    /*
+     * FORGERIES OF A MONOCUB'S ABILITY (E33 C10, 07.10.2026; the plan's 2.7). `monocub.ability` carries a `key` and a
+     * `choice` beside the two ids, and each field is a claim. The GM makes Botan (p2's) a dead Monocub with an action
+     * and a Hope, his token beside Aiko's. Then: p1 names Botan as the Monocub (p1 does not own him: refused for
+     * ownership, through `forge`); p1 names its own Aiko, who is no Monocub (refused before the run, told actionDenied);
+     * p2, Botan's own player, asks an ability that is no row ("lab", told badRequest). Each changes nothing on the GM:
+     * no Confusion armed on either, no card with a roll, Botan's actions and Hope as they were. The control - the same
+     * request from Botan's own player with the real key - is 40-flow's "a Monocub's own ask" and 83's L8.
+     */
+    phase("forgeries of a Monocub's ability", { flow: "monocub-meddle" });
+    const cubSetup = await gm.eval(`
+        const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const { sameRoom } = await import("${repoUrl}/scripts/movement.mjs");
+        const botan = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}");
+        const bt = canvas.scene.tokens.find(t => t.actorId === botan.id), at = canvas.scene.tokens.find(t => t.actorId === aiko.id);
+        const was = bt ? { x: bt.x, y: bt.y } : null;
+        const had = [botan.system.resources.actions.value, botan.system.resources.hope.value];
+        if (bt && at) await bt.update({ x: at.x, y: at.y });
+        await C.markDeceased(botan);
+        const made = Boolean(await Mc.setMonocub(botan, true));
+        await botan.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 2 });
+        return { made, was, had, sameRoom: sameRoom(botan, aiko) };`, { timeout: 60000 });
+    await settle(500);
+    const readCub = `const E = await import("${repoUrl}/scripts/call-effects.mjs");
+        const b = game.actors.get("${ids.botan}"), a = game.actors.get("${ids.aiko}");
+        return { armed: [a, b].map(x => E.pendingCalls(x).filter(e => e.key === "meddle").length),
+            paid: [b.system.resources.actions.value, b.system.resources.hope.value],
+            cards: game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0).length };`;
+    const cubForged = await forge("monocub.ability", { actorId: ids.botan, key: "meddle", targetId: ids.aiko, choice: "help" }, readCub);
+    check("SECURITY: p1 naming p2's Monocub for Confusion is refused for ownership - nothing armed, paid or posted",
+        cubSetup.made && cubSetup.sameRoom === true && cubForged.unchanged && cubForged.forOwnership
+            && cubForged.told.some(r => r.what === "monocub.ability"),
+        JSON.stringify({ cubSetup, cubForged }), { flow: "monocub-meddle" });
+    /** One packet of `monocub.ability` from a player's console, with what the GM answered it. */
+    const cubSend = async (client, fields, id) => {
+        const before = await gm.eval(readCub);
+        await client.eval(`
+            if (!globalThis.__cubToldHook) {
+                globalThis.__cubToldHook = true; globalThis.__cubTold = [];
+                game.socket.on("${SOCKET}", payload => {
+                    if (payload?.action === "bridge.refused" || payload?.action === "bridge.done") globalThis.__cubTold.push([payload.requestId ?? null, payload.action, payload.reason ?? null]);
+                });
+            }
+            globalThis.__cubTold.length = 0;
+            game.socket.emit("${SOCKET}", { action: "monocub.ability", userId: game.user.id, requestId: "${id}", ...${JSON.stringify(fields)} },
+                { recipients: game.users.filter(u => u.isGM && u.active).map(u => u.id) });
+            return true;`);
+        await settle(900);
+        const after = await gm.eval(readCub);
+        const told = await client.eval(`return globalThis.__cubTold.filter(t => t[0] === "${id}");`);
+        return { before, after, told, unchanged: JSON.stringify(before) === JSON.stringify(after) };
+    };
+    const cubNotOne = await cubSend(p1, { actorId: ids.aiko, key: "meddle", targetId: ids.botan, choice: "hinder" }, "SECCUBNOTONE");
+    check("SECURITY: p1 asking Confusion for its own Aiko, who is no Monocub, is refused before the run and told - nothing armed, paid or posted",
+        cubNotOne.unchanged && JSON.stringify(cubNotOne.told) === JSON.stringify([["SECCUBNOTONE", "bridge.refused", "actionDenied"]]),
+        JSON.stringify(cubNotOne), { flow: "monocub-meddle" });
+    const cubNoRow = await cubSend(p2, { actorId: ids.botan, key: "lab", targetId: ids.aiko, choice: "help" }, "SECCUBNOROW");
+    check("SECURITY: p2 asking an ability that is no row of the Monocub's table is refused before the run and told - nothing armed, paid or posted",
+        cubNoRow.unchanged && JSON.stringify(cubNoRow.told) === JSON.stringify([["SECCUBNOROW", "bridge.refused", "badRequest"]]),
+        JSON.stringify(cubNoRow), { flow: "monocub-meddle" });
+    await gm.eval(`
+        const C = await import("${repoUrl}/scripts/chapter.mjs"), Mc = await import("${repoUrl}/scripts/monocub.mjs");
+        const botan = game.actors.get("${ids.botan}");
+        await Mc.setMonocub(botan, false);
+        if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        await botan.update({ "system.resources.actions.value": ${JSON.stringify(cubSetup.had[0])}, "system.resources.hope.value": ${JSON.stringify(cubSetup.had[1])} });
+        const bt = canvas.scene.tokens.find(t => t.actorId === botan.id);
+        if (bt && ${JSON.stringify(Boolean(cubSetup.was))}) await bt.update(${JSON.stringify(cubSetup.was ?? {})});
+        return true;`, { timeout: 60000 });
+    await settle(300);
+
     // summary of what server refused
     check("SECURITY: server logged permission denials for player writes", (permissionDenials ?? []).length >= 2, JSON.stringify((permissionDenials||[]).slice(0,8)));
 }

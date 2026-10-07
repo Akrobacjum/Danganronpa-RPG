@@ -11292,13 +11292,15 @@ const SCENARIOS = [
         /*
          * E08+E28 C17, 04.10.2026; audit S10-06. A Monocub's browser threw the Meddle's flat 2d12
          * and sent the GM its total and its critical, which the GM armed on the target as said. The
-         * GM throws the dice itself now (monocub.mjs `meddleOnGm`) and answers the roll, which the
-         * Monocub's card shows; the packet carries no result. A Monocub and its target, each with a
-         * player, alone in a room; the Monocub's player sends a Hinder saying a critical 99, and
+         * GM throws the dice itself now (monocub.mjs `cubAbilityOnGm`; `meddleOnGm` until E33 C10
+         * put the Monocub's abilities in one table, where this is the `meddle` row of
+         * `monocub.ability`) and answers the roll, which the Monocub's card shows; the packet carries
+         * no result. A Monocub and its target, each with a player, alone in a room; the Monocub's
+         * player sends a Hinder saying a critical 99, and
          * the GM's dice are scripted to a 1 and a 2 (`CONFIG.Dice.randomUniform`, as a die maps it).
          * Read: the codes, the answer's total and critical and its roll's total, whether a
          * Confusion was armed on the target, and the actions it lost - a critical Hinder arms
-         * nothing and wastes one (`resolveMeddle`), so a Confusion alone could not see the packet's
+         * nothing and wastes one (`scoreMeddle`), so a Confusion alone could not see the packet's
          * critical read (A2 of C17, 04.10.2026: the mutant scoring the packet's critical 99
          * survived on the Confusion alone). Red at C16's runtime: the critical wastes an action, and
          * the answer holds no roll.
@@ -11325,7 +11327,7 @@ const SCENARIOS = [
             await target.update({ "system.resources.actions.value": Math.max(1, actionsWere ?? 0) });
             await settle();
             CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
-            await G.judge(BRIDGE_ACTIONS, { action: "monocub.meddle", requestId: "suite-c17-meddle", actorId: cub.id, targetId: target.id, help: false,
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId: "suite-c17-meddle", actorId: cub.id, key: "meddle", targetId: target.id, choice: "hinder",
                 total: 99, isCritical: true }, player(cub).id, { send: (to, reply) => {
                 if (reply?.action === "bridge.refused") told.push(reply.reason);
                 if (reply?.action === "bridge.done") answer = reply.value ?? null;
@@ -11351,10 +11353,11 @@ const SCENARIOS = [
     ["a Meddle the GM refuses throws no dice and answers no roll", async () => {
         /*
          * E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m6. Since C17 the GM throws a
-         * Meddle's dice (monocub.mjs `meddleOnGm`), and it threw them before `resolveMeddle` asked
-         * whether the Meddle stands, answering the roll even for one it refused - so the Monocub's
-         * browser posted a dice card to the room for a Meddle that did nothing. The questions come
-         * first now (`meddleRefused`). A Monocub with a player sends a Meddle on itself, which the
+         * Meddle's dice (monocub.mjs `cubAbilityOnGm` since E33 C10, `meddleOnGm` before), and it
+         * threw them before it asked whether the Meddle stands, answering the roll even for one it
+         * refused - so the Monocub's browser posted a dice card to the room for a Meddle that did
+         * nothing. The questions come first now (the row's `CUB_TARGETS` rule, asked by the run).
+         * A Monocub with a player sends a Meddle on itself, which the
          * GM refuses ("you cannot Meddle with yourself"). Read: the codes told, whether the answer
          * holds a roll, how many dice the GM drew (`CONFIG.Dice.randomUniform`, counted), and
          * whether the Monocub's player was told it was refused. Red at 17feea3's runtime: a roll
@@ -11377,7 +11380,7 @@ const SCENARIOS = [
             await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
             await settle();
             CONFIG.Dice.randomUniform = () => (drawn++, real());
-            await G.judge(BRIDGE_ACTIONS, { action: "monocub.meddle", requestId: "suite-h7-meddle", actorId: cub.id, targetId: cub.id, help: true },
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId: "suite-h7-meddle", actorId: cub.id, key: "meddle", targetId: cub.id, choice: "help" },
                 player(cub).id, { send: (to, reply) => {
                     if (reply?.action === "bridge.refused") told.push(reply.reason);
                     if (reply?.action === "bridge.done") { answered = true; answer = reply.value ?? null; }
@@ -11393,6 +11396,294 @@ const SCENARIOS = [
         }
         equal(stableJson([told, answered, Boolean(answer?.roll), drawn, toldCub]), stableJson([[], true, false, 0, true]),
             "a Meddle the GM refused was thrown, or its roll answered for a card, or the Monocub was not told (codes, answered, a roll, dice drawn, told)");
+    }],
+
+    ["Confusion through the table scores as before", async () => {
+        /*
+         * E33 C10, 07.10.2026; audit S09-48, D39; the plan's 2.7. Confusion is a row of
+         * `MONOCUB.abilities` now, run by one executor (monocub.mjs `performCubAbility`): the
+         * row's price, lock, target and roll are read off the table, and the GM scores its own
+         * throw with the row's resolver. On the GM's own browser (the local road of
+         * `requestCubAbility`), a Monocub with two actions and two Hope helps a student alone in
+         * its room; the dice are scripted to 6 and 7 (`CONFIG.Dice.randomUniform`), a 13, the
+         * +1 tier. Read: the answer's total and critical, the Call armed on the target in the
+         * GMs' store (key, grant, amount), what the Monocub paid (one action, one Hope), and
+         * the card its browser posted (one new message with a roll, spoken by the Monocub, naming
+         * Confusion). Red at C9's runtime: `performCubAbility` is not a function.
+         */
+        const [cub, target] = cast(2);
+        const M = await import("./monocub.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const { back } = await aloneTogether(cub, target);
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const nonces = new Set(pendingCalls(target).map(entry => entry.nonce));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const real = CONFIG.Dice.randomUniform;
+        const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
+        let out = null, armed = null, paid = null, cards = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 2 });
+            await settle();
+            CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+            ok(typeof M.performCubAbility === "function", "monocub.mjs exports no performCubAbility - the table's executor is not built");
+            out = await M.performCubAbility(cub, "meddle", { targetId: target.id, choice: "help" });
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            armed = pendingCalls(target).find(entry => entry.key === "meddle" && !nonces.has(entry.nonce)) ?? null;
+            paid = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+            cards = game.messages.contents.filter(m => !had.has(m.id) && (m.rolls?.length ?? 0) > 0)
+                .map(m => [m.speaker?.actor ?? null, String(m.content ?? "").includes("Confusion")]);
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson([out?.total ?? null, out?.isCritical ?? null, armed ? [armed.grants, armed.amount] : null, paid, cards]),
+            stableJson([13, false, ["bonus", 1], [1, 1], [[cub.id, true]]]),
+            "Confusion through the table did not score as before (the answer's total and critical, the Call armed on the target, the Monocub's actions and Hope after, the cards with a roll)");
+    }],
+
+    ["an unknown Monocub ability is refused and told with nothing thrown or written", async () => {
+        /*
+         * E33 C10; the plan's 2.7. A packet's `key` is a claim: one that names no row of
+         * `MONOCUB.abilities` ("lab") is refused by the bridge's guard (bridge-guards.mjs
+         * `guardCubAbility`) before the run, and the asker is told. A Monocub with a player sends
+         * it, aimed at itself (the target is never reached). Read: the codes told, whether an
+         * answer came, how many dice the GM drew (`CONFIG.Dice.randomUniform`, counted), and the
+         * Monocub's actions and Hope before and after. Red at C9's runtime: `monocub.ability` is
+         * no action of the bridge's, so nothing is told at all.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const wasCub = cub.getFlag(MODULE_ID, FLAGS.monocub) ?? null;
+        const real = CONFIG.Dice.randomUniform;
+        const told = [];
+        let answered = false, drawn = 0, before = null, after = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            before = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+            CONFIG.Dice.randomUniform = () => (drawn++, real());
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId: "suite-c10-lab", actorId: cub.id, key: "lab", targetId: cub.id, choice: "help" },
+                player(cub).id, { send: (to, reply) => {
+                    if (reply?.action === "bridge.refused") told.push(reply.reason);
+                    if (reply?.action === "bridge.done") answered = true;
+                } });
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            after = [cub.system.resources.actions.value, cub.system.resources.hope.value];
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            if (wasCub === null) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await cub.setFlag(MODULE_ID, FLAGS.monocub, wasCub);
+        }
+        equal(stableJson([told, answered, drawn, after]), stableJson([["badRequest"], false, 0, before]),
+            "an unknown ability was not refused as a bad request before the run, or something was thrown or written (codes told, answered, dice drawn, actions and Hope after)");
+    }],
+
+    ["a sender who is no Monocub is refused before any throw", async () => {
+        /*
+         * E33 C10; the plan's 2.7. The packet names the sender's own living student, who is no
+         * Monocub, as the user of Confusion on a fellow student: `owns` passes (it is theirs),
+         * `guardCubAbility` refuses ("that character is not a Monocub", told as actionDenied)
+         * before the run, so no die is drawn and nothing is armed. Read as the test above.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a student with a player, and a target");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [who, target] = livingStudents().filter(player);
+        const wasCub = who.getFlag(MODULE_ID, FLAGS.monocub) ?? null;
+        const armedBefore = pendingCalls(target).filter(entry => entry.key === "meddle").length;
+        const real = CONFIG.Dice.randomUniform;
+        const told = [];
+        let answered = false, drawn = 0, armed = null;
+        try {
+            if (wasCub) await who.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await settle();
+            CONFIG.Dice.randomUniform = () => (drawn++, real());
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId: "suite-c10-nocub", actorId: who.id, key: "meddle", targetId: target.id, choice: "hinder" },
+                player(who).id, { send: (to, reply) => {
+                    if (reply?.action === "bridge.refused") told.push(reply.reason);
+                    if (reply?.action === "bridge.done") answered = true;
+                } });
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            armed = pendingCalls(target).filter(entry => entry.key === "meddle").length - armedBefore;
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            if (wasCub) await who.setFlag(MODULE_ID, FLAGS.monocub, wasCub);
+        }
+        equal(stableJson([told, answered, drawn, armed]), stableJson([["actionDenied"], false, 0, 0]),
+            "a student who is no Monocub was not refused before the run, or a die was drawn or a Confusion armed (codes told, answered, dice drawn, Confusions armed)");
+    }],
+
+    ["a target in another room is refused on the GM - said and not refunded", async () => {
+        /*
+         * E33 C10; the plan's 2.7 and ACT-12. The packet's `targetId` is a claim the run holds to
+         * the row's `CUB_TARGETS` rule with the world as the GM holds it (monocub.mjs
+         * `cubAbilityOnGm`): a Monocub alone in a room with one student names a third, who stands
+         * elsewhere. The guards pass (a Monocub, a row, a choice); the run refuses before the
+         * dice, answers no roll (fix r2-H7), logs it and whispers the Monocub - and writes
+         * nothing on the Monocub: this side cannot see that anything was paid, so a refund here
+         * would be Hope minted for a forged packet. Read: the codes told (none: the guards
+         * passed), the answer (done, no roll), the dice drawn, the Monocub's Hope after, and
+         * whether its player was whispered the refusal.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a Monocub with a player");
+        needs(world.atLeast("livingStudents", 3), "a Monocub, a neighbour and a target in another room");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { sameRoom } = await import("./movement.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub] = livingStudents().filter(player);
+        const [neighbour, target] = livingStudents().filter(a => a.id !== cub.id);
+        const { back } = await aloneTogether(cub, neighbour);
+        const hopeWas = cub.system.resources.hope.value;
+        const refusal = game.i18n.localize("DRPG.Monocub.meddleRefused");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const real = CONFIG.Dice.randomUniform;
+        const told = [];
+        let answered = false, answer = null, drawn = 0, hope = null, toldCub = null, apart = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await cub.update({ "system.resources.hope.value": 2 });
+            await settle();
+            apart = !sameRoom(cub, target);
+            must(apart, "the target stands in the Monocub's room - this would measure the wrong refusal");
+            CONFIG.Dice.randomUniform = () => (drawn++, real());
+            await G.judge(BRIDGE_ACTIONS, { action: "monocub.ability", requestId: "suite-c10-elsewhere", actorId: cub.id, key: "meddle", targetId: target.id, choice: "help" },
+                player(cub).id, { send: (to, reply) => {
+                    if (reply?.action === "bridge.refused") told.push(reply.reason);
+                    if (reply?.action === "bridge.done") { answered = true; answer = reply.value ?? null; }
+                } });
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            hope = cub.system.resources.hope.value;
+            toldCub = game.messages.contents.some(m => !had.has(m.id) && String(contentOf(m) ?? "").includes(refusal));
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            await cub.update({ "system.resources.hope.value": hopeWas });
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson([told, answered, Boolean(answer?.roll), drawn, hope, toldCub]), stableJson([[], true, false, 0, 2, true]),
+            "a target in another room was not refused on the GM before the dice, or the Monocub was refunded or not told (codes, answered, a roll, dice drawn, Hope after, told)");
+    }],
+
+    ["a Confusion paid a moment before an Eclipse opened lands on the GM while the picker is shut", async () => {
+        /*
+         * E33 C10; CALL-16 and the plan's 2.7. The row's locks (`CUB_LOCKS`: the Eclipse, the
+         * Class Trial) are asked on the picker and before paying, never on the GM: a Meddle paid
+         * a moment before the lights went out and refused on the GM would lose its Hope for good,
+         * since the GM side never refunds (ACT-12). With an Eclipse running, the Monocub's picker
+         * (`cubAbilityDialog`) answers null and says the Eclipse's sentence, and the GM-side run
+         * (`cubAbilityOnGm`) of a Hinder scripted to 13 lands a -1 on the target. Red under the
+         * mutant that asks the locks on the GM (the run answers null, nothing armed).
+         */
+        const [cub, target] = cast(2);
+        const M = await import("./monocub.mjs");
+        const E = await import("./eclipse.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const { back } = await aloneTogether(cub, target);
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const nonces = new Set(pendingCalls(target).map(entry => entry.nonce));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const locked = game.i18n.localize("DRPG.Eclipse.actionsLocked");
+        const seen = [];
+        const warned = ui.notifications.warn.bind(ui.notifications);
+        const real = CONFIG.Dice.randomUniform;
+        const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
+        let picker = "unasked", out = null, armed = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await E.startEclipse();
+            await settle();
+            must(E.isEclipse(), "the Eclipse did not start");
+            ok(typeof M.cubAbilityDialog === "function" && typeof M.cubAbilityOnGm === "function", "monocub.mjs exports no cubAbilityDialog or cubAbilityOnGm - the table is not built");
+            ui.notifications.warn = text => { seen.push(String(text)); return null; };
+            picker = await M.cubAbilityDialog(cub, "meddle");
+            ui.notifications.warn = warned;
+            CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+            out = await M.cubAbilityOnGm({ actorId: cub.id, key: "meddle", targetId: target.id, choice: "hinder" });
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            armed = pendingCalls(target).find(entry => entry.key === "meddle" && !nonces.has(entry.nonce)) ?? null;
+        } finally {
+            ui.notifications.warn = warned;
+            CONFIG.Dice.randomUniform = real;
+            if (E.isEclipse()) await E.endEclipse({ advance: false }).catch(() => {});
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson([picker, seen.includes(locked), out?.total ?? null, Boolean(out?.roll), armed ? [armed.grants, armed.amount] : null]),
+            stableJson([null, true, 13, true, ["bonus", -1]]),
+            "in an Eclipse the picker was not shut with the Eclipse's sentence, or the GM-side run refused a paid Confusion (picker, said, the answer's total, a roll answered, the Call armed)");
+    }],
+
+    ["a Monocub marked a crime witness this chapter lands Confusion like any other", async () => {
+        /*
+         * E33 C10; the guide p. 17, ACT-12, the owner's option B of 05.10.2026 (the plan's 2.7,
+         * 1.7 item 4: the stage verify's "a silenced Monocub refused" was the audit's own error).
+         * The crime-witness marker is information only: `setSilenced` stamps this chapter on the
+         * Monocub, and its Confusion through the table - on the GM's own browser, scripted to 13 -
+         * lands a +1 on the target exactly as an unmarked Monocub's does. Red under the mutant
+         * that makes the marker a lock (the executor answers null, nothing armed).
+         */
+        const [cub, target] = cast(2);
+        const M = await import("./monocub.mjs");
+        const { pendingCalls } = await import("./call-effects.mjs");
+        const { confusionStore } = await import("./gm-stores.mjs");
+        const { back } = await aloneTogether(cub, target);
+        const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const nonces = new Set(pendingCalls(target).map(entry => entry.nonce));
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const real = CONFIG.Dice.randomUniform;
+        const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
+        let marked = null, out = null, armed = null;
+        try {
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await M.setSilenced(cub, true);
+            await cub.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 2 });
+            await settle();
+            marked = M.isCrimeSilenced(cub);
+            ok(typeof M.performCubAbility === "function", "monocub.mjs exports no performCubAbility - the table's executor is not built");
+            CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
+            out = await M.performCubAbility(cub, "meddle", { targetId: target.id, choice: "help" });
+            CONFIG.Dice.randomUniform = real;
+            await settle();
+            armed = pendingCalls(target).find(entry => entry.key === "meddle" && !nonces.has(entry.nonce)) ?? null;
+        } finally {
+            CONFIG.Dice.randomUniform = real;
+            await M.setSilenced(cub, false);
+            if (confusionStore) {
+                if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
+                else if (confusionStore.has(target.id)) await confusionStore.drop(target.id);
+            }
+            for (const m of game.messages.contents.filter(m => !had.has(m.id))) await m.delete();
+            await back();
+        }
+        equal(stableJson([marked, out?.total ?? null, armed ? [armed.grants, armed.amount] : null]), stableJson([true, 13, ["bonus", 1]]),
+            "a crime witness's Confusion did not land as any other's (marked, the answer's total, the Call armed on the target)");
     }],
 
     ["Grant all asked of the primary GM is decided there once, and refused from a player", async () => {
@@ -21176,7 +21467,8 @@ const SCENARIOS = [
          * told every console: the armed Call stored `from`, the Monocub's actor id, on the
          * target's flag, and the Monocub's receipt, the target's notice and the Call's own notice
          * were whispers whose lists named the two players. A Monocub and its target, each with a
-         * player, stand alone in a room; the GM resolves a Hinder of 13 (the +1/-1 tier): the
+         * player, stand alone in a room; the GM runs a Hinder whose dice are scripted to 6 and 7, a 13
+         * (the +1/-1 tier; since E33 C10 the run throws the GM's own dice, `cubAbilityOnGm`): the
          * target holds an armed Call with no `from`, and every card whose words went to either
          * player is veiled - everybody on its list, no actor speaking - and the target's player
          * is sent nothing that names the Monocub.
@@ -21189,29 +21481,35 @@ const SCENARIOS = [
          * Confusion. What the target's own player is sent of it is 40-flow's to measure.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and its target, each with a player to be sent the words");
-        const { resolveMeddle } = await import("./monocub.mjs");
+        const { cubAbilityOnGm } = await import("./monocub.mjs");
         const { pendingCalls } = await import("./call-effects.mjs");
         const { livingStudents } = await import("./chapter.mjs");
         const { confusionStore } = await import("./gm-stores.mjs");
         const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
         const [cub, target] = livingStudents().filter(player);
+        ok(typeof cubAbilityOnGm === "function", "monocub.mjs exports no cubAbilityOnGm - the table's GM-side run is not built (E33 C10)");
         const { back } = await aloneTogether(cub, target);
         const from = game.messages.size;
         const rowBefore = foundry.utils.deepClone(confusionStore?.get(target.id) ?? null);
+        const real = CONFIG.Dice.randomUniform;
+        const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
         let words = [], armed = null, onFlag = null, inStore = null;
         try {
             await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
             await settle();
+            CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : real());
             words = await wordsSent(async () => {
-                ok((await resolveMeddle({ actorId: cub.id, targetId: target.id, help: false, total: 13, isCritical: false }))?.success,
-                    "the Meddle did not land");
+                equal((await cubAbilityOnGm({ actorId: cub.id, key: "meddle", targetId: target.id, choice: "hinder" }))?.total ?? null, 13,
+                    "the Meddle did not land on the scripted 13");
                 await settle();
             });
+            CONFIG.Dice.randomUniform = real;
             armed = pendingCalls(target).find(entry => entry.key === "meddle") ?? null;
             const flag = target.getFlag(MODULE_ID, FLAGS.pendingCall);
             onFlag = (Array.isArray(flag) ? flag : flag ? [flag] : []).filter(entry => entry?.key === "meddle").length;
             inStore = Boolean(armed) && (confusionStore?.get(target.id)?.calls ?? []).some(entry => entry?.nonce === armed.nonce);
         } finally {
+            CONFIG.Dice.randomUniform = real;
             // The Confusion made here is taken back out of wherever it was armed.
             if (confusionStore) {
                 if (rowBefore) await confusionStore.patch(target.id, { calls: rowBefore.calls ?? [] });
@@ -21787,7 +22085,8 @@ const SCENARIOS = [
             seen.length = 0;
             await other.setFlag(MODULE_ID, FLAGS.monocub, true);
             await settle();
-            equal(await monocub.meddleDialog(other), null,
+            ok(typeof monocub.cubAbilityDialog === "function", "monocub.mjs exports no cubAbilityDialog - the table's picker is not built (E33 C10)");
+            equal(await monocub.cubAbilityDialog(other, "meddle"), null,
                 "Confusion opened its picker during a Class Trial");
             ok(seen.includes(callsLocked), "Confusion was refused for some other reason");
 

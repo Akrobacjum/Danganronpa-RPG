@@ -2366,7 +2366,7 @@ const REGRESSIONS = [
 
         // The step travels: the roll context, both sides of the bridge, the replay.
         const bridge = stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? "");
-        const socket = bodyOf(bridge, "async function handleCleanup(", { until: "async function handleMeddle(" });
+        const socket = bodyOf(bridge, "async function handleCleanup(", { until: "async function handleCubAbility(" });
         ok((socket.match(/price: payload\.price/g) ?? []).length >= 2,
             "the socket branch drops the price claim for one of the two resolvers, "
             + "so every remote Tamper on that road pays twice");
@@ -5486,6 +5486,8 @@ const REGRESSIONS = [
             // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
             creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
             stealFromPerson: "refused", stealFromVault: "refused",
+            // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).
+            cubAbilityRefusal: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -6504,9 +6506,10 @@ const REGRESSIONS = [
          * action and Stage 6 name their roll; their actions are the incident's tables of config.mjs,
          * not ACTIONS (`TABLES`: the record's `actionKey` names the table, as the roll is thrown for
          * it). A crisis packet that names no roll threw none, so its `when` is the roll's own field,
-         * and its guards refuse the rest (bridge-guards.mjs `guardCrisisRoll`). A Meddle takes no
-         * result from its packet at all: the GM throws its dice (monocub.mjs `meddleOnGm`), which the
-         * reader finds as a declaration that takes nothing it has to name a roll for.
+         * and its guards refuse the rest (bridge-guards.mjs `guardCrisisRoll`). A Monocub's ability
+         * (`monocub.ability` since E33 C10, `monocub.meddle` before) takes no result from its packet
+         * at all: the GM throws the row's dice (monocub.mjs `cubAbilityOnGm`), which the reader finds
+         * as a declaration that takes nothing it has to name a roll for.
          */
         const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
         const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
@@ -6581,14 +6584,77 @@ const REGRESSIONS = [
         must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
         const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
-            + `${WAITING.length} wait for a later commit; monocub.meddle takes ${JSON.stringify(takes("monocub.meddle", all["monocub.meddle"] ?? {}))} from its packet`);
+            + `${WAITING.length} wait for a later commit; monocub.ability takes ${JSON.stringify(takes("monocub.ability", all["monocub.ability"] ?? {}))} from its packet`);
         equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
             "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
             "Observe, Analyze, the search for a hidden stash, a Palm, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
-        equal(JSON.stringify([Boolean(all["monocub.meddle"]?.sanitize), takes("monocub.meddle", all["monocub.meddle"] ?? {})]), JSON.stringify([true, []]),
-            "monocub.meddle is no declaration of the bridge's, or a Meddle's packet carries a result the GM would read");
+        equal(JSON.stringify([Boolean(all["monocub.ability"]?.sanitize), takes("monocub.ability", all["monocub.ability"] ?? {})]), JSON.stringify([true, []]),
+            "monocub.ability is no declaration of the bridge's, or a Monocub ability's packet carries a result the GM would read");
         const problems = problemsOf(all, WAITING);
         ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
+    }],
+
+    ["R301 - a Monocub ability is one row: its target, locks, roll and resolver named in the tables, one bridge action that takes no result", async () => {
+        /*
+         * E33 C10, 07.10.2026; audit S09-48, decision D39; the plan's 3.1 and 2.7. One ability lived
+         * in three files, and the stage's table (`MONOCUB.abilities`, config.mjs) is only a table if
+         * every row is data that names its behaviour: `resolve` an entry of monocub.mjs's
+         * `CUB_RESOLVERS`, `roll` of `CUB_ROLLS`, `target` of `CUB_TARGETS`, each of `locks` of
+         * `CUB_LOCKS`, `choices` a list of words, `cost` and `hopeCost` whole numbers, a label and an
+         * icon. A row naming what no table holds would be an ability the executor throws on, and a
+         * lock no table knows is shut (`lockRefusal`). The bridge holds exactly one `monocub.*`
+         * declaration, `monocub.ability`, whose packet carries a `key` as text and no total, critical,
+         * roll or roll id - the GM throws the row's dice (R218 reads the same of every declaration).
+         * And read off the source: the executor (`performCubAbility`) and the GM-side run
+         * (`cubAbilityOnGm`) name no row (a second ability is one row and one resolver, not a branch),
+         * the executor asks the locks before paying, and the run asks none (CALL-16: a Meddle paid a
+         * moment before an Eclipse opened lands; the GM side never refunds, ACT-12). The plan's
+         * mutants each turn this or a 2.7 test red: a lock missing from the row (the Class Trial's
+         * picker test), a lock on the crime-witness marker (the witness test), a lock asked on the
+         * GM (here and the Eclipse test), a result taken from the packet (here and R218).
+         */
+        const { MONOCUB } = await import("./config.mjs");
+        const M = await import("./monocub.mjs");
+        const rows = Object.entries(MONOCUB.abilities ?? {});
+        // An assertion, not a precondition: a table with no row is the harm (red first at C9's runtime: no table at all).
+        ok(rows.length >= 1, "MONOCUB.abilities holds no row - the Monocub's table is not built (E33 C10)");
+        const has = (table, key) => Boolean(table) && typeof key === "string" && Object.hasOwn(table, key);
+        const problems = [];
+        for (const [key, row] of rows) {
+            if (!has(M.CUB_RESOLVERS, row.resolve)) problems.push(`${key}: resolve ${JSON.stringify(row.resolve)} names no CUB_RESOLVERS entry`);
+            if (!has(M.CUB_ROLLS, row.roll)) problems.push(`${key}: roll ${JSON.stringify(row.roll)} names no CUB_ROLLS entry`);
+            if (!has(M.CUB_TARGETS, row.target)) problems.push(`${key}: target ${JSON.stringify(row.target)} names no CUB_TARGETS entry`);
+            if (!Array.isArray(row.locks)) problems.push(`${key}: locks is not a list`);
+            for (const lock of row.locks ?? []) if (!has(M.CUB_LOCKS, lock)) problems.push(`${key}: lock ${JSON.stringify(lock)} names no CUB_LOCKS entry`);
+            if (!Array.isArray(row.choices) || !row.choices.length || !row.choices.every(c => typeof c === "string" && /^[a-z]+$/.test(c))) {
+                problems.push(`${key}: choices is not a list of words`);
+            }
+            if (!(Number.isInteger(row.cost) && row.cost >= 0 && Number.isInteger(row.hopeCost) && row.hopeCost >= 0)) problems.push(`${key}: cost or hopeCost is not a whole number`);
+            if (typeof row.label !== "string" || !row.label || typeof row.icon !== "string" || !row.icon) problems.push(`${key}: no label or no icon`);
+        }
+        log(`R301: ${rows.length} row(s) of MONOCUB.abilities (${rows.map(([key]) => key).join(", ")}); tables: ${Object.keys(M.CUB_RESOLVERS).length} resolver(s), `
+            + `${Object.keys(M.CUB_ROLLS).length} roll(s), ${Object.keys(M.CUB_TARGETS).length} target rule(s), ${Object.keys(M.CUB_LOCKS).length} lock(s)`);
+        equal(JSON.stringify(problems), "[]", `the Monocub's table: ${problems.join("; ")}`);
+
+        const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
+        must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
+        equal(JSON.stringify(Object.keys(all).filter(action => action.startsWith("monocub.")).sort()), JSON.stringify(["monocub.ability"]),
+            "the bridge's monocub.* declarations are not exactly monocub.ability (monocub.meddle retired by E33 C10)");
+        const fields = all["monocub.ability"]?.sanitize?.fields ?? {};
+        equal(JSON.stringify([fields.key ?? null, fields.choice ?? null, Object.keys(fields).filter(f => ["total", "isCritical", "withHope", "roll", "rollId"].includes(f))]),
+            JSON.stringify(["text", "text", []]),
+            "monocub.ability does not take key and choice as text, or its packet carries a result or a roll the GM would read");
+
+        const src = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
+        const executor = bodyOf(src, "export async function performCubAbility(", { until: "export async function cubAbilityOnGm(" });
+        const run = bodyOf(src, "export async function cubAbilityOnGm(", { until: "export async function cubAbilityDialog(" });
+        ok(!/abilities\.meddle|CUB_\w+\.meddle|"meddle"/.test(`${executor}\n${run}`),
+            "the executor or the GM-side run names the Meddle row - rows are data and behaviour is named, or a second ability is a branch");
+        ok(/\blockRefusal\(/.test(executor) && executor.indexOf("lockRefusal(") < executor.indexOf("spendAction("),
+            "the executor does not ask the row's locks before anything is paid");
+        ok(!/\blockRefusal\(|CUB_LOCKS/.test(run), "the GM-side run asks a lock - CALL-16: a Meddle paid a moment before an Eclipse opened would lose its Hope for good");
+        ok(/CUB_TARGETS\[row\.target\]\.refuses\(/.test(run) && /CUB_RESOLVERS\[row\.resolve\]\(/.test(run) && /CUB_ROLLS\[row\.roll\]\(/.test(run),
+            "the GM-side run does not ask the row's target rule again, throw the row's roll and score with the row's resolver");
     }],
 
     ["R220 - a module write names a reason of the closed list", async () => {
@@ -6853,7 +6919,7 @@ const REGRESSIONS = [
             ["cleanup.mjs", "undoLastCleanup", "scene.tokens.get()", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
-            ["monocub.mjs", "postMeddleRoll", "ChatMessage", "the meddle roll's chat card"],
+            ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
             ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
             ["murder.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
             ["murder.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],

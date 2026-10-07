@@ -741,7 +741,7 @@ export function registerConfusionCopy() {
  * already holds, by its nonce, is not added twice), and leave the flag - written back as a list
  * without them, or unset - once the row reads back from storage; then its owners are sent their
  * copy. World actors only: a Confusion is armed on `game.actors.get(targetId)`
- * (monocub.mjs `resolveMeddle`), never on a token's own data. One still on a flag throws with
+ * (monocub.mjs `cubAbilityOnGm`), never on a token's own data. One still on a flag throws with
  * the count, so the world is not stamped and the next load tries again.
  *
  * @returns {Promise<null|{notPrimary: true}|{lifted: number}>}

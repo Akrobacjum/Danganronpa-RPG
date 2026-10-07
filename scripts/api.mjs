@@ -151,7 +151,7 @@ import { sheetWrites } from "./sheet-audit.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isCrimeSilenced,
-    meddleTargets, performMeddle, resolveMeddle, meddleDialog,
+    cubTargets, performCubAbility, cubAbilityOnGm, cubAbilityDialog,
     openMonocubDialog
 } from "./monocub.mjs";
 import { isCallSilenced } from "./call-effects.mjs";
@@ -902,10 +902,13 @@ export const DrpgApi = {
      *  Shared with the Mastermind below - the guide gives both the same trade. */
     convertDespairToHope,
 
-    meddleTargets,
-    meddleDialog,
-    performMeddle,
-    resolveMeddle,
+    /** The Monocub's table (E33 C10): `performCubAbility(actor, key, { targetId, choice })`, its picker
+     *  `cubAbilityDialog(actor, key)`, who it could be aimed at, and the GM-side run. Confusion is `key`
+     *  "meddle" with `choice` "help" or "hinder"; `performMeddle` and `meddleDialog` were its names until 1.2.68. */
+    cubTargets,
+    cubAbilityDialog,
+    performCubAbility,
+    cubAbilityOnGm,
 
     monocubDialog: openMonocubDialog,
 

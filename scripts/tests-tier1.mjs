@@ -5754,6 +5754,8 @@ const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
+    // monocub.mjs labels a row's choices `DRPG.Monocub.<choice>` (E33 C10): the two the table has.
+    "DRPG.Monocub.help", "DRPG.Monocub.hinder",
     // sheet-audit.mjs names a field put back by its kind (E29 C3), and bridge-guards.mjs `requestLabel` the same;
     // a flagged one too (C5: actions, Health, Sanity, the grants), an item's (C6), an armed Call (C8),
     // Daggerheart's level-up selections (E29 fix r1-G2) and its scars (fix r2-H25).

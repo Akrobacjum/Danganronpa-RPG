@@ -1012,7 +1012,8 @@ const LONGEST_TILE_WORD = (() => {
         ...Object.values(ACTIONS ?? {}),
         ...Object.values(HOPE_CALLS ?? {}),
         ...Object.values(DESPAIR_CALLS ?? {}),
-        MONOCUB?.meddle
+        // One tile per row of the Monocub's table (E33 C10): a second ability's word is paid for here too.
+        ...Object.values(MONOCUB?.abilities ?? {})
     ].map(def => def?.label).filter(Boolean);
 
     let longest = "";
@@ -3471,7 +3472,8 @@ function injectMonocubPanel(tab, actor) {
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
     grid.append(actionButton(actor, "move", ACTIONS.move));
-    grid.append(meddleButton(actor));
+    // One tile per row of the Monocub's table (E33 C10): Confusion today, a second ability a row.
+    for (const [key, def] of Object.entries(MONOCUB.abilities)) grid.append(abilityButton(actor, key, def));
     panel.append(grid);
 
     if (isCrimeSilenced(actor)) {
@@ -3484,8 +3486,7 @@ function injectMonocubPanel(tab, actor) {
     tab.prepend(panel);
 }
 
-function meddleButton(actor) {
-    const def = MONOCUB.meddle;
+function abilityButton(actor, key, def) {
     const held = hopeHeld(actor);
     const affordable = actionsLeft(actor) >= def.cost && held >= def.hopeCost;
 
@@ -3506,8 +3507,8 @@ function meddleButton(actor) {
         })}</span>`;
 
     button.addEventListener("click", async () => {
-        const { meddleDialog } = await import("./monocub.mjs");
-        await meddleDialog(actor);
+        const { cubAbilityDialog } = await import("./monocub.mjs");
+        await cubAbilityDialog(actor, key);
     });
 
     return button;

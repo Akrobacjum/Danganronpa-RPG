@@ -19,7 +19,7 @@ import {
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, dialogContent, debug, warn, error, cardHead, esc } from "./utils.mjs";
 import {
     firstRefusal, guardUndoIsTheGms, guardCrisisAction, guardCrisisRoll, guardShareSecret,
-    guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall,
+    guardShareGuest, guardTieTraceHolder, guardSendbackPlace, armBuyerId, guardArmCharacter, guardArmPlayerCall, guardCubAbility,
     guardArmCallGrants, guardArmLiving, guardArmNotHeld, guardArmBuyer, guardArmOtherCharacter, guardArmHopeCallAllowed,
     guardArmBuyerHope, guardArmGmYes, noteCallYes, guardDespairDelta, guardDespairPool, guardTraitRuling, guardRollAuthor, guardCallProgress, guardProjectFrozen,
     guardProjectRoom, guardSabotageRoom, guardCardSpeaker, guardCardReaders, table, tokenActorOf, remnantSourceOf, knownSender, owns, ownsActorAt, gmOnly,
@@ -80,7 +80,8 @@ const ACTION_OPENING_RESULT = "murder.openingResult";
 const ACTION_CLEANUP = "murder.cleanup";
 const ACTION_BETRAYAL = "murder.betrayal";
 const ACTION_PARK_MURDER = "murder.park";
-const ACTION_MEDDLE = "monocub.meddle";
+/** player -> GM: a Monocub uses the ability under `key` (E33 C10) - see monocub.mjs `cubAbilityOnGm`. */
+const ACTION_CUB_ABILITY = "monocub.ability";
 /** GM -> player: a request carried out, with its answer - see `bridgeRequest` in bridge-guards.mjs. */
 const ACTION_DONE = "bridge.done";
 /** A GM's world has finished loading - see `registerGmBridge`. */
@@ -775,14 +776,15 @@ async function handleCleanup(payload, sender, ctx, prepared) {
     if (!cleaned) return { refused: "nothing was carried out: resolveCleanup cleaned nothing" };
 }
 
-    // A Meddle writes to the TARGET's sheet, not the Monocub's own - arming a
-    // Call is exactly the write a player has no permission to make on somebody
-    // else's actor. Its dice are thrown here since E08+E28 C17 (`meddleOnGm`),
-    // and the roll goes back for the Monocub's card - none for a Meddle it
-    // refuses, which throws nothing since fix r2-H7.
-async function handleMeddle(payload, sender, ctx) {
-    const { meddleOnGm } = await import("./monocub.mjs");
-    return { reply: await meddleOnGm({ actorId: payload.actorId, targetId: payload.targetId, help: payload.help }) };
+    // A Monocub's ability writes to the TARGET's sheet, not the Monocub's own -
+    // arming a Call is exactly the write a player has no permission to make on
+    // somebody else's actor. Its dice are thrown here since E08+E28 C17, by the
+    // row the packet's `key` names (E33 C10, `cubAbilityOnGm`), and the roll goes
+    // back for the Monocub's card - none for one it refuses, which throws nothing
+    // since fix r2-H7.
+async function handleCubAbility(payload, sender, ctx) {
+    const { cubAbilityOnGm } = await import("./monocub.mjs");
+    return { reply: await cubAbilityOnGm({ actorId: payload.actorId, key: payload.key, targetId: payload.targetId, choice: payload.choice }) };
 }
 
 /*
@@ -1580,15 +1582,16 @@ export const BRIDGE_ACTIONS = table({
             rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a clean-up"
         }
     },
-    [ACTION_MEDDLE]: {
-        label: "DRPG.Bridge.what.monocub.meddle",
-        guards: [knownSender, owns("actorId", "sender does not own that Monocub")],
-        // No total and no critical: the GM throws the Meddle's dice itself (E08+E28 C17; monocub.mjs `meddleOnGm`).
-        sanitize: pick({ actorId: as.id, targetId: as.id, help: as.bool }),
-        run: handleMeddle,
+    [ACTION_CUB_ABILITY]: {
+        label: "DRPG.Bridge.what.monocub.ability",
+        // `key` and `choice` are claims the guard holds to the table (a row, a Monocub, one of the row's choices).
+        guards: [knownSender, owns("actorId", "sender does not own that Monocub"), guardCubAbility],
+        // No total, critical or roll: the GM throws the row's dice itself (E08+E28 C17; monocub.mjs `cubAbilityOnGm`; R218).
+        sanitize: pick({ actorId: as.id, key: as.text, targetId: as.id, choice: as.text }),
+        run: handleCubAbility,
         // The roll it threw goes back, for the Monocub's card.
         answer: "reply",
-        claims: { targetId: "judged by meddleRefused (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
+        claims: { targetId: "judged by the row's CUB_TARGETS rule in cubAbilityOnGm (monocub.mjs) before the GM throws: a living student in the Monocub's room" }
     },
     [ACTION_HOPE_CALL]: {
         label: "DRPG.Bridge.what.call.approve",
@@ -2662,10 +2665,10 @@ export function requestBetrayal({ actorId, note = "" }) {
     });
 }
 
-/** Ask the GM to throw a paid Meddle and apply it to the target; answers the roll it threw (E08+E28 C17). */
-export function requestMeddleResolve({ actorId, targetId, help }) {
-    return ask(ACTION_MEDDLE, { actorId, targetId, help }, {
-        local: () => import("./monocub.mjs").then(m => m.meddleOnGm({ actorId, targetId, help }))
+/** Ask the GM to throw a paid ability of a Monocub's and apply it to the target; answers the roll it threw (E08+E28 C17; E33 C10). */
+export function requestCubAbility({ actorId, key, targetId, choice }) {
+    return ask(ACTION_CUB_ABILITY, { actorId, key, targetId, choice }, {
+        local: () => import("./monocub.mjs").then(m => m.cubAbilityOnGm({ actorId, key, targetId, choice }))
     });
 }
 
