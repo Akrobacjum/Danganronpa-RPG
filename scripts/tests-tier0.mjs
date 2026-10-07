@@ -5902,7 +5902,7 @@ const REGRESSIONS = [
 
         const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
-        const ALLOWED = ["murder.mjs writeState", "murder.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIntoCast"];
+        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIntoCast"];
         const writers = files => {
             const out = [];
             for (const [file, text] of files) {
@@ -5952,8 +5952,8 @@ const REGRESSIONS = [
         const sources = await otherSources();
         const stray = writers(sources).filter(w => !ALLOWED.includes(w));
         ok(!stray.length, `the world half of an incident is written outside writeState, restoreState and the lifts: ${stray.join(", ")}`);
-        const murderSrc = stripComments(new Map(sources).get("murder.mjs") ?? "");
-        for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(murderSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
+        const storeSrc = stripComments(new Map(sources).get("incident-store.mjs") ?? "");
+        for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(storeSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
         const keys = named(new Map(sources).get("murder.mjs") ?? "");
         // Not a reading of nothing: murder.mjs's writes name the stage, the turn and the method (measured 26.09: 74 names, 26 of them distinct).
         ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in murder.mjs's writes - too few to trust`);
@@ -6046,7 +6046,7 @@ const REGRESSIONS = [
            asking the table counts as asking the rule - and the table itself, read here as a
            fourth reader, must ask the rule by name. */
         const ASKS = /\bincident(?:Indirect|Seats)\(/, RULE = /\bincidentIndirect\(/;
-        const READERS = [["murder.mjs", "castOwners", ASKS], ["settings.mjs", "incidentWitness", ASKS], ["events.mjs", "openingCard", ASKS],
+        const READERS = [["incident-store.mjs", "castOwners", ASKS], ["settings.mjs", "incidentWitness", ASKS], ["events.mjs", "openingCard", ASKS],
             ["settings.mjs", "incidentSeats", RULE]];
         const problems = (label, body, asks = ASKS) => {
             if (!body) return [`${label} was not found - this test reads nothing until it is pointed at it again`];
@@ -6271,19 +6271,26 @@ const REGRESSIONS = [
             JSON.stringify([3, 5, ["planted.mjs stray", "planted.mjs loose"], ["planted.mjs nested"]]),
             "the reader does not find exactly the two writes and the one queue inside the queue planted for it");
 
-        const src = new Map(await otherSources()).get("murder.mjs") ?? "";
-        const found = read("murder.mjs", src);
+        /* E34 C7a (1.2.70): the queue, the two writers and the three leaves moved to
+           incident-store.mjs, and most transitions that queue a write stayed in murder.mjs, so each
+           file is read on its own - `fnAt` names a function of the file it reads - and the two are
+           summed (07.10.2026: 15 writes and 4 queued spans in the store, 9 and 7 in murder.mjs; the
+           24 and 11 murder.mjs held alone before the move). */
+        const sources = new Map(await otherSources());
+        const found = ["incident-store.mjs", "murder.mjs"].map(file => read(file, sources.get(file) ?? ""))
+            .reduce((a, b) => ({ spans: a.spans + b.spans, writes: a.writes + b.writes, stray: [...a.stray, ...b.stray], again: [...a.again, ...b.again] }));
         // Not a reading of nothing: measured on 28.09, 17 writes and 8 queued spans.
-        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in murder.mjs - too few to trust`);
-        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in murder.mjs`);
+        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in incident-store.mjs and murder.mjs - too few to trust`);
+        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in incident-store.mjs and murder.mjs`);
         ok(!found.stray.length, `an incident's write runs outside its queue: ${found.stray.join(", ")}`);
         ok(!found.again.length, `a write in the incident's queue queues another, and the chain would wait on itself: ${found.again.join(", ")}`);
 
-        const bare = stripComments(src);
-        const memo = fnSource(bare, MEMO);
+        const bare = stripComments(sources.get("murder.mjs") ?? "");
+        const store = stripComments(sources.get("incident-store.mjs") ?? "");
+        const memo = fnSource(store, MEMO);
         ok(/\bcastStore\.patch\(RECORD, \{ sent: \{ \[userId\]: memo \} \}\)/.test(memo) && [...stripStrings(memo).matchAll(WRITE)].length === 1,
             `the memo's writer (${MEMO}) is gone, or writes more than what a player was sent`);
-        const notices = fnSource(bare, NOTICES);
+        const notices = fnSource(store, NOTICES);
         ok(/\bcastStore\.patch\(RECORD, \{ openingNotices: notices \}\)/.test(notices) && [...stripStrings(notices).matchAll(WRITE)].length === 1,
             `the request cards' writer (${NOTICES}) is gone, or writes more than the cards' ids`);
         const TRANSITIONS = ["checkVictimSpent", "finishIncident", "beginResolution", "passTurn", "thirdPartyEnters",
@@ -6964,12 +6971,12 @@ const REGRESSIONS = [
             ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
             ["cleanup.mjs", "undoLastCleanup", "scene.tokens.get()", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
+            ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
             ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
             ["murder.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
             ["murder.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
-            ["murder.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["music.mjs", "pausePlaylist", "playlist", "a playlist paused"],
             ["music.mjs", "clearHeld", "playlist", "a playlist let go"],
             ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],

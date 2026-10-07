@@ -878,7 +878,9 @@ const INVARIANTS = [
         // comment's length, so the note above the arming counts too. The suite
         // then reported the window "armed somewhere else" while it sat exactly
         // where it always had. A function ends at its own closing brace.
-        const writer = bodyOf(src, "async function writeState", { until: "\n}" });
+        // E34 C7a (1.2.70): the writer is incident-store.mjs's; the rest of this reads murder.mjs.
+        const writer = fnSource(stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/incident-store.mjs`).then(r => r.text())), "writeState");
         ok(/armBetrayalWindow/.test(writer),
             "the window is armed somewhere other than the single state writer");
         ok(/before\.stage !== "resolution"/.test(writer),
@@ -995,7 +997,7 @@ const INVARIANTS = [
          * Cheap to write down and it covers the whole module, not this stage.
          */
         const guilty = [];
-        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder"]) {
+        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder", "incident-store"]) {
             const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
             for (const m of src.matchAll(/game\.i18n\.localize\([^)]*\)\s*\|\|/g)) {
                 guilty.push(`${file}.mjs :: ${m[0].slice(0, 60)}`);
@@ -3962,7 +3964,7 @@ const INVARIANTS = [
            "own": the sender reads the stamps itself - the offers', from the store's rows for the
            user's characters (C8), the fog's, a section of the store (C9), and since E05 the
            crossings' and the note's (C4, C6) - so a call of it passes none. */
-        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
+        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["incident-store.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
             ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"], ["pre-session-note.mjs", "sendNoteTo", "own"],
             // E05 C10: the deaths a player may know, a stamp per body read off the store's rows.
             ["murder.mjs", "sendDeathsTo", "own"],
@@ -4181,8 +4183,9 @@ const INVARIANTS = [
             J({ killerId: "K", killerTurnId: "K", victimId: "V", betrayal: null }), "a field the write left out of what this browser held was not removed");
         equal(J(M.castFieldsToWrite({ thirdId: null, notAField: 1 }, { thirdId: "T" })), J({ thirdId: null }),
             "a named null was not written, or a field the record does not have was");
-        const src = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
-        ok(/const fields = castFieldsToWrite\(next, previous\);/.test(fnSource(src, "writeCast")), "writeCast does not stamp what castFieldsToWrite names");
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("murder.mjs") ?? "");
+        ok(/const fields = castFieldsToWrite\(next, previous\);/.test(fnSource(stripComments(sources.get("incident-store.mjs") ?? ""), "writeCast")), "writeCast does not stamp what castFieldsToWrite names");
         for (const fn of ["passTurn", "thirdPartyEnters"]) {
             const body = fnSource(src, fn);
             const asked = body.indexOf("castHeldHere(state)"), wrote = body.indexOf("writeState(");
@@ -4211,19 +4214,19 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const src = file => stripComments(sources.get(file) ?? "");
         const found = [];
-        for (const [file, fn] of [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo"], ["fog.mjs", "sendStoreTo"]]) {
+        for (const [file, fn] of [["mastermind.mjs", "sendDoorFlag"], ["incident-store.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo"], ["fog.mjs", "sendStoreTo"]]) {
             const body = fnSource(src(file), fn);
             const asked = body.indexOf("gmStoresQuiet()"), sent = body.search(/\bemit\(/);
             if (asked < 0 || sent < asked) found.push(`${file} ${fn} sends without asking whether the suite holds the stores`);
         }
-        for (const [file, fn, reads] of [["mastermind.mjs", "registerMastermind", "const mine = readStore();"], ["murder.mjs", "registerIncidentCastSync", "const cast = readCast();"],
+        for (const [file, fn, reads] of [["mastermind.mjs", "registerMastermind", "const mine = readStore();"], ["incident-store.mjs", "registerIncidentCastSync", "const cast = readCast();"],
             ["fog.mjs", "registerLedgerRoad", "sendStoreTo(sender);"], ["gm-bridge.mjs", "handleAdvancementAsk", "sendOffersTo(sender.id)"]]) {
             const body = fnSource(src(file), fn);
             const waited = body.indexOf("whenGmStoresAudible()"), read = body.indexOf(reads);
             if (waited < 0 || read < waited) found.push(`${file} ${fn} answers a player's request before the suite lets the stores go`);
         }
         for (const [file, key, compare, tell, baseline] of [["mastermind.mjs", "mastermind", "tellDoorChange", "notifyDoorAccess", "told"],
-            ["murder.mjs", "incidentCast", "tellCastChange", "pushCastToParticipants", "castTold"]]) {
+            ["incident-store.mjs", "incidentCast", "tellCastChange", "pushCastToParticipants", "castTold"]]) {
             const text = src(file);
             // The watch: `if (key !== \`${MODULE_ID}.${SETTINGS.<key>}\` || ... || gmStoresQuiet()) return;` and then the comparison.
             const watch = new RegExp(`key !== \`\\$\\{MODULE_ID\\}\\.\\$\\{SETTINGS\\.${key}\\}\`[^\\n]*\\|\\| gmStoresQuiet\\(\\)\\) return;\\s*${compare}\\(\\);`);
@@ -4523,7 +4526,7 @@ const INVARIANTS = [
             else if (!store.spec.backup || typeof store.spec.afterRestore !== "function") wrong.push(`${name}: its store ${from} does not send it again after a restore`);
         }
         ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
-        const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
+        const RETELLS = [["mastermind.mjs", "retellDoor"], ["incident-store.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
             ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"],
             // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
             ["truth-bullets.mjs", "retellBulletRefs"],

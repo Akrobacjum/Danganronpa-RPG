@@ -92,6 +92,7 @@ and adds its new files' rows here.
 | `scripts/fog-doorways.mjs` | the doorways: the wall test, the openings, the glow and its falloff, the outline with its gaps, the seam colour and `MAX_FOG_TEXTURE` | `fog.mjs` |
 | `scripts/fog-reveal.mjs` | the reveal's timing and drawing, and the room's outline and name: drawn, faded, held at one weight through a zoom, recoloured with the hour; `clearTransient` with the layer's finder | `fog.mjs` |
 | `scripts/fog-diagnostics.mjs` | the map's checks (`checkRegions`), `whatIsHere` with its probes, and how much of a scene belongs to no room (`sceneUncoveredPercent`); no state | `fog.mjs` |
+| `scripts/incident-store.mjs` | the incident's record: the world half and the cast, each participant's stamped copy and the socket that keeps it in step, the queue and the one write of both halves, who is in it, the betrayal window that write arms, and the opening's notices | `murder.mjs` |
 
 ## What the suite's four numbers mean
 
