@@ -89,6 +89,7 @@ files' rows here.
 | `scripts/projects-tray.mjs` | what the countdown tray draws on every render (Icon Only left, raw keys, undiscovered rows, progress, the fold) and its redraw | `projects-ui.mjs` |
 | `scripts/fog-geometry.mjs` | the fog's pure shape math: a region's shape in the layer's space, polylines, distances, inside-polygon tests, areas; no imports, no state | `fog.mjs` |
 | `scripts/fog-doorways.mjs` | the doorways: the wall test, the openings, the glow and its falloff, the outline with its gaps, the seam colour and `MAX_FOG_TEXTURE` | `fog.mjs` |
+| `scripts/fog-reveal.mjs` | the reveal's timing and drawing, and the room's outline and name: drawn, faded, held at one weight through a zoom, recoloured with the hour; `clearTransient` with the layer's finder | `fog.mjs` |
 
 ## What the suite's four numbers mean
 
