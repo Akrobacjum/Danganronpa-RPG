@@ -786,16 +786,6 @@ function readManager(dialog, projects) {
     }));
 }
 
-/**
- * The one list of players, drawn twice: in the project window and in a manager
- * row (P-1, Dawid 18.09).
- *
- * It replaced a single "Also visible to" dropdown, which could only ever name
- * one person and only when the project was being created - so a second
- * conspirator had to be added through the Share window afterwards, and taken off
- * through nothing at all. GMs only see this; players are named, never GMs, and
- * the builder is added by `builderIds` whatever is ticked here.
- */
 /** Every player, in the order a reader counts them: "Player 2" before "Player 10". The
     matrix's header and its rows ask separately, so they must get the same order. */
 function playerList() {
@@ -825,6 +815,16 @@ function viewerTicks(players, checked, project, { locked = false } = {}) {
                aria-label="${foundry.utils.escapeHTML(`${user.name}: ${project.name}`)}" /></td>`).join("");
 }
 
+/**
+ * The one list of players, drawn twice: in the project window and in a manager
+ * row (P-1, Dawid 18.09).
+ *
+ * It replaced a single "Also visible to" dropdown, which could only ever name
+ * one person and only when the project was being created - so a second
+ * conspirator had to be added through the Share window afterwards, and taken off
+ * through nothing at all. GMs only see this; players are named, never GMs, and
+ * the builder is added by `builderIds` whatever is ticked here.
+ */
 function viewerBoxes(players, checked, projectId = null, { locked = false } = {}) {
     const name = projectId ? `viewers.${projectId}` : "viewers";
     const known = new Set(checked);

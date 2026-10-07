@@ -148,7 +148,7 @@ function openingCard() {
      * the one who rolls. Stated as one line because it is one rule seen from
      * two ends.
      *
-     * Both halves are belt and braces here - `castOwners` in murder.mjs sends
+     * Both halves are belt and braces here - `castOwners` in incident-store.mjs sends
      * neither of them a cast while the opening runs (E06 C2 for the victim), so
      * their browser holds no names to find a seat among. They are read here
      * too because this card is also built on a GM's client, where the cast is

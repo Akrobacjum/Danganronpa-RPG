@@ -724,7 +724,7 @@ export async function armedCallsHeld(actor) {
  * Objection's evidence (trial.mjs `seizeFloor`, H20); the object a tie of a trace to the crime names
  * (bridge-guards.mjs `guardTieTraceHolder`, H21); and through this list itself a Reroll's plant (reroll.mjs
  * `settleSearch`, H22) and the Truth Bullets a death and a sweep take (chapter.mjs `bulletsHeldBy`, H22); and through
- * `itemAsHeld` the count a Reroll gives a used item's charge back to (murder.mjs `undoLastCrisis`, H23).
+ * `itemAsHeld` the count a Reroll gives a used item's charge back to (murder-rules.mjs `undoLastCrisis`, H23).
  */
 export async function itemsAsHeld(actor) {
     await judgedFor(actor?.id);
@@ -788,7 +788,7 @@ export async function flagsAsHeld(actor) {
  * items as `itemsAsHeld` reads them, in a list read as an actor's collection (`filter`, `find`, `some`, `get`). The
  * readers stay synchronous, and the player's browser's own reads stay on its document (its sheet and its quotes: the
  * GM decides). Nothing is written through it - a road writes to the documents. The roads: the crisis on the GM
- * (murder.mjs `applyCrisisAction`), a tool's relief on a project's roll (action-rolls.mjs `reliefHeld`), and the
+ * (murder-rules.mjs `applyCrisisAction`), a tool's relief on a project's roll (action-rolls.mjs `reliefHeld`), and the
  * receiver's hands on the copy roads (handover.mjs `giveItem`, `lootBody`; vault.mjs `stealFromVault`,
  * `stealFromPerson`, `plantOnPerson`). The wait is `itemsAsHeld`'s, and on these roads, as on H17's, it holds up
  * nothing that holds it up, by reading: a crisis action, a project's packet and a copy each come after the roll and
@@ -873,11 +873,12 @@ function heldMark(actor) {
  * fix r2-H25 (`maxHeld`, as a judgement bounds the mark) - on the primary; the document's on any other browser and where
  * the GMs hold no mark of their own. A player's write of a maximum is put back with `lockPlayerResources` on
  * (`LOCK_NAMED_MAX`) and stands on the sheet until its put-back lands, and for good where it fails. For a GM's
- * give-back held to the end of a track - a Reroll's rewind of a crisis action's marks (murder.mjs `undoLastCrisis`) and
- * of a clean-up's Sanity (cleanup.mjs `undoLastCleanup`) - read in the job `gmMeansWrite` runs, as the value is; so
- * too, since fix r2-H27, for a Reroll's price given back (reroll.mjs `giveBack`) and a critical's second Hope
- * (despair-award.mjs `adjustCritHopeTopUp`), the last two jobs that read Hope's maximum off the document (tier 1's R290
- * holds the census of such reads). Prepared: the end of a track, not a sheet's maximum to write over (`numberHeld`).
+ * give-back held to the end of a track - a Reroll's rewind of a crisis action's marks (murder-rules.mjs
+ * `undoLastCrisis`) and of a clean-up's Sanity (cleanup.mjs `undoLastCleanup`) - read in the job `gmMeansWrite` runs,
+ * as the value is; so too, since fix r2-H27, for a Reroll's price given back (reroll.mjs `giveBack`) and a critical's
+ * second Hope (despair-award.mjs `adjustCritHopeTopUp`), the last two jobs that read Hope's maximum off the document
+ * (tier 1's R290 holds the census of such reads). Prepared: the end of a track, not a sheet's maximum to write over
+ * (`numberHeld`).
  */
 export function meansMaxHeld(actor, key) {
     return maxHeld(actor, heldMark(actor), key);
@@ -921,7 +922,7 @@ export function numberHeld(actor, path) {
  * runs of 24 (e29run/r1g5q/q1-probe.log). `write(held)` answers what its caller needs; an error in it
  * is the caller's, and the queue goes on.
  * Since fix r2-H23 a Reroll's rewind writes in such a job too: the Hope a use gave taken back and the marks put back
- * to the end of the track the GMs hold (murder.mjs `undoLastCrisis`), and a clean-up's Sanity (cleanup.mjs
+ * to the end of the track the GMs hold (murder-rules.mjs `undoLastCrisis`), and a clean-up's Sanity (cleanup.mjs
  * `undoLastCleanup`).
  */
 export function gmMeansWrite(actor, write) {
@@ -968,7 +969,7 @@ export function gmMeansWrite(actor, write) {
  * GM's yes in `spendHopeCall` - comes before its job or after it, never in it; no judgement calls any of these roads;
  * and no `gmMeansWrite` job calls one (the jobs before this fix make their writes and call no road: reroll.mjs
  * `makeReroll` and `giveBack`, gm-bridge.mjs `armPaidByPlayer`, despair-award.mjs `adjustCritHopeTopUp`, roll-draw.mjs
- * `modifyFromHeld`, murder.mjs `undoLastCrisis`, cleanup.mjs `undoLastCleanup`).
+ * `modifyFromHeld`, murder-rules.mjs `undoLastCrisis`, cleanup.mjs `undoLastCleanup`).
  */
 export function meansWrite(actor, write) {
     if (game.user?.isGM) {
@@ -1477,7 +1478,7 @@ function seenNow(actor, changes, options, priors) {
  *
  * A GIVE-BACK'S FALL PAYS FOR NOTHING (E29 fix r2-H8, 06.10.2026; fix r2-H6's open point, decided (a) by
  * the orchestrator). A Reroll's take-back that removes what the action gave - the Hope an item's use
- * gave in a crisis action, murder.mjs `restoreResource` - carries `GIVE_BACK` (`giveBack`) and is a fall,
+ * gave in a crisis action, murder-rules.mjs `restoreResource` - carries `GIVE_BACK` (`giveBack`) and is a fall,
  * which added credit as any GM's fall does: a console's refund of the same Hope then stood on it, the
  * shape C5 closed for the Undo. It adds none now. Measured at 0d86603 (06.10.2026, e29run/r2h8red) by
  * tier 2: the 2 Hope taken back stayed in the credit and the player's refund of them stood (credit 2,

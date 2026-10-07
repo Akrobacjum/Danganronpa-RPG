@@ -153,7 +153,7 @@ export function planFrom(ticked) {
  *
  * The design wrote `seasonStartedAt` on every reset. It moves with the clock group
  * here: the Blackened register counts the rows of the running season only
- * (murder.mjs `blackenedIds`), so a reset that kept the clock and the incident - a
+ * (incident-store.mjs `blackenedIds`), so a reset that kept the clock and the incident - a
  * table clearing the traces mid-chapter - would have stopped counting this chapter's
  * killer before the verdict, and compaction then drops a past season's rows. The
  * epoch exists for the other case: the clock back at chapter 1 with the incident

@@ -771,12 +771,18 @@ function importsPart(B, H, { baseFamily, headFamily }, report, out) {
     // `import "./sheet.mjs";` in a new file passed). A move may import what the family imported, and its own files.
     const sources = (f, a) => a.stmts.filter(s => s.kind === "import" || s.kind === "reexport").map(s => ({ s, to: resolvePath(f, s.node.source.value) ?? s.node.source.value }));
     const known = new Set([...baseFamily, ...headFamily, ...baseFamily.flatMap(f => sources(f, B.analysis(f)).map(x => x.to))]);
-    let specifiers = 0, declarations = 0;
+    // An import the base's same file already held unread is not this commit's (E34 C10, 07.10.2026: its comments
+    // touch 35 files, and three that no move touched - eclipse.mjs, gm-stores.mjs, sheet.mjs - held four unread
+    // specifiers at 50740ee, which read red here). One the commit leaves unread is still red, a new file's included.
+    const unreadAtBase = f => new Set(B.files.has(f) ? B.analysis(f).imports.filter(i => !i.read).map(i => `${i.source} ${i.name}`) : []);
+    let specifiers = 0, declarations = 0, inherited = 0;
     for (const f of headFamily) {
-        const a = H.analysis(f);
+        const a = H.analysis(f), before = unreadAtBase(f);
         for (const i of a.imports) {
             specifiers++;
-            if (!i.read) out.push(`${f}:${i.line}: imports ${i.name} from ${i.source} and never reads it`);
+            if (i.read) continue;
+            if (before.has(`${i.source} ${i.name}`)) inherited++;
+            else out.push(`${f}:${i.line}: imports ${i.name} from ${i.source} and never reads it`);
         }
         for (const { s, to } of sources(f, a)) {
             declarations++;
@@ -787,7 +793,7 @@ function importsPart(B, H, { baseFamily, headFamily }, report, out) {
         if (cr >= 0) out.push(`${f}:${a.text.slice(0, cr).split("\n").length}: holds a CR byte (every file of scripts/ is LF)`);
     }
     report.push(`imports: ${specifiers} import specifiers and ${declarations} import or export-from declarations in ${headFamily.length} family file(s) at the head, `
-        + `${known.size} modules the family's files or their base imports name`);
+        + `${known.size} modules the family's files or their base imports name; ${inherited} unread import(s) the base's same file already held, not judged`);
 }
 
 /* ------------------------------ the planted pairs ------------------------------ */

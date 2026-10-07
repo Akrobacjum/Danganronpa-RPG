@@ -247,7 +247,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionLocked", /^that action is locked$/],
     ["actionSpent", /^that action is spent$/],
     ["actionBlocked", /^that action is blocked$/],
-    // E32+E07 C11a: an action the incident took away, or never gave that side (murder.mjs `crisisRefusal`).
+    // E32+E07 C11a: an action the incident took away, or never gave that side (murder-rules.mjs `crisisRefusal`).
     ["actionDenied", /^that action is not open to that character now$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],
     // E05: the GM's count of the Eclipse's crossings (eclipse.mjs applyRecordedMove).
@@ -579,7 +579,7 @@ export function guardShareGuest(sender, payload, ctx) {
  * Call is named now (call-effects.mjs `progressEffect`) and must be a Hope Call that adds progress -
  * a Despair Call is a Monokuma's and bought on a GM's client (calls.mjs `spendDespairCallFor`) - the
  * amount is that Call's, the character stands in the project's room as Contribution says and its
- * picker lists (call-effects.mjs `pickProject`), and the Call's price is a payment this GM saw the
+ * picker lists (call-pickers.mjs `pickProject`), and the Call's price is a payment this GM saw the
  * player make and takes once (roll-draw.mjs `takeCallPayment`). Asked last of the packet's guards,
  * so that no other refusal spends the payment.
  */

@@ -40,16 +40,17 @@
  * `victimOwed`, `noKillerTold`, `victimCheck`, `openingInvited`,
  * `openingPickOpen`, `openingRollsInFlight`, `closing` and `openingDialogs`. What
  * it does not hold: the incident's record and its roads (incident-store.mjs), the
- * murder window and the tracker (murder.mjs).
+ * murder window and the tracker (murder-ui.mjs).
  *
  * WHERE IT SITS. Moved out of murder.mjs by E34 (1.2.70), a pure move that
- * `node tools/moved-only.mjs` proves line by line. The file above it is
- * murder.mjs, which re-exports the thirty-one names of this file it exported
- * before and reads five (`openMurder`, `rollOpening`, `passTurn`, `endMurder`,
- * `openingInvited`), so importers keep importing murder.mjs, and nothing here
- * imports it back: R161 counts an `export ... from` as an edge, and the import
- * would close a cycle. Below it are incident-store.mjs, config.mjs, monokuma.mjs,
- * settings.mjs, gm-stores.mjs, gm-store.mjs, clock.mjs, character.mjs, secret.mjs,
+ * `node tools/moved-only.mjs` proves line by line. Above it are murder-ui.mjs,
+ * which reads five of its names (`openMurder`, `rollOpening`, `passTurn`,
+ * `endMurder`, `openingInvited`), and murder.mjs, which re-exports the
+ * thirty-one names of this file it exported before, so importers keep importing
+ * murder.mjs; nothing here imports either back: R161 counts an `export ... from`
+ * as an edge, and the import would close a cycle. Below it are
+ * incident-store.mjs, config.mjs, monokuma.mjs, settings.mjs, gm-stores.mjs,
+ * gm-store.mjs, clock.mjs, character.mjs, secret.mjs,
  * resource-guard.mjs, inventory.mjs, use-items.mjs, remnants.mjs, live.mjs and
  * utils.mjs. The opening's invitation sits here, not with the window, because the
  * rules call it (`openMurder` -> `rollOpening`, `closeIncident` ->
@@ -1395,8 +1396,9 @@ async function rateTierZero(actor, item, rule) {
  * sukcesie zyskuje broń improwizowaną, czyli narzędzie. Hope - Tier 2,
  * Despair - Tier 1." A real Crime Tool on the sheet, not a sentence - the next
  * Attack with a weapon has to be able to find it.
+ *
+ * @returns {Promise<string|null>} the item's id, so a Reroll can take it back.
  */
-/** @returns {Promise<string|null>} the item's id, so a Reroll can take it back. */
 async function grantImprovisedWeapon(actor, def, band, done) {
     const tier = def.unarmedImprovises?.[band];
     if (tier === undefined) return null;
@@ -3205,8 +3207,9 @@ const closing = new Set();
  *
  * The tools the incident consumed are destroyed on the way out - the crime tool
  * that was swung and the cleaning tool that was used on the scene. Dynamic
- * import, because cleanup.mjs reads the incident state from this file and a
- * static pair of imports both ways is a cycle for no gain.
+ * import, because cleanup.mjs reads the incident state from murder.mjs, which
+ * re-exports this file, and a static pair of imports both ways is a cycle for no
+ * gain.
  */
 async function closeIncident(state, { reason, followUp }) {
     /*
@@ -3933,7 +3936,6 @@ async function tellGms(text, extra = {}) {
     }`);
 }
 
-/** @returns the ChatMessage, so a Reroll can replace it rather than contradict it. */
 /**
  * Tell the incident what just happened - the GMs AND the people in it.
  *
@@ -3970,6 +3972,8 @@ async function tellGms(text, extra = {}) {
  * victim's last action, its total and its band, while the dice relay for the same roll,
  * reported while the stage was `incident`, left them out. The owner's rule is the roll's
  * stage; the tier-2 test "a trap's last crisis card does not reach its builder" reads it.
+ *
+ * @returns the ChatMessage, so a Reroll can replace it rather than contradict it.
  */
 async function announceCrisis(actor, def, { success, band, total, threshold, done, stage, promised = true }) {
     // On a success, the sentence for the band that came up. On a failure,
@@ -4046,30 +4050,6 @@ async function announceOpening(state, label, { rollerId, success, band, total, t
 }
 
 /**
- * Throw one of the two opening rolls.
- *
- * Rolled on the GM's client, on the participant's actor. That is a deliberate
- * difference from every other roll in this module: Stage 4 happens before the
- * table knows an incident is coming, and handing the victim a roll window
- * titled "opening roll - victim" would tell them the one thing the guide is
- * careful not to.
- *
- * Night swings both rolls, in opposite directions.
- */
-/**
- * Stage 4, handed to the person it is about.
- *
- * These two dice decide whether a murder happens at all, and they used to be
- * thrown on the GM's client - so the roll window opened on the wrong screen, the
- * Hope or Sanity it produced was committed by the GM, and a Call the killer had
- * armed for exactly this moment could not be reached. The guide gives the roll
- * to the killer and to the victim; this gives them the dice.
- *
- * The GM still throws it when there is nobody to ask: an unowned character, or
- * an owner who is not connected. That is not a fallback for convenience - an
- * incident cannot wait on somebody who has gone home.
- */
-/**
  * What this Stage 4 roll is called on the roller's screen: its window, and the request card
  * that says it is theirs.
  *
@@ -4093,6 +4073,18 @@ function openingTitle(side, state = murderState()) {
 export let openingInvited = null;
 
 /**
+ * Stage 4, handed to the person it is about.
+ *
+ * These two dice decide whether a murder happens at all, and they used to be
+ * thrown on the GM's client - so the roll window opened on the wrong screen, the
+ * Hope or Sanity it produced was committed by the GM, and a Call the killer had
+ * armed for exactly this moment could not be reached. The guide gives the roll
+ * to the killer and to the victim; this gives them the dice.
+ *
+ * The GM still throws it when there is nobody to ask: an unowned character, or
+ * an owner who is not connected. That is not a fallback for convenience - an
+ * incident cannot wait on somebody who has gone home.
+ *
  * Exported for the suite, which re-asks through it as the tracker's "Ask for the opening
  * roll again" does (`reaskOpening`, which adds only its cooldown).
  */

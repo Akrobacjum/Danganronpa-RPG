@@ -78,7 +78,7 @@ export const WORLD_SECRET_RULES = Object.freeze({
             fields: Object.freeze(["count"]),
             since: "E05 C12", why: "the Despair overflow's count, which a player's caption masks (S01-60)"
         }),
-        /* The world half of an incident: murder.mjs's `PUBLIC_INCIDENT`, written out (this file
+        /* The world half of an incident: incident-store.mjs's `PUBLIC_INCIDENT`, written out (this file
            imports nothing; R191 holds the two equal). Anything else - the names since LIVE-001,
            the method since E05 C8, the fight since E32 C2 - is the cast's. */
         murderState: Object.freeze({

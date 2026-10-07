@@ -12,18 +12,20 @@
  * reader: the seam colour (`colourOf`, `accentColour`, `outlineColour`) and
  * `MAX_FOG_TEXTURE`. One piece of state, `lastGlow`: what the last glow measured
  * for itself, set by `addDoorwayGlow`, filled in by `cutDoorwayEnds` and read by
- * fog.mjs's `diagnoseFog`. What it does not hold: the fog's layer and raster, the
- * reveal and the room's outline, the map's checks and the reports (fog.mjs), nor
- * the shape math (fog-geometry.mjs).
+ * fog.mjs's `diagnoseFog`. What it does not hold: the fog's layer and raster and
+ * the reports (fog.mjs), the reveal and the room's outline (fog-reveal.mjs), the
+ * map's checks (fog-diagnostics.mjs), nor the shape math (fog-geometry.mjs).
  *
  * WHERE IT SITS. Moved out of fog.mjs by E34 (1.2.70), a pure move that
- * `node tools/moved-only.mjs` proves line by line. The file above it is fog.mjs,
- * whose outline, reveal, raster, map checks and `doorwayReport` read sixteen of
- * its names - which is why they are exported now; fog.mjs exported none of them
- * before and re-exports none, so the module's API is the one it was. Nothing here
- * imports fog.mjs back (R161 would see the cycle). Below it are utils.mjs (`debug`)
- * and fog-geometry.mjs. `ADRIFT_WARN_RUN` is read only by fog.mjs's
- * `adriftCheck`; it stays among the doorway constants it was written beside.
+ * `node tools/moved-only.mjs` proves line by line. Above it are fog.mjs (the
+ * raster, the layer and `doorwayReport`), fog-reveal.mjs (the outline and the
+ * reveal) and fog-diagnostics.mjs (the map's checks), which read sixteen of its
+ * names between them - which is why they are exported now; fog.mjs exported none
+ * of them before and re-exports none, so the module's API is the one it was.
+ * Nothing here imports any of the three back (R161 would see the cycle). Below it
+ * are utils.mjs (`debug`) and fog-geometry.mjs. `ADRIFT_WARN_RUN` is read only by
+ * fog-diagnostics.mjs's `adriftCheck`; it stays among the doorway constants it
+ * was written beside.
  */
 
 import { debug } from "./utils.mjs";
@@ -659,7 +661,7 @@ function doorwayChains(edges, rect) {
     return chains;
 }
 
-/**
+/*
  * The glow along every open stretch of a room's border.
  *
  * ONE FIELD, NOT ONE PATCH PER SEGMENT - and that is the whole of this

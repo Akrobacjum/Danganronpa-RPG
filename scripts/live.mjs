@@ -542,7 +542,7 @@ export async function reopen(className, opener) {
  * aside - for a window the GM has already finished with. Not measured headless:
  * the harness's windows close at once (LIVE-E31-05).
  *
- * The precedent is `openIncidentTracker`'s own refresh (murder.mjs), which has
+ * The precedent is `openIncidentTracker`'s own refresh (murder-ui.mjs), which has
  * had this shape by hand since 11.09; this is that, named, so the next window can
  * have it in one line.
  */

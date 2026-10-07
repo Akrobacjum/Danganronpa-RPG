@@ -2145,7 +2145,7 @@ export function incidentParticipants() {
 /**
  * WHETHER THE RUNNING INCIDENT IS A TRAP: THE CAST'S, AND THE WORLD HALF'S WHERE THE CAST
  * HAS NONE (E05 fix r1-G1, 27.09.2026; the correctness review's M2). One rule for its three
- * readers - `castOwners` in murder.mjs (who is sent the cast), `incidentWitness` below (the
+ * readers - `castOwners` in incident-store.mjs (who is sent the cast), `incidentWitness` below (the
  * card's gate, the HUD's turn row, the edges, the music) and the opening Event card
  * (events.mjs) - which the round-1 review found reading it two ways: `castOwners` fell back
  * to the world half, the other two read the cast alone. The method is the cast's since E05
@@ -2167,7 +2167,7 @@ export function incidentIndirect(cast, state) {
 
 /**
  * WHO IS IN THE INCIDENT AT THIS STAGE (E06 C2, 27.09.2026; audit S04-01, the owner's D6).
- * One table for every reader that decides who is told: `incidentAudienceIds` in murder.mjs
+ * One table for every reader that decides who is told: `incidentAudienceIds` in incident-store.mjs
  * (the GM's side - who is sent the cast, and from C4 on the cards) and, on each browser,
  * `incidentWitness` below, the opening Event card (events.mjs) and the HUD's frozen clock.
  * Until E06 each held its own copy, and two rules sat in them as exceptions: a trap's killer
@@ -2231,7 +2231,7 @@ export function incidentSeats(cast, state, { stage = state?.stage } = {}) {
  *     their screen is the module telling them the moment it worked, which is
  *     exactly the fact the rest of this file exists to keep from travelling.
  *     They are let back in at Stage 6, when the scene becomes theirs to
- *     arrange - see `castOwners` in murder.mjs, which stops sending them the
+ *     arrange - see `castOwners` in incident-store.mjs, which stops sending them the
  *     cast at all until then.
  *
  * @returns {{running: boolean, witness: boolean, seat: string|null, gm: boolean, indirect: boolean}}

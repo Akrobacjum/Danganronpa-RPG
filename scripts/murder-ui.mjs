@@ -570,8 +570,9 @@ export async function openIncidentTracker() {
     /* AWAITED ONCE, HERE, so the body below can be rebuilt synchronously.
 
        `keepLive` calls `build()` and uses what comes back; a promise is not markup. The
-       import has to be dynamic - cleanup.mjs reads the incident state out of this file and
-       a static pair both ways is a cycle - so it is paid for at the door instead of inside
+       import has to be dynamic - cleanup.mjs reads the incident state out of murder.mjs, which
+       re-exports this file, and a static pair both ways is a cycle - so it is paid for at the
+       door instead of inside
        the thing that runs sixty times a fight. */
     const cleanup = await import("./cleanup.mjs");
 
@@ -664,8 +665,7 @@ export async function openIncidentTracker() {
  *
  * The thresholds are deliberately shown here and nowhere the killer can see -
  * they are read off the trace's own visibility, which is the answer key.
- */
-/**
+ *
  * EVERY KILLER'S (E32+E07 C12, 02.10.2026; audit S04-17): an accomplice cleans with their
  * own Sanity and their own tool, and the table showed the first killer's alone. With two,
  * each section is headed with its killer's name.

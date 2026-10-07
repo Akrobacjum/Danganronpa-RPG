@@ -81,15 +81,6 @@ export { whatIsHere, checkRegions, sceneUncoveredPercent } from "./fog-diagnosti
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
 
 /**
- * Which build of this file the browser actually loaded.
- *
- * Not decoration. Foundry serves module scripts as ordinary static files and
- * the browser is free to answer a plain F5 out of its own cache, so "I reloaded
- * and nothing changed" and "the fix does not work" produce the same sentence
- * from the person testing. `diagnoseFog()` prints this, which turns that into a
- * fact. Bump it whenever the drawing behaviour changes.
- */
-/**
  * Which build of this file a browser loaded, for `diagnoseFog`. Derived from
  * the manifest rather than typed by hand (MAP-14): the hand-typed stamp was
  * not bumped for three drawing changes, which is the one job it had.
@@ -135,8 +126,29 @@ const BACKDROP_LAYER = "drpgFogBackdrop";
  *
  * Both frequencies divide the tile exactly, which is what makes the repeat
  * invisible. Upright rather than diagonal because the isometric module on The
- * Forge rotates the whole canvas - see `bandQuad`.
+ * Forge rotates the whole canvas - see fog-reveal.mjs's `bandQuad`.
  * ------------------------------------------------------------------------ */
+
+/*
+ * THE RASTER IS GLASS IN FRONT OF THE MAP, NOT PAINT ON IT.
+ *
+ * It began anchored to the scene, on the reasoning that fog is a place rather
+ * than an effect on the lens. Every artefact this layer has produced came out
+ * of that one decision: a pattern fixed in scene units has a screen frequency
+ * that changes with the zoom, so at some distance it always crosses the
+ * resolution of the display, and past that point no sampler, mipmap or tile
+ * scale saves it. Four rounds of work went into pushing that distance further
+ * out without ever removing it.
+ *
+ * Held still against the SCREEN, the pattern has one frequency for ever. It
+ * cannot alias, it cannot moiré, and the drift is the only motion in it -
+ * which is the effect that was wanted in the first place. The fog it decorates
+ * is still a place: the silhouette masking this is drawn in scene coordinates
+ * and moves with the map, so the texture appears exactly over the fogged
+ * ground and nowhere else. The glass is what does not move; what shows through
+ * it does.
+ */
+
 const RASTER_TILE = 64;           // power of two: WebGL needs it to repeat
 const RASTER_DOT_STEP = 8;
 const RASTER_DOT_SIZE = 2;

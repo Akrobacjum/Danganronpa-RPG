@@ -53,7 +53,7 @@ const RING_GLOW_NAME = "drpgRemnantRingGlow";
 let ringZoom = 0;
 
 /** True when this browser wears Stained Glass. The SETTING first, then the class: the
-    class lands at ready and tokens are drawn before that - fog.mjs `flashOutline` records
+    class lands at ready and tokens are drawn before that - fog-reveal.mjs `flashOutline` records
     in full what reading the class alone cost there. */
 const glassOn = motionGlassOn;
 

@@ -274,7 +274,7 @@ export async function endEclipse({ advance = true } = {}) {
     /*
      * THE BETRAYALS' OFFERS ARE TAKEN BEFORE THE CLOCK MOVES (E32+E07 fix r1-G2, 01.10.2026;
      * the round-1 reviews' C-M1 and S-m4). A betrayal declared in this Eclipse left its offer
-     * in the cast (murder.mjs `betrayAsPlayer`), and the offer lasts the day it was given on:
+     * in the cast (murder-rules.mjs `betrayAsPlayer`), and the offer lasts the day it was given on:
      * after Night the advance below rolls the day over, and the primary GM's sweep of the
      * day's offers (`drpgTimeOfDayChanged`) would take it first - the declaration, made on its
      * day and paid for, would find nothing at the lights. Taken here, at the Eclipse's end,

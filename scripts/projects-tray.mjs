@@ -130,8 +130,8 @@ export function localiseRawKeys(root) {
  * So the row goes, on the same terms the map token goes (visibility.mjs): one
  * rule, `knowsProject`, asked per client. Removed rather than hidden with a
  * class - a hidden row is still in the accessibility tree and still in the
- * tray's own count, and this file already removes system-owned controls on
- * every render for the same reason.
+ * tray's own count, and the render hook (projects-ui.mjs) already removes
+ * system-owned controls on every render for the same reason.
  *
  * FAILING OPEN IS DELIBERATE, twice over:
  *   - a row this pass cannot resolve to a project stays, because it may not be

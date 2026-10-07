@@ -64,7 +64,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
        or the accomplice's player but not p1, which a veiled card never is.
 
        READ ONCE STAGE 4 HAS BEEN ANSWERED, and required to have been. The killer's
-       own client throws the opening roll (murder.mjs `rollOpening` asks the owner),
+       own client throws the opening roll (murder-rules.mjs `rollOpening` asks the owner),
        then sends the result to the GM, whose state leaves "openingRoll"; the roll
        document went through the relay before that packet, so by then p1 has it.
        The first version read 300 ms after `openMurder`, and in one of four runs

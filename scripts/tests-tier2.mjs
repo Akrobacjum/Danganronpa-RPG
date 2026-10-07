@@ -2388,7 +2388,7 @@ const SCENARIOS = [
          * that. Tier 2 holds the stores, so a cast would not be sent here even to a
          * participant; 13-murder-signals reads the victim's browser for it. Red on the first
          * C2 tree (27.09): the invitation's withdrawal, `murder.openingCancel`, was addressed
-         * to the victim's player as well (murder.mjs `revokeOpeningInvitation`).
+         * to the victim's player as well (murder-rules.mjs `revokeOpeningInvitation`).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer whose player is asked the opening roll, and a victim with a player to tell");
         const M = await import("./murder.mjs");
@@ -2436,7 +2436,7 @@ const SCENARIOS = [
          * E06 C3, 27.09.2026; audit S04-01 (L09, L10). Every holder of the cast was sent the
          * record whole but for the swing memo: a trap's victim read its builder in their copy
          * (and on their Event card), and every participant held the Reroll receipt. What each
-         * holder is sent is `castFor` in murder.mjs, read here for three students with players:
+         * holder is sent is `castFor` in incident-store.mjs, read here for three students with players:
          * a trap is opened, its victim's roll misses (the incident starts), a third walks in on
          * the victim's side and the victim takes a crisis action, which writes the receipt;
          * then Stage 6, where the builder is let back in and the third - on the victim's side,
@@ -2758,7 +2758,7 @@ const SCENARIOS = [
     ["a participant's copy carries the fight, a bystander's browser holds none of it", async () => {
         /*
          * E32 C2, 28.09.2026. The fight left the world half (the test above), and each holder
-         * of the cast is sent it in their copy (murder.mjs `castFor`): the victim's panel asks
+         * of the cast is sent it in their copy (incident-store.mjs `castFor`): the victim's panel asks
          * whose turn it is of their own browser. A direct murder is opened between two students
          * with players and a third with a player stands elsewhere; the victim takes a crisis
          * action, which passes the turn. Each copy is read as `castFor` makes it - tier 2
@@ -2944,7 +2944,7 @@ const SCENARIOS = [
          * before it told the GM, so a Tier 1 knife that broke on a Despair hit was out of the
          * hand the damage was read from: the hit counted as unarmed - 1 Health, not 2 - and
          * handed the killer an improvised weapon. The GM wears it now, after the damage
-         * (murder.mjs `wearSwing`), and reads the damage off the knife the roll swung. At the
+         * (murder-rules.mjs `wearSwing`), and reads the damage off the knife the roll swung. At the
          * killer's turn (`swingFixture`) the killer attacks with a weapon from this browser,
          * as the suite throws every roll, and hits with a Despair. Read: the victim's Health
          * marks (the pass after it drains Sanity, which the victim has all of), the knife
@@ -3387,8 +3387,8 @@ const SCENARIOS = [
     ["a crisis swing on the GM deals and wears by the weapon as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
         /*
          * E29 fix r2-H18, 06.10.2026; H17's seam. The GM's crisis action decided by the killer's items as they stood
-         * (murder.mjs `applyCrisisAction`) - the weapon swung, the tier its damage reads, the wear it takes - and a
-         * player's write the audit puts back stands on the item until its put-back lands, or for good where the
+         * (murder-rules.mjs `applyCrisisAction`) - the weapon swung, the tier its damage reads, the wear it takes - and
+         * a player's write the audit puts back stands on the item until its put-back lands, or for good where the
          * put-back fails: the GMs' mark keeps their own then. It reads them as the GMs hold them now (sheet-audit.mjs
          * `actorAsHeld`). At the killer's turn (`swingFixture`) the readied Tier 1 knife is given tier 3 where the GMs'
          * mark does not see it (the audit's aside, a failed put-back's state), and the killer swings it on a hit with
@@ -3425,12 +3425,12 @@ const SCENARIOS = [
     ["a crisis's unarmed swing on the GM improvises nothing for a killer the GMs hold carrying a weapon", async () => {
         /*
          * E29 fix r2-H18, 06.10.2026. An unarmed swing that lands improvises a weapon for a killer who carries none
-         * (murder.mjs `carriesWeapon`), and that was read off the sheet as it stood: a Crime Tool the player's console
-         * put in a stash a moment before - a write the audit puts back - left the killer carrying nothing, and the GM
-         * handed them a weapon besides the one that came back. At the killer's turn (`swingFixture`) the GM puts the
-         * knife down and stows any other Crime Tool the killer carries, the knife is put in a stash where the GMs' mark
-         * does not see it (the audit's aside), and the killer swings with no weapon named, on a hit with Hope. Read:
-         * whether the action stood, and how many things the killer was handed. Until this fix (0c75739,
+         * (murder-rules.mjs `carriesWeapon`), and that was read off the sheet as it stood: a Crime Tool the player's
+         * console put in a stash a moment before - a write the audit puts back - left the killer carrying nothing, and
+         * the GM handed them a weapon besides the one that came back. At the killer's turn (`swingFixture`) the GM puts
+         * the knife down and stows any other Crime Tool the killer carries, the knife is put in a stash where the GMs'
+         * mark does not see it (the audit's aside), and the killer swings with no weapon named, on a hit with Hope.
+         * Read: whether the action stood, and how many things the killer was handed. Until this fix (0c75739,
          * e29run/r2h18red, 06.10.2026) the killer was handed one.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
@@ -3468,15 +3468,15 @@ const SCENARIOS = [
 
     ["a crisis swing on the GM swings no broken weapon, readied again or not", async () => {
         /*
-         * E29 fix r2-H20, 06.10.2026; found by fix r2-H18. The swing (murder.mjs `swungWeapon`) took the weapon a packet
-         * named where the killer carried it and held it ready, and did not ask whether it was broken: a break puts a
-         * weapon down (inventory.mjs `breakItem`), but `equipped` is the player's to write and no judged field, so a
-         * console readied a ruined knife again and the swing dealt its tier. At the killer's turn (`swingFixture`) the
-         * GM breaks the readied Tier 1 knife, it is readied again, and the killer swings it on a hit with Fear. Read:
-         * whether the action stood, the victim's Health marks (a Tier 1 weapon deals 2, an unarmed hit the bare 1),
-         * whether the receipt records the knife, and how many things the killer was handed (a broken weapon is none,
-         * murder.mjs `carriesWeapon`, so an unarmed hit improvises one). Until this fix (4d1532c, e29run/r2h20red,
-         * 06.10.2026): stood, 2 Health marks, the knife on the receipt, and nothing handed.
+         * E29 fix r2-H20, 06.10.2026; found by fix r2-H18. The swing (murder-rules.mjs `swungWeapon`) took the weapon a
+         * packet named where the killer carried it and held it ready, and did not ask whether it was broken: a break
+         * puts a weapon down (inventory.mjs `breakItem`), but `equipped` is the player's to write and no judged field,
+         * so a console readied a ruined knife again and the swing dealt its tier. At the killer's turn (`swingFixture`)
+         * the GM breaks the readied Tier 1 knife, it is readied again, and the killer swings it on a hit with Fear.
+         * Read: whether the action stood, the victim's Health marks (a Tier 1 weapon deals 2, an unarmed hit the bare
+         * 1), whether the receipt records the knife, and how many things the killer was handed (a broken weapon is
+         * none, murder-rules.mjs `carriesWeapon`, so an unarmed hit improvises one). Until this fix (4d1532c,
+         * e29run/r2h20red, 06.10.2026): stood, 2 Health marks, the knife on the receipt, and nothing handed.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const INV = await import("./inventory.mjs");
@@ -3587,7 +3587,7 @@ const SCENARIOS = [
          * the victim unmarked), is Rerolled from this browser; the roll is the suite's
          * (`rerollableRoll`), and as it is thrown again - after the payment - the killer is
          * granted 1 Hope and the GM passes the turn, so the replay's rewind finds the incident
-         * moved on (murder.mjs `undoLastCrisis`) and answers null. Read: what the Call answered,
+         * moved on (murder-rules.mjs `undoLastCrisis`) and answers null. Read: what the Call answered,
          * the killer's Hope against before, the card's rolls against before, how often they were
          * rewritten, the Despair pool, the GMs' row's total, and whether a journal row is left.
          */
@@ -5889,7 +5889,7 @@ const SCENARIOS = [
          * the killer, the victim and the third read off the state, so a trap's builder - in no
          * room, holding no copy of the cast until Stage 6 - was sent the words of every card of
          * the fight. The card's audience is `incidentAudienceIds` now and the actor who acted
-         * (murder.mjs `announceCrisis`). A trap is opened, its victim's roll misses and the
+         * (murder-rules.mjs `announceCrisis`). A trap is opened, its victim's roll misses and the
          * victim takes a crisis action (C3's fixture); every card's words this GM sends for it
          * are read off the packets (`wordsSent`): the victim's player is sent the card, the
          * builder's player nothing.
@@ -5949,7 +5949,7 @@ const SCENARIOS = [
         /*
          * E06 C4, 27.09.2026; audit S04-36 (L11). A third party who walks in and chooses Averted
          * eyes leaves the incident before the card of that choice is written - `thirdId` is
-         * nulled on the way (murder.mjs `applyThirdPartyChoice`) - and the card's list was read
+         * nulled on the way (murder-rules.mjs `applyThirdPartyChoice`) - and the card's list was read
          * off the state afterwards, so the one person the card is about was the one not sent it.
          * `announceCrisis` adds the actor who acted (`also`). A direct murder, its opening ruled
          * a success here (C2's fixture), a third walks in and averts their eyes; the packets
@@ -6028,7 +6028,7 @@ const SCENARIOS = [
          * E06 C4, 27.09.2026; audit S04-31, the owner's D6. The victim of a direct murder was
          * told "Someone is moving on you" while the Event card and their copy of the cast named
          * the killer - face to face; the whisper names the killer now (`victimUnderAttackBy`,
-         * murder.mjs `tellVictimTheIncidentBegan`). A trap's victim is told the trap closed,
+         * murder-rules.mjs `tellVictimTheIncidentBegan`). A trap's victim is told the trap closed,
          * and nothing of its builder. Each murder is opened and its incident started with the
          * same two students; the words sent to the victim's player are read off the packets.
          */
@@ -7435,7 +7435,7 @@ const SCENARIOS = [
         /*
          * E29 C9, 05.10.2026; audit S17-12, the stage plan's 3.2. What a drawn crisis roll's situation
          * gave it in dice - a weapon in hand, a second try, a trap's victim - was the packet's
-         * `situational`, as the roller's browser armed it (murder.mjs `crisisSituational`), so a packet
+         * `situational`, as the roller's browser armed it (murder-rules.mjs `crisisSituational`), so a packet
          * that said 0 was expected 0. The GM reads it now (roll-draw.mjs `LEGAL_READERS.situation`). A
          * direct murder between two students with players (`fightOpen`), the victim's Self-defence - which
          * a weapon in hand helps - at a turn of theirs, a weapon put in their hand and a GM's pick of Body
@@ -11211,7 +11211,7 @@ const SCENARIOS = [
          * E08+E28 C17, 04.10.2026; audit S10-06. The opening a participant throws on their own
          * browser reached the GM as a total, a critical and a duality (`murder.openingResult`),
          * and the GM opened the incident on them. A player's packet names the roll now, the
-         * message the GM wrote for it (murder.mjs `throwOpeningRoll`), and is scored on its
+         * message the GM wrote for it (murder-rules.mjs `throwOpeningRoll`), and is scored on its
          * record. A direct murder between two students with players, its invitation swallowed
          * (`heldInvitations`) so the killer's own browser throws nothing; the killer's player
          * sends a 1 naming a Search's roll, then a 1 naming an opening's roll the record says came
@@ -12657,7 +12657,7 @@ const SCENARIOS = [
          * 2 Hope (config.mjs `USABLE_EFFECTS`). C6b's replay used it again without the Hope and its
          * rewind took none back: rerolled into a miss the use was gone and its Hope stayed, and
          * rerolled into a hit the second use paid nothing. The GM reads what the first use gave
-         * against the player's `before` (murder.mjs `hopeTheUseGave`), keeps it on the receipt, the
+         * against the player's `before` (murder-rules.mjs `hopeTheUseGave`), keeps it on the receipt, the
          * rewind takes it back and the replay's use pays its own (`useItemRerolled` with a tier 3
          * pack, the killer at their most Hope after the use). Rerolled into a miss with Hope, 4 and
          * 2, then into a hit with Hope, 11 and 5. Read, for each: as `useItemRerolled` reads, the
@@ -12676,9 +12676,9 @@ const SCENARIOS = [
     ["a Reroll's replay of Use an item uses the item as the GMs hold it, not as a write of the player's their put-back has not undone", async () => {
         /*
          * E29 fix r2-H20, 06.10.2026; H18's seam. The replay a Reroll of Use an item makes on the GM uses the item again
-         * (murder.mjs `afterCrisisRoll`, use-items.mjs `useItem`), and what the use decides by - whether it is a usable,
-         * broken or stashed, its tier and its kind - was read off the item as it stood, where a player's write the audit
-         * puts back stands until its put-back lands, or for good where it fails. The first test's use above
+         * (murder-rules.mjs `afterCrisisRoll`, use-items.mjs `useItem`), and what the use decides by - whether it is a
+         * usable, broken or stashed, its tier and its kind - was read off the item as it stood, where a player's write
+         * the audit puts back stands until its put-back lands, or for good where it fails. The first test's use above
          * (`useItemRerolled`: a Tier 1 healing pack, the Reroll a hit with Hope on 11 and 5), with the pack given tier 3
          * where the GMs' mark does not see it (`aside`) after the first use and before the Reroll - a tier 3 heals 2 and
          * adds 2 Hope (config.mjs `USABLE_EFFECTS`). Read: as `useItemRerolled` reads. Until this fix (4d1532c,
@@ -12698,13 +12698,13 @@ const SCENARIOS = [
         /*
          * E29 fix r2-H23, 06.10.2026; found by fix r2-H22, which read it and measured nothing. The undo of Use an item
          * gives back the charge the use took where the row's `before` - the player's word - names more than there is
-         * (murder.mjs `undoLastCrisis`, E08+E28 C6b), and read what there is off the pack, where a player's raise the
-         * audit puts back stands until its put-back lands, and for good where the put-back fails. Written as the GM's,
-         * the count given back is the GMs' from then on, and the raise's put-back, read when written (fix r2-H16),
-         * finds its path moved and writes nothing. The second test's use above (`useItemRerolled`: a Tier 1 healing
-         * pack of two, one after the use, its Reroll a miss with Hope on 4 and 2), with the player's console raising
-         * the pack to 5 after the use, its put-back refused while the Reroll is made (`consoleWrite`), and a `before`
-         * naming 9 - forged - or 2. Read: as `useItemRerolled` reads, and the count the GMs' mark holds.
+         * (murder-rules.mjs `undoLastCrisis`, E08+E28 C6b), and read what there is off the pack, where a player's raise
+         * the audit puts back stands until its put-back lands, and for good where the put-back fails. Written as the
+         * GM's, the count given back is the GMs' from then on, and the raise's put-back, read when written (fix
+         * r2-H16), finds its path moved and writes nothing. The second test's use above (`useItemRerolled`: a Tier 1
+         * healing pack of two, one after the use, its Reroll a miss with Hope on 4 and 2), with the player's console
+         * raising the pack to 5 after the use, its put-back refused while the Reroll is made (`consoleWrite`), and a
+         * `before` naming 9 - forged - or 2. Read: as `useItemRerolled` reads, and the count the GMs' mark holds.
          * At e253b3a (06.10.2026, e29run/r2h23red), with 9: the pack at 6 on the sheet and in the mark, four charges
          * minted; with 2: at 5 on the sheet - the raise its refused put-back left - and 1 in the mark, the use's
          * charge not given back (a cost to its writer only, as fix r2-H22 read it). 2 and 2 for both since.
@@ -14275,7 +14275,7 @@ const SCENARIOS = [
 
     ["a trap's builder is not told who walked in on the fight and left, nor when the fight last moved", async () => {
         /* E32+E07 C10, 02.10.2026. Who left (`departed`) is a cast field, held null for a trap's
-           builder, who is seated from Stage 6 on and is kept every part of the fight (murder.mjs
+           builder, who is seated from Stage 6 on and is kept every part of the fight (incident-store.mjs
            `castFor`, fix r1-G1). A trap springs, a third walks in on the victim's side and averts
            their eyes, and the GM moves the incident to Stage 6 - a write after the leave. Since fix
            r2-G2 (03.10.2026; the round-2 review's S2-m1 and S2-m3) no player's copy holds who left -
@@ -14313,7 +14313,7 @@ const SCENARIOS = [
            back as a record, every field stamped anew: the offer of an earlier incident too - so its
            third, outside this one, was sent it with the Reroll's time (measured by the review, 94
            W1) and an offer swept after the action came back - and the seats and `openedAt`, which
-           a standing packet reads the opening off (murder.mjs `standingStamps`). The offer of a
+           a standing packet reads the opening off (incident-store.mjs `standingStamps`). The offer of a
            first incident stands; in a second, the victim's Leave a clue fails, the offer is swept,
            and the GM replays the action as a Reroll: the offer stays swept, and the stamps of the
            opening and the seats, which the rewind does not change, do not move. */
@@ -15393,7 +15393,7 @@ const SCENARIOS = [
          * buttons, wrong and then right; last, a right verdict that names the hidden victim for
          * execution. Every Level Up window is closed unanswered, which writes nothing.
          * Both killers are players' who are connected: an opening roll with nobody to ask is
-         * thrown on the GM's client (murder.mjs `rollOpening`), and with the unowned student as a
+         * thrown on the GM's client (murder-rules.mjs `rollOpening`), and with the unowned student as a
          * killer that real roll raced `resolveKillerOpening` - measured 27.09 on the harness, four
          * runs: two incidents closed as "openingFailed" and one roll gave the GM a Fear. So the
          * three are picked from every living student, not from the first four (`cast`), and a
@@ -15554,7 +15554,7 @@ const SCENARIOS = [
          * trial left out a killer only while each of them was a row of the deaths store - so a
          * victim revived (the GM's undo of a death, which drops the row: the plan's section 2)
          * left their killer counted at the trial, asked for on every ballot. The trial counts a
-         * killer for a death the table knows now (murder.mjs `untoldDeath`). A row naming one
+         * killer for a death the table knows now (incident-store.mjs `untoldDeath`). A row naming one
          * victim, published and then revived; the register keeps the row for the rule of two
          * witnesses. Red on 8c6dfd6's runtime: the killer was still counted after the revival.
          */
@@ -24126,7 +24126,7 @@ const SCENARIOS = [
     ["a free take shows no threshold", async () => {
         /*
          * E32+E07 C15, 03.10.2026; audit S04-27. A critical Self-defence hands the victim one
-         * resolution action taken without dice (murder.mjs `isFreeTake`), and the menu still
+         * resolution action taken without dice (murder-rules.mjs `isFreeTake`), and the menu still
          * printed Survive's "Beat 18" and the confirmation still said "Roll it", so a player
          * could back out of a sure thing thinking it a risk. The victim's critical Self-defence
          * is scored by the GM, as "a critical Self-defence hands over one action" does; then
@@ -31216,7 +31216,7 @@ const SCENARIOS = [
      */
     ["a crisis action a Reroll takes back takes the credit its blow left, so the victim's refund of the same is flagged", async () => {
         /* The killer's Weapon attack hits the victim - Health marks, the GMs' credit - and the Reroll's replay
-           misses: the marks the blow made come back through murder.mjs `restoreResource`. */
+           misses: the marks the blow made come back through murder-rules.mjs `restoreResource`. */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player, the victim's refund judged");
         const M = await import("./murder.mjs");
         const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
@@ -31255,7 +31255,7 @@ const SCENARIOS = [
     ["a Use an item's Hope a Reroll takes back is no credit, so the player's refund of the same is put back", async () => {
         /* E29 fix r2-H8, 06.10.2026: fix r2-H6's open point, decided (a). The killer's Use an item with a tier-3
            pack scored on the GM - 2 Hope the use gave, as the player's browser writes it - then taken back by
-           the Reroll's rewind (murder.mjs `restoreResource`, a GM's fall carrying `GIVE_BACK`) and replayed
+           the Reroll's rewind (murder-rules.mjs `restoreResource`, a GM's fall carrying `GIVE_BACK`) and replayed
            into a miss; then the killer's player writes the same 2 Hope back as a `refund`. At 0d86603
            (06.10.2026, e29run/r2h8red) the credit held the 2 and the refund stood on them. */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player, the killer's refund judged");
@@ -31391,20 +31391,20 @@ const SCENARIOS = [
          * E29 fix r2-H23, 06.10.2026; the siblings of a used item's charge (its test above, by Use an item's Reroll). A
          * take-back computed from a means or a maximum read off the sheet - where a player's write the audit puts back
          * stands until its put-back lands, and for good where the put-back fails - was written as a GM's, the GMs'
-         * value from then on: the Hope a use gave, taken back off the Hope on the sheet (murder.mjs `undoLastCrisis`);
-         * the marks a use healed, put back up to the sheet's Health maximum (`marksBack`); a clean-up's Sanity, given
-         * back down to the sheet's Sanity maximum (cleanup.mjs `undoLastCleanup`). The killer, at 1 Hope and 4 Health
-         * marks, uses a tier 3 pack - 2 Hope given and 2 marks healed, written here by the GM where the player's
-         * browser writes them - and the use is scored on the GM; the player's console then raises the Hope to the most
-         * it holds and lowers the Health maximum to 1, its put-back refused by a hook of the GM's, as scenario 30
-         * refuses one, and the rewind runs as reroll.mjs `settleCrisis` runs it, into a miss with Hope. `settleCrisis`
-         * comes after the Reroll's payment, which writes the Hope from the GMs' value (fix r2-H5) and so takes off a
-         * forged Hope heard before it: this one is heard between the payment and the rewind. Then a clean-up attempted
-         * at 3 Sanity marks is charged on the GM; the console lowers the Sanity maximum to 1, refused the same way, and
-         * the clean-up's Reroll takes the attempt back. Read: the Hope, the Health marks and the Sanity marks, each on
-         * the sheet and in the GMs' mark. At e253b3a (06.10.2026, e29run/r2h23red): [[4, 4, 1, 1], [1, 1]] - the most
-         * Hope (6) less the use's 2, not the GMs' 3 less it; and 1 Health mark and 1 Sanity mark where the maxima the
-         * GMs hold put back 4 and 3.
+         * value from then on: the Hope a use gave, taken back off the Hope on the sheet (murder-rules.mjs
+         * `undoLastCrisis`); the marks a use healed, put back up to the sheet's Health maximum (`marksBack`); a
+         * clean-up's Sanity, given back down to the sheet's Sanity maximum (cleanup.mjs `undoLastCleanup`). The killer,
+         * at 1 Hope and 4 Health marks, uses a tier 3 pack - 2 Hope given and 2 marks healed, written here by the GM
+         * where the player's browser writes them - and the use is scored on the GM; the player's console then raises
+         * the Hope to the most it holds and lowers the Health maximum to 1, its put-back refused by a hook of the GM's,
+         * as scenario 30 refuses one, and the rewind runs as reroll.mjs `settleCrisis` runs it, into a miss with Hope.
+         * `settleCrisis` comes after the Reroll's payment, which writes the Hope from the GMs' value (fix r2-H5) and so
+         * takes off a forged Hope heard before it: this one is heard between the payment and the rewind. Then a
+         * clean-up attempted at 3 Sanity marks is charged on the GM; the console lowers the Sanity maximum to 1,
+         * refused the same way, and the clean-up's Reroll takes the attempt back. Read: the Hope, the Health marks and
+         * the Sanity marks, each on the sheet and in the GMs' mark. At e253b3a (06.10.2026, e29run/r2h23red): [[4, 4,
+         * 1, 1], [1, 1]] - the most Hope (6) less the use's 2, not the GMs' 3 less it; and 1 Health mark and 1 Sanity
+         * mark where the maxima the GMs hold put back 4 and 3.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
         needs(world.atLeast("sceneOnScreen"), "the clean-up's trace is placed on the scene on screen");
@@ -31754,17 +31754,17 @@ const SCENARIOS = [
     ["the incident's marks are held to the maxima the GMs hold, not ones a console lowered that the audit has not put back", async () => {
         /*
          * E29 fix r2-H24, 06.10.2026. The incident's GM-side writes of a student's marks, held to a maximum read off the
-         * sheet: a Despair opening fills the victim's Sanity to its maximum (murder.mjs `resolveKillerOpening`), a hit
-         * and a drain take Sanity and then Health (`takeReserves`), and a resolution's price is paid in blood on a full
-         * Sanity (`spendStress`). The victim at 3 Sanity marks, the console's Sanity maximum lowered to 3 and its
-         * put-back refused (`inConsoleWindow`): the opening is Despair. At 3 Sanity marks and 1 Health mark, the same
-         * maximum lowered again: the killer strikes with Hope (1 Sanity, 1 Health) and the turn, passing to the victim,
-         * drains 1 Sanity. A Self-defence with Hope opens Survive; at a full Sanity and 1 Health mark the console lowers
-         * the Health maximum to 1, and Survive fails with Hope - its extra drain and its price both land on Health.
-         * Read: the victim's Sanity after the opening, Sanity and Health after the strike, Health after Survive; each
-         * on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red), on the sheet and in the mark
-         * alike: the opening filled Sanity to 3 (6 since); the strike's Sanity and the drain went to Health - Sanity 3,
-         * Health 4 (5 and 2 since); Survive's drain and price marked nothing - Health 1 (3 since).
+         * sheet: a Despair opening fills the victim's Sanity to its maximum (murder-rules.mjs `resolveKillerOpening`),
+         * a hit and a drain take Sanity and then Health (`takeReserves`), and a resolution's price is paid in blood on
+         * a full Sanity (`spendStress`). The victim at 3 Sanity marks, the console's Sanity maximum lowered to 3 and
+         * its put-back refused (`inConsoleWindow`): the opening is Despair. At 3 Sanity marks and 1 Health mark, the
+         * same maximum lowered again: the killer strikes with Hope (1 Sanity, 1 Health) and the turn, passing to the
+         * victim, drains 1 Sanity. A Self-defence with Hope opens Survive; at a full Sanity and 1 Health mark the
+         * console lowers the Health maximum to 1, and Survive fails with Hope - its extra drain and its price both land
+         * on Health. Read: the victim's Sanity after the opening, Sanity and Health after the strike, Health after
+         * Survive; each on the sheet and in the GMs' mark. At 85fdf9d (06.10.2026, e29run/r2h24red), on the sheet and
+         * in the mark alike: the opening filled Sanity to 3 (6 since); the strike's Sanity and the drain went to Health
+         * - Sanity 3, Health 4 (5 and 2 since); Survive's drain and price marked nothing - Health 1 (3 since).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player whose write is judged");
         const M = await import("./murder.mjs");

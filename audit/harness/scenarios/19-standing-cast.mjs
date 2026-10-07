@@ -4,7 +4,7 @@
  *
  * A player who holds no seat is sent a "standing" packet - nothing, or the betrayal offer
  * alone - carrying the seats' stamps, and those move with the incident: a Role reversal
- * that held stamps the killer and the victim at once. murder.mjs `sendCast` sends such a
+ * that held stamps the killer and the victim at once. incident-store.mjs `sendCast` sends such a
  * packet once and repeats it, and keeps what it sent with the GMs' record so that a GM
  * whose browser opens later repeats it too; a player never sent one reads no more than the
  * opening. D1, W1, R1, F1 and F2 were red at 7ae1951 (its murder.mjs and gm-stores.mjs

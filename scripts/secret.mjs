@@ -645,7 +645,7 @@ async function forget(ids = []) {
  * rule is here, where every private card is posted, not at the call sites.
  *
  * And it is asked of what every browser holds - that an incident is running, the world
- * half's `active` (murder.mjs `PUBLIC_INCIDENT`) - never of the cast. `incidentVeil` veiled a
+ * half's `active` (incident-store.mjs `PUBLIC_INCIDENT`) - never of the cast. `incidentVeil` veiled a
  * card only while the cast this browser holds named its character (review m6): the same card
  * went plain from a bystander, so a veiled one from a player's browser in a fight told every
  * console that player's character was in it. A bystander's cards are veiled now as a
@@ -662,7 +662,7 @@ function incidentVeils({ speaker = null, whisper = [] } = {}) {
     return (whisper ?? []).some(id => !game.users?.get(id)?.isGM);
 }
 
-/** An incident is running, as every browser's world half says (murder.mjs `PUBLIC_INCIDENT`). */
+/** An incident is running, as every browser's world half says (incident-store.mjs `PUBLIC_INCIDENT`). */
 function incidentRuns() {
     try {
         return Boolean(getSetting(SETTINGS.murderState)?.active);

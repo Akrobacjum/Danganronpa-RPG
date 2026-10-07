@@ -247,7 +247,7 @@ export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyR
  * browser reads `active` and `stage` alone - the locks, and `incidentWitness`, which
  * tells it the music and the red edges are not its own - and a list of which actions a
  * victim had left, turn by turn, is the shape of a fight nobody outside it saw. They
- * are the cast's now, sent to every holder in their copy (murder.mjs `castFor`).
+ * are the cast's now, sent to every holder in their copy (incident-store.mjs `castFor`).
  */
 export const INCIDENT_FIGHT = Object.freeze([
     "turn", "turnSide", "keyRemnants", "deniedToVictim", "hindered", "blocked",
@@ -269,7 +269,7 @@ export const INCIDENT_FIGHT = Object.freeze([
  * the fight's either (`INCIDENT_FIGHT` is also what the update lifts out of it). Every
  * player's copy holds it null since fix r2-G2 (03.10.2026; the round-2 review's S2-m1): its
  * readers are the primary GM's, and a third seated after another left read in theirs who
- * had walked in and out before they came (murder.mjs `castFor`).
+ * had walked in and out before they came (incident-store.mjs `castFor`).
  *
  * `openingTrait` (E32+E07 C11c, 02.10.2026; audit S04-23, the owner's Q4 as corrected): the
  * statistic a GM picked for the opening roll, kept so that a re-ask and a GM's throw for an
@@ -280,17 +280,17 @@ export const INCIDENT_FIGHT = Object.freeze([
  * whoever struck a critical Finishing blow, until their first clean-up attempt in Stage 6
  * spends it (cleanup.mjs `consumeFreeCleanup`). Written with the stage that ends the fight,
  * so not the fight's. Every player's copy holds it null but a killer's, whose browser quotes
- * the free attempt by it since fix r2-G3 (murder.mjs `castFor`, cleanup.mjs `tamperQuote`).
+ * the free attempt by it since fix r2-G3 (incident-store.mjs `castFor`, cleanup.mjs `tamperQuote`).
  *
  * `recent` (E32+E07 C17, 03.10.2026; audit S04-29): the fight's last three turns for the GM's
  * tracker, `{ turn, side, key, band, success, changes }` each, written with the action's
- * receipt (murder.mjs `closeReceipt`). It names who acted and what it cost them, so not the
+ * receipt (murder-rules.mjs `closeReceipt`). It names who acted and what it cost them, so not the
  * fight's either: the GMs' alone, every player's copy holds it null.
  *
  * Not a field of the incident, and so not in this list: `sent` (E32+E07 fix r2-G2,
  * 03.10.2026), what each player was last sent of a standing packet - nothing, or the
  * betrayal offer alone - split a stamp per user, kept by the GMs so that every GM repeats
- * it (murder.mjs `sendCast`). `resetRecord` leaves it, no stamp of it is sent, and
+ * it (incident-store.mjs `sendCast`). `resetRecord` leaves it, no stamp of it is sent, and
  * murder.mjs reads the incident without it (`readCast`); a reset of the incident group
  * empties it with the record. Nor `openingNotices` (E32+E07 fix r2-G4, 03.10.2026; the
  * correctness review's m3): the ids of the opening's request cards and of the line that a GM
@@ -356,11 +356,11 @@ export const castStore = defineGmStore({
 
 /**
  * WHO KILLED, BY CHAPTER AND SEASON (E04 C6; audit S04-25). A row per killer,
- * `{ chapter, epoch, at }` (`at` orders them); murder.mjs's `blackenedIds` reads the
+ * `{ chapter, epoch, at }` (`at` orders them); incident-store.mjs's `blackenedIds` reads the
  * rows of the clock's chapter and season, so the register is never emptied at a
  * chapter's end and a GM's stale copy cannot bring last chapter's killers back.
  * Since 1.2.64 a row also names its `victims`, and the trial counts a killer only for
- * a death the table knows (murder.mjs `trialBlackenedIds`; E05 fix r2-G1).
+ * a death the table knows (incident-store.mjs `trialBlackenedIds`; E05 fix r2-G1).
  * The old ids are claimed only with world evidence of a verdict still to come in
  * this chapter - a death recorded in the clock's chapter, and no verdict applied
  * (the design's H4) - weak, in their order; otherwise they stay behind.
@@ -434,7 +434,7 @@ export const CAST_SEATS = Object.freeze(["killerId", "victimId", "thirdId", "bet
  * emptied by a newer seat whatever the other parts say. So is a copy that holds the
  * betrayal offer and nothing else (E32+E07 fix r1-G1, 29.09.2026; the review's M1): its
  * third stands outside the incident running now, and is sent the seats' stamps alone
- * (murder.mjs `castPacket`) - weighed on all of them, a copy holding the fight they
+ * (incident-store.mjs `castPacket`) - weighed on all of them, a copy holding the fight they
  * fought refused it at 0 in every other part. Pure (R176, R210).
  */
 export function castCombine(held, offered, { cut = 0 } = {}) {
@@ -539,8 +539,8 @@ export const trapPlantStore = defineGmStore({
  * AN INDIRECT MURDER'S KILLER, BUILDER, CONDITION AND TRIGGER (E05 C1; audit S09-05, D3). A row per
  * countdown id: `killerId`, `by`, `condition`, `trigger` - projectMeta's four fields until 1.2.64,
  * which every browser held - and, on a repair's row, `saboteur`, the user who asked for the sabotage
- * (E05's fix round, S1-m1; projects.mjs `PROJECT_SECRET_FIELDS`). `trigger` is split, a stamp per part, so the primary stamping a trap fired
- * and another GM re-arming it keep theirs (projects.mjs `patchTrigger`). No old key: the first rows
+ * (E05's fix round, S1-m1; projects-secrecy.mjs `PROJECT_SECRET_FIELDS`). `trigger` is split, a stamp per part, so the primary stamping a trap fired
+ * and another GM re-arming it keep theirs (projects-secrecy.mjs `patchTrigger`). No old key: the first rows
  * come out of the world by the clause `liftProjectSecrets` (migrate.mjs). A row's subject is its
  * project - its row in projectMeta, or its countdown.
  */
@@ -1882,7 +1882,7 @@ export function sameDecision(shown, now) {
 /**
  * ENTER THE CAST BY HAND (the design's 6.3; E04 C6): the health check's answer to
  * an incident running with no cast on this browser. The GM picks the killer, the
- * victim and a third if there was one; murder.mjs's `enterCast` writes them as a
+ * victim and a third if there was one; incident-store.mjs's `enterCast` writes them as a
  * decision. Nothing is written without both of the first two.
  */
 export async function enterCastByHand() {

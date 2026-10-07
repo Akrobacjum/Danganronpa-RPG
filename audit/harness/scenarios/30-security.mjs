@@ -4589,11 +4589,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * the GMs hold it, 1; eased by a Tier 3 tool's relief, 2. Measured 06.10.2026 (e29run/r2h22): each swing
      * [1,"weaponAttack",false,1] (Chie's Health marks, the receipt's action, the knife on it, the things Botan was
      * handed), the bar 1. Fixes r2-H18 and r2-H20 were in already, so red is the mutants' (e29run/r2h22m), each leaving
-     * the other cases as they read here: with murder.mjs `applyCrisisAction` reading the killer's document (m9) the
-     * stashed knife swung, [2,"weaponAttack",true,0]; with `carriesWeapon` reading it (m10) the knife the console took
-     * out counted as one carried and none was improvised, [1,"weaponAttack",false,0]; with `swungWeapon` swinging a
-     * broken weapon (m12) the broken knife swung, [2,"weaponAttack",true,0]; with action-rolls.mjs `reliefHeld` reading
-     * the worker's document (m11) the bar moved 2.
+     * the other cases as they read here: with murder-rules.mjs `applyCrisisAction` reading the killer's document (m9)
+     * the stashed knife swung, [2,"weaponAttack",true,0]; with `carriesWeapon` reading it (m10) the knife the console
+     * took out counted as one carried and none was improvised, [1,"weaponAttack",false,0]; with `swungWeapon` swinging
+     * a broken weapon (m12) the broken knife swung, [2,"weaponAttack",true,0]; with action-rolls.mjs `reliefHeld`
+     * reading the worker's document (m11) the bar moved 2.
      */
     const h22Was = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const botan = game.actors.get("${ids.botan}"), chie = game.actors.get("${ids.chie}"), aiko = game.actors.get("${ids.aiko}");

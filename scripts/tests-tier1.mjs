@@ -5021,7 +5021,7 @@ const INVARIANTS = [
          * E05 fix r2-G1, 27.09.2026; review F1, the owner's Q3. The register takes a killer when the
          * incident closes, which is usually before anybody finds the body, and the trial read the
          * register whole: a death nobody had found was counted by the ballot and the verdict.
-         * murder.mjs `countsAtTrial`, the rule under `trialBlackenedIds`, pure, driven over rows
+         * incident-store.mjs `countsAtTrial`, the rule under `trialBlackenedIds`, pure, driven over rows
          * shaped as `recordBlackened` writes them: a row counts unless every victim it names is a
          * death nobody has published, and a row that names none - every row written before 1.2.64,
          * when a death was the table's at the kill - counts as it always did. Then read from the
@@ -5317,7 +5317,7 @@ const INVARIANTS = [
 
     ["R207 - a closed incident left a body by the ending that kills or by its victim dead, and Escape together's trace is an incident's", async () => {
         /*
-         * E32 C6, 28.09.2026; audit S04-11, S02-43. murder.mjs `leftABody` is the one question
+         * E32 C6, 28.09.2026; audit S04-11, S02-43. incident-store.mjs `leftABody` is the one question
          * the Blackened, the betrayal's offer, the GM's checklist and the participants' notice
          * ask at a close. Every ending the module writes (and none), each with the victim alive
          * and dead, on made-up states and a made-up reader of a death: a Finishing blow, running
@@ -5428,7 +5428,7 @@ const INVARIANTS = [
         /*
          * E32+E07 fix r1-G1, 29.09.2026; the security review's M1. The offer outlives its
          * incident (D18), and while another runs its third is sent the offer alone with the
-         * seats' stamps (murder.mjs `castPacket`): the rest of the record's stamps time that
+         * seats' stamps (incident-store.mjs `castPacket`): the rest of the record's stamps time that
          * other fight. Weighed on every part, the copy they held of the fight they fought
          * refused it - 0 against its turn's stamp. Pure (`castCombine`), on fixture stamps.
          */

@@ -218,7 +218,7 @@ export function durabilityLeft(item) {
  * the module names its own (R220); "gmRuling" is what a GM's macro or the suite gets.
  *
  * `held` is the item as the GMs hold it, where a GM's road read it so (E29 fix r2-H18: the
- * crisis's swing, murder.mjs `wearSwing` through use-items.mjs `breakOnDespair`): whether it is
+ * crisis's swing, murder-rules.mjs `wearSwing` through use-items.mjs `breakOnDespair`): whether it is
  * broken, its durability and the wear counted on are read off it, and the wear is written to
  * `item`, the document - so a mend or a tier a player's console wrote on the document a moment
  * before neither spares the weapon nor stretches its durability.

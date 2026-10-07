@@ -8,15 +8,16 @@
  * polygon's area, and `clamp01`. Each takes what it reads as arguments and
  * returns numbers or points; the one that draws, `traceRegionPathsAt`, draws
  * only onto the Graphics it is handed. What it does not hold: anything that
- * knows about doorways, the fog's layer, the ledger or a room's reveal
- * (fog-doorways.mjs and fog.mjs).
+ * knows about doorways, the fog's layer, the ledger, a room's reveal or the map's
+ * checks (fog-doorways.mjs, fog.mjs, fog-reveal.mjs and fog-diagnostics.mjs).
  *
  * WHERE IT SITS. Moved out of fog.mjs by E34 (1.2.70), a pure move that
  * `node tools/moved-only.mjs` proves line by line. It is the bottom of the fog's
  * family: it imports nothing and holds no state. Above it are fog-doorways.mjs,
  * whose openings and glow resample, smooth and trim the border here, and fog.mjs,
- * whose layer, reveal and map checks trace and measure regions with it. Ten names
- * are exported that were not, because those two files read them; fog.mjs exported
+ * fog-reveal.mjs and fog-diagnostics.mjs, whose layer, reveal and map checks
+ * trace and measure regions with it. Ten names are exported that were not,
+ * because those files read them; fog.mjs exported
  * none of them before and re-exports none, so the module's API is the one it was.
  * `flattenPoints` and `ellipsePoints` are read only by `regionShapes` and stay
  * private.
@@ -147,7 +148,7 @@ function ellipsePoints(cx, cy, rx, ry, segments = 32) {
 
 export const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
 
-/** The run of a polyline, point to point. Four copies of this loop lived in this file. */
+/** The run of a polyline, point to point. Four copies of this loop lived in fog.mjs. */
 export function polylineLength(points) {
     let run = 0;
     for (let i = 1; i < points.length; i++) {

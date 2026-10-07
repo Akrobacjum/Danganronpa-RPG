@@ -628,7 +628,7 @@ async function handleCrisis(payload, sender, ctx, prepared) {
         // item would give a Reroll the run of another sheet.
         usedItemId: actor?.items?.has(payload.usedItemId) ? payload.usedItemId : null,
         // Same test: the swing names an item, and only one the sender holds. The
-        // damage is read off it since E32+E07 C8, and murder.mjs `swungWeapon`
+        // damage is read off it since E32+E07 C8, and murder-rules.mjs `swungWeapon`
         // narrows it further, to a readied Crime Tool on an action that swings.
         swungId: actor?.items?.has(payload.swungId) ? payload.swungId : null,
         // What the item's use started from, as the player read it: their own character's

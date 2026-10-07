@@ -13,23 +13,24 @@
  * `rezoomRoomOutline`, `recolourRoomOutline`. Three pieces of state, each written
  * only here: `roomOutline`, the outline standing now (set by `flashOutline`,
  * cleared by `fadeRoomOutline` and `clearTransient`, read by fog.mjs's
- * `repaintFog` and `whatIsHere`), `outlineZoom` and `pixelFontReady`. What it
- * does not hold: when a reveal plays (fog.mjs's `playDiscoveryAnimation`, which
- * reads the animations switch) or for which room (`announceRoom`), the layer, the
- * dissolve, the raster, the ledger, the map's checks and the reports (fog.mjs),
- * the doorways and their glow (fog-doorways.mjs), nor the shape math
- * (fog-geometry.mjs).
+ * `repaintFog` and fog-diagnostics.mjs's `whatIsHere`), `outlineZoom` and
+ * `pixelFontReady`. What it does not hold: when a reveal plays (fog.mjs's
+ * `playDiscoveryAnimation`, which reads the animations switch) or for which room
+ * (`announceRoom`), the layer, the dissolve, the raster, the ledger and the
+ * reports (fog.mjs), the map's checks (fog-diagnostics.mjs), the doorways and
+ * their glow (fog-doorways.mjs), nor the shape math (fog-geometry.mjs).
  *
  * WHERE IT SITS. Moved out of fog.mjs by E34 (1.2.70), a pure move that
  * `node tools/moved-only.mjs` proves line by line. `clearTransient` writes
  * `roomOutline`, and no module can assign another module's `let`, so it moved
  * with the outline and brought down what it calls: `findLayer` with `LAYER_NAME`,
  * `FX_GROUP`, `freeOwned` and `watchdog` - which is why fog.mjs's layer finds its
- * own container through this file. The file above it is fog.mjs, which reads
+ * own container through this file. Above it are fog.mjs, which reads
  * twenty-one of its names - exported now for it - and re-exports the two it
  * exported before: `seamWidth` (own-ring.mjs and remnant-ring.mjs import it from
- * fog.mjs) and `rezoomRoomOutline`; the module's API is the one it was. Nothing
- * here imports fog.mjs back (R161 would see the cycle). Below it are movement.mjs
+ * fog.mjs) and `rezoomRoomOutline`; and fog-diagnostics.mjs, which reads one of
+ * the twenty-one (`roomOutline`). The module's API is the one it was. Nothing
+ * here imports either back (R161 would see the cycle). Below it are movement.mjs
  * (`boundsOf`), utils.mjs, motion.mjs, fog-geometry.mjs and fog-doorways.mjs (the
  * glow and the seam colour the outline is drawn with).
  */
@@ -45,27 +46,6 @@ import {
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
 
 export const LAYER_NAME = "drpgFog";
-
-/*
- * THE RASTER IS GLASS IN FRONT OF THE MAP, NOT PAINT ON IT.
- *
- * It began anchored to the scene, on the reasoning that fog is a place rather
- * than an effect on the lens. Every artefact this layer has produced came out
- * of that one decision: a pattern fixed in scene units has a screen frequency
- * that changes with the zoom, so at some distance it always crosses the
- * resolution of the display, and past that point no sampler, mipmap or tile
- * scale saves it. Four rounds of work went into pushing that distance further
- * out without ever removing it.
- *
- * Held still against the SCREEN, the pattern has one frequency for ever. It
- * cannot alias, it cannot moiré, and the drift is the only motion in it -
- * which is the effect that was wanted in the first place. The fog it decorates
- * is still a place: the silhouette masking this is drawn in scene coordinates
- * and moves with the map, so the texture appears exactly over the fogged
- * ground and nowhere else. The glass is what does not move; what shows through
- * it does.
- */
-
 
 /**
  * How much fog stays over a room you have been to but are not standing in.
@@ -202,7 +182,7 @@ export function findLayer() {
  * Graphics mask that is also a child of the display list renders twice - once
  * into the stencil, once as white shapes over the map - and a mask that is not
  * a child has no transform to be positioned by. That is the class of choice
- * this file has already lost to twice, so the reveal uses the one subtraction
+ * fog.mjs, where this was written, had already lost to twice, so the reveal uses the one subtraction
  * technique the module has proven on a live world: the one the fog runs on.
  * ========================================================================== */
 
@@ -265,7 +245,7 @@ export function buildRevealLayers(fx, { region, bounds, rect, glass, ink, bone, 
      *
      * One carries the fog still covering the room; the other carries the white
      * lines. They are separate because both have to be CLIPPED TO THE ROOM and
-     * there is only one reliable way to clip in this file - start from the
+     * there is only one reliable way to clip in the fog's files - start from the
      * room's own shape and erase. The fog texture erases what the curtain has
      * opened; the line texture starts as a room-shaped sheet of white and
      * erases everything that is not a line. Drawing the lines straight onto the
@@ -631,7 +611,7 @@ export function drawRevealFrame(L, plan, { at, top, bottom, opening }, { glass, 
     /*
      * THE STAINED BANDS: each texture is a room-shaped sheet in its own colour, and
      * everything that is not one of ITS bands is erased. Same fill-and-cut the fog
-     * and the lines use, and for the same reason - it is the one way in this file to
+     * and the lines use, and for the same reason - it is the one way in the fog's files to
      * keep a shape inside the walls.
      *
      * The opening goes with it. A band the curtain has already drawn back is not
@@ -657,8 +637,8 @@ export function drawRevealFrame(L, plan, { at, top, bottom, opening }, { glass, 
     }
 }
 
-/**
- * The outline and the room's name, fading out together.
+/*
+ * The outline and the room's name.
  *
  * BONE, NOT GOLD. The plan for this stage said "a short gold flash", but the
  * visual identity work reserved gold for Hope and nothing else - a third

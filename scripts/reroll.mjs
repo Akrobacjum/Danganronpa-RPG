@@ -1502,13 +1502,13 @@ async function settleObserve(actor, bookmark, after, done) {
  * Everything is done on the GM's client, because everything a crisis action
  * touches is: the other participant's sheet, the map, the shared incident
  * state. This side sends which action, the new number, and "take the old one
- * back first" - see `undoLastCrisis` in murder.mjs for what that involves.
+ * back first" - see `undoLastCrisis` in murder-rules.mjs for what that involves.
  *
  * The turn is NOT spent twice. Rewinding restores whose turn it was, and the
  * replay passes it again, so the action costs one turn in total however many
  * times it is rerolled.
  *
- * `bookmark.crisis` is the GMs' fact of the action (murder.mjs `noteCrisisFact`),
+ * `bookmark.crisis` is the GMs' fact of the action (murder-rules.mjs `noteCrisisFact`),
  * written by the GM that resolved it.
  *
  * WITH THE FIRST THROW'S FACTS, ON THIS GM (E08+E28 C6b, 03.10.2026; audit S04-18). The

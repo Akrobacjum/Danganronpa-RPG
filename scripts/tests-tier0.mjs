@@ -370,7 +370,7 @@ const REGRESSIONS = [
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
-            "incident-store.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part",
+            "incident-store.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part; a player's ask for the deaths is answered by the primary GM alone, about Foundry's sender, and a copy of them or a finder's notice is taken only from a GM, addressed to this user",
             "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
@@ -2909,7 +2909,7 @@ const REGRESSIONS = [
            E34 C9 moved the window to murder-ui.mjs with those two lines still after it, and moved-only read its cut
            there equal to C8's (07.10.2026), so the read is fnSource's now. */
         const dialog = fnSource(murderSrc, "openMurderDialog");
-        ok(dialog.length > 500, "openMurderDialog is gone or has moved past rollOpening");
+        ok(dialog.length > 500, "openMurderDialog is gone from murder-ui.mjs, or its cut is too short to be the window");
 
         ok(dialog.includes("isEclipse("),
             "the murder window opens during an Eclipse and only refuses at Confirm");
@@ -5871,7 +5871,7 @@ const REGRESSIONS = [
          * E05 C8, 26.09.2026; audit S04-08. The world half of `murderState` is on every
          * browser, and until 1.2.64 it held whatever an incident's write named that was not
          * a cast field: a trap, a death by the victim's own hand, a reversal, when it opened,
-         * how it ended. It is turned round now: murder.mjs lists what it may hold
+         * how it ended. It is turned round now: incident-store.mjs lists what it may hold
          * (`PUBLIC_INCIDENT`, a reason each), `splitIncident` sends everything else to the
          * cast or nowhere, and the world-secrets rule is the same list written out. Read here:
          * the list has its reasons, shares no field with the cast and equals the rule; the
@@ -5879,7 +5879,7 @@ const REGRESSIONS = [
          * `restoreState` (both through the split) and the lifts (which only take fields
          * out; their tier-2 pairs measure that - the method's and, since E32 C3, the fight's
          * run one body, `liftIntoCast`) write the key; and every field a write in
-         * murder.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
+         * murder-rules.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
          * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
          * The season reset writes `{}` through its table (season-setup.mjs). The reader is
          * shown a planted write of each kind first. E32 C2 (28.09.2026) shrank the list to
@@ -5940,7 +5940,7 @@ const REGRESSIONS = [
             const src = stripStrings(stripComments(text));
             const keys = [];
             for (const m of src.matchAll(/\bwriteState\(\s*\{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
-            // `const fresh` is a new incident's whole state (murder.mjs `freshIncidentState`, E32 C5a), which `openMurder` writes.
+            // `const fresh` is a new incident's whole state (murder-rules.mjs `freshIncidentState`, E32 C5a), which `openMurder` writes.
             for (const m of src.matchAll(/\bconst (?:patch|fresh) = \{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
             for (const m of src.matchAll(/\bpatch\.(\w+)\s*=(?!=)/g)) keys.push(m[1]);
             return keys;
@@ -5960,7 +5960,7 @@ const REGRESSIONS = [
         const storeSrc = stripComments(new Map(sources).get("incident-store.mjs") ?? "");
         for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(storeSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
         const keys = named(new Map(sources).get("murder-rules.mjs") ?? "");
-        // Not a reading of nothing: murder.mjs's writes name the stage, the turn and the method (measured 26.09: 74 names, 26 of them distinct).
+        // Not a reading of nothing: the incident's writes name the stage, the turn and the method (measured in murder.mjs 26.09: 74 names, 26 of them distinct).
         // E34 C8 (1.2.70): the writes moved to murder-rules.mjs with the rules - 88 names read there on 07.10.2026, 0 in murder.mjs.
         ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in murder-rules.mjs's writes - too few to trust`);
         log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in murder-rules.mjs's writes`);
@@ -6037,7 +6037,7 @@ const REGRESSIONS = [
     ["R194 - whether an incident is a trap is asked of one rule, the cast's and the world half's where the cast has none", async () => {
         /*
          * E05 fix r1-G1, 27.09.2026; the correctness review's M2. Three places ask whether the
-         * running incident is a trap - `castOwners` (murder.mjs: who is sent the cast), the
+         * running incident is a trap - `castOwners` (incident-store.mjs: who is sent the cast), the
          * leaf's `incidentWitness` (the card's gate, the HUD's turn row, the edges, the music)
          * and the opening Event card (events.mjs `openingCard`) - and the review found them
          * answering two ways while a world half the lift has not reached still holds
@@ -6213,7 +6213,7 @@ const REGRESSIONS = [
         /*
          * E32 C4, 28.09.2026; audit S04-26. Two writers of one incident read it, awaited and
          * wrote what they had read: the victim ran out twice (the grid's DM14), two closes of
-         * one incident closed it twice. murder.mjs runs every write of the incident through
+         * one incident closed it twice. Every write of the incident runs through
          * one promise chain now (`incidentWrite`), and a transition says what it read
          * (`expect`) and stops when the state no longer shows it. Read here, on the source
          * with comments and string contents blanked: every write of either half - a
@@ -7177,7 +7177,7 @@ const REGRESSIONS = [
         /*
          * E33 C9 (D39; audit S09-48, S03-46). Two rules carried the name `isSilenced`
          * until 1.2.69: the crime-witness marker on a Monocub (monocub.mjs; information
-         * only) and the Despair Call "Silence" on a living student (call-effects.mjs;
+         * only) and the Despair Call "Silence" on a living student (call-effects.mjs, call-world.mjs since E34;
          * no Hope Calls until the time of day ends), and sheet.mjs renamed them at its
          * door - which is how a reader took one for the other. Each has its own name
          * now, and `game.drpg.isSilenced` is kept as the crime's alias, the question it

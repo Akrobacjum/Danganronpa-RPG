@@ -3232,7 +3232,7 @@ export const CRISIS_ACTIONS = {
         swapsRoles: true,
         /*
          * The bands whose sentence above gives the reverser back all Health and Sanity:
-         * Hope and the critical. Read by `swapRoles` (murder.mjs) from the action, not
+         * Hope and the critical. Read by `swapRoles` (murder-rules.mjs) from the action, not
          * the band (E32+E07 C11a; audit S04-22, D41): until 1.2.66 any band but Despair
          * healed, so Double role reversal - no dice, scored as Hope - healed too.
          */
@@ -3364,7 +3364,7 @@ export const CRISIS_ACTIONS = {
          * one victim, start to finish. That sentence described a rule the
          * module has never had and the guide does not give: two bodies come
          * from the betrayal AFTER the incident, not from two people bleeding
-         * inside it. See `afterIncident` in murder.mjs.
+         * inside it. See `afterIncident` in murder-rules.mjs.
          */
         failure: "Only you get out. The victim stays where they are, and your one free choice "
             + "is spent - whatever happens next, it happens without you.",
@@ -3373,7 +3373,7 @@ export const CRISIS_ACTIONS = {
         // `remnant.failure`, which nothing ever read: the failure branch looks up
         // `failureRemnant[band]`, and `band` is only ever hope/despair/critical.
         failureRemnant: { hope: "subtle", despair: "subtle", critical: "subtle" },
-        // An Incident Remnant, as every other crisis action's (murder.mjs `applyRemnant`'s
+        // An Incident Remnant, as every other crisis action's (murder-rules.mjs `applyRemnant`'s
         // default). It said "prep" - a trace of the planning, left by the fight (E32 C6,
         // 28.09.2026; audit S02-43).
         remnantType: "incident",

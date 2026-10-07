@@ -118,7 +118,7 @@ export function clearSituational() { situational = 0; }
 /**
  * THE ROLL'S OWN DIE, WHICH THE SHIELD LEAVES ALONE (E32+E07 fix r2-G1, 03.10.2026; the
  * round-2 correctness review's M1). A murder's opening roll is thrown as a supporting
- * roll (`remember: false`, murder.mjs `throwOpeningRoll`), so no Call is spent on it -
+ * roll (`remember: false`, murder-rules.mjs `throwOpeningRoll`), so no Call is spent on it -
  * and its Night die, the killer's advantage and a trap's victim's disadvantage, was
  * armed as the action's (`armSituational`), where the same shield hid it: every
  * opening at Night rolled flat, measured at d9ee6e9 and read so in the oldest commit

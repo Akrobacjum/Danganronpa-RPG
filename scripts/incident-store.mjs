@@ -14,31 +14,46 @@
  * `swungWeaponOf`, `castHeldHere`, `incidentAudienceIds`); the betrayal window
  * the write arms (`armBetrayalWindow`, `sweepBetrayalWindows`,
  * `clearBetrayalOffer`, `betrayalCandidate`, `leftABody`); and the GMs' memo of
- * the opening's request cards (`keepOpeningNotice`, `retireOpeningNotices`).
- * Its state: `writingCast`, `incidentWrites` (the queue) and `castTold` (what
- * each player was last told). What it does not hold: the rules of the three
- * stages, the deaths a player may know, the Blackened register, the lifts out
- * of world data, the murder window and the tracker - all murder.mjs's.
+ * the opening's request cards (`keepOpeningNotice`, `retireOpeningNotices`); the
+ * deaths a player may know, their copy and its socket (`incidentKnowers`,
+ * `knowsOfDeath`, `deathsFor`, `sendDeathsTo`, `tellDeaths`, `retellDeaths`,
+ * `receiveDeaths`, `tellFinder`, `onDeathsSocket`, `registerDeathCopy`); the
+ * Blackened register (`blackenedIds`, `trialBlackenedIds`, `countsAtTrial`,
+ * `whenTrialReadable`, `trialBlackenedActors`, `recordBlackened`,
+ * `blackenedWrites`, `clearBlackened`); and the cast put back by hand
+ * (`enterCast`) or lifted out of world data (`liftIncidentSecrets`,
+ * `liftIncidentMethod`, `liftIncidentFight`, `liftIntoCast`). Its state:
+ * `writingCast`, `incidentWrites` (the queue) and `castTold` (what each player was
+ * last told). What it does not hold: the rules of the three stages
+ * (murder-rules.mjs), the murder window and the tracker (murder-ui.mjs).
  *
- * WHERE IT SITS. Moved out of murder.mjs by E34 (1.2.70), a pure move that
- * `node tools/moved-only.mjs` proves line by line. The file above it is
- * murder.mjs, which re-exports the fourteen names of this file it exported before,
- * so importers keep importing murder.mjs, and nothing here imports it back: R161
+ * WHERE IT SITS. Moved out of murder.mjs by E34 (1.2.70) in two commits, C7a and
+ * C7b, a pure move that `node tools/moved-only.mjs` proves line by line. Above it
+ * are murder-rules.mjs and murder-ui.mjs, which read it, and murder.mjs, which
+ * re-exports the thirty-three names of this file it exported before, so importers
+ * keep importing murder.mjs; nothing here imports any of the three back: R161
  * counts an `export ... from` as an edge, and the import would close a cycle.
  * Below it are config.mjs, monokuma.mjs, settings.mjs, gm-stores.mjs,
  * gm-store.mjs, clock.mjs and utils.mjs. The betrayal window sits here, rules
  * though it is, because `writeState` arms it (`armBetrayalWindow` ->
- * `betrayalCandidate` -> `leftABody`): left above, the store would have to import
- * its facade, and taking the arming out of the write is a change of code, which a
- * move is not. Sixteen names are exported that were not (`SOCKET_EVENT`,
- * `readCast`, `writeCast`, `ownCastWrite`, `incidentWrite`, `stillHolds`,
- * `restoreState`, `castOwners`, `pushCastToParticipants`, `writeState`,
- * `sweepBetrayalWindows`, `castHeldHere`, `registerIncidentCastSync`,
- * `betrayalCandidate`, `keepOpeningNotice`, `retireOpeningNotices`), because
- * murder.mjs reads them; it does not re-export them, so the module's API is the
- * one it was. The two listeners of `registerIncidentCastSync` moved unchanged: a
- * participant's request is answered by the primary GM alone, from the sender's own
- * seat in the cast, and a copy of the cast is taken only from a GM.
+ * `betrayalCandidate` -> `leftABody`): left with the rules, the store would have
+ * to import the file that imports it, and taking the arming out of the write is a
+ * change of code, which a move is not. Fourteen names are exported that were not
+ * (`readCast`, `writeCast`, `incidentWrite`, `stillHolds`, `restoreState`,
+ * `writeState`, `sweepBetrayalWindows`, `castHeldHere`,
+ * `registerIncidentCastSync`, `registerDeathCopy`, `betrayalCandidate`,
+ * `recordBlackened`, `keepOpeningNotice`, `retireOpeningNotices`), because
+ * murder-rules.mjs reads them; murder.mjs does not re-export them, so the
+ * module's API is the one it was. C7a exported four more for what was left in
+ * murder.mjs (`SOCKET_EVENT`, `ownCastWrite`, `castOwners`,
+ * `pushCastToParticipants`); what read them there came here with C7b, so they are
+ * this file's own again. The listeners moved unchanged: on the cast's socket
+ * (`registerIncidentCastSync`) a participant's request is answered by the primary
+ * GM alone, from the sender's own seat in the cast, and a copy of the cast is
+ * taken only from a GM; on the deaths' (`onDeathsSocket`) a player's ask is
+ * answered by the primary GM alone, about Foundry's sender, and a copy or a
+ * finder's notice is taken only from a GM, addressed to this user. R1b's
+ * exemption followed the deaths' listener here from murder.mjs.
  *
  * WHERE THE STATE LIVES, AND WHY IT IS IN TWO PIECES (LIVE-001).
  *
@@ -74,7 +89,7 @@ import { ownerOf, isPrimaryGm, primaryGmId, log, warn, error, debug } from "./ut
  * STATE
  * ========================================================================== */
 
-/**
+/*
  * The fields that name a person. These never enter world data.
  *
  * `thirdSide` is here with the ids because it is only meaningful next to
@@ -391,9 +406,9 @@ export function incidentAudienceIds(state = murderState(), { stage = state?.stag
  * Measured before the change, on four clients: an indirect murder opened, and
  * the killer's player received the cast, the incident Event card and a whisper -
  * the module announcing, in real time, that the thing they had built had just
- * worked. They are not in the room. Everything else in this file exists to stop
- * that fact travelling, and it was travelling straight to the one person who
- * most wants to know it.
+ * worked. They are not in the room. Everything else in the incident's files
+ * exists to stop that fact travelling, and it was travelling straight to the one
+ * person who most wants to know it.
  *
  * WITHHELD, NOT REDACTED, and the difference matters. Sending them a cast with
  * the names stripped would still be a packet arriving at the moment the trap
@@ -758,9 +773,10 @@ export async function writeState(patch, { explicit = [], expect = null } = {}) {
          * of a direct murder fought the whole incident without a cast while the
          * opening's success moved the stage and world fields alone (read off
          * `resolveKillerOpening`; 13-murder-signals' "direct" reads it). Since E32 C2
-         * that patch carries the fight, which is the cast's, and every stage write in
-         * this file names a cast field (read on 28.09) - the comparison stays, so a
-         * patch of the stage alone cannot bring that back.
+         * that patch carries the fight, which is the cast's, and every stage write of
+         * the incident names a cast field (read in murder.mjs on 28.09; those writes are
+         * murder-rules.mjs's since E34) - the comparison stays, so a patch of the stage
+         * alone cannot bring that back.
          *
          * So the holders are compared across this write, and the participants
          * pushed to when they change. Cheap - a packet per participant on a few
@@ -806,7 +822,8 @@ export async function writeState(patch, { explicit = [], expect = null } = {}) {
          * more - and every one that left a body is a moment the accomplice may now
          * turn on the killer (`betrayalCandidate` asks `leftABody`, E32 C6: a Survive
          * or an escape arms nothing). Arming from each would be six copies of one
-         * rule, which is the shape this file has already been bitten by twice.
+         * rule, which is the shape murder.mjs, where this was written, had already been
+         * bitten by twice.
          *
          * `writeState` is the single writer, so it is the single place that can see
          * the transition. Guarded on the CHANGE rather than the state, so the many
@@ -1703,7 +1720,7 @@ const BODY_ENDINGS = Object.freeze(["finishingBlow", "ranOut", "selfInflicted"])
  * grid's TR04, which moves a trap to Stage 6 with nobody dead - is no body.
  *
  * `deadNow` is the reader of a death, handed in so R207 can read the rule on made-up
- * states; every caller here leaves it to `isDeadForGm`.
+ * states; every caller, here and in murder-rules.mjs, leaves it to `isDeadForGm`.
  */
 export function leftABody(state, deadNow = id => isDeadForGm(game.actors.get(id ?? ""))) {
     if (!state?.victimId) return false;
