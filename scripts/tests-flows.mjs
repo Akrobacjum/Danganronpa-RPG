@@ -148,10 +148,19 @@ export const FLOWS = Object.freeze([
     // again after E28. E08+E28 C17 (04.10.2026): the opening, the crisis actions and Stage 6 are scored on the GMs' record
     // of the roll they name; 30 sends Botan's player's finishing blow on its record, 10 Chie's player's clean-up and its
     // Reroll, and a player's opening is judged in tier 2 alone.
+    // Covered at the 1.2.69 release (07.10.2026, E33 C14c), on a count of packets rather than of the scenarios' text:
+    // one run of each scenario on 6dfdca8, with a copy of the harness that kept every murder.* packet, has a player's
+    // browser send murder.openingResult in 11, 13, 30, 61, 72 and 83, murder.crisis in 13, 30 and 83, murder.betrayal
+    // in 13 (the tile's road) and 30 (two from p1's console, refused), murder.park in 30, 61 and 72, and murder.cleanup
+    // in 10, 13, 72 and 83 (72 tags none of its checks with this flow; 19 and 60 send none). So a player's opening is
+    // not tier 2's alone: 13 has the killer's player throw it since E08+E28 fix r2-H6 (05.10.2026), and 83's L9 (E33
+    // C4) has p3's page throw Chie's opening, take a Finishing Blow and clean up a trace in Stage 6, each drawn on the
+    // GM - in that run the GMs' records of the three rolls were p3's and claimed. L9's phase is this flow's since C14c;
+    // it was gm-rolls-total's, which 83's other phases keep.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case"], suite: ["tests-grid.mjs"],
-        status: "partial", stage: "E33" },
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity"],
+        suite: ["tests-grid.mjs"], status: "covered", stage: "1.2.69" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },

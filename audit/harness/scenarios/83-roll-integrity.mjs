@@ -489,8 +489,10 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
        `attemptCleanup`). Every one of the three is drawn on the GM at the turn its ticket names (fix r2-H1). Her Body
        (Daggerheart's Strength, config.mjs TRAITS) is raised to 10 for the road and put back after: the opening fails under
        8 (config.mjs MURDER_OPENING) and a failed one ends the murder with no incident - two of five offline runs
-       on 07.10.2026 did that (the GM's warning "No incident, and the victim never learns anything was attempted"). */
-    phase("L9: the killer's opening, a crisis action and a Stage 6 clean-up", { flow: "gm-rolls-total" });
+       on 07.10.2026 did that (the GM's warning "No incident, and the victim never learns anything was attempted").
+       The phase carries the incident's flow since E33 C14c (07.10.2026): the three reach the GM as
+       murder.openingResult, murder.crisis and murder.cleanup, that flow's entry; gm-rolls-total keeps 83's other roads. */
+    phase("L9: the killer's opening, a crisis action and a Stage 6 clean-up", { flow: "murder-incident" });
     await refill(chie);
     await setOn(chie, { "system.resources.stress.value": 0, "system.resources.hope.value": 2 });
     const l9Body = await gm.eval(`const c = game.actors.get("${chie}"), was = c.system.traits.strength.value;
