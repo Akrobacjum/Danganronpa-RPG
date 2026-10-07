@@ -87,6 +87,8 @@ files' rows here.
 | `scripts/call-world.mjs` | sealed rooms, the silence and the chain, and the called assembly: their readers and writers | `call-effects.mjs` |
 | `scripts/projects-secrecy.mjs` | a project's secret fields, who may see it and its ownership map, and the reads and writes of the project meta and the countdowns | `projects.mjs` |
 | `scripts/projects-tray.mjs` | what the countdown tray draws on every render (Icon Only left, raw keys, undiscovered rows, progress, the fold) and its redraw | `projects-ui.mjs` |
+| `scripts/fog-geometry.mjs` | the fog's pure shape math: a region's shape in the layer's space, polylines, distances, inside-polygon tests, areas; no imports, no state | `fog.mjs` |
+| `scripts/fog-doorways.mjs` | the doorways: the wall test, the openings, the glow and its falloff, the outline with its gaps, the seam colour and `MAX_FOG_TEXTURE` | `fog.mjs` |
 
 ## What the suite's four numbers mean
 
