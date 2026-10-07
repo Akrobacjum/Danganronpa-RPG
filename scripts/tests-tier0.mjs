@@ -1593,11 +1593,11 @@ const REGRESSIONS = [
          * marker cannot arrive and be quietly left out the same way.
          */
         const sources = new Map(await otherSources());
-        const murder = stripComments(sources.get("murder.mjs") ?? "");
-        ok(murder.length > 1000, "murder.mjs did not load");
+        const murder = stripComments(sources.get("murder-rules.mjs") ?? "");
+        ok(murder.length > 1000, "murder-rules.mjs did not load");
 
         const capture = murder.match(/const\s+swung\s*=([^;]*);/);
-        ok(capture, "murder.mjs no longer captures a swung weapon at all");
+        ok(capture, "murder-rules.mjs no longer captures a swung weapon at all");
 
         // Everything the condition can see: the line itself, and whatever it
         // reads from - `const swings = ...` above it.
@@ -2903,7 +2903,10 @@ const REGRESSIONS = [
          * ruling card was never settled.
          */
         const murderSrc = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
-        const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "async function rollOpening" });
+        /* E34 C8 (1.2.70): this read ran on to `rollOpening`, which moved to murder-rules.mjs; it ends at the
+           window's own closing brace now. Not fnSource: its cut runs on into the tracker's `lastReask` and
+           `REASK_COOLDOWN_MS` lines, which moved-only's cuts part reads red under a name a test cuts (measured 07.10.2026). */
+        const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "\n}\n" });
         ok(dialog.length > 500, "openMurderDialog is gone or has moved past rollOpening");
 
         ok(dialog.includes("isEclipse("),
@@ -4828,8 +4831,8 @@ const REGRESSIONS = [
          * client and by the GM's bridge; this holds both callers to it.
          */
         const sources = new Map(await otherSources());
-        const murder = stripComments(sources.get("murder.mjs") ?? "");
-        ok(bodyOf(murder, "export async function takeCrisisAction(", { length: 1200 }).includes("crisisRefusal("),
+        const murder = stripComments(sources.get("murder-rules.mjs") ?? "");
+        ok(fnSource(murder, "takeCrisisAction").includes("crisisRefusal("),
             "the player's own client no longer asks crisisRefusal");
         /*
          * THROUGH THE TABLE (E31, 25.09.2026). The bridge's `crisisRefusal` is asked in
@@ -5954,10 +5957,11 @@ const REGRESSIONS = [
         ok(!stray.length, `the world half of an incident is written outside writeState, restoreState and the lifts: ${stray.join(", ")}`);
         const storeSrc = stripComments(new Map(sources).get("incident-store.mjs") ?? "");
         for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(storeSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
-        const keys = named(new Map(sources).get("murder.mjs") ?? "");
+        const keys = named(new Map(sources).get("murder-rules.mjs") ?? "");
         // Not a reading of nothing: murder.mjs's writes name the stage, the turn and the method (measured 26.09: 74 names, 26 of them distinct).
-        ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in murder.mjs's writes - too few to trust`);
-        log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in murder.mjs's writes`);
+        // E34 C8 (1.2.70): the writes moved to murder-rules.mjs with the rules - 88 names read there on 07.10.2026, 0 in murder.mjs.
+        ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in murder-rules.mjs's writes - too few to trust`);
+        log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in murder-rules.mjs's writes`);
         const bad = unlisted(keys);
         ok(!bad.length, `a write of an incident names a field neither the public list nor the cast holds: ${bad.join(", ")}`);
     }],
@@ -6275,17 +6279,19 @@ const REGRESSIONS = [
            incident-store.mjs, and most transitions that queue a write stayed in murder.mjs, so each
            file is read on its own - `fnAt` names a function of the file it reads - and the two are
            summed (07.10.2026: 15 writes and 4 queued spans in the store, 9 and 7 in murder.mjs; the
-           24 and 11 murder.mjs held alone before the move). */
+           24 and 11 murder.mjs held alone before the move). E34 C8 moved the transitions on to murder-rules.mjs,
+           which the reader and the transitions below follow: the two summed read 24 and 11 again, and murder.mjs
+           alone 0 and 0 (07.10.2026). */
         const sources = new Map(await otherSources());
-        const found = ["incident-store.mjs", "murder.mjs"].map(file => read(file, sources.get(file) ?? ""))
+        const found = ["incident-store.mjs", "murder-rules.mjs"].map(file => read(file, sources.get(file) ?? ""))
             .reduce((a, b) => ({ spans: a.spans + b.spans, writes: a.writes + b.writes, stray: [...a.stray, ...b.stray], again: [...a.again, ...b.again] }));
         // Not a reading of nothing: measured on 28.09, 17 writes and 8 queued spans.
-        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in incident-store.mjs and murder.mjs - too few to trust`);
-        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in incident-store.mjs and murder.mjs`);
+        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in incident-store.mjs and murder-rules.mjs - too few to trust`);
+        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in incident-store.mjs and murder-rules.mjs`);
         ok(!found.stray.length, `an incident's write runs outside its queue: ${found.stray.join(", ")}`);
         ok(!found.again.length, `a write in the incident's queue queues another, and the chain would wait on itself: ${found.again.join(", ")}`);
 
-        const bare = stripComments(sources.get("murder.mjs") ?? "");
+        const bare = stripComments(sources.get("murder-rules.mjs") ?? "");
         const store = stripComments(sources.get("incident-store.mjs") ?? "");
         const memo = fnSource(store, MEMO);
         ok(/\bcastStore\.patch\(RECORD, \{ sent: \{ \[userId\]: memo \} \}\)/.test(memo) && [...stripStrings(memo).matchAll(WRITE)].length === 1,
@@ -6975,8 +6981,8 @@ const REGRESSIONS = [
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
             ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
-            ["murder.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
-            ["murder.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
+            ["murder-rules.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
+            ["murder-rules.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
             ["music.mjs", "pausePlaylist", "playlist", "a playlist paused"],
             ["music.mjs", "clearHeld", "playlist", "a playlist let go"],
             ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
@@ -7013,7 +7019,7 @@ const REGRESSIONS = [
             ["character.mjs", "stampStartingSheet", "initCharacter"],
             ["gm-items.mjs", "takeItemDialog", "openItemManager"],
             ["migrate.mjs", "CLAUSES", "migrate1_2_0"],
-            ["murder.mjs", "undoLastCrisis", "applyCrisisAction"],
+            ["murder-rules.mjs", "undoLastCrisis", "applyCrisisAction"],
             ["observe.mjs", "undoPrevious", "scoreObserve"],
             ["observe.mjs", "scoreObserve", "resolveObserve"],
             ["season-setup.mjs", "wipeSeason", "resetSeason"],

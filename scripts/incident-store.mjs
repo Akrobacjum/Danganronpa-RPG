@@ -1548,14 +1548,6 @@ async function liftIntoCast(fields, what) {
     });
 }
 
-/**
- * Close the murder out.
- *
- * The tools the incident consumed are destroyed on the way out - the crime tool
- * that was swung and the cleaning tool that was used on the scene. Dynamic
- * import, because cleanup.mjs reads the incident state from this file and a
- * static pair of imports both ways is a cycle for no gain.
- */
 /* ==========================================================================
  * WHO KILLED THIS CHAPTER
  * ========================================================================== */

@@ -835,10 +835,10 @@ const INVARIANTS = [
          * they would have thought of it.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/murder.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(r => r.text()));
 
         // The whole function (E32 C5a): the Class Trial's refusal pushed the fight's past 2600 characters.
-        const body = bodyOf(src, "export function betrayalTarget", { until: "\n}" });
+        const body = fnSource(src, "betrayalTarget");
         // The offer lives in the cast (CASE-04), never on the actor: a flag is
         // world data every client receives.
         ok(/readCast\(\)\.betrayal/.test(body),
@@ -878,7 +878,7 @@ const INVARIANTS = [
         // comment's length, so the note above the arming counts too. The suite
         // then reported the window "armed somewhere else" while it sat exactly
         // where it always had. A function ends at its own closing brace.
-        // E34 C7a (1.2.70): the writer is incident-store.mjs's; the rest of this reads murder.mjs.
+        // E34 C7a (1.2.70): the writer is incident-store.mjs's; the rest of this reads murder-rules.mjs (E34 C8).
         const writer = fnSource(stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/incident-store.mjs`).then(r => r.text())), "writeState");
         ok(/armBetrayalWindow/.test(writer),
@@ -888,8 +888,8 @@ const INVARIANTS = [
 
         // Single use, spent before the attempt rather than after it - since E32 C5a in the one
         // path the tile and the GM's checklist share, before the incident it opens.
-        const opener = bodyOf(src, "async function openBetrayal", { until: "\n}" });
-        ok(/openBetrayal\(/.test(bodyOf(src, "export async function betrayAsPlayer", { until: "\n}" })),
+        const opener = fnSource(src, "openBetrayal");
+        ok(/openBetrayal\(/.test(fnSource(src, "betrayAsPlayer")),
             "the tile's betrayal does not go through openBetrayal, the path that spends the offer");
         const takenAt = opener.search(/takeBetrayalOffer\(/);
         ok(takenAt > 0 && takenAt < opener.search(/\bopenMurder\(/),
@@ -997,7 +997,7 @@ const INVARIANTS = [
          * Cheap to write down and it covers the whole module, not this stage.
          */
         const guilty = [];
-        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder", "incident-store"]) {
+        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder", "incident-store", "murder-rules"]) {
             const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
             for (const m of src.matchAll(/game\.i18n\.localize\([^)]*\)\s*\|\|/g)) {
                 guilty.push(`${file}.mjs :: ${m[0].slice(0, 60)}`);
@@ -4184,7 +4184,7 @@ const INVARIANTS = [
         equal(J(M.castFieldsToWrite({ thirdId: null, notAField: 1 }, { thirdId: "T" })), J({ thirdId: null }),
             "a named null was not written, or a field the record does not have was");
         const sources = new Map(await otherSources());
-        const src = stripComments(sources.get("murder.mjs") ?? "");
+        const src = stripComments(sources.get("murder-rules.mjs") ?? "");
         ok(/const fields = castFieldsToWrite\(next, previous\);/.test(fnSource(stripComments(sources.get("incident-store.mjs") ?? ""), "writeCast")), "writeCast does not stamp what castFieldsToWrite names");
         for (const fn of ["passTurn", "thirdPartyEnters"]) {
             const body = fnSource(src, fn);
