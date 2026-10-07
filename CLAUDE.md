@@ -94,6 +94,7 @@ and adds its new files' rows here.
 | `scripts/fog-diagnostics.mjs` | the map's checks (`checkRegions`), `whatIsHere` with its probes, and how much of a scene belongs to no room (`sceneUncoveredPercent`); no state | `fog.mjs` |
 | `scripts/incident-store.mjs` | the incident's record: the world half and the cast, each participant's stamped copy and the socket that keeps it in step, the queue and the one write of both halves, who is in it, the betrayal window that write arms, the opening's notices, the deaths a player may know and their socket, the Blackened register, and the cast put back by hand or lifted out of world data | `murder.mjs` |
 | `scripts/murder-rules.mjs` | the rules of a murder: the crisis table and the turn, the opening rolls and their invitation, a crisis action judged, resolved and undone, the weapon it swings, running out, a third party, the close and the betrayal | `murder.mjs` |
+| `scripts/murder-ui.mjs` | the murder window a GM opens an incident from, and the GM's tracker: its body, its footer and the rate-limited "ask again" for the opening roll | `murder.mjs` |
 
 ## What the suite's four numbers mean
 

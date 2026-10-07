@@ -2902,11 +2902,13 @@ const REGRESSIONS = [
          * this window answered falsy even when a murder DID open, so a fired trap's
          * ruling card was never settled.
          */
-        const murderSrc = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
-        /* E34 C8 (1.2.70): this read ran on to `rollOpening`, which moved to murder-rules.mjs; it ends at the
-           window's own closing brace now. Not fnSource: its cut runs on into the tracker's `lastReask` and
-           `REASK_COOLDOWN_MS` lines, which moved-only's cuts part reads red under a name a test cuts (measured 07.10.2026). */
-        const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "\n}\n" });
+        const murderSrc = stripComments(new Map(await otherSources()).get("murder-ui.mjs") ?? "");
+        /* E34 C8 (1.2.70): this read ran on to `rollOpening`, which moved to murder-rules.mjs; it ended at the
+           window's own closing brace then. Not fnSource at C8: its cut runs on into the tracker's `lastReask` and
+           `REASK_COOLDOWN_MS` lines, which moved-only's cuts part reads red under a name a test cuts (measured 07.10.2026).
+           E34 C9 moved the window to murder-ui.mjs with those two lines still after it, and moved-only read its cut
+           there equal to C8's (07.10.2026), so the read is fnSource's now. */
+        const dialog = fnSource(murderSrc, "openMurderDialog");
         ok(dialog.length > 500, "openMurderDialog is gone or has moved past rollOpening");
 
         ok(dialog.includes("isEclipse("),
@@ -3589,7 +3591,7 @@ const REGRESSIONS = [
          * from here: a test that reads the runner it is running inside proves nothing
          * about the run that is happening.
          */
-        const murder = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
+        const murder = stripComments(new Map(await otherSources()).get("murder-ui.mjs") ?? "");
         const body = bodyOf(murder, "function incidentTrackerHtml(", { until: "function incidentSignature(" });
         ok(body.length > 400, "the tracker's body builder has moved or gone");
         ok(/const lost = \[/.test(body), "nothing notices that the cast cannot be found");
