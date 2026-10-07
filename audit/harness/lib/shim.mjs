@@ -966,6 +966,11 @@ export class RollImpl {
     static get jsonClass() { return Object.hasOwn(this, "JSON_CLASS") ? this.JSON_CLASS : this.name; }
     clone() { return new this.constructor(this._formula, this.data, this.options); }
     async reroll(options = {}) { return this.clone().evaluate(options); }
+    /* Foundry's `getTooltip` gives the dice as HTML from its own template (its source is not on this
+       machine). This is a shim of it: a plain string naming each die and its results, enough for a card
+       that puts the tooltip in its content (monocub.mjs `postMeddleRoll`, first driven headless by
+       scenario 83's L8 in E33 C4, which lent one for the road until this). Not Foundry's markup. */
+    async getTooltip() { return this.dice.map(d => `${d.formula}: ${d.results.map(r => r.result).join(", ")}`).join("; "); }
     get dice() { return this.terms.filter(t => t instanceof Die); }
     /* Every die drawn, then the terms summed by their operators. A second evaluate of one
        instance throws rather than drawing more dice into it: the module clones a roll before

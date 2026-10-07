@@ -71,9 +71,10 @@ export const FLOWS = Object.freeze([
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
         entry: { api: ["discoverBody"] }, scenarios: ["10-murder"], status: "covered", stage: "<=1.2.50" },
     // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
-    // one on the flag and draws a roll naming it, 33 asks for one with no GM connected.
+    // one on the flag and draws a roll naming it, 33 asks for one with no GM connected. E33 C4 (07.10.2026): 83 arms
+    // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
-        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask"], sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E40" },
@@ -109,8 +110,12 @@ export const FLOWS = Object.freeze([
     // E33 C3 (07.10.2026): tier 2 draws p1's roll once per row of the GMs' list (config.mjs `LEGAL_ROLL_MODIFIERS`) and
     // per branch of its `situation`, with the source and without (`MODIFIER_FIXTURES`), and six claims off it; R291 holds
     // the fixtures' keys to the list's. Tiers, not a scenario: the flow's scenarios are as they were.
+    // E33 C4 (07.10.2026): 83 drives the plan's eleven legal roads of a player's roll (L1-L11) - a Search, a Work
+    // and a sabotage, a statistic off the sheet, an Experience, a Support, a Reroll, a Rest, a Level Up, the incident's
+    // rolls, a Monocub's Meddle, Daggerheart's own Hope - and reads each with no flag, no write put back or flagged, no
+    // card to the GMs and no "not counted".
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
-        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals"], status: "covered", stage: "1.2.67" },
+        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals", "83-roll-integrity"], status: "covered", stage: "1.2.67" },
     // E29 fix r2-H4 (05.10.2026): a GM's yes is kept on the primary for the arm it allows (`call.yes`) - 40 says it on
     // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
@@ -126,9 +131,10 @@ export const FLOWS = Object.freeze([
     // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
     // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
     // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice (monocub.mjs `meddleOnGm`); tier 2
-    // judges a Monocub's packet, and no scenario drives the Monocub's ask yet.
+    // judges a Monocub's packet, and no scenario drove the Monocub's ask. E33 C4 (07.10.2026): 83 does - p2's dead
+    // Botan meddles in Aiko's next roll from p2's browser, and Aiko's roll spends it with no alarm.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
-        entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow"], status: "partial", stage: "E45" },
+        entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E45" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening
@@ -189,10 +195,11 @@ export const FLOWS = Object.freeze([
     // reaches take E29's road with a reason (resource-guard.mjs, "THE PLAYER'S OWN WRITES"); tier 2 judges a write
     // of each reason as the player's ("a player's write on the road is judged as E29's table says", "a Call's free
     // action and free Move bought and spent on the module's road raise no row"). 40-flow's day reads the Call its
-    // roll window spent covered under `call` now, where its row named no reason.
+    // roll window spent covered under `call` now, where its row named no reason. E33 C4 (07.10.2026): 83 reads the
+    // writes of a Search's find, a Rest, an item used and a Level Up - each covered or applied, none put back or flagged.
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
-        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held"], status: "covered", stage: "1.2.68" },
+        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",
