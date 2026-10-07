@@ -396,7 +396,7 @@ Search Tokens: **3 na pokój na porę dnia** (`ROOMS.searchTokensPerRoom`, edyto
 
 ### 9.2 Mgła i odkrywanie
 
-`scripts/fog.mjs`, ustawienie *pokoje decydują, co widzą gracze*. Jedna warstwa nad całą sceną, trzy stany: pokój, w którym stoisz, jest czysty; pokój odwiedzony prześwituje przez zasłonę; wszystko inne, łącznie z fragmentem mapy poza każdym regionem, to pełna mgła. Podczas Eclipse nawet pokój, w którym stoisz, jest tylko za zasłoną. Odkrywanie jest **per postać**, zapisywane przez głównego GMa, gdy token wchodzi do pokoju po raz pierwszy (z dźwiękiem dla ucznia, który wszedł), i przetrwa sesje; pełny zapis zostaje w przeglądarkach GMów (sekcja 14), a przeglądarka każdego gracza trzyma tylko wiersze jego własnych postaci. GM widzi lżejszą mgłę: każdy pokój odkryty przez klasę jest czysty, a pokoje, których nikt jeszcze nie znalazł, razem z każdym miejscem poza pokojami, leżą pod zasłoną. Mastermind widzi każdy pokój jako odwiedzony.
+`scripts/fog.mjs`, `fog-geometry.mjs`, `fog-doorways.mjs`, `fog-reveal.mjs`, `fog-diagnostics.mjs`, ustawienie *pokoje decydują, co widzą gracze*. Jedna warstwa nad całą sceną, trzy stany: pokój, w którym stoisz, jest czysty; pokój odwiedzony prześwituje przez zasłonę; wszystko inne, łącznie z fragmentem mapy poza każdym regionem, to pełna mgła. Podczas Eclipse nawet pokój, w którym stoisz, jest tylko za zasłoną. Odkrywanie jest **per postać**, zapisywane przez głównego GMa, gdy token wchodzi do pokoju po raz pierwszy (z dźwiękiem dla ucznia, który wszedł), i przetrwa sesje; pełny zapis zostaje w przeglądarkach GMów (sekcja 14), a przeglądarka każdego gracza trzyma tylko wiersze jego własnych postaci. GM widzi lżejszą mgłę: każdy pokój odkryty przez klasę jest czysty, a pokoje, których nikt jeszcze nie znalazł, razem z każdym miejscem poza pokojami, leżą pod zasłoną. Mastermind widzi każdy pokój jako odwiedzony.
 
 By mgła działała, scena musi mieć wyłączone własne widzenie Foundry:
 
@@ -488,7 +488,7 @@ Tier Murder Weapon to obrażenia w incydencie; Tier Cleaning Tool schodzi z DC s
 
 ## 11. Projekty i pułapki
 
-`scripts/projects.mjs`, `projects-ui.mjs`, `traps.mjs`, `config.mjs PROJECT_SCALE`, `TRAP_TRIGGERS`, `TRAP_MODIFIERS`, `INDIRECT_MURDER`.
+`scripts/projects.mjs`, `projects-secrecy.mjs`, `projects-ui.mjs`, `projects-tray.mjs`, `traps.mjs`, `config.mjs PROJECT_SCALE`, `TRAP_TRIGGERS`, `TRAP_MODIFIERS`, `INDIRECT_MURDER`.
 
 Projekty to Countdowny z Daggerheart liczące *w górę*. Skale:
 
@@ -560,7 +560,7 @@ Wyzwalacz podłożonego przedmiotu działa przez **Podłóż przedmiot** na uko�
 
 ## 13. Silnik morderstwa od początku do końca
 
-`scripts/murder.mjs`, `cleanup.mjs`, `chapter.mjs`; `config.mjs MURDER_OPENING`, `INCIDENT`, `CRISIS_ACTIONS`, `CLEANUP`, `INDIRECT_MURDER`. Moduł jest właścicielem liczb - progów, drenażu, kolejności tur, obrażeń, tego, jakie Remnants zostawia każdy wynik. Nie jest właścicielem prozy: zdanie każdego wyniku jest pokazywane tobie i uczestnikom do dokończenia przy stole. Czy zabójca jest we właściwym pokoju i czy etap trwał dość długo - to twoje.
+`scripts/murder.mjs`, `incident-store.mjs`, `murder-rules.mjs`, `murder-ui.mjs`, `cleanup.mjs`, `chapter.mjs`; `config.mjs MURDER_OPENING`, `INCIDENT`, `CRISIS_ACTIONS`, `CLEANUP`, `INDIRECT_MURDER`. Moduł jest właścicielem liczb - progów, drenażu, kolejności tur, obrażeń, tego, jakie Remnants zostawia każdy wynik. Nie jest właścicielem prozy: zdanie każdego wyniku jest pokazywane tobie i uczestnikom do dokończenia przy stole. Czy zabójca jest we właściwym pokoju i czy etap trwał dość długo - to twoje.
 
 ### 13.1 Otwarcie
 
