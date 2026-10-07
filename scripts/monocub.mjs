@@ -152,8 +152,9 @@ export async function setSilenced(actor, silenced) {
  * Information only - it refuses nothing (a witness's Confusion lands, ACT-12) and mutes
  * nothing; whether a Monocub keeps quiet is the player's own business (the owner, 05.10.2026).
  * Named `isCrimeSilenced` since 1.2.69 (E33 C9, D39): until then this and the Despair Call's
- * reader in call-effects.mjs were both `isSilenced`, and sheet.mjs renamed them at its door.
- * `game.drpg.isSilenced` still answers this question (api.mjs).
+ * reader in call-effects.mjs shared one bare name, and sheet.mjs renamed them at its door.
+ * The alias in api.mjs still answers this question under that old name, so a macro
+ * reads what it read.
  */
 export function isCrimeSilenced(actor) {
     const chapter = actor?.getFlag(MODULE_ID, FLAGS.silencedChapter);
@@ -163,7 +164,7 @@ export function isCrimeSilenced(actor) {
 /* ==========================================================================
  * THE ABILITIES (E33 C10, 07.10.2026; audit S09-48, decision D39)
  * --------------------------------------------------------------------------
- * One ability lived in three files (this one, gm-bridge.mjs `monocub.meddle`,
+ * One ability lived in three files (this one, gm-bridge.mjs's one action for it,
  * sheet.mjs `meddleButton`), so a second one would have been a fourth copy of
  * every question: who may use it, when it is shut, whom it is aimed at, what is
  * thrown, how it is scored. Each ability is a ROW of `MONOCUB.abilities`

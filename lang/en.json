@@ -3011,7 +3011,7 @@
         "trait": "statistic",
         "pick": "statistic picked by a GM",
         "modifier": "modifier",
-        "dice": "extra dice",
+        "dice": "dice",
         "advantage": "advantage dice",
         "stash": "hidden stash not named"
       },

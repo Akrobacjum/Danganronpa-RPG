@@ -33,8 +33,9 @@
  * The wrap runs Daggerheart's `buildConfigure` and `buildEvaluate` itself and not
  * `buildPost`: no local message, no local resources, no countdown, no trigger - the
  * GM ran them. Read in 2.10.5's source (dhRoll.mjs, dualityRoll.mjs, d20Roll.mjs,
- * unchanged to 2.10.8 - the plan measured); the harness's roll is modelled on the
- * same reading (client-entry.mjs `DualityRollMock`, C10). What the round trip costs
+ * unchanged to 2.10.8 - the plan measured); the harness throws Daggerheart's own roll
+ * classes since E33 C2a (audit/harness/lib/dh-dice/dice/, copied verbatim; until then
+ * client-entry.mjs modelled the roll on this reading). What the round trip costs
  * is kept here since E33 C13 ("THE ROUND TRIP, KEPT IN MEMORY" below; `game.drpg.perf()`
  * reads it) and measured at a table by LIVE-E33-05 - LIVE-E28-03 asked for it.
  *
@@ -435,7 +436,8 @@ export async function rollerCopyOf(cls, configured, config, message, { faces = [
  * it built. The same probe on the JSON a headless draw of a statistic from the sheet handed
  * `fromData` (e29run/scratch/r2h1-probe): at 070b72b the GM's and the roller's each threw at
  * dualityRoll.mjs:174; with this fix each built. The suite stayed green because the harness's
- * constructor read none of it (client-entry.mjs `DualityRollMock` reads all three since this fix).
+ * constructor read none of it (the harness's stand-in of the time read all three since this
+ * fix; since E33 C2a the harness builds Daggerheart's own class, which reads them itself).
  * The GM writes both into its own options (`drawnOptions`); they are put here too for a JSON
  * written before the fix. Built so, the constructor's formula (`_formula`) is the dice alone,
  * `1d12 + 1d12` in that probe - it is written before `fromData` puts the JSON's terms in, and the
@@ -936,9 +938,10 @@ export async function drawOnGm(packet, sender) {
  * `fromData` then puts in (d20Roll.mjs:6-9, :81-86, read). Any other die is a modifier, thrown on
  * the GM's randomness at the packet's size and flagged (`dice`); what a drawn roll may be built
  * of at all is the guard's (bridge-guards.mjs `guardDrawnRoll`). Foundry's own `fromData` is not
- * on this machine: the harness models it (lib/shim.mjs), and Daggerheart's constructor is
- * modelled as far as `guaranteedCritical` and, since fix r2-H1, the options it reads before any
- * modifier is written (client-entry.mjs `DualityRollMock`; `rollFromLegal`'s note).
+ * on this machine: the harness models it (lib/shim.mjs); Daggerheart's constructor is its own
+ * there since E33 C2a (audit/harness/lib/dh-dice/dice/, copied verbatim) - until then a stand-in
+ * in client-entry.mjs modelled it as far as `guaranteedCritical` and, since fix r2-H1, the
+ * options it reads before any modifier is written (`rollFromLegal`'s note).
  */
 
 /** Daggerheart's advantage dice, by the class `fromData` gives the fifth term, and the sign each is thrown with. */

@@ -37,7 +37,7 @@ import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } fro
 // Two different rules, each under its own name since 1.2.69 (E33 C9, D39): the
 // crime-witness marker on a Monocub (information only - it refuses nothing) and
 // the Despair Call "Silence" on a living student (no Hope Calls until the time of
-// day ends). Until then both arrived as `isSilenced` and were renamed at this door,
+// day ends). Until then both arrived under one bare name and were renamed at this door,
 // which is how a reader of this file took one for the other.
 import { isMonocub, isCrimeSilenced } from "./monocub.mjs";
 import { isCallSilenced, isChained, pendingGather, armedCallsShown } from "./call-effects.mjs";

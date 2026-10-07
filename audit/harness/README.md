@@ -289,7 +289,10 @@ makes a critical certain, no rally die), and every roll at a table.
   role changes only by a write, nobody is logged out for it, and there is no
   `game.users.activeGM`. `opLog` and `settingLog` say who wrote what.
 - **Daggerheart.** Its GM relay is 2.10.5's own code (`lib/dh-relay.mjs`), and
-  so is its duality roll since E33 C2a ("Daggerheart's dice" above). A trait
+  so is its duality roll since E33 C2a ("Daggerheart's dice" above, with C2b's
+  glue window, which the module's roll hooks run on unchanged); scenario 83 drives
+  every legal road of a player's roll on it and on `audit/live/sandbox-cluster.mjs`
+  alike, taking only what both hand a scenario. A trait
   roll's config is built as 2.6.5's `rollTrait` and `diceRoll` build it
   (`lib/daggerheart.mjs`, E30), the card is the harness's, and the resource step
   (`addDualityResourceUpdates`, with its Hope-and-Fear automation gate, reaction,

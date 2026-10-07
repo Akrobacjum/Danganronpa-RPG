@@ -40,9 +40,10 @@ If a claim cannot be measured, say that instead of rounding it up.
 | One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, contract, registry, stages, tree, gatecode |
 | The Polish file | `node tools/check.mjs prose` - must read N/N, 497/497 on 24.09 |
 | The local gate | on a machine with a Foundry v14 sandbox at :30099, `npm run gate:local` (`audit/gate/README.md`) |
+| What a player's roll may do, and what a console's forgery may not | `node cluster.mjs scenarios/83-roll-integrity.mjs` - every legal road clean, each forgery traced; in `npm test` and the local gate since E33 |
 | The curtain, without Foundry | `python3 -m http.server 8765` then `/audit/glass-harness.html` |
 | The evidence pack, without Foundry | the same server, then `/audit/pack-harness.html` |
-| What the theme costs | `game.drpg.perf()` at the table - the only place that number is real |
+| What the theme costs, and a drawn roll's round trip | `game.drpg.perf()` at the table - the only place either number is real (the round trip since E33: the last fifty draws this browser took part in) |
 | What a screen reader cannot read | `game.drpg.a11y()` |
 
 The headless harness (`audit/harness`) runs four jsdom clients - one GM and
@@ -223,7 +224,8 @@ naming the user Foundry named as the sender or the author (sheet-audit.mjs
 student it refused (`refused`), a player's message carrying a flag only a GM's
 client writes, which no browser reads as drawn (`forged`), and a roll's dice a
 player rewrote that it put back, once per message and player, as the GMs are
-told (`rewrite`).
+told (`rewrite`). The user such a row names is Foundry's stamp on the message,
+assumed for a player's create and not yet read at a table (LIVE-E33-10).
 
 **Layer two (E28, 1.2.67; E29, 1.2.68).** The numbers - totals, dice, Hope paid,
 what a sheet holds - are checked against what the GMs hold. Since E28 a player's action roll and a
@@ -247,7 +249,11 @@ pick, an experience only with an Experience Call the GMs hold armed, the Calls'
 bonus and dice, each action's situation, Breakdown, a hindering Call armed long
 enough before the roll), and what the roller's window configured is a claim: a
 difference is recorded on the roll (`game.drpg.rollFlags()`), whispered to the GMs
-and named on a card to the roller, and never counted. The Calls that change a roll
+and named on a card to the roller, and never counted. The claim's dice are read in
+every way a term can differ - a Hope or Fear die at other faces, in another number
+or with a modifier of its own, the advantage die at faces not the list's (E33 fix
+r1-G2) - and named `dice`: a trace, not an award, since the GM throws its own
+terms. The Calls that change a roll
 are bought on the primary GM (`call.arm`, which takes the Hope there - an Experience
 or an Ultimate only with the yes a GM gave on its card, which the primary keeps), so
 a drawn roll applies only the Calls the GMs hold armed, and a Reroll throws again
@@ -278,6 +284,20 @@ on the sheet, the Party sheet and the token HUD - is a courtesy: it keeps an hon
 sheet honest and tells the player early, a console steps past it, and the
 protection is the primary GM's.
 
+Since E33 (1.2.69) both halves are measured as an opponent would. R220 is the
+census: every document write in `scripts/` is read off the source and held to one
+of three - E29's road with a reason of the closed list, a GM's own, or not a
+student's - so a road a player's browser could take without a reason fails the
+suite before it ships (C1a, C1b). Scenario 83 (`83-roll-integrity`, in `npm test`
+and the local gate) drives every legal road of a player's roll and sheet from that
+player's own page, as a console would call the module, and reads the GMs' records
+before and after: a legal road must raise nothing - no flag, no row, no whisper, no
+refusal - and each forgery from a console must leave exactly its one trace naming
+its sender (`rollFlags()`; the `sheetWrites()` rows `refused`, `forged` and
+`rewrite`), undone or never applied. The harness throws Daggerheart's own roll
+classes and runs a glue of its roll window for it (`audit/harness/README.md`,
+"Daggerheart's dice"); LIVE-E33-01 is the same scenario on a real Foundry.
+
 What stays open: a roll not drawn - one thrown with no GM connected (an action
 waits; any other roll is stamped and moves nothing until a GM grants it, on the
 dice the player's browser reports, and the GMs' card shows what it claimed beside
@@ -285,7 +305,8 @@ what the list would give), every roll on a Daggerheart build the draw was not
 written for (thrown in the player's browser, the GM told once per version), and
 Daggerheart's own item rolls, its damage rolls and the rest of its rolls; the
 Hope such a roll earns, which the GM credits against that player's roll message
-of the last minute, whose dice are that browser's; the Calls such a roll's
+of the last minute, whose dice are that browser's (a `covered` row names the
+message, fix r1-G1); the Calls such a roll's
 window spends there, where one that hinders or that a GM armed stands taken off
 only behind that player's roll message about the character, which a console can
 write first; the resources of any actor
@@ -300,7 +321,11 @@ that asks for none leaves no trace at all, and a Work's trace on an indirect
 murder takes the band its request names. And three readings still made on the roller's browser: which
 item a Search draws (granted on the roller's own sheet; the GM holds its tier to
 what the Search's record earns); a concealment roll's reading; and Listen's lines,
-since every browser holds the tokens.
+since every browser holds the tokens. Of 83's forgeries two are watched, not
+caught: a card shaped as Daggerheart's item roll whose Hope the relay credits
+once (F4b, the open part above; the second ask is never applied), and a rewrite of
+a drawn card's rolls from the chat menu, which Foundry refuses to a player before
+any hook of the GM's runs, so it changes nothing and leaves no trace (F6a).
 
 The Reroll is the GM's own transaction (E08): asked of the primary GM, paid,
 thrown, taken back and replayed there, its steps written in the GMs' journal
@@ -541,7 +566,9 @@ named, not numbered.
 harness can settle and that have to be tried at a real table. That list is the
 honest statement of what this module has not yet proved about itself, with two
 records beside it: the local gate's parts not run (`audit/gate/local-gate.json`)
-and the 1.2.56 performance baseline, not yet measured (`audit/perf-baseline.json`).
+and the performance baseline, not yet measured (`audit/perf-baseline.json`: the
+1.2.56 method and, since E33 C13, a revision for 1.2.69's `perf()`; the run is
+LIVE-E33-05).
 
 ## Registry: R numbers
 

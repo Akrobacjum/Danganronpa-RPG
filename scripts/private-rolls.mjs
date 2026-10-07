@@ -876,7 +876,7 @@ function onPreCreateChatMessage(message, data, options, userId) {
 /*
  * THE WHISPER FIRST, THE MODE APART (E33 C11, 07.10.2026; audit S02-68; the plan's V7).
  * Until 1.2.69 each rewrite in `whisperRoll` wrote the whisper list and
- * `flags.core.rollMode: CONST.DICE_ROLL_MODES.PRIVATE` in one `updateSource`, under the
+ * `flags.core.rollMode` from v13's roll-mode constant (its PRIVATE) in one `updateSource`, under the
  * one try of `onPreCreateChatMessage`: a browser on which reading that constant throws
  * wrote neither, and the roll was created public. Foundry 14 deprecates the constant and
  * 16 drops it - the audit's reading of v14 (U05-roll-pipeline-15), second-hand, since

@@ -44,8 +44,10 @@ export function registerRollDialog() {
  *
  * What is spent is what this window applied - the Calls it opened with
  * (`windowCalls`) - and nothing armed after it opened, which waits for the next
- * roll (S02-20). Exported, with the render hook, for the suite: Daggerheart's
- * window is not in the harness, so the tier-2 tests hand both a stand-in.
+ * roll (S02-20). Exported, with the render hook, for the suite: since E33 C2b the
+ * harness opens a glue window shaped as Daggerheart's (audit/harness/lib/dh-dice/
+ * applications/dialogs/d20RollDialog.mjs) and the tier-2 tests drive that one;
+ * until then they handed both a stand-in.
  *
  * A ROLL THE GM DRAWS IS SPENT BY THE GM (E08+E28 C12b). The window's list is kept on
  * its roll's claim before anything is awaited (private-rolls.mjs `noteWindowCalls`) and
