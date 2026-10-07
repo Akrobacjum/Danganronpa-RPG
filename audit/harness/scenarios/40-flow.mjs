@@ -1652,6 +1652,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * none): the Support the GM armed on Aiko in 6b+, which p1's window spent as it closed, stood on p1's
      * roll (sheet-audit.mjs `callsCover`). Measured on the harness on 06.10.2026 (e29run/r2h7, one run):
      * those four, 115 patches, 35 of them items.
+     * Since E33 C1b (07.10.2026) that spend is on the road named `call` (call-effects.mjs `spendCallsByNonce`,
+     * which the window's `consumeCallsByNonce` calls), so its covered row names it: the "-" this list held
+     * read `call` on the harness on 07.10.2026 (e33run/c1b, one run), 115 patches, 35 of them items.
      */
     phase("the day's writes, as the GMs' audit saw them", { flow: "sheet-audit" });
     const auditDay = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
@@ -1663,7 +1666,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             flagged: rows.filter(r => r.verdict === "flagged").map(r => Object.keys(r.change ?? {})),
             covered: rows.filter(r => r.verdict === "covered").map(r => (r.reason ?? "-") + ":" + Object.keys(r.change ?? {}).map(k => k.replace(/^items\.[^.]+/, "items.<id>")).sort().join(",") + (r.covered ? ":" + JSON.stringify(r.covered) : "")).sort() };`);
     const MARK_PATCHES_MEASURED = 111;
-    const COVERED_MEASURED = [`-:flags.${MOD}.pendingCall`, "itemUse:system.resources.hitPoints.value", `rest:flags.${MOD}.restsTaken,system.resources.stress.value`, "searchFind:items.<id>"];
+    const COVERED_MEASURED = [`call:flags.${MOD}.pendingCall`, "itemUse:system.resources.hitPoints.value", `rest:flags.${MOD}.restsTaken,system.resources.stress.value`, "searchFind:items.<id>"];
     check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed and an item's readiness, has a covered row for the Rest, the item used, the find and the Call a roll's window spent, and patches its marks within a quarter of the measured count",
         auditDay.store && auditDay.putBack.length === 0 && auditDay.flagged.length === 0
             && auditDay.listed.every(entry => entry.endsWith(`:flags.${MOD}.pendingCall`) || entry.endsWith(`:items.<id>.flags.${MOD}.equipped`))

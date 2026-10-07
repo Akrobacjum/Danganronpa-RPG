@@ -230,11 +230,23 @@ function prune(node) {
  * the Sanity it named is a resolution's price (cleanup.mjs `markResolutionStress`) - and
  * stays on the list the plan and R220 hold; the GMs' judge still reads it, as it reads
  * whatever a console claims, as a refund (sheet-audit.mjs `REFUNDS`).
+ *
+ * THE PLAYER'S OWN WRITES (E33 C1b, 06.10.2026; R220's census). The census found thirteen writes
+ * on a student's sheet still bare on roads a player reaches; each now takes the road, whichever
+ * browser runs it (`takeBackRefund` runs on a GM's, where a reason changes no verdict).
+ * The eight in actions.mjs and call-effects.mjs name reasons already here (`spend`, `refund`,
+ * `call`: a Burst or a free Move used, the free Move given back, the armed Calls a roll spent).
+ * The other five name three new ones, for what is the player's to write and the GMs' audit does
+ * not judge: `equip` (an item readied or put down, use-items.mjs
+ * `toggleEquipped`), `ultimate` (sheet.mjs `commitUltimate`, `setUltimate`) and `sheetText` (the
+ * backstory, sheet.mjs `tidyBiography`). A player's write of any of the three is listed in
+ * `sheetWrites` and stands, as it was before it had a name (tier 2's "a player's write on the
+ * road is judged as E29's table says"); none is in `JUDGED` below, so none leaves the browser.
  */
 export const WRITE_REASONS = Object.freeze([
     "spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash", "retrieve", "discard",
     "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
-    "auditPutBack", "auditUndo"
+    "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText"
 ]);
 
 /** The option a module write carries where its reason goes with it (`stampOf`): `{ reason, ref }`. */

@@ -355,6 +355,71 @@ function asConsole(call) {
 }
 
 /**
+ * A PLAYER'S ROAD, ITS WRITES CAUGHT AND JUDGED AS THEIRS (E33 C1b, 06.10.2026). `road` runs with
+ * `game.user.isGM` reading false - for its synchronous start, as `asConsole`, or with `whole` until it
+ * settles, for a road that writes after an `await` - and every `update` it makes of one of `docs` is
+ * caught rather than made: the changes, and the options the road built for them (`trustedWrite`
+ * builds its stamp from the user it reads then). Each caught write is then made here by the GM with
+ * the audit's aside and handed to the judge with `player`'s id and the road's own options, as the
+ * primary hears a player's write. Answers one `{ id, module, stamp, verdict }` per write, in order:
+ * the document's id, whether the write went as the module's (resource-guard.mjs `SYSTEM_WRITE`),
+ * the stamp that left the browser with it (`drpgWrite`, or null) and the judge's verdict. With
+ * `whole`, whatever else this browser runs meanwhile runs as a player too: kept to roads that wait
+ * on nothing but their own imports.
+ */
+async function judgedOnRoad(docs, player, road, { whole = false } = {}) {
+    const { judgeWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+    const caught = [];
+    for (const doc of docs) Object.defineProperty(doc, "update", { configurable: true,
+        value: (changes, options = {}) => (caught.push({ doc, changes, options }), Promise.resolve(doc)) });
+    Object.defineProperty(game.user, "isGM", { value: false, configurable: true });
+    try {
+        const run = road();
+        if (!whole) delete game.user.isGM;
+        await run;
+    } finally {
+        delete game.user.isGM;
+        for (const doc of docs) delete doc.update;
+    }
+    const out = [];
+    for (const { doc, changes, options } of caught) {
+        await doc.update(foundry.utils.deepClone(changes), { [AUDIT_ASIDE]: true });
+        const judged = await judgeWrite(doc.documentName === "Item" ? "updateItem" : "updateActor", doc, foundry.utils.expandObject(changes), player.id, options);
+        out.push({ id: doc.id, module: options.drpgAutomated === true, stamp: options.drpgWrite ?? null, verdict: judged?.verdict ?? null });
+    }
+    return out;
+}
+
+/** The rows the GMs' audit kept of `player`'s writes on `student` since `from`: `[verdict, paths changed, reason, ref]`, sorted. */
+async function rowsSince(student, player, from) {
+    const { sheetWriteStore } = await import("./gm-stores.mjs");
+    return Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.actorId === student.id && row.userId === player.id && row.at >= from)
+        .map(row => [row.verdict, Object.keys(row.change ?? {}).sort(), row.reason ?? null, row.ref ?? null])
+        .sort((a, b) => stableJson(a).localeCompare(stableJson(b)));
+}
+
+/** A student's credit with the GMs' audit, per ledger key: the sum of what it holds (sheet-audit.mjs `creditOf`, unaged). */
+async function creditSums(student) {
+    const { sheetMarkStore } = await import("./gm-stores.mjs");
+    return Object.fromEntries(Object.entries(sheetMarkStore.get(student.id)?.credit ?? {})
+        .map(([key, entries]) => [key, (entries ?? []).reduce((sum, entry) => sum + (entry?.n > 0 ? entry.n : 0), 0)]));
+}
+
+/**
+ * A character sheet's two fields the module draws itself, drawn by its own hook (sheet.mjs
+ * `onRenderCharacterSheet`) into a root that holds only them - the Ultimate in the header and the
+ * backstory's editor - as Daggerheart's sheet would hand them over. Answers the Ultimate's field and
+ * the backstory's textarea, each null where the hook drew none.
+ */
+function drawnSheetFields(student) {
+    const root = document.createElement("div");
+    root.innerHTML = `<div class="character-header-sheet"><div class="character-details"></div></div>`
+        + `<section data-application-part="biography"><prose-mirror name="system.biography.background"></prose-mirror></section>`;
+    Hooks.callAll("renderCharacterSheet", { document: student, isEditable: true }, root, {}, { isFirstRender: true });
+    return { ultimate: root.querySelector("[data-drpg-ultimate]"), backstory: root.querySelector("textarea.drpg-biography-text") };
+}
+
+/**
  * A PLAYER'S WRITE HEARD WHILE THE GM'S OWN IS ON ITS WAY (E29 fix r1-G5, 05.10.2026). At the next
  * write this GM makes of `student`'s Hope - in its `preUpdateActor`, before it leaves this browser -
  * `write`, already on the sheet with the audit's aside, is handed to the judge as `player`'s, as the
@@ -30820,6 +30885,252 @@ const SCENARIOS = [
             await student.items.get(item.id)?.delete();
         }
         equal(JSON.stringify(read), JSON.stringify([true, 0, true]), "a player's console destroyed an item with Contraband (failed, the lines it said, the item still on the sheet)");
+    }],
+
+    ["a player's write on the road is judged as E29's table says: equip", async () => {
+        /* E33 C1b, 06.10.2026; R220's census. `toggleEquipped` readies a Tool on the player's own
+           student, on the road named `equip`: the name stays on the player's browser (it is not one of
+           resource-guard.mjs `JUDGED`), and the GMs' audit lists the flag - the player's own, as
+           sheet-audit.mjs `ITEM_FIXED` says - and it stands. At ed0890b (C1a) the write was bare:
+           not the module's. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { toggleEquipped, isEquipped, readiedItems } = await import("./use-items.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const ready = `flags.${MODULE_ID}.equipped`;
+        const before = readiedItems(student).map(item => item.id);
+        const from = Date.now();
+        let tool = null, read = null;
+        try {
+            tool = await grantItem(student, { name: "SUITE E33 C1b a Tool to ready", category: "tool", tier: 1, override: true, quiet: true });
+            await sheetAuditIdle();
+            must(tool && !isEquipped(tool), "no Tool to ready - this would measure nothing");
+            const judged = await judgedOnRoad([...student.items], player, () => toggleEquipped(student, tool));
+            await sheetAuditIdle();
+            const mine = judged.find(write => write.id === tool.id) ?? null;
+            read = [mine && [mine.module, mine.stamp, mine.verdict], isEquipped(tool),
+                (await rowsSince(student, player, from)).filter(([, paths]) => paths.some(path => path.startsWith(`items.${tool.id}.`)))];
+        } finally {
+            await sheetAuditIdle();
+            if (tool && student.items.get(tool.id)) await student.items.get(tool.id).delete();
+            for (const id of before) if (student.items.get(id)) await student.items.get(id).update({ [ready]: true });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[true, null, "listed"], true, [["listed", [`items.${tool?.id}.${ready}`], null, null]]]),
+            "a player's readied Tool was not the module's write, or its reason left the browser, or the GMs' audit did not list it and let it stand "
+                + "(the write: the module's, the stamp, the verdict; the Tool readied; its rows)");
+    }],
+
+    ["a player's write on the road is judged as E29's table says: ultimate", async () => {
+        /* E33 C1b, 06.10.2026; R220's census. The Ultimate is the player's to write: `setUltimate`
+           (game.drpg) and the sheet's own field (sheet.mjs `commitUltimate`, on blur), each on the road
+           named `ultimate`, which stays on the player's browser; the GMs' audit lists the flag and it
+           stands, as E29 fix r1-G4's test reads it. At ed0890b (C1a) both writes were bare. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { setUltimate } = await import("./sheet.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const ULT = `flags.${MODULE_ID}.${FLAGS.ultimate}`, was = student.getFlag(MODULE_ID, FLAGS.ultimate) ?? null;
+        const from = Date.now();
+        let read = null;
+        try {
+            const { ultimate } = drawnSheetFields(student);
+            must(ultimate, "the sheet's hook drew no Ultimate field - this would measure only setUltimate");
+            const judged = [...await judgedOnRoad([student], player, () => setUltimate(student, "SUITE E33 C1b an Ultimate"))];
+            ultimate.textContent = "SUITE E33 C1b an Ultimate typed";
+            judged.push(...await judgedOnRoad([student], player, () => ultimate.dispatchEvent(new Event("blur"))));
+            await sheetAuditIdle();
+            read = [judged.map(write => [write.module, write.stamp, write.verdict]), student.getFlag(MODULE_ID, FLAGS.ultimate) ?? null,
+                await rowsSince(student, player, from)];
+        } finally {
+            await sheetAuditIdle();
+            await student.update({ [ULT]: was });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[[true, null, "listed"], [true, null, "listed"]], "SUITE E33 C1b an Ultimate typed",
+            [["listed", [ULT], null, null], ["listed", [ULT], null, null]]]),
+            "a player's Ultimate was not the module's write, or its reason left the browser, or the GMs' audit did not list it and let it stand "
+                + "(per write: the module's, the stamp, the verdict; the Ultimate after; the rows)");
+    }],
+
+    ["a player's write on the road is judged as E29's table says: sheetText", async () => {
+        /* E33 C1b, 06.10.2026; R220's census. The backstory the sheet draws as a textarea (sheet.mjs
+           `tidyBiography`) writes itself on focusout, on the road named `sheetText`, which stays on the
+           player's browser; the GMs' audit lists it and it stands. At ed0890b (C1a) it was bare. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const BIO = "system.biography.background", was = foundry.utils.getProperty(student, BIO) ?? "";
+        const from = Date.now();
+        let read = null;
+        try {
+            const { backstory } = drawnSheetFields(student);
+            must(backstory, "the sheet's hook drew no backstory textarea - this would measure nothing");
+            backstory.value = "SUITE E33 C1b a backstory";
+            const judged = await judgedOnRoad([student], player, () => backstory.dispatchEvent(new Event("focusout")));
+            await sheetAuditIdle();
+            read = [judged.map(write => [write.module, write.stamp, write.verdict]), foundry.utils.getProperty(student, BIO) ?? null,
+                await rowsSince(student, player, from)];
+        } finally {
+            await sheetAuditIdle();
+            await student.update({ [BIO]: was });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[[true, null, "listed"]], "SUITE E33 C1b a backstory", [["listed", [BIO], null, null]]]),
+            "a player's backstory was not the module's write, or its reason left the browser, or the GMs' audit did not list it and let it stand "
+                + "(per write: the module's, the stamp, the verdict; the backstory after; the rows)");
+    }],
+
+    ["a player's write on the road is judged as E29's table says: spend", async () => {
+        /* E33 C1b, 06.10.2026; R220's census. A Burst spent (actions.mjs `spendAction`), the free Move
+           used and a Sprint's crossing used (`takeMove`, twice), each on the road named `spend`, which
+           goes with the write (resource-guard.mjs `JUDGED`). The GMs' audit judges the three by their
+           values, not their reason: each stands with no row, and the two grants' falls become credit
+           (sheet-audit.mjs `meansFindings`). At ed0890b (C1a) the three were bare. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { spendAction, takeMove, hasFreeMove } = await import("./actions.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const paths = [FLAGS.freeActionGrants, FLAGS.freeMoveGrants, FLAGS.freeMoveUsed].map(flag => `flags.${MODULE_ID}.${flag}`);
+        const was = paths.map(path => foundry.utils.getProperty(student, path) ?? null);
+        let read = null;
+        try {
+            await student.update({ [paths[0]]: 1, [paths[1]]: 1, [paths[2]]: false });
+            await sheetAuditIdle();
+            must(hasFreeMove(student), "the free Move is not there to use (Fog?) - this would measure the Sprint twice");
+            const credit = await creditSums(student), from = Date.now();
+            const judged = [...await judgedOnRoad([student], player, () => spendAction(student, 1, { quiet: true })),
+                ...await judgedOnRoad([student], player, () => takeMove(student)), ...await judgedOnRoad([student], player, () => takeMove(student))];
+            await sheetAuditIdle();
+            const after = await creditSums(student);
+            read = [judged.map(write => [write.module, write.stamp, write.verdict]), paths.map(path => foundry.utils.getProperty(student, path) ?? null),
+                await rowsSince(student, player, from), ["freeActionGrants", "freeMoveGrants"].map(key => (after[key] ?? 0) - (credit[key] ?? 0))];
+        } finally {
+            await sheetAuditIdle();
+            await student.update(Object.fromEntries(paths.map((path, i) => [path, was[i]])));
+            await sheetAuditIdle();
+        }
+        const spend = [true, { reason: "spend", ref: null }, "stands"];
+        equal(stableJson(read), stableJson([[spend, spend, spend], [0, 0, true], [], [1, 1]]),
+            "a player's Burst, free Move or Sprint spent was not the module's write named `spend`, or the GMs' audit did not let it stand as credit "
+                + "(per write: the module's, the stamp, the verdict; the Burst, Sprint and free Move after; the rows; the credit each grant gained)");
+    }],
+
+    ["a player's write on the road is judged as E29's table says: refund", async () => {
+        /* E33 C1b, 06.10.2026; R220's census. `restoreFreeMove` gives the free Move back on the road
+           named `refund`, which goes with the write; the GMs' audit flags a player's give-back whatever
+           its reason (sheet-audit.mjs `actorFindings`, E29 fix r1-G4), and its row now names it. At
+           ed0890b (C1a) the write was bare: flagged the same, with no reason on its row. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { restoreFreeMove } = await import("./actions.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const FREE = `flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`, was = student.getFlag(MODULE_ID, FLAGS.freeMoveUsed) ?? null;
+        let read = null;
+        try {
+            await student.update({ [FREE]: true });
+            await sheetAuditIdle();
+            const from = Date.now();
+            const judged = await judgedOnRoad([student], player, () => restoreFreeMove(student));
+            await sheetAuditIdle();
+            read = [judged.map(write => [write.module, write.stamp, write.verdict]), await rowsSince(student, player, from)];
+        } finally {
+            await sheetAuditIdle();
+            await student.update({ [FREE]: was });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[[true, { reason: "refund", ref: null }, "flagged"]], [["flagged", [FREE], "refund", null]]]),
+            "a player's free Move given back was not the module's write named `refund`, or the GMs' audit did not flag it "
+                + "(per write: the module's, the stamp, the verdict; the rows)");
+    }],
+
+    ["a player's write on the road is judged as E29's table says: call", async () => {
+        /* E33 C1b, 06.10.2026; R220's census. A roll on a player's browser spends the armed Calls it
+           used (call-effects.mjs `spendCallsByNonce`), on the road named `call`, which goes with the
+           write. The GMs' audit judges the armed list by its entries (sheet-audit.mjs `actorFindings`,
+           E29 fix r2-H7): a Call of the GMs' taken off with no roll of the player's is put back, and its
+           row now names the write. At ed0890b (C1a) the write was bare: put back the same, with no
+           reason on its row. */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the Calls are armed on a connected player's character");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`, obstacle = "E33C1BOBSTACLE01", support = "E33C1BSUPPORT001", ours = [obstacle, support];
+        const held = () => E.armedCallsShown(theirs).map(c => c.nonce).filter(n => ours.includes(n)).sort();
+        let read = null;
+        try {
+            await E.appendArmedCall(theirs, { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce: obstacle });
+            await E.appendArmedCall(theirs, { key: "support", kind: "hope", grants: "advantage", amount: null, nonce: support });
+            await sheetAuditIdle();
+            must(held().length === 2, "the two Calls were not armed - this would measure nothing");
+            const from = Date.now();
+            const judged = await judgedOnRoad([theirs], player, () => E.spendCallsByNonce(theirs, [obstacle]));
+            await sheetAuditIdle();
+            read = [judged.map(write => [write.module, write.stamp, write.verdict]), held(), await rowsSince(theirs, player, from)];
+        } finally {
+            await sheetAuditIdle();
+            await E.spendCallsByNonce(theirs, ours);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[[true, { reason: "call", ref: null }, "putBack"]], ours.slice().sort(), [["putBack", [flag], "call", null]]]),
+            "a player's spend of the armed Calls was not the module's write named `call`, or the GMs' audit did not put back the Call of theirs it took "
+                + "(per write: the module's, the stamp, the verdict; the two Calls armed after; the rows)");
+    }],
+
+    ["a Call's free action and free Move bought and spent on the module's road raise no row but the Call's covered one", async () => {
+        /* E33 C1b, 06.10.2026; R220's census. A Burst and a Sprint bought on the player's browser as
+           calls.mjs does (the Hope price, named `call`), banked by `applyCall` (actions.mjs
+           `grantFreeActions`, `grantFreeMoves`, named `call` with the Call's key since E29 C4) and spent
+           (`spendAction`, `takeMove`, named `spend` since this commit). The GMs' audit covers each grant
+           with its price (sheet-audit.mjs `callCovers`) and keeps one row of it, `covered`, naming the
+           Call; nothing else raises a row, and the Hope paid is all taken. `callCovers` takes a grant
+           with no key too, so the key is read off the row. At ed0890b (C1a) the two spends were bare. */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [student] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { HOPE_CALLS } = await import("./config.mjs");
+        const { applyCall } = await import("./call-effects.mjs");
+        const { spendAction, takeMove } = await import("./actions.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const HOPE = "system.resources.hope.value";
+        const paths = [FLAGS.freeActionGrants, FLAGS.freeMoveGrants, FLAGS.freeMoveUsed].map(flag => `flags.${MODULE_ID}.${flag}`);
+        const was = [HOPE, ...paths].map(path => foundry.utils.getProperty(student, path) ?? null);
+        let read = null;
+        try {
+            await trustedWrite(student, { [HOPE]: 6, [paths[0]]: 0, [paths[1]]: 0, [paths[2]]: true }, { reason: "gmRuling" });
+            await sheetAuditIdle();
+            const credit = await creditSums(student), from = Date.now();
+            const judged = [];
+            for (const [key, spend] of [["burst", () => spendAction(student, 1, { quiet: true })], ["sprint", () => takeMove(student)]]) {
+                judged.push(...await judgedOnRoad([student], player, async () => {
+                    await trustedWrite(student, { [HOPE]: student.system.resources.hope.value - HOPE_CALLS[key].cost }, { reason: "call" });
+                    return applyCall(student, key, "hope", {});
+                }, { whole: true }));
+                await sheetAuditIdle();
+                judged.push(...await judgedOnRoad([student], player, spend));
+                await sheetAuditIdle();
+            }
+            const after = await creditSums(student);
+            read = [judged.map(write => [write.module, write.stamp?.reason ?? null, write.verdict]),
+                [HOPE, ...paths].map(path => foundry.utils.getProperty(student, path) ?? null), await rowsSince(student, player, from),
+                ["hope", "freeActionGrants", "freeMoveGrants"].map(key => (after[key] ?? 0) - (credit[key] ?? 0))];
+        } finally {
+            await sheetAuditIdle();
+            await trustedWrite(student, Object.fromEntries([HOPE, ...paths].map((path, i) => [path, was[i]])), { reason: "gmRuling" });
+            await sheetAuditIdle();
+        }
+        const bought = [[true, "call", "stands"], [true, "call", "stands"], [true, "spend", "stands"]];
+        equal(stableJson(read), stableJson([[...bought, ...bought], [0, 0, 0, true],
+            [["covered", [paths[0]], "call", "burst"], ["covered", [paths[1]], "call", "sprint"]], [0, 1, 1]]),
+            "a Call's free action or free Move raised a row, or was not covered by its price under the Call's key, or a spend of it was not the module's "
+                + "(per write: the module's, the reason, the verdict; Hope, the Burst, the Sprint and the free Move after; the rows; the credit gained)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

@@ -6615,7 +6615,7 @@ const REGRESSIONS = [
         const listed = new Set(guard.WRITE_REASONS ?? []);
         equal(JSON.stringify([...listed]), JSON.stringify(["spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash",
             "retrieve", "discard", "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
-            "auditPutBack", "auditUndo"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
+            "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
         const FORWARDERS = [["inventory.mjs", "grantItem", true], ["inventory.mjs", "breakItem", true], ["inventory.mjs", "wearItem", true],
             ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false],
             // E29 C4: the Burst and Sprint grants go through the road, their reason the caller's (a Call, or a refund).
@@ -6710,8 +6710,6 @@ const REGRESSIONS = [
          *       to a gate; api.mjs names none of them. A table (a `const`) is reached through its entries, which this reader cannot
          *       follow: its row holds its runner's gate, and it is not exported (migrate.mjs's
          *       CLAUSES - `migrationStatus` reads their keys and runs none).
-         *   (e) UNTIL_C1B: a row [file, declaration, receiver, what] for a player's road still bare -
-         *       C1b puts each on the roads and takes this list away, as R218's WAITING went.
          * A row that judges nothing the earlier reasons have not is stale and red, so a site holds
          * one reason. Why rows and not a call graph: GM-side code is reached through the bridge's
          * `run` table and dynamic imports, which a scan cannot follow, and a gate in the function is
@@ -6726,6 +6724,10 @@ const REGRESSIONS = [
          * (E29 C12) the same 155 writes stood behind the same gates and rows, with 85 aside: the
          * commits between added nine deletes of a Map's or a Set's keys, and moved one GM road's
          * caller (truth-bullets.mjs `onBulletWrite`, E29 fix r2-H12, out of `watchBulletEdits`).
+         * E33 C1b put the thirteen player roads on E29's road and took their list (UNTIL_C1B, 11
+         * rows) away: measured on its tree, 142 document writes read, 78 gated, 94 aside, the 64
+         * others judged by the same 36 and 20 rows, 0 problems - and E29's half reads 146 roads
+         * (134 before), 100 other writes (113). The floor went from 150 writes to 140 with it.
          */
         const WRITES = /\.\s*(update|setFlag|unsetFlag|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments|toggleStatusEffect|delete|create|createDocuments|updateDocuments|deleteDocuments)\s*\(/g;
         const DOCUMENT_CLASS = /(?:^|\.)(?:Actor|Item|ActiveEffect|ChatMessage|Combat|Combatant|Folder|JournalEntry|JournalEntryPage|Macro|Playlist|PlaylistSound|RollTable|TableResult|Scene|User|Cards|TokenDocument|RegionDocument|implementation|documentClass)$/;
@@ -6784,11 +6786,10 @@ const REGRESSIONS = [
             }
             return { sites, aside };
         };
-        const judge = (sites, reads, api, { NOT_A_STUDENT, GM_ROADS, UNTIL_C1B }) => {
+        const judge = (sites, reads, api, { NOT_A_STUDENT, GM_ROADS }) => {
             const out = [], used = new Set();
             const key = (...parts) => parts.join("|");
             const notStudent = new Map(NOT_A_STUDENT.map(r => [key(r[0], r[1], r[2]), r]));
-            const until = new Map(UNTIL_C1B.map(r => [key(r[0], r[1], r[2]), r]));
             const roads = new Map();
             for (const row of GM_ROADS) roads.set(key(row[0], row[1]), [...roads.get(key(row[0], row[1])) ?? [], row]);
             const ownSite = new Set();
@@ -6797,7 +6798,6 @@ const REGRESSIONS = [
                 const k = key(s.file, s.fn, s.receiver);
                 if (notStudent.has(k)) used.add(notStudent.get(k));
                 else if (roads.has(key(s.file, s.fn))) ownSite.add(key(s.file, s.fn));
-                else if (until.has(k)) used.add(until.get(k));
                 else out.push(`${s.file}:${s.line} ${s.fn} writes ${s.receiver}.${s.kind} with no gate before it and no row`);
             }
             // Where each GM road is named outside its declaration: [file, line, caller, gated].
@@ -6842,9 +6842,7 @@ const REGRESSIONS = [
                 if (!grounded.has(k)) out.push(`${file} ${name} is reached where no gate stands before it: ${named.get(k).filter(p => !p.gated).map(p => `${p.file}:${p.line} ${p.caller}`).join(", ") || "by nothing this reader sees"}`);
                 if (!ownSite.has(k) && !callerOf.has(name)) out.push(`${file} ${name}: its GM road rows are stale - it writes nothing the earlier reasons leave, and no GM road names it as a caller`);
             }
-            for (const [list, rows] of [["NOT_A_STUDENT", NOT_A_STUDENT], ["UNTIL_C1B", UNTIL_C1B]]) {
-                for (const row of rows) if (!used.has(row)) out.push(`${list} row ${row.slice(0, 3).join(" ")} is stale - it judges no write the earlier reasons leave`);
-            }
+            for (const row of NOT_A_STUDENT) if (!used.has(row)) out.push(`NOT_A_STUDENT row ${row.slice(0, 3).join(" ")} is stale - it judges no write the earlier reasons leave`);
             return out;
         };
         const NOT_A_STUDENT = [
@@ -6907,19 +6905,6 @@ const REGRESSIONS = [
             ["vault.mjs", "forgetStashFound", "setStash"],
             ["vault.mjs", "forgetAllStashesFound", "wipeSeason"]
         ];
-        const UNTIL_C1B = [
-            ["actions.mjs", "spendAction", "actor", "a free action's grant, spent"],
-            ["actions.mjs", "takeBackRefund", "actor", "a refunded action taken back (reached from a clean-up's and a Reroll's replay, on a GM)"],
-            ["actions.mjs", "takeMove", "actor", "a free Move's grant and the Move spent"],
-            ["actions.mjs", "restoreFreeMove", "actor", "a free Move given back"],
-            ["call-effects.mjs", "consumeCalls", "actor", "the armed Calls, spent"],
-            ["call-effects.mjs", "spendCallsByNonce", "actor", "the armed Calls a roll used, spent"],
-            ["sheet.mjs", "commitUltimate", "actor", "the Ultimate, chosen"],
-            ["sheet.mjs", "tidyBiography", "actor", "the biography's text, tidied"],
-            ["sheet.mjs", "setUltimate", "actor", "the Ultimate, set"],
-            ["use-items.mjs", "toggleEquipped", "previous", "the item put down when another is readied"],
-            ["use-items.mjs", "toggleEquipped", "item", "an item readied or put down"]
-        ];
 
         // The reader over a planted file first: a bare write, a road, a gate before, a gate after, a gate
         // in a closure that does not hold the write, a block gate, a Map's delete and a texture's create,
@@ -6950,10 +6935,9 @@ const REGRESSIONS = [
             "the census does not read the planted writes as they are - a road, a gate before, after, in a closure, a block gate, a Map's delete, a texture, a comment and a string");
         equal(JSON.stringify(judge(plantedCensus.sites, new Map([["planted.mjs", planted]]), "game.drpg = { chained };", {
             NOT_A_STUDENT: [["planted.mjs", "helper", "Item", "planted"], ["planted.mjs", "gated", "actor", "planted, and gated"]],
-            GM_ROADS: [["planted.mjs", "helper", "door"], ["planted.mjs", "chain", "chained"], ["planted.mjs", "chained", "top"]],
-            UNTIL_C1B: [["planted.mjs", "bare", "actor", "planted"]]
+            GM_ROADS: [["planted.mjs", "helper", "door"], ["planted.mjs", "chain", "chained"], ["planted.mjs", "chained", "top"]]
         }).map(p => p.split(" ").slice(0, 4).join(" "))), JSON.stringify([
-            "planted.mjs:7 late writes actor.setFlag", "planted.mjs:8 nested writes actor.setFlag", "planted.mjs:9 block writes actor.unsetFlag",
+            "planted.mjs:1 bare writes actor.setFlag", "planted.mjs:7 late writes actor.setFlag", "planted.mjs:8 nested writes actor.setFlag", "planted.mjs:9 block writes actor.unsetFlag",
             "planted.mjs:13 open reaches the", "planted.mjs helper is reached", "planted.mjs chained is a", "NOT_A_STUDENT row planted.mjs gated"
         ]), "the census does not judge the planted rows as they are - a write with no reason, a GM road reached from an ungated door, one api.mjs names, a stale row");
 
@@ -6967,11 +6951,11 @@ const REGRESSIONS = [
             census.aside += found.aside;
         }
         const gated = census.sites.filter(s => s.gated).length;
-        must(census.sites.length >= 150 && gated >= 70,
-            `the census read ${census.sites.length} document write(s), ${gated} of them gated - fewer than 150 and 70 at 070b72b, so it would measure nothing`);
-        const unjudged = judge(census.sites, reads, reads.get("api.mjs").blank, { NOT_A_STUDENT, GM_ROADS, UNTIL_C1B });
+        must(census.sites.length >= 140 && gated >= 70,
+            `the census read ${census.sites.length} document write(s), ${gated} of them gated - fewer than 140 and 70 since E33 C1b, so it would measure nothing`);
+        const unjudged = judge(census.sites, reads, reads.get("api.mjs").blank, { NOT_A_STUDENT, GM_ROADS });
         log(`R220: the census read ${census.sites.length} document write(s) (${census.aside} delete(s) and create(s) aside): ${gated} gated, `
-            + `${NOT_A_STUDENT.length} row(s) not a student's, ${GM_ROADS.length} GM road row(s), ${UNTIL_C1B.length} player road(s) until C1b; ${unjudged.length} problem(s)`);
+            + `${NOT_A_STUDENT.length} row(s) not a student's, ${GM_ROADS.length} GM road row(s); ${unjudged.length} problem(s)`);
         ok(!unjudged.length, `${unjudged.length} write(s) or row(s) the census cannot judge: ${unjudged.slice(0, 12).join("; ")}`);
     }],
 

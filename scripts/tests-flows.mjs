@@ -182,6 +182,11 @@ export const FLOWS = Object.freeze([
     // back) and 61's W, and decided by two GMs at once in 61's V (`askToDecideWrite`, the card button's road).
     // Not driven, so the audit's live checks instead (AUDIT 9.2, LIVE-E29-02 and -05): the Party sheet's pips,
     // CSS no client of the harness computes, and two GMs clicking the card itself.
+    // E33 C1b (06.10.2026): the thirteen bare writes on a student's sheet R220's census left on roads a player
+    // reaches take E29's road with a reason (resource-guard.mjs, "THE PLAYER'S OWN WRITES"); tier 2 judges a write
+    // of each reason as the player's ("a player's write on the road is judged as E29's table says", "a Call's free
+    // action and free Move bought and spent on the module's road raise no row"). 40-flow's day reads the Call its
+    // roll window spent covered under `call` now, where its row named no reason.
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
         scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held"], status: "covered", stage: "1.2.68" },

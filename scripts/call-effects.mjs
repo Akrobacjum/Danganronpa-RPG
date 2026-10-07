@@ -25,7 +25,7 @@ import { overflowBlocksHope } from "./overflow.mjs";
 // Every use below is lazy.
 import {
     announce, whisperToOwner, dialogContent, log, warn, error, plural, cardHead, isPrimaryGm,
-    esc, primaryGmId} from "./utils.mjs";
+    esc, primaryGmId, forcedDeletion } from "./utils.mjs";
 // A Confusion's armed Calls are the GMs' store and the owner's copy (E06 fix r2-G4), read
 // synchronously beside the flag - gm-stores.mjs reaches a domain module only by `import()`.
 import { confusionStore, confusionCopy, rollStore } from "./gm-stores.mjs";
@@ -392,13 +392,25 @@ export async function appendArmedCall(actor, payload, { by = game.user } = {}) {
  *
  * All of them, because all of them applied: they were bought for the next roll
  * and the next roll has happened (CALL-02).
+ *
+ * ON THE ROAD, NAMED `call` (E33 C1b, 06.10.2026; R220's census). This and
+ * `spendCallsByNonce` wrote the armed list with a bare `setFlag`/`unsetFlag`, which a
+ * roll on a player's browser still makes (roll-dialog.mjs, action-rolls.mjs `throwDice`
+ * when the GM drew nothing); the GMs' audit judges that write by the entries it takes
+ * off (sheet-audit.mjs `actorFindings`, `callsOwed`), not by its reason (read on this day), so
+ * the name changes no verdict - it says on the row what the write was. No `ref`: no judge reads
+ * one on the armed list, and the row of a Call of the GMs' that stood on a roll names
+ * that roll instead (sheet-audit.mjs `record`). One write takes the flag off where
+ * `unsetFlag` did - its deletion operator; a Foundry with none (utils.mjs
+ * `forcedDeletion`) leaves `null`, which every reader of the list reads as none
+ * (`pendingCallsRaw`).
  */
 export async function consumeCalls(actor) {
     if (shielded) return [];
     const pending = pendingCallsRaw(actor);
     const confusions = armedConfusions(actor);
     if (!pending.length && !confusions.length) return [];
-    if (pending.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+    if (pending.length) await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.pendingCall}`]: forcedDeletion() ?? null }, { reason: "call" });
     if (confusions.length) await spendConfusions(actor, confusions);
     return [...pending, ...confusions];
 }
@@ -451,8 +463,7 @@ export async function spendCallsByNonce(actor, nonces) {
     const spent = pending.filter(entry => names.has(entry.nonce));
     const kept = pending.filter(entry => !names.has(entry.nonce));
     const confusions = armedConfusions(actor).filter(entry => names.has(entry.nonce));
-    if (spent.length && kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept.map(unsigned));
-    else if (spent.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+    if (spent.length) await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.pendingCall}`]: kept.length ? kept.map(unsigned) : forcedDeletion() ?? null }, { reason: "call" });
     if (confusions.length) await spendConfusions(actor, confusions);
     return [...spent, ...confusions];
 }

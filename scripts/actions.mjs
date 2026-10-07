@@ -143,7 +143,7 @@ export async function spendAction(actor, amount = 1, { quiet = false } = {}) {
      * anything else at all for four Hope - trap 97.
      */
     if (freeActionsLeft(actor) > 0) {
-        await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, freeActionsLeft(actor) - 1);
+        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) - 1 }, { reason: "spend" });
         // Same sound, and it is worth saying why the comment below no longer
         // covers this branch: the pips do NOT move here. What the player is
         // listening for is the cost being paid, and on the one turn they spent
@@ -234,7 +234,7 @@ export async function refundAction(actor, amount = 1, receipt = null) {
 export async function takeBackRefund(actor, amount = 1, receipt = null) {
     if (!actor || amount <= 0) return false;
     if (receipt?.grant && freeActionsLeft(actor) > 0) {
-        await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, freeActionsLeft(actor) - 1);
+        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: freeActionsLeft(actor) - 1 }, { reason: "spend" });
         playSfx("actionSpent");
         return { grant: true, amount };
     }
@@ -297,12 +297,12 @@ export async function takeMove(actor) {
      * waiting to be filed, whether or not it costs anything.
      */
     if (hasFreeMove(actor)) {
-        await actor.setFlag(MODULE_ID, FLAGS.freeMoveUsed, true);
+        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: true }, { reason: "spend" });
         return "free";
     }
 
     if (freeMovesLeft(actor) > 0) {
-        await actor.setFlag(MODULE_ID, FLAGS.freeMoveGrants, freeMovesLeft(actor) - 1);
+        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveGrants}`]: freeMovesLeft(actor) - 1 }, { reason: "spend" });
         return "sprint";
     }
 
@@ -310,9 +310,14 @@ export async function takeMove(actor) {
     return paid ? "action" : null;
 }
 
-/** Give the free Move back (undo, or a GM correction). */
+/**
+ * Give the free Move back (undo, or a GM correction). Named `refund` on the road (E33 C1b): what
+ * the GMs' audit makes of it does not hang on the name - a player's write that gives the free Move
+ * back is flagged to the GMs whatever it says (sheet-audit.mjs `actorFindings`), and no road of the
+ * module's calls this on a player's browser; `game.drpg.restoreFreeMove` is how a GM corrects it.
+ */
 export function restoreFreeMove(actor) {
-    return actor?.setFlag(MODULE_ID, FLAGS.freeMoveUsed, false);
+    return actor ? trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false }, { reason: "refund" }) : undefined;
 }
 
 /* ==========================================================================

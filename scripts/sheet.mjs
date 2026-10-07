@@ -62,6 +62,7 @@ import { rules } from "./rules.mjs";
 import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural } from "./utils.mjs";
+import { trustedWrite } from "./resource-guard.mjs";
 
 /*
  * Dead, as the person looking at this sheet may know it (E05 C9, rule C): on a
@@ -1670,7 +1671,7 @@ async function commitUltimate(actor, field) {
     if (next === current) return;
 
     try {
-        await actor.setFlag(MODULE_ID, FLAGS.ultimate, next);
+        await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.ultimate}`]: next }, { reason: "ultimate" });
         debug(`Ultimate for ${actor.name} set to "${next}".`);
     } catch (err) {
         error("Could not save the Ultimate", err);
@@ -2098,7 +2099,7 @@ function tidyBiography(app, element) {
             // clicking away does not rewrite it.
             if (next === now) return;
 
-            actor.update({ "system.biography.background": next })
+            trustedWrite(actor, { "system.biography.background": next }, { reason: "sheetText" })
                 .catch(err => error("Could not save the backstory", err));
         });
 
@@ -4482,7 +4483,7 @@ export function getUltimate(actor) {
 
 /** Set a character's Ultimate. */
 export function setUltimate(actor, value) {
-    return actor?.setFlag(MODULE_ID, FLAGS.ultimate, String(value ?? "").trim());
+    return actor ? trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.ultimate}`]: String(value ?? "").trim() }, { reason: "ultimate" }) : undefined;
 }
 
 /**
