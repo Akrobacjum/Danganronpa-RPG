@@ -67,7 +67,7 @@ is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
 
 ## What the suite's four numbers mean
 
-`863 passed, 0 failed, 17 skipped` (headless, 06.10.2026, 1.2.68), and a fourth,
+`937 passed, 0 failed, 17 skipped` (headless, 07.10.2026, 1.2.69), and a fourth,
 `red`, printed only when it is not zero.
 
 - **passed** counts a test that ran at least one `ok()` or `equal()`; one that
