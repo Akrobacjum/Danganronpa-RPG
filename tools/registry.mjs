@@ -51,7 +51,9 @@ export const RESERVED = Object.freeze({
     113: "A5 (E13)", 114: "A5 (E13)", 115: "A5 (E13)", 116: "A5 (E13)", 117: "A5 (E13)",
     118: "A5, written in E12", 119: "A5, written in E12", 120: "A5 (E13)",
     121: "A4 (E22)", 122: "A1 (E23)", 123: "A6 (E24)", 124: "A6 (E24)",
-    160: "the FLOWS test (E30)"
+    160: "the FLOWS test (E30)",
+    292: "A7 (E23)", 293: "A7 (E23)", 294: "A7 (E23)", 295: "A7 (E23)",
+    296: "A7 (E23)", 297: "A7 (E23)", 298: "A7 (E23)", 299: "A7 (E23)"
 });
 
 const R_START = "<!-- r-registry:start -->", R_END = "<!-- r-registry:end -->";

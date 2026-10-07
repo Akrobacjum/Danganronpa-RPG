@@ -78,10 +78,23 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             game.socket.on("module.${MOD}", p => {
                 if (p?.action === "bridge.refused" && (p.userId ?? game.user.id) === game.user.id) g.refused.push([p.what ?? null, p.reason ?? null]);
             });
+            /* The console's warnings, which is where the GM's bridge names the sender of a request it refuses
+               (bridge-guards.mjs "Refused a ... from <name>") and says a packet's number its record overruled
+               (bridge-guards.mjs onRecord). utils.mjs keeps the first 60 kinds only (sessionFailures), so a run
+               this long reads them here. Read by C5b's F5. */
+            g.warns = []; g.warnN = 0;
+            const own = console.warn;
+            console.warn = function (...args) {
+                try {
+                    g.warns.push({ n: ++g.warnN, text: args.map(a => typeof a === "string" ? a : String(a?.message ?? a)).join(" ").slice(0, 400) });
+                    if (g.warns.length > 400) g.warns.shift();
+                } catch { /* a reading never stops a warning */ }
+                return own.apply(this, args);
+            };
         }
         return true;`;
     const MARK = `const g = globalThis.drpg83;
-        g.seen = new Set(game.messages.contents.map(m => m.id)); g.told = g.refused.length;
+        g.seen = new Set(game.messages.contents.map(m => m.id)); g.told = g.refused.length; g.warnMark = g.warnN;
         if (game.user.isGM) {
             const A = await import("${SCRIPT("sheet-audit")}"), D = await import("${SCRIPT("roll-draw")}"), S = await import("${SCRIPT("gm-stores")}");
             await A.sheetAuditIdle();
@@ -99,10 +112,15 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         if (game.user.isGM) {
             const A = await import("${SCRIPT("sheet-audit")}"), D = await import("${SCRIPT("roll-draw")}"), St = await import("${SCRIPT("gm-stores")}");
             await A.sheetAuditIdle();
-            out.flags = D.rollFlags({ quiet: true }).filter(r => !g.flags.has(r.rollId)).map(r => r.character + " (" + r.action + "): " + r.flags);
+            const flagged = D.rollFlags({ quiet: true }).filter(r => !g.flags.has(r.rollId));
+            out.flags = flagged.map(r => r.character + " (" + r.action + "): " + r.flags);
+            out.flagRows = flagged.map(r => ({ rollId: r.rollId, character: r.character, player: r.player, action: r.action, flags: r.flags }));
             const rows = A.sheetWrites({ quiet: true }).filter(r => !g.writes.has(r.id))
-                .map(r => ({ text: r.character + " " + r.verdict + " " + r.reason + ": " + r.change, verdict: r.verdict, reason: r.reason, character: r.character }));
+                .map(r => ({ text: r.character + " " + r.verdict + " " + r.reason + ": " + r.change, verdict: r.verdict, reason: r.reason, character: r.character,
+                    id: r.id, player: r.player, change: r.change, what: r.what }));
             out.rows = rows.filter(r => r.verdict !== "listed" && r.verdict !== "covered").map(r => r.text);
+            out.trace = rows.filter(r => r.verdict !== "listed" && r.verdict !== "covered");
+            out.warns = g.warns.filter(w => w.n > g.warnMark).map(w => w.text);
             out.listed = rows.filter(r => r.verdict === "listed");
             out.covered = rows.filter(r => r.verdict === "covered");
             out.rolls = Object.entries(St.rollStore.entries() ?? {}).filter(([id]) => !g.rolls.has(id)).map(([id, r]) => ({ id,
@@ -553,4 +571,454 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
      * C5b: THE FORGERIES (F1-F7). Appended here, each read with `readings()` and `quietOf` as the roads above:
      * a forgery's readings must name it where a legal road's are empty.
      * ====================================================================================================== */
+
+    /*
+     * Each forgery is p1's console: the module's own code called from p1's page, or the calls of Foundry and
+     * Daggerheart a console has, with a packet edited on its way out where the forgery lives in a packet
+     * (`EMIT` below wraps the page's socket for the one call). Four checks each, in road()'s shape: that it ran,
+     * read off what it did; that it is undone on all four clients, or never applied; that the GMs' trace of it
+     * names p1; and that nothing else of the readings is new - `quietOf` with the forgery's own trace set aside
+     * (`own`), so a forgery caught twice, or one that sets off what no forgery should, is red.
+     */
+    const names = await gm.eval(`return { p1: game.users.get("${users.p1}")?.name ?? null, aiko: game.actors.get("${aiko}")?.name ?? null,
+        botan: game.actors.get("${botan}")?.name ?? null };`);
+    const clients = { gm, p1, p2, p3 };
+    const onAll = async code => { const out = {}; for (const [who, c] of Object.entries(clients)) out[who] = await c.eval(code); return out; };
+    const allAre = (on, value) => Object.values(on).every(x => J(x) === J(value));
+    const p1Rows = (r, verdict, character) => r.gm.trace.filter(x => x.verdict === verdict && x.player === names.p1 && x.character === character);
+    const hopeOf = id => `return game.actors.get("${id}")?.system.resources.hope.value ?? null;`;
+    /* A row, card or line of the readings that a put-back of a write of Aiko's leaves: the row, the GMs' card and p1 told. */
+    const putBackOwn = x => x.startsWith(`row: ${names.aiko} putBack `) || x.startsWith(`row: ${names.aiko} flagged `)
+        || x.startsWith("audit card: ") || /^p1 refused: sheet\.\S+ sheetPutBack$/.test(x);
+    const EMIT = edit => `const sock = game.socket, sockHad = Object.getOwnPropertyDescriptor(sock, "emit"), ownEmit = sock.emit;
+        const edit = ${edit};
+        sock.emit = function (channel, packet, ...rest) {
+            if (channel === "module.${MOD}" && packet && typeof packet === "object") packet = edit(JSON.parse(JSON.stringify(packet)), rest) ?? packet;
+            return ownEmit.call(this, channel, packet, ...rest);
+        };
+        const unwrap = () => { if (sockHad) Object.defineProperty(sock, "emit", sockHad); else delete sock.emit; };`;
+    /* What landed on a page: each write's values as that page's updateActor hook saw them (a put-back can land
+       before the update's own promise settles, so a read after it is no proof the write ever stood). */
+    const LANDED = id => `const seen = [], hook = Hooks.on("updateActor", (doc, changes) => { if (doc.id === "${id}") seen.push(foundry.utils.flattenObject(changes)); });
+        const landed = (path, from) => { const c = seen.slice(from).find(x => path in x); return c ? c[path] : null; };`;
+    const forged = {};
+    function forgery(label, what, { did, undone, trace, own = () => false, r, details }) {
+        forged[label] = Boolean(did);
+        const all = r ? quietOf(r) : ["no readings"], loud = all.filter(x => !own(x));
+        const d = J({ ...details, own: all.filter(own), loud, trace: r?.gm.trace ?? null, listed: r?.gm.listed ?? null, covered: r?.gm.covered ?? null }).slice(0, 2400);
+        check(`${label}: it ran - ${what.ran}`, Boolean(did), d);
+        check(`${label}: ${what.undone}`, Boolean(did) && Boolean(undone), d);
+        check(`${label}: traced to p1 - ${what.trace}`, Boolean(did) && Boolean(trace), d);
+        check(`${label}: nothing new but its own trace - no other flag, row, card, refusal or "not counted"`, Boolean(did) && loud.length === 0, d);
+        /* What the forgery left, said on every run: a check's details print only when it fails. */
+        note(`${label}: its trace`, J({ own: all.filter(own), rows: (r?.gm.trace ?? []).map(x => [x.player, x.verdict, x.what]),
+            aside: [...(r?.gm.listed ?? []), ...(r?.gm.covered ?? [])].map(x => [x.player, x.text]) }).slice(0, 1800));
+    }
+
+    /* --------------------------- F1. Hope by actor.update --------------------------- */
+
+    /* p1's console raises Aiko's Hope from 2 to 5 with Foundry's own update: a write of a resource of a student
+       with no road under it, put back by the primary (sheet-audit.mjs, E29 C4/C5) and told to the GMs and to p1. */
+    phase("F1: p1's console raises Aiko's Hope by 3", { flow: "sheet-audit" });
+    await setOn(aiko, { "system.resources.hope.value": 2 });
+    await settle(400);
+    mark = await readings();
+    const f1 = await p1.eval(`const a = game.actors.get("${aiko}"); ${LANDED(aiko)}
+        let err = null;
+        try { await a.update({ "system.resources.hope.value": a.system.resources.hope.value + 3 }); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { Hooks.off("updateActor", hook); }
+        return { wrote: landed("system.resources.hope.value", 0), err };`, { timeout: 30000 });
+    const rf1 = await mark.since();
+    const f1Hope = await onAll(hopeOf(aiko));
+    forgery("F1", { ran: "the update landed on p1's page (Hope 5)", undone: "Aiko's Hope is 2 again on all four clients",
+        trace: "a putBack row of Aiko's Hope naming p1, and the GMs' card" },
+    { did: !f1.err && f1.wrote === 5, undone: allAre(f1Hope, 2), r: rf1, own: putBackOwn,
+        trace: p1Rows(rf1, "putBack", names.aiko).some(x => /hope/.test(x.change)) && rf1.gm.audit.length >= 1, details: { f1, hope: f1Hope } });
+
+    /* ----------------------- F1b. the Party sheet's pips ----------------------- */
+
+    /* Daggerheart's Party sheet writes a member's Hope, Health and Stress from its pips with a plain actor.update
+       (party-sheet.mjs #onToggleHope :245, #onToggleHitPoints :258, #onToggleStress :271 in Daggerheart 2.10.5):
+       a pip at or below the value takes it to one less, any other sets it. The module does not use the Party (the
+       owner's answer of 05.10): this is a road a player's page has, so it is guarded, not offered. p1's console
+       makes the three writes as the pips compute them - Hope 2 -> 6, Health's marks 3 -> 2, Stress 2 -> 1. Measured
+       on 07.10.2026 (e33run/c5b-a1/it1.log): the Hope lands and is put back; the marks and the Stress never leave
+       p1's page, whose own guard takes them out of the write ("Only the GM changes that", resource-guard.mjs
+       GUARDED). So the healed mark is then written past that guard, as a console can (its `drpgAutomated`
+       option): flagged with Undo on the GMs' card, and the GM answers it with Undo (sheet-audit.mjs decideWrite). */
+    phase("F1b: the Party sheet's pips, from p1's console, and a healed mark past p1's own guard", { flow: "sheet-audit" });
+    await setOn(aiko, { "system.resources.hope.value": 2, "system.resources.hitPoints.value": 3, "system.resources.stress.value": 2 });
+    await settle(400);
+    mark = await readings();
+    const f1b = await p1.eval(`const a = game.actors.get("${aiko}"), out = {}; ${LANDED(aiko)}
+        const pip = async (path, n, options = {}) => {
+            const now = foundry.utils.getProperty(a, path), from = seen.length;
+            await a.update({ [path]: now >= n ? n - 1 : n }, options);
+            return [now, landed(path, from)];
+        };
+        try {
+            out.hope = await pip("system.resources.hope.value", 6);
+            out.hp = await pip("system.resources.hitPoints.value", 3);
+            out.stress = await pip("system.resources.stress.value", 2);
+            out.healed = await pip("system.resources.hitPoints.value", 3, { drpgAutomated: true });
+        } catch (e) { out.err = String(e?.message ?? e).slice(0, 200); }
+        finally { Hooks.off("updateActor", hook); }
+        return out;`, { timeout: 30000 });
+    const rf1b = await mark.since();
+    const f1bHealed = rf1b.gm.trace.find(x => x.verdict === "flagged" && /hitPoints/.test(x.change)) ?? null;
+    const f1bUndo = f1bHealed ? await gm.eval(`const A = await import("${SCRIPT("sheet-audit")}");
+        const r = await A.decideWrite(${J(f1bHealed.id)}, false); await A.sheetAuditIdle(); return r === null || r === undefined ? null : true;`, { timeout: 30000 }) : null;
+    await settle(800);
+    const f1bNow = await onAll(`const r = game.actors.get("${aiko}")?.system.resources; return [r.hope.value, r.hitPoints.value, r.stress.value];`);
+    forgery("F1b", { ran: "the pips' Hope landed on p1's page (2 -> 6), its marks and Stress were taken out there, and the healed mark landed (3 -> 2)",
+        undone: "the Hope put back, the healed mark undone by the GM's Undo: Hope 2, marks 3, Stress 2 on all four clients",
+        trace: "a putBack row of the Hope and a flagged row of the mark, each naming p1, and the GMs' cards" },
+    { did: !f1b.err && J([f1b.hope, f1b.hp, f1b.stress, f1b.healed]) === J([[2, 6], [3, null], [2, null], [3, 2]]),
+        undone: f1bUndo === true && allAre(f1bNow, [2, 3, 2]), r: rf1b, own: putBackOwn,
+        trace: p1Rows(rf1b, "putBack", names.aiko).some(x => /hope/.test(x.change)) && f1bHealed?.player === names.p1 && rf1b.gm.audit.length >= 2,
+        details: { f1b, healed: f1bHealed, undo: f1bUndo, now: f1bNow } });
+
+    /* --------------------- F2. a broken knife made whole --------------------- */
+
+    /* The GM gives Aiko a knife and breaks it (inventory.mjs breakItem); p1's console unsets its `broken` flag. A
+       module item's `broken` cleared is put back (sheet-audit.mjs ITEM_JUDGED, E29 C6). */
+    phase("F2: p1's console unsets the broken flag of Aiko's broken knife", { flow: "sheet-audit" });
+    const f2Set = await gm.eval(`const INV = await import("${SCRIPT("inventory")}");
+        const k = await INV.grantItem(game.actors.get("${aiko}"), { name: "83 knife", category: "tool", tier: 1, override: true, quiet: true });
+        if (k) await INV.breakItem(k);
+        return { knife: k?.id ?? null, broken: k ? INV.isBroken(k) : null };`, { timeout: 30000 });
+    await settle(600);
+    mark = await readings();
+    const f2 = await p1.eval(`const i = game.actors.get("${aiko}").items.get(${J(f2Set.knife)}); let err = null;
+        try { await i.unsetFlag("${MOD}", "broken"); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        return { whole: i ? !i.getFlag("${MOD}", "broken") : null, err };`, { timeout: 30000 });
+    const rf2 = await mark.since();
+    const f2Now = await onAll(`return Boolean(game.actors.get("${aiko}")?.items.get(${J(f2Set.knife)})?.getFlag("${MOD}", "broken"));`);
+    forgery("F2", { ran: "the flag was unset on p1's page", undone: "the knife is broken again on all four clients",
+        trace: "a putBack row of the knife's broken flag naming p1" },
+    { did: f2Set.broken === true && !f2.err && f2.whole === true, undone: allAre(f2Now, true), r: rf2, own: putBackOwn,
+        trace: p1Rows(rf2, "putBack", names.aiko).some(x => x.change.includes(`flags.${MOD}.broken`)), details: { f2Set, f2, now: f2Now } });
+    await gm.eval(`await game.actors.get("${aiko}").items.get(${J(f2Set.knife)})?.delete(); return true;`);
+
+    /* ------------------ F3. Daggerheart's relay, for Botan ------------------ */
+
+    /* p1's console sends Daggerheart's GM relay a document update for Botan, p2's student: his Hope 2 -> 4. The
+       guard on the GM's client refuses a write to an actor the sender does not own (relay-guard.mjs), and since
+       C5a leaves the GMs a `refused` row naming the sender. */
+    phase("F3: p1's console asks Daggerheart's relay for Botan's Hope +2", { flow: "sheet-audit" });
+    await setOn(botan, { "system.resources.hope.value": 2 });
+    await settle(400);
+    mark = await readings();
+    const f3 = await p1.eval(`game.socket.emit("system.daggerheart", { action: "DhGMUpdate", data: { action: "DhGMUpdateDocument",
+        uuid: game.actors.get("${botan}").uuid, data: { "system.resources.hope.value": 4 } } }); return true;`);
+    await settle(1200);
+    const rf3 = await mark.since();
+    const f3Now = await onAll(hopeOf(botan));
+    forgery("F3", { ran: "the packet left p1's page", undone: "Botan's Hope is still 2 on all four clients: nothing was written",
+        trace: "a refused row naming p1 and Botan, and p1 told `relay`" },
+    { did: f3 === true, undone: allAre(f3Now, 2), r: rf3,
+        own: x => x.startsWith(`row: ${names.botan} refused `) || x === "p1 refused: daggerheart relay",
+        trace: p1Rows(rf3, "refused", names.botan).some(x => x.what.includes("DhGMUpdateDocument")) && rf3.p1.refused.some(x => x[1] === "relay"),
+        details: { now: f3Now } });
+
+    /* ---------------- F5a. a drawn roll's packet, edited ---------------- */
+
+    /* p1 throws Aiko's Eye through the module (action-rolls.mjs rollTrait); its console edits the roll.draw packet
+       on its way to the GM: a + 5 after her Eye, Daggerheart's guaranteedCritical, and dice of one face. The GM
+       throws its own dice and scores its own list (roll-draw.mjs onGmTerms, E29 C10, fix r2-H1): the record's dice
+       are d12s, a critical only of equal dice, and the 5 is claimed, not scored - flagged to the GMs and named to p1. */
+    phase("F5a: p1's roll.draw with + 5, a guaranteed critical and dice of one face", { flow: "gm-rolls-total" });
+    await refill(aiko);
+    mark = await readings();
+    const f5a = await p1.eval(`${EMIT(`p => {
+            if (p.action !== "roll.draw" || !p.roll) return p;
+            const op = p.roll.terms.find(t => t.class === "OperatorTerm"), num = p.roll.terms.find(t => t.class === "NumericTerm");
+            p.roll.formula = p.roll.formula + " + 5";
+            p.roll.terms = [...p.roll.terms.map(t => typeof t.faces === "number" ? { ...t, faces: 1 } : t),
+                { ...(op ?? { class: "OperatorTerm", evaluated: false }), operator: "+" }, { ...(num ?? { class: "NumericTerm", evaluated: false }), number: 5 }];
+            p.roll.options = { ...p.roll.options, guaranteedCritical: true };
+            globalThis.drpg83.edited = (globalThis.drpg83.edited ?? 0) + 1;
+            return p;
+        }`)}
+        globalThis.drpg83.edited = 0;
+        const A = await import("${SCRIPT("action-rolls")}");
+        try { const r = await A.rollTrait(game.actors.get("${aiko}"), "eye", {}); return { total: r?.total ?? null, edited: globalThis.drpg83.edited }; }
+        finally { unwrap(); }`, { timeout: 90000 });
+    const rf5a = await mark.since();
+    const f5aRow = rollsOf(rf5a, aiko)[0] ?? null;
+    const f5aRecord = f5aRow ? await gm.eval(`const S = await import("${SCRIPT("gm-stores")}"), r = S.rollStore.get(${J(f5aRow.id)});
+        return { total: r.total, hope: r.hope, fear: r.fear, critical: r.isCritical, dice: (r.dice ?? []).map(d => [d.faces, d.results.length]),
+            claim: r.claim?.flat ?? null, scored: r.scored?.flat ?? null, flags: (r.flags ?? []).map(f => f.kind), messageId: r.messageId };`) : null;
+    forgery("F5a", { ran: "the edited packet was drawn on the GM", undone: "scored without them: d12s, a critical only of equal dice, the 5 claimed and not scored",
+        trace: "a rollFlags entry naming p1, and p1's \"not counted\" line" },
+    { did: f5a.edited === 1 && rollsOf(rf5a, aiko).length === 1 && Boolean(f5aRecord),
+        undone: Boolean(f5aRecord) && J(f5aRecord.dice) === J([[12, 1], [12, 1]]) && f5aRecord.critical === (f5aRecord.hope === f5aRecord.fear)
+            && f5aRecord.claim - f5aRecord.scored === 5,
+        trace: rf5a.gm.flagRows.some(x => x.player === names.p1 && x.character === names.aiko) && rf5a.p1.notCounted.length === 1, r: rf5a,
+        own: x => x.startsWith(`flag: ${names.aiko} `) || x.startsWith("unexpected card: ") || x.startsWith("p1 not counted: "),
+        details: { f5a, record: f5aRecord, flags: rf5a.gm.flagRows } });
+
+    /* -------------- F7. a Loaded Die written into the armed Calls -------------- */
+
+    /* p1's console writes a Loaded Die nobody paid for into Aiko's armed Calls (her pendingCall flag), then throws
+       her Eye with the roll.draw packet naming it among its Calls and as its loaded mark. The entry is put back
+       (sheet-audit.mjs, E29 C8, fix r2-H8's H8-6) and the GM loads no die it does not hold armed. */
+    phase("F7: a Loaded Die in Aiko's armed Calls, then a roll.draw naming it", { flow: "call-arm" });
+    await refill(aiko);
+    const DIE = { key: "freeCrit", kind: "hope", grants: "critical", amount: null, nonce: "C5BFORGEDDIE0001" };
+    const armedOf = `const f = game.actors.get("${aiko}")?.getFlag("${MOD}", "pendingCall"); return (Array.isArray(f) ? f : f ? [f] : []).some(e => e?.nonce === ${J(DIE.nonce)});`;
+    mark = await readings();
+    const f7 = await p1.eval(`const a = game.actors.get("${aiko}"), had = a.getFlag("${MOD}", "pendingCall");
+        let err = null, wrote = null;
+        try {
+            await a.update({ "flags.${MOD}.pendingCall": [...(Array.isArray(had) ? had : had ? [had] : []), ${J(DIE)}] }, { drpgAutomated: true });
+            ${armedOf.replace("return ", "wrote = ")}
+        } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        ${EMIT(`p => {
+            if (p.action !== "roll.draw") return p;
+            p.loaded = ${J(DIE.nonce)}; p.calls = [...(Array.isArray(p.calls) ? p.calls : []), ${J(DIE.nonce)}];
+            globalThis.drpg83.edited = (globalThis.drpg83.edited ?? 0) + 1;
+            return p;
+        }`)}
+        globalThis.drpg83.edited = 0;
+        const A = await import("${SCRIPT("action-rolls")}");
+        try { const r = await A.rollTrait(a, "eye", {}); return { wrote, err, total: r?.total ?? null, edited: globalThis.drpg83.edited }; }
+        finally { unwrap(); }`, { timeout: 90000 });
+    const rf7 = await mark.since();
+    const f7Row = rollsOf(rf7, aiko)[0] ?? null;
+    const f7Used = f7Row ? await gm.eval(`const S = await import("${SCRIPT("gm-stores")}"), r = S.rollStore.get(${J(f7Row.id)});
+        return { loaded: r.used?.loaded ?? null, calls: r.used?.calls ?? null, hope: r.hope };`) : null;
+    const f7Armed = await onAll(armedOf);
+    forgery("F7", { ran: "the entry landed on p1's page and the edited packet was drawn", undone: "the entry is put back on all four clients, and the roll is not loaded",
+        trace: "a putBack row of Aiko's armed Calls naming p1" },
+    { did: f7.wrote === true && !f7.err && f7.edited === 1 && Boolean(f7Used),
+        undone: allAre(f7Armed, false) && f7Used?.loaded === false && !(f7Used?.calls ?? []).includes(DIE.nonce),
+        trace: p1Rows(rf7, "putBack", names.aiko).some(x => x.change.includes("pendingCall")), r: rf7, own: putBackOwn,
+        details: { f7, used: f7Used, armed: f7Armed } });
+
+    /* ------------- F4. a message carrying the GM's drawn flag ------------- */
+
+    /* p1's console writes a duality card of Aiko's with a total of 40 and the flags the GM's draw stamps - `drawn`
+       and the rollId of F5a's real record - as Daggerheart's own card is written, with Fear (4 and 9) so that a
+       card read as drawn would pay the GMs a Despair. Since C5a only a GM's message is read as drawn
+       (private-rolls.mjs isDrawnRoll), and the primary keeps a `forged` row and tells the GMs once. */
+    phase("F4: a message with a duality roll, the drawn flag and a total of 40", { flow: "gm-rolls-total" });
+    await gm.eval(`await game.drpg.setDespair(game.user.id, 2); return true;`);
+    await setOn(aiko, { "system.resources.hope.value": 2 });
+    await settle(400);
+    const f4Was = await gm.eval(`return { despair: game.drpg.getDespair(game.user.id), hope: game.actors.get("${aiko}").system.resources.hope.value };`);
+    mark = await readings();
+    const f4 = await p1.eval(`const a = game.actors.get("${aiko}");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12 + 27", total: 40, evaluated: true, dHope: { total: 4 }, dFear: { total: 9 },
+            dice: [{ faces: 12, total: 4, results: [{ result: 4, active: true }] }, { faces: 12, total: 9, results: [{ result: 9, active: true }] }],
+            options: { actionType: "action" } };
+        const m = await ChatMessage.create({ author: game.user.id, speaker: ChatMessage.getSpeaker({ actor: a }), content: '<div class="dice-roll">Duality</div>',
+            rolls: [roll], system: { roll }, flags: { "${MOD}": { drawn: true, rollId: ${J(f5aRow?.id ?? "C5BINVENTEDROLL1")} } } });
+        return { card: m?.id ?? null };`, { timeout: 60000 });
+    await settle(1500);
+    const rf4 = await mark.since();
+    const f4Drawn = await onAll(`const P = await import("${SCRIPT("private-rolls")}"); const m = game.messages.get(${J(f4.card ?? "none")});
+        return m ? P.isDrawnRoll(m) : null;`);
+    const f4Now = await gm.eval(`return { despair: game.drpg.getDespair(game.user.id), hope: game.actors.get("${aiko}").system.resources.hope.value };`);
+    await p1.eval(`await game.messages.get(${J(f4.card ?? "none")})?.delete(); return true;`);
+    await gm.eval(`await game.drpg.setDespair(game.user.id, ${J(season.despair)}); return true;`);
+    forgery("F4", { ran: "p1's card was written, naming F5a's record", undone: "not read as drawn on any client, and nothing awarded: the GMs' Despair and Aiko's Hope unchanged",
+        trace: "a forged row naming p1 and the card's flags, and one card to the GMs" },
+    { did: Boolean(f4.card) && Boolean(f5aRow), undone: allAre(f4Drawn, false) && J(f4Now) === J(f4Was), r: rf4,
+        own: x => x.startsWith(`row: ${names.aiko} forged `) || x.startsWith("audit card: "),
+        trace: p1Rows(rf4, "forged", names.aiko).some(x => x.change.includes(`flags.${MOD}.drawn`) && x.change.includes(`flags.${MOD}.rollId`)) && rf4.gm.audit.length === 1,
+        details: { f4, drawn: f4Drawn, was: f4Was, now: f4Now } });
+
+    /* ------------- F4b. Daggerheart's item roll, then its Hope ------------- */
+
+    /* p1's console writes a card as Daggerheart writes an item's action roll (baseAction.mjs prepareBaseConfig:
+       `source` naming the item and the action), with Hope, and asks the relay for its Hope +1 (actor.mjs
+       modifyResource) - as L10 does for a statistic's card - then asks for it a second time on the same card. Its
+       dice are p1's browser's: what stands on them is layer two's open part (CLAUDE.md, the trust model; E29 2.5),
+       so the first Hope stands. The plan's 2.4 has it `listed`, naming the message; measured on 07.10.2026
+       (e33run/c5b-a1/it2.log) it leaves no row at all, as L10 does - C4's round-1 finding (a), open: the GM
+       counts the card against the one gain it covers (sheet-audit.mjs relayGainRefusal, rollsCounted) and keeps
+       no row of it. What ties the gain to p1's card is read instead: the card covers one gain, so the second ask
+       is refused with a `refused` row naming p1, and p1 is told `relay`. */
+    phase("F4b: a card shaped as Daggerheart's item roll, then its Hope through the relay, twice", { flow: "sheet-audit" });
+    await setOn(aiko, { "system.resources.hope.value": 2 });
+    await settle(400);
+    mark = await readings();
+    const f4b = await p1.eval(`const a = game.actors.get("${aiko}");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "action" } };
+        const m = await ChatMessage.create({ author: game.user.id, speaker: ChatMessage.getSpeaker({ actor: a }), content: '<div class="dice-roll">Duality</div>',
+            rolls: [roll], system: { roll, title: "83 knife - Strike", hasRoll: true, source: { actor: a.uuid, item: "C5BITEMROLLKNIF", action: "C5BITEMROLLACTN" } } });
+        await a.modifyResource([{ key: "hope", value: 1 }]);
+        return { card: m?.id ?? null };`, { timeout: 60000 });
+    await settle(1200);
+    const f4bOnce = await onAll(hopeOf(aiko));
+    await p1.eval(`await game.actors.get("${aiko}").modifyResource([{ key: "hope", value: 1 }]); return true;`, { timeout: 60000 });
+    await settle(1200);
+    const rf4b = await mark.since();
+    const f4bNow = await onAll(hopeOf(aiko));
+    await p1.eval(`await game.messages.get(${J(f4b.card ?? "none")})?.delete(); return true;`);
+    forgery("F4b", { ran: "p1's item card was written and its Hope asked twice", undone: "the first Hope stands (3 on all four clients, layer two's open part), the second is never applied",
+        trace: "the card covers one gain: the second ask leaves a refused row naming p1, and p1 told `relay`" },
+    { did: Boolean(f4b.card), undone: allAre(f4bOnce, 3) && allAre(f4bNow, 3), r: rf4b,
+        own: x => x.startsWith(`row: ${names.aiko} refused `) || x === "p1 refused: daggerheart relay",
+        trace: p1Rows(rf4b, "refused", names.aiko).length === 1 && rf4b.p1.refused.some(x => x[1] === "relay"),
+        details: { f4b, once: f4bOnce, now: f4bNow } });
+
+    /* ----------- F6a. "Reroll action roll" on a drawn roll's card ----------- */
+
+    /* Daggerheart's chat menu offers "Reroll action roll" to a GM or the card's author only (chatLog.mjs :111), and
+       its click writes the card's rolls (:115-116). A drawn roll's card is the GM's (roll-draw.mjs
+       writeDrawnMessage), so p1's console writes F5a's card's rolls itself, as the click would: Foundry refuses a
+       player's update of a card that is not theirs, nothing reaches a GM's hook, and no row is possible. */
+    phase("F6a: p1 rewrites the rolls of F5a's drawn card", { flow: "gm-rolls-total" });
+    const f6aId = f5aRecord?.messageId ?? "none";
+    const rollsOn = id => `const m = game.messages.get(${J(id)}); return m ? JSON.stringify(m.toObject().rolls) : null;`;
+    const f6aWas = await gm.eval(rollsOn(f6aId));
+    mark = await readings();
+    const f6a = await p1.eval(`const P = await import("${SCRIPT("private-rolls")}"), m = game.messages.get(${J(f6aId)});
+        if (!m) return null;
+        const offered = Boolean(m.system?.hasRoll) && (game.user.isGM || m.isAuthor);
+        const rolls = m.toObject().rolls.map(r => { const d = typeof r === "string" ? JSON.parse(r) : foundry.utils.deepClone(r); d.total = (Number(d.total) || 0) + 7;
+            return typeof r === "string" ? JSON.stringify(d) : d; });
+        let err = null, res;
+        try { res = await m.update({ rolls }); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        return { offered, isAuthor: m.isAuthor, err, updated: Boolean(res) };`, { timeout: 30000 });
+    const rf6a = await mark.since();
+    const f6aGm = await gm.eval(`const P = await import("${SCRIPT("private-rolls")}"), m = game.messages.get(${J(f6aId)}); return m ? P.isDrawnRoll(m) : null;`);
+    const f6aNow = await onAll(rollsOn(f6aId));
+    forgery("F6a", { ran: "p1's page asked to write the rolls of a drawn card (the GM's, not p1's)", undone: "the card's rolls unchanged on all four clients",
+        trace: "refused by Foundry on p1's page, before any GM's hook: no row" },
+    { did: Boolean(f6a) && f6aGm === true && f6a.isAuthor === false && f6aWas !== null, undone: allAre(f6aNow, f6aWas), r: rf6a,
+        trace: Boolean(f6a) && f6a.offered === false && (f6a.err !== null || f6a.updated === false) && rf6a.gm.trace.length === 0,
+        details: { f6a, drawnOnGm: f6aGm } });
+
+    /* ----------- F6b. "Reroll action roll" on p1's own roll's card ----------- */
+
+    /* p1's own card of a roll Daggerheart threw on p1's page (as L10's: 9 and 4, 13); the primary keeps its dice
+       as created (reroll-receipts.mjs keep). p1's console writes its rolls with 7 more, as the menu's click would:
+       the primary puts them back (judgeRewrite, E08+E28 C8) and since C5a keeps a `rewrite` row naming p1. */
+    phase("F6b: p1 rewrites the rolls of Aiko's own roll's card", { flow: "gm-rolls-total" });
+    const f6bCard = await p1.eval(`const a = game.actors.get("${aiko}");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "action" } };
+        const m = await ChatMessage.create({ author: game.user.id, speaker: ChatMessage.getSpeaker({ actor: a }), content: '<div class="dice-roll">Duality</div>',
+            rolls: [roll], system: { roll } });
+        return m?.id ?? null;`, { timeout: 60000 });
+    const f6bKept = await gm.eval(`const K = await import("${SCRIPT("reroll-receipts")}"), end = Date.now() + 5000;
+        while (!K.keptRollsOf(${J(f6bCard ?? "none")}) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        return Boolean(K.keptRollsOf(${J(f6bCard ?? "none")}));`, { timeout: 30000 });
+    const f6bWas = await gm.eval(rollsOn(f6bCard ?? "none"));
+    mark = await readings();
+    /* Read off p1's updateChatMessage hook, as LANDED reads an actor's: the put-back lands on p1's page before
+       the update's own promise settles (it3.log, 07.10.2026: a read after the update gave 13 with the rewrite row written). */
+    const f6b = await p1.eval(`const m = game.messages.get(${J(f6bCard ?? "none")});
+        if (!m) return null;
+        const seen = [], hook = Hooks.on("updateChatMessage", (doc, changes) => { if (doc.id === m.id && "rolls" in changes) seen.push(changes.rolls); });
+        const rolls = m.toObject().rolls.map(r => { const d = typeof r === "string" ? JSON.parse(r) : foundry.utils.deepClone(r); d.total = (Number(d.total) || 0) + 7;
+            return typeof r === "string" ? JSON.stringify(d) : d; });
+        let err = null;
+        try { await m.update({ rolls }); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        await new Promise(r => setTimeout(r, 1200));
+        Hooks.off("updateChatMessage", hook);
+        const totalOf = list => { const r0 = (list ?? [])[0]; return (typeof r0 === "string" ? JSON.parse(r0) : r0)?.total ?? null; };
+        return { err, totals: seen.map(totalOf) };`, { timeout: 30000 });
+    await settle(600);
+    const rf6b = await mark.since();
+    const f6bNow = await onAll(rollsOn(f6bCard ?? "none"));
+    await p1.eval(`await game.messages.get(${J(f6bCard ?? "none")})?.delete(); return true;`);
+    forgery("F6b", { ran: "p1's rewrite (13 -> 20) landed on its page", undone: "the dice put back: the card's rolls as created on all four clients",
+        trace: "a rewrite row naming p1 and Aiko, 13 -> 20" },
+    { did: f6bKept && Boolean(f6b) && !f6b.err && f6b.totals[0] === 20, undone: f6bWas !== null && allAre(f6bNow, f6bWas), r: rf6b,
+        own: x => x.startsWith(`row: ${names.aiko} rewrite `),
+        trace: p1Rows(rf6b, "rewrite", names.aiko).some(x => x.change === "rolls: 13 -> 20"), details: { f6bKept, f6b } });
+
+    /* -------- F5c and F5b. a crisis packet: an invented roll, then a total of 99 -------- */
+
+    /* The GM opens a murder with Aiko the killer and Daichi the victim (her Body raised to 10 for the opening, as
+       L9's Chie, and put back before her crisis roll); on her turn p1 takes a Finishing Blow (murder.mjs
+       takeCrisisAction). p1's console edits its murder.crisis packet on its way: first the rollId, to one no
+       GM drew (F5c) - refused `rollUnknown` and told to p1, the GM's warning naming p1 (bridge-guards.mjs
+       rollRefusal) -; then it sends the packet it kept, with its real rollId and a total of 99 (F5b): the GM
+       scores the record's total and says the 99 lost (bridge-guards.mjs onRecord, E08+E28 C17). Daichi's marks
+       are cleared first, so the blow's threshold (config.mjs INCIDENT.finishingBlowPerHp, 5 a Health left) is
+       one 99 clears and Aiko's own dice do not. */
+    phase("F5c and F5b: Aiko's crisis packet, with an invented roll and then a total of 99", { flow: "gm-rolls-total" });
+    await refill(aiko);
+    await setOn(aiko, { "system.resources.stress.value": 0, "system.resources.hope.value": 2 });
+    await setOn(ids.daichi, { "system.resources.hitPoints.value": 0 });
+    const f5Body = await gm.eval(`const a = game.actors.get("${aiko}"), was = a.system.traits.strength.value;
+        await a.update({ "system.traits.strength.value": 10 }); return was;`);
+    const f5Open = await gm.eval(`const M = await import("${SCRIPT("murder")}");
+        await M.openMurder({ killerId: "${aiko}", victimId: "${ids.daichi}", openingTrait: "body" });
+        const end = Date.now() + 30000;
+        while (M.murderState()?.stage !== "incident" && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        for (let i = 0; i < 4 && M.murderState()?.turnSide !== "killer"; i++) await M.passTurn();
+        await game.actors.get("${aiko}").update({ "system.traits.strength.value": ${J(f5Body)} });
+        const C = await import("${SCRIPT("config")}"), v = game.actors.get("${ids.daichi}").system.resources.hitPoints;
+        return { stage: M.murderState()?.stage ?? null, turn: M.murderState()?.turnSide ?? null, threshold: (v.max - v.value) * C.INCIDENT.finishingBlowPerHp };`, { timeout: 90000 });
+    /* The GM draws the crisis roll (roll.draw), so its dice are the GM's: two faces that differ and add to
+       little, 2 and 3 (shim.mjs: a face is ceil((1 - u) * faces)), so the record earns neither a critical nor
+       the threshold. Unrigged, it2/it3 drew a roll of 14 that killed Daichi under a threshold of 30. */
+    await gm.eval(`globalThis.drpg83.dice = CONFIG.Dice.randomUniform; let i = 0; const seq = [0.85, 0.77];
+        CONFIG.Dice.randomUniform = () => seq[i++ % seq.length]; return true;`);
+    await settle(600);
+    mark = await readings();
+    const f5c = await p1.eval(`${EMIT(`(p, rest) => {
+            if (p.action !== "murder.crisis") return p;
+            globalThis.drpg83.crisis = { packet: JSON.parse(JSON.stringify(p)), rest: JSON.parse(JSON.stringify(rest)) };
+            p.rollId = "C5BINVENTEDROLL1";
+            return p;
+        }`)}
+        const M = await import("${SCRIPT("murder")}");
+        let r = null, err = null;
+        try { r = await M.takeCrisisAction(game.actors.get("${aiko}"), "finishingBlow"); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { unwrap(); }
+        const kept = globalThis.drpg83.crisis ?? null;
+        return { taken: Boolean(r), err, kept: kept ? { rollId: kept.packet.rollId ?? null, total: kept.packet.total ?? null } : null };`, { timeout: 120000 });
+    await settle(1500);
+    await gm.eval(`const g = globalThis.drpg83; if (g.dice) CONFIG.Dice.randomUniform = g.dice; delete g.dice; return true;`);
+    const rf5c = await mark.since();
+    const f5cAfter = await gm.eval(`const M = await import("${SCRIPT("murder")}"), S = await import("${SCRIPT("gm-stores")}");
+        const r = Object.values(S.rollStore.entries() ?? {}).find(x => x?.messageId === ${J(f5c.kept?.rollId ?? "none")});
+        return { stage: M.murderState()?.stage ?? null, turn: M.murderState()?.turnSide ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")),
+            record: r ? { total: r.total, actionKey: r.actionKey, resolved: r.resolved ?? [] } : null };`);
+    forgery("F5c", { ran: "Aiko's crisis roll was drawn, and its packet left p1's page naming a roll no GM drew",
+        undone: "nothing applied: the incident at the killer's turn, Daichi alive, the roll unsettled",
+        trace: "rollUnknown told to p1, and the GM's warning names p1" },
+    { did: f5Open.stage === "incident" && f5Open.turn === "killer" && Boolean(f5c.kept?.rollId) && f5cAfter.record?.actionKey === "crisis",
+        undone: f5cAfter.stage === "incident" && f5cAfter.turn === "killer" && f5cAfter.dead === false && J(f5cAfter.record?.resolved) === "[]", r: rf5c,
+        own: x => x === "p1 refused: murder.crisis rollUnknown",
+        trace: rf5c.p1.refused.some(x => x[1] === "rollUnknown") && rf5c.gm.warns.some(w => w.includes('"murder.crisis"') && w.includes(names.p1) && /no roll the GM drew/.test(w)),
+        details: { f5Open, f5c, after: f5cAfter, warns: rf5c.gm.warns } });
+    mark = await readings();
+    const f5b = await p1.eval(`const kept = globalThis.drpg83.crisis;
+        if (!kept) return null;
+        game.socket.emit("module.${MOD}", { ...kept.packet, requestId: "C5B" + foundry.utils.randomID(12), total: 99 }, ...kept.rest);
+        return { rollId: kept.packet.rollId };`);
+    await settle(2500);
+    const rf5b = await mark.since();
+    const f5bAfter = await gm.eval(`const M = await import("${SCRIPT("murder")}"), S = await import("${SCRIPT("gm-stores")}");
+        const r = Object.values(S.rollStore.entries() ?? {}).find(x => x?.messageId === ${J(f5c.kept?.rollId ?? "none")});
+        return { stage: M.murderState()?.stage ?? null, dead: game.drpg.isDeadForGm(game.actors.get("${ids.daichi}")),
+            record: r ? { total: r.total, critical: r.isCritical ?? null, resolved: r.resolved ?? [] } : null };`);
+    const f5bSaid = rf5b.gm.warns.find(w => w.includes('"murder.crisis"') && w.includes(names.p1) && w.includes("said total 99")) ?? null;
+    forgery("F5b", { ran: "the kept packet went to the GM with its real rollId and a total of 99, and the GM settled the roll",
+        undone: "the record's total: Daichi alive (the record's total under the blow's threshold, which 99 clears)",
+        trace: "the GM's warning names p1, the 99 and the record's total" },
+    { did: Boolean(f5b) && (f5bAfter.record?.resolved ?? []).includes("crisis"),
+        undone: f5bAfter.dead === false && f5bAfter.record?.critical === false && (f5bAfter.record?.total ?? 99) < f5Open.threshold && f5Open.threshold <= 99, r: rf5b,
+        trace: Boolean(f5bSaid) && f5bSaid.includes(`says ${f5bAfter.record?.total}`),
+        details: { f5b, after: f5bAfter, threshold: f5Open.threshold, warns: rf5b.gm.warns } });
+    await gm.eval(`const C = await import("${SCRIPT("chapter")}");
+        await game.drpg.endMurder({ reason: "suite", followUp: false });
+        for (const id of ["${aiko}", "${ids.daichi}"]) if (C.isDeadForGm(game.actors.get(id))) await C.reviveCharacter(game.actors.get(id), { quiet: true });
+        await game.actors.get("${aiko}").update({ "system.resources.stress.value": 0 });
+        return true;`, { timeout: 60000 });
+    await settle(800);
+
+    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F6a", "F6b", "F5c", "F5b"];
+    note("the forgeries that ran", J(forgeries.map(k => `${k}: ${forged[k] ? "ran" : "DID NOT RUN"}`)));
 }

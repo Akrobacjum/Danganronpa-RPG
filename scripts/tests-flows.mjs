@@ -113,7 +113,11 @@ export const FLOWS = Object.freeze([
     // E33 C4 (07.10.2026): 83 drives the plan's eleven legal roads of a player's roll (L1-L11) - a Search, a Work
     // and a sabotage, a statistic off the sheet, an Experience, a Support, a Reroll, a Rest, a Level Up, the incident's
     // rolls, a Monocub's Meddle, Daggerheart's own Hope - and reads each with no flag, no write put back or flagged, no
-    // card to the GMs and no "not counted".
+    // card to the GMs and no "not counted". E33 C5b (07.10.2026): 83's forgeries from p1's console under this flow -
+    // F5a (a roll.draw with +5, a guaranteed critical and dice of one face: scored without them), F4 (a message with
+    // the drawn flag: not read as drawn, a `forged` row), F6a and F6b (a drawn card's rolls rewritten: refused; p1's
+    // own: put back, a `rewrite` row), F5c and F5b (a crisis packet naming a roll no GM drew: refused `rollUnknown`;
+    // its total 99: the record's stands) - each read as undone or never applied and traced to p1.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals", "83-roll-integrity"], status: "covered", stage: "1.2.67" },
     // E29 fix r2-H4 (05.10.2026): a GM's yes is kept on the primary for the arm it allows (`call.yes`) - 40 says it on
