@@ -370,7 +370,7 @@ const REGRESSIONS = [
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
-            "murder.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part",
+            "incident-store.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part",
             "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
@@ -5681,7 +5681,7 @@ const REGRESSIONS = [
             ["remnants.mjs", "promoteAtMark", ["ifLive"], false],
             ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false],
             // The cast's lift out of world data (C6; its row came with C9).
-            ["murder.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
+            ["incident-store.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
             // The fog (C9): a character standing in a room, a player's rows in the rebuild, the world's old ledger.
             ["fog.mjs", "seedDiscovery", ["weak", "fillOnly"], false],
             ["fog.mjs", "registerLedgerRoad", ["weak", "fillOnly"], false],
@@ -5698,7 +5698,7 @@ const REGRESSIONS = [
             ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true],
             // The incident's method (E05 C8) and its fight (E32 C3) out of the world half of murderState:
             // both lifts run one body, `liftIntoCast`.
-            ["murder.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
+            ["incident-store.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
             // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
             ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
         ];
@@ -5902,7 +5902,7 @@ const REGRESSIONS = [
 
         const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
-        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIntoCast"];
+        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "incident-store.mjs liftIncidentSecrets", "incident-store.mjs liftIntoCast"];
         const writers = files => {
             const out = [];
             for (const [file, text] of files) {

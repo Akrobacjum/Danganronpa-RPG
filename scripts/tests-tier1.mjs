@@ -3967,7 +3967,7 @@ const INVARIANTS = [
         const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["incident-store.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
             ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"], ["pre-session-note.mjs", "sendNoteTo", "own"],
             // E05 C10: the deaths a player may know, a stamp per body read off the store's rows.
-            ["murder.mjs", "sendDeathsTo", "own"],
+            ["incident-store.mjs", "sendDeathsTo", "own"],
             // E05 C13: which trace each of a player's bullets came from, a stamp per bullet read off the rows.
             ["truth-bullets.mjs", "sendBulletRefsTo", "own"]];
         // The crossings' copy (E05 C4) is an owner's whole set, a stamp per character, as the offers are;
@@ -4527,7 +4527,7 @@ const INVARIANTS = [
         }
         ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
         const RETELLS = [["mastermind.mjs", "retellDoor"], ["incident-store.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
-            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"],
+            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["incident-store.mjs", "retellDeaths"],
             // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
             ["truth-bullets.mjs", "retellBulletRefs"],
             // E06 fix r2-G4: the Confusions' store, which each owner's copy of their characters' armed Confusions is made of.
