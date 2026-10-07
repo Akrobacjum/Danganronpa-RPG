@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Tier 2, spread into tests-tier2.mjs's SCENARIOS: one entry per case, each a list
  * of steps driven through the module's own GM calls - the ones the bridge hands a
- * player's packet to once it has judged it - and after every step fifteen
+ * player's packet to once it has judged it - and after every step sixteen
  * invariants of the incident are asked of what the step left behind.
  *
  * WHY A GRID. Until 1.2.65 about 25 of tier 2's 211 scenarios touched the incident,
@@ -56,13 +56,22 @@
  * from the GMs' row (`rerollFromRecord`). I15 then reads the record after every step
  * (`assertDrawn`). The drawn bands are a Strike's (threshold 15): 12 and 11 clear it with the
  * list's numbers at 0, 1 and 2 do not; another action drawn takes its own reading first.
+ *
+ * A WRITE THAT THROWS (E33 C8, 07.10.2026; the stage plan's 2.6, lead L5 of its 1.3). Every write
+ * of the incident on a GM's browser goes through murder.mjs's one queue, which releases a write
+ * that threw (`incidentWrites = run.catch(...)`) so that the next one runs - read since E32 C4,
+ * measured by no test until XI08, and nor was what a throw between the cast's write and the world
+ * half's leaves behind. `act` and `close` with `fault` refuse one write - the cast store's `patch`
+ * or `game.settings.set` of the world half - once, as a store flush that fails would, and read both
+ * halves against what the step would have written (`faulted`): both moved or neither (I16), and
+ * the step after it is the queue's to run (I10).
  */
 
 import { MODULE_ID, KEY_REMNANTS, CRISIS_ACTIONS, TRAITS, HOPE_CALLS } from "./config.mjs";
 import { SETTINGS, incidentCast } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { ownerOf } from "./utils.mjs";
-import { ok, must, needs, world, wait, until, settle } from "./tests-kit.mjs";
+import { ok, must, needs, world, wait, until, settle, stableJson } from "./tests-kit.mjs";
 
 /* ==========================================================================
  * THE TABLES (the plan's 2.1), written from the handbooks, not imported
@@ -172,7 +181,8 @@ const INVARIANTS = Object.freeze({
     I12: "a close breaks the swung weapons, a discovery the cleaning tools",
     I13: "a third who left stays out",
     I14: "a victim runs out once: one ran-out card, one death",
-    I15: "a drawn incident roll is settled once, on its record's last version"
+    I15: "a drawn incident roll is settled once, on its record's last version",
+    I16: "a write that throws leaves the incident before or after, never half"
 });
 
 /* ==========================================================================
@@ -305,7 +315,13 @@ const CASES = {
         steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["seasonReset"]] },
     XI07: { title: "a betrayal declared in the Eclipse after Night opens the next morning", third: true,
         steps: [["night"], ["open"], ["opening", "hope"], ["enter", "T"], ["act", "K", "finishingBlow"], ["close"], ["eclipse", true],
-            ["betray"], ["eclipse", false], ["close"]] }
+            ["betray"], ["eclipse", false], ["close"]] },
+    // E33 C8 (L5): one write refused at each writer - the fight's pass (the cast), a Survive's stage
+    // write (both halves) and the close (both halves) - and the incident goes on after each. The
+    // Self-defence first unlocks the Survive (DM04) and is not refused.
+    XI08: { title: "a write of the incident refused once: the cast's at a Leave a clue, the world half's at a Survive and at the close",
+        steps: [["open"], ["opening", "hope"], ["act", "V", "selfDefence"], ["act", "V", "leaveClue", "hit", { fault: "cast" }],
+            ["act", "V", "survive", "hit", { fault: "world" }], ["close", null, { fault: "world" }], ["close"]] }
 };
 
 /* ==========================================================================
@@ -468,8 +484,10 @@ const STEPS = {
      * first (`usedAsPlayer`). What the GMs' row would hold of it is kept for `reroll`.
      * `drawn` (E33 C7): the roll drawn by the GM for the actor's player and the packet judged
      * as that player's, on the GMs' record (`drawnAct`); the band is the faces', not a total.
+     * `fault` (E33 C8): the action's first write of the cast ("cast") or of the world half
+     * ("world") is refused once, and what landed is read against the model (`faulted`).
      */
-    async act(run, who, key, result = "hit", { free = false, swing = null, refused = false, choice = null, use = null, drawn = false } = {}) {
+    async act(run, who, key, result = "hit", { free = false, swing = null, refused = false, choice = null, use = null, drawn = false, fault = null } = {}) {
         const actor = run.who[who];
         for (let i = 0; i < 4 && run.M.crisisRefusal(actor, key)?.why === "not their turn" && run.M.sideOf(actor) !== "third"; i++) {
             await run.M.passTurn();
@@ -492,8 +510,12 @@ const STEPS = {
             applyAct(run, actor, key, free || result !== "miss");
             return;
         }
-        await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, free, swungId: item?.id ?? null, choice, usedItemId: pack?.id ?? null, before });
-        applyAct(run, actor, key, roll.total > 0 || roll.isCritical || free);
+        const packet = { actorId: actor.id, key, ...roll, free, swungId: item?.id ?? null, choice, usedItemId: pack?.id ?? null, before };
+        const hit = roll.total > 0 || roll.isCritical || free;
+        const label = `${actor.name}'s ${key}`;
+        if (fault) return faulted(run, label, fault, () => run.M.resolveCrisisAction(packet), () => applyAct(run, actor, key, hit));
+        if (!await queued(run, label, () => run.M.resolveCrisisAction(packet))) return;
+        applyAct(run, actor, key, hit);
     },
 
     /*
@@ -604,11 +626,13 @@ const STEPS = {
     },
 
     /* The GM's close: the tracker's "Close the murder", or its checklist (`followUp`), answered with `checklist`. */
-    async close(run, checklist = null) {
+    async close(run, checklist = null, { fault = null } = {}) {
         const m = run.model;
         run.checklist = checklist;
         const offer = run.offer;
-        await run.M.endMurder({ reason: "closed", followUp: Boolean(checklist) });
+        const end = () => run.M.endMurder({ reason: "closed", followUp: Boolean(checklist) });
+        if (fault) return faulted(run, "the close", fault, end, () => closeIncident(run));
+        if (!await queued(run, "the close", end)) return;
         const betrays = checklist === "betrayal" && offer && m?.body;
         closeIncident(run);
         if (betrays) {
@@ -966,6 +990,94 @@ function applyAct(run, actor, key, hit) {
     if (key === "roleReversal") Object.assign(m, { killerId: m.victimId, victimId: m.killerId });
     if (key === "finishingBlow") stageSix(run, { body: true });
     if (key === "survive") stageSix(run, { body: false });
+}
+
+/*
+ * ONE WRITE REFUSED, AND WHAT IT LEFT (E33 C8, 07.10.2026; the stage plan's 2.6 and lead L5). The
+ * incident is written in two stores - the cast (gm-stores.mjs `castStore`, the GMs' own) and the
+ * world half (`game.settings`, every client's) - and murder.mjs writes the cast first. The fault
+ * refuses the first write of the one named, once, with a rejection as a flush that fails gives
+ * (the cast store's `patch`, or `settings.set` of the incident's own key alone - Daggerheart's
+ * Fear and the module's other settings pass), and is put back whatever the step did. Then both
+ * halves are read against what they were and the model moved as the step would have moved it:
+ * where that moves the stage the world half must have moved exactly when the cast did (I16) -
+ * one half alone is the half-applied transition L5 asked about, and the case stops there, since
+ * the model can follow neither half; where the stage stays the world half had nothing to write,
+ * and the cast says whether the write landed. A write that landed in neither half puts the model
+ * back. The stack of the refused call is kept for the line, so a red case names the writer.
+ * A throw out of the module is recorded, not required: a writer that swallowed it would leave the
+ * same halves, and the line says it answered as if written.
+ */
+async function faulted(run, label, kind, write, apply) {
+    const { castStore } = await import("./gm-stores.mjs");
+    const worldHalf = () => game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const before = { world: stableJson(worldHalf()), cast: stableJson(incidentCast()) };
+    const fault = { kind, label, fired: 0, where: null, threw: null };
+    const half = kind === "world" ? "world half" : "cast";
+    const target = kind === "world" ? game.settings : castStore, name = kind === "world" ? "set" : "patch";
+    const own = Object.getOwnPropertyDescriptor(target, name), was = target[name];
+    target[name] = function (...args) {
+        if (fault.fired || (kind === "world" && !(args[0] === MODULE_ID && args[1] === SETTINGS.murderState))) return was.apply(this, args);
+        fault.fired++;
+        fault.where = (new Error().stack ?? "").split("\n").slice(2, 5).map(l => l.trim().replace(/^at /, "")).join(" < ");
+        return Promise.reject(new Error(`the grid refused the incident's ${half} write once`));
+    };
+    const back = structuredClone({ model: run.model, offer: run.offer, bodies: [...run.bodies], blackened: [...run.blackened], swung: [...run.swung], closed: run.closed });
+    try {
+        await write();
+    } catch (err) {
+        fault.threw = err.message;
+    } finally {
+        if (own) Object.defineProperty(target, name, own); else delete target[name];
+    }
+    // A queue that did not release an earlier fault answers this write with that fault's error before
+    // this one is met: the step never ran, which is I10's (as `queued` reads it).
+    if (!fault.fired && fault.threw && run.faults.length) {
+        run.stop("I10", `${label} was never written after the fault: ${fault.threw}`);
+        return;
+    }
+    run.faults.push(fault);
+    must(fault.fired === 1, `${label} met the fault ${fault.fired} time(s), not once`);
+    const moved = { world: stableJson(worldHalf()) !== before.world, cast: stableJson(incidentCast()) !== before.cast };
+    const stageBefore = run.model?.stage ?? null;
+    apply();
+    const stageMoves = (run.model?.stage ?? null) !== stageBefore;
+    if (stageMoves && moved.world !== moved.cast) {
+        run.stop("I16", `${label}, refused at its ${half}, landed in ${moved.cast ? "the cast" : "the world half"} alone`
+            + `${fault.threw ? "" : "; the call answered as if written"} (refused: ${fault.where})`);
+        return;
+    }
+    if (!(stageMoves ? moved.world : moved.cast)) putBack(run, back);
+}
+
+/** The model as a step found it, for a write that landed in neither half: the close's count with it (I4 counts closes). */
+function putBack(run, back) {
+    run.model = back.model;
+    run.offer = back.offer;
+    run.bodies = new Map(back.bodies);
+    run.blackened = new Set(back.blackened);
+    run.swung = new Map(back.swung);
+    run.closed = back.closed;
+}
+
+/**
+ * A write after a fault. The queue answers the next write with the fault's own error when it
+ * did not release (XI08's mutant c8-queue-no-catch: `incidentWrites = run`), and that is I10's -
+ * the step the model expects never ran - not a test error; before any fault, a throw is the
+ * test's as before.
+ */
+async function queued(run, label, write) {
+    if (!run.faults.length) {
+        await write();
+        return true;
+    }
+    try {
+        await write();
+        return true;
+    } catch (err) {
+        run.stop("I10", `${label} was never written after the fault: ${err.message}`);
+        return false;
+    }
 }
 
 /**
@@ -1366,7 +1478,7 @@ async function runCase(id) {
         blackened: new Set(), blackenedBefore: M.blackenedIds(), bodies: new Map(), dead: new Set(), items: new Map(), broken: new Set(),
         swung: new Map(), places: new Map(), everIn: new Set(), packets: [], messages: [], dialogs: [], ranOuts: [],
         turnFloor: 0, fresh: false, undone: false, at: 0, stepStarted: 0, stopped: false, beforeAct: null, room: null, checklist: null, brink: false,
-        closeOffers: 0, drawn: [], refusal: null,
+        closeOffers: 0, drawn: [], refusal: null, faults: [],
         /* One line per distinct violation, at the first step it was seen, and how many steps after it still saw it. */
         violate(inv, what, at = run.at) {
             const seen = found.find(f => f.inv === inv && f.what === what);
@@ -1388,7 +1500,15 @@ async function runCase(id) {
             await assertAtTheEnd(run);
         }));
     } finally {
-        if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        // A close the queue answers with an earlier write's error (XI08 under its no-catch mutant) is the
+        // incident still standing against a closed model - I10 - and must not throw over the case's own line.
+        if (M.murderState()) {
+            try {
+                await M.endMurder({ reason: "test", followUp: false });
+            } catch (err) {
+                run.violate("I10", `the close after the case: ${err.message}`);
+            }
+        }
         if (run.clockBefore) await setClock(run.clockBefore);
         for (const { token, x, y } of run.places.values()) if (token.parent?.tokens?.has(token.id)) await token.update({ x, y }, PLACE);
         for (const item of run.items.values()) if (item.parent?.items?.has(item.id)) await item.delete();
@@ -1470,7 +1590,8 @@ const GRID = [
     ["grid XI04 - the day ends on a standing offer", () => runCase("XI04"), GRID_RED.XI04],
     ["grid XI05 - the blow that killed cannot be rerolled; the armed offer stands", () => runCase("XI05"), GRID_RED.XI05],
     ["grid XI06 - the season reset's close in the fight", () => runCase("XI06"), GRID_RED.XI06],
-    ["grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning", () => runCase("XI07"), GRID_RED.XI07]
+    ["grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning", () => runCase("XI07"), GRID_RED.XI07],
+    ["grid XI08 - a write of the incident refused once: the cast's at a Leave a clue, the world half's at a Survive and at the close", () => runCase("XI08"), GRID_RED.XI08]
 ];
 
 export { GRID, CASES, INVARIANTS };

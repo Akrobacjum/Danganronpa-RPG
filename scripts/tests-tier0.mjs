@@ -6218,10 +6218,13 @@ const REGRESSIONS = [
          * as a stray, and it writes `sent` alone. Fix r2-G4 (03.10.2026) adds the second memo of the
          * GMs', the opening's request cards (`openingNotices`), whose one writer
          * (`rememberOpeningNotices`) runs outside the queue for the same reason and writes that alone.
+         * E33 C8 (07.10.2026): a third leaf, `castPutBack` - the cast stamped back when the world
+         * half's write threw. It calls `writeCast` from its own body and is itself read as a write,
+         * so a call of it outside the two queued spans is a stray as a `writeCast(` would be.
          */
-        const LEAVES = ["writeCast", "armBetrayalWindow"];
+        const LEAVES = ["writeCast", "armBetrayalWindow", "castPutBack"];
         const MEMO = "rememberSent", NOTICES = "rememberOpeningNotices";
-        const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow)\(/g;
+        const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow|castPutBack)\(/g;
         const QUEUES = /(?<!function )\b(?:writeState|restoreState|incidentWrite)\(/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
         const read = (file, text) => {
