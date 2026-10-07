@@ -144,6 +144,7 @@ import { tellRefused, bridgeRequest } from "./bridge-guards.mjs";
 import { cardFlag, cardWriter, updateSecret } from "./secret.mjs";
 import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry } from "./inventory.mjs";
 import { readDuality } from "./despair-award.mjs";
+import { forgedFlagsOf } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
 
 /** The module flags only a GM writes (the plan's 2.4), held in the mark and put back. */
@@ -1788,7 +1789,8 @@ function rollCovering(actor, sender, need) {
         const message = messages[i];
         if ((message.timestamp ?? 0) < since || rollsCounted.has(message.id)) continue;
         if (message.author?.id !== sender.id || message.speaker?.actor !== actor.id) continue;
-        if (message.getFlag?.(MODULE_ID, "drawn") || message.rolls?.[0]?.options?.actionType === "reaction") continue;
+        // A player's message carrying a flag only a GM's browser writes covers nothing (E33 C5a, `onForgedCard`).
+        if (message.getFlag?.(MODULE_ID, "drawn") || forgedFlagsOf(message).length || message.rolls?.[0]?.options?.actionType === "reaction") continue;
         const duality = readDuality(message);
         if (!duality) continue;
         const gives = { hope: duality.isCritical ? CRITICAL.hope : duality.withHope ? 1 : 0, stress: duality.isCritical && CRITICAL.clearsStress ? 1 : 0 };
@@ -2366,6 +2368,58 @@ async function keepRows(rows, at) {
     await sheetWriteStore.patchMany(rows);
 }
 
+/*
+ * THREE TRACES THAT NAME THEIR SENDER (E33 C5a, 07.10.2026; the plan's 2.4). Beside the rows of a
+ * player's own writes, the primary keeps a row of three things it refused or undid for a user it can
+ * name: a Daggerheart request about a student refused on this browser (`refused`, relay-guard.mjs
+ * `reportRefusal`: the request's sub-operation and what it asked of each path), a message whose author
+ * is not a GM carrying a flag only a GM's browser writes (`forged`, `onForgedCard` below: the message
+ * and its flags), and a roll's dice a player rewrote, put back (`rewrite`, reroll-receipts.mjs
+ * `judgeRewrite`: the message and its total before and after). The user is the one Foundry named as
+ * the sender or the author, never a field of what was sent. Listed by `sheetWrites` with the others,
+ * each with its words (`TRACE_WORDS`); none waits for a GM's decision. Until C5a none of them left a
+ * row: at 214cb0b (07.10.2026, tier 2) each of the three left the store as it found it.
+ */
+const TRACE_WORDS = Object.freeze({
+    refused: "DRPG.Audit.verdict.refused",
+    forged: "DRPG.Audit.verdict.forged",
+    rewrite: "DRPG.Audit.verdict.rewrite"
+});
+
+/** One trace row (a verdict of `TRACE_WORDS`) into `sheetWrites`, on the primary. Answers its id, or null. */
+export async function recordTrace(verdict, { actorId = null, itemId = null, userId = null, messageId = null, change = {}, ...more } = {}) {
+    if (!TRACE_WORDS[verdict] || !isPrimaryGm()) return null;
+    const at = Date.now(), id = foundry.utils.randomID();
+    await keepRows({ [id]: { ...more, actorId, itemId, userId, reason: null, ref: null, change, covered: null, verdict, messageId, decided: null, at } }, at);
+    debug(`The GMs' audit: ${verdict} from ${game.users.get(userId ?? "")?.name ?? userId ?? "?"}.`);
+    return id;
+}
+
+/**
+ * `createChatMessage`, on the primary: a message whose author is not a GM and that carries a flag
+ * only a GM's browser writes (private-rolls.mjs `forgedFlagsOf`) gets one `forged` row - the message,
+ * its speaker's character, its author, each flag with its value - and one line to the GMs. Nothing
+ * else is done to it: no browser reads it as drawn and no award is paid for it (`forgedFlagsOf`'s
+ * readers). Answers the row's id, or null. Exported for the suite.
+ */
+export async function onForgedCard(message) {
+    if (!isPrimaryGm() || !message?.id) return null;
+    const flags = forgedFlagsOf(message);
+    if (!flags.length) return null;
+    const author = message.author ?? null, actor = game.actors.get(message.speaker?.actor ?? "") ?? null;
+    const change = Object.fromEntries(flags.map(path => [path, [null, shown(foundry.utils.getProperty(message, path))]]));
+    const id = await recordTrace("forged", { actorId: actor?.id ?? null, userId: author?.id ?? null, messageId: message.id, change });
+    try {
+        await whisperToGms(`<p class="drpg-warning">${esc(game.i18n.format("DRPG.Audit.forgedCard", {
+            player: author?.name ?? "?", name: actor?.name ?? message.speaker?.alias ?? "?",
+            flags: flags.map(path => path.split(".").slice(2).join(".")).join(", ") }))}</p>`,
+        { flags: { [MODULE_ID]: { sheetAudit: actor?.id ?? null, forgedCard: message.id } } });
+    } catch (err) {
+        error("Could not tell the GMs of a message carrying a GM's flags", err);
+    }
+    return id;
+}
+
 /* ---------------------------------------------------------------------------
  * The GMs' card: Undo and Keep (C5)
  * ------------------------------------------------------------------------- */
@@ -2846,7 +2900,9 @@ export function sheetWrites({ quiet = false } = {}) {
             // What a refund took back of what was paid before it (C4); the rest of its gain is what the row is for.
             credit: row.covered ? game.i18n.format("DRPG.Audit.credit", { what: Object.entries(row.covered).map(([key, n]) => `${key} ${n}`).join(", ") }) : "-",
             // A flagged write's decision (C5): which, and the GM who made it.
-            decided: row.decided ? `${row.decided.how} (${game.users.get(row.decided.by ?? "")?.name ?? row.decided.by ?? "?"})` : "-"
+            decided: row.decided ? `${row.decided.how} (${game.users.get(row.decided.by ?? "")?.name ?? row.decided.by ?? "?"})` : "-",
+            // A trace's words (C5a): what was refused, forged or put back, as the GMs read it; "-" for a write's row.
+            what: TRACE_WORDS[row.verdict] ? game.i18n.format(TRACE_WORDS[row.verdict], { sub: row.sub ?? "?" }) : "-"
         }));
     if (!quiet) {
         console.log(game.i18n.format("DRPG.Audit.listTitle", { n: rows.length }));
@@ -2904,6 +2960,7 @@ export function registerSheetAudit() {
     Hooks.on("deleteItem", (item, options, userId) => { onSheetWrite("deleteItem", item, {}, options, userId); });
     Hooks.on("renderChatMessageHTML", onRenderFlagged);
     Hooks.on("createChatMessage", onRollHeard);
+    Hooks.on("createChatMessage", message => { void onForgedCard(message); });
     Hooks.on("createActor", actor => { if (actor?.type === "character") void refillMarks(); });
     Hooks.on("userConnected", primaryLeft);
     Hooks.on("deleteActor", actor => {

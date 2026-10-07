@@ -1181,9 +1181,34 @@ export function isClaimedRoll(message) {
 /** The flag the GM's draw stamps on the message it writes (roll-draw.mjs `writeDrawnMessage`, E08+E28 C12a). */
 const DRAWN_FLAG = "drawn";
 
-/** Is this the message of a roll a GM drew for a player - an action's, or a statistic from the sheet (E08+E28 C13)? */
+/*
+ * THE FLAGS ONLY A GM'S BROWSER WRITES ON A MESSAGE (E33 C5a, 07.10.2026; the plan's 2.4). Read off
+ * the writers at 214cb0b: `drawn` and `rollId`, the draw's stamp (roll-draw.mjs `writeDrawnMessage`,
+ * written here by `claimRollMessage` on the GM that throws); `awayCard` and `awayRolls`, the GMs'
+ * card of rolls thrown with no GM (roll-draw.mjs `askAboutUnwitnessed`); and the decision on such a roll's
+ * stamp, `unwitnessed.granted`, which a GM writes as it takes the message over (roll-draw.mjs `decideNow`)
+ * - the stamp itself is the roller's own. A message whose author is not a GM and that carries one of
+ * them is a forgery: it is not read as drawn (`isDrawnRoll`), awards nothing (despair-award.mjs,
+ * sheet-audit.mjs `rollCovering`), and the primary names it to the GMs once (sheet-audit.mjs
+ * `onForgedCard`). The module's other GM-written card flags are read through the card's writer
+ * where they grant anything (secret.mjs `cardWriter` and `GM_META`: `ruling`, the audit's cards,
+ * `gmPopup`, `callCard`) and are not in this list. E33 C12's `publicRoll` joins it here.
+ */
+const GM_ONLY_FLAGS = Object.freeze([DRAWN_FLAG, "rollId", "awayCard", "awayRolls", "unwitnessed.granted"]);
+
+/** The flags of `GM_ONLY_FLAGS` a message carries whose author is not a GM, as `flags.<module>.<name>` paths; [] for a GM's or none. */
+export function forgedFlagsOf(message) {
+    if (!message || message.author?.isGM) return [];
+    return GM_ONLY_FLAGS.filter(name => foundry.utils.getProperty(message.flags?.[MODULE_ID] ?? {}, name) !== undefined)
+        .map(name => `flags.${MODULE_ID}.${name}`);
+}
+
+/**
+ * Is this the message of a roll a GM drew for a player - an action's, or a statistic from the sheet (E08+E28 C13)?
+ * Only a GM's message is: the flag on anybody else's is a forgery (`forgedFlagsOf`, E33 C5a).
+ */
 export function isDrawnRoll(message) {
-    return Boolean(message?.getFlag?.(MODULE_ID, DRAWN_FLAG));
+    return Boolean(message?.getFlag?.(MODULE_ID, DRAWN_FLAG)) && message.author?.isGM === true;
 }
 
 /** The character this client was told (or knows, having thrown it) a roll is about, as an id, or null. */

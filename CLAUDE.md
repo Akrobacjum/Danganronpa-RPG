@@ -217,7 +217,13 @@ told to the asker, with a reason code from a closed list (`REASONS`,
 four are not shown to the player, because nobody is waiting on them: a trap
 report, the Level Up catch-up, a Search's look for a planted item and a plant
 handed back. Daggerheart's relay keeps its own table and log line, and tells the
-player with the code `relay`.
+player with the code `relay`. Since E33 (1.2.69) the primary GM also keeps a row
+naming the user Foundry named as the sender or the author (sheet-audit.mjs
+`recordTrace`, listed by `game.drpg.sheetWrites()`) for a relay request about a
+student it refused (`refused`), a player's message carrying a flag only a GM's
+client writes, which no browser reads as drawn (`forged`), and a roll's dice a
+player rewrote that it put back, once per message and player, as the GMs are
+told (`rewrite`).
 
 **Layer two (E28, 1.2.67; E29, 1.2.68).** The numbers - totals, dice, Hope paid,
 what a sheet holds - are checked against what the GMs hold. Since E28 a player's action roll and a

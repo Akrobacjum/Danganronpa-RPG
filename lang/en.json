@@ -2984,7 +2984,13 @@
       "awayPutBack": "Put back at once, as it would have been with a GM watching:",
       "awayLine": "{name} - {field} ({path}): {before} -> {after}",
       "undoAll": "Undo all",
-      "acceptAll": "Accept all"
+      "acceptAll": "Accept all",
+      "verdict": {
+        "refused": "A Daggerheart request ({sub}) refused on the GM's client",
+        "forged": "A message carrying flags only a GM's client writes: not read as the GM's, nothing awarded",
+        "rewrite": "A roll's dice written by hand, put back to the dice that fell"
+      },
+      "forgedCard": "{player} posted a message about {name} carrying flags only a GM's client writes ({flags}). It is not read as a roll the GM drew, and it awards nothing."
     },
     "Rolls": {
       "rewritePutBack": "<strong>{name}</strong> wrote new dice into a roll ({roll}) by hand; the roll is back to the dice that fell. A Reroll is asked of the GM.",

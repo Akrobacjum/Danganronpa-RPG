@@ -32158,6 +32158,226 @@ const SCENARIOS = [
                 + "(per write: the module's, the reason, the verdict; Hope, the Burst, the Sprint and the free Move after; the rows; the credit gained)");
     }],
 
+    ["a player's message with the drawn flag is not read as drawn and awards nothing and is named once", async () => {
+        /*
+         * E33 C5a, 07.10.2026. A few flags on a chat message are written only by a GM's browser
+         * (private-rolls.mjs `forgedFlagsOf`): the `drawn` and `rollId` of a roll the GM drew among them.
+         * A player's own message carrying one is not the GM's: it is not read as a drawn roll
+         * (`isDrawnRoll` asks its author), it pays no Despair (despair-award.mjs) and covers no Hope at the
+         * relay (sheet-audit.mjs `rollCovering`), and the primary keeps one `forged` row of it and
+         * whispers the GMs once (`onForgedCard`). The suite is one GM, so the player's message is made
+         * here with the player as its author, as the GM's client hears one made on theirs. A Despair
+         * result with `drawn` and `rollId`, then a critical with `rollId` alone, then a plain critical.
+         * Read: whether each flagged message reads as drawn, whether the Monokuma's pool or the overflow
+         * moved, each one's rows (the player, the student, the paths) and whispers, and the relay's
+         * verdict on +1 Hope after the flagged critical and after the plain one.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the message is a connected player's, about their own student");
+        const player = game.users.find(u => !u.isGM && u.active && u.character?.type === "character");
+        must(player, "no connected player has a student as their character - the relay would judge nobody's Hope");
+        const student = player.character;
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which judges a player's messages - this would measure nothing");
+        const { isDrawnRoll } = await import("./private-rolls.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { D, mono, state } = await despairOf(student);
+        const HOPE = "system.resources.hope.value";
+        must(Number(student.system.resources?.hope?.max) >= 3, "the student's Hope cannot rise to 3");
+        const hadAward = game.settings.get(MODULE_ID, SETTINGS.despairFromRolls), pool = D.getDespair(mono.id);
+        const made = [];
+        const post = async (hope, fear, flags) => {
+            const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: hope + fear, evaluated: true, dHope: { total: hope }, dFear: { total: fear },
+                dice: [{ faces: 12, total: hope, results: [{ result: hope, active: true }] }, { faces: 12, total: fear, results: [{ result: fear, active: true }] }],
+                options: { actionType: "action" } };
+            const message = await ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor: student }),
+                content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll }, flags: { [MODULE_ID]: flags } });
+            made.push(message.id);
+            return message;
+        };
+        const rowsOf = message => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && row.messageId === message.id)
+            .map(row => [row.userId === player.id, row.actorId === student.id, Object.keys(row.change ?? {}).sort()]);
+        const toldOf = message => game.messages.contents.filter(m => cardFlag(m, "forgedCard") === message.id).length;
+        const hopeVerdict = () => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: student.uuid, data: { [HOPE]: 3 } } }, player).verdict;
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, true);
+            await D.setDespair(mono.id, 0);
+            must(D.owedOf(mono.id) === 0, "the pool owes Despair - a point would pay the debt, not move the pool");
+            await student.update({ [HOPE]: 2 });
+            await auditFromScratch(student);
+            const before = stableJson(state());
+            const drawn = await post(4, 9, { drawn: true, rollId: `suiteC5a${foundry.utils.randomID(8)}` });
+            // A drawn roll's award waits up to 4 s for its subject (private-rolls.mjs `rollSubject`), so this waits 6.
+            const moved = await until(() => stableJson(state()) !== before, 6000);
+            const critical = await post(7, 7, { rollId: `suiteC5a${foundry.utils.randomID(8)}` });
+            await until(() => toldOf(drawn) + toldOf(critical) >= 2, 3000);
+            await settle();
+            const flaggedHope = hopeVerdict();
+            await post(7, 7, {});
+            await settle();
+            read = [isDrawnRoll(drawn), isDrawnRoll(critical), moved, rowsOf(drawn), rowsOf(critical), toldOf(drawn), toldOf(critical), flaggedHope, hopeVerdict()];
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+            await D.setDespair(mono.id, pool);
+            await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, hadAward);
+        }
+        const path = name => `flags.${MODULE_ID}.${name}`;
+        equal(stableJson(read), stableJson([false, false, false, [[true, true, [path("drawn"), path("rollId")]]], [[true, true, [path("rollId")]]], 1, 1, "refuse", "forward"]),
+            "a player's message with a GM's flags read as drawn, paid Despair or covered Hope, or was not named once to the GMs "
+                + "(drawn: as drawn; critical: as drawn; the pool moved; rows of each; whispers of each; the relay's +1 Hope after the flagged critical and after a plain one)");
+    }],
+
+    ["a GM's card with the same flags stands", async () => {
+        /*
+         * E33 C5a, 07.10.2026; the guard of the test above. The flags are a GM's to write, so the same
+         * Hope result with `drawn` and `rollId`, written by this GM about the student, is a drawn roll and
+         * nothing is said of it. Read: whether it reads as drawn, its `forged` rows and the whispers
+         * naming it. Green at 214cb0b, which read the flag alone.
+         */
+        needs(world.atLeast("playersWithCharacter", 1), "a student a GM's drawn card speaks for");
+        const student = game.users.find(u => !u.isGM && u.character?.type === "character")?.character ?? null;
+        must(student, "no player has a student as their character");
+        const { isDrawnRoll } = await import("./private-rolls.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "action" } };
+        const message = await ChatMessage.create({ author: game.user.id, speaker: ChatMessage.getSpeaker({ actor: student }),
+            content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll },
+            flags: { [MODULE_ID]: { drawn: true, rollId: `suiteC5a${foundry.utils.randomID(8)}` } } });
+        let read = null;
+        try {
+            await until(() => game.messages.contents.some(m => cardFlag(m, "forgedCard") === message.id), 1500);
+            await settle();
+            read = [isDrawnRoll(message), Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && row.messageId === message.id).length,
+                game.messages.contents.filter(m => cardFlag(m, "forgedCard") === message.id).length];
+        } finally {
+            await game.messages.get(message.id)?.delete();
+        }
+        equal(stableJson(read), stableJson([true, 0, 0]), "a GM's drawn card was not read as drawn, or was named as a forgery (drawn, rows, whispers)");
+    }],
+
+    ["an H5 neutral card is never a forgery", async () => {
+        /*
+         * E33 C5a, 07.10.2026; a guard. While an incident runs the GM posts a player's private card for
+         * them (secret.mjs `postAsked`, E08+E28 fix r2-H5): the GM is its author and the player's flags
+         * go to the GMs' meta, not the document. A player who asks for one with the drawn flags gets a
+         * card that is not a drawn roll and is not a forgery either - nothing on it is the player's.
+         * Read: the verdict, the card's author, its `drawn` flag, whether it reads as drawn, its
+         * `forged` rows and the whispers naming it. Green at 214cb0b.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the card is asked by a player, and Foundry names only a connected one");
+        const G = await import("./bridge-guards.mjs");
+        const { gmIds } = await import("./utils.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { isDrawnRoll } = await import("./private-rolls.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { player, theirs } = playerAndCharacters();
+        // Put back by tier 2's restore, as every murder test's state is.
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, { active: true, stage: "incident" });
+        const sent = [];
+        const verdict = await G.judge(BRIDGE_ACTIONS, {
+            action: "card.post", requestId: `suite-c5a-${foundry.utils.randomID(8)}`, content: "<p>Suite C5a card</p>",
+            whisper: [player.id, ...gmIds()], speaker: { actor: theirs.id }, veiled: false,
+            flags: { drawn: true, rollId: `suiteC5a${foundry.utils.randomID(8)}`, awayCard: true }
+        }, player.id, { send: (to, reply) => sent.push([reply?.action ?? null, reply?.value?.id ?? null]) });
+        const id = sent.find(([action]) => action === "bridge.done")?.[1] ?? null;
+        const message = id ? game.messages.get(id) : null;
+        let read = null;
+        try {
+            must(message, `the GM posted no card for the player (${stableJson(sent)}) - this measured nothing`);
+            await until(() => game.messages.contents.some(m => cardFlag(m, "forgedCard") === message.id), 1500);
+            await settle();
+            read = [verdict, message.author?.id === game.user.id, message.getFlag(MODULE_ID, "drawn") ?? null, isDrawnRoll(message),
+                Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && row.messageId === message.id).length,
+                game.messages.contents.filter(m => cardFlag(m, "forgedCard") === message.id).length];
+        } finally {
+            await message?.delete();
+        }
+        equal(stableJson(read), stableJson([true, true, null, false, 0, 0]),
+            "a card the GM posted for a player was not the GM's, carried the drawn flag, read as drawn or was named as a forgery (verdict, GM's, drawn, as drawn, rows, whispers)");
+    }],
+
+    ["a refused relay write on another's student leaves a row naming its sender", async () => {
+        /*
+         * E33 C5a, 07.10.2026. A request Daggerheart's relay brings to the primary GM and the guard
+         * refuses (relay-guard.mjs `reportRefusal`) leaves, when it is about a student, a `refused` row
+         * in the GMs' audit (sheet-audit.mjs `recordTrace`) naming the user Foundry named as its sender,
+         * the student, what was asked and the value then. Until C5a it left a console line, a toast and
+         * the player's notice. The request is handed to the guard as the channel hands it over: the
+         * guard's own listener, the player's id. Read: the rows (sender, sub, kind, paths, value then and
+         * asked) and the student's Hope after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "Foundry names only a connected sender");
+        const { player, other } = playerAndCharacters();
+        must(other, "no student the player does not own - the refusal would measure nothing");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which judges the relay - this would measure nothing");
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const guard = (game.socket?.listeners?.(`system.${game.system.id}`) ?? []).find(fn => fn.__drpgRelayGuard);
+        must(guard, "the relay guard stands on no listener of Daggerheart's channel here - the request would reach nothing");
+        const HOPE = "system.resources.hope.value";
+        const held = foundry.utils.getProperty(other._source, HOPE);
+        const asked = Number(held) >= 1 ? Number(held) - 1 : 1;
+        const packet = () => ({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: other.uuid, data: { [HOPE]: asked } } });
+        const judged = judgeRelay(packet(), player);
+        must(judged.verdict === "refuse", `the relay does not refuse the write (${judged.verdict}) - this would measure nothing`);
+        const from = Date.now();
+        const rows = () => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "refused" && row.actorId === other.id && row.at >= from);
+        guard(packet(), player.id);
+        await until(() => rows().length > 0, 3000);
+        await settle();
+        const read = [rows().map(row => [row.userId === player.id, row.sub ?? null, row.kind ?? null, Object.keys(row.change ?? {}), row.change?.[HOPE] ?? null]),
+            foundry.utils.getProperty(other._source, HOPE)];
+        equal(stableJson(read), stableJson([[[true, "DhGMUpdateDocument", judged.kind, [HOPE], [held, asked]]], held]),
+            "a refused relay write on another's student left no row, or one not naming its sender or what was asked, or changed the Hope (rows: sender, sub, kind, paths, value then and asked; Hope after)");
+    }],
+
+    ["a rewrite put back leaves a row naming the player", async () => {
+        /*
+         * E33 C5a, 07.10.2026. A roll's dice rewritten by anybody but a GM are put back
+         * (reroll-receipts.mjs `judgeRewrite`, E08+E28 C8) and the GMs are told once; since C5a the
+         * primary keeps a `rewrite` row of it too (sheet-audit.mjs `recordTrace`): the user, the student,
+         * the message and the total kept and rewritten. Asked as "a player's console rewrite of their own
+         * roll is put back" asks it. Read: the rows of the message (the user, the student, the totals).
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account");
+        const [actor] = cast(1);
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which keeps the rolls - this would measure nothing");
+        const K = await import("./reroll-receipts.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const player = game.users.find(u => !u.isGM);
+        const { message } = await neutralRoll(actor, { faces: { hope: 9, fear: 4 } });
+        must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+        let read = null, total = null;
+        try {
+            const thrown = foundry.utils.deepClone(message.toObject().rolls);
+            await until(() => stableJson(K.keptRollsOf(message.id)?.rolls ?? null) === stableJson(thrown));
+            const first = typeof thrown[0] === "string" ? JSON.parse(thrown[0]) : thrown[0];
+            total = Number(first?.total);
+            const rewritten = thrown.map(r => {
+                const data = typeof r === "string" ? JSON.parse(r) : foundry.utils.deepClone(r);
+                data.total = (Number(data.total) || 0) + 7;
+                return typeof r === "string" ? JSON.stringify(data) : data;
+            });
+            const judged = await K.judgeRewrite(game.messages.get(message.id), { rolls: rewritten }, {}, player.id);
+            must(judged?.putBack === true, `the rewrite was not put back (${stableJson(judged)}) - this would measure nothing`);
+            await settle();
+            read = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "rewrite" && row.messageId === message.id)
+                .map(row => [row.userId === player.id, row.actorId === actor.id, row.change?.rolls ?? null]);
+        } finally {
+            await game.messages.get(message.id)?.delete();
+        }
+        equal(stableJson(read), stableJson([[true, true, [total, total + 7]]]),
+            "a rewrite put back left no row, or one not naming the player, the student or the totals (rows: the player, the student, kept and rewritten)");
+    }],
+
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per
        case, in its own file - tests-grid.mjs says what it asks and why. */
     ...GRID

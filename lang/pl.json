@@ -3096,7 +3096,13 @@
       "awayPutBack": "Cofnięte od razu, tak jak przy patrzącym GM-ie:",
       "awayLine": "{name} - {field} ({path}): {before} -> {after}",
       "undoAll": "Cofnij wszystko",
-      "acceptAll": "Zostaw wszystko"
+      "acceptAll": "Zostaw wszystko",
+      "verdict": {
+        "refused": "Prośba Daggerhearta ({sub}) odrzucona na kliencie GM-a",
+        "forged": "Wiadomość z oznaczeniami, które zapisuje tylko klient GM-a: nieczytana jako GM-a, nic nie przyznano",
+        "rewrite": "Kości rzutu wpisane ręcznie, przywrócone do tych, które padły"
+      },
+      "forgedCard": "Od {player} przyszła wiadomość o postaci {name} z oznaczeniami, które zapisuje tylko klient GM-a ({flags}). Nie jest czytana jako rzut wykonany przez GM-a i niczego nie przyznaje."
     },
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",

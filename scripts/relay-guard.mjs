@@ -405,13 +405,33 @@ function judgeDocument(data, sender, world) {
     else if (kind === "Scene") why = sceneRefusal(doc, flat);
     else why = `a change to a ${kind}`;
     // A string is a shape Daggerheart does not send; `{ refused }` is one it does.
-    if (why?.refused) return refuseAs(sub, "refused", why.refused);
-    if (why) return refuseAs(sub, "forged", why);
+    if (why) return { ...refuseAs(sub, why.refused ? "refused" : "forged", why.refused ?? why), trace: studentTrace(doc, flat) };
 
     return forwardTo(sub, {
         action: GM_UPDATE,
         data: { action: sub, uuid: data.uuid, data: flat, refresh: validRefresh(data.refresh) }
     });
+}
+
+/** How many of a refused request's paths its row keeps, and how long a value it keeps of each. */
+const TRACE_PATHS = 12;
+const TRACE_VALUE = 160;
+
+/**
+ * What the GMs' row of a refused request names (E33 C5a; sheet-audit.mjs `recordTrace`): the student
+ * the document is or belongs to, the item when it is one, and each path with its value now and the
+ * value asked - the first `TRACE_PATHS`, a long value cut. Null for a document that is not a student's.
+ */
+function studentTrace(doc, flat) {
+    const actor = doc.documentName === "Actor" ? doc : doc.parent?.documentName === "Actor" ? doc.parent : null;
+    if (actor?.type !== "character") return null;
+    const kept = value => {
+        const text = JSON.stringify(value) ?? null;
+        return text !== null && text.length > TRACE_VALUE ? `${text.slice(0, TRACE_VALUE - 1)}…` : value ?? null;
+    };
+    const change = Object.fromEntries(Object.entries(flat).slice(0, TRACE_PATHS)
+        .map(([path, value]) => [path, [kept(foundry.utils.getProperty(doc._source ?? doc, path)), kept(value)]]));
+    return { actorId: actor.id, itemId: doc === actor ? null : doc.id, change };
 }
 
 const RESOURCE_VALUE = /^system\.resources\.([\w-]+)\.value$/;
@@ -879,6 +899,11 @@ function reportRefusal(verdict, sender) {
         }
     }
     if (verdict.kind === "shape") shapeWarning(verdict.sub ?? "?");
+    // A request about a student leaves a row naming its sender, as Foundry named it (E33 C5a).
+    if (verdict.trace) {
+        void sheetAudit?.recordTrace("refused", { ...verdict.trace, userId: sender.id, sub: verdict.sub ?? null, kind: verdict.kind })
+            .catch(err => error("Could not keep the GMs' row of a refused Daggerheart request", err));
+    }
     tellRefused(sender.id, "daggerheart", null, "relay");
 }
 

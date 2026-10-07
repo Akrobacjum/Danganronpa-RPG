@@ -197,6 +197,11 @@ export const FLOWS = Object.freeze([
     // action and free Move bought and spent on the module's road raise no row"). 40-flow's day reads the Call its
     // roll window spent covered under `call` now, where its row named no reason. E33 C4 (07.10.2026): 83 reads the
     // writes of a Search's find, a Rest, an item used and a Level Up - each covered or applied, none put back or flagged.
+    // E33 C5a (07.10.2026): three more rows name their sender - a relay request on a student refused, a player's message
+    // carrying a flag only a GM's browser writes, a roll's dice rewritten and put back - and tier 2 reads each ("a player's
+    // message with the drawn flag is not read as drawn and awards nothing and is named once", "a refused relay write on
+    // another's student leaves a row naming its sender", "a rewrite put back leaves a row naming the player"; the guards
+    // "a GM's card with the same flags stands" and "an H5 neutral card is never a forgery").
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
         scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },
