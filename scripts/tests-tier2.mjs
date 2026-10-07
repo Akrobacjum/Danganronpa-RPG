@@ -32847,4 +32847,5 @@ const SCENARIOS = [
     ...GRID
 ];
 
-export { SCENARIOS, snapshot, restore };
+// `drawnForPlayer` for the grid (E33 C7): a drawn crisis roll goes through the suite's one road to a draw (tests-grid.mjs `drawnAct`).
+export { SCENARIOS, snapshot, restore, drawnForPlayer };
