@@ -7,9 +7,9 @@
  * later is not a new script somebody forgets to call. Each part prints its own
  * numbers - what it read as well as what it found, because a part that read
  * nothing has proved nothing - and the exit code is 1 when any part is red.
- * Only `names` needs `npm ci` in audit/harness (it parses with espree); the
- * rest are bare Node, so release.yml runs `stamps notes` before installing
- * anything.
+ * Only `names` and `moves` need `npm ci` in audit/harness (they parse with
+ * espree); the rest are bare Node, so release.yml runs `stamps notes` before
+ * installing anything.
  *
  * Parts:
  *   stamps    module.json's version, the `--drpg-css-version` stamp in
@@ -39,6 +39,15 @@
  *             import with a computed path, and a namespace variable handed on
  *             whole, are counted, not checked. no-undef (npm run lint) cannot
  *             see a renamed export: the importing file still declares the name.
+ *   moves     tools/moved-only.mjs's planted pairs alone (E34 C1, 07.10.2026):
+ *             the checker a file split runs on its own commit (`node
+ *             tools/moved-only.mjs HEAD~1`) judges a fixture with nine planted
+ *             faults, eleven problems to report - a changed moved line, a
+ *             shadowing import, a dropped re-export and six more - and is red
+ *             unless it reports exactly those, so it stays honest between the
+ *             waves that use it
+ *             (E34, E41, E54). It needs git, not a checkout: the fixture is a
+ *             repository of its own in a temporary directory.
  *   contract  the test author contract, read off the text: in
  *             scripts/tests-tier*.mjs no cut bounded by a bare indexOf, no
  *             assertion true by construction, no needs() of anything but a
@@ -369,6 +378,16 @@ function names() {
     return problems;
 }
 
+async function moves() {
+    try {
+        const tool = await import(url.pathToFileURL(path.join(REPO, "tools", "moved-only.mjs")).href);
+        return tool.selfCheck(line => console.log(line.replace(/^self:/, "moves:")));
+    } catch (err) {
+        if (err.code === "MODULE_NOT_FOUND") return ["espree is not installed - run `npm ci` in audit/harness first"];
+        return [`the planted pairs could not be judged (${String(err.message).split("\n")[0]})`];
+    }
+}
+
 function contract() {
     const problems = [];
     for (const name of ["bareCuts", "vacuousAsserts", "needsArgs", "vacuousChecks"]) {
@@ -540,7 +559,7 @@ function gatecode() {
     return problems;
 }
 
-const PARTS = { stamps, notes, dashes, parity, prose, names, contract, registry, stages, tree, gatecode };
+const PARTS = { stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode };
 
 const asked = argv.filter((a, i) => !a.startsWith("--") && !(releaseAt >= 0 && i === releaseAt + 1));
 if (RELEASE === "" || (RELEASE !== null && !/^v\d+\.\d+\.\d+$/.test(RELEASE))) {

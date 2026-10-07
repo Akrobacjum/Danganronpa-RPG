@@ -37,7 +37,8 @@ If a claim cannot be measured, say that instead of rounding it up.
 | The suite, headless | `npm run suite`, or `node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
 | Every scenario | `npm run scenarios`: the rows with layers `ci` in `audit/harness/README.md` |
-| One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, contract, registry, stages, tree, gatecode |
+| One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode |
+| Whether a commit only moved code | `node tools/moved-only.mjs HEAD~1` - every line moved, promoted, an import or a header; every name read means what it meant; a facade's exports unchanged. Its planted pairs alone: `node tools/check.mjs moves` |
 | The Polish file | `node tools/check.mjs prose` - must read N/N, 497/497 on 24.09 |
 | The local gate | on a machine with a Foundry v14 sandbox at :30099, `npm run gate:local` (`audit/gate/README.md`) |
 | What a player's roll may do, and what a console's forgery may not | `node cluster.mjs scenarios/83-roll-integrity.mjs` - every legal road clean, each forgery traced; in `npm test` and the local gate since E33 |
@@ -64,6 +65,24 @@ could not measure headless - a real Reroll through the table, a request's
 timing on a real server, a GM leaving mid-request, a late
 planted item, a window closing under reduced motion, a Polish player's refusal -
 is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
+
+## Where the code lives
+
+From 1.2.70 the largest files are split by pure moves (D23 option 1: E34, then E41 and
+E54), and each old file stays as a **facade**: it keeps its name and every name it
+exported, through `export { ... } from "./new.mjs"`, and exports nothing new.
+
+- Importers outside a family keep importing the facade.
+- A new file never imports its facade; a name one new file needs from another is
+  exported there and imported directly.
+- The facade keeps only the code no new file calls.
+- New code goes into the family file of its role, never into a facade that holds none.
+
+A move commit proves itself with `node tools/moved-only.mjs HEAD~1` and adds its new
+files' rows here.
+
+| File | What lives there | Its facade |
+| --- | --- | --- |
 
 ## What the suite's four numbers mean
 
