@@ -13378,6 +13378,81 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM's public roll is read by every user", async () => {
+        /*
+         * E33 C12, 07.10.2026; audit S02-72; the owner's Q2 (a). With rolls forced private a GM
+         * had no public roll: `whisperRoll` sent a GM's bare roll to the GMs. `publicRoll` posts
+         * the roll on the GM's browser with the module's flag, and `whisperRoll` leaves a GM's
+         * flagged message as it arrived. Read on this GM with the setting on: the whisper
+         * (empty, so every user reads it - Foundry's own rule), blind, the flag under a GM author
+         * (`isPublicRoll`), no forged flag (the author is a GM), the content visible here, a total
+         * within the die, the flavour kept. Across browsers: 12-social's check of the same roll.
+         */
+        const P = await import("./private-rolls.mjs");
+        ok(typeof P.publicRoll === "function" && typeof game.drpg.publicRoll === "function", "private-rolls.mjs exports no publicRoll, or game.drpg carries none");
+        const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        let message = null;
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        try {
+            message = await game.drpg.publicRoll("1d6", { flavor: "suite C12 public" });
+            must(message?.id, "the public roll made no message");
+            const total = Number(message.rolls?.[0]?.total);
+            equal(JSON.stringify([[...(message.whisper ?? [])], message.blind, P.isPublicRoll(message), P.forgedFlagsOf(message), message.author?.isGM === true,
+                message.isContentVisible, Number.isInteger(total) && total >= 1 && total <= 6, message._source?.flavor ?? null]),
+                JSON.stringify([[], false, true, [], true, true, true, "suite C12 public"]),
+                "a GM's public roll is whispered, blind, not read as public, named forged, not a GM's, unreadable here, off its die, or lost its flavour "
+                    + "(whisper; blind; isPublicRoll; forged flags; GM author; visible here; total in 1..6; flavour)");
+        } finally {
+            if (message) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+        }
+    }],
+
+    ["a player's message with the flag stays private and is named forged once", async () => {
+        /*
+         * E33 C12, 07.10.2026; audit S02-72. The flag is a GM's to write (`GM_ONLY_FLAGS`): a
+         * player's own message carrying it - made here with the player as its author, as the GM's
+         * client hears one made on theirs - goes down the player's road of `whisperRoll` (the GMs
+         * and the player, as any player's roll), and the primary keeps one `forged` row of it and
+         * tells the GMs once (sheet-audit.mjs `onForgedCard`). Read: the whisper, blind,
+         * `isPublicRoll` (false), the forged paths, the rows naming the message (one: a message
+         * inside WARN_EVERY_MS of another of the player's counts on that row, which names this
+         * one), whether every such row is the player's, and the GMs' lines naming it.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player whose message carries the flag");
+        const P = await import("./private-rolls.mjs");
+        ok(typeof P.publicRoll === "function", "private-rolls.mjs exports no publicRoll - there is no public road for the flag to be a forgery of");
+        const { ownerOf, gmIds, isPrimaryGm } = await import("./utils.mjs");
+        const { cardFlag } = await import("./secret.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which names a forged message - this would measure nothing");
+        const student = cast(3).find(a => ownerOf(a) && !ownerOf(a).isGM);
+        must(student, "no student of the cast is owned by a player");
+        const player = ownerOf(student);
+        const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const path = `flags.${MODULE_ID}.${P.PUBLIC_ROLL_FLAG}`;
+        let message = null, read = null;
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        try {
+            const roll = { class: "Roll", formula: "1d6", total: 4, evaluated: true, terms: [], options: {} };
+            message = await ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor: student }), content: "<div class=\"dice-roll\">4</div>",
+                rolls: [roll], whisper: [], blind: false, flags: { [MODULE_ID]: { [P.PUBLIC_ROLL_FLAG]: true } } });
+            must(message?.id, "the player's message was not made");
+            await until(() => game.messages.contents.some(m => cardFlag(m, "forgedCard") === message.id), 1500);
+            await settle();
+            const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && (row.messageId === message.id || (row.messages ?? []).includes(message.id)));
+            read = [[...message.whisper].sort(), message.blind, P.isPublicRoll(message), P.forgedFlagsOf(message), rows.length, rows.every(row => row.userId === player.id),
+                game.messages.contents.filter(m => cardFlag(m, "forgedCard") === message.id).length];
+        } finally {
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+        }
+        equal(JSON.stringify(read), JSON.stringify([[...new Set([...gmIds(), player.id])].sort(), false, false, [path], 1, true, 1]),
+            "a player's message with the flag went public, was blind, read as a public roll, carried no forged flag, or was not named once to the GMs "
+                + "(whisper; blind; isPublicRoll; forged paths; rows naming it; every row the player's; the GMs' lines naming it)");
+    }],
+
     ["a Reroll's dice are thrown to the roll's readers alone", async () => {
         /*
          * E06 C6, 27.09.2026; audit S02-13. A Reroll threw its new dice with

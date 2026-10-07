@@ -234,7 +234,7 @@
     "Settings": {
       "forcePrivateRolls": {
         "name": "Wymuszaj prywatne rzuty graczy",
-        "hint": "Każdy rzut gracza jest szeptany do tego gracza i do GM-ów. Nikt nie widzi cudzych kości."
+        "hint": "Każdy rzut gracza jest szeptany do tego gracza i do GM-ów, a rzut GM-a do GM-ów. Nikt nie widzi cudzych kości. Jedyny rzut widoczny dla wszystkich to Rzut publiczny z panelu GM-a (game.drpg.publicRoll) - remis w głosowaniu, loteria Monokumy."
       },
       "enforceAnonymity": {
         "name": "Anonimowe karty postaci",
@@ -2803,6 +2803,14 @@
         "other": "Wyczyszczono {n} Faint Remnants."
       },
       "voiceReset": "Zresetuj wszystkie pokoje głosowe",
+      "publicRoll": {
+        "label": "Rzut publiczny",
+        "formula": "Formuła",
+        "flavour": "Opis",
+        "roll": "Rzuć",
+        "gmOnly": "Tylko GM może wykonać rzut publiczny.",
+        "badFormula": "\"{formula}\" to nie jest formuła rzutu."
+      },
       "failed": "To nie zadziałało. Zajrzyj do konsoli.",
       "faintNone": "Nie ma Faint Remnants do wyczyszczenia - każdy ślad na mapie jest Reinforced albo powiązany ze zbrodnią.",
       "faintConfirm": {

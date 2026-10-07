@@ -131,7 +131,13 @@ const PANEL_SECTIONS = [
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
               run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) }
+              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
+            // THE ONE PUBLIC ROLL (E33 C12, 07.10.2026; audit S02-72). With rolls forced
+            // private a GM's `/r` goes to the GMs, so a vote's tie or Monokuma's lottery
+            // had no roll everybody could watch. Here, in the section that is never out
+            // of season, because the moment for it is mid-scene: formula, flavour, Roll.
+            { key: "publicRoll", icon: "fa-dice", labelKey: "DRPG.Panel.publicRoll.label",
+              run: () => openPublicRollDialog() }
             // GONE FROM HERE:
             //   Give / take items - it is the Items button in the footer of
             //     Players, and a tile as well was a second door to the same
@@ -1278,6 +1284,50 @@ function backupAge() {
  * time of day. Reachable only from the GM panel - deliberately not on the
  * HUD itself, which every player is looking at for the rest of the session.
  */
+/**
+ * The public roll's window (E33 C12): a formula and a flavour, one Roll button, and the roll
+ * posted through private-rolls.mjs `publicRoll` - the one road `whisperRoll` leaves public.
+ * `1d6` by default: the tie and the lottery are a die each. Answers the message, or null.
+ */
+export async function openPublicRollDialog() {
+    if (alreadyOpen("drpg-window-public-roll")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.publicRoll.gmOnly"));
+        return null;
+    }
+
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Panel.publicRoll.label") },
+        classes: ["drpg-panel", "drpg-window-public-roll"],
+        content: `<form>
+                    <label>${game.i18n.localize("DRPG.Panel.publicRoll.formula")}
+                        <input type="text" name="formula" value="1d6" autofocus />
+                    </label>
+                    <label>${game.i18n.localize("DRPG.Panel.publicRoll.flavour")}
+                        <input type="text" name="flavor" value="" />
+                    </label>
+                  </form>`,
+        buttons: [
+            {
+                action: "roll",
+                label: game.i18n.localize("DRPG.Panel.publicRoll.roll"),
+                default: true,
+                callback: (event, button, dialog) => {
+                    const form = dialog.element.querySelector("form");
+                    return { formula: form.formula.value.trim() || "1d6", flavor: form.flavor.value.trim() };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
+        ],
+        rejectClose: false
+    });
+
+    if (!result || result === "cancel") return null;
+    const { publicRoll } = await import("./private-rolls.mjs");
+    return publicRoll(result.formula, { flavor: result.flavor });
+}
+
 export async function openClockDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
