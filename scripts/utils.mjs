@@ -534,7 +534,12 @@ export async function replaceFlag(doc, key, value) {
  * music.mjs, fog.mjs and migrate.mjs) and R152 refuses that spelling anywhere in
  * the module. v14 names the deletion `foundry.data.operators.ForcedDeletion`, and
  * Daggerheart writes it as the global `_del`. Null means the caller unsets one
- * flag at a time instead (E30, 24.09.2026).
+ * flag at a time instead (E30, 24.09.2026) - or writes the null where every
+ * reader of that key reads null as the key gone (call-effects.mjs `consumeCalls`
+ * and `spendCallsByNonce` on the armed Calls, E33 C1b). On 14.364, the module's
+ * minimum, the operator is there and the null is never returned; the fallback
+ * stays as the shape each caller takes in a Foundry without one, read, not
+ * measured (fix r1-G3, 07.10.2026).
  */
 export function forcedDeletion() {
     const Operator = foundry.data?.operators?.ForcedDeletion;

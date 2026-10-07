@@ -28783,7 +28783,11 @@ const SCENARIOS = [
            on the audit's six alone. The roads are called by other names so that R220, which reads
            every call of a road in the suite for a literal reason, does not read this loop over the
            whole list as a write that names none. Red before the fix (C8's runtime, 05.10): every
-           one named its reason, as C1's `stampOf` stamped it.
+           one named its reason, as C1's `stampOf` stamped it. The count is the list's length times
+           three, not a literal: E33 C1b's three reasons (`spend`, `refund`, `call`) took WRITE_REASONS
+           from 20 to 23 and the literal 60 went red at the next whole suite (e33run/k1c, 07.10.2026,
+           899/1/17), which no fast set runs this test to see - a checkpoint's suite-diff is what
+           finds a literal like it (fix r1-G3).
            What a player's write names is read on a player's browser (13-murder-signals), and what a
            bystander's browser reads of the incident's writes in 10-murder. */
         const { trustedWrite: write, trustedCreate: create, trustedDelete: drop, WRITE_REASONS, WRITE_STAMP, HOPE_REFUND } =
@@ -28802,7 +28806,7 @@ const SCENARIOS = [
         const named = sent.filter(([, options]) => WRITE_STAMP in options).map(([road, options]) => [road, options[WRITE_STAMP]]);
         equal(stableJson([sent.length, sent.every(([, options]) => options.drpgAutomated === true),
             sent.filter(([, options]) => options[HOPE_REFUND] === true).length, named]),
-            stableJson([60, true, 3, ["auditPutBack", "auditUndo"].flatMap(reason => ["write", "create", "delete"].map(road => [road, { reason, ref: "SUITEref" }]))]),
+            stableJson([3 * WRITE_REASONS.length, true, 3, ["auditPutBack", "auditUndo"].flatMap(reason => ["write", "create", "delete"].map(road => [road, { reason, ref: "SUITEref" }]))]),
             `a GM's module write named a reason nothing judges, or the audit's own went without one: ${stableJson(named)}`);
     }],
 

@@ -43,6 +43,11 @@
  *     rules the blow (`resolveCrisisAction`, as 13 and 72 do), so Stage 6 opens.
  */
 export const layers = ["ci", "local-gate"];
+/* Its own bound, as 30 and 61 declare one (E33 fix r1-G3, 07.10.2026; review round 1's cor M6): 168.6 s at
+   C5b's a2 run, 169.0 s at fix r1-G1's and 171.6 s in k1's ci set (e33run/c5b, r1g1, k1-ci: 83.log), each in
+   a lane beside two others; 162-176 s over part 1's runs. Seven minutes, as 30's: the forgeries grow with
+   every stage, and a hang detector is not a budget. The scenario is not shortened. */
+export const timeoutMs = 420000;
 
 const MOD = "danganronpa-rpg";
 const J = JSON.stringify;
@@ -118,7 +123,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             out.flagRows = flagged.map(r => ({ rollId: r.rollId, character: r.character, player: r.player, action: r.action, flags: r.flags }));
             const rows = A.sheetWrites({ quiet: true }).filter(r => g.writes.get(r.id) !== (r.times ?? 1))
                 .map(r => ({ text: r.character + " " + r.verdict + " " + r.reason + ": " + r.change, verdict: r.verdict, reason: r.reason, character: r.character,
-                    id: r.id, player: r.player, change: r.change, what: r.what, times: r.times ?? 1, ref: St.sheetWriteStore.entries()?.[r.id]?.ref ?? null }));
+                    id: r.id, player: r.player, change: r.change, what: r.what, fresh: !g.writes.has(r.id), times: r.times ?? 1, ref: St.sheetWriteStore.entries()?.[r.id]?.ref ?? null }));
             out.rows = rows.filter(r => r.verdict !== "listed" && r.verdict !== "covered").map(r => r.text);
             out.trace = rows.filter(r => r.verdict !== "listed" && r.verdict !== "covered");
             out.warns = g.warns.filter(w => w.n > g.warnMark).map(w => w.text);
@@ -582,9 +587,16 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
      * Each forgery is p1's console: the module's own code called from p1's page, or the calls of Foundry and
      * Daggerheart a console has, with a packet edited on its way out where the forgery lives in a packet
      * (`EMIT` below wraps the page's socket for the one call). Four checks each, in road()'s shape: that it ran,
-     * read off what it did; that it is undone on all four clients, or never applied; that the GMs' trace of it
-     * names p1; and that nothing else of the readings is new - `quietOf` with the forgery's own trace set aside
-     * (`own`), so a forgery caught twice, or one that sets off what no forgery should, is red.
+     * read off what the write did as it landed - a hook on p1's page (`LANDED`, F2's and F6b's), the write's own
+     * return (F4c's) or the GM's record - and never off p1's page after the await, where the primary's put-back
+     * can land first (k1, 07.10.2026: e33run/k1-ci/83.log read F2's flag back in place and the forgery "never
+     * ran", 73/77, under three harness lanes; fix r1-G3); that it is undone on all four clients, or never
+     * applied; that the GMs' trace of it names p1; and that its own trace is all that is new, counted exactly
+     * (`owns`: the rows, cards and lines `own` matches, as every green run since C5b read them - e33run/c5b,
+     * k1-ci and r1g1's 83.log; a repeat inside 30 s folds onto a `refused` or `forged` row, fix r1-G1, and a row
+     * new since the mark counts its `times`) and nothing else - so a forgery caught twice, or one that sets off
+     * what no forgery should, is red (review round 1's cor M2: until this fix `own` set a second card or row
+     * aside instead of counting it).
      */
     const names = await gm.eval(`return { p1: game.users.get("${users.p1}")?.name ?? null, aiko: game.actors.get("${aiko}")?.name ?? null,
         botan: game.actors.get("${botan}")?.name ?? null };`);
@@ -608,16 +620,19 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     const LANDED = id => `const seen = [], hook = Hooks.on("updateActor", (doc, changes) => { if (doc.id === "${id}") seen.push(foundry.utils.flattenObject(changes)); });
         const landed = (path, from) => { const c = seen.slice(from).find(x => path in x); return c ? c[path] : null; };`;
     const forged = {};
-    function forgery(label, what, { did, undone, trace, own = () => false, r, details }) {
+    function forgery(label, what, { did, undone, trace, own = () => false, owns = 0, r, details }) {
         forged[label] = Boolean(did);
-        const all = r ? quietOf(r) : ["no readings"], loud = all.filter(x => !own(x));
-        const d = J({ ...details, own: all.filter(own), loud, trace: r?.gm.trace ?? null, listed: r?.gm.listed ?? null, covered: r?.gm.covered ?? null }).slice(0, 2400);
+        const all = r ? quietOf(r) : ["no readings"], mine = all.filter(own), loud = all.filter(x => !own(x));
+        /* A fresh row's `times` above one is the same forgery caught again inside its fold window. */
+        const counted = mine.length + (r?.gm.trace ?? []).filter(x => x.fresh && own(`row: ${x.text}`)).reduce((n, x) => n + x.times - 1, 0);
+        const d = J({ ...details, counted, owns, own: mine, loud, trace: r?.gm.trace ?? null, listed: r?.gm.listed ?? null, covered: r?.gm.covered ?? null }).slice(0, 2400);
         check(`${label}: it ran - ${what.ran}`, Boolean(did), d);
         check(`${label}: ${what.undone}`, Boolean(did) && Boolean(undone), d);
-        check(`${label}: traced to p1 - ${what.trace}`, Boolean(did) && Boolean(trace), d);
-        check(`${label}: nothing new but its own trace - no other flag, row, card, refusal or "not counted"`, Boolean(did) && loud.length === 0, d);
+        check(`${label}: ${what.read ?? "traced to p1"} - ${what.trace}`, Boolean(did) && Boolean(trace), d);
+        check(`${label}: its own trace exactly (${owns}) and nothing else new - no other flag, row, card, refusal or "not counted"`,
+            Boolean(did) && loud.length === 0 && counted === owns, d);
         /* What the forgery left, said on every run: a check's details print only when it fails. */
-        note(`${label}: its trace`, J({ own: all.filter(own), rows: (r?.gm.trace ?? []).map(x => [x.player, x.verdict, x.what]),
+        note(`${label}: its trace`, J({ counted, read: details?.landed ?? null, own: mine, rows: (r?.gm.trace ?? []).map(x => [x.player, x.verdict, x.what, x.times]),
             aside: [...(r?.gm.listed ?? []), ...(r?.gm.covered ?? [])].map(x => [x.player, x.text]) }).slice(0, 1800));
     }
 
@@ -638,7 +653,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     const f1Hope = await onAll(hopeOf(aiko));
     forgery("F1", { ran: "the update landed on p1's page (Hope 5)", undone: "Aiko's Hope is 2 again on all four clients",
         trace: "a putBack row of Aiko's Hope naming p1, and the GMs' card" },
-    { did: !f1.err && f1.wrote === 5, undone: allAre(f1Hope, 2), r: rf1, own: putBackOwn,
+    { owns: 3, did: !f1.err && f1.wrote === 5, undone: allAre(f1Hope, 2), r: rf1, own: putBackOwn,
         trace: p1Rows(rf1, "putBack", names.aiko).some(x => /hope/.test(x.change)) && rf1.gm.audit.length >= 1, details: { f1, hope: f1Hope } });
 
     /* ----------------------- F1b. the Party sheet's pips ----------------------- */
@@ -679,7 +694,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     forgery("F1b", { ran: "the pips' Hope landed on p1's page (2 -> 6), its marks and Stress were taken out there, and the healed mark landed (3 -> 2)",
         undone: "the Hope put back, the healed mark undone by the GM's Undo: Hope 2, marks 3, Stress 2 on all four clients",
         trace: "a putBack row of the Hope and a flagged row of the mark, each naming p1, and the GMs' cards" },
-    { did: !f1b.err && J([f1b.hope, f1b.hp, f1b.stress, f1b.healed]) === J([[2, 6], [3, null], [2, null], [3, 2]]),
+    { owns: 5, did: !f1b.err && J([f1b.hope, f1b.hp, f1b.stress, f1b.healed]) === J([[2, 6], [3, null], [2, null], [3, 2]]),
         undone: f1bUndo === true && allAre(f1bNow, [2, 3, 2]), r: rf1b, own: putBackOwn,
         trace: p1Rows(rf1b, "putBack", names.aiko).some(x => /hope/.test(x.change)) && f1bHealed?.player === names.p1 && rf1b.gm.audit.length >= 2,
         details: { f1b, healed: f1bHealed, undo: f1bUndo, now: f1bNow } });
@@ -695,15 +710,24 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         return { knife: k?.id ?? null, broken: k ? INV.isBroken(k) : null };`, { timeout: 30000 });
     await settle(600);
     mark = await readings();
+    /* "It ran" is the knife as p1's updateItem hook saw it when the unset landed, as LANDED reads an actor's: the
+       primary's put-back can land on p1's page before the unset's own promise settles, and the flag read after
+       the await then said the unset never ran while the put-back was right (e33run/k1-ci/83.log, 07.10.2026:
+       the four checks red, 73/77, under three harness lanes; 77/77 at C5b's and C6's runs - a race, not
+       reproducible on demand; fix r1-G3). The hook's reading is said in the trace note (`read`) on every run. */
     const f2 = await p1.eval(`const i = game.actors.get("${aiko}").items.get(${J(f2Set.knife)}); let err = null;
-        try { await i.unsetFlag("${MOD}", "broken"); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
-        return { whole: i ? !i.getFlag("${MOD}", "broken") : null, err };`, { timeout: 30000 });
+        const seen = [], hook = Hooks.on("updateItem", (doc, changes) => {
+            if (doc.id === ${J(f2Set.knife)} && Object.keys(changes?.flags?.["${MOD}"] ?? {}).some(k => k.replace(/^-=/, "") === "broken")) seen.push(!doc.getFlag("${MOD}", "broken"));
+        });
+        try { await i?.unsetFlag("${MOD}", "broken"); } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { Hooks.off("updateItem", hook); }
+        return { whole: seen.length ? seen[0] : null, landed: seen.length, err };`, { timeout: 30000 });
     const rf2 = await mark.since();
     const f2Now = await onAll(`return Boolean(game.actors.get("${aiko}")?.items.get(${J(f2Set.knife)})?.getFlag("${MOD}", "broken"));`);
-    forgery("F2", { ran: "the flag was unset on p1's page", undone: "the knife is broken again on all four clients",
+    forgery("F2", { ran: "the unset landed on p1's page (its updateItem hook read the knife whole)", undone: "the knife is broken again on all four clients",
         trace: "a putBack row of the knife's broken flag naming p1" },
-    { did: f2Set.broken === true && !f2.err && f2.whole === true, undone: allAre(f2Now, true), r: rf2, own: putBackOwn,
-        trace: p1Rows(rf2, "putBack", names.aiko).some(x => x.change.includes(`flags.${MOD}.broken`)), details: { f2Set, f2, now: f2Now } });
+    { owns: 3, did: f2Set.broken === true && !f2.err && f2.whole === true, undone: allAre(f2Now, true), r: rf2, own: putBackOwn,
+        trace: p1Rows(rf2, "putBack", names.aiko).some(x => x.change.includes(`flags.${MOD}.broken`)), details: { f2Set, f2, landed: { whole: f2.whole, writes: f2.landed }, now: f2Now } });
     await gm.eval(`await game.actors.get("${aiko}").items.get(${J(f2Set.knife)})?.delete(); return true;`);
 
     /* ------------------ F3. Daggerheart's relay, for Botan ------------------ */
@@ -722,7 +746,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     const f3Now = await onAll(hopeOf(botan));
     forgery("F3", { ran: "the packet left p1's page", undone: "Botan's Hope is still 2 on all four clients: nothing was written",
         trace: "a refused row naming p1 and Botan, and p1 told `relay`" },
-    { did: f3 === true, undone: allAre(f3Now, 2), r: rf3,
+    { owns: 2, did: f3 === true, undone: allAre(f3Now, 2), r: rf3,
         own: x => x.startsWith(`row: ${names.botan} refused `) || x === "p1 refused: daggerheart relay",
         trace: p1Rows(rf3, "refused", names.botan).some(x => x.what.includes("DhGMUpdateDocument")) && rf3.p1.refused.some(x => x[1] === "relay"),
         details: { now: f3Now } });
@@ -757,7 +781,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             claim: r.claim?.flat ?? null, scored: r.scored?.flat ?? null, flags: (r.flags ?? []).map(f => f.kind), messageId: r.messageId };`) : null;
     forgery("F5a", { ran: "the edited packet was drawn on the GM", undone: "scored without them: d12s, a critical only of equal dice, the 5 claimed and not scored",
         trace: "a rollFlags entry naming p1, and p1's \"not counted\" line" },
-    { did: f5a.edited === 1 && rollsOf(rf5a, aiko).length === 1 && Boolean(f5aRecord),
+    { owns: 3, did: f5a.edited === 1 && rollsOf(rf5a, aiko).length === 1 && Boolean(f5aRecord),
         undone: Boolean(f5aRecord) && J(f5aRecord.dice) === J([[12, 1], [12, 1]]) && f5aRecord.critical === (f5aRecord.hope === f5aRecord.fear)
             && f5aRecord.claim - f5aRecord.scored === 5,
         trace: rf5a.gm.flagRows.some(x => x.player === names.p1 && x.character === names.aiko) && rf5a.p1.notCounted.length === 1, r: rf5a,
@@ -774,12 +798,16 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     const DIE = { key: "freeCrit", kind: "hope", grants: "critical", amount: null, nonce: "C5BFORGEDDIE0001" };
     const armedOf = `const f = game.actors.get("${aiko}")?.getFlag("${MOD}", "pendingCall"); return (Array.isArray(f) ? f : f ? [f] : []).some(e => e?.nonce === ${J(DIE.nonce)});`;
     mark = await readings();
+    /* `wrote` is the list as p1's updateActor hook saw it land, not the flag read after the await (the put-back
+       can land first: F2's note; fix r1-G3). The hook's `changes` carry the whole list, so it is read whole. */
     const f7 = await p1.eval(`const a = game.actors.get("${aiko}"), had = a.getFlag("${MOD}", "pendingCall");
         let err = null, wrote = null;
+        const seen = [], hook = Hooks.on("updateActor", (doc, changes) => { if (doc.id === "${aiko}") seen.push(foundry.utils.getProperty(changes, "flags.${MOD}.pendingCall") ?? null); });
         try {
             await a.update({ "flags.${MOD}.pendingCall": [...(Array.isArray(had) ? had : had ? [had] : []), ${J(DIE)}] }, { drpgAutomated: true });
-            ${armedOf.replace("return ", "wrote = ")}
+            wrote = seen.some(list => Array.isArray(list) && list.some(e => e?.nonce === ${J(DIE.nonce)}));
         } catch (e) { err = String(e?.message ?? e).slice(0, 200); }
+        finally { Hooks.off("updateActor", hook); }
         ${EMIT(`p => {
             if (p.action !== "roll.draw") return p;
             p.loaded = ${J(DIE.nonce)}; p.calls = [...(Array.isArray(p.calls) ? p.calls : []), ${J(DIE.nonce)}];
@@ -795,12 +823,12 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     const f7Used = f7Row ? await gm.eval(`const S = await import("${SCRIPT("gm-stores")}"), r = S.rollStore.get(${J(f7Row.id)});
         return { loaded: r.used?.loaded ?? null, calls: r.used?.calls ?? null, hope: r.hope };`) : null;
     const f7Armed = await onAll(armedOf);
-    forgery("F7", { ran: "the entry landed on p1's page and the edited packet was drawn", undone: "the entry is put back on all four clients, and the roll is not loaded",
+    forgery("F7", { ran: "the entry landed on p1's page (its updateActor hook) and the edited packet was drawn", undone: "the entry is put back on all four clients, and the roll is not loaded",
         trace: "a putBack row of Aiko's armed Calls naming p1" },
-    { did: f7.wrote === true && !f7.err && f7.edited === 1 && Boolean(f7Used),
+    { owns: 3, did: f7.wrote === true && !f7.err && f7.edited === 1 && Boolean(f7Used),
         undone: allAre(f7Armed, false) && f7Used?.loaded === false && !(f7Used?.calls ?? []).includes(DIE.nonce),
         trace: p1Rows(rf7, "putBack", names.aiko).some(x => x.change.includes("pendingCall")), r: rf7, own: putBackOwn,
-        details: { f7, used: f7Used, armed: f7Armed } });
+        details: { f7, landed: { wrote: f7.wrote }, used: f7Used, armed: f7Armed } });
 
     /* ------------- F4. a message carrying the GM's drawn flag ------------- */
 
@@ -830,7 +858,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     await gm.eval(`await game.drpg.setDespair(game.user.id, ${J(season.despair)}); return true;`);
     forgery("F4", { ran: "p1's card was written, naming F5a's record", undone: "not read as drawn on any client, and nothing awarded: the GMs' Despair and Aiko's Hope unchanged",
         trace: "a forged row naming p1 and the card's flags, and one card to the GMs" },
-    { did: Boolean(f4.card) && Boolean(f5aRow), undone: allAre(f4Drawn, false) && J(f4Now) === J(f4Was), r: rf4,
+    { owns: 2, did: Boolean(f4.card) && Boolean(f5aRow), undone: allAre(f4Drawn, false) && J(f4Now) === J(f4Was), r: rf4,
         own: x => x.startsWith(`row: ${names.aiko} forged `) || x.startsWith("audit card: "),
         trace: p1Rows(rf4, "forged", names.aiko).some(x => x.change.includes(`flags.${MOD}.drawn`) && x.change.includes(`flags.${MOD}.rollId`)) && rf4.gm.audit.length === 1,
         details: { f4, drawn: f4Drawn, was: f4Was, now: f4Now } });
@@ -868,7 +896,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     await p1.eval(`await game.messages.get(${J(f4b.card ?? "none")})?.delete(); return true;`);
     forgery("F4b", { ran: "p1's item card was written and its Hope asked twice", undone: "the first Hope stands (3 on all four clients, layer two's open part), the second is never applied",
         trace: "the card covers one gain, its covered row naming the card: the second ask leaves a refused row naming p1, and p1 told `relay`" },
-    { did: Boolean(f4b.card), undone: allAre(f4bOnce, 3) && allAre(f4bNow, 3), r: rf4b,
+    { owns: 2, did: Boolean(f4b.card), undone: allAre(f4bOnce, 3) && allAre(f4bNow, 3), r: rf4b,
         own: x => x.startsWith(`row: ${names.aiko} refused `) || x === "p1 refused: daggerheart relay",
         trace: p1Rows(rf4b, "refused", names.aiko).length === 1 && rf4b.p1.refused.some(x => x[1] === "relay")
             && rf4b.gm.covered.some(x => x.ref === f4b.card && x.player === names.p1 && x.character === names.aiko),
@@ -901,7 +929,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     forgery("F4c", { ran: "p1's plain card was written and the draw's flags added to it by its author's update",
         undone: "not read as drawn on any client, its two flags read as a forgery on each",
         trace: "a forged row naming p1 and the card's flags, and one card to the GMs" },
-    { did: Boolean(f4c.card) && f4c.updated === true, undone: allAre(f4cRead, [false, 2]), r: rf4c,
+    { owns: 2, did: Boolean(f4c.card) && f4c.updated === true, undone: allAre(f4cRead, [false, 2]), r: rf4c,
         own: x => x.startsWith(`row: ${names.aiko} forged `) || x.startsWith("audit card: "),
         trace: p1Rows(rf4c, "forged", names.aiko).some(x => x.change.includes(`flags.${MOD}.drawn`) && x.change.includes(`flags.${MOD}.rollId`)) && rf4c.gm.audit.length === 1,
         details: { f4c, read: f4cRead } });
@@ -929,7 +957,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     const f6aGm = await gm.eval(`const P = await import("${SCRIPT("private-rolls")}"), m = game.messages.get(${J(f6aId)}); return m ? P.isDrawnRoll(m) : null;`);
     const f6aNow = await onAll(rollsOn(f6aId));
     forgery("F6a", { ran: "p1's page asked to write the rolls of a drawn card (the GM's, not p1's)", undone: "the card's rolls unchanged on all four clients",
-        trace: "refused by Foundry on p1's page, before any GM's hook: no row" },
+        read: "no trace, as none can be", trace: "not offered, refused by Foundry on p1's page before any GM's hook, and no row (round 1's cor M7: it read so under \"traced to p1\")" },
     { did: Boolean(f6a) && f6aGm === true && f6a.isAuthor === false && f6aWas !== null, undone: allAre(f6aNow, f6aWas), r: rf6a,
         trace: Boolean(f6a) && f6a.offered === false && (f6a.err !== null || f6a.updated === false) && rf6a.gm.trace.length === 0,
         details: { f6a, drawnOnGm: f6aGm } });
@@ -971,7 +999,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     await p1.eval(`await game.messages.get(${J(f6bCard ?? "none")})?.delete(); return true;`);
     forgery("F6b", { ran: "p1's rewrite (13 -> 20) landed on its page", undone: "the dice put back: the card's rolls as created on all four clients",
         trace: "a rewrite row naming p1 and Aiko, 13 -> 20" },
-    { did: f6bKept && Boolean(f6b) && !f6b.err && f6b.totals[0] === 20, undone: f6bWas !== null && allAre(f6bNow, f6bWas), r: rf6b,
+    { owns: 1, did: f6bKept && Boolean(f6b) && !f6b.err && f6b.totals[0] === 20, undone: f6bWas !== null && allAre(f6bNow, f6bWas), r: rf6b,
         own: x => x.startsWith(`row: ${names.aiko} rewrite `),
         trace: p1Rows(rf6b, "rewrite", names.aiko).some(x => x.change === "rolls: 13 -> 20"), details: { f6bKept, f6b } });
 
@@ -1028,7 +1056,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     forgery("F5c", { ran: "Aiko's crisis roll was drawn, and its packet left p1's page naming a roll no GM drew",
         undone: "nothing applied: the incident at the killer's turn, Daichi alive, the roll unsettled",
         trace: "rollUnknown told to p1, and the GM's warning names p1" },
-    { did: f5Open.stage === "incident" && f5Open.turn === "killer" && Boolean(f5c.kept?.rollId) && f5cAfter.record?.actionKey === "crisis",
+    { owns: 1, did: f5Open.stage === "incident" && f5Open.turn === "killer" && Boolean(f5c.kept?.rollId) && f5cAfter.record?.actionKey === "crisis",
         undone: f5cAfter.stage === "incident" && f5cAfter.turn === "killer" && f5cAfter.dead === false && J(f5cAfter.record?.resolved) === "[]", r: rf5c,
         own: x => x === "p1 refused: murder.crisis rollUnknown",
         trace: rf5c.p1.refused.some(x => x[1] === "rollUnknown") && rf5c.gm.warns.some(w => w.includes('"murder.crisis"') && w.includes(names.p1) && /no roll the GM drew/.test(w)),

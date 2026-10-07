@@ -1,4 +1,11 @@
 export const layers = ["ci"];
+/* Its own bound, as 61 declares one (E33 fix r1-G3, 07.10.2026; review round 1's cor M6): this scenario
+   ran 268.7 s in 1.2.68's whole chain (e29run/k4) and 268.5 s at E33's C1a, then 282-291 s in every
+   E33 run from C2a on (e33run/<c>/s30.res, three harness lanes at once: C5b 286.9 s, C6 290.7 s, fix
+   r1-G1 286.8 s) and 288.7 s in k1's ci set (e33run/k1/cmp.txt, beside the suite's lane) - 3-6% under
+   run-all's shared five minutes. Seven minutes is a hang detector with room for a slower runner; the
+   scenario is not shortened. */
+export const timeoutMs = 420000;
 
 const MOD = "danganronpa-rpg";
 const SOCKET = `module.${MOD}`;
