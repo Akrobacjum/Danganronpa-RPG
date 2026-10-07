@@ -34,8 +34,9 @@
  * `buildPost`: no local message, no local resources, no countdown, no trigger - the
  * GM ran them. Read in 2.10.5's source (dhRoll.mjs, dualityRoll.mjs, d20Roll.mjs,
  * unchanged to 2.10.8 - the plan measured); the harness's roll is modelled on the
- * same reading (client-entry.mjs `DualityRollMock`, C10). Not measured at a table:
- * LIVE-E28-03 is the round trip's cost.
+ * same reading (client-entry.mjs `DualityRollMock`, C10). What the round trip costs
+ * is kept here since E33 C13 ("THE ROUND TRIP, KEPT IN MEMORY" below; `game.drpg.perf()`
+ * reads it) and measured at a table by LIVE-E33-05 - LIVE-E28-03 asked for it.
  *
  * THE FALLBACK (D1). The wrap is put only on the build it was written for
  * (`reviewBuild`): `build` calling `buildConfigure`, `buildEvaluate` and `buildPost`
@@ -267,11 +268,14 @@ async function drawAndPlay(cls, config, message) {
     }
     const claim = rollClaimOf(config[ROLL_NONCE]);
     const drawn = awaitDrawn(config[ROLL_NONCE]);
+    const asked = performance.now();
     try {
         const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
+        const answered = performance.now() - asked;
         // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made.
         if (!answer?.ok || typeof answer.value?.messageId !== "string") return;
         await playBack(cls, roll, config, message, answer.value, claim.subject);
+        keepTrip("drawn", { at: Date.now(), answered, shown: performance.now() - asked });
     } finally {
         drawn();
     }
@@ -684,6 +688,35 @@ const budgets = new Map();
 /** The draws under way on this GM, `actorId:actionKey`. */
 const drawing = new Set();
 
+/*
+ * THE ROUND TRIP, KEPT IN MEMORY (E33 C13, 07.10.2026; the stage plan's 3.5; the owner's Q3 (a)).
+ * LIVE-E28-03 asked what a drawn roll costs its roller, and nothing measured it: a frame average
+ * cannot see a cost paid once per roll while the roller waits. Each browser now keeps the timing
+ * points of the last `TRIPS_KEPT` draws it took part in, passively - no synthetic roll, nothing
+ * sent, nothing stored - as milliseconds from the trip's start by `performance.now()`: on the
+ * roller, asked (the request sent, `drawAndPlay`) -> answered (the GM's answer in) -> shown (the
+ * GM's faces played back and the dice shown, `playBack` returned); on the drawing GM, the packet
+ * in (`drawOnGm` entered) -> the message written (`throwDrawn`, `writeDrawnMessage` resolved) ->
+ * the answer out (`drawOnGm` returns; the bridge sends it next). A refused or unanswered draw is
+ * no round trip and is not kept. `game.drpg.perf()` reads them (diagnostics.mjs `perfReport`,
+ * "Rolls the GM drew"); the run that gives them a table's number is LIVE-E33-05
+ * (audit/perf-baseline.json). Headless the numbers are the harness's and go nowhere: the suite
+ * and 13-murder-signals assert a count and the marks' order, never a millisecond.
+ */
+const TRIPS_KEPT = 50;
+const trips = { drawn: [], drew: [] };
+
+function keepTrip(side, trip) {
+    const list = trips[side];
+    list.push(trip);
+    if (list.length > TRIPS_KEPT) list.splice(0, list.length - TRIPS_KEPT);
+}
+
+/** The trips this browser kept, oldest first, each a copy: `drawn` as a roller, `drew` as the drawing GM. */
+export function drawTimings() {
+    return { drawn: trips.drawn.map(trip => ({ ...trip })), drew: trips.drew.map(trip => ({ ...trip })) };
+}
+
 /** What a payment is read from on a character. */
 function budgetOf(actor) {
     const r = actor?.system?.resources ?? {};
@@ -846,6 +879,7 @@ const marksOpen = async () => (await answerKeysOpen({ store: sheetMarkStore })) 
  * `{ refused }`, before anything is thrown - and only then thrown (`throwDrawn`).
  */
 export async function drawOnGm(packet, sender) {
+    const arrived = performance.now();
     const actor = game.actors.get(packet?.actorId ?? "");
     const key = typeof packet?.actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(packet.actionKey) ? packet.actionKey : null;
     const lock = actor && key ? `${actor.id}:${key}` : null;
@@ -857,7 +891,10 @@ export async function drawOnGm(packet, sender) {
         if (why) return { refused: why };
         const { murderState } = await import("./murder.mjs");
         const state = murderState();
-        return await throwDrawn(packet, sender, state?.active ? turnOf(state) : null);
+        let written = null;
+        const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; });
+        if (out?.reply) keepTrip("drew", { at: Date.now(), written, answered: performance.now() - arrived });
+        return out;
     } finally {
         if (lock) drawing.delete(lock);
     }
@@ -1200,7 +1237,7 @@ async function tellRoller(sender, legal) {
  * Daggerheart's card (C13).
  */
 async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
-    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null) {
+    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null, written = null) {
     const actor = game.actors.get(actorId ?? "");
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
@@ -1235,6 +1272,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     await cls.buildEvaluate(roll, config, {});
     const rollId = foundry.utils.randomID();
     const message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false });
+    written?.();
     await cls.dualityUpdate(config);
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));

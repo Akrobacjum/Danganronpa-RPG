@@ -567,6 +567,28 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         JSON.stringify({ withDsn: [withDsn.victim, withDsn.killer, withDsn.bystander].map(pip), noDsn: [noDsn.killer, noDsn.victim, noDsn.bystander].map(pip) }),
         { flow: "private-rolls" });
 
+    /* THE ROUND TRIP'S TIMING POINTS (E33 C13, 07.10.2026; the stage plan's 3.5; the owner's Q3 (a)).
+       Aiko's Leave a clue (p1) and Chie's Strike (p3) above were drawn on the GM, so each browser kept
+       the draw's marks (roll-draw.mjs `drawTimings`): the roller's asked -> answered -> shown on p1 and
+       p3, the GM's packet in -> written -> answered on the GM, and the GM's perf() counts what the GM
+       kept. A count and the marks' order, never a millisecond: headless the numbers are the harness's
+       (one process, no network); the table's are LIVE-E33-05's. The GM's own rolls are never drawn, so
+       its roller line says none. Red at C12's runtime: `drawTimings` is not exported, the block absent. */
+    const TRIPS = `const D = await import("${repoUrl}/scripts/roll-draw.mjs");
+        const t = typeof D.drawTimings === "function" ? D.drawTimings() : { drawn: [], drew: [] };
+        const kept = { drawn: t.drawn.length, drew: t.drew.length,
+            drawnOrdered: t.drawn.every(x => typeof x.answered === "number" && x.answered >= 0 && typeof x.shown === "number" && x.shown >= x.answered),
+            drewOrdered: t.drew.every(x => typeof x.written === "number" && x.written >= 0 && typeof x.answered === "number" && x.answered >= x.written) };`;
+    const trips = { victim: await p1.eval(`${TRIPS} return kept;`), killer: await p3.eval(`${TRIPS} return kept;`),
+        gm: await gm.eval(`${TRIPS} const text = await game.drpg.perf({ frames: 5 });
+            const line = String(text).match(/^  drawn here, packet in to answer out: (\\d+), median/m);
+            return { ...kept, block: /^Rolls the GM drew/m.test(text), counted: line ? Number(line[1]) : null,
+                rollerLine: /^  drawn for this browser, asked to dice shown: none since this browser loaded$/m.test(text) };`, { timeout: 60000 }) };
+    check("dice: the victim's Leave a clue and the killer's Strike each passed the round trip's timing points - asked, answered, shown on the roller's browser; in, written, answered on the GM's - and the GM's perf() counts the rolls it drew",
+        trips.victim.drawn >= 1 && trips.victim.drawnOrdered && trips.killer.drawn >= 1 && trips.killer.drawnOrdered
+        && trips.gm.drew >= 2 && trips.gm.drewOrdered && trips.gm.drawn === 0 && trips.gm.block && trips.gm.counted === trips.gm.drew && trips.gm.rollerLine,
+        JSON.stringify(trips), { flow: "gm-rolls-total" });
+
     /* A CARD ANOTHER FILE POSTS FOR A ROLL OF THE FIGHT, FROM THE PLAYER'S OWN BROWSER (E06 fix
        r1-G3, 28.09.2026; review M2). A tool Chie holds breaks on a Despair on p3's browser
        (use-items.mjs `breakOnDespair`, driven with a Despair result as tier 2 drives it): the

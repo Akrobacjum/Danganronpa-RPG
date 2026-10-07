@@ -1595,6 +1595,38 @@ export async function perfReport({ frames = 60 } = {}) {
         lines.push(`  (could not measure: ${err?.message ?? err})`);
     }
 
+    /* ROLLS THE GM DREW (E33 C13, 07.10.2026; the stage plan's 3.5; the owner's Q3 (a)). The
+       round trip of a roll a player's browser sends to the GM to throw (roll-draw.mjs, "THE ROUND
+       TRIP, KEPT IN MEMORY") is the one cost of 1.2.67's design a frame average cannot see: paid
+       once per roll, while the roller waits, and LIVE-E28-03 asked for it with nothing to read.
+       Nothing is thrown here: the two lines read what this browser kept of the last fifty draws
+       it took part in - as the drawing GM (packet in to answer out, the message written on the
+       way) and as a roller (asked to dice shown, the answer in on the way) - and say so when it
+       kept none. The median and the slowest rather than a mean: one draw that waited for the GMs'
+       marks to open (roll-draw.mjs `marksOpen`) would carry a mean on its own. The numbers a
+       headless harness prints here are its own (audit/perf-baseline.json `headless.verdict`);
+       the table's are LIVE-E33-05's, through audit/live/perf-baseline.mjs. */
+    lines.push("");
+    lines.push("Rolls the GM drew (the last fifty this browser took part in):");
+    try {
+        const { drawTimings } = await import("./roll-draw.mjs");
+        const { drew, drawn } = drawTimings();
+        const stats = (list, key) => {
+            const v = list.map(trip => Number(trip[key]) || 0).sort((a, b) => a - b);
+            return { n: v.length, median: v[Math.floor(v.length / 2)], slowest: v[v.length - 1] };
+        };
+        const tripLine = (label, list, whole, step, stepName) => {
+            if (!list.length) return `  ${label}: none since this browser loaded`;
+            const w = stats(list, whole), s = stats(list, step);
+            return `  ${label}: ${w.n}, median ${String(round(w.median)).padStart(7)} ms, slowest ${String(round(w.slowest)).padStart(7)} ms`
+                + ` (${stepName} at median ${round(s.median)} ms)`;
+        };
+        lines.push(tripLine("drawn here, packet in to answer out", drew, "answered", "written", "the message written"));
+        lines.push(tripLine("drawn for this browser, asked to dice shown", drawn, "shown", "answered", "the answer in"));
+    } catch (err) {
+        lines.push(`  (could not read them: ${err?.message ?? err})`);
+    }
+
     lines.push("");
     lines.push("A frame budget is 16.7 ms at 60 Hz. Anything the theme costs is spent");
     lines.push("on top of whatever Foundry and the system are doing with the same frame.");

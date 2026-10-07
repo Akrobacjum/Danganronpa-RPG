@@ -13453,6 +13453,47 @@ const SCENARIOS = [
                 + "(whisper; blind; isPublicRoll; forged paths; rows naming it; every row the player's; the GMs' lines naming it)");
     }],
 
+    ["perf() reports the round trip of a roll the GM drew", async () => {
+        /*
+         * E33 C13, 07.10.2026; the stage plan's 3.5; the owner's Q3 (a); LIVE-E28-03's question.
+         * Each browser keeps the timing points of the draws it took part in (roll-draw.mjs
+         * `drawTimings`): the drawing GM's packet in -> message written -> answer out, the roller's
+         * asked -> answered -> dice shown; `perfReport` appends them as "Rolls the GM drew". The
+         * suite is the GM's browser, whose own rolls are not drawn (`drawsHere`), so one draw judged
+         * here (`drawnForPlayer`) adds one trip on the GM's side and none on the roller's: read the
+         * counts before and after, the new trip's marks (a written mark, and the answer after it),
+         * and perf()'s block - its GM line naming the count, its roller line saying none. The
+         * roller's side with a count is 13-murder-signals', on p1 and p3. Never a millisecond: a
+         * headless number is the harness's (audit/perf-baseline.json `headless.verdict`); the
+         * table's run is LIVE-E33-05. perf() whispers its report: the card is deleted with the draw's.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        ok(typeof D.drawTimings === "function", "roll-draw.mjs exports no drawTimings - no browser keeps the round trip");
+        const before = D.drawTimings();
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const F = await drawnForPlayer(player, theirs);
+        let read = null;
+        try {
+            must(typeof F.value?.messageId === "string", "the draw was not answered with a message - this would measure nothing");
+            const after = D.drawTimings();
+            const trip = after.drew.at(-1) ?? null;
+            const text = await game.drpg.perf({ frames: 5 });
+            const gmLine = String(text).match(/^  drawn here, packet in to answer out: (\d+), median/m);
+            read = [after.drew.length - before.drew.length, after.drawn.length - before.drawn.length,
+                typeof trip?.written === "number" && trip.written >= 0 && typeof trip?.answered === "number" && trip.answered >= trip.written,
+                /^Rolls the GM drew/m.test(text), gmLine ? Number(gmLine[1]) === after.drew.length : null,
+                /^  drawn for this browser, asked to dice shown: none since this browser loaded$/m.test(text) === (after.drawn.length === 0)];
+        } finally {
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            await F.putBack();
+        }
+        equal(JSON.stringify(read), JSON.stringify([1, 0, true, true, true, true]),
+            "the GM's draw kept no trip, a roller's trip was kept on the GM's browser, the marks are missing or out of order, or perf() has no block, "
+                + "the wrong count or a roller line that does not match (GM trips added; roller trips added; written <= answered; the block; its GM count; its roller line)");
+    }],
+
     ["a Reroll's dice are thrown to the roll's readers alone", async () => {
         /*
          * E06 C6, 27.09.2026; audit S02-13. A Reroll threw its new dice with
