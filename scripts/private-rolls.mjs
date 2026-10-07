@@ -856,7 +856,7 @@ function onPreCreateChatMessage(message, data, options, userId) {
     }
 
     try {
-        whisperRoll(message, data, userId, claimed);
+        whisperRoll(message, data, options, userId, claimed);
     } catch (err) {
         error("preCreateChatMessage failed", err);
     }
@@ -873,11 +873,88 @@ function onPreCreateChatMessage(message, data, options, userId) {
     }
 }
 
+/*
+ * THE WHISPER FIRST, THE MODE APART (E33 C11, 07.10.2026; audit S02-68; the plan's V7).
+ * Until 1.2.69 each rewrite in `whisperRoll` wrote the whisper list and
+ * `flags.core.rollMode` from v13's roll-mode constant (its PRIVATE) in one `updateSource`, under the
+ * one try of `onPreCreateChatMessage`: a browser on which reading that constant throws
+ * wrote neither, and the roll was created public. Foundry 14 deprecates the constant and
+ * 16 drops it - the audit's reading of v14 (U05-roll-pipeline-15), second-hand, since
+ * foundryvtt.com is refused by this machine's proxy; what is read first-hand is how
+ * Daggerheart 2.10.5 calls v14: `CONFIG.ChatMessage.modes`, `ChatMessage.applyMode(data,
+ * mode)` and the `core.messageMode` setting (actionField.mjs :328, dhRoll.mjs :159-162,
+ * d20RollDialog.mjs :74-75). Nothing in scripts/ ever read the flag back (grep, 05.10.2026;
+ * the comment here that said Dice So Nice did was false for 6.2.9). So the whisper alone
+ * decides who holds the dice (`isContentVisible`): it is written first, in its own try,
+ * and the mode after it and apart - what v14's `applyMode` writes for a GM whisper besides
+ * `whisper` and `blind`, read once per `applyMode` and `{}` where there is none. A mode
+ * that cannot be written is said once and costs the list nothing. What `applyMode` writes
+ * on a real document, and whether v14 applies a create's `messageMode` option before this
+ * hook or after it, is LIVE-E33-03.
+ */
+const PRIVATE_MODE = "gm";
+let modeMemo = null;          // { api, fields }: read again when ChatMessage.applyMode is another function
+let modeFailureSaid = false;
+
+/**
+ * What v14's `ChatMessage.applyMode({}, "gm")` writes besides `whisper` and `blind`, as flat
+ * paths; `{}` where the API is absent. Memoised on the function itself, so a wrapper put on
+ * `applyMode` after the first roll (libWrapper) is read, and so is the suite's stand-in. A
+ * throw inside `applyMode` is the caller's to say.
+ */
+export function privateModeFields() {
+    const api = globalThis.ChatMessage?.applyMode;
+    if (modeMemo && modeMemo.api === api) return modeMemo.fields;
+    const fields = {};
+    const modes = globalThis.CONFIG?.ChatMessage?.modes;
+    if (typeof api === "function" && modes && Object.hasOwn(modes, PRIVATE_MODE)) {
+        const data = {};
+        const out = api.call(globalThis.ChatMessage, data, PRIVATE_MODE);
+        const written = out && typeof out === "object" ? out : data;
+        for (const [path, value] of Object.entries(foundry.utils.flattenObject(written))) {
+            if (path !== "whisper" && path !== "blind") fields[path] = value;
+        }
+    } else {
+        debug("No ChatMessage.applyMode on this Foundry: a private roll is its whisper alone.");
+    }
+    modeMemo = { api, fields };
+    return fields;
+}
+
+/** The list, in its own try: the one write that decides who holds the dice. */
+function writeWhisper(message, whisper) {
+    try {
+        message.updateSource({ whisper, blind: false });
+        return true;
+    } catch (err) {
+        error("Could not write a roll's whisper list", err);
+        return false;
+    }
+}
+
+/**
+ * The mode, after the list and apart from it, and only on a list v14's "gm" names: the GMs and
+ * the author (`whisperRoll` asks). `options` are the create's: Daggerheart 2.10.5 hands v14 the
+ * mode there (dhRoll.mjs :162), so whatever reads it after this hook reads the mode the list says.
+ */
+function writeMode(message, options) {
+    try {
+        const fields = privateModeFields();
+        if (Object.keys(fields).length) message.updateSource(fields);
+        if (options && typeof options === "object" && Object.hasOwn(options, "messageMode")) options.messageMode = PRIVATE_MODE;
+    } catch (err) {
+        if (modeFailureSaid) return;
+        modeFailureSaid = true;
+        debug("Could not write a private roll's message mode; its list of readers stands.", err);
+    }
+}
+
 /**
  * Who may read a roll, written into it as it is created; nothing is written
- * when rolls are not forced private. `claimed`: the module threw it.
+ * when rolls are not forced private. `options`: the create's. `claimed`: the
+ * module threw it.
  */
-function whisperRoll(message, data, userId, claimed) {
+function whisperRoll(message, data, options, userId, claimed) {
     if (!game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
 
     // Foundry v12+ exposes the creating user as `author`.
@@ -890,8 +967,24 @@ function whisperRoll(message, data, userId, claimed) {
         || (data?.rolls?.length ?? 0) > 0;
     if (!hasRoll) return;
 
-    const recipients = gmIds();
-    if (!recipients.length) return;
+    /*
+     * THE GM'S PUBLIC ROLL (E33 C12, 07.10.2026; audit S02-72; the owner's Q2 (a)). With rolls
+     * forced private a GM had no public roll at all: a bare `/r` went to the GMs (below), and a
+     * vote's tie or Monokuma's lottery was thrown where nobody could see it. `publicRoll` posts
+     * the roll on the GM's browser with the module's flag `publicRoll`, and this is the one road
+     * that leaves such a message as it arrived: a GM author with the flag, and nothing is
+     * written. The flag on anybody else's message is ignored here - the roll goes on down the
+     * player's road and is whispered - and named `forged` by the primary (`GM_ONLY_FLAGS`,
+     * sheet-audit.mjs `onForgedCard`). A GM's ordinary `/r` is unchanged.
+     */
+    if (author.isGM && carriesPublicFlag(message)) {
+        debug("Left a GM's public roll as it arrived.");
+        return;
+    }
+
+    const gms = gmIds();
+    if (!gms.length) return;
+    const recipients = [...gms];
 
     /*
      * A ROLL THE MODULE THREW GOES TO THE GMs ALONE (E06 C5b, 27.09.2026). A
@@ -906,7 +999,7 @@ function whisperRoll(message, data, userId, claimed) {
      * to this one.
      */
     if (claimed) {
-        message.updateSource({ whisper: recipients, blind: false, "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE });
+        if (writeWhisper(message, recipients)) writeMode(message, options);
         debug("Rewrote a roll the module threw into a whisper to the GMs.");
         return;
     }
@@ -963,15 +1056,20 @@ function whisperRoll(message, data, userId, claimed) {
     // are now covered by the subject rules above.
     if (!author.isGM) recipients.push(author.id);
 
-    // Set the roll mode flag as well as the recipients. Modules that style
-    // or animate rolls (Dice So Nice among them) read `core.rollMode`, and
-    // a message whose recipients say "private" while its flag still says
-    // "public" is an inconsistent state we should not create.
-    message.updateSource({
-        whisper: Array.from(new Set(recipients)),
-        blind: false,
-        "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE
-    });
+    /*
+     * THE MODE ONLY WHERE THE LIST IS PRIVATE (E33 fix r2-G2, 07.10.2026; review round 2's
+     * sec m3). C11 wrote the "gm" mode after every list of this road, and v14's "gm" names the
+     * GMs and the author. A Monocub's roll is also the room's (the owner's Q3 (b) above) and a
+     * GM's roll from a student's sheet also that student's player's: if v14 applies a create's
+     * mode after this hook, those readers would lose the roll. Such a list keeps its whisper
+     * alone and the create's mode as it came, as every roll did before C11 - so under that
+     * order such a roll would follow the mode its sender chose; a list of the GMs and the
+     * author gets the mode. Which of the two orders v14 keeps is LIVE-E33-03, which now reads
+     * both wider roads too.
+     */
+    const list = Array.from(new Set(recipients));
+    const modeNamesThem = list.every(id => gms.includes(id) || id === author.id);
+    if (writeWhisper(message, list) && modeNamesThem) writeMode(message, options);
     debug(`Rewrote a roll for ${subject?.name ?? author.name} into a private whisper.`);
 }
 
@@ -1180,10 +1278,117 @@ export function isClaimedRoll(message) {
 
 /** The flag the GM's draw stamps on the message it writes (roll-draw.mjs `writeDrawnMessage`, E08+E28 C12a). */
 const DRAWN_FLAG = "drawn";
+/** The flag of a GM's public roll (E33 C12): `flags.<module>.publicRoll`, written by `publicRoll` alone. */
+export const PUBLIC_ROLL_FLAG = "publicRoll";
 
-/** Is this the message of a roll a GM drew for a player - an action's, or a statistic from the sheet (E08+E28 C13)? */
+/*
+ * THE FLAGS ONLY A GM'S BROWSER WRITES ON A MESSAGE (E33 C5a, 07.10.2026; the plan's 2.4). Read off
+ * the writers at 214cb0b: `drawn` and `rollId`, the draw's stamp (roll-draw.mjs `writeDrawnMessage`,
+ * written here by `claimRollMessage` on the GM that throws); `awayCard` and `awayRolls`, the GMs'
+ * card of rolls thrown with no GM (roll-draw.mjs `askAboutUnwitnessed`); and the decision on such a roll's
+ * stamp, `unwitnessed.granted`, which a GM writes as it takes the message over (roll-draw.mjs `decideNow`)
+ * - the stamp itself is the roller's own. A message whose author is not a GM and that carries one of
+ * them is a forgery: it is not read as drawn (`isDrawnRoll`, and roll-draw.mjs `drawnRecordOf` reads no
+ * record for it), awards nothing (despair-award.mjs, sheet-audit.mjs `rollCovering`), is never listed on
+ * the GMs' card of rolls thrown with no GM, decided or handed to a GM as its author (roll-draw.mjs
+ * `awayRowOf`; fix r1-G2 - until then a decision made it a GM's message, read as drawn everywhere), and
+ * the primary names it to the GMs once (sheet-audit.mjs
+ * `onForgedCard` - at its creation, at an update that writes one of them (`onForgedUpdate`,
+ * `gmOnlyFlagsIn` below) and, for one written while no GM was connected, at the primary's ready
+ * (`traceForgedAtReady`); fix r1-G1). The module's other GM-written card flags are read through the card's writer
+ * where they grant anything (secret.mjs `cardWriter` and `GM_META`: `ruling`, the audit's cards,
+ * `gmPopup`, `callCard`) and are not in this list. E33 C12's `publicRoll` - the GM's one public roll
+ * while rolls are forced private (`publicRoll` below) - is in it: on a player's message `whisperRoll`
+ * ignores it and the roll is whispered as any player's.
+ */
+const GM_ONLY_FLAGS = Object.freeze([DRAWN_FLAG, "rollId", "awayCard", "awayRolls", "unwitnessed.granted", PUBLIC_ROLL_FLAG]);
+
+/** The flags of `GM_ONLY_FLAGS` a message carries whose author is not a GM, as `flags.<module>.<name>` paths; [] for a GM's or none. */
+export function forgedFlagsOf(message) {
+    if (!message || message.author?.isGM) return [];
+    return GM_ONLY_FLAGS.filter(name => foundry.utils.getProperty(message.flags?.[MODULE_ID] ?? {}, name) !== undefined)
+        .map(name => `flags.${MODULE_ID}.${name}`);
+}
+
+/**
+ * The `GM_ONLY_FLAGS` an update's changes write - the flag itself, a path under it, or a parent object
+ * that holds it - as `forgedFlagsOf` names them; [] for none (fix r1-G1, sheet-audit.mjs `onForgedUpdate`).
+ */
+export function gmOnlyFlagsIn(changes) {
+    const keys = Object.keys(foundry.utils.flattenObject(changes ?? {}));
+    return GM_ONLY_FLAGS.map(name => `flags.${MODULE_ID}.${name}`)
+        .filter(path => keys.some(key => key === path || key.startsWith(`${path}.`) || path.startsWith(`${key}.`)));
+}
+
+/**
+ * Is this the message of a roll a GM drew for a player - an action's, or a statistic from the sheet (E08+E28 C13)?
+ * Only a GM's message is: the flag on anybody else's is a forgery (`forgedFlagsOf`, E33 C5a).
+ */
 export function isDrawnRoll(message) {
-    return Boolean(message?.getFlag?.(MODULE_ID, DRAWN_FLAG));
+    return Boolean(message?.getFlag?.(MODULE_ID, DRAWN_FLAG)) && message.author?.isGM === true;
+}
+
+/** Does the message's source carry the module's `publicRoll` flag - whoever wrote it. Read at preCreate too, so not `getFlag`. */
+function carriesPublicFlag(message) {
+    return foundry.utils.getProperty(message?.flags?.[MODULE_ID] ?? {}, PUBLIC_ROLL_FLAG) === true;
+}
+
+/**
+ * Is this a GM's public roll (E33 C12) - the flag under a GM author? A player's message with the
+ * flag is not: it was whispered as any player's roll and named `forged` (`forgedFlagsOf`).
+ */
+export function isPublicRoll(message) {
+    return carriesPublicFlag(message) && message?.author?.isGM === true;
+}
+
+/**
+ * THE ONE PUBLIC ROLL OF A TABLE WHOSE ROLLS ARE FORCED PRIVATE (E33 C12, 07.10.2026; audit
+ * S02-72; the owner's Q2 (a) of 05.10: a module road, public only for a GM author with the
+ * module's flag). `game.drpg.publicRoll(formula, { flavor })` and the GM panel's "Public roll"
+ * tile: the roll is thrown and posted on this GM's browser with `publicRoll` on it, an empty
+ * whisper and v14's public mode named on the create as Daggerheart 2.10.5 names a mode
+ * (`cls.create(msgData, { messageMode })`, dhRoll.mjs :162; `'public'` is the name its
+ * damageRoll.mjs :72 passes), so neither Foundry's own default mode nor `whisperRoll` (which
+ * leaves a GM's flagged message alone) narrows it. Dice So Nice shows it to all: the message is
+ * content-visible everywhere (`keepDiceToReaders`). A vote's tie or Monokuma's lottery is its
+ * use; a GM's ordinary `/r` is unchanged and still goes to the GMs. Refused with a notice on a
+ * player's browser (the flag it would write is a forgery there) and for a formula Foundry cannot
+ * read. Answers the message, or null.
+ *
+ * IT SPEAKS AS THE GM (E33 fix r2-G2, 07.10.2026; review round 2's sec m4). C12 asked
+ * `ChatMessage.getSpeaker()`, which with no actor and no token speaks as the first token the
+ * user controls (Foundry's reading as remembered of v12/v13, not read here; an alias alone does
+ * not stop that branch): a GM with a student's token selected posted, to every browser, a roll
+ * under that student's name. The speaker is written out instead - the GM's name and no scene,
+ * actor or token. A GM-drawn roll for a player never comes here (the module's claimed road in
+ * `whisperRoll`) and is unchanged.
+ */
+export async function publicRoll(formula = "1d6", { flavor = "" } = {}) {
+    if (!game.user?.isGM) {
+        ui.notifications?.warn(game.i18n.localize("DRPG.Panel.publicRoll.gmOnly"));
+        return null;
+    }
+    const text = String(formula ?? "").trim() || "1d6";
+    let roll;
+    try {
+        if (typeof Roll.validate === "function" && !Roll.validate(text)) throw new Error(`not a roll formula: ${text}`);
+        roll = await new Roll(text).evaluate();
+    } catch (err) {
+        warn(`A public roll's formula could not be read: ${text}`, err);
+        ui.notifications?.warn(game.i18n.format("DRPG.Panel.publicRoll.badFormula", { formula: text }));
+        return null;
+    }
+    const message = await ChatMessage.create({
+        author: game.user.id,
+        speaker: { scene: null, actor: null, token: null, alias: game.user.name },
+        flavor: String(flavor ?? ""),
+        rolls: [roll.toJSON()],
+        sound: CONFIG.sounds?.dice ?? null,
+        whisper: [],
+        blind: false,
+        flags: { [MODULE_ID]: { [PUBLIC_ROLL_FLAG]: true } }
+    }, { messageMode: "public" });
+    return message ?? null;
 }
 
 /** The character this client was told (or knows, having thrown it) a roll is about, as an id, or null. */

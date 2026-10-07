@@ -1,6 +1,6 @@
 # Danganronpa RPG - Podręcznik gracza
 
-*Dla uczniów killing game. Moduł w wersji 1.2.68, zbudowany na Daggerheart dla Foundry VTT v14.*
+*Dla uczniów killing game. Moduł w wersji 1.2.69, zbudowany na Daggerheart dla Foundry VTT v14.*
 
 To cała gra widziana z twojego krzesła: co znaczą liczby na arkuszu, ile kosztuje akcja, co kupuje Hope, co się dzieje, gdy ktoś ginie, i co kliknąć. Każda liczba tutaj jest liczbą modułu; tam, gdzie decyzja należy do człowieka, napisano "GM decyduje".
 
@@ -60,9 +60,9 @@ Każda akcja to rzut dwoistości z Daggerheart: kość Hope i kość Despair (ob
 - Rzut **z Despair** zasila pulę Despair Monokumy, który cię pilnuje. Stąd bierze się jego waluta - z twojego pecha i twojego ryzyka.
 - **Krytyk** daje 2 Hope i nic więcej (nie oczyszcza tu Sanity, inaczej niż w czystym Daggerheart).
 
-Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GMa. Ruszasz tylko to, co akcja pozwala ci wybrać. Gdy połączony jest GM, kości rzutu akcji i statystyki klikniętej na arkuszu rzuca przeglądarka GMa: spadają na twoim ekranie, w twoich kolorach, jako twój rzut, a wynik czytasz jak dotąd. To, co dodaje się do kości, też jest GMa: przeglądarka GMa liczy statystykę, doświadczenia, premie i kości przewagi, które dają twoja akcja, twoje Calle i miejsce, w którym stoisz, więc suma na twojej karcie jest sumą GMa. Tego, co okno dołożyło ponad to, nie liczy się, a twoja własna karta mówi, co GM policzył, a czego nie.
+Okno rzutu jest dla graczy zablokowane: kości, statystyka, przewaga, doświadczenia i premie biorą się z akcji, z Calla, za który zapłaciłeś, z miejsca, w którym stoisz, albo od GMa. Ruszasz tylko to, co akcja pozwala ci wybrać. Gdy połączony jest GM, kości rzutu akcji i statystyki klikniętej na arkuszu rzuca przeglądarka GMa: spadają na twoim ekranie, w twoich kolorach, jako twój rzut, a wynik czytasz jak dotąd. To, co dodaje się do kości, też jest GMa: przeglądarka GMa liczy statystykę, doświadczenia, premie i kości przewagi, które dają twoja akcja, twoje Calle i miejsce, w którym stoisz, więc suma na twojej karcie jest sumą GMa. Tego, co okno dołożyło ponad to, nie liczy się, a twoja własna karta mówi, co GM policzył, a czego nie. Kości, którą okno pokazuje o innych ściankach albo w innej liczbie, też nikt nie rzuca; rzucana jest kość GMa.
 
-**Gdy nie jest połączony żaden GM**, akcja czeka: po jej wciśnięciu dowiadujesz się, że rzut akcji czeka na GMa, i nic nie płacisz. Każdy inny rzut - statystyka z arkusza, reakcja - nadal się wykonuje, a jego karta mówi, że rzucono go bez połączonego GMa i że GM go zobaczy. Nie rusza Hope, Sanity ani Despair, dopóki GM, gdy wróci do stołu, go nie przyzna.
+**Gdy nie jest połączony żaden GM**, akcja czeka: po jej wciśnięciu dowiadujesz się, że rzut akcji czeka na GMa, i nic nie płacisz. Każdy inny rzut - statystyka z arkusza, która liczy się wtedy jako reakcja, albo reakcja - nadal się wykonuje, a jego karta mówi, że rzucono go bez połączonego GMa i że GM go zobaczy. Nie rusza Hope, Sanity ani Despair, dopóki GM, gdy wróci do stołu, go nie przyzna, a reakcja - statystyka też - nie rusza niczego nawet wtedy.
 
 ---
 
@@ -770,7 +770,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - **Dźwięki komunikatora** oraz głośność **Dźwięk** i **Muzyka**.
 
 > [!NOTE]
-> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju.
+> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to **Rzut publiczny** GMa z panelu GMa (jeszcze nie sprawdzone przy stole) - remis w głosowaniu, loteria Monokumy (od 1.2.69).
 
 ---
 

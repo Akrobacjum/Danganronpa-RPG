@@ -147,13 +147,15 @@ import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareSc
     checkRegions, whatIsHere } from "./fog.mjs";
 import { a11yReport } from "./a11y.mjs";
 import { rollFlags } from "./roll-draw.mjs";
+import { publicRoll } from "./private-rolls.mjs";
 import { sheetWrites } from "./sheet-audit.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import {
-    isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
-    meddleTargets, performMeddle, resolveMeddle, meddleDialog,
+    isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isCrimeSilenced,
+    cubTargets, performCubAbility, cubAbilityOnGm, cubAbilityDialog,
     openMonocubDialog
 } from "./monocub.mjs";
+import { isCallSilenced } from "./call-effects.mjs";
 import {
     mastermindActor, isMastermind, setMastermind, clearMastermind,
     mastermindLair, setMastermindLair, myLairRoom,
@@ -884,18 +886,30 @@ export const DrpgApi = {
     /** Opt in or out. Only ever on a character already marked dead. */
     setMonocub,
 
-    /** The guide's "stumbled onto the crime" ban, until the chapter ends. */
+    /** The guide's "stumbled onto the crime" ban, until the chapter ends: the crime-witness
+     *  marker, information only - it refuses nothing (ACT-12). */
     setSilenced,
-    isSilenced,
+    isCrimeSilenced,
+
+    /** The Despair Call "Silence": no Hope Calls until this time of day ends (call-effects.mjs). */
+    isCallSilenced,
+
+    /** `game.drpg.isSilenced` has answered the crime-witness question since the marker was
+     *  built, so a macro that reads it keeps reading what it read; the two readers got their
+     *  own names in 1.2.69 (E33 C9, D39) and this alias stays. */
+    isSilenced: isCrimeSilenced,
 
     /** GM-driven: spend a Monokuma's Despair to give somebody Hope, 1:1.
      *  Shared with the Mastermind below - the guide gives both the same trade. */
     convertDespairToHope,
 
-    meddleTargets,
-    meddleDialog,
-    performMeddle,
-    resolveMeddle,
+    /** The Monocub's table (E33 C10): `performCubAbility(actor, key, { targetId, choice })`, its picker
+     *  `cubAbilityDialog(actor, key)`, who it could be aimed at, and the GM-side run. Confusion is `key`
+     *  "meddle" with `choice` "help" or "hinder"; `performMeddle` and `meddleDialog` were its names until 1.2.68. */
+    cubTargets,
+    cubAbilityDialog,
+    performCubAbility,
+    cubAbilityOnGm,
 
     monocubDialog: openMonocubDialog,
 
@@ -1003,6 +1017,9 @@ export const DrpgApi = {
     rollFlags,
     /** The writes on a student the GMs put back or listed (E29 C3), newest first, from the last day. GM only. */
     sheetWrites,
+    /** The one roll everybody reads while rolls are forced private (E33 C12): `publicRoll("2d6", { flavor })`,
+     *  the GM panel's "Public roll" tile - a vote's tie, Monokuma's lottery. GM only; a bare `/r` still goes to the GMs. */
+    publicRoll,
     /** Why can this player see a token in another room? Run it on THEIR
      *  client: it prints every character's room beside whether the token is
      *  visible, which is what tells the two failure modes apart. */

@@ -448,7 +448,11 @@ function onPreUpdateActor(actor, changes) {
  */
 async function lowerOwnership(actor, { closedHere = false } = {}) {
     try {
-        const writer = closedHere ? Boolean(game.user?.isGM) : isPrimaryGm();
+        // Both writers are a GM: any GM for the window it closed itself, the primary for the
+        // rest. Said first as the gate R220's census reads (E33 C1a, 06.10.2026); the same
+        // test it was, which a player's browser never passed.
+        if (!game.user?.isGM) return;
+        const writer = closedHere || isPrimaryGm();
         if (!writer || !actor || actor.type !== "character" || !enforcing()) return;
         if ((actor.ownership?.default ?? NONE) <= OBSERVER) return;
         // Two roads can arrive on one client before the first write has come

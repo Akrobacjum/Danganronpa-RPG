@@ -811,6 +811,8 @@ export const DEFAULT_CLOCK = {
 };
 
 export function registerSettings() {
+    // The hint names the one roll this leaves public: the GM panel's "Public roll"
+    // (`game.drpg.publicRoll`, E33 C12) - a GM's own `/r` goes to the GMs with it on.
     game.settings.register(MODULE_ID, SETTINGS.forcePrivateRolls, {
         name: "DRPG.Settings.forcePrivateRolls.name",
         hint: "DRPG.Settings.forcePrivateRolls.hint",

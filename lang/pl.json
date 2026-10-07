@@ -234,7 +234,7 @@
     "Settings": {
       "forcePrivateRolls": {
         "name": "Wymuszaj prywatne rzuty graczy",
-        "hint": "Każdy rzut gracza jest szeptany do tego gracza i do GM-ów. Nikt nie widzi cudzych kości."
+        "hint": "Każdy rzut gracza jest szeptany do tego gracza i do GM-ów, a rzut GM-a do GM-ów. Nikt nie widzi cudzych kości. Jedyny rzut widoczny dla wszystkich to Rzut publiczny z panelu GM-a (game.drpg.publicRoll) - remis w głosowaniu, loteria Monokumy."
       },
       "enforceAnonymity": {
         "name": "Anonimowe karty postaci",
@@ -2538,7 +2538,7 @@
         "murder.cleanup": "Sprzątanie",
         "murder.betrayal": "Zdrada",
         "murder.park": "Direct Murder",
-        "monocub.meddle": "Confusion",
+        "monocub.ability": "Zdolność Monocuba",
         "body.loot": "Przeszukanie ciała",
         "advancement": {
           "apply": "Level Up",
@@ -2803,6 +2803,14 @@
         "other": "Wyczyszczono {n} Faint Remnants."
       },
       "voiceReset": "Zresetuj wszystkie pokoje głosowe",
+      "publicRoll": {
+        "label": "Rzut publiczny",
+        "formula": "Formuła",
+        "flavour": "Opis",
+        "roll": "Rzuć",
+        "gmOnly": "Tylko GM może wykonać rzut publiczny.",
+        "badFormula": "\"{formula}\" to nie jest formuła rzutu."
+      },
       "failed": "To nie zadziałało. Zajrzyj do konsoli.",
       "faintNone": "Nie ma Faint Remnants do wyczyszczenia - każdy ślad na mapie jest Reinforced albo powiązany ze zbrodnią.",
       "faintConfirm": {
@@ -3096,7 +3104,13 @@
       "awayPutBack": "Cofnięte od razu, tak jak przy patrzącym GM-ie:",
       "awayLine": "{name} - {field} ({path}): {before} -> {after}",
       "undoAll": "Cofnij wszystko",
-      "acceptAll": "Zostaw wszystko"
+      "acceptAll": "Zostaw wszystko",
+      "verdict": {
+        "refused": "Prośba Daggerhearta ({sub}) odrzucona na kliencie GM-a",
+        "forged": "Wiadomość z oznaczeniami, które zapisuje tylko klient GM-a: nieczytana jako GM-a, nic nie przyznano",
+        "rewrite": "Kości rzutu wpisane ręcznie, przywrócone do tych, które padły"
+      },
+      "forgedCard": "Od {player} przyszła wiadomość o postaci {name} z oznaczeniami, które zapisuje tylko klient GM-a ({flags}). Nie jest czytana jako rzut wykonany przez GM-a i niczego nie przyznaje."
     },
     "Rolls": {
       "rewritePutBack": "Od <strong>{name}</strong> przyszły ręcznie wpisane nowe kości rzutu ({roll}); rzut wrócił do kości, które padły. O Reroll prosi się GM-a.",
@@ -3109,7 +3123,7 @@
         "trait": "statystyka",
         "pick": "statystyka wybrana przez GM-a",
         "modifier": "modyfikator",
-        "dice": "dodatkowe kości",
+        "dice": "kości",
         "advantage": "kości przewagi",
         "stash": "niezgłoszona ukryta skrytka"
       },
@@ -4298,29 +4312,31 @@
         }
       },
       "MONOCUB": {
-        "meddle": {
-          "label": "Confusion",
-          "thresholds": {
-            "0": {
-              "help": "Dajesz graczowi +1 do następnego rzutu.",
-              "hinder": "Nakładasz graczowi −1 na następny rzut.",
-              "helpTarget": "Coś uspokaja twoją rękę: +1 do następnego rzutu.",
-              "hinderTarget": "Coś cię rozprasza: −1 do następnego rzutu."
+        "abilities": {
+          "meddle": {
+            "label": "Confusion",
+            "thresholds": {
+              "0": {
+                "help": "Dajesz graczowi +1 do następnego rzutu.",
+                "hinder": "Nakładasz graczowi −1 na następny rzut.",
+                "helpTarget": "Coś uspokaja twoją rękę: +1 do następnego rzutu.",
+                "hinderTarget": "Coś cię rozprasza: −1 do następnego rzutu."
+              },
+              "1": {
+                "help": "Dajesz graczowi przewagę na następny rzut.",
+                "hinder": "Nakładasz graczowi utrudnienie na następny rzut.",
+                "helpTarget": "Coś uspokaja twoją rękę: przewaga na następny rzut.",
+                "hinderTarget": "Coś cię rozprasza: utrudnienie na następny rzut."
+              }
             },
-            "1": {
-              "help": "Dajesz graczowi przewagę na następny rzut.",
-              "hinder": "Nakładasz graczowi utrudnienie na następny rzut.",
-              "helpTarget": "Coś uspokaja twoją rękę: przewaga na następny rzut.",
-              "hinderTarget": "Coś cię rozprasza: utrudnienie na następny rzut."
-            }
-          },
-          "critical": {
-            "help": "Gracz odzyskuje akcję.",
-            "hinder": "Gracz marnuje akcję.",
-            "helpTarget": "Chwila szczęścia: odzyskujesz akcję.",
-            "hinderTarget": "Chwila zamętu: akcja przepada."
-          },
-          "failure": "Próba się nie udaje."
+            "critical": {
+              "help": "Gracz odzyskuje akcję.",
+              "hinder": "Gracz marnuje akcję.",
+              "helpTarget": "Chwila szczęścia: odzyskujesz akcję.",
+              "hinderTarget": "Chwila zamętu: akcja przepada."
+            },
+            "failure": "Próba się nie udaje."
+          }
         }
       },
       "MURDER_OPENING": {

@@ -175,6 +175,13 @@ function applyOp(userId, op, onLegacyKey = null) {
                made, unless the call passed `keepId` (shim.mjs `createData`, E08+E28 C1): the
                server keeps it, so the id a preCreate hook read is the one the document gets. */
             const docs = op.data.map(d => ({ ...U.deepClone(d), _id: d._id && !list.some(x => x._id === d._id) ? d._id : U.randomID() }));
+            /* A message's creation time, stamped here whatever the client sent (E33 fix r2-G1, 07.10.2026), as
+               Foundry's server is taken to stamp `_stats.createdTime`; the client's `timestamp` is kept as sent.
+               The module ages a message by the first (sheet-audit.mjs `traceForgedAtReady`). Neither has been
+               read on a player's create at a table (LIVE-E33-10), and an update of `_stats` is not modelled.
+               Messages only: bridge-guards.mjs `removalRefusal` reads a token's `createdTime` too, and the tokens
+               here have never carried one. */
+            if (collName === "ChatMessage") for (const d of docs) d._stats = { ...(d._stats ?? {}), createdTime: Date.now() };
             for (const d of docs) ensureEmbeddedIds(collName, d);
             list.push(...docs);
             return { broadcast: { t: "apply", action: "create", collName, docs, userId, options: op.options }, result: docs.map(d => d._id) };

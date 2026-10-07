@@ -61,6 +61,17 @@ async function onChatMessage(message) {
             return;
         }
 
+        // A player's message carrying a flag only a GM's browser writes (E33 C5a, private-rolls.mjs
+        // `forgedFlagsOf`) is not a roll of the game's: it pays nothing, and the primary names it to
+        // the GMs (sheet-audit.mjs `onForgedCard`). At 214cb0b (07.10.2026, tier 2) a player's message
+        // with the `drawn` flag and a Despair result put a point in the Monokuma's pool, as any of
+        // their rolls does. Imported here, not at the top: private-rolls.mjs imports this file (R161).
+        const { forgedFlagsOf } = await import("./private-rolls.mjs");
+        if (forgedFlagsOf(message).length) {
+            debug("A message carrying a GM's flags from a player: no Despair.");
+            return;
+        }
+
         const actor = await resolveActor(message);
         if (!actor || actor.type !== "character") {
             debug("Roll had no character behind it; nothing awarded.", message?.speaker);

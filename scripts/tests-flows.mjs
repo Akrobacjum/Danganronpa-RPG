@@ -71,9 +71,10 @@ export const FLOWS = Object.freeze([
     { id: "body-discovery", what: "A body is found: the finder's client asks, the incident moves on, every screen learns of it",
         entry: { api: ["discoverBody"] }, scenarios: ["10-murder"], status: "covered", stage: "<=1.2.50" },
     // E29 C8 (05.10.2026): a player's Call on their own character is bought on the GM too - 40 buys one, 30 forges
-    // one on the flag and draws a roll naming it, 33 asks for one with no GM connected.
+    // one on the flag and draws a roll naming it, 33 asks for one with no GM connected. E33 C4 (07.10.2026): 83 arms
+    // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
-        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths"], status: "partial", stage: "E39" },
+        entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask"], sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E40" },
@@ -106,8 +107,19 @@ export const FLOWS = Object.freeze([
     // primary (`roll.grant`); the harness has one GM, so 15 clicks it on the primary and R219 reads the waiter.
     // E29 C9 (05.10.2026): what a drawn roll may add up to is the GM's list (config.mjs LEGAL_ROLL_MODIFIERS); 13 reads
     // what the GM counted on every roll of its incidents.
+    // E33 C3 (07.10.2026): tier 2 draws p1's roll once per row of the GMs' list (config.mjs `LEGAL_ROLL_MODIFIERS`) and
+    // per branch of its `situation`, with the source and without (`MODIFIER_FIXTURES`), and six claims off it; R291 holds
+    // the fixtures' keys to the list's. Tiers, not a scenario: the flow's scenarios are as they were.
+    // E33 C4 (07.10.2026): 83 drives the plan's eleven legal roads of a player's roll (L1-L11) - a Search, a Work
+    // and a sabotage, a statistic off the sheet, an Experience, a Support, a Reroll, a Rest, a Level Up, the incident's
+    // rolls, a Monocub's Meddle, Daggerheart's own Hope - and reads each with no flag, no write put back or flagged, no
+    // card to the GMs and no "not counted". E33 C5b (07.10.2026): 83's forgeries from p1's console under this flow -
+    // F5a (a roll.draw with +5, a guaranteed critical and dice of one face: scored without them), F4 (a message with
+    // the drawn flag: not read as drawn, a `forged` row), F6a and F6b (a drawn card's rolls rewritten: refused; p1's
+    // own: put back, a `rewrite` row), F5c and F5b (a crisis packet naming a roll no GM drew: refused `rollUnknown`;
+    // its total 99: the record's stands) - each read as undone or never applied and traced to p1.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
-        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals"], status: "covered", stage: "1.2.67" },
+        entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals", "83-roll-integrity", "20-crit-hope"], status: "covered", stage: "1.2.67" },
     // E29 fix r2-H4 (05.10.2026): a GM's yes is kept on the primary for the arm it allows (`call.yes`) - 40 says it on
     // the primary, 33 from an Assistant GM, 30 arms with none and says yes from p1's console.
     { id: "hope-call", what: "A Hope Call that waits for the GM: the card, the ruling, the Hope charged",
@@ -122,10 +134,13 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["card.post"], sockets: ["secret.mjs"] }, scenarios: ["40-flow", "30-security", "13-murder-signals"], status: "covered", stage: "<=1.2.50" },
     // E06 fix r2-G4 (28.09.2026): a Confusion's armed Call is the GMs' store and its owner's copy, whose socket
     // is call-effects.mjs's; 40-flow drives the arming on the GM, the copy and a spend on the owner's browser,
-    // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice (monocub.mjs `meddleOnGm`); tier 2
-    // judges a Monocub's packet, and no scenario drives the Monocub's ask yet.
+    // not the Monocub's own ask. E08+E28 C17 (04.10.2026): the GM throws the Meddle's dice; tier 2 judges a Monocub's
+    // packet, and no scenario drove the Monocub's ask. E33 C4 (07.10.2026): 83 does - p2's dead Botan meddles in Aiko's
+    // next roll from p2's browser, and Aiko's roll spends it with no alarm. E33 C10: the Meddle is the `meddle` row of
+    // the Monocub's table, asked as `monocub.ability` (monocub.mjs `performCubAbility`, `cubAbilityOnGm`); 40 drives
+    // the ask end to end, 30 its forgeries.
     { id: "monocub-meddle", what: "A Monocub meddles: asked on the player's side, applied by the GM",
-        entry: { bridge: ["monocub.meddle"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow"], status: "partial", stage: "E45" },
+        entry: { bridge: ["monocub.ability"], sockets: ["call-effects.mjs"] }, scenarios: ["40-flow", "83-roll-integrity"], status: "partial", stage: "E45" },
     // Partial until E32 when E30 wrote it (E32's grid was to complete it). At the 1.2.66 release (03.10.2026) four of
     // its five actions are sent from a player's browser in a ci scenario - murder.crisis and murder.betrayal (13),
     // murder.park (30, 61), murder.cleanup (72) - and murder.openingResult in none: each scenario resolves the opening
@@ -133,10 +148,19 @@ export const FLOWS = Object.freeze([
     // again after E28. E08+E28 C17 (04.10.2026): the opening, the crisis actions and Stage 6 are scored on the GMs' record
     // of the roll they name; 30 sends Botan's player's finishing blow on its record, 10 Chie's player's clean-up and its
     // Reroll, and a player's opening is judged in tier 2 alone.
+    // Covered at the 1.2.69 release (07.10.2026, E33 C14c), on a count of packets rather than of the scenarios' text:
+    // one run of each scenario on 6dfdca8, with a copy of the harness that kept every murder.* packet, has a player's
+    // browser send murder.openingResult in 11, 13, 30, 61, 72 and 83, murder.crisis in 13, 30 and 83, murder.betrayal
+    // in 13 (the tile's road) and 30 (two from p1's console, refused), murder.park in 30, 61 and 72, and murder.cleanup
+    // in 10, 13, 72 and 83 (72 tags none of its checks with this flow; 19 and 60 send none). So a player's opening is
+    // not tier 2's alone: 13 has the killer's player throw it since E08+E28 fix r2-H6 (05.10.2026), and 83's L9 (E33
+    // C4) has p3's page throw Chie's opening, take a Finishing Blow and clean up a trace in Stage 6, each drawn on the
+    // GM - in that run the GMs' records of the three rolls were p3's and claimed. L9's phase is this flow's since C14c;
+    // it was gm-rolls-total's, which 83's other phases keep.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
         entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case"], suite: ["tests-grid.mjs"],
-        status: "partial", stage: "E33" },
+        scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity"],
+        suite: ["tests-grid.mjs"], status: "covered", stage: "1.2.69" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",
         entry: { bridge: ["note.save"], sockets: ["pre-session-note.mjs"] },
         scenarios: ["72-canary", "11-killer-secrecy", "33-bridge-paths", "30-security", "61-gmstore-case"], status: "covered", stage: "1.2.64" },
@@ -182,9 +206,20 @@ export const FLOWS = Object.freeze([
     // back) and 61's W, and decided by two GMs at once in 61's V (`askToDecideWrite`, the card button's road).
     // Not driven, so the audit's live checks instead (AUDIT 9.2, LIVE-E29-02 and -05): the Party sheet's pips,
     // CSS no client of the harness computes, and two GMs clicking the card itself.
+    // E33 C1b (06.10.2026): the thirteen bare writes on a student's sheet R220's census left on roads a player
+    // reaches take E29's road with a reason (resource-guard.mjs, "THE PLAYER'S OWN WRITES"); tier 2 judges a write
+    // of each reason as the player's ("a player's write on the road is judged as E29's table says", "a Call's free
+    // action and free Move bought and spent on the module's road raise no row"). 40-flow's day reads the Call its
+    // roll window spent covered under `call` now, where its row named no reason. E33 C4 (07.10.2026): 83 reads the
+    // writes of a Search's find, a Rest, an item used and a Level Up - each covered or applied, none put back or flagged.
+    // E33 C5a (07.10.2026): three more rows name their sender - a relay request on a student refused, a player's message
+    // carrying a flag only a GM's browser writes, a roll's dice rewritten and put back - and tier 2 reads each ("a player's
+    // message with the drawn flag is not read as drawn and awards nothing and is named once", "a refused relay write on
+    // another's student leaves a row naming its sender", "a rewrite put back leaves a row naming the player"; the guards
+    // "a GM's card with the same flags stands" and "an H5 neutral card is never a forgery").
     { id: "sheet-audit", what: "A player's own write on their student: judged on the primary GM, put back, flagged or listed - at the write, or at the primary's ready for one made with no GM watching",
         entry: { calls: ["sheet-audit.mjs#judgeWrite", "sheet-audit.mjs#compareAtReady"], bridge: ["audit.decide"] },
-        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held"], status: "covered", stage: "1.2.68" },
+        scenarios: ["30-security", "40-flow", "61-gmstore-case", "20-crit-hope", "10-murder", "15-held", "83-roll-integrity"], status: "covered", stage: "1.2.68" },
     { id: "season-reset", what: "The season reset, from the GM panel",
         entry: { calls: ["season-setup.mjs#resetSeason"] }, scenarios: [], status: "planned", stage: "E40" },
     { id: "sound", what: "A sound played for other browsers",

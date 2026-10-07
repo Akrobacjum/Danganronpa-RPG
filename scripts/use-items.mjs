@@ -313,10 +313,10 @@ export async function toggleEquipped(actor, item) {
             // first hand that picks something up has to tidy all of them.
             for (const previous of readiedItems(actor)) {
                 if (previous.id === item.id) continue;
-                await previous.setFlag(MODULE_ID, EQUIPPED_FLAG, false);
+                await trustedWrite(previous, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: false }, { reason: "equip" });
             }
         }
-        await item.setFlag(MODULE_ID, EQUIPPED_FLAG, !wasEquipped);
+        await trustedWrite(item, { [`flags.${MODULE_ID}.${EQUIPPED_FLAG}`]: !wasEquipped }, { reason: "equip" });
     } catch (err) {
         error("Could not change what is held ready", err);
         return false;

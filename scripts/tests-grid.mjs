@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Tier 2, spread into tests-tier2.mjs's SCENARIOS: one entry per case, each a list
  * of steps driven through the module's own GM calls - the ones the bridge hands a
- * player's packet to once it has judged it - and after every step fourteen
+ * player's packet to once it has judged it - and after every step sixteen
  * invariants of the incident are asked of what the step left behind.
  *
  * WHY A GRID. Until 1.2.65 about 25 of tier 2's 211 scenarios touched the incident,
@@ -40,15 +40,40 @@
  * no `incident.myCast` packet leaves the GM: I2 reads `castFor` - what each holder would
  * be sent - and checks any packet that does go against the seats as well. Whom
  * `castOwners` seats is not exported and is not read here; 13-murder-signals reads the
- * packets a player's browser receives. No layout, no dice: every roll is a total handed to the
- * GM's half, as the existing incident scenarios do.
+ * packets a player's browser receives. No layout: every roll is a total handed to the GM's
+ * half, as the existing incident scenarios do - unless the step draws it (below).
+ *
+ * DRAWN ON THE GMS' RECORD (E33 C7, 07.10.2026; the stage plan's 2.6; audit S17-13's two cases,
+ * DM17 and TP14, were on the grid's own facts). `act` with `drawn` throws the crisis roll as the
+ * GM throws a player's: the packet cut from a roll of the actor's on the statistic the GM's list
+ * picks (tests-tier2.mjs `drawnForPlayer`, the suite's one road to a draw), the GM's faces
+ * scripted to the band (`DRAWN_FACES`), the roll's bookmark kept as the roller's browser keeps
+ * it, and the crisis packet judged as the bridge judges that player's, naming the roll's
+ * message - so the GM scores it on its record, not on the packet's numbers (`drawnAct`).
+ * `reroll` with `fromRecord` makes the Reroll as `reroll.ask` does (reroll.mjs `rerollOnGm`;
+ * the suite is the primary GM): the roll thrown again from the record's `scored` (E29 C11), the
+ * dice scripted through `CONFIG.Dice.randomUniform` as the harness scripts a draw, the replay
+ * from the GMs' row (`rerollFromRecord`). I15 then reads the record after every step
+ * (`assertDrawn`). The drawn bands are a Strike's (threshold 15): 12 and 11 clear it with the
+ * list's numbers at 0, 1 and 2 do not; another action drawn takes its own reading first.
+ *
+ * A WRITE THAT THROWS (E33 C8, 07.10.2026; the stage plan's 2.6, lead L5 of its 1.3). Every write
+ * of the incident on a GM's browser goes through murder.mjs's one queue, which releases a write
+ * that threw (`incidentWrites = run.catch(...)`) so that the next one runs - read since E32 C4,
+ * measured by no test until XI08, and nor was what a throw between the cast's write and the world
+ * half's leaves behind. `act` and `close` with `fault` refuse one write - the cast store's `patch`
+ * or `game.settings.set` of the world half - once, as a store flush that fails would, and read both
+ * halves against what the step would have written (`faulted`): both moved or neither (I16), and
+ * the step after it is the queue's to run (I10). `putBack` (fix r2-G3, 07.10.2026; review round 2's
+ * cor D4) refuses the world half's write and then the cast's put-back after it, which leaves the cast
+ * ahead and must leave the caller the world half's error and the GM's console the put-back's (I17).
  */
 
-import { MODULE_ID, KEY_REMNANTS } from "./config.mjs";
+import { MODULE_ID, KEY_REMNANTS, CRISIS_ACTIONS, TRAITS, HOPE_CALLS } from "./config.mjs";
 import { SETTINGS, incidentCast } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { ownerOf } from "./utils.mjs";
-import { ok, must, needs, world, wait, until } from "./tests-kit.mjs";
+import { ok, must, needs, world, wait, until, settle, stableJson } from "./tests-kit.mjs";
 
 /* ==========================================================================
  * THE TABLES (the plan's 2.1), written from the handbooks, not imported
@@ -157,7 +182,10 @@ const INVARIANTS = Object.freeze({
     I11: "Role reversal is off in a trap and with an accomplice",
     I12: "a close breaks the swung weapons, a discovery the cleaning tools",
     I13: "a third who left stays out",
-    I14: "a victim runs out once: one ran-out card, one death"
+    I14: "a victim runs out once: one ran-out card, one death",
+    I15: "a drawn incident roll is settled once, on its record's last version",
+    I16: "a write that throws leaves the incident before or after, never half",
+    I17: "a write refused is the error its caller hears, and a put-back refused after it is on the GM's console"
 });
 
 /* ==========================================================================
@@ -202,6 +230,15 @@ const CASES = {
         steps: [["gear", "K", "pack"], ["open"], ["opening", "hope"], ["act", "K", "useItem", "hit", { use: "pack" }], ["reroll", "K", "useItem", "hit", { again: true }], ["close"]] },
     DM19: { title: "Use an item that heals, its Reroll a miss that gives the heal and the pack back",
         steps: [["gear", "K", "pack"], ["open"], ["opening", "hope"], ["act", "K", "useItem", "hit", { use: "pack" }], ["reroll", "K", "useItem", "miss", { again: true }], ["close"]] },
+    // E33 C7 (the plan's 1.3 L4): DM15 and DM17 through the GMs' record - the roll drawn by the GM, its Reroll made as `reroll.ask` is.
+    DM20: { title: "a Strike drawn by the GM, its Reroll a miss that takes the hit back",
+        steps: [["open"], ["opening", "hope"], ["act", "K", "strike", "hit", { drawn: true }], ["reroll", "K", "strike", "miss", { fromRecord: true }], ["close"]] },
+    DM21: { title: "a critical Strike drawn by the GM on the killer's pick, its Reroll a critical that keeps it",
+        steps: [["open"], ["opening", "hope"], ["act", "K", "strike", "crit", { choice: "stress", drawn: true }], ["reroll", "K", "strike", "crit", { fromRecord: true }], ["close"]] },
+    // Fix r2-G3 (review round 2's cor D3): the other pick, and a sheet that moved after the GM counted the roll - the
+    // one difference a Reroll rebuilt from the claim and the sheet, not the record's `scored`, adds up (I15).
+    DM22: { title: "a critical Strike drawn by the GM on the killer's pick of Health, the statistic raised before its Reroll, a critical that keeps it",
+        steps: [["open"], ["opening", "hope"], ["act", "K", "strike", "crit", { choice: "hp", drawn: true }], ["reroll", "K", "strike", "crit", { fromRecord: true, raise: 2 }], ["close"]] },
 
     // Direct, with a third.
     TP01: { title: "Partners, the blow, a betrayal from the tile in Stage 6, and the second incident's blow", third: true,
@@ -239,6 +276,10 @@ const CASES = {
     TP14: { title: "the accomplice dies in the fight", third: true,
         steps: [["open"], ["opening", "hope"], ["enter", "T"], ["act", "T", "crimePartners"], ["act", "V", "leaveClue"], ["act", "K", "strike"],
             ["listDeath", "T"], ["act", "V", "leaveClue"], ["act", "K", "strike"], ["close"]] },
+    // E33 C7 (the plan's 1.3 L6): TP14 by the death a GM's Kill keeps until found, as DM16 does the killer's.
+    TP15: { title: "the accomplice dies in the fight by a death the GMs keep", third: true,
+        steps: [["open"], ["opening", "hope"], ["enter", "T"], ["act", "T", "crimePartners"], ["act", "V", "leaveClue"], ["act", "K", "strike"],
+            ["keptDeath", "T"], ["act", "V", "leaveClue"], ["act", "K", "strike"], ["close"]] },
 
     // A trap: the victim rolls the opening, the builder is not in the room.
     TR01: { title: "a trap whose victim notices it, and the GM's close", kind: "trap", steps: [["open"], ["opening", "notice"], ["close"]] },
@@ -281,7 +322,18 @@ const CASES = {
         steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue"], ["seasonReset"]] },
     XI07: { title: "a betrayal declared in the Eclipse after Night opens the next morning", third: true,
         steps: [["night"], ["open"], ["opening", "hope"], ["enter", "T"], ["act", "K", "finishingBlow"], ["close"], ["eclipse", true],
-            ["betray"], ["eclipse", false], ["close"]] }
+            ["betray"], ["eclipse", false], ["close"]] },
+    // E33 C8 (L5): one write refused at each writer - the fight's pass (the cast), a Survive's stage
+    // write (both halves) and the close (both halves) - and the incident goes on after each. The
+    // Self-defence first unlocks the Survive (DM04) and is not refused.
+    XI08: { title: "a write of the incident refused once: the cast's at a Leave a clue, the world half's at a Survive and at the close",
+        steps: [["open"], ["opening", "hope"], ["act", "V", "selfDefence"], ["act", "V", "leaveClue", "hit", { fault: "cast" }],
+            ["act", "V", "survive", "hit", { fault: "world" }], ["close", null, { fault: "world" }], ["close"]] },
+    // Fix r2-G3 (review round 2's cor D4, D5): a pass refused twice - the world half's write and the put-back of the
+    // cast after it (I17) - and a Strike's pass refused after its hit landed, whose Reroll needs the receipt (I10).
+    XI09: { title: "a pass refused: a Leave a clue's at its world half and at the put-back, and a Strike's whose Reroll then takes the hit back",
+        steps: [["open"], ["opening", "hope"], ["act", "V", "leaveClue", "hit", { fault: "putBack" }],
+            ["act", "K", "strike", "hit", { fault: "cast" }], ["reroll", "K", "strike", "miss"], ["close"]] }
 };
 
 /* ==========================================================================
@@ -385,6 +437,20 @@ const RESULTS = Object.freeze({
     miss: { total: 0, isCritical: false, withHope: true }
 });
 
+/*
+ * The GM's faces for a drawn crisis roll, by band (the plan's 2.6): the Hope die, the Fear die and the one
+ * advantage or disadvantage die the GM's list may add (none for an unarmed Strike; a face left undrawn is
+ * not thrown). A hit at 12 and 11 is 23 and a miss at 1 and 2 is 3 before the list's numbers, which
+ * the suite's students hold at 0 on the statistic a Strike is drawn on (`drawnAct`).
+ */
+const DRAWN_FACES = Object.freeze({
+    crit: { hope: 12, fear: 12, advantage: 1 }, hit: { hope: 12, fear: 11, advantage: 1 },
+    hitFear: { hope: 11, fear: 12, advantage: 1 }, miss: { hope: 1, fear: 2, advantage: 1 }
+});
+
+/** The connected player who owns `actor`, or undefined: the grid's rollers are each one's (`peopleFor`). */
+const playerOf = actor => game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
+
 const PLACE = { teleport: true, movementAction: "displace", animate: false };
 const tokenOf = actor => canvas?.scene?.tokens?.find(t => t.actorId === actor.id) ?? null;
 
@@ -428,8 +494,13 @@ const STEPS = {
      * back is a refusal, not a loop. A refusal the case did not expect stops it (I10).
      * `choice` is a critical Strike's pick; `use` names a pack the player's browser used
      * first (`usedAsPlayer`). What the GMs' row would hold of it is kept for `reroll`.
+     * `drawn` (E33 C7): the roll drawn by the GM for the actor's player and the packet judged
+     * as that player's, on the GMs' record (`drawnAct`); the band is the faces', not a total.
+     * `fault` (E33 C8): the action's first write of the cast ("cast") or of the world half
+     * ("world") is refused once, and what landed is read against the model (`faulted`);
+     * "putBack" (fix r2-G3) refuses the world half's and then the cast's put-back.
      */
-    async act(run, who, key, result = "hit", { free = false, swing = null, refused = false, choice = null, use = null } = {}) {
+    async act(run, who, key, result = "hit", { free = false, swing = null, refused = false, choice = null, use = null, drawn = false, fault = null } = {}) {
         const actor = run.who[who];
         for (let i = 0; i < 4 && run.M.crisisRefusal(actor, key)?.why === "not their turn" && run.M.sideOf(actor) !== "third"; i++) {
             await run.M.passTurn();
@@ -447,8 +518,17 @@ const STEPS = {
         const pack = use ? run.items.get(`${who}:${use}`) : null;
         const before = pack ? await usedAsPlayer(actor, pack) : null;
         run.facts = { crisis: key, choice, usedItemId: pack?.id ?? null, usedFor: pack ? "hitPoints" : null, before };
-        await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, free, swungId: item?.id ?? null, choice, usedItemId: pack?.id ?? null, before });
-        applyAct(run, actor, key, roll.total > 0 || roll.isCritical || free);
+        if (drawn) {
+            if (!await drawnAct(run, actor, key, result, { free, swungId: item?.id ?? null, choice, usedItemId: pack?.id ?? null, before })) return;
+            applyAct(run, actor, key, free || result !== "miss");
+            return;
+        }
+        const packet = { actorId: actor.id, key, ...roll, free, swungId: item?.id ?? null, choice, usedItemId: pack?.id ?? null, before };
+        const hit = roll.total > 0 || roll.isCritical || free;
+        const label = `${actor.name}'s ${key}`;
+        if (fault) return faulted(run, label, fault, () => run.M.resolveCrisisAction(packet), () => applyAct(run, actor, key, hit));
+        if (!await queued(run, label, () => run.M.resolveCrisisAction(packet))) return;
+        applyAct(run, actor, key, hit);
     },
 
     /*
@@ -458,23 +538,28 @@ const STEPS = {
      * call is refused and the model does not move - a Reroll let through is I8's, the death
      * of a blow that no longer landed. Any other is taken back; refused, the case stops (I10).
      * `again` (E08+E28 C6b): the replay as a GM makes it, on the row the last action left
-     * (reroll.mjs `settleCrisis`), not the bridge's packet.
+     * (reroll.mjs `settleCrisis`), not the bridge's packet. `fromRecord` (E33 C7): the whole
+     * Reroll as `reroll.ask` makes it on the GM, of the roll the case drew for this actor,
+     * thrown again from the GMs' record and replayed from their row (`rerollFromRecord`);
+     * `raise` (fix r2-G3) raises the statistic it was drawn on that much first, by a GM's ruling.
      */
-    async reroll(run, who, key, result, { again = false } = {}) {
+    async reroll(run, who, key, result, { again = false, fromRecord = false, raise = 0 } = {}) {
         const actor = run.who[who];
         const roll = RESULTS[result];
         const back = run.beforeAct;
         must(back, "there is no crisis action to take back");
         const killed = [...run.bodies.keys()].some(id => !back.bodies.some(([was]) => was === id));
-        const out = again
-            ? await (await import("./reroll.mjs")).settleCrisis(actor, run.facts, roll, [])
-            : await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, undo: true });
+        const out = fromRecord
+            ? await rerollFromRecord(run, actor, key, result, { raise })
+            : again
+                ? await (await import("./reroll.mjs")).settleCrisis(actor, run.facts, roll, [])
+                : await run.M.resolveCrisisAction({ actorId: actor.id, key, ...roll, undo: true });
         if (killed) {
             if (out) run.violate("I8", `the Reroll of ${actor.name}'s ${key}, which killed, was let through`);
             return;
         }
         if (!out) {
-            run.stop("I10", `the Reroll of ${actor.name}'s ${key}, which killed nobody, was refused`);
+            run.stop("I10", `the Reroll of ${actor.name}'s ${key}, which killed nobody, was refused${run.refusal ? `: ${run.refusal}` : ""}`);
             return;
         }
         run.model = back.model;
@@ -483,7 +568,7 @@ const STEPS = {
         run.blackened = new Set(back.blackened);
         run.swung = new Map(back.swung);
         run.undone = true;
-        applyAct(run, actor, key, roll.total > 0 || roll.isCritical);
+        applyAct(run, actor, key, fromRecord ? result !== "miss" : roll.total > 0 || roll.isCritical);
     },
 
     async pass(run) {
@@ -555,11 +640,13 @@ const STEPS = {
     },
 
     /* The GM's close: the tracker's "Close the murder", or its checklist (`followUp`), answered with `checklist`. */
-    async close(run, checklist = null) {
+    async close(run, checklist = null, { fault = null } = {}) {
         const m = run.model;
         run.checklist = checklist;
         const offer = run.offer;
-        await run.M.endMurder({ reason: "closed", followUp: Boolean(checklist) });
+        const end = () => run.M.endMurder({ reason: "closed", followUp: Boolean(checklist) });
+        if (fault) return faulted(run, "the close", fault, end, () => closeIncident(run));
+        if (!await queued(run, "the close", end)) return;
         const betrays = checklist === "betrayal" && offer && m?.body;
         closeIncident(run);
         if (betrays) {
@@ -770,6 +857,133 @@ async function afterKillerDeath(run, actor, offers) {
     }
 }
 
+/**
+ * A CRISIS ACTION DRAWN BY THE GM AND SETTLED ON ITS RECORD (E33 C7, 07.10.2026; the head comment,
+ * DRAWN ON THE GMS' RECORD). The packet is cut on the statistic the GM's list picks for the action
+ * when no pick card stands - the lowest of the action's on the sheet, the first listed of equals
+ * (roll-draw.mjs `lowestOf`) - so the claim and the list agree and the GM flags nothing. The
+ * roller's browser bookmarks its roll before the action's packet leaves (action-rolls.mjs
+ * `rollTrait`), so `roll.bookmark` is judged first, as that player's, and the crisis packet after
+ * it, naming the roll's message as the roller's does; the packet's numbers are the record's, which
+ * the bridge reads for itself. What the step drew is kept on `run.drawn` for `reroll` and I15, with
+ * the victim's marks after the action for the pick's check. Answers whether the action was carried
+ * out; a draw or a packet refused stops the case (I10).
+ */
+async function drawnAct(run, actor, key, result, { free, swungId, choice, usedItemId, before }) {
+    const { drawnForPlayer } = await import("./tests-tier2.mjs");
+    const G = await import("./bridge-guards.mjs");
+    const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+    const player = playerOf(actor);
+    must(player, `${actor.name} has no connected player to draw for`);
+    const sheet = actor.system?.traits ?? {};
+    const value = t => Number(sheet[TRAITS[t]?.dh]?.value) || 0;
+    const listed = CRISIS_ACTIONS[key]?.traits ?? [];
+    must(listed.length, `${key} lists no statistic to draw on`);
+    const trait = listed.reduce((low, t) => (value(t) < value(low) ? t : low));
+    const F = await drawnForPlayer(player, actor, { actionKey: "crisis", trait, faces: DRAWN_FACES[result], edit: p => ({ ...p, context: { crisis: key } }) });
+    const d = { ...F, actor, key, player, trait, result, band: result, choice, versions: 0, marks: null };
+    run.drawn.push(d);
+    const refused = F.sent.find(r => r.action === "bridge.refused")?.reason ?? null;
+    if (refused || !F.record || !F.message) {
+        run.stop("I10", `${actor.name}'s ${key} was not drawn: ${refused ?? "no record was kept"}`);
+        return false;
+    }
+    const told = [];
+    const judge = packet => G.judge(BRIDGE_ACTIONS, { requestId: `GRID${foundry.utils.randomID(8)}`, ...packet }, player.id,
+        { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason ?? "refused"); } });
+    await judge({ action: "roll.bookmark", actorId: actor.id, messageId: F.message.id, actionKey: "crisis", trait, experiences: [], context: { crisis: key } });
+    await judge({ action: "murder.crisis", actorId: actor.id, key, total: F.record.total, isCritical: F.record.isCritical, withHope: F.record.withHope,
+        rollId: F.message.id, choice, usedItemId, swungId, free, before });
+    if (told.length) {
+        run.stop("I10", `${actor.name}'s drawn ${key} was refused: ${told.join("; ")}`);
+        return false;
+    }
+    await settle();
+    d.marks = marksOf(game.actors.get(run.model?.victimId ?? ""));
+    return true;
+}
+
+/** A character's Health and Sanity marks, as the incident's damage lands them. */
+const marksOf = actor => (actor ? { hitPoints: actor.system?.resources?.hitPoints?.value ?? null, stress: actor.system?.resources?.stress?.value ?? null } : null);
+
+/**
+ * THE REROLL AS `reroll.ask` MAKES IT (E33 C7, 07.10.2026): on this GM, for the roller, of the last
+ * roll the case drew for this actor; I15 reads the record it writes. The Hope the Call costs is
+ * given the actor as a GM's ruling first, and the Reroll waits until the GMs hold it (sheet-audit.mjs
+ * `meansHeld`, what `rerollRefusal` reads) - the suite's cast holds what the world gave them, and
+ * restore() puts it back. The dice are scripted through `CONFIG.Dice.randomUniform` for the band -
+ * the Hope die, the Fear die and the advantage die, in the order the dice draw, as the harness
+ * scripts a draw (client-entry.mjs `harnessEvaluate`); a Reroll with no third die leaves that face
+ * undrawn, and the randomiser is put back whatever happened. Answers whether the Reroll stood;
+ * the refusal, if one, is kept on `run.refusal` for the step's I10.
+ *
+ * THE MESSAGE'S ROLL AS A ROLL. A chat message's `rolls` are data in the harness (lib/shim.mjs
+ * `ChatMessage`), and the Reroll asks the roll to throw itself again (reroll.mjs `rerollRefusal`
+ * refuses "no roll to throw again" otherwise - measured 07.10.2026, the first run of DM20 and
+ * DM21). So the drawn message is given its roll as Daggerheart's own class for the Reroll's time
+ * and let go after: built from the message's formula and options (the harness's message keeps a
+ * roll's dice as totals, not terms - client-entry.mjs `harnessMessage`; `fromData` found none,
+ * the second run) and thrown once under a script of the dice the record holds, so it stands on
+ * the faces the GMs kept. The rebuild from `scored` and the throw are then the module's and
+ * Daggerheart's own, where the tier-2 Reroll tests and scenario 13 use a stand-in of fixed faces.
+ *
+ * `raise` (fix r2-G3, 07.10.2026; review round 2's cor D3): the statistic the roll was drawn on is
+ * raised that much by a GM's ruling just before the Reroll and put back after it, so the sheet is no
+ * longer what the GM counted. A Reroll thrown from the record's `scored` adds up as before; one
+ * rebuilt from the claim's statistic on the sheet - the road before E29 C11, C7's mutant m1, measured
+ * equivalent on DM20 and DM21, whose sheets stand still - totals that much more, and I15 reads it.
+ */
+async function rerollFromRecord(run, actor, key, result, { raise = 0 } = {}) {
+    const d = run.drawn.findLast(r => r.actor.id === actor.id);
+    must(d && d.key === key, `no roll of ${actor.name}'s ${key} was drawn for the case to reroll`);
+    const { rerollOnGm } = await import("./reroll.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    const { meansHeld } = await import("./sheet-audit.mjs");
+    const cost = HOPE_CALLS.reroll.cost;
+    if ((actor.system?.resources?.hope?.value ?? 0) < cost) await trustedWrite(actor, { "system.resources.hope.value": cost }, { reason: "gmRuling" });
+    must(await until(() => meansHeld(actor).hope >= cost, 3000), `the GMs do not hold ${actor.name}'s ${cost} Hope for the Reroll`);
+    const message = game.messages.get(d.message?.id ?? "");
+    const json = message?.rolls?.[0] ?? null;
+    const record = (await import("./roll-draw.mjs")).rollRecord(d.record?.rollId ?? null);
+    must(json?.formula && record?.dice?.length, `the message of ${actor.name}'s drawn ${key} holds no roll, or its record no dice`);
+    const uniform = (face, sides) => 1 - (face - 0.5) / sides;
+    const dice = CONFIG.Dice, real = dice.randomUniform;
+    // The advantage mode, which Daggerheart's roll reads of every roll (d20Roll.mjs:61, 2.10.5) and the harness's
+    // message does not write (`harnessMessage`): the record's sign, a number as the module's `drawnOptions` passes it.
+    const options = foundry.utils.deepClone(json.options ?? {});
+    options.roll = { ...(options.roll ?? {}), advantage: Math.sign(Number(record.scored?.advantage) || 0) };
+    const original = new game.system.api.dice.DualityRoll(json.formula, {}, options);
+    const kept = record.dice.map(die => uniform(die.results?.[0]?.result ?? 1, die.faces ?? 12));
+    dice.randomUniform = () => kept.shift() ?? real();
+    try {
+        await original.evaluate();
+    } finally {
+        dice.randomUniform = real;
+    }
+    Object.defineProperty(message, "rolls", { configurable: true, get: () => [original] });
+    const faces = DRAWN_FACES[result];
+    const script = [[faces.hope, 12], [faces.fear, 12], [faces.advantage, 6]].map(([face, sides]) => uniform(face, sides));
+    const path = `system.traits.${TRAITS[d.trait]?.dh}.value`;
+    const stood = foundry.utils.getProperty(actor, path);
+    must(!raise || typeof stood === "number", `${actor.name} holds no ${d.trait} to raise`);
+    if (raise) await trustedWrite(actor, { [path]: stood + raise }, { reason: "gmRuling" });
+    dice.randomUniform = () => script.shift() ?? real();
+    let out;
+    try {
+        out = await rerollOnGm(actor, d.player);
+    } finally {
+        dice.randomUniform = real;
+        delete message.rolls;
+        if (raise) await trustedWrite(actor, { [path]: stood }, { reason: "gmRuling" });
+    }
+    await settle();
+    run.refusal = out?.refused ?? null;
+    if (!out || out.refused) return false;
+    d.versions++;
+    d.band = result;
+    return true;
+}
+
 /** What a crisis action does to the model, as the rules have it. */
 function applyAct(run, actor, key, hit) {
     const m = run.model;
@@ -801,6 +1015,120 @@ function applyAct(run, actor, key, hit) {
     if (key === "roleReversal") Object.assign(m, { killerId: m.victimId, victimId: m.killerId });
     if (key === "finishingBlow") stageSix(run, { body: true });
     if (key === "survive") stageSix(run, { body: false });
+}
+
+/*
+ * ONE WRITE REFUSED, AND WHAT IT LEFT (E33 C8, 07.10.2026; the stage plan's 2.6 and lead L5). The
+ * incident is written in two stores - the cast (gm-stores.mjs `castStore`, the GMs' own) and the
+ * world half (`game.settings`, every client's) - and murder.mjs writes the cast first. The fault
+ * refuses the first write of the one named, once, with a rejection as a flush that fails gives
+ * (the cast store's `patch`, or `settings.set` of the incident's own key alone - Daggerheart's
+ * Fear and the module's other settings pass), and is put back whatever the step did. Then both
+ * halves are read against what they were and the model moved as the step would have moved it:
+ * where that moves the stage the world half must have moved exactly when the cast did (I16) -
+ * one half alone is the half-applied transition L5 asked about, and the case stops there, since
+ * the model can follow neither half; where the stage stays the world half had nothing to write,
+ * and the cast says whether the write landed. A write that landed in neither half puts the model
+ * back. The stack of the refused call is kept for the line, so a red case names the writer.
+ * A throw out of the module is recorded, not required: a writer that swallowed it would leave the
+ * same halves, and the line says it answered as if written.
+ *
+ * `putBack` (fix r2-G3, 07.10.2026; review round 2's cor D4): the world half's write is refused, and
+ * then the next write of the cast - `castPutBack`'s, stamping back what the step wrote. The cast is
+ * then ahead of the stage, which is what murder.mjs says of that case, so it is run only at a step
+ * that keeps the stage (a pass), where the world half it failed to write held nothing new. What is
+ * asked of it is I17's: the caller hears the world half's refusal, and the GM's console (`error`,
+ * read for the write's time) holds the put-back's.
+ */
+async function faulted(run, label, kind, write, apply) {
+    const { castStore } = await import("./gm-stores.mjs");
+    const worldHalf = () => game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const before = { world: stableJson(worldHalf()), cast: stableJson(incidentCast()) };
+    const fault = { kind, label, fired: 0, where: null, threw: null };
+    const order = kind === "putBack" ? ["world", "cast"] : [kind];
+    const said = { world: "the incident's world half write", cast: kind === "putBack" ? "the put-back's cast write" : "the incident's cast write" };
+    const refusal = half => `the grid refused ${said[half]} once`;
+    const ports = { world: [game.settings, "set"], cast: [castStore, "patch"] };
+    const restores = [];
+    for (const half of new Set(order)) {
+        const [target, name] = ports[half];
+        const own = Object.getOwnPropertyDescriptor(target, name), was = target[name];
+        restores.push(() => { if (own) Object.defineProperty(target, name, own); else delete target[name]; });
+        target[name] = function (...args) {
+            if (order[fault.fired] !== half || (half === "world" && !(args[0] === MODULE_ID && args[1] === SETTINGS.murderState))) return was.apply(this, args);
+            fault.fired++;
+            fault.where ??= (new Error().stack ?? "").split("\n").slice(2, 5).map(l => l.trim().replace(/^at /, "")).join(" < ");
+            return Promise.reject(new Error(refusal(half)));
+        };
+    }
+    const logged = [], console_ = globalThis.console, ownLog = Object.getOwnPropertyDescriptor(console_, "error"), logError = console_.error;
+    console_.error = function (...args) {
+        logged.push(args.map(a => (a instanceof Error ? a.message : String(a))).join(" "));
+        return logError.apply(this, args);
+    };
+    const back = structuredClone({ model: run.model, offer: run.offer, bodies: [...run.bodies], blackened: [...run.blackened], swung: [...run.swung], closed: run.closed });
+    try {
+        await write();
+    } catch (err) {
+        fault.threw = err.message;
+    } finally {
+        for (const restore of restores) restore();
+        if (ownLog) Object.defineProperty(console_, "error", ownLog); else delete console_.error;
+    }
+    // A queue that did not release an earlier fault answers this write with that fault's error before
+    // this one is met: the step never ran, which is I10's (as `queued` reads it).
+    if (!fault.fired && fault.threw && run.faults.length) {
+        run.stop("I10", `${label} was never written after the fault: ${fault.threw}`);
+        return;
+    }
+    run.faults.push(fault);
+    must(fault.fired === order.length, `${label} met the fault ${fault.fired} time(s), not ${order.length}`);
+    if (kind === "putBack") {
+        if (fault.threw !== refusal("world")) {
+            run.violate("I17", `${label}, refused at its world half and then at the put-back of its cast, told its caller ${fault.threw ? JSON.stringify(fault.threw) : "nothing"}`);
+        }
+        if (!logged.some(line => line.includes(refusal("cast")))) run.violate("I17", `${label}: the put-back's refusal is not on the GM's console`);
+    }
+    const moved = { world: stableJson(worldHalf()) !== before.world, cast: stableJson(incidentCast()) !== before.cast };
+    const stageBefore = run.model?.stage ?? null;
+    apply();
+    const stageMoves = (run.model?.stage ?? null) !== stageBefore;
+    if (stageMoves && moved.world !== moved.cast) {
+        run.stop("I16", `${label}, refused at its ${order.map(h => (h === "world" ? "world half" : "cast")).join(" and ")}, landed in ${moved.cast ? "the cast" : "the world half"} alone`
+            + `${fault.threw ? "" : "; the call answered as if written"} (refused: ${fault.where})`);
+        return;
+    }
+    if (!(stageMoves ? moved.world : moved.cast)) putBack(run, back);
+}
+
+/** The model as a step found it, for a write that landed in neither half: the close's count with it (I4 counts closes). */
+function putBack(run, back) {
+    run.model = back.model;
+    run.offer = back.offer;
+    run.bodies = new Map(back.bodies);
+    run.blackened = new Set(back.blackened);
+    run.swung = new Map(back.swung);
+    run.closed = back.closed;
+}
+
+/**
+ * A write after a fault. The queue answers the next write with the fault's own error when it
+ * did not release (XI08's mutant c8-queue-no-catch: `incidentWrites = run`), and that is I10's -
+ * the step the model expects never ran - not a test error; before any fault, a throw is the
+ * test's as before.
+ */
+async function queued(run, label, write) {
+    if (!run.faults.length) {
+        await write();
+        return true;
+    }
+    try {
+        await write();
+        return true;
+    } catch (err) {
+        run.stop("I10", `${label} was never written after the fault: ${err.message}`);
+        return false;
+    }
 }
 
 /**
@@ -995,6 +1323,84 @@ async function assertIncidentInvariants(run) {
 
     // I13 - a third who left is not the third again.
     if (m && state?.thirdId && m.departed.includes(state.thirdId)) run.violate("I13", `${nameOf(state.thirdId)} left and is the third again`);
+
+    // I15 - every roll the case drew, on the GMs' record of it.
+    if (run.drawn.length) await assertDrawn(run, state);
+}
+
+/**
+ * I15 (E33 C7, 07.10.2026). For every roll the case drew: its record stands under its message,
+ * naming the actor and the crisis action; `resolved` holds the action once - the packet settled
+ * it, and a Reroll replays the GMs' row rather than settling the record again; the versions kept
+ * under the one that stands are as many as the case's Rerolls; and each version - the one that
+ * stands and each one under it - adds up to its Hope and Fear die, its other dice at the list's
+ * sign, and the numbers the GM counted (`scored.modifiers`). A version thrown from anything but the
+ * record's `scored` (reroll.mjs `rollAsThrown`) reads here as a sum that does not close only where
+ * that road reads other numbers: on DM20 and DM21 the claim's statistic is the one the GM counted
+ * and the sheet has not moved, and C7's mutant m1 (the Reroll rebuilt from the claim and the sheet)
+ * passed them; DM22 raises the statistic before its Reroll (`rerollFromRecord`'s `raise`), and the
+ * same mutant is red there (fix r2-G3, 07.10.2026; review round 2's cor D3). The incident's last
+ * action, where it is this roll's, is scored on the version that stands - the band of the GM's
+ * tracker line (`recent`) and its success at the action's threshold are the record's (a Finishing
+ * blow's threshold moves, so its success is not read); where it is not this roll's, nothing of the
+ * kind is read. A critical with a pick (a Strike's) lands the pick: the tracker line's `changes`,
+ * read off the victim's sheet before the pass (murder.mjs `landedSince`, so the drain at the
+ * victim's turn is not in it), are the action's critical amount on the resource picked and none on
+ * the other - after the first throw and after a Reroll's replay alike (fix r2-G3: until then only
+ * the marks below were compared, which a pick landed the wrong way round on both throws passes
+ * by reading - this fix's mutant m4 swaps it, and only the check above is red). And a
+ * critical Strike's Reroll that is a critical again leaves the victim's marks as they were after
+ * the first throw (`drawnAct`), which the undo put back and the replay marked again from the row's
+ * `choice` (reroll.mjs `settleCrisis`, `again`).
+ */
+async function assertDrawn(run, state) {
+    const { rollRecord } = await import("./roll-draw.mjs");
+    const sum = die => (die?.results ?? []).filter(r => r.active !== false).reduce((n, r) => n + (Number(r.result) || 0), 0);
+    for (const d of run.drawn) {
+        const record = rollRecord(d.record?.rollId ?? null);
+        const name = `${d.actor.name}'s drawn ${d.key}`;
+        if (!record || record.messageId !== d.message?.id || record.actorId !== d.actor.id || record.crisis !== d.key) {
+            run.violate("I15", `the record of ${name} is ${record ? "another roll's" : "gone"}`);
+            continue;
+        }
+        const settled = (Array.isArray(record.resolved) ? record.resolved : []).filter(s => s === "crisis").length;
+        if (settled !== 1) run.violate("I15", `the record of ${name} is settled ${settled} time(s)`);
+        const versions = Array.isArray(record.versions) ? record.versions : [];
+        if (versions.length !== d.versions) run.violate("I15", `the record of ${name} keeps ${versions.length} version(s) under the one that stands, the case made ${d.versions} Reroll(s)`);
+        const counted = (record.scored?.modifiers ?? []).reduce((n, mod) => n + (Number(mod.value) || 0), 0);
+        const sign = Math.sign(Number(record.scored?.advantage) || 0);
+        for (const [i, v] of [record, ...versions].entries()) {
+            const [hope, fear, ...extra] = Array.isArray(v.dice) ? v.dice : [];
+            const due = sum(hope) + sum(fear) + sign * extra.reduce((n, die) => n + sum(die), 0) + counted;
+            if (v.total !== due || v.hope !== sum(hope) || v.fear !== sum(fear)) {
+                run.violate("I15", `${i ? `version ${i} under` : "the version that stands of"} ${name} totals ${v.total} (Hope ${v.hope}, Fear ${v.fear}); its dice and the list's numbers make ${due}`);
+            }
+        }
+        const last = state?.lastCrisis ?? null, line = state?.recent?.at?.(-1) ?? null;
+        if (!last || last.actorId !== d.actor.id || last.key !== d.key || !line || line.key !== d.key) continue;
+        const band = record.isCritical ? "critical" : record.withHope ? "hope" : "despair";
+        const threshold = CRISIS_ACTIONS[d.key]?.threshold;
+        const success = record.isCritical || (typeof threshold === "number" && record.total >= threshold);
+        if (line.band !== band || (d.key !== "finishingBlow" && line.success !== success)) {
+            run.violate("I15", `${name} was scored ${line.band}, ${line.success ? "a success" : "a failure"}; the version that stands is ${band}, ${success ? "a success" : "a failure"}`);
+        }
+        const critical = CRISIS_ACTIONS[d.key]?.damage;
+        if (record.isCritical && d.choice && critical?.critical?.choice) {
+            const landed = resource => (line.changes ?? []).filter(c => c.actorId === state?.victimId && c.key === resource)
+                .reduce((n, c) => n + (Number(c.landed) || 0), 0);
+            const picked = d.choice === "hp" ? "hitPoints" : "stress", other = picked === "hitPoints" ? "stress" : "hitPoints";
+            const amount = critical.criticalAmount ?? 2;
+            if (landed(picked) !== amount || landed(other) !== 0) {
+                run.violate("I15", `${name}, a critical on ${d.choice}, landed ${landed("hitPoints")} Health and ${landed("stress")} Sanity on the victim; the pick is ${amount} on ${picked}`);
+            }
+        }
+        if (d.versions && d.band === d.result && record.isCritical && d.choice && d.marks) {
+            const now = marksOf(game.actors.get(state?.victimId ?? ""));
+            if (JSON.stringify(now) !== JSON.stringify(d.marks)) {
+                run.violate("I15", `after the Reroll of ${name}, a critical on ${d.choice} again, the victim's marks are ${JSON.stringify(now)}; after the first throw ${JSON.stringify(d.marks)}`);
+            }
+        }
+    }
 }
 
 /**
@@ -1114,9 +1520,8 @@ async function watching(run, fn) {
  */
 async function peopleFor(spec) {
     const { livingStudents } = await import("./chapter.mjs");
-    const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
     const living = livingStudents();
-    const [K, V, T] = living.filter(player);
+    const [K, V, T] = living.filter(playerOf);
     const F = living.find(a => ![K, V, T].includes(a)) ?? null;
     return { K, V, ...(spec.third ? { T } : {}), ...(spec.four ? { F } : {}) };
 }
@@ -1144,7 +1549,7 @@ async function runCase(id) {
         blackened: new Set(), blackenedBefore: M.blackenedIds(), bodies: new Map(), dead: new Set(), items: new Map(), broken: new Set(),
         swung: new Map(), places: new Map(), everIn: new Set(), packets: [], messages: [], dialogs: [], ranOuts: [],
         turnFloor: 0, fresh: false, undone: false, at: 0, stepStarted: 0, stopped: false, beforeAct: null, room: null, checklist: null, brink: false,
-        closeOffers: 0,
+        closeOffers: 0, drawn: [], refusal: null, faults: [],
         /* One line per distinct violation, at the first step it was seen, and how many steps after it still saw it. */
         violate(inv, what, at = run.at) {
             const seen = found.find(f => f.inv === inv && f.what === what);
@@ -1166,12 +1571,26 @@ async function runCase(id) {
             await assertAtTheEnd(run);
         }));
     } finally {
-        if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+        // A close the queue answers with an earlier write's error (XI08 under its no-catch mutant) is the
+        // incident still standing against a closed model - I10 - and must not throw over the case's own line.
+        if (M.murderState()) {
+            try {
+                await M.endMurder({ reason: "test", followUp: false });
+            } catch (err) {
+                run.violate("I10", `the close after the case: ${err.message}`);
+            }
+        }
         if (run.clockBefore) await setClock(run.clockBefore);
         for (const { token, x, y } of run.places.values()) if (token.parent?.tokens?.has(token.id)) await token.update({ x, y }, PLACE);
         for (const item of run.items.values()) if (item.parent?.items?.has(item.id)) await item.delete();
         const { isDeadForGm } = await import("./chapter.mjs");
         for (const actor of Object.values(who)) if (actor && isDeadForGm(actor)) await reviveCharacter(actor, { quiet: true });
+        // What a draw made (its messages, the GMs' record, Daggerheart's Fear) and the row the bookmark kept, newest first.
+        const { rerollBookmarkStore } = await import("./gm-stores.mjs");
+        for (const d of [...run.drawn].reverse()) {
+            if (rerollBookmarkStore.get(d.actor.id)?.messageId === d.message?.id) await rerollBookmarkStore.drop(d.actor.id);
+            await d.putBack();
+        }
     }
     const order = inv => Number(inv.slice(1));
     found.sort((a, b) => order(a.inv) - order(b.inv) || a.at - b.at);
@@ -1207,6 +1626,9 @@ const GRID = [
     ["grid DM17 - a critical Strike on the killer's pick, its Reroll a critical that keeps it", () => runCase("DM17"), GRID_RED.DM17],
     ["grid DM18 - Use an item that heals, its Reroll a hit that uses it again", () => runCase("DM18"), GRID_RED.DM18],
     ["grid DM19 - Use an item that heals, its Reroll a miss that gives the heal and the pack back", () => runCase("DM19"), GRID_RED.DM19],
+    ["grid DM20 - a Strike drawn by the GM, its Reroll a miss that takes the hit back", () => runCase("DM20"), GRID_RED.DM20],
+    ["grid DM21 - a critical Strike drawn by the GM on the killer's pick, its Reroll a critical that keeps it", () => runCase("DM21"), GRID_RED.DM21],
+    ["grid DM22 - a critical Strike drawn by the GM on the killer's pick of Health, the statistic raised before its Reroll, a critical that keeps it", () => runCase("DM22"), GRID_RED.DM22],
     ["grid TP01 - Partners, the blow, a betrayal from the tile in Stage 6, and the second incident's blow", () => runCase("TP01"), GRID_RED.TP01],
     ["grid TP02 - Partners, the blow, the close, and a betrayal from the checklist whose opening fails", () => runCase("TP02"), GRID_RED.TP02],
     ["grid TP03 - Partners, and two killers run the victim out", () => runCase("TP03"), GRID_RED.TP03],
@@ -1221,6 +1643,7 @@ const GRID = [
     ["grid TP12 - a fourth walks in on a third", () => runCase("TP12"), GRID_RED.TP12],
     ["grid TP13 - the third asks to use an item, then chooses Partners in crime", () => runCase("TP13"), GRID_RED.TP13],
     ["grid TP14 - the accomplice dies in the fight", () => runCase("TP14"), GRID_RED.TP14],
+    ["grid TP15 - the accomplice dies in the fight by a death the GMs keep", () => runCase("TP15"), GRID_RED.TP15],
     ["grid TR01 - a trap whose victim notices it, and the GM's close", () => runCase("TR01"), GRID_RED.TR01],
     ["grid TR02 - a trap that springs, and the victim's Leave a clue", () => runCase("TR02"), GRID_RED.TR02],
     ["grid TR03 - a trap that springs, Self-defence, then Survive", () => runCase("TR03"), GRID_RED.TR03],
@@ -1239,7 +1662,9 @@ const GRID = [
     ["grid XI04 - the day ends on a standing offer", () => runCase("XI04"), GRID_RED.XI04],
     ["grid XI05 - the blow that killed cannot be rerolled; the armed offer stands", () => runCase("XI05"), GRID_RED.XI05],
     ["grid XI06 - the season reset's close in the fight", () => runCase("XI06"), GRID_RED.XI06],
-    ["grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning", () => runCase("XI07"), GRID_RED.XI07]
+    ["grid XI07 - a betrayal declared in the Eclipse after Night opens the next morning", () => runCase("XI07"), GRID_RED.XI07],
+    ["grid XI08 - a write of the incident refused once: the cast's at a Leave a clue, the world half's at a Survive and at the close", () => runCase("XI08"), GRID_RED.XI08],
+    ["grid XI09 - a pass refused: a Leave a clue's at its world half and at the put-back, and a Strike's whose Reroll then takes the hit back", () => runCase("XI09"), GRID_RED.XI09]
 ];
 
 export { GRID, CASES, INVARIANTS };

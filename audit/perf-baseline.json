@@ -38,7 +38,22 @@
       "report() whispers the text to the caller (toChat defaults to true): a ChatMessage in the world, so perf() is never run on the campaign world",
       "body classes drpg-no-pulse and drpg-no-blur are toggled for the length of each reading"
     ],
-    "knownBias": "five MutationObservers watch the body's class (selection.mjs, glass.mjs, fog.mjs, own-ring.mjs, remnant-ring.mjs), so the pulse and blur costs include their one-off reactions (U03-diag-a11y-chrome-32); E53's perf() that discards a warm-up is a different method and is recorded as one"
+    "knownBias": "five MutationObservers watch the body's class (selection.mjs, glass.mjs, fog.mjs, own-ring.mjs, remnant-ring.mjs), so the pulse and blur costs include their one-off reactions (U03-diag-a11y-chrome-32); E53's perf() that discards a warm-up is a different method and is recorded as one",
+    "revisions": [
+      {
+        "stage": "E33",
+        "version": "1.2.69",
+        "bodySha256": "c365cfc9dc3f61a68fd547cd52f5bca4db7e3dbedd5c76440f8da5ebaaaa7c3e",
+        "bodyIs": "the text from the line `export async function perfReport(` through its closing `}` and that line's newline: diagnostics.mjs:1469-1634 at E33 C13 (166 lines; 134 at v1.2.56)",
+        "change": "the lines measured before are measured by the same code, one block appended: \"Rolls the GM drew\" - two lines read off what the browser kept of the last fifty draws it took part in (roll-draw.mjs drawTimings; the owner's Q3 (a) of 05.10.2026), the drawing GM's packet in to answer out and the roller's asked to dice shown, each a count, a median, the slowest and the step on the way, or \"none since this browser loaded\"",
+        "measures": [
+          "drewCount, drewMedian, drewSlowest, drewWritten: rolls this browser drew as the GM - how many of the last fifty, the median and the slowest ms from the packet's arrival (drawOnGm) to its answer, and the median ms at which the message was written",
+          "drawnCount, drawnMedian, drawnSlowest, drawnAnswered: rolls drawn for this browser as a roller - the same from the request sent (drawAndPlay) to the dice shown, and the median ms at which the answer arrived"
+        ],
+        "headless": "a count and the marks' order are asserted headless (tier 2 \"perf() reports the round trip of a roll the GM drew\", 13-murder-signals); the milliseconds are the harness's and go nowhere",
+        "liveRun": "LIVE-E33-05 at the owner's table: the first run from this body, a player's browser and the GM's each read"
+      }
+    ]
   },
   "headless": {
     "verdict": "no line of perf() is a table number headless",
@@ -50,7 +65,8 @@
       "windowOpen": "two timer ticks",
       "glassRecut": "getBoundingClientRect is all zeros, so the recut cuts an empty screen",
       "roomOfActor, othersInRoom": "V8 in Node over the harness world (5 tokens, 6 regions); R10 guards them with a 2.0 ms ceiling, an order-of-magnitude guard, not the table's number",
-      "headless Chromium": "software compositing: perfReport's own comment has 150 ms a frame against 16.7 for the blur alone in the glass harness"
+      "headless Chromium": "software compositing: perfReport's own comment has 150 ms a frame against 16.7 for the blur alone in the glass harness",
+      "drewMedian, drawnMedian": "jsdom clients in one process on one machine, the GM's judgement included: a round trip with no network in it"
     }
   },
   "worldCopy": {
@@ -73,6 +89,31 @@
       "by": "node audit/live/perf-baseline.mjs --probe",
       "ran": [
         "perfReport body sha256 at v1.2.56 f8f5739123aee922c1e7d1804211e3e358307bfaf0e21fac8f4a0cde0e0f7830, at HEAD f8f5739123aee922c1e7d1804211e3e358307bfaf0e21fac8f4a0cde0e0f7830: identical"
+      ],
+      "couldNotRun": [
+        {
+          "needs": "Foundry VTT v14 on http://127.0.0.1:30099",
+          "probe": "connect ECONNREFUSED 127.0.0.1:30099",
+          "why": "nothing answered: no Foundry binary or licence where this ran"
+        },
+        {
+          "needs": "the world copy",
+          "probe": "DRPG_FIXTURES is not set",
+          "why": "private fixtures live outside the repository"
+        },
+        {
+          "needs": "a browser drawing on a GPU at 1366x768",
+          "probe": "Chromium 141.0.7390.37 reports WebGL renderer \"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)\"",
+          "why": "a software renderer prices the blur and the pulse at what a GPU never charges"
+        }
+      ]
+    },
+    {
+      "at": "2026-10-07T12:42:12.676Z",
+      "stage": "E33",
+      "by": "node audit/live/perf-baseline.mjs --probe --stage E33",
+      "ran": [
+        "perfReport body sha256 in this checkout c365cfc9dc3f61a68fd547cd52f5bca4db7e3dbedd5c76440f8da5ebaaaa7c3e: recorded as revision E33 (1.2.69)"
       ],
       "couldNotRun": [
         {

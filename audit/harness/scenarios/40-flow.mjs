@@ -652,7 +652,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * target's `pendingCall` flag, which every browser holds, written at the moment the room
      * watched the Monocub roll - so every console read whom it was aimed at. It is the GMs'
      * store now and the owner's copy (call-effects.mjs). The GM arms one on Aiko as
-     * `resolveMeddle` does (tier 2's "Confusion is seen by the room" drives that path, on the
+     * `cubAbilityOnGm` does (tier 2's "Confusion is seen by the room" drives that path, on the
      * GM alone): p1, her player, is sent it and reads it for her next roll; p2 holds it
      * nowhere - not on her flag, not in a copy; p2's ask naming it spent drops nothing, as p2
      * does not own her, and a copy p2 hands p1 is not taken, as p2 is no GM; and a spend on
@@ -760,6 +760,75 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             && gmRolled.held === false && (gmRolled.used ?? []).includes(rolledNonce) && gmRolled.total === p1Rolled.total
             && p1After.armed.length === 0 && !(p1After.copy ?? []).includes(ids.aiko),
         JSON.stringify({ rolledNonce, p1Rolled, gm: gmRolled, p1: p1After }), { flow: "monocub-meddle" });
+
+    // ---- 6c. the Monocub's own ask, end to end -------------------------------------------
+    /*
+     * E33 C10, 07.10.2026; audit S09-48, D39; the plan's 2.7 and 3.1. Until C10 nothing drove the
+     * Monocub's own ask: 6b above arms the Call by hand on the GM, and tier 2 judges a packet. Here
+     * p2's Botan is marked dead and made a Monocub, his token put beside Aiko's, with two actions
+     * and two Hope; p2's browser runs Confusion through the table (monocub.mjs `performCubAbility`,
+     * the `meddle` row, Help on Aiko) - it pays Botan's action and Hope, asks the GM
+     * (`monocub.ability`), and posts the card from the GM's answer. The GM's dice are scripted
+     * to 6 and 7, a 13, the +1 tier. Read on p2: the answer and the card (spoken by Botan, naming
+     * Confusion); on the GM: the Call armed on Aiko in the GMs' store (bonus, +1) and what Botan
+     * has left (one action, one Hope). Everything is put back after: the Confusion consumed by
+     * nonce, Botan alive and no Monocub, his token and his resources as they were. Red at C9's
+     * runtime: p2's page has no `performCubAbility`, so the ask answers null and the check reads
+     * it (measured 07.10.2026: calling it there threw, and the cluster's crash check took the red
+     * from this one).
+     */
+    phase("a Monocub's own ask, end to end", { flow: "monocub-meddle" });
+    const cubSet = await gm.eval(`
+        const C = await import("${REPO}/scripts/chapter.mjs"), Mc = await import("${REPO}/scripts/monocub.mjs");
+        const E = await import("${REPO}/scripts/call-effects.mjs"), { sameRoom } = await import("${REPO}/scripts/movement.mjs");
+        const botan = game.actors.get("${ids.botan}"), aiko = game.actors.get("${ids.aiko}");
+        const bt = canvas.scene.tokens.find(t => t.actorId === botan.id), at = canvas.scene.tokens.find(t => t.actorId === aiko.id);
+        const was = bt ? { x: bt.x, y: bt.y } : null;
+        const had = [botan.system.resources.actions.value, botan.system.resources.hope.value];
+        if (bt && at) await bt.update({ x: at.x, y: at.y });
+        await C.markDeceased(botan);
+        const made = Boolean(await Mc.setMonocub(botan, true));
+        await botan.update({ "system.resources.actions.value": 2, "system.resources.hope.value": 2 });
+        globalThis.__cubReal = CONFIG.Dice.randomUniform;
+        const script = [6, 7].map(face => 1 - (face - 0.5) / 12);
+        CONFIG.Dice.randomUniform = () => (script.length ? script.shift() : globalThis.__cubReal());
+        return { made, was, had, sameRoom: sameRoom(botan, aiko), nonces: E.pendingCalls(aiko).map(e => e.nonce) };`, { timeout: 60000 });
+    await settle(800);
+    const cubAsk = await p2.eval(`
+        const Mc = await import("${REPO}/scripts/monocub.mjs");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const r = typeof Mc.performCubAbility === "function"
+            ? await Mc.performCubAbility(game.actors.get("${ids.botan}"), "meddle", { targetId: "${ids.aiko}", choice: "help" }) : null;
+        for (let i = 0; i < 50 && !game.messages.contents.some(m => !had.has(m.id) && (m.rolls?.length ?? 0) > 0); i++) await new Promise(r => setTimeout(r, 100));
+        const card = game.messages.contents.find(m => !had.has(m.id) && (m.rolls?.length ?? 0) > 0) ?? null;
+        return { answer: r ? { total: r.total, isCritical: r.isCritical } : null,
+            card: card ? { speaker: card.speaker?.actor ?? null, names: String(card.content ?? "").includes("Confusion") } : null };`, { timeout: 60000 });
+    await settle(800);
+    const cubGm = await gm.eval(`
+        CONFIG.Dice.randomUniform = globalThis.__cubReal; delete globalThis.__cubReal;
+        const E = await import("${REPO}/scripts/call-effects.mjs"), S = await import("${REPO}/scripts/gm-stores.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
+        const fresh = E.pendingCalls(aiko).filter(e => e.key === "meddle" && !${JSON.stringify(cubSet.nonces)}.includes(e.nonce));
+        return { armed: fresh.map(e => [e.grants, e.amount]),
+            inStore: fresh.length > 0 && fresh.every(e => (S.confusionStore?.get(aiko.id)?.calls ?? []).some(c => c.nonce === e.nonce)),
+            paid: [botan.system.resources.actions.value, botan.system.resources.hope.value] };`);
+    check("p2: a Monocub's own ask runs through the table - the GM throws a 13, arms +1 on Aiko in the GMs' store, Botan paid an action and a Hope, and his card shows the roll",
+        cubSet.made && cubSet.sameRoom === true && cubAsk.answer?.total === 13 && cubAsk.answer?.isCritical === false
+            && cubAsk.card?.speaker === ids.botan && cubAsk.card?.names === true
+            && JSON.stringify(cubGm.armed) === '[["bonus",1]]' && cubGm.inStore === true && JSON.stringify(cubGm.paid) === "[1,1]",
+        JSON.stringify({ cubSet, cubAsk, cubGm }), { flow: "monocub-meddle" });
+    await gm.eval(`
+        const E = await import("${REPO}/scripts/call-effects.mjs"), C = await import("${REPO}/scripts/chapter.mjs"), Mc = await import("${REPO}/scripts/monocub.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), botan = game.actors.get("${ids.botan}");
+        const fresh = E.pendingCalls(aiko).filter(e => e.key === "meddle" && !${JSON.stringify(cubSet.nonces)}.includes(e.nonce)).map(e => e.nonce);
+        if (fresh.length) await E.consumeCallsByNonce(aiko, fresh);
+        await Mc.setMonocub(botan, false);
+        if (C.isDeadForGm(botan)) await C.reviveCharacter(botan, { quiet: true });
+        await botan.update({ "system.resources.actions.value": ${JSON.stringify(cubSet.had[0])}, "system.resources.hope.value": ${JSON.stringify(cubSet.had[1])} });
+        const bt = canvas.scene.tokens.find(t => t.actorId === botan.id);
+        if (bt && ${JSON.stringify(Boolean(cubSet.was))}) await bt.update(${JSON.stringify(cubSet.was ?? {})});
+        return true;`, { timeout: 60000 });
+    await settle(500);
 
     // ---- 6b+. a Call armed while the roll window is open waits for the next roll ------------
     /*
@@ -1652,6 +1721,9 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
      * none): the Support the GM armed on Aiko in 6b+, which p1's window spent as it closed, stood on p1's
      * roll (sheet-audit.mjs `callsCover`). Measured on the harness on 06.10.2026 (e29run/r2h7, one run):
      * those four, 115 patches, 35 of them items.
+     * Since E33 C1b (07.10.2026) that spend is on the road named `call` (call-effects.mjs `spendCallsByNonce`,
+     * which the window's `consumeCallsByNonce` calls), so its covered row names it: the "-" this list held
+     * read `call` on the harness on 07.10.2026 (e33run/c1b, one run), 115 patches, 35 of them items.
      */
     phase("the day's writes, as the GMs' audit saw them", { flow: "sheet-audit" });
     const auditDay = await gm.eval(`const S = await import("${REPO}/scripts/gm-stores.mjs");
@@ -1663,7 +1735,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl: REPO,
             flagged: rows.filter(r => r.verdict === "flagged").map(r => Object.keys(r.change ?? {})),
             covered: rows.filter(r => r.verdict === "covered").map(r => (r.reason ?? "-") + ":" + Object.keys(r.change ?? {}).map(k => k.replace(/^items\.[^.]+/, "items.<id>")).sort().join(",") + (r.covered ? ":" + JSON.stringify(r.covered) : "")).sort() };`);
     const MARK_PATCHES_MEASURED = 111;
-    const COVERED_MEASURED = [`-:flags.${MOD}.pendingCall`, "itemUse:system.resources.hitPoints.value", `rest:flags.${MOD}.restsTaken,system.resources.stress.value`, "searchFind:items.<id>"];
+    const COVERED_MEASURED = [`call:flags.${MOD}.pendingCall`, "itemUse:system.resources.hitPoints.value", `rest:flags.${MOD}.restsTaken,system.resources.stress.value`, "searchFind:items.<id>"];
     check("a Daily Life day: the GMs' audit puts back and flags nothing a module road wrote, lists only Calls armed and an item's readiness, has a covered row for the Rest, the item used, the find and the Call a roll's window spent, and patches its marks within a quarter of the measured count",
         auditDay.store && auditDay.putBack.length === 0 && auditDay.flagged.length === 0
             && auditDay.listed.every(entry => entry.endsWith(`:flags.${MOD}.pendingCall`) || entry.endsWith(`:items.<id>.flags.${MOD}.equipped`))

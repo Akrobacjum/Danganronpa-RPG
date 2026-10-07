@@ -1165,6 +1165,12 @@ export async function stashDieOf(bookmark) {
 }
 
 export async function settleSearch(actor, bookmark, after, done, rerolled = null) {
+    // A GM'S (E33 C1a, 06.10.2026; R220's census): a Reroll is replayed on the GM that makes it
+    // (`rerollOnGm`, then `replayAction`). Exported, this deleted on a player's console the item a
+    // handed bookmark named, from any sheet that console could write, and could draw a find in
+    // its place.
+    if (!game.user.isGM) return {};
+
     // A Search whose token was refused never searched the room, and a Search
     // that opened a stash found what the drawer held: neither is a draw from
     // the room's table, so neither is drawn again on new dice (ROLL-02).

@@ -10,7 +10,14 @@ export async function run({ gm, p1, check, phase, settle, repoUrl, IDS }) {
         await actor.update({ "system.resources.hope.value": 0, "system.resources.hope.max": 12 });
         const before = actor.system.resources.hope.value;
         globalThis.__forceRoll = { hope: 7, fear: 7 }; // tie => critical
-        const cfg = await actor.rollTrait("agility", {});
+        // Shift-clicked, as character-sheet.mjs:847 (2.10.5) hands the click on: Daggerheart itself
+        // skips the window (d20Roll.mjs:70, D20Roll's \`applyKeybindings\` overriding dhRoll.mjs:219's
+        // same rule, sets \`dialog.configure\` false on a Shift-, Alt- or Ctrl-click). Since E33 C2b
+        // the harness opens the roll window, and on it roll-dialog.mjs \`forceReaction\` makes a
+        // student's statistic a reaction, which pays no Hope - so a plain click read delta 0 here
+        // (C2b, 07.10.2026). Before C2b no window opened, and this roll was the skipped window's
+        // without saying so; this scenario reads Hope on an action.
+        const cfg = await actor.rollTrait("agility", { event: { shiftKey: true } });
         // Committed as the sheet's trait button commits it (character.mjs #rollAttribute):
         // Daggerheart's rollTrait only prepares the map. The harness's roll used to commit it
         // itself, which is why this scenario never had to (E30, lib/daggerheart.mjs).
@@ -29,13 +36,39 @@ export async function run({ gm, p1, check, phase, settle, repoUrl, IDS }) {
         await actor.update({ "system.resources.hope.value": 0, "system.resources.hope.max": 12 });
         const before = actor.system.resources.hope.value;
         globalThis.__forceRoll = { hope: 9, fear: 4 }; // hope>fear, not crit
-        const plain = await actor.rollTrait("agility", {});
+        const plain = await actor.rollTrait("agility", { event: { shiftKey: true } }); // Shift-clicked, as above
         await plain.resourceUpdates.updateResources();
         await new Promise(r => setTimeout(r, 400));
         return { delta: game.actors.getName("Chie Mori").system.resources.hope.value - before };
     `, { timeout: 60000 });
     console.log("HOPE ROLL:", JSON.stringify(ctrl));
     check("plain Hope roll pays +1", ctrl.delta === 1, `delta=${ctrl.delta}`);
+
+    /* A PLAYER'S SHIFT-CLICKED STATISTIC WITH A GM HERE (E33 fix r1-G2, 07.10.2026; review round 1's sec m2, the
+       measurement it asks for). p1 Shift-clicks Aiko's Agility - Daggerheart skips the window, as above - and the GM
+       draws it: the draw's `kind` row makes a student's statistic a reaction whatever the config said (roll-draw.mjs
+       `LEGAL_READERS`), and the GM's dice, a 9 and a 4, are forced on the GM so an action would have moved Hope. With
+       no GM the same click is roll-draw.mjs `throwUnwitnessed`'s, read by 15-held's A2. Read on p1: the drawn message
+       (the GM's), its kind, and Aiko's Hope before and after. */
+    await gm.eval(`globalThis.__forceRoll = { hope: 9, fear: 4 }; return true;`);
+    let shifted = null;
+    try {
+        shifted = await p1.eval(`const aiko = game.actors.get("${IDS.aiko}");
+            const P = await import("${repoUrl}/scripts/private-rolls.mjs");
+            const hope = aiko.system.resources.hope.value, seen = game.messages.size;
+            const cfg = await aiko.rollTrait("agility", { event: { shiftKey: true } });
+            await cfg?.resourceUpdates?.updateResources();
+            const end = Date.now() + 8000;
+            let m = null;
+            while (!(m = game.messages.contents.slice(seen).find(x => P.isDrawnRoll(x))) && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 800));
+            return { drawn: Boolean(m), author: m?.author?.id ?? null, kind: m?.rolls?.[0]?.options?.actionType ?? null,
+                hope, after: aiko.system.resources.hope.value };`, { timeout: 30000 });
+    } finally {
+        await gm.eval(`delete globalThis.__forceRoll; return true;`);
+    }
+    check("p1: a statistic Shift-clicked with a GM here is drawn by the GM as a reaction and moves no Hope on a 9 and a 4",
+        shifted?.drawn === true && shifted.author === IDS.gm && shifted.kind === "reaction" && shifted.after === shifted.hope, JSON.stringify(shifted), { flow: "gm-rolls-total" });
 
     /* A REROLLED CRITICAL PAYS WHAT A FRESH ONE DOES (E08+E28 C4b, 03.10.2026; audit S02-22). Chie's
        Hope roll, bookmarked on the GMs, rerolled on the GM into a critical, twice: with the players'

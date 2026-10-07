@@ -3,25 +3,26 @@
   "writtenBy": "audit/gate/local-gate.mjs",
   "module": {
     "id": "danganronpa-rpg",
-    "version": "1.2.68"
+    "version": "1.2.69"
   },
-  "commit": "f2d04211f5968b7381860f4ef60b1135a833dda0",
+  "commit": "8ef8490217745dd9676987e022435d4f96c1c5c0",
   "bound": {
-    "scripts": "93fd80b3b5a4c6be4a1f62b40fdb89fa5f1d1fac",
-    "styles": "3486e99895562230aa97478ad97cd0531b1b4170",
-    "lang": "c02889ffb47fed1954b6aa7477ab68bfb0130f18",
+    "scripts": "ce573e1a8d3add826d1bc00215264b82b6cb2673",
+    "styles": "04b11d08e9fedeb9e4a0e6cecbf5321a34deef50",
+    "lang": "c62e404a639901b338b404ee4ae387206030a29e",
     "fonts": "285990edcaa5a47a91f00390ecf70c59630da540",
     "icons": "61fff800a2dc045b02f681d4aa217e43110eab84",
-    "module.json": "d439a0d971b806bc134fdcfcfc612182e2a4d110",
+    "module.json": "84e0d5fee1ce443fcd2735f2b60b39b7d9bd4f3c",
     "audit/gate/local-gate.mjs": "c14592cd32b3e81fb34f96f6b4f2e718f0935be7",
     "audit/gate/gate-lib.mjs": "1990fd1ad45cf2b35898e92ef399abee1d4f9316",
-    "audit/live": "45ce138875b15d3427bbb3068444421b55d95129",
+    "audit/live": "964f9698c1ed29fbea0619e999b29db08ba184e0",
     "audit/harness/lib/seed.mjs": "fe42c733fd9e801157a1b1700a2c18e2ebfbb9c3",
     "audit/harness/scenarios/14-quiet.mjs": "33fe577903cd8a2670667fe4c83e95b0664eeb5f",
-    "audit/harness/scenarios/60-ledger.mjs": "873190ececfea53e4e784788ccc1287ed53581ad"
+    "audit/harness/scenarios/60-ledger.mjs": "873190ececfea53e4e784788ccc1287ed53581ad",
+    "audit/harness/scenarios/83-roll-integrity.mjs": "e3b9b4cbda71d1c18bbea981987480664dd885bd"
   },
-  "startedAt": "2026-10-06T21:41:56.224Z",
-  "finishedAt": "2026-10-06T21:41:56.362Z",
+  "startedAt": "2026-10-07T17:42:48.377Z",
+  "finishedAt": "2026-10-07T17:42:48.563Z",
   "host": {
     "node": "v22.22.2",
     "platform": "linux-x64",
@@ -86,15 +87,24 @@
       "reason": "no-server",
       "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
       "evidence": []
+    },
+    {
+      "id": "sandbox-83-roll-integrity",
+      "layer": "sandbox",
+      "scenario": "audit/harness/scenarios/83-roll-integrity.mjs",
+      "status": "not-run",
+      "reason": "no-server",
+      "why": "nothing answered at http://localhost:30099 (connect ECONNREFUSED 127.0.0.1:30099)",
+      "evidence": []
     }
   ],
   "counts": {
     "passed": 0,
     "failed": 0,
     "error": 0,
-    "notRun": 5
+    "notRun": 6
   },
   "verdict": "incomplete",
-  "digest": "sha256:c5d6cfcb79fe7b6523a4344f042a8d7dd04bf9bda6f7439ba5e7b54fc87c662c",
+  "digest": "sha256:3074a6ed7ce73c28dd4c027dfe59755b65ce3eb18f24890b82f3bf30226b94bf",
   "hmac": null
 }

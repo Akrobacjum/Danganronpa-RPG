@@ -40,9 +40,10 @@ If a claim cannot be measured, say that instead of rounding it up.
 | One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, contract, registry, stages, tree, gatecode |
 | The Polish file | `node tools/check.mjs prose` - must read N/N, 497/497 on 24.09 |
 | The local gate | on a machine with a Foundry v14 sandbox at :30099, `npm run gate:local` (`audit/gate/README.md`) |
+| What a player's roll may do, and what a console's forgery may not | `node cluster.mjs scenarios/83-roll-integrity.mjs` - every legal road clean, each forgery traced; in `npm test` and the local gate since E33 |
 | The curtain, without Foundry | `python3 -m http.server 8765` then `/audit/glass-harness.html` |
 | The evidence pack, without Foundry | the same server, then `/audit/pack-harness.html` |
-| What the theme costs | `game.drpg.perf()` at the table - the only place that number is real |
+| What the theme costs, and a drawn roll's round trip | `game.drpg.perf()` at the table - the only place either number is real (the round trip since E33: the last fifty draws this browser took part in) |
 | What a screen reader cannot read | `game.drpg.a11y()` |
 
 The headless harness (`audit/harness`) runs four jsdom clients - one GM and
@@ -66,7 +67,7 @@ is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
 
 ## What the suite's four numbers mean
 
-`863 passed, 0 failed, 17 skipped` (headless, 06.10.2026, 1.2.68), and a fourth,
+`937 passed, 0 failed, 17 skipped` (headless, 07.10.2026, 1.2.69), and a fourth,
 `red`, printed only when it is not zero.
 
 - **passed** counts a test that ran at least one `ok()` or `equal()`; one that
@@ -217,7 +218,14 @@ told to the asker, with a reason code from a closed list (`REASONS`,
 four are not shown to the player, because nobody is waiting on them: a trap
 report, the Level Up catch-up, a Search's look for a planted item and a plant
 handed back. Daggerheart's relay keeps its own table and log line, and tells the
-player with the code `relay`.
+player with the code `relay`. Since E33 (1.2.69) the primary GM also keeps a row
+naming the user Foundry named as the sender or the author (sheet-audit.mjs
+`recordTrace`, listed by `game.drpg.sheetWrites()`) for a relay request about a
+student it refused (`refused`), a player's message carrying a flag only a GM's
+client writes, which no browser reads as drawn (`forged`), and a roll's dice a
+player rewrote that it put back, once per message and player, as the GMs are
+told (`rewrite`). The user such a row names is Foundry's stamp on the message,
+assumed for a player's create and not yet read at a table (LIVE-E33-10).
 
 **Layer two (E28, 1.2.67; E29, 1.2.68).** The numbers - totals, dice, Hope paid,
 what a sheet holds - are checked against what the GMs hold. Since E28 a player's action roll and a
@@ -241,7 +249,11 @@ pick, an experience only with an Experience Call the GMs hold armed, the Calls'
 bonus and dice, each action's situation, Breakdown, a hindering Call armed long
 enough before the roll), and what the roller's window configured is a claim: a
 difference is recorded on the roll (`game.drpg.rollFlags()`), whispered to the GMs
-and named on a card to the roller, and never counted. The Calls that change a roll
+and named on a card to the roller, and never counted. The claim's dice are read in
+every way a term can differ - a Hope or Fear die at other faces, in another number
+or with a modifier of its own, the advantage die at faces not the list's (E33 fix
+r1-G2) - and named `dice`: a trace, not an award, since the GM throws its own
+terms. The Calls that change a roll
 are bought on the primary GM (`call.arm`, which takes the Hope there - an Experience
 or an Ultimate only with the yes a GM gave on its card, which the primary keeps), so
 a drawn roll applies only the Calls the GMs hold armed, and a Reroll throws again
@@ -272,6 +284,22 @@ on the sheet, the Party sheet and the token HUD - is a courtesy: it keeps an hon
 sheet honest and tells the player early, a console steps past it, and the
 protection is the primary GM's.
 
+Since E33 (1.2.69) both halves are measured as an opponent would. R220 is the
+census: every document write in `scripts/` is read off the source and held to one
+of three - E29's road with a reason of the closed list, a GM's own, or not a
+student's - so a road a player's browser could take without a reason fails the
+suite before it ships (C1a, C1b). Scenario 83 (`83-roll-integrity`, in `npm test`
+and the local gate) drives every legal road of a player's roll and sheet from that
+player's own page, as a console would call the module, and reads the GMs' records
+before and after: a legal road must raise nothing - no flag, no row, no whisper, no
+refusal - and each forgery from a console must leave exactly its one trace naming
+its sender (`rollFlags()`; the `sheetWrites()` rows `refused`, `forged` and
+`rewrite`), undone or never applied. A burst of one sender's refused requests or
+forged messages about one student inside half a minute is one row, which counts
+them (`times`) and keeps every path they named. The harness throws Daggerheart's own roll
+classes and runs a glue of its roll window for it (`audit/harness/README.md`,
+"Daggerheart's dice"); LIVE-E33-01 is the same scenario on a real Foundry.
+
 What stays open: a roll not drawn - one thrown with no GM connected (an action
 waits; any other roll is stamped and moves nothing until a GM grants it, on the
 dice the player's browser reports, and the GMs' card shows what it claimed beside
@@ -279,7 +307,8 @@ what the list would give), every roll on a Daggerheart build the draw was not
 written for (thrown in the player's browser, the GM told once per version), and
 Daggerheart's own item rolls, its damage rolls and the rest of its rolls; the
 Hope such a roll earns, which the GM credits against that player's roll message
-of the last minute, whose dice are that browser's; the Calls such a roll's
+of the last minute, whose dice are that browser's (a `covered` row names the
+message, fix r1-G1); the Calls such a roll's
 window spends there, where one that hinders or that a GM armed stands taken off
 only behind that player's roll message about the character, which a console can
 write first; the resources of any actor
@@ -294,7 +323,8 @@ that asks for none leaves no trace at all, and a Work's trace on an indirect
 murder takes the band its request names. And three readings still made on the roller's browser: which
 item a Search draws (granted on the roller's own sheet; the GM holds its tier to
 what the Search's record earns); a concealment roll's reading; and Listen's lines,
-since every browser holds the tokens.
+since every browser holds the tokens. Of 83's forgeries two are watched, not
+caught (F4b, F6a); the scenario's comments say what each measures.
 
 The Reroll is the GM's own transaction (E08): asked of the primary GM, paid,
 thrown, taken back and replayed there, its steps written in the GMs' journal
@@ -316,7 +346,8 @@ because Daggerheart's GM handlers do nothing there). Read its table before a
 Daggerheart upgrade, and see AUDIT §9 for what it assumes about Foundry and has
 not measured at a table.
 The headless harness runs Daggerheart's real relay, copied verbatim into
-`audit/harness/lib/dh-relay.mjs` - re-copy it from the new tag, never edit it.
+`audit/harness/lib/dh-relay.mjs`, and since E33 its dice classes into
+`audit/harness/lib/dh-dice/dice/` - re-copy both from the new tag, never edit them.
 
 ## How to add a bridge action
 
@@ -517,7 +548,8 @@ named, not numbered.
 - `R113`-`R124` are reserved by number: `R113`-`R117` and `R120` for A5 (E13),
   `R118` and `R119` for A5 but written in E12, `R121` for A4 (E22), `R122` for A1
   (E23), `R123` and `R124` for A6 (E24). A design document that calls its first
-  test "R113" means its row here. `R160` is the FLOWS test.
+  test "R113" means its row here. `R160` is the FLOWS test. `R292`-`R299` are
+  reserved for A7 (E23).
 - `R21` was two tests until 1.2.61; the second, "the chapter ends by closing the
   trial", is `R151`.
 - 70 tier-1 invariants older than 1.2.61 have no number and keep their names;
@@ -533,14 +565,16 @@ named, not numbered.
 harness can settle and that have to be tried at a real table. That list is the
 honest statement of what this module has not yet proved about itself, with two
 records beside it: the local gate's parts not run (`audit/gate/local-gate.json`)
-and the 1.2.56 performance baseline, not yet measured (`audit/perf-baseline.json`).
+and the performance baseline, not yet measured (`audit/perf-baseline.json`: the
+1.2.56 method and, since E33 C13, a revision for 1.2.69's `perf()`; the run is
+LIVE-E33-05).
 
 ## Registry: R numbers
 
 Generated by `node tools/registry.mjs --write` from the tier files; see "Numbering new tests".
 
 <!-- r-registry:start -->
-Next free: R291. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 for A5, written in E12; R121 for A4 (E22); R122 for A1 (E23); R123-R124 for A6 (E24).
+Next free: R304. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 for A5, written in E12; R121 for A4 (E22); R122 for A1 (E23); R123-R124 for A6 (E24); R292-R299 for A7 (E23).
 
 | R | Tier | Since | Test |
 | --- | --- | --- | --- |
@@ -767,6 +801,19 @@ Next free: R291. Reserved and unused: R113-R117, R120 for A5 (E13); R118-R119 fo
 | R220 | 0 | E29 | a module write names a reason of the closed list |
 | R221 | 0 | E29 | the starting sheet is written only on a GM's browser |
 | R290 | 1 | E29 | a GM's job of a student's means reads no maximum off the document but through the readers the census names |
+| R291 | 0 | E33 | every row of the GMs' roll list has a fixture in tier 2 and every fixture a row |
+| R292 | - | - | reserved: A7 (E23) |
+| R293 | - | - | reserved: A7 (E23) |
+| R294 | - | - | reserved: A7 (E23) |
+| R295 | - | - | reserved: A7 (E23) |
+| R296 | - | - | reserved: A7 (E23) |
+| R297 | - | - | reserved: A7 (E23) |
+| R298 | - | - | reserved: A7 (E23) |
+| R299 | - | - | reserved: A7 (E23) |
+| R300 | 0 | E33 | each silence has one name: isCrimeSilenced in monocub.mjs, isCallSilenced in call-effects.mjs, isSilenced only as api.mjs's alias (D39) |
+| R301 | 0 | E33 | a Monocub ability is one row: its target, locks, roll and resolver named in the tables, one bridge action that takes no result |
+| R302 | 0 | E33 | a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68) |
+| R303 | 1 | E33 | with no GM an action roll is refused before its price, a reaction is thrown stamped and moves nothing, and a draw ends at its own 30 s clock |
 
 Tier-1 tests older than 1.2.61 with no number (70, names kept):
 

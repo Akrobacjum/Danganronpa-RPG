@@ -1,6 +1,6 @@
 # Danganronpa RPG - Player Handbook
 
-*For students of the killing game. Module version 1.2.68, built on Daggerheart for Foundry VTT v14.*
+*For students of the killing game. Module version 1.2.69, built on Daggerheart for Foundry VTT v14.*
 
 This is the whole game from your chair: what the numbers on your sheet mean, what an action costs, what Hope buys, what happens when somebody dies, and what to press. Every number in here is the module's own; where a decision belongs to a human, it says "the GM decides".
 
@@ -60,9 +60,9 @@ Every action is a Daggerheart duality roll: a Hope die and a Despair die (both d
 - A roll **with Despair** feeds the Despair pool of the Monokuma who watches you. That is where Monokuma's money comes from - your bad luck and your risks.
 - A **critical** earns 2 Hope and nothing else (it does not clear Sanity here, unlike plain Daggerheart).
 
-The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose. While a GM is connected, the dice of an action roll and of a statistic you click on your sheet are thrown by the GM's browser: they fall on your screen, in your colours, as your throw, and you read the result as before. What is added to the dice is the GM's too: the GM's browser counts the statistic, the experiences, the bonuses and the advantage dice your action, your Calls and where you stand give, so the total on your card is the GM's. Anything the window put on beyond that is not counted, and a card of your own says what the GM counted and what it did not.
+The roll window is locked for players: dice, statistic, advantage, experiences and bonuses come from the action, from a Call you paid for, from where you are standing, or from the GM. What you can touch is what the action lets you choose. While a GM is connected, the dice of an action roll and of a statistic you click on your sheet are thrown by the GM's browser: they fall on your screen, in your colours, as your throw, and you read the result as before. What is added to the dice is the GM's too: the GM's browser counts the statistic, the experiences, the bonuses and the advantage dice your action, your Calls and where you stand give, so the total on your card is the GM's. Anything the window put on beyond that is not counted, and a card of your own says what the GM counted and what it did not. A die the window shows at other faces or in another number is not thrown either; the GM's is.
 
-**With no GM connected** an action waits: pressing it tells you that an action roll waits for a GM, and nothing is paid. Any other roll - a statistic from your sheet, a reaction - is still thrown, and its card says that it was thrown with no GM connected and that the GM will see it. It moves no Hope, Sanity or Despair until a GM, back at the table, grants it.
+**With no GM connected** an action waits: pressing it tells you that an action roll waits for a GM, and nothing is paid. Any other roll - a statistic from your sheet, which counts as a reaction then, or a reaction - is still thrown, and its card says that it was thrown with no GM connected and that the GM will see it. It moves no Hope, Sanity or Despair until a GM, back at the table, grants it, and a reaction - the statistic included - moves nothing even then.
 
 ---
 
@@ -770,7 +770,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 - **Messenger sounds**, and the **Sound** and **Music** volumes.
 
 > [!NOTE]
-> **Rolls are private:** every roll you make is seen by you and the GMs alone. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room.
+> **Rolls are private:** every roll you make is seen by you and the GMs alone. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room. The one roll everybody reads is the GM's **Public roll** from the GM panel (not yet checked at a table) - a vote's tie, Monokuma's lottery (since 1.2.69).
 
 ---
 

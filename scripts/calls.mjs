@@ -110,8 +110,8 @@ export async function hopeCallRefusal(actor) {
     if (isDeadForGm(actor)) return game.i18n.format("DRPG.Chapter.deadCannotAct", { name: actor.name });
 
     // Silence, bought with 4 Despair, closes this menu until this time of day ends.
-    const { isSilenced } = await import("./call-effects.mjs");
-    if (isSilenced(actor)) return game.i18n.localize("DRPG.Calls.silencedNotice");
+    const { isCallSilenced } = await import("./call-effects.mjs");
+    if (isCallSilenced(actor)) return game.i18n.localize("DRPG.Calls.silencedNotice");
     return null;
 }
 

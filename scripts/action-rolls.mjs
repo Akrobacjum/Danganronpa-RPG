@@ -203,9 +203,9 @@ export async function performAction(actor, actionKey, options = {}) {
          * refusing them there would be this gate answering a question it was not
          * asked.
          *
-         * Confusion is NOT in the list, because it is not an ACTIONS key: it is
-         * `MONOCUB.meddle`, with its own entry point and its own refusals in
-         * monocub.mjs.
+         * Confusion is NOT in the list, because it is not an ACTIONS key: it is a
+         * row of `MONOCUB.abilities`, with its own executor and its own refusals in
+         * monocub.mjs (`performCubAbility`).
          */
         const { isMonocub: cubCheck } = await import("./monocub.mjs");
         if (cubCheck(actor) && !MONOCUB.dispatchable.includes(actionKey)) {

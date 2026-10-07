@@ -5721,6 +5721,106 @@ const INVARIANTS = [
         ok(!found.length, `a GM's job of a student's means reads a maximum or the resources off the document through a reader the census does not name: ${found.join("; ")}`);
         const rotten = [...accepted.keys()].filter(where => !seen.has(where));
         ok(!rotten.length, `the census names a reader the source no longer holds: ${rotten.join("; ")}`);
+    }],
+
+    ["R303 - with no GM an action roll is refused before its price, a reaction is thrown stamped and moves nothing, and a draw ends at its own 30 s clock", async () => {
+        /*
+         * E33 fix r2-G5, 07.10.2026; the stage's verify ledger (doneWhen 2, "the E28 offline path has a test"), E33
+         * plan 1.7 item 7 and the owner's Q2/Q3 (a) of 03.10. The offline path had scenario 15-held's A1-A5 and G1-G4
+         * and two tier-2 tests, and no fast guard. Three promises, each read where the module keeps it:
+         *   1. an action's roll with no GM connected is refused at the action's start, before anything is awaited -
+         *      no window, no price (action-rolls.mjs `performAction`; only Move, Rest and Direct Murder, which throw
+         *      no dice or ask the GM themselves, pass it) - and a GM gone between the window and the draw has the
+         *      roll refused at the draw, not thrown here (roll-draw.mjs `drawOrThrow`, the second road to the same
+         *      roll);
+         *   2. any other roll thrown with no GM is stamped and moves nothing: a student's statistic is made a
+         *      reaction, Daggerheart's resource step is skipped and the stamp rides to the message
+         *      (`throwUnwitnessed`, `stampUnwitnessed`), its card says so (`onRenderUnwitnessed`), and the GMs' card
+         *      and Grant all move nothing for a reaction - no Hope, no Despair (`awayMoves`, `grantRolls`; 15's G3
+         *      throws Hope over Fear, so the Despair's reaction guard is read here and driven nowhere);
+         *   3. a draw whose GM is gone or silent ends at the draw's own clock, 30 s, as a closed window: nothing
+         *      played (`drawAndPlay`). The wait itself is driven: R165's `createWaiter` with fakes and a clock that
+         *      only records, asked as drawAndPlay asks.
+         * Parts 1 and 2 can be driven only from a player's browser with no GM, which this suite is not, so they are
+         * read in the source; every reading is a match that fails when its text is gone, never an absence that
+         * passes on an empty cut. There is no Cancel button and no queue on this path, and nothing here asks for one.
+         * Not this test: R6 (every bridge request is refused with `noGm` before it sends), R46 (Analyze asks
+         * `gmOnline()` before `payPrice()`), the tier-2 test of the draw's clock and 15's checks, which play it.
+         */
+        const sources = new Map(await otherSources());
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? ""), draw = stripComments(sources.get("roll-draw.mjs") ?? "");
+        must(rolls.length > 1000 && draw.length > 1000, "action-rolls.mjs or roll-draw.mjs did not load");
+
+        // 1. Refused at the start: the refusal is in performAction before its first await, and only the three pass it.
+        const perform = fnSource(rolls, "performAction");
+        const refusal = perform.search(/if \(!game\.user\.isGM && !activeGmIds\(\)\.length && !THROWS_NO_DICE\.has\(actionKey\)\) \{\s*ui\.notifications\.warn\(game\.i18n\.localize\("DRPG\.Rolls\.waitsForGm"\)\);\s*return null;\s*\}/);
+        const firstAwait = perform.search(/\bawait\b/);
+        const passes = (/\bconst THROWS_NO_DICE = new Set\(\[([^\]]*)\]\);/.exec(rolls)?.[1] ?? "").match(/"\w+"/g)?.map(s => s.slice(1, -1)).sort() ?? [];
+        const throwOrRefuse = fnSource(draw, "drawOrThrow");
+        const atDraw = /^\s*if \(awayFromGms\(config\)\) \{\s*if \(config\[DRPG_ACTION_ROLL\] === true\) return void ui\.notifications\?\.warn\(game\.i18n\.localize\("DRPG\.Rolls\.waitsForGm"\)\);\s*return throwUnwitnessed\(cls, original, config, message\);\s*\}/m.test(throwOrRefuse);
+        const away = /if \(game\.user\?\.isGM \|\| primaryGmId\(\)\) return false;/.test(fnSource(draw, "awayFromGms"));
+        equal(JSON.stringify([refusal > 0, firstAwait > refusal, passes, atDraw, away]),
+            JSON.stringify([true, true, ["directMurder", "move", "rest"], true, true]),
+            "with no GM an action is not refused at its start before anything is awaited, passes for more than Move, Rest and Direct Murder, or its roll is thrown at the draw (each: refusal found, before the first await, the actions that pass, refused at the draw, a player's roll with no primary GM is away)");
+
+        // 2. Stamped and moving nothing: the statistic a reaction, the resource step skipped, the stamp to the message;
+        // the card says so; the GMs' card and Grant all move nothing for a reaction.
+        const thrown = fnSource(draw, "throwUnwitnessed");
+        const before = text => { const at = thrown.indexOf(text); return at > 0 && at < thrown.indexOf("original.call(cls, config, message)"); };
+        const stamped = [
+            "if (sheet && !isMonokuma(sheet)) config.actionType = \"reaction\";",
+            "config.skips = { ...(config.skips ?? {}), resources: true };",
+            "config[UNWITNESSED] = stamp.nonce;",
+            "pendingStamps.set(stamp.nonce, stamp);"
+        ].map(before);
+        const written = /message\.updateSource\(\{ \[`flags\.\$\{MODULE_ID\}\.\$\{UNWITNESSED_FLAG\}`\]: \{ \.\.\.stamp \} \}\)/.test(fnSource(draw, "stampUnwitnessed"))
+            && /Hooks\.on\("preCreateChatMessage", stampUnwitnessed\)/.test(fnSource(draw, "registerUnwitnessedRolls"));
+        const card = /if \(message\.getFlag\?\.\(MODULE_ID, UNWITNESSED_FLAG\) && [^\n]*\) \{\s*body\.insertAdjacentHTML\([^\n]*game\.i18n\.localize\("DRPG\.Rolls\.unwitnessed"\)/.test(fnSource(draw, "onRenderUnwitnessed"));
+        const reaction = /\breaction: dice\?\.options\?\.actionType === "reaction"/.test(fnSource(draw, "awayRowOf"));
+        const tells = /\)\s*\{\s*if \(reaction\) return game\.i18n\.localize\("DRPG\.Rolls\.awayNothing"\);/.test(fnSource(draw, "awayMoves"));
+        const grant = fnSource(draw, "grantRolls");
+        const skips = grant.indexOf("if (reaction) continue;"), resources = grant.indexOf("addDualityResourceUpdates(");
+        const granted = [skips > 0 && resources > skips, /if \(!reaction && outcome\.withFear\) await awardRollDespair\(/.test(grant)];
+        equal(JSON.stringify([stamped, written, card, reaction, tells, granted]),
+            JSON.stringify([[true, true, true, true], true, true, true, true, [true, true]]),
+            "a roll thrown with no GM is not a reaction, moves resources, is not stamped, its card does not say so, or the GMs' card or Grant all move something for a reaction (each: statistic a reaction, resources skipped, stamp on the roll, stamp kept; the stamp written as the message is created; the card's line; the row's reaction; nothing told; Grant all skips its resources, its Despair)");
+
+        // 3. The draw's own clock: 30 s, asked with it, nothing played without an answer; and the wait driven.
+        const clockMs = Number((/\bconst DRAW_ANSWER_MS = ([\d_]+);/.exec(draw)?.[1] ?? "").replaceAll("_", ""));
+        const play = fnSource(draw, "drawAndPlay");
+        const closes = play.search(/if \(!answer\?\.ok \|\| typeof answer\.value\?\.messageId !== "string"\) return;/);
+        const asks = /bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS \}\)/.test(play);
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const waitFor = gms => {
+            const sent = [], said = [], timers = [];
+            const waiter = createWaiter({
+                emit: (packet, to) => sent.push({ packet, to }),
+                gmIds: () => gms,
+                me: () => ({ id: "R303ME", isGM: false, isPrimary: false }),
+                notify: (action, reason) => said.push(`${action} ${reason}`),
+                fromGm: id => id === "R303GM",
+                clock: { set: (run, ms) => timers.push({ run, ms, live: true }) - 1, clear: i => { if (timers[i]) timers[i].live = false; } },
+                report: () => null
+            });
+            // Read off `then`, never awaited: a wait whose clock is not the one fired below would hang the suite, not fail.
+            const run = { waiter, sent, said, timers, answer: null };
+            waiter.request("roll.draw", { actorId: "R303ACTOR" }, { settle: "reply", timeoutMs: clockMs }).then(answer => { run.answer = answer; });
+            return run;
+        };
+        const gone = waitFor([]);
+        await wait(0);
+        const silent = waitFor(["R303GM"]);
+        silent.waiter.onReply({ action: "bridge.ack", userId: "R303ME", requestId: silent.sent[0]?.packet.requestId }, "R303GM");
+        await wait(0);
+        const running = silent.timers.filter(t => t.live);
+        const clock = [running.map(t => t.ms), silent.answer];
+        for (const timer of running) timer.run();
+        await wait(0);
+        equal(JSON.stringify([clockMs, asks, closes > 0 && closes < play.indexOf("playBack("),
+            [gone.answer, gone.sent.length, gone.said], [clock, silent.answer, silent.sent.length, silent.said]]),
+            JSON.stringify([30000, true, true,
+                [{ ok: false, reason: "noGm" }, 0, ["roll.draw noGm"]], [[[30000], null], { ok: false, reason: "noAnswer" }, 1, ["roll.draw noAnswer"]]]),
+            "a drawn roll's wait is not the draw's own 30 s, is not asked with it, plays an unanswered draw, or a gone or silent GM does not end it once as noGm or noAnswer at that clock (each: the clock, asked with it, returns before playBack; gone: answer, sent, said; silent: the clock still running after the got-it and the answer before it fires, the answer, sent, said)");
     }]
 ];
 
@@ -5754,6 +5854,8 @@ const LITERAL_KEYS = [
     "DRPG.Murder.victimUnderAttackBy", "DRPG.Murder.victimTrapSprung",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
     "DRPG.Roll.opening.killer", "DRPG.Roll.opening.victim",
+    // monocub.mjs labels a row's choices `DRPG.Monocub.<choice>` (E33 C10): the two the table has.
+    "DRPG.Monocub.help", "DRPG.Monocub.hinder",
     // sheet-audit.mjs names a field put back by its kind (E29 C3), and bridge-guards.mjs `requestLabel` the same;
     // a flagged one too (C5: actions, Health, Sanity, the grants), an item's (C6), an armed Call (C8),
     // Daggerheart's level-up selections (E29 fix r1-G2) and its scars (fix r2-H25).

@@ -244,6 +244,37 @@ async function writeCast(next, previous = readCast(), { explicit = [], push = tr
     return entry;
 }
 
+/*
+ * A WORLD WRITE THAT THROWS PUTS THE CAST BACK (E33 C8, 07.10.2026; the stage plan's 2.6, lead
+ * L5 of its 1.3). Both writers put the cast first - `writeState` so a participant's names arrive
+ * before the stage repaints them, `restoreState` the same - so a world write that fails (a
+ * settings write refused, the socket gone under it) left the cast a step ahead of the stage.
+ * Measured on the grid's XI08 at 2f4b6fb: a Survive whose world write was refused once left
+ * `endedBy` and `freeCleanup` in the cast under stage "incident" (the case's step 5, red on
+ * I16); a close so refused leaves an empty cast under an active incident by the same reading,
+ * measured only with this put-back taken out (the commit's mutant c8-restore-no-put-back). The
+ * fields the write changed are stamped back to what they were (`changedOnly` finds exactly
+ * those, so a field the write left alone keeps its stamp), the participants are sent the cast
+ * they held before, and the error goes on to the caller.
+ *
+ * A PUT-BACK THAT FAILS ITSELF (fix r2-G3, 07.10.2026; review round 2's cor D4). Its error is
+ * logged on this GM's console and swallowed here, and the caller rethrows the world write's
+ * own: the cast is then ahead of the stage, the console holds why, and whoever asked hears
+ * the write that failed first. Until this fix the put-back's error was thrown over the first
+ * one, which reached nobody - while this comment said the console told both. Measured on the
+ * grid's XI09 (a Leave a clue's pass refused at its world half and again at this put-back):
+ * the caller heard "the grid refused the put-back's cast write once" before the fix and
+ * "the grid refused the incident's world half write once" after it.
+ */
+async function castPutBack(previous, written, publicBefore, publicNext) {
+    try {
+        await writeCast(previous, written, { push: false });
+        pushCastToParticipants(readCast(), written, publicBefore, publicNext);
+    } catch (err) {
+        error("Could not put the incident's cast back after its world write failed; the cast stays ahead of the stage until the incident is written again", err);
+    }
+}
+
 /** While this module's own write of the cast is in flight: its change event is not a merge. */
 let writingCast = 0;
 async function ownCastWrite(write) {
@@ -267,13 +298,19 @@ async function ownCastWrite(write) {
  * of the merged state), and the queue compares that with the state as it stands when
  * the write's turn comes: a mismatch writes nothing and answers null, and the caller
  * stops there - a transition that lost its race must not half-apply. The two writers
- * and the leaves they call (`writeCast`, `armBetrayalWindow`) never call a transition
- * or queue a write of their own, so the chain cannot wait on itself: R205 reads that
- * off the source.
+ * and the leaves they call (`writeCast`, `armBetrayalWindow`, and since E33 C8 `castPutBack`)
+ * never call a transition or queue a write of their own, so the chain cannot wait on
+ * itself: R205 reads that off the source.
  *
  * PER BROWSER. A second GM's button runs its own queue on its own browser; the stores'
  * stamps settle what the two GMs wrote, and nothing here orders them. Not measured -
  * the harness has one GM (LIVE-E07-10).
+ *
+ * A WRITE THAT THROWS RELEASES THE QUEUE (`run.catch`): the next write runs, and the one
+ * that threw tells its caller, which stops as it would have. Read since E32 C4 and measured
+ * on the grid's XI08 (E33 C8, 07.10.2026): a cast write refused at a Leave a clue's pass
+ * left the turn where it was, and the Survive after it was written. What a throw BETWEEN
+ * the two halves leaves is `castPutBack`'s, below `writeCast`.
  */
 let incidentWrites = Promise.resolve();
 function incidentWrite(write) {
@@ -327,7 +364,12 @@ async function restoreState(state = {}, { keep = [], keepSame = false, expect = 
         await ownCastWrite(() => castStore.resetRecord(cast, { keep: [...keep, ...same] }));
         // Who holds it before and after, by the state before and the one written next.
         pushCastToParticipants(readCast(), previous, rest, publicBefore);
-        await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+        } catch (err) {
+            await castPutBack(previous, readCast(), publicBefore, rest);
+            throw err;
+        }
         return { ...rest, ...readCast() };
     });
 }
@@ -763,7 +805,12 @@ async function writeState(patch, { explicit = [], expect = null } = {}) {
          * (26.09).
          */
         if (castNext !== castBefore || holdersMoved) pushCastToParticipants(castNext, castBefore, publicNext, publicBefore);
-        await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);
+        } catch (err) {
+            await castPutBack(castBefore, castNext, publicBefore, publicNext);
+            throw err;
+        }
 
         const next = { ...publicNext, ...castNext };
 
@@ -2611,14 +2658,24 @@ async function applyCrisisAction({
      * rather than two mechanisms for one effect. Nothing else in the crisis
      * table keeps a turn, which is why it reads as an exception.
      */
-    if (murderState()?.stage === "incident"
-        && !(isCritical && def.criticalKeepsTurn)) {
-        await passTurn();
-        // The drain at the victim's turn is the pass's; the hook leaves it to this check.
-        await checkVictimSpent(null, receipt.killed);
+    /*
+     * THE RECEIPT CLOSES WHATEVER THE PASS DOES (fix r2-G3, 07.10.2026; review round 2's cor
+     * D5). Everything the action did has landed by now, so a pass that throws - its write of the
+     * turn refused - must not take the receipt with it: a Reroll is refused without one, and the
+     * action's damage could not be taken back. Measured on the grid's XI09 before the fix: a
+     * Strike whose pass was refused left no receipt, and its Reroll as a miss was refused. The
+     * pass's error still goes on to the caller; `closeReceipt` logs its own and throws nothing.
+     */
+    try {
+        if (murderState()?.stage === "incident"
+            && !(isCritical && def.criticalKeepsTurn)) {
+            await passTurn();
+            // The drain at the victim's turn is the pass's; the hook leaves it to this check.
+            await checkVictimSpent(null, receipt.killed);
+        }
+    } finally {
+        await closeReceipt(receipt, entry);
     }
-
-    await closeReceipt(receipt, entry);
     return { success, band, done, ranOut, lethal: receipt.killed.length > 0 };
 }
 

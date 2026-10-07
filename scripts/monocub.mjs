@@ -5,7 +5,8 @@
  * dołączyć do DMów jako Monocub." A dead student's player, opted in by
  * agreement with the table, keeps the same character sheet and gets exactly
  * two things to do with it: Move, and Meddle - nudging a living player's next
- * roll from the sidelines.
+ * roll from the sidelines. Meddle is one row of `MONOCUB.abilities` (E33 C10): the
+ * table and its executor are under THE ABILITIES below.
  *
  * A Monocub is not a Monokuma. It stays a `character` actor with no special
  * flag on the token, keeps the normal action budget (refilled by the same
@@ -25,7 +26,7 @@
  * THROWN BY THE GM (E08+E28 C17, 04.10.2026; audit S10-06). The Monocub's browser
  * threw the 2d12 and sent the GM its total and its critical, which the GM scored as
  * said. A plain `Roll` is not one the GM's draw takes (roll-draw.mjs reads a duality
- * roll's build), so the GM throws this one itself where it scores it (`meddleOnGm`),
+ * roll's build), so the GM throws this one itself where it scores it (`cubAbilityOnGm`),
  * and answers the roll; the Monocub's browser posts the card from it as it posted its
  * own - its message, its readers, its dice on its screen - so the roll still reads
  * as the Monocub's. The card is posted once the GM has whispered the outcome, where it
@@ -127,7 +128,7 @@ export async function setMonocub(actor, value = true) {
 export async function setSilenced(actor, silenced) {
     if (!game.user.isGM || !actor) return null;
 
-    const was = isSilenced(actor);
+    const was = isCrimeSilenced(actor);
     if (silenced) {
         await actor.setFlag(MODULE_ID, FLAGS.silencedChapter, getClock().chapter);
     } else {
@@ -146,39 +147,158 @@ export async function setSilenced(actor, silenced) {
     return actor;
 }
 
-/** Is the silence from stumbling onto a crime still in effect? */
-export function isSilenced(actor) {
+/**
+ * The crime-witness marker: is the chapter `setSilenced` stamped on the actor this one?
+ * Information only - it refuses nothing (a witness's Confusion lands, ACT-12) and mutes
+ * nothing; whether a Monocub keeps quiet is the player's own business (the owner, 05.10.2026).
+ * Named `isCrimeSilenced` since 1.2.69 (E33 C9, D39): until then this and the Despair Call's
+ * reader in call-effects.mjs shared one bare name, and sheet.mjs renamed them at its door.
+ * The alias in api.mjs still answers this question under that old name, so a macro
+ * reads what it read.
+ */
+export function isCrimeSilenced(actor) {
     const chapter = actor?.getFlag(MODULE_ID, FLAGS.silencedChapter);
     return typeof chapter === "number" && chapter === getClock().chapter;
 }
 
 /* ==========================================================================
- * MEDDLE
+ * THE ABILITIES (E33 C10, 07.10.2026; audit S09-48, decision D39)
  * --------------------------------------------------------------------------
- * The Despair-to-Hope exchange itself lives in despair.mjs now: a Mastermind
+ * One ability lived in three files (this one, gm-bridge.mjs's one action for it,
+ * sheet.mjs `meddleButton`), so a second one would have been a fourth copy of
+ * every question: who may use it, when it is shut, whom it is aimed at, what is
+ * thrown, how it is scored. Each ability is a ROW of `MONOCUB.abilities`
+ * (config.mjs), and the rows are data: a row names its behaviour by key, and
+ * the four tables below hold the behaviour - `CUB_LOCKS` (the windows it is shut
+ * in: asked on the picker and before paying, never on the GM, CALL-16),
+ * `CUB_TARGETS` (whom it may be aimed at: asked on the picker and again on the
+ * GM), `CUB_ROLLS` (what the GM throws) and `CUB_RESOLVERS` (how the GM's own
+ * throw is scored and applied). One executor (`performCubAbility`), one picker
+ * (`cubAbilityDialog`), one bridge action (`monocub.ability`, gm-bridge.mjs) and
+ * one GM-side run (`cubAbilityOnGm`). A second ability is one row and one
+ * resolver; the fields the 1.4.0 rework adds (phases, caps, a GM-side payment)
+ * are E67's. R301 holds every row to these tables.
+ *
+ * The Despair-to-Hope exchange itself lives in despair.mjs: a Mastermind
  * needs the exact same trade (see mastermind.mjs), and duplicating a function
  * that moves real Despair out of a real pool is how the two copies quietly
  * drift apart. Import it, do not rebuild it.
  * ========================================================================== */
 
-/**
- * Living students, minus the Monocub itself, sharing its current room.
- *
- * `othersInRoom` already excludes Monokumas and hidden tokens, which is
- * exactly right here too - a Monocub Meddles with a fellow student, not with
- * the DMs walking the map as their own Monokumas.
- */
-export async function meddleTargets(actor) {
-    const { othersInRoom } = await import("./movement.mjs");
-    return othersInRoom(actor).filter(a => !isMonocub(a) && !isDeadForGm(a));
+/** The row of `MONOCUB.abilities` under `key`, or null for a key that is no ability (a packet's `key` is a claim). */
+export function abilityRow(key) {
+    return typeof key === "string" && Object.hasOwn(MONOCUB.abilities, key) ? MONOCUB.abilities[key] : null;
 }
 
 /**
- * Put the Meddle roll in chat, without Daggerheart's damage buttons.
+ * The windows an ability is shut in, by the key a row's `locks` names.
+ *
+ * The Eclipse (CALL-16, 17.09): the Monocub's tile opens the picker directly, not
+ * through `performAction`, so it missed the guard every action and Call goes
+ * through - and the actions refilled when the lights went out could be spent
+ * arming advantage and disadvantage before the time of day had started.
+ *
+ * The Class Trial (T-1, 17.09): Confusion IS the Monocub's Meddle, and Dawid's
+ * decision named it beside the Despair Calls. Everything the trial leaves open
+ * belongs to the students arguing in it.
+ *
+ * Asked on the picker and before paying, NEVER on the GM (review of CALL-16): an
+ * ability paid a moment before a window shut and refused there would lose its Hope
+ * for good, since the GM side never refunds (ACT-12). The crime-witness marker is
+ * no lock (ACT-12; the owner's option B, 05.10.2026): a witness's Confusion lands.
+ */
+export const CUB_LOCKS = Object.freeze({
+    eclipse: { shut: async () => (await import("./eclipse.mjs")).isEclipse(), say: "DRPG.Eclipse.actionsLocked" },
+    classTrial: { shut: async () => getClock().phase === "classTrial", say: "DRPG.Trial.callsLocked" }
+});
+
+/** The first of the row's locks that is shut, said; null when none is. A lock the table does not know is shut. */
+async function lockRefusal(row) {
+    for (const key of row.locks ?? []) {
+        const lock = CUB_LOCKS[key];
+        if (lock && !await lock.shut()) continue;
+        ui.notifications.warn(game.i18n.localize(lock?.say ?? "DRPG.Monocub.cannotMeddle"));
+        return key;
+    }
+    return null;
+}
+
+/**
+ * Whom an ability may be aimed at, by the key a row's `target` names. `list` builds
+ * the picker on the Monocub's browser; `refuses` answers why this target is not one,
+ * or null - asked of the picker's answer before anything is paid, and again on the GM.
+ */
+export const CUB_TARGETS = Object.freeze({
+    /**
+     * A living student in the Monocub's room. `list`: `othersInRoom` already excludes
+     * Monokumas and hidden tokens, which is exactly right here too - a Monocub Meddles
+     * with a fellow student, not with the DMs walking the map as their own Monokumas.
+     * `refuses`: `sameRoom` rather than `othersInRoom`, for the reason its own comment
+     * gives - `othersInRoom` reads the canvas and answers for the client that is
+     * looking at it, and the GM asking it is usually somewhere else.
+     */
+    roomStudent: {
+        async list(actor) {
+            const { othersInRoom } = await import("./movement.mjs");
+            return othersInRoom(actor).filter(a => !isMonocub(a) && !isDeadForGm(a));
+        },
+        async refuses(actor, target) {
+            if (!target || target.type !== "character") return "the target is not a character";
+            if (target.id === actor.id) return "you cannot Meddle with yourself";
+            if (isMonocub(target)) return "Monocubs do not Meddle with each other";
+            if (isMonokuma(target)) return "a Monokuma is not a student";
+            if (isDeadForGm(target)) return "the target is dead";
+            const { sameRoom } = await import("./movement.mjs");
+            if (!sameRoom(actor, target)) return "they are not in the same room";
+            return null;
+        }
+    }
+});
+
+/** Who the ability under `key` could be aimed at from where this Monocub stands: the picker's list. */
+export async function cubTargets(actor, key) {
+    const row = abilityRow(key);
+    return row ? CUB_TARGETS[row.target].list(actor) : [];
+}
+
+/** A flat 2d12: Daggerheart's own duality math with no trait behind it. Thrown on the GM (`cubAbilityOnGm`). */
+async function rollFlat() {
+    const roll = new Roll("2d12");
+    await roll.evaluate();
+    const [a, b] = roll.terms[0]?.results ?? [];
+    return {
+        roll,
+        total: roll.total,
+        isCritical: Boolean(a && b && a.result === b.result)
+    };
+}
+
+/** What the GM throws for an ability, by the key a row's `roll` names: `{ roll, total, isCritical }`. */
+export const CUB_ROLLS = Object.freeze({ flat2d12: rollFlat });
+
+/**
+ * Why this ability is not one this character may ask for now, or null: the row (a
+ * key is a packet's claim), the Monocub, the choice. Asked on the Monocub's browser
+ * before anything is paid, by the bridge's guard before the run
+ * (bridge-guards.mjs `guardCubAbility`), and on the GM once more (`cubAbilityOnGm`,
+ * which a GM's own browser reaches with no guard in front of it). Not asked here:
+ * the locks (`lockRefusal`, the picker's and the payment's only) and the target
+ * (`CUB_TARGETS`, asked by the run with the world as the GM holds it).
+ */
+export function cubAbilityRefusal(actor, key, choice) {
+    const row = abilityRow(key);
+    if (!row) return `no such Monocub ability: ${key}`;
+    if (!actor || !isMonocub(actor)) return "that character is not a Monocub";
+    if (!row.choices.includes(choice)) return `"${choice}" is not a choice of that ability`;
+    return null;
+}
+
+/**
+ * Put an ability's roll in chat, without Daggerheart's damage buttons.
  *
  * `Roll#toMessage` leaves `content` empty, so the message renders through the
  * system's own `foundryRoll.hbs` - and that template appends "Deal damage" and
- * "Apply healing" to EVERY plain roll it draws. Meddle is neither: it nudges
+ * "Apply healing" to EVERY plain roll it draws. Confusion is neither: it nudges
  * somebody's next roll. The buttons were live, aimed at whatever token happened
  * to be targeted, and there was nothing about the action they could correctly do.
  *
@@ -187,9 +307,8 @@ export async function meddleTargets(actor) {
  * animates the dice exactly as before, and `private-rolls.mjs` still sees a roll
  * to make private.
  */
-async function postMeddleRoll(actor, roll, total, isCritical, help) {
-    const label = `${MONOCUB.meddle.label} - ${
-        game.i18n.localize(help ? "DRPG.Monocub.help" : "DRPG.Monocub.hinder")}`;
+async function postCubRoll(actor, row, roll, total, isCritical, choice) {
+    const label = `${row.label} - ${game.i18n.localize(`DRPG.Monocub.${choice}`)}`;
 
     const tooltip = await roll.getTooltip();
 
@@ -211,42 +330,28 @@ async function postMeddleRoll(actor, roll, total, isCritical, help) {
     });
 }
 
-/** A flat 2d12: Daggerheart's own duality math with no trait behind it. Thrown on the GM (`meddleOnGm`). */
-async function rollFlat() {
-    const roll = new Roll("2d12");
-    await roll.evaluate();
-    const [a, b] = roll.terms[0]?.results ?? [];
-    return {
-        roll,
-        total: roll.total,
-        isCritical: Boolean(a && b && a.result === b.result)
-    };
-}
-
 /**
- * Meddle: help or hinder somebody in the room. Costs an action from the normal
- * budget and a point of Hope on top - both spent here, on the Monocub's own
- * actor, which the acting player already owns.
+ * THE ONE EXECUTOR: a Monocub uses the ability under `key`, aimed as the picker
+ * answered (`{ targetId, choice }`). The row's price is an action from the normal
+ * budget (`cost`) and Hope on top (`hopeCost`) - both spent here, on the Monocub's
+ * own actor, which the acting player already owns; the dice are the GM's.
  */
-export async function performMeddle(actor, targetId, help) {
-    if (!isMonocub(actor)) return null;
-    if (await meddleLocked()) return null;
+export async function performCubAbility(actor, key, { targetId, choice } = {}) {
+    const row = abilityRow(key);
+    if (!row || cubAbilityRefusal(actor, key, choice)) return null;
+    if (await lockRefusal(row)) return null;
 
-    const def = MONOCUB.meddle;
-    if (actionsLeft(actor) < def.cost) {
+    if (actionsLeft(actor) < row.cost) {
         ui.notifications.warn(plural("DRPG.Actions.notEnough", {
-            actor: actor.name, left: actionsLeft(actor), needed: def.cost
+            actor: actor.name, left: actionsLeft(actor), needed: row.cost
         }, "left"));
         return null;
     }
     const hope = resourceValue(actor, "hope");
-    if (hope < def.hopeCost) {
+    if (hope < row.hopeCost) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.needHope"));
         return null;
     }
-
-    const target = game.actors.get(targetId);
-    if (!target) return null;
 
     // Paid on this client, resolved on the GM's: with no GM there is nobody
     // to resolve it, and the price would simply be gone (DESP-05). `gmOnline`
@@ -255,7 +360,7 @@ export async function performMeddle(actor, targetId, help) {
     if (!game.user.isGM) {
         const { gmOnline, sayNotDone } = await import("./bridge-guards.mjs");
         if (!gmOnline()) {
-            sayNotDone("monocub.meddle", "noGm", { nothingSpent: true });
+            sayNotDone("monocub.ability", "noGm", { nothingSpent: true });
             return null;
         }
     }
@@ -263,66 +368,87 @@ export async function performMeddle(actor, targetId, help) {
     /*
      * ASKED BEFORE ANYTHING IS PAID (ACT-12, 17.09).
      *
-     * The GM side refuses a Meddle whose target is not a living student in the
-     * same room, and it used to find that out after this client had taken the
-     * action and the Hope - with nothing said to the Monocub and nothing given
-     * back. The GM cannot give it back either: it cannot see that anything was
-     * paid, and a refund for an unpaid request is Hope for a forged packet. So
-     * the same questions are asked here first, where saying no costs nothing.
+     * The GM side refuses an ability whose target the row's rule turns away, and
+     * it used to find that out after this client had taken the action and the Hope
+     * - with nothing said to the Monocub and nothing given back. The GM cannot give
+     * it back either: it cannot see that anything was paid, and a refund for an
+     * unpaid request is Hope for a forged packet. So the same question is asked
+     * here first, where saying no costs nothing.
      */
-    const { sameRoom } = await import("./movement.mjs");
-    if (isMonocub(target) || isMonokuma(target) || isDeadForGm(target) || !sameRoom(actor, target)) {
+    if (await CUB_TARGETS[row.target].refuses(actor, game.actors.get(targetId))) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyHere"));
         return null;
     }
 
-    if (!await spendAction(actor, def.cost)) return null;
+    if (!await spendAction(actor, row.cost)) return null;
     // A price (E29 fix r1-G7): a player's write names only a reason the GMs' audit reads off it
     // (resource-guard.mjs `stampOf`), and it reads this Hope as it reads every price paid.
-    await trustedWrite(actor, { "system.resources.hope.value": hope - def.hopeCost }, { reason: "price" });
+    if (row.hopeCost > 0) {
+        await trustedWrite(actor, { "system.resources.hope.value": hope - row.hopeCost }, { reason: "price" });
+    }
 
-    // The GM throws the dice and scores them (`meddleOnGm`); its answer is the roll, which the
+    // The GM throws the dice and scores them (`cubAbilityOnGm`); its answer is the roll, which the
     // card shows here as this Monocub's. Not answered (refused, no GM, a roll that is not one):
     // nothing to show, and the GM has said why where it refused.
-    const { requestMeddleResolve } = await import("./gm-bridge.mjs");
-    const res = await requestMeddleResolve({ actorId: actor.id, targetId, help });
+    const { requestCubAbility } = await import("./gm-bridge.mjs");
+    const res = await requestCubAbility({ actorId: actor.id, key, targetId, choice });
     const thrown = res.ok ? res.value : null;
     if (!thrown?.roll) return null;
     const roll = Roll.fromData(thrown.roll);
     const total = Number(thrown.total) || 0;
     const isCritical = thrown.isCritical === true;
-    await postMeddleRoll(actor, roll, total, isCritical, help);
+    await postCubRoll(actor, row, roll, total, isCritical, choice);
     return { roll, total, isCritical };
 }
 
 /**
- * A Meddle's dice, thrown and scored on this GM (E08+E28 C17): the flat 2d12 `rollFlat` throws,
- * applied by `scoreMeddle`, answered as the roll (its JSON), the total and the critical, for
- * the Monocub's card. GM-side.
+ * An ability's dice, thrown and scored on this GM (E08+E28 C17): the row's `roll`
+ * thrown, its `resolve` applied to the GM's own throw, answered as the roll (its
+ * JSON), the total and the critical, for the Monocub's card. GM-side. The packet's
+ * `key`, `targetId` and `choice` are claims: the row, the Monocub and the choice are
+ * asked again (`cubAbilityRefusal`), and the target of the row's rule with the world
+ * as this GM holds it (`CUB_TARGETS`) - a packet naming a target in another room, or
+ * a sender who stopped being a Monocub, is refused here whatever the picker saw.
  *
- * ASKED BEFORE THE DICE (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m6). C17 threw
- * the dice before `resolveMeddle` asked its questions, as 1.2.66's Monocub had, and answered
- * a Meddle it refused all the same - so the Monocub's browser posted a dice card to the room
- * for a Meddle that did nothing (a target gone, dead, in another room). Its questions are
- * asked first now (`meddleRefused`, which tells the Monocub), and a refusal is answered with
- * no roll, so no card is posted.
+ * ASKED BEFORE THE DICE (E08+E28 fix r2-H7, 05.10.2026; the round-2 review's m6). C17
+ * threw the dice before it asked its questions, and answered a Meddle it refused all
+ * the same - so the Monocub's browser posted a dice card to the room for a Meddle
+ * that did nothing. A refusal is answered with no roll, so no card is posted.
+ *
+ * SAID, NOT REFUNDED (ACT-12). This side cannot see that anything was paid, so a
+ * refund here is Hope minted for any packet that names a target in another room.
+ * The honest refusals are asked in `performCubAbility` before anything is paid;
+ * what reaches a refusal here is a world that moved between the two, or a forged
+ * request. The refusal is logged on the GM and whispered to the Monocub - one only
+ * the GM console heard looked, from the sheet, like an action and a Hope that
+ * vanished. No lock is asked here (CALL-16): a Meddle paid a moment before an
+ * Eclipse opened lands.
  */
-export async function meddleOnGm({ actorId, targetId, help } = {}) {
+export async function cubAbilityOnGm({ actorId, key, targetId, choice } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
+    const row = abilityRow(key);
     const target = game.actors.get(targetId);
-    if (!actor || !target || await meddleRefused(actor, target)) return null;
-    const { roll, total, isCritical } = await rollFlat();
-    await scoreMeddle(actor, target, help, total, isCritical);
+    const why = cubAbilityRefusal(actor, key, choice) ?? await CUB_TARGETS[row.target].refuses(actor, target);
+    if (why) {
+        warn(`Refused a Monocub's "${key}" by ${actor?.name ?? actorId}: ${why}.`);
+        if (isMonocub(actor)) {
+            await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
+        }
+        return null;
+    }
+    const { roll, total, isCritical } = await CUB_ROLLS[row.roll]();
+    await CUB_RESOLVERS[row.resolve](actor, target, choice, total, isCritical, row);
     return { roll: roll.toJSON(), total, isCritical };
 }
 
-/** Who to Meddle with, and Help or Hinder. The player's own picker. */
-export async function meddleDialog(actor) {
-    if (!isMonocub(actor)) return null;
-    if (await meddleLocked()) return null;
+/** Whom to aim the ability under `key` at, and which of the row's choices. The player's own picker. */
+export async function cubAbilityDialog(actor, key) {
+    const row = abilityRow(key);
+    if (!row || !isMonocub(actor)) return null;
+    if (await lockRefusal(row)) return null;
 
-    const targets = await meddleTargets(actor);
+    const targets = await CUB_TARGETS[row.target].list(actor);
     if (!targets.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyHere"));
         return null;
@@ -332,7 +458,7 @@ export async function meddleDialog(actor) {
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     const result = await DialogV2.wait({
-        window: { title: MONOCUB.meddle.label },
+        window: { title: row.label },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Monocub.meddleIntro")}</p>
@@ -340,119 +466,31 @@ export async function meddleDialog(actor) {
                 <select name="target">${options}</select></label>
         </form>`),
         buttons: [
-            {
-                action: "help", label: game.i18n.localize("DRPG.Monocub.help"), default: true,
+            // One button per choice of the row, the first the default; their labels are
+            // `DRPG.Monocub.<choice>` (R1's LITERAL_KEYS names the two the table has).
+            ...row.choices.map((choice, i) => ({
+                action: choice, label: game.i18n.localize(`DRPG.Monocub.${choice}`), default: i === 0,
                 callback: (e, b, d) => ({
-                    targetId: d.element.querySelector("[name=target]").value, help: true
+                    targetId: d.element.querySelector("[name=target]").value, choice
                 })
-            },
-            {
-                action: "hinder", label: game.i18n.localize("DRPG.Monocub.hinder"),
-                callback: (e, b, d) => ({
-                    targetId: d.element.querySelector("[name=target]").value, help: false
-                })
-            },
+            })),
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         rejectClose: false
     });
 
     if (!result || result === "cancel") return null;
-    return performMeddle(actor, result.targetId, result.help);
+    return performCubAbility(actor, key, result);
 }
 
 /**
- * The two windows in which Confusion is shut.
- *
- * The Eclipse (CALL-16, 17.09): the Monocub's tile calls `meddleDialog` directly,
- * not through `performAction`, so it missed the guard every action and Call goes
- * through - and the actions refilled when the lights went out could be spent
- * arming advantage and disadvantage before the time of day had started.
- *
- * The Class Trial (T-1, 17.09): Confusion IS the Monocub's Meddle, and Dawid's
- * decision named it beside the Despair Calls. Everything the trial leaves open
- * belongs to the students arguing in it.
+ * Score and apply a Meddle the GM threw: `choice` is "help" or "hinder", `total` and
+ * `isCritical` the GM's own dice. The row's thresholds decide the tier. GM-side: it
+ * writes to another player's sheet.
  */
-async function meddleLocked() {
-    const { isEclipse } = await import("./eclipse.mjs");
-    if (isEclipse()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
-        return true;
-    }
-    if (getClock().phase === "classTrial") {
-        ui.notifications.warn(game.i18n.localize("DRPG.Trial.callsLocked"));
-        return true;
-    }
-    return false;
-}
-
-/** Score and apply a Meddle. GM-side: it writes to another player's sheet. */
-export async function resolveMeddle({ actorId, targetId, help, total, isCritical } = {}) {
-    if (!game.user.isGM) return null;
-
-    const actor = game.actors.get(actorId);
-    const target = game.actors.get(targetId);
-    if (!actor || !target || await meddleRefused(actor, target)) return null;
-    return scoreMeddle(actor, target, help, total, isCritical);
-}
-
-/** Is this Meddle refused? Said in the GM's log and to the Monocub where it is (`resolveMeddle`'s questions). */
-async function meddleRefused(actor, target) {
-    /*
-     * Everything `meddleTargets` decides, decided again here.
-     *
-     * That function runs on the Monocub's own client and builds the picker. This
-     * one applies the result to somebody ELSE's sheet - it wastes their action,
-     * or arms a Call on it - and it used to apply whatever arrived. A payload
-     * naming a target was enough: from any room, at any character, by an actor
-     * who was not a Monocub at all or was silenced, as often as they liked, with
-     * no action spent because the cost is charged on the picker's side.
-     *
-     * `sameRoom` rather than `othersInRoom`, for the reason its own comment
-     * gives: `othersInRoom` reads the canvas and answers for the client that is
-     * looking at it, and this client is a GM who is usually somewhere else.
-     */
-    const refuse = async why => {
-        warn(`Refused a Meddle by ${actor.name}: ${why}.`);
-        // Said to the Monocub as well - a refusal only the GM console heard
-        // looked, from the sheet, like an action and a Hope that vanished.
-        //
-        // SAID, NOT REFUNDED (ACT-12). This side cannot see that anything was
-        // paid, so a refund here is Hope minted for any packet that names a
-        // target in another room. The honest refusals are asked in
-        // `performMeddle` before anything is paid; what reaches this line is a
-        // world that moved between the two, or a forged request.
-        if (isMonocub(actor)) {
-            await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
-        }
-        return true;
-    };
-
-    if (!isMonocub(actor)) return refuse("they are not a Monocub");
-    // NOT refused for being silenced (ACT-12). The Monocub silence is about
-    // discussing the crime scene they stumbled onto, and the GM's own checkbox
-    // says so: "they cannot discuss it until the chapter ends, but Confusion
-    // still works". This line used to say the opposite.
-    //
-    // And no Eclipse check here, deliberately (review of CALL-16). The picker and
-    // the payment both refuse during an Eclipse; a Meddle paid a moment before one
-    // opened and refused here would lose its Hope for good, since the GM side
-    // never refunds (ACT-12).
-    if (target.id === actor.id) return refuse("you cannot Meddle with yourself");
-    if (target.type !== "character") return refuse("the target is not a character");
-    if (isMonocub(target)) return refuse("Monocubs do not Meddle with each other");
-    if (isMonokuma(target)) return refuse("a Monokuma is not a student");
-    if (isDeadForGm(target)) return refuse("the target is dead");
-
-    const { sameRoom } = await import("./movement.mjs");
-    if (!sameRoom(actor, target)) return refuse("they are not in the same room");
-    return false;
-}
-
-/** A Meddle no question refused, scored on `total` and applied. GM-side. */
-async function scoreMeddle(actor, target, help, total, isCritical) {
-    const def = MONOCUB.meddle;
-    const hit = isCritical ? def.critical : resolveThreshold(total, def.thresholds);
+async function scoreMeddle(actor, target, choice, total, isCritical, row) {
+    const help = choice === "help";
+    const hit = isCritical ? row.critical : resolveThreshold(total, row.thresholds);
 
     if (!hit) {
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleFailed")}</p>`);
@@ -517,6 +555,13 @@ async function scoreMeddle(actor, target, help, total, isCritical) {
     return { success: true, text };
 }
 
+/**
+ * How the GM's own throw is scored and applied, by the key a row's `resolve` names:
+ * `(actor, target, choice, total, isCritical, row)`. A second ability is one row and
+ * one entry here.
+ */
+export const CUB_RESOLVERS = Object.freeze({ meddle: scoreMeddle });
+
 /** "Wastes an action" - unconditional, unlike `spendAction`, which can refuse. */
 async function wasteAction(actor) {
     const left = actionsLeft(actor);
@@ -566,7 +611,7 @@ export async function openMonocubDialog() {
     const buildRows = () => rosterOfDead().map(a => {
         const cub = isMonocub(a);
         const hope = cub ? resourceValue(a, "hope") : null;
-        const silenced = cub && isSilenced(a);
+        const silenced = cub && isCrimeSilenced(a);
         // What each pool can spend, and what it owes (E05 C12; despair.mjs `donorLabel`).
         const donors = gms.map(u =>
             `<option value="${u.id}">${foundry.utils.escapeHTML(donorLabel(u))}</option>`
@@ -660,7 +705,7 @@ export async function openMonocubDialog() {
         const actor = game.actors.get(row.id);
         if (!actor) continue;
         if (row.cub !== isMonocub(actor)) await setMonocub(actor, row.cub);
-        if (row.cub && row.silenced !== isSilenced(actor)) await setSilenced(actor, row.silenced);
+        if (row.cub && row.silenced !== isCrimeSilenced(actor)) await setSilenced(actor, row.silenced);
     }
 
     return result;

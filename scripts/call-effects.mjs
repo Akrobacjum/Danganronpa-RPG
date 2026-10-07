@@ -25,7 +25,7 @@ import { overflowBlocksHope } from "./overflow.mjs";
 // Every use below is lazy.
 import {
     announce, whisperToOwner, dialogContent, log, warn, error, plural, cardHead, isPrimaryGm,
-    esc, primaryGmId} from "./utils.mjs";
+    esc, primaryGmId, forcedDeletion } from "./utils.mjs";
 // A Confusion's armed Calls are the GMs' store and the owner's copy (E06 fix r2-G4), read
 // synchronously beside the flag - gm-stores.mjs reaches a domain module only by `import()`.
 import { confusionStore, confusionCopy, rollStore } from "./gm-stores.mjs";
@@ -392,13 +392,25 @@ export async function appendArmedCall(actor, payload, { by = game.user } = {}) {
  *
  * All of them, because all of them applied: they were bought for the next roll
  * and the next roll has happened (CALL-02).
+ *
+ * ON THE ROAD, NAMED `call` (E33 C1b, 06.10.2026; R220's census). This and
+ * `spendCallsByNonce` wrote the armed list with a bare `setFlag`/`unsetFlag`, which a
+ * roll on a player's browser still makes (roll-dialog.mjs, action-rolls.mjs `throwDice`
+ * when the GM drew nothing); the GMs' audit judges that write by the entries it takes
+ * off (sheet-audit.mjs `actorFindings`, `callsOwed`), not by its reason (read on this day), so
+ * the name changes no verdict - it says on the row what the write was. No `ref`: no judge reads
+ * one on the armed list, and the row of a Call of the GMs' that stood on a roll names
+ * that roll instead (sheet-audit.mjs `record`). One write takes the flag off where
+ * `unsetFlag` did - its deletion operator; a Foundry with none (utils.mjs
+ * `forcedDeletion`) leaves `null`, which every reader of the list reads as none
+ * (`pendingCallsRaw`).
  */
 export async function consumeCalls(actor) {
     if (shielded) return [];
     const pending = pendingCallsRaw(actor);
     const confusions = armedConfusions(actor);
     if (!pending.length && !confusions.length) return [];
-    if (pending.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+    if (pending.length) await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.pendingCall}`]: forcedDeletion() ?? null }, { reason: "call" });
     if (confusions.length) await spendConfusions(actor, confusions);
     return [...pending, ...confusions];
 }
@@ -451,8 +463,7 @@ export async function spendCallsByNonce(actor, nonces) {
     const spent = pending.filter(entry => names.has(entry.nonce));
     const kept = pending.filter(entry => !names.has(entry.nonce));
     const confusions = armedConfusions(actor).filter(entry => names.has(entry.nonce));
-    if (spent.length && kept.length) await actor.setFlag(MODULE_ID, FLAGS.pendingCall, kept.map(unsigned));
-    else if (spent.length) await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+    if (spent.length) await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.pendingCall}`]: kept.length ? kept.map(unsigned) : forcedDeletion() ?? null }, { reason: "call" });
     if (confusions.length) await spendConfusions(actor, confusions);
     return [...spent, ...confusions];
 }
@@ -730,7 +741,7 @@ export function registerConfusionCopy() {
  * already holds, by its nonce, is not added twice), and leave the flag - written back as a list
  * without them, or unset - once the row reads back from storage; then its owners are sent their
  * copy. World actors only: a Confusion is armed on `game.actors.get(targetId)`
- * (monocub.mjs `resolveMeddle`), never on a token's own data. One still on a flag throws with
+ * (monocub.mjs `cubAbilityOnGm`), never on a token's own data. One still on a flag throws with
  * the count, so the world is not stamped and the next load tries again.
  *
  * @returns {Promise<null|{notPrimary: true}|{lifted: number}>}
@@ -802,7 +813,7 @@ export function refusalBeforePaying(call, choice = {}) {
     if (call?.sealsRoom && choice.room && isSealed(choice.room)) {
         return i18n.format("DRPG.Calls.alreadySealed", { room: choice.room });
     }
-    if (call?.silences && target && isSilenced(target)) {
+    if (call?.silences && target && isCallSilenced(target)) {
         return i18n.format("DRPG.Calls.alreadySilenced", { name: target.name });
     }
     if (call?.chains && target && isChained(target)) {
@@ -1112,7 +1123,7 @@ async function sealRoomEffect(actor, call, choice, done) {
 
 // --- silence: no Hope Calls until this time of day ends ---
 async function silenceEffect(actor, call, choice, done) {
-    if (isSilenced(choice.target)) {
+    if (isCallSilenced(choice.target)) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySilenced", { name: choice.target.name }));
         throw new NothingToDo(`${choice.target.name} is already silenced`);
     }
@@ -1172,6 +1183,10 @@ async function gatherEffect(actor, call, choice, done) {
 
 // --- destroy an item ---
 async function destroyItemEffect(actor, call, choice, done) {
+    // A GM'S (E33 C1a, 06.10.2026; R220's census). Contraband is a Despair Call, bought on a GM's
+    // browser (calls.mjs `spendDespairCallFor`); `applyCall` is exported, and handed it on a
+    // player's console this deleted the item, with no Despair spent.
+    if (!game.user.isGM) throw new NothingToDo();
     const name = choice.item.name;
     await choice.item.delete();
     done.push(game.i18n.format("DRPG.Calls.destroyed", { item: name }));
@@ -1276,8 +1291,12 @@ export function restrictions() {
     }
 }
 
-/** May this character still spend Hope Calls? */
-export function isSilenced(actor) {
+/**
+ * The Despair Call "Silence": may this character still spend Hope Calls? Named
+ * `isCallSilenced` since 1.2.69 (E33 C9, D39) - the crime-witness marker on a Monocub is
+ * `isCrimeSilenced` in monocub.mjs, a different rule that until then shared this name.
+ */
+export function isCallSilenced(actor) {
     return Boolean(actor && restrictions()[actor.id]?.silenced);
 }
 

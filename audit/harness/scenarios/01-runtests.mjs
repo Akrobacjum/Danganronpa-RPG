@@ -162,14 +162,21 @@ export async function run({ gm, p1, p2, p3, check, note, settle, socketTraffic, 
        (4 cores); on 02.10.2026 fix r1-G4's tree failed the 600 s bound with nothing hung,
        and read 613 s under 900. The third: 738 s at E08+E28 C10, 836 s at C14, 884 s at
        C17 and 893 s on C18's first run (04.10.2026), and C18's second run failed the 900 s
-       bound with nothing hung, and read 910 s under 1500. The time is recorded as a note. */
+       bound with nothing hung, and read 910 s under 1500. The fourth: E33's part-1 tree
+       (ba0cade, 899 tests) ran past 1500 s twice with nothing hung (e33run/k1 and k1b,
+       07.10.2026: "eval timeout on gm" at 1847 s and 1802 s wall, the suite beside two
+       harness lanes of a fix group) and read 1702 s under a 3000 s bound patched into an
+       export (k1c), the scenario 1993 s wall; Actions ran 1.2.68's suite in 1532 s wall (CI
+       run 19 on main, 06.10.2026). So 3600, about twice k1c's reading (fix r1-G3), beside
+       run-all's 72 minutes (E33 fix r2-G4: 60 until then, which ended a hung run before
+       this bound could name the test). The time is recorded as a note. */
     const started = Date.now();
     const trafficBefore = socketTraffic.length;
     const res = await gm.eval(`
         const r = await game.drpg.runTests({ tier: 2, confirmed: game.world.id });
         return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, red: r?.red, results: r?.results ?? null,
             text: (r?.text ?? "").slice(0, 30000) };
-    `, { timeout: 1500000 });
+    `, { timeout: 3600000 });
     note("gm: the full suite's run", `${Math.round((Date.now() - started) / 1000)} s`);
 
     check("gm: suite ran", res && typeof res.passed === "number", JSON.stringify(res).slice(0, 300));

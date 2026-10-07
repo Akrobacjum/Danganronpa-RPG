@@ -159,7 +159,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
     const TITLES = await gm.eval(`const C = await import("${repoUrl}/scripts/config.mjs"); const L = k => game.i18n.localize(k);
         return [...Object.values(C.CRISIS_ACTIONS), ...Object.values(C.MURDER_OPENING), ...Object.values(C.CLEANUP.actions ?? {})].map(d => d?.label)
             .concat([L("DRPG.Cleanup.action"), L("DRPG.Cleanup.transformAction"), L("DRPG.Tamper.coverAction"), L("DRPG.Roll.crisis"),
-                L("DRPG.Roll.murderProject"), L("DRPG.Roll.concealIntent"), L("DRPG.Roll.hideTraces"), C.MONOCUB?.meddle?.label])
+                L("DRPG.Roll.murderProject"), L("DRPG.Roll.concealIntent"), L("DRPG.Roll.hideTraces"), ...Object.values(C.MONOCUB?.abilities ?? {}).map(d => d?.label)])
             .filter((t, i, all) => typeof t === "string" && t.trim() && !t.startsWith("DRPG.") && all.indexOf(t) === i);`);
     const castNames = await gm.eval(`return ${JSON.stringify([IDS.chie, IDS.botan])}.map(id => game.actors.get(id)?.name ?? "");`);
     const KILLER_CHAT = { who: ["p1", "p2"], actorIds: [IDS.chie], names: [castNames[0]], userIds: [p3.userId], titles: TITLES };

@@ -68,6 +68,97 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     check("PRIVACY: Aiko's roll is whispered past p2, so p2's chat log does not show it",
         onP2.held === true && onP2.whisper.length > 0 && !onP2.whisper.includes(p2.userId) && onP2.contentVisible === false,
         JSON.stringify(onP2));
+
+    /* A BARE ROLL ON A BROWSER WHERE CONST.DICE_ROLL_MODES THROWS (E33 C11, 07.10.2026; audit S02-68, the
+       plan's V7). Aiko's statistic above is drawn and written by the GM; this one is thrown on p1's own
+       browser (`new Roll().toMessage()`, no module road), so private-rolls.mjs's hook runs there. Until
+       1.2.69 it wrote the whisper and `flags.core.rollMode: CONST.DICE_ROLL_MODES.PRIVATE` in one write, and
+       a browser where reading the constant throws - Foundry 14 deprecates it, 16 drops it, as the audit reads
+       v14 - created the roll public. p1 puts a throwing getter in the constant's place for the one roll, puts
+       the harness's back, and counts the reads: none now, and the roll reaches the GMs and p1 alone. */
+    const bareRoll = await p1.eval(`
+        const had = Object.getOwnPropertyDescriptor(CONST, "DICE_ROLL_MODES");
+        let reads = 0;
+        Object.defineProperty(CONST, "DICE_ROLL_MODES", { configurable: true, get() { reads++; throw new Error("12-social: CONST.DICE_ROLL_MODES is gone"); } });
+        try {
+            const before = game.messages.contents.length;
+            const message = await new Roll("1d20").toMessage({ speaker: ChatMessage.getSpeaker({ actor: game.actors.get("${ids.aiko}") }) });
+            return { id: message?.id ?? null, made: game.messages.contents.length - before, reads, whisper: message?.whisper ?? null,
+                     blind: message?.blind ?? null, rollMode: message?._source?.flags?.core?.rollMode ?? null };
+        } finally {
+            if (had) Object.defineProperty(CONST, "DICE_ROLL_MODES", had); else delete CONST.DICE_ROLL_MODES;
+        }
+    `, { timeout: 30000 });
+    await settle(400);
+    const bareOnP2 = await p2.eval(`
+        const m = game.messages.get("${bareRoll.id}");
+        return m ? { held: true, whisper: m.whisper, contentVisible: m.isContentVisible } : { held: false };
+    `);
+    check("PRIVACY: a bare roll Aiko throws on a browser where CONST.DICE_ROLL_MODES throws still reaches the GMs and her alone, never reads the constant, and p2 cannot read it (S02-68)",
+        bareRoll.made === 1 && bareRoll.reads === 0 && Array.isArray(bareRoll.whisper) && bareRoll.whisper.includes(gm.userId) && bareRoll.whisper.includes(p1.userId)
+            && !bareRoll.whisper.includes(p2.userId) && bareRoll.blind === false && bareRoll.rollMode === null && bareOnP2.held === true && bareOnP2.contentVisible === false,
+        JSON.stringify({ bareRoll, bareOnP2 }), { flow: "private-rolls" });
+    // The bare roll is this check's alone: deleted so that no later count of the log holds it.
+    await gm.eval(`await game.messages.get("${bareRoll.id}")?.delete(); return true;`);
+
+    /* THE GM'S PUBLIC ROLL (E33 C12, 07.10.2026; audit S02-72; the owner's Q2 (a)). With rolls forced private a
+       GM had no public roll at all - a bare `/r` on the GM went to the GMs. `game.drpg.publicRoll` posts the roll
+       on the GM's browser with the module's flag `publicRoll`, and private-rolls.mjs leaves a GM's flagged message
+       as it arrived. Read on three browsers: the GM's message (no whisper, not blind, the flag, a total), p1 and
+       p2 each holding it readable with the same total; then p1's own call, refused (null, nothing made). After
+       that p1's bare roll carrying the flag by hand: whispered past p2 as any player's roll, no public roll on the
+       GM, and named `forged` there once (a row of the sheet audit, one line to the GMs). */
+    const pub = await gm.eval(`
+        if (typeof game.drpg.publicRoll !== "function") return { absent: true };
+        const before = game.messages.contents.length;
+        const m = await game.drpg.publicRoll("1d6", { flavor: "12-social C12" });
+        return { id: m?.id ?? null, made: game.messages.contents.length - before, whisper: m?.whisper ?? null, blind: m?.blind ?? null,
+                 flag: m?.getFlag("${MOD}", "publicRoll") ?? null, author: m?.author?.id ?? null, total: m?.rolls?.[0]?.total ?? null };
+    `, { timeout: 30000 });
+    await settle(400);
+    const readPub = `const m = game.messages.get("${pub.id}"); return m ? { held: true, contentVisible: m.isContentVisible, total: m.rolls?.[0]?.total ?? null } : { held: false };`;
+    const pubOnP1 = await p1.eval(readPub), pubOnP2 = await p2.eval(readPub);
+    const p1Call = await p1.eval(`
+        if (typeof game.drpg.publicRoll !== "function") return { absent: true };
+        const before = game.messages.contents.length;
+        const r = await game.drpg.publicRoll("1d6");
+        return { result: r === null ? null : (r?.id ?? "?"), made: game.messages.contents.length - before };
+    `, { timeout: 30000 });
+    check("a GM's public roll (game.drpg.publicRoll) is read by p1 and p2 with forcePrivateRolls on, and p1's own call makes nothing (S02-72)",
+        pub.made === 1 && Array.isArray(pub.whisper) && pub.whisper.length === 0 && pub.blind === false && pub.flag === true && pub.author === gm.userId
+            && Number.isInteger(pub.total) && pub.total >= 1 && pub.total <= 6
+            && pubOnP1.held === true && pubOnP1.contentVisible === true && pubOnP1.total === pub.total
+            && pubOnP2.held === true && pubOnP2.contentVisible === true && pubOnP2.total === pub.total
+            && p1Call.result === null && p1Call.made === 0,
+        JSON.stringify({ pub, pubOnP1, pubOnP2, p1Call }), { flow: "private-rolls" });
+    const forgedPub = await p1.eval(`
+        const before = game.messages.contents.length;
+        const message = await new Roll("1d6").toMessage({ speaker: ChatMessage.getSpeaker({ actor: game.actors.get("${ids.aiko}") }), flags: { "${MOD}": { publicRoll: true } } });
+        return { id: message?.id ?? null, made: game.messages.contents.length - before, whisper: message?.whisper ?? null, blind: message?.blind ?? null };
+    `, { timeout: 30000 });
+    await settle(400);
+    const forgedOnP2 = await p2.eval(`const m = game.messages.get("${forgedPub.id}"); return m ? { held: true, whisper: m.whisper, contentVisible: m.isContentVisible } : { held: false };`);
+    const forgedOnGm = await gm.eval(`
+        const { sheetWriteStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+        const { isPublicRoll, forgedFlagsOf } = await import("${repoUrl}/scripts/private-rolls.mjs");
+        const until = async (test, ms = 4000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };
+        const told = () => game.messages.contents.filter(m => cardFlag(m, "forgedCard") === "${forgedPub.id}").length;
+        await until(() => told() >= 1);
+        const m = game.messages.get("${forgedPub.id}");
+        const rows = Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && (row.messageId === "${forgedPub.id}" || (row.messages ?? []).includes("${forgedPub.id}")));
+        return { held: Boolean(m), isPublic: m && typeof isPublicRoll === "function" ? isPublicRoll(m) : "absent", forged: m ? forgedFlagsOf(m) : null, rows: rows.length, told: told() };
+    `, { timeout: 30000 });
+    check("PRIVACY: a roll p1 throws with the publicRoll flag by hand is whispered past p2 as any player's, is no public roll, and the GM names it forged once (S02-72)",
+        forgedPub.made === 1 && Array.isArray(forgedPub.whisper) && forgedPub.whisper.includes(gm.userId) && forgedPub.whisper.includes(p1.userId) && !forgedPub.whisper.includes(p2.userId)
+            && forgedPub.blind === false && forgedOnP2.held === true && forgedOnP2.contentVisible === false
+            && forgedOnGm.held === true && forgedOnGm.isPublic === false && JSON.stringify(forgedOnGm.forged) === JSON.stringify([`flags.${MOD}.publicRoll`])
+            && forgedOnGm.rows === 1 && forgedOnGm.told === 1,
+        JSON.stringify({ forgedPub, forgedOnP2, forgedOnGm }), { flow: "private-rolls" });
+    // Both rolls are this block's alone: deleted, with the GMs' line naming the second, so that no later count of the log holds them.
+    await gm.eval(`const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+        for (const id of ["${pub.id}", "${forgedPub.id}"]) await game.messages.get(id)?.delete();
+        for (const m of game.messages.contents.filter(m => cardFlag(m, "forgedCard") === "${forgedPub.id}")) await m.delete(); return true;`);
     console.log("[qa] what p2's console can still read of Aiko's private roll (documented, README 'Privacy'):", JSON.stringify(onP2.readable));
     const onP1 = await p1.eval(`const m = game.messages.get("${rollRes.id}");
         return m ? { contentVisible: m.isContentVisible, author: m.author?.id ?? null, drawn: m.getFlag("${MOD}", "drawn") === true,

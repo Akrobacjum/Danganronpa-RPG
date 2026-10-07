@@ -2366,7 +2366,7 @@ const REGRESSIONS = [
 
         // The step travels: the roll context, both sides of the bridge, the replay.
         const bridge = stripComments(new Map(await otherSources()).get("gm-bridge.mjs") ?? "");
-        const socket = bodyOf(bridge, "async function handleCleanup(", { until: "async function handleMeddle(" });
+        const socket = bodyOf(bridge, "async function handleCleanup(", { until: "async function handleCubAbility(" });
         ok((socket.match(/price: payload\.price/g) ?? []).length >= 2,
             "the socket branch drops the price claim for one of the two resolvers, "
             + "so every remote Tamper on that road pays twice");
@@ -5486,6 +5486,8 @@ const REGRESSIONS = [
             // E29 fix r2-H21: an item no GM has decided on, asked by the copy roads, whose runs pass their `{ refused }` on.
             creationRefusal: "returns", giveItem: "refused", lootBody: "refused", plantOnPerson: "refused",
             stealFromPerson: "refused", stealFromVault: "refused",
+            // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).
+            cubAbilityRefusal: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -6218,10 +6220,13 @@ const REGRESSIONS = [
          * as a stray, and it writes `sent` alone. Fix r2-G4 (03.10.2026) adds the second memo of the
          * GMs', the opening's request cards (`openingNotices`), whose one writer
          * (`rememberOpeningNotices`) runs outside the queue for the same reason and writes that alone.
+         * E33 C8 (07.10.2026): a third leaf, `castPutBack` - the cast stamped back when the world
+         * half's write threw. It calls `writeCast` from its own body and is itself read as a write,
+         * so a call of it outside the two queued spans is a stray as a `writeCast(` would be.
          */
-        const LEAVES = ["writeCast", "armBetrayalWindow"];
+        const LEAVES = ["writeCast", "armBetrayalWindow", "castPutBack"];
         const MEMO = "rememberSent", NOTICES = "rememberOpeningNotices";
-        const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow)\(/g;
+        const WRITE = /\bcastStore\.(?:patch|resetRecord|set|drop\w*|clear|replace\w*)\(|\.set\(\s*[\w.]+\s*,\s*SETTINGS\.murderState\b|(?<!function )\b(?:writeCast|armBetrayalWindow|castPutBack)\(/g;
         const QUEUES = /(?<!function )\b(?:writeState|restoreState|incidentWrite)\(/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
         const read = (file, text) => {
@@ -6501,9 +6506,10 @@ const REGRESSIONS = [
          * action and Stage 6 name their roll; their actions are the incident's tables of config.mjs,
          * not ACTIONS (`TABLES`: the record's `actionKey` names the table, as the roll is thrown for
          * it). A crisis packet that names no roll threw none, so its `when` is the roll's own field,
-         * and its guards refuse the rest (bridge-guards.mjs `guardCrisisRoll`). A Meddle takes no
-         * result from its packet at all: the GM throws its dice (monocub.mjs `meddleOnGm`), which the
-         * reader finds as a declaration that takes nothing it has to name a roll for.
+         * and its guards refuse the rest (bridge-guards.mjs `guardCrisisRoll`). A Monocub's ability
+         * (`monocub.ability` since E33 C10, `monocub.meddle` before) takes no result from its packet
+         * at all: the GM throws the row's dice (monocub.mjs `cubAbilityOnGm`), which the reader finds
+         * as a declaration that takes nothing it has to name a roll for.
          */
         const RESULT = ["total", "isCritical", "withHope", "unseenTotal", "unseenCritical"];
         const DERIVED = { "project.progress": ["amount"], "project.sabotage": ["difficulty"], "remnant.place": ["data"],
@@ -6578,14 +6584,115 @@ const REGRESSIONS = [
         must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
         const rolled = Object.entries(all).filter(([, decl]) => decl.rolled).map(([action]) => action).sort();
         log(`R218: ${rolled.length} declaration(s) read their roll's result from the GMs' record (${rolled.join(", ")}); `
-            + `${WAITING.length} wait for a later commit; monocub.meddle takes ${JSON.stringify(takes("monocub.meddle", all["monocub.meddle"] ?? {}))} from its packet`);
+            + `${WAITING.length} wait for a later commit; monocub.ability takes ${JSON.stringify(takes("monocub.ability", all["monocub.ability"] ?? {}))} from its packet`);
         equal(JSON.stringify(["action.plant", "action.steal", "analyze.resolve", "murder.cleanup", "murder.crisis", "murder.openingResult", "observe.resolve",
             "project.progress", "project.sabotage", "remnant.place", "vault.findStash", "vault.steal"].filter(action => !rolled.includes(action))), "[]",
             "Observe, Analyze, the search for a hidden stash, a Palm, a project's progress or Sabotage, a theft from a stash, a trace, an opening, a crisis action or Stage 6 names no roll its result is read from");
-        equal(JSON.stringify([Boolean(all["monocub.meddle"]?.sanitize), takes("monocub.meddle", all["monocub.meddle"] ?? {})]), JSON.stringify([true, []]),
-            "monocub.meddle is no declaration of the bridge's, or a Meddle's packet carries a result the GM would read");
+        equal(JSON.stringify([Boolean(all["monocub.ability"]?.sanitize), takes("monocub.ability", all["monocub.ability"] ?? {})]), JSON.stringify([true, []]),
+            "monocub.ability is no declaration of the bridge's, or a Monocub ability's packet carries a result the GM would read");
         const problems = problemsOf(all, WAITING);
         ok(!problems.length, `the bridge's results: ${problems.join("; ")}`);
+    }],
+
+    ["R301 - a Monocub ability is one row: its target, locks, roll and resolver named in the tables, one bridge action that takes no result", async () => {
+        /*
+         * E33 C10, 07.10.2026; audit S09-48, decision D39; the plan's 3.1 and 2.7. One ability lived
+         * in three files, and the stage's table (`MONOCUB.abilities`, config.mjs) is only a table if
+         * every row is data that names its behaviour: `resolve` an entry of monocub.mjs's
+         * `CUB_RESOLVERS`, `roll` of `CUB_ROLLS`, `target` of `CUB_TARGETS`, each of `locks` of
+         * `CUB_LOCKS`, `choices` a list of words, `cost` and `hopeCost` whole numbers, a label and an
+         * icon. A row naming what no table holds would be an ability the executor throws on, and a
+         * lock no table knows is shut (`lockRefusal`). The bridge holds exactly one `monocub.*`
+         * declaration, `monocub.ability`, whose packet carries a `key` as text and no total, critical,
+         * roll or roll id - the GM throws the row's dice (R218 reads the same of every declaration).
+         * And read off the source: the executor (`performCubAbility`) and the GM-side run
+         * (`cubAbilityOnGm`) name no row (a second ability is one row and one resolver, not a branch),
+         * the executor asks the locks before paying, and the run asks none (CALL-16: a Meddle paid a
+         * moment before an Eclipse opened lands; the GM side never refunds, ACT-12). The plan's
+         * mutants each turn this or a 2.7 test red: a lock missing from the row (the Class Trial's
+         * picker test), a lock on the crime-witness marker (the witness test), a lock asked on the
+         * GM (here and the Eclipse test), a result taken from the packet (here and R218).
+         */
+        const { MONOCUB } = await import("./config.mjs");
+        const M = await import("./monocub.mjs");
+        const rows = Object.entries(MONOCUB.abilities ?? {});
+        // An assertion, not a precondition: a table with no row is the harm (red first at C9's runtime: no table at all).
+        ok(rows.length >= 1, "MONOCUB.abilities holds no row - the Monocub's table is not built (E33 C10)");
+        const has = (table, key) => Boolean(table) && typeof key === "string" && Object.hasOwn(table, key);
+        const problems = [];
+        for (const [key, row] of rows) {
+            if (!has(M.CUB_RESOLVERS, row.resolve)) problems.push(`${key}: resolve ${JSON.stringify(row.resolve)} names no CUB_RESOLVERS entry`);
+            if (!has(M.CUB_ROLLS, row.roll)) problems.push(`${key}: roll ${JSON.stringify(row.roll)} names no CUB_ROLLS entry`);
+            if (!has(M.CUB_TARGETS, row.target)) problems.push(`${key}: target ${JSON.stringify(row.target)} names no CUB_TARGETS entry`);
+            if (!Array.isArray(row.locks)) problems.push(`${key}: locks is not a list`);
+            for (const lock of row.locks ?? []) if (!has(M.CUB_LOCKS, lock)) problems.push(`${key}: lock ${JSON.stringify(lock)} names no CUB_LOCKS entry`);
+            if (!Array.isArray(row.choices) || !row.choices.length || !row.choices.every(c => typeof c === "string" && /^[a-z]+$/.test(c))) {
+                problems.push(`${key}: choices is not a list of words`);
+            }
+            if (!(Number.isInteger(row.cost) && row.cost >= 0 && Number.isInteger(row.hopeCost) && row.hopeCost >= 0)) problems.push(`${key}: cost or hopeCost is not a whole number`);
+            if (typeof row.label !== "string" || !row.label || typeof row.icon !== "string" || !row.icon) problems.push(`${key}: no label or no icon`);
+        }
+        log(`R301: ${rows.length} row(s) of MONOCUB.abilities (${rows.map(([key]) => key).join(", ")}); tables: ${Object.keys(M.CUB_RESOLVERS).length} resolver(s), `
+            + `${Object.keys(M.CUB_ROLLS).length} roll(s), ${Object.keys(M.CUB_TARGETS).length} target rule(s), ${Object.keys(M.CUB_LOCKS).length} lock(s)`);
+        equal(JSON.stringify(problems), "[]", `the Monocub's table: ${problems.join("; ")}`);
+
+        const all = Object.assign({}, ...(await bridgeTables()).map(t => t.table));
+        must(Object.keys(all).length > 30, `the bridge's tables hold ${Object.keys(all).length} declarations - this would measure nothing`);
+        equal(JSON.stringify(Object.keys(all).filter(action => action.startsWith("monocub.")).sort()), JSON.stringify(["monocub.ability"]),
+            "the bridge's monocub.* declarations are not exactly monocub.ability (monocub.meddle retired by E33 C10)");
+        const fields = all["monocub.ability"]?.sanitize?.fields ?? {};
+        equal(JSON.stringify([fields.key ?? null, fields.choice ?? null, Object.keys(fields).filter(f => ["total", "isCritical", "withHope", "roll", "rollId"].includes(f))]),
+            JSON.stringify(["text", "text", []]),
+            "monocub.ability does not take key and choice as text, or its packet carries a result or a roll the GM would read");
+
+        const src = stripComments(new Map(await otherSources()).get("monocub.mjs") ?? "");
+        const executor = bodyOf(src, "export async function performCubAbility(", { until: "export async function cubAbilityOnGm(" });
+        const run = bodyOf(src, "export async function cubAbilityOnGm(", { until: "export async function cubAbilityDialog(" });
+        ok(!/abilities\.meddle|CUB_\w+\.meddle|"meddle"/.test(`${executor}\n${run}`),
+            "the executor or the GM-side run names the Meddle row - rows are data and behaviour is named, or a second ability is a branch");
+        ok(/\blockRefusal\(/.test(executor) && executor.indexOf("lockRefusal(") < executor.indexOf("spendAction("),
+            "the executor does not ask the row's locks before anything is paid");
+        ok(!/\blockRefusal\(|CUB_LOCKS/.test(run), "the GM-side run asks a lock - CALL-16: a Meddle paid a moment before an Eclipse opened would lose its Hope for good");
+        ok(/CUB_TARGETS\[row\.target\]\.refuses\(/.test(run) && /CUB_RESOLVERS\[row\.resolve\]\(/.test(run) && /CUB_ROLLS\[row\.roll\]\(/.test(run),
+            "the GM-side run does not ask the row's target rule again, throw the row's roll and score with the row's resolver");
+    }],
+
+    ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
+        /*
+         * E33 C11 (audit S02-68; the plan's V7). Until 1.2.69 private-rolls.mjs wrote a roll's
+         * whisper list and `flags.core.rollMode: CONST.DICE_ROLL_MODES.PRIVATE` in one
+         * `updateSource` under one try, and migrate.mjs's rewrite of old rolls the same: a
+         * browser on which the constant throws - Foundry 14 deprecates it and 16 drops it, as
+         * the audit reads v14 - created the roll public, and nothing ever read the flag back.
+         * The rule now: `writeWhisper` writes the list and nothing of a mode, in its own try;
+         * `writeMode` writes what `privateModeFields` reads and no list, in its own; each road
+         * of `whisperRoll` calls the first and only then the second, and writes the document
+         * through neither of its own. Read off the source: every road comes out the same
+         * wherever the mode can be written, which is every Foundry the suite has run on.
+         * Since E33 fix r2-G2 (07.10.2026; review round 2's sec m3) the player road writes the
+         * mode only where its list is the GMs and the author (`modeNamesThem`): the pair reads
+         * `writeWhisper(...) && <one name>`, the list still first.
+         */
+        const files = (await otherSources()).filter(([file]) => file.endsWith(".mjs")).map(([file, raw]) => [file, stripComments(raw)]);
+        ok(files.length > 50, `only ${files.length} module file(s) were read - the crawl is not reaching the module`);
+        const uses = [];
+        for (const [file, text] of files) {
+            for (const m of text.matchAll(/\bDICE_ROLL_MODES\b|\bcore\.rollMode\b/g)) uses.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
+        }
+        equal(JSON.stringify(uses), "[]", "CONST.DICE_ROLL_MODES or core.rollMode is read or written in the module - v14 deprecates the one and nothing reads the other");
+        const src = files.find(([file]) => file === "private-rolls.mjs")?.[1] ?? "";
+        const list = fnSource(src, "writeWhisper"), mode = fnSource(src, "writeMode"), roads = fnSource(src, "whisperRoll");
+        const ownTry = text => /\btry\s*\{/.test(text) && /\}\s*catch\b/.test(text);
+        const listWrites = list.match(/updateSource\(\{\s*whisper\b[^}]*\}\)/g) ?? [];
+        equal(JSON.stringify([listWrites.length, ownTry(list), /privateModeFields|applyMode|messageMode|flags\./.test(list)]), JSON.stringify([1, true, false]),
+            "writeWhisper does not write the list once, in its own try, with nothing of a mode (list writes; own try; names a mode)");
+        equal(JSON.stringify([ownTry(mode), /\bprivateModeFields\(\)/.test(mode), /\bwhisper\b/.test(mode)]), JSON.stringify([true, true, false]),
+            "writeMode does not read privateModeFields in its own try, or it touches the whisper list (own try; reads the fields; names the list)");
+        const paired = roads.match(/if \(writeWhisper\([^\n]*?\)(?: && \w+)?\) writeMode\(message, options\);/g) ?? [];
+        equal(JSON.stringify([paired.length, (roads.match(/\bwriteMode\(/g) ?? []).length, (roads.match(/\bwriteWhisper\(/g) ?? []).length, /updateSource\(/.test(roads)]),
+            JSON.stringify([2, 2, 2, false]),
+            "whisperRoll's two roads (a roll the module threw; any other) do not each write the list and only then the mode, or one writes the document itself (paired; mode calls; list calls; a direct write)");
+        log(`R302: ${files.length} module files hold no DICE_ROLL_MODES or core.rollMode; whisperRoll pairs the list before the mode on ${paired.length} roads`);
     }],
 
     ["R220 - a module write names a reason of the closed list", async () => {
@@ -6607,14 +6714,15 @@ const REGRESSIONS = [
          * name are not seen. The reader is run first on a fixture with nine planted faults. Red before C1:
          * 37 `automatedUpdate` calls in 17 files, 37 more in tier 2, eight bare writes of a
          * protected item flag (wear, broken, the creation, a stash and a retrieve, a Reroll's two
-         * give-backs, the bullets' migration). E33 extends it.
+         * give-backs, the bullets' migration). E33 C1a extends it with the census below: every
+         * other document write, judged.
          */
         const guard = await import("./resource-guard.mjs");
         ok(Array.isArray(guard.WRITE_REASONS), "resource-guard.mjs has no list of a write's reasons");
         const listed = new Set(guard.WRITE_REASONS ?? []);
         equal(JSON.stringify([...listed]), JSON.stringify(["spend", "refund", "price", "call", "rest", "itemUse", "itemWear", "stash",
             "retrieve", "discard", "searchFind", "concealment", "meddle", "setup", "levelUp", "incident", "reroll", "gmRuling",
-            "auditPutBack", "auditUndo"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
+            "auditPutBack", "auditUndo", "equip", "ultimate", "sheetText"]), "the closed list of reasons moved - a reason is the plan's 2.2, and this list with it");
         const FORWARDERS = [["inventory.mjs", "grantItem", true], ["inventory.mjs", "breakItem", true], ["inventory.mjs", "wearItem", true],
             ["use-items.mjs", "restore", false], ["use-items.mjs", "consume", false],
             // E29 C4: the Burst and Sprint grants go through the road, their reason the caller's (a Call, or a refund).
@@ -6686,6 +6794,276 @@ const REGRESSIONS = [
         must(read.roads + read.calls > 30, `the reader found ${read.roads} road(s) and ${read.calls} call(s) of a forwarder - it would measure nothing`);
         log(`R220: ${read.roads} road(s), ${read.calls} call(s) of a forwarder and ${read.writes} other write(s) read; ${problems.length} problem(s)`);
         ok(!problems.length, `${problems.length} module write(s) without a reason of the list: ${problems.slice(0, 12).join("; ")}`);
+
+        /*
+         * THE CENSUS (E33 C1a, 06.10.2026; audit S17-12's test, its first half; E33's plan 2.1). The
+         * roads are E29's half: a write that takes one names its reason. This half reads every OTHER
+         * document write in the same files - `update`, `setFlag`, `unsetFlag`, the embedded trio,
+         * `toggleStatusEffect`, a document's `delete()` (a Map's or a Set's `delete(key)` is counted
+         * aside), a document class's `create(` (any other `create(` aside) and the static
+         * `*Documents` - and each one passes for exactly one reason, judged by the top-level
+         * declaration it stands in:
+         *   (b) A GATE before it in that declaration, in a block that holds it: `if (!game.user.isGM)`,
+         *       `if (!game.user?.isGM)` or `if (!isPrimaryGm())`, alone or OR-ed with more, then a
+         *       `return` or a `throw` (or a block that ends in one); or the write inside
+         *       `if (game.user.isGM [&& ...]) { ... }`. One after the write is no gate.
+         *   (c) NOT A STUDENT'S: a NOT_A_STUDENT row [file, declaration, receiver, what] - the
+         *       receiver as the call reads it, with the arguments of its calls dropped; `what` is
+         *       what reading the code found it to be.
+         *   (d) A GM ROAD: a GM_ROADS row [file, declaration, caller] for a declaration with no gate
+         *       that only gated code reaches. Every place the module names it outside its own
+         *       declaration (a call, a value handed on; not an import) must stand in a caller its
+         *       rows list, and each such caller has the gate before it or is a GM road itself, down
+         *       to a gate; api.mjs names none of them. A table (a `const`) is reached through its entries, which this reader cannot
+         *       follow: its row holds its runner's gate, and it is not exported (migrate.mjs's
+         *       CLAUSES - `migrationStatus` reads their keys and runs none).
+         * A row that judges nothing the earlier reasons have not is stale and red, so a site holds
+         * one reason. Why rows and not a call graph: GM-side code is reached through the bridge's
+         * `run` table and dynamic imports, which a scan cannot follow, and a gate in the function is
+         * the one thing that is both checkable here and refuses a console. Measured at 5641a767
+         * (1.2.68's release merge), C1a's tables over the code before C1a: 155 document writes read,
+         * 75 behind a gate, 94 deletes and creates aside (a Map's or a Set's, a texture's or a data
+         * operator's); of the other 80, 43 judged by 36 rows not a student's, 21 in 16 GM roads (20
+         * rows), 13 by 11 player roads until C1b - and five problems: `syncStates` (so `syncOnce`
+         * and `clearSystemConditions` under it), reroll.mjs `settleSearch` and Contraband's
+         * `destroyItemEffect`, which C1a gates, and anonymity.mjs `lowerOwnership`, which refused a
+         * player in a form this reader does not read and now says it in one it does. At 070b72b
+         * (E29 C12) the same 155 writes stood behind the same gates and rows, with 85 aside: the
+         * commits between added nine deletes of a Map's or a Set's keys, and moved one GM road's
+         * caller (truth-bullets.mjs `onBulletWrite`, E29 fix r2-H12, out of `watchBulletEdits`).
+         * E33 C1b put the thirteen player roads on E29's road and took their list (UNTIL_C1B, 11
+         * rows) away: measured on its tree, 142 document writes read, 78 gated, 94 aside, the 64
+         * others judged by the same 36 and 20 rows, 0 problems - and E29's half reads 146 roads
+         * (134 before), 100 other writes (113). The floor went from 150 writes to 140 with it.
+         */
+        const WRITES = /\.\s*(update|setFlag|unsetFlag|createEmbeddedDocuments|updateEmbeddedDocuments|deleteEmbeddedDocuments|toggleStatusEffect|delete|create|createDocuments|updateDocuments|deleteDocuments)\s*\(/g;
+        const DOCUMENT_CLASS = /(?:^|\.)(?:Actor|Item|ActiveEffect|ChatMessage|Combat|Combatant|Folder|JournalEntry|JournalEntryPage|Macro|Playlist|PlaylistSound|RollTable|TableResult|Scene|User|Cards|TokenDocument|RegionDocument|implementation|documentClass)$/;
+        const GATE = /\bif\s*\(\s*(?:[^;{}&]*\|\|\s*)?!\s*(?:game\.user\??\.isGM|isPrimaryGm\(\s*\))\s*(?:\|\|[^;{}]*)?\)\s*(?:return\b|throw\b|\{[^{}]*?\b(?:return|throw)\b)/g;
+        const GATE_BLOCK = /\bif\s*\(\s*(?:game\.user\??\.isGM|isPrimaryGm\(\s*\))\s*(?:&&[^;{}]*)?\)\s*\{/g;
+        // From `from` to `to` the braces never close below where they stood at `from` (`floor` 0),
+        // or never close the block `from` opens (`floor` 1).
+        const holds = (blank, from, to, floor) => {
+            let depth = 0;
+            for (let i = from; i < to; i++) {
+                if (blank[i] === "{") depth++;
+                else if (blank[i] === "}" && --depth < floor) return false;
+            }
+            return true;
+        };
+        const reading = (file, raw) => {
+            const code = blankComments(raw), blank = blankLiterals(code);
+            const tops = [...blank.matchAll(/^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm)]
+                .map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? "(top level)", fn: Boolean(m[1]), table: Boolean(m[3]) }));
+            const imports = [...blank.matchAll(/^(?:import\b|export\s*[{*])[^;]*;/gm)].map(m => [m.index, m.index + m[0].length]);
+            const topAt = i => tops.filter(t => t.at <= i).pop() ?? { at: 0, name: "(top level)", fn: false, table: false };
+            const gatedAt = i => {
+                const top = topAt(i), stretch = blank.slice(top.at, i);
+                return [...stretch.matchAll(GATE)].some(g => holds(blank, top.at + g.index, i, 0))
+                    || [...stretch.matchAll(GATE_BLOCK)].some(g => holds(blank, top.at + g.index + g[0].length - 1, i, 1));
+            };
+            return { file, code, blank, tops, imports, topAt, gatedAt, line: i => lineAt(code, i) };
+        };
+        // The receiver as the call reads it, back from its dot over names, dots, `?.` and bracketed
+        // stretches, whose insides are dropped: `game.actors.get(id)?.items` reads `game.actors.get().items`.
+        const receiverOf = (blank, dot) => {
+            let i = dot;
+            while (i > 0) {
+                const c = blank[i - 1];
+                if (/[\w$.?]/.test(c)) { i--; continue; }
+                if (c !== ")" && c !== "]") break;
+                const open = c === ")" ? "(" : "[";
+                let depth = 0, j = i - 1;
+                for (; j >= 0; j--) if (blank[j] === c) depth++; else if (blank[j] === open && --depth === 0) break;
+                i = Math.max(j, 0);
+            }
+            let out = "", depth = 0;
+            for (const c of blank.slice(i, dot).replace(/[\s?]/g, "")) {
+                if (c === "(" || c === "[") { if (!depth++) out += c; } else if (c === ")" || c === "]") { if (!--depth) out += c; } else if (!depth) out += c;
+            }
+            return out;
+        };
+        const censusIn = read => {
+            const sites = [];
+            let aside = 0;
+            for (const m of read.blank.matchAll(WRITES)) {
+                const kind = m[1], receiver = receiverOf(read.blank, m.index);
+                if (kind === "delete" && !/^\s*[){]/.test(read.code.slice(m.index + m[0].length))) { aside++; continue; }
+                if (kind === "create" && !DOCUMENT_CLASS.test(receiver)) { aside++; continue; }
+                sites.push({ file: read.file, line: read.line(m.index), fn: read.topAt(m.index).name, receiver, kind, gated: read.gatedAt(m.index) });
+            }
+            return { sites, aside };
+        };
+        const judge = (sites, reads, api, { NOT_A_STUDENT, GM_ROADS }) => {
+            const out = [], used = new Set();
+            const key = (...parts) => parts.join("|");
+            const notStudent = new Map(NOT_A_STUDENT.map(r => [key(r[0], r[1], r[2]), r]));
+            const roads = new Map();
+            for (const row of GM_ROADS) roads.set(key(row[0], row[1]), [...roads.get(key(row[0], row[1])) ?? [], row]);
+            const ownSite = new Set();
+            for (const s of sites) {
+                if (s.gated) continue;
+                const k = key(s.file, s.fn, s.receiver);
+                if (notStudent.has(k)) used.add(notStudent.get(k));
+                else if (roads.has(key(s.file, s.fn))) ownSite.add(key(s.file, s.fn));
+                else out.push(`${s.file}:${s.line} ${s.fn} writes ${s.receiver}.${s.kind} with no gate before it and no row`);
+            }
+            // Where each GM road is named outside its declaration: [file, line, caller, gated].
+            const named = new Map();
+            for (const [file, name] of [...roads.values()].map(rows => rows[0])) {
+                const at = [];
+                for (const read of reads.values()) {
+                    for (const m of read.blank.matchAll(new RegExp(`(?<![\\w$])${name.replace(/\$/g, "\\$")}(?![\\w$])`, "g"))) {
+                        const top = read.topAt(m.index);
+                        if ((read.file === file && top.name === name) || read.imports.some(([a, b]) => m.index >= a && m.index < b)) continue;
+                        at.push({ file: read.file, line: read.line(m.index), caller: top.name, gated: read.gatedAt(m.index) });
+                    }
+                }
+                named.set(key(file, name), at);
+            }
+            // Grounded: every place it is named is gated, or stands in a grounded GM road (a fixed point).
+            const table = k => roads.get(k)[0][1] && reads.get(roads.get(k)[0][0])?.tops.find(t => t.name === roads.get(k)[0][1])?.table;
+            const grounded = new Set();
+            for (let moved = true; moved;) {
+                moved = false;
+                for (const k of roads.keys()) {
+                    if (grounded.has(k)) continue;
+                    const file = roads.get(k)[0][0];
+                    const places = table(k) ? named.get(k).filter(p => roads.get(k).some(r => r[2] === p.caller)) : named.get(k);
+                    if (places.length && places.every(p => p.gated || [...roads.keys()].some(o => o !== k && grounded.has(o) && o.endsWith(`|${p.caller}`)))) {
+                        grounded.add(k);
+                        moved = true;
+                    }
+                }
+            }
+            const callerOf = new Set([...roads.values()].flat().map(r => r[2]));
+            for (const [k, rows] of roads) {
+                const [file, name] = rows[0];
+                if (new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(api)) out.push(`${file} ${name} is a GM road, and api.mjs names it`);
+                if (table(k) && new RegExp(`^export\\s+(?:const|let|var)\\s+${name}\\b|^export\\s*\\{[^}]*\\b${name}\\b`, "m").test(reads.get(file)?.blank ?? "")) out.push(`${file} ${name} is a GM road's table, and it is exported`);
+                for (const p of named.get(k)) {
+                    if (!table(k) && !rows.some(r => r[2] === p.caller)) out.push(`${p.file}:${p.line} ${p.caller} reaches the GM road ${name}, and no row of it names that caller`);
+                }
+                for (const row of rows) {
+                    if (!named.get(k).some(p => p.caller === row[2])) out.push(`${file} ${name}: the row naming ${row[2]} is stale - ${row[2]} does not reach it`);
+                }
+                if (!grounded.has(k)) out.push(`${file} ${name} is reached where no gate stands before it: ${named.get(k).filter(p => !p.gated).map(p => `${p.file}:${p.line} ${p.caller}`).join(", ") || "by nothing this reader sees"}`);
+                if (!ownSite.has(k) && !callerOf.has(name)) out.push(`${file} ${name}: its GM road rows are stale - it writes nothing the earlier reasons leave, and no GM road names it as a caller`);
+            }
+            for (const row of NOT_A_STUDENT) if (!used.has(row)) out.push(`NOT_A_STUDENT row ${row.slice(0, 3).join(" ")} is stale - it judges no write the earlier reasons leave`);
+            return out;
+        };
+        const NOT_A_STUDENT = [
+            ["call-effects.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
+            ["cleanup.mjs", "undoLastCleanup", "scene.tokens.get()", "the trace token a clean-up left behind"],
+            ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
+            ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
+            ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
+            ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
+            ["murder.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
+            ["murder.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
+            ["murder.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
+            ["music.mjs", "pausePlaylist", "playlist", "a playlist paused"],
+            ["music.mjs", "clearHeld", "playlist", "a playlist let go"],
+            ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
+            ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
+            ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
+            ["projects-ui.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
+            ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
+            ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
+            ["remnants.mjs", "retuneRemnant", "token", "a Remnant's token, replaced by its retuned one"],
+            ["remnants.mjs", "stripAnswerKey", "token", "a Remnant token's flags"],
+            ["remnants.mjs", "neutraliseDeltaName", "target", "a Remnant token's own actor (its delta), renamed"],
+            ["reroll.mjs", "makeReroll", "message", "the rerolled roll's chat card"],
+            ["reroll.mjs", "markReplacedCard", "card", "the replaced card's flag"],
+            ["reroll.mjs", "putFirstRollBack", "message", "the first roll's card, put back"],
+            ["season-setup.mjs", "deleteMessages", "ChatMessage", "the chat log, cleared by the reset"],
+            ["season-setup.mjs", "wipeSeason", "scene", "the season's tokens on the scene"],
+            ["season-setup.mjs", "wipeSeason", "region", "a room's region flags"],
+            ["secret.mjs", "post", "ChatMessage", "a secret's card"],
+            ["tables.mjs", "addResult", "table", "a pool table's result"],
+            ["tables.mjs", "editResult", "result", "a pool table's result"],
+            ["tables.mjs", "dropResult", "table", "a pool table's result"],
+            ["tables.mjs", "wirePaneHeading", "current()", "a pool table, renamed"],
+            ["tables.mjs", "wirePaneHeading", "gone", "a pool table, deleted"],
+            ["tables.mjs", "wirePaneRows", "result", "a pool table's result and its flags"],
+            ["tables.mjs", "createPoolFrom", "RollTable", "a new pool table"],
+            ["utils.mjs", "privately", "ChatMessage", "a whispered chat card"],
+            ["vault.mjs", "applyRoomRows", "region", "a room's region flags, from the room set-up"]
+        ];
+        const GM_ROADS = [
+            ["analyze.mjs", "lockOut", "resolveAnalyze"],
+            ["analyze.mjs", "identify", "resolveAnalyze"],
+            ["chapter.mjs", "destroyBullets", "killCharacter"],
+            ["chapter.mjs", "destroyBullets", "publishDeath"],
+            ["character.mjs", "stampStartingSheet", "initCharacter"],
+            ["gm-items.mjs", "takeItemDialog", "openItemManager"],
+            ["migrate.mjs", "CLAUSES", "migrate1_2_0"],
+            ["murder.mjs", "undoLastCrisis", "applyCrisisAction"],
+            ["observe.mjs", "undoPrevious", "scoreObserve"],
+            ["observe.mjs", "scoreObserve", "resolveObserve"],
+            ["season-setup.mjs", "wipeSeason", "resetSeason"],
+            ["states.mjs", "syncOnce", "syncStates"],
+            ["states.mjs", "clearSystemConditions", "syncOnce"],
+            ["truth-bullets.mjs", "revertPlayerBulletEdit", "onBulletWrite"],
+            ["utils.mjs", "replaceFlag", "writeNote"],
+            ["utils.mjs", "replaceFlag", "settleNoteFlags"],
+            ["utils.mjs", "replaceFlag", "liftNotes"],
+            ["utils.mjs", "replaceFlag", "wipeSeason"],
+            ["vault.mjs", "forgetStashFound", "setStash"],
+            ["vault.mjs", "forgetAllStashesFound", "wipeSeason"]
+        ];
+
+        // The reader over a planted file first: a bare write, a road, a gate before, a gate after, a gate
+        // in a closure that does not hold the write, a block gate, a Map's delete and a texture's create,
+        // a comment and a string, and GM roads - one reached from an ungated door, one down a chain.
+        const PLANTED_WRITES = [
+            "export async function bare(actor, n) { await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, n); }",
+            "export async function road(actor, n) { await trustedWrite(actor, { [`flags.${MODULE_ID}.${FLAGS.freeActionGrants}`]: n }, { reason: \"call\" }); }",
+            "export async function gated(actor, n) {",
+            "    if (!game.user.isGM) return null;",
+            "    await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, n);",
+            "}",
+            "export async function late(actor, n) { await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, n); if (!game.user.isGM) return null; }",
+            "export async function nested(actor, n) { const f = () => { if (!game.user?.isGM) return; }; f(); await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, n); }",
+            "export async function block(actor) { if (game.user.isGM && actor) { await actor.update({ a: 1 }); } await actor.unsetFlag(MODULE_ID, \"x\"); }",
+            "export function aside(map) { map.delete(\"k\"); /* item.update({}) */ const s = \"doc.update({})\"; return PIXI.RenderTexture.create({ s }); }",
+            "async function helper(item) { await game.actors.get(item.id)?.items?.get(\"x\")?.delete(); await Item.createDocuments([]); }",
+            "export async function door(item) { if (!isPrimaryGm()) return; await helper(item); }",
+            "export async function open(item) { await helper(item); }",
+            "async function chain(actor) { await actor.update({ b: 1 }); }",
+            "export async function chained(actor) { await chain(actor); }",
+            "export async function top(actor) { if (!game.user.isGM || !actor) return; await chained(actor); }"
+        ].join("\n");
+        const planted = reading("planted.mjs", PLANTED_WRITES);
+        const plantedCensus = censusIn(planted);
+        equal(JSON.stringify([plantedCensus.sites.map(s => `${s.fn} ${s.receiver}.${s.kind}${s.gated ? " gated" : ""}`), plantedCensus.aside]),
+            JSON.stringify([["bare actor.setFlag", "gated actor.setFlag gated", "late actor.setFlag", "nested actor.setFlag", "block actor.update gated",
+                "block actor.unsetFlag", "helper game.actors.get().items.get().delete", "helper Item.createDocuments", "chain actor.update"], 2]),
+            "the census does not read the planted writes as they are - a road, a gate before, after, in a closure, a block gate, a Map's delete, a texture, a comment and a string");
+        equal(JSON.stringify(judge(plantedCensus.sites, new Map([["planted.mjs", planted]]), "game.drpg = { chained };", {
+            NOT_A_STUDENT: [["planted.mjs", "helper", "Item", "planted"], ["planted.mjs", "gated", "actor", "planted, and gated"]],
+            GM_ROADS: [["planted.mjs", "helper", "door"], ["planted.mjs", "chain", "chained"], ["planted.mjs", "chained", "top"]]
+        }).map(p => p.split(" ").slice(0, 4).join(" "))), JSON.stringify([
+            "planted.mjs:1 bare writes actor.setFlag", "planted.mjs:7 late writes actor.setFlag", "planted.mjs:8 nested writes actor.setFlag", "planted.mjs:9 block writes actor.unsetFlag",
+            "planted.mjs:13 open reaches the", "planted.mjs helper is reached", "planted.mjs chained is a", "NOT_A_STUDENT row planted.mjs gated"
+        ]), "the census does not judge the planted rows as they are - a write with no reason, a GM road reached from an ungated door, one api.mjs names, a stale row");
+
+        const reads = new Map((await otherSources()).map(([file, raw]) => [file, reading(file, raw)]));
+        must(reads.has("api.mjs"), "api.mjs is not among the module's sources - the GM roads cannot be checked against it");
+        const census = { sites: [], aside: 0 };
+        for (const [file, read] of reads) {
+            if (file === "resource-guard.mjs") continue;
+            const found = censusIn(read);
+            census.sites.push(...found.sites);
+            census.aside += found.aside;
+        }
+        const gated = census.sites.filter(s => s.gated).length;
+        must(census.sites.length >= 140 && gated >= 70,
+            `the census read ${census.sites.length} document write(s), ${gated} of them gated - fewer than 140 and 70 since E33 C1b, so it would measure nothing`);
+        const unjudged = judge(census.sites, reads, reads.get("api.mjs").blank, { NOT_A_STUDENT, GM_ROADS });
+        log(`R220: the census read ${census.sites.length} document write(s) (${census.aside} delete(s) and create(s) aside): ${gated} gated, `
+            + `${NOT_A_STUDENT.length} row(s) not a student's, ${GM_ROADS.length} GM road row(s); ${unjudged.length} problem(s)`);
+        ok(!unjudged.length, `${unjudged.length} write(s) or row(s) the census cannot judge: ${unjudged.slice(0, 12).join("; ")}`);
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
@@ -6741,6 +7119,81 @@ const REGRESSIONS = [
             `the reader found ${JSON.stringify(found.writers)} writing in character.mjs - it would measure nothing`);
         equal(JSON.stringify(found.problems), "[]",
             "a function of character.mjs writes a student's starting sheet on a player's browser - no GM gate before its first write, or a private writer reached from one without");
+    }],
+
+    ["R291 - every row of the GMs' roll list has a fixture in tier 2 and every fixture a row", async () => {
+        /*
+         * E33 C3, 07.10.2026; the stage plan's 2.3. Tier 2 drives every row of config.mjs
+         * `LEGAL_ROLL_MODIFIERS`, and every branch of its `situation` row as roll-draw.mjs
+         * `situationReading` reads them, from a fixture of `MODIFIER_FIXTURES` (tests-tier2.mjs), written
+         * from the handbooks and not imported from the list - so a row added to the list with no
+         * fixture would be a source nobody drew. Read from source, comments stripped: the list's keys
+         * (each row's `{ key: "..."` at a line's start), the fixtures' keys and their `situation`
+         * names (the same shape), and the action keys `situationReading` branches on (`key === "..."`).
+         * Each side must hold the other's. Tier 2's test asks the keys again of the live list before
+         * it draws anything; this one fails without a world.
+         */
+        const sources = new Map(await moduleSources());
+        const config = stripComments(sources.get("config.mjs") ?? ""), tier2 = stripComments(sources.get("tests-tier2.mjs") ?? "");
+        const block = (text, head) => bodyOf(text, head, { until: "\n]" });
+        const keysIn = (text, re) => [...text.matchAll(re)].map(m => m[1]);
+        const rows = keysIn(block(config, "export const LEGAL_ROLL_MODIFIERS = "), /^\s*\{ key: "(\w+)"/gm);
+        const fixtures = block(tier2, "const MODIFIER_FIXTURES = ");
+        const fixed = [...new Set(keysIn(fixtures, /^\s*\{ key: "(\w+)"/gm))];
+        const situations = keysIn(fixtures, /^\s*\{ key: "situation", situation: "(\w+)"/gm);
+        // To the function's closing brace: `fnSource` runs on to the next declaration, through the readers' table.
+        const branches = keysIn(bodyOf(stripComments(sources.get("roll-draw.mjs") ?? ""), "function situationReading(", { until: "\n}\n" }), /\bkey === "(\w+)"/g);
+        ok(rows.length >= 14 && fixed.length > 0 && branches.length >= 6,
+            `R291 read ${rows.length} row(s) of the list, ${fixed.length} fixture key(s) and ${branches.length} branch(es) of its situation - this would measure nothing`);
+        equal(JSON.stringify([rows.filter(key => !fixed.includes(key)), fixed.filter(key => !rows.includes(key)),
+            branches.filter(key => !situations.includes(key)), situations.filter(key => !branches.includes(key))]), JSON.stringify([[], [], [], []]),
+        "a row of the GMs' roll list has no fixture, a fixture names no row, a branch of the situation row has no fixture, or a situation fixture names no branch (rows; fixtures; branches; situation fixtures)");
+    }],
+
+    ["R300 - each silence has one name: isCrimeSilenced in monocub.mjs, isCallSilenced in call-effects.mjs, isSilenced only as api.mjs's alias (D39)", async () => {
+        /*
+         * E33 C9 (D39; audit S09-48, S03-46). Two rules carried the name `isSilenced`
+         * until 1.2.69: the crime-witness marker on a Monocub (monocub.mjs; information
+         * only) and the Despair Call "Silence" on a living student (call-effects.mjs;
+         * no Hope Calls until the time of day ends), and sheet.mjs renamed them at its
+         * door - which is how a reader took one for the other. Each has its own name
+         * now, and `game.drpg.isSilenced` is kept as the crime's alias, the question it
+         * has always answered.
+         *
+         * WHY NAMES, NOT BEHAVIOUR ALONE: gm-panel.mjs (the Players window and
+         * `applyAliveStates`) and calls.mjs (`hopeCallRefusal`) take their reader by
+         * destructuring a dynamic import, so a name that is no longer exported is
+         * `undefined`, not a load error, and throws only when called - a Players window
+         * with no Monocub in it, or a pass that changes no marker, runs with it. The
+         * four tier-2 tests through `applyAliveStates` pass no `silenced` key, so none
+         * of them would see it (read 07.10.2026). This reads the names: each new one
+         * declared once, in its own file; the old identifier nowhere but the alias;
+         * neither new name imported under another; sheet.mjs taking each from its own
+         * module.
+         */
+        const files = (await otherSources()).filter(([file]) => file.endsWith(".mjs"))
+            .map(([file, raw]) => [file, stripComments(raw)]);
+        ok(files.length > 50, `only ${files.length} module file(s) were read - the crawl is not reaching the module`);
+        const declaring = name => files.filter(([, text]) => new RegExp(`^export function ${name}\\(`, "m").test(text))
+            .map(([file, text]) => `${file} x${text.match(new RegExp(`^export function ${name}\\(`, "mg")).length}`);
+        const where = (text, m) => `:${lineAt(text, m.index)}`;
+        const bare = [], aliased = [];
+        for (const [file, text] of files) {
+            for (const m of text.matchAll(/\bisSilenced\b/g)) {
+                if (file === "api.mjs" && /^\s*isSilenced:\s*isCrimeSilenced,?\s*$/.test(lineAround(text, m.index))) continue;
+                bare.push(`${file}${where(text, m)}`);
+            }
+            for (const m of text.matchAll(/\bis(?:Crime|Call)Silenced\s+as\s+\w+|\b\w+\s+as\s+is(?:Crime|Call)Silenced\b/g)) {
+                aliased.push(`${file}${where(text, m)} ${m[0]}`);
+            }
+        }
+        const sheet = files.find(([file]) => file === "sheet.mjs")?.[1] ?? "";
+        const takes = (name, from) => new RegExp(`import\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from\\s*"\\./${from}\\.mjs"`).test(sheet);
+        equal(JSON.stringify([declaring("isCrimeSilenced"), declaring("isCallSilenced"), bare, aliased,
+            [takes("isCrimeSilenced", "monocub"), takes("isCallSilenced", "call-effects"), takes("isCrimeSilenced", "call-effects"), takes("isCallSilenced", "monocub")]]),
+            JSON.stringify([["monocub.mjs x1"], ["call-effects.mjs x1"], [], [], [true, true, false, false]]),
+            "a silence's reader is declared elsewhere or more than once, the old name `isSilenced` is used outside api.mjs's alias, a new name is imported under another, "
+            + "or sheet.mjs does not take each reader from its own module (isCrimeSilenced declared; isCallSilenced declared; isSilenced at; renamed at; sheet.mjs takes crime/monocub, call/call-effects, crime/call-effects, call/monocub)");
     }]
 ];
 

@@ -131,7 +131,13 @@ const PANEL_SECTIONS = [
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
               run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) }
+              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
+            // THE ONE PUBLIC ROLL (E33 C12, 07.10.2026; audit S02-72). With rolls forced
+            // private a GM's `/r` goes to the GMs, so a vote's tie or Monokuma's lottery
+            // had no roll everybody could watch. Here, in the section that is never out
+            // of season, because the moment for it is mid-scene: formula, flavour, Roll.
+            { key: "publicRoll", icon: "fa-dice", labelKey: "DRPG.Panel.publicRoll.label",
+              run: () => openPublicRollDialog() }
             // GONE FROM HERE:
             //   Give / take items - it is the Items button in the footer of
             //     Players, and a tile as well was a second door to the same
@@ -620,7 +626,7 @@ async function openFailureLog() {
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
  */
-function aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, resourceMax }) {
+function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax }) {
     /*
      * THE THREE MONOCUB COLUMNS ONLY EXIST WHEN A MONOCUB DOES (D-F4).
      *
@@ -658,7 +664,7 @@ function aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, re
                     ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
             <td style="text-align:center">${cub
                 ? `<input type="checkbox" name="silenced:${a.id}" ${
-                    isSilenced(a) ? "checked" : ""} />`
+                    isCrimeSilenced(a) ? "checked" : ""} />`
                 : "-"}</td>`;
 
         return `<tr data-actor="${a.id}">
@@ -811,7 +817,7 @@ async function openWhoIsAliveDialog() {
     // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
     // (F15): `applyAliveStates` below imports what it writes.
     const { isDeceased, isDeadForGm, openDeathDialog } = await import("./chapter.mjs");
-    const { isMonocub, setMonocub, isSilenced } = await import("./monocub.mjs");
+    const { isMonocub, setMonocub, isCrimeSilenced } = await import("./monocub.mjs");
     const { monokumas, donorLabel } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
 
@@ -851,7 +857,7 @@ async function openWhoIsAliveDialog() {
 
     const table = () => {
         const donors = buildDonors();
-        return aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, resourceMax });
+        return aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax });
     };
 
     // A row button's round trip, if one is running: this window did not answer,
@@ -952,7 +958,7 @@ export async function applyAliveStates(chosen = {}) {
     if (!game.user.isGM) return 0;
 
     const { isDeceased, isDeadForGm, reviveCharacter, markDeceased, publishDeath, pendingDeath, incidentVictimDied } = await import("./chapter.mjs");
-    const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
+    const { isMonocub, setMonocub, isCrimeSilenced, setSilenced } = await import("./monocub.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
     const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : isDeadForGm(a) ? "unfound" : "alive";
     /* A death kept by the GMs is published by the GM's hand here (E05 C10; the owner's Q3):
@@ -1002,7 +1008,7 @@ export async function applyAliveStates(chosen = {}) {
         // Silence only means anything for a cub, and only after the state above has
         // settled - a student promoted to Monocub in this same pass can be silenced
         // in it too.
-        if (isMonocub(actor) && "silenced" in want && want.silenced !== isSilenced(actor)) {
+        if (isMonocub(actor) && "silenced" in want && want.silenced !== isCrimeSilenced(actor)) {
             await setSilenced(actor, want.silenced);
             changed++;
         }
@@ -1278,6 +1284,50 @@ function backupAge() {
  * time of day. Reachable only from the GM panel - deliberately not on the
  * HUD itself, which every player is looking at for the rest of the session.
  */
+/**
+ * The public roll's window (E33 C12): a formula and a flavour, one Roll button, and the roll
+ * posted through private-rolls.mjs `publicRoll` - the one road `whisperRoll` leaves public.
+ * `1d6` by default: the tie and the lottery are a die each. Answers the message, or null.
+ */
+export async function openPublicRollDialog() {
+    if (alreadyOpen("drpg-window-public-roll")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.publicRoll.gmOnly"));
+        return null;
+    }
+
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Panel.publicRoll.label") },
+        classes: ["drpg-panel", "drpg-window-public-roll"],
+        content: `<form>
+                    <label>${game.i18n.localize("DRPG.Panel.publicRoll.formula")}
+                        <input type="text" name="formula" value="1d6" autofocus />
+                    </label>
+                    <label>${game.i18n.localize("DRPG.Panel.publicRoll.flavour")}
+                        <input type="text" name="flavor" value="" />
+                    </label>
+                  </form>`,
+        buttons: [
+            {
+                action: "roll",
+                label: game.i18n.localize("DRPG.Panel.publicRoll.roll"),
+                default: true,
+                callback: (event, button, dialog) => {
+                    const form = dialog.element.querySelector("form");
+                    return { formula: form.formula.value.trim() || "1d6", flavor: form.flavor.value.trim() };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
+        ],
+        rejectClose: false
+    });
+
+    if (!result || result === "cancel") return null;
+    const { publicRoll } = await import("./private-rolls.mjs");
+    return publicRoll(result.formula, { flavor: result.flavor });
+}
+
 export async function openClockDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the

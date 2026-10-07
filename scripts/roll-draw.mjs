@@ -17,7 +17,7 @@
  * statistic from the sheet (`sheetRollOf`), whose message keeps Daggerheart's card and is
  * read on the roller's browser alone (private-rolls.mjs `readableHere`). Daggerheart's own
  * item rolls (their source names an item or an action) and a Monocub's Meddle (a plain
- * `Roll`, which the GM throws itself since C17, monocub.mjs `meddleOnGm`) are not drawn; a GM's
+ * `Roll`, which the GM throws itself since C17, monocub.mjs `cubAbilityOnGm`) are not drawn; a GM's
  * own roll is its own; with no GM an action's roll is not made and any other roll is thrown here,
  * as in 1.2.66, stamped and moving nothing until a GM grants it (C18, "WITH NO GM CONNECTED"
  * below). What the roll adds up to beyond its dice - the
@@ -33,9 +33,11 @@
  * The wrap runs Daggerheart's `buildConfigure` and `buildEvaluate` itself and not
  * `buildPost`: no local message, no local resources, no countdown, no trigger - the
  * GM ran them. Read in 2.10.5's source (dhRoll.mjs, dualityRoll.mjs, d20Roll.mjs,
- * unchanged to 2.10.8 - the plan measured); the harness's roll is modelled on the
- * same reading (client-entry.mjs `DualityRollMock`, C10). Not measured at a table:
- * LIVE-E28-03 is the round trip's cost.
+ * unchanged to 2.10.8 - the plan measured); the harness throws Daggerheart's own roll
+ * classes since E33 C2a (audit/harness/lib/dh-dice/dice/, copied verbatim; until then
+ * client-entry.mjs modelled the roll on this reading). What the round trip costs
+ * is kept here since E33 C13 ("THE ROUND TRIP, KEPT IN MEMORY" below; `game.drpg.perf()`
+ * reads it) and measured at a table by LIVE-E33-05 - LIVE-E28-03 asked for it.
  *
  * THE FALLBACK (D1). The wrap is put only on the build it was written for
  * (`reviewBuild`): `build` calling `buildConfigure`, `buildEvaluate` and `buildPost`
@@ -52,7 +54,7 @@ import { primaryGmId, isPrimaryGm, announce, whisperToGms, warn, error, esc } fr
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
 import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
-import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn } from "./private-rolls.mjs";
+import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
@@ -267,11 +269,14 @@ async function drawAndPlay(cls, config, message) {
     }
     const claim = rollClaimOf(config[ROLL_NONCE]);
     const drawn = awaitDrawn(config[ROLL_NONCE]);
+    const asked = performance.now();
     try {
         const answer = await bridgeRequest("roll.draw", drawPacketOf(roll, config, claim), { settle: "reply", timeoutMs: DRAW_ANSWER_MS });
+        const answered = performance.now() - asked;
         // Refused, or no answer: the waiter has said so once (`sayNotDone`); the roll is not made.
         if (!answer?.ok || typeof answer.value?.messageId !== "string") return;
         await playBack(cls, roll, config, message, answer.value, claim.subject);
+        keepTrip("drawn", { at: Date.now(), answered, shown: performance.now() - asked });
     } finally {
         drawn();
     }
@@ -431,7 +436,8 @@ export async function rollerCopyOf(cls, configured, config, message, { faces = [
  * it built. The same probe on the JSON a headless draw of a statistic from the sheet handed
  * `fromData` (e29run/scratch/r2h1-probe): at 070b72b the GM's and the roller's each threw at
  * dualityRoll.mjs:174; with this fix each built. The suite stayed green because the harness's
- * constructor read none of it (client-entry.mjs `DualityRollMock` reads all three since this fix).
+ * constructor read none of it (the harness's stand-in of the time read all three since this
+ * fix; since E33 C2a the harness builds Daggerheart's own class, which reads them itself).
  * The GM writes both into its own options (`drawnOptions`); they are put here too for a JSON
  * written before the fix. Built so, the constructor's formula (`_formula`) is the dice alone,
  * `1d12 + 1d12` in that probe - it is written before `fromData` puts the JSON's terms in, and the
@@ -684,6 +690,35 @@ const budgets = new Map();
 /** The draws under way on this GM, `actorId:actionKey`. */
 const drawing = new Set();
 
+/*
+ * THE ROUND TRIP, KEPT IN MEMORY (E33 C13, 07.10.2026; the stage plan's 3.5; the owner's Q3 (a)).
+ * LIVE-E28-03 asked what a drawn roll costs its roller, and nothing measured it: a frame average
+ * cannot see a cost paid once per roll while the roller waits. Each browser now keeps the timing
+ * points of the last `TRIPS_KEPT` draws it took part in, passively - no synthetic roll, nothing
+ * sent, nothing stored - as milliseconds from the trip's start by `performance.now()`: on the
+ * roller, asked (the request sent, `drawAndPlay`) -> answered (the GM's answer in) -> shown (the
+ * GM's faces played back and the dice shown, `playBack` returned); on the drawing GM, the packet
+ * in (`drawOnGm` entered) -> the message written (`throwDrawn`, `writeDrawnMessage` resolved) ->
+ * the answer out (`drawOnGm` returns; the bridge sends it next). A refused or unanswered draw is
+ * no round trip and is not kept. `game.drpg.perf()` reads them (diagnostics.mjs `perfReport`,
+ * "Rolls the GM drew"); the run that gives them a table's number is LIVE-E33-05
+ * (audit/perf-baseline.json). Headless the numbers are the harness's and go nowhere: the suite
+ * and 13-murder-signals assert a count and the marks' order, never a millisecond.
+ */
+const TRIPS_KEPT = 50;
+const trips = { drawn: [], drew: [] };
+
+function keepTrip(side, trip) {
+    const list = trips[side];
+    list.push(trip);
+    if (list.length > TRIPS_KEPT) list.splice(0, list.length - TRIPS_KEPT);
+}
+
+/** The trips this browser kept, oldest first, each a copy: `drawn` as a roller, `drew` as the drawing GM. */
+export function drawTimings() {
+    return { drawn: trips.drawn.map(trip => ({ ...trip })), drew: trips.drew.map(trip => ({ ...trip })) };
+}
+
 /** What a payment is read from on a character. */
 function budgetOf(actor) {
     const r = actor?.system?.resources ?? {};
@@ -846,6 +881,7 @@ const marksOpen = async () => (await answerKeysOpen({ store: sheetMarkStore })) 
  * `{ refused }`, before anything is thrown - and only then thrown (`throwDrawn`).
  */
 export async function drawOnGm(packet, sender) {
+    const arrived = performance.now();
     const actor = game.actors.get(packet?.actorId ?? "");
     const key = typeof packet?.actionKey === "string" && /^[a-zA-Z]{1,32}$/.test(packet.actionKey) ? packet.actionKey : null;
     const lock = actor && key ? `${actor.id}:${key}` : null;
@@ -857,7 +893,10 @@ export async function drawOnGm(packet, sender) {
         if (why) return { refused: why };
         const { murderState } = await import("./murder.mjs");
         const state = murderState();
-        return await throwDrawn(packet, sender, state?.active ? turnOf(state) : null);
+        let written = null;
+        const out = await throwDrawn(packet, sender, state?.active ? turnOf(state) : null, () => { written = performance.now() - arrived; });
+        if (out?.reply) keepTrip("drew", { at: Date.now(), written, answered: performance.now() - arrived });
+        return out;
     } finally {
         if (lock) drawing.delete(lock);
     }
@@ -867,7 +906,8 @@ export async function drawOnGm(packet, sender) {
  * THE ROLL IS THROWN ON THE GM'S TERMS (E08+E28 fix r2-H8, 05.10.2026; found reading E29's design).
  * Until this fix the GM threw the roll `fromData` rebuilt from the packet, and so took from the
  * packet what makes a roll what it is: its dice's faces, numbers and keep modifiers (`checkRoll`
- * counts dice, not faces); Daggerheart's `guaranteedCritical`, a critical whatever the dice
+ * counted dice, not faces - since E33 C3 a Hope or Fear die at other faces too, `claimOf`);
+ * Daggerheart's `guaranteedCritical`, a critical whatever the dice
  * (dualityRoll.mjs:13, :89-101, read in 2.10.5); and the roll's kind and steps - a `reaction`, or
  * `skips.resources`, `updateCountdowns` and `triggers`, give the GM no Fear on a roll with Fear
  * and tick no countdown (:256-321). Measured at 33bc497's runtime (tier 2, "a drawn roll is
@@ -898,9 +938,10 @@ export async function drawOnGm(packet, sender) {
  * `fromData` then puts in (d20Roll.mjs:6-9, :81-86, read). Any other die is a modifier, thrown on
  * the GM's randomness at the packet's size and flagged (`dice`); what a drawn roll may be built
  * of at all is the guard's (bridge-guards.mjs `guardDrawnRoll`). Foundry's own `fromData` is not
- * on this machine: the harness models it (lib/shim.mjs), and Daggerheart's constructor is
- * modelled as far as `guaranteedCritical` and, since fix r2-H1, the options it reads before any
- * modifier is written (client-entry.mjs `DualityRollMock`; `rollFromLegal`'s note).
+ * on this machine: the harness models it (lib/shim.mjs); Daggerheart's constructor is its own
+ * there since E33 C2a (audit/harness/lib/dh-dice/dice/, copied verbatim) - until then a stand-in
+ * in client-entry.mjs modelled it as far as `guaranteedCritical` and, since fix r2-H1, the
+ * options it reads before any modifier is written (`rollFromLegal`'s note).
  */
 
 /** Daggerheart's advantage dice, by the class `fromData` gives the fifth term, and the sign each is thrown with. */
@@ -1018,14 +1059,34 @@ function sheetOf(actor) {
         experiences: Object.fromEntries(held.map(([key, { name, value }]) => [key, { name: name ?? key, value: Number(value) || 0 }])) };
 }
 
-/** The packet's numbers against the character's (`sheet`): its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice. */
-function claimOf(terms, sheet, told) {
+/** The packet's numbers against the character's (`sheet`): its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice - a duality or advantage die not as the GM throws it (`read`) among them. */
+function claimOf(terms, sheet, told, read = {}) {
     const fifth = ADVANTAGE_DICE[terms[4]?.class] ?? 0;
     const trait = traitKeyOf(told.trait);
+    const ownLetter = term => (term?.modifiers ?? []).filter(m => m !== DIE_LETTER[term?.class]);
+    // A DUALITY DIE AT OTHER FACES IS A DIE NOT COUNTED (E33 C3, 07.10.2026; the stage plan's 2.3, off
+    // the list: "a d20 Hope die"). The GM throws the Hope and the Fear die at its own faces (`termsOf`,
+    // the list's `hopeDie` and `fearDie`), so a packet's d20 Hope die was not counted - 14 as the honest
+    // 14 on the same dice - and, the dice counted by number, raised no flag and told nobody (tier 2, at
+    // a9c98bf's runtime). Each of the two at faces not the GM's is now one of the claim's `dice`: the
+    // `dice` flag, its one whisper to the GMs and the roller's "not counted" line, as a die beyond them
+    // has. An honest window builds both from the rules the GM reads (dualityRoll.mjs:135, :139); one
+    // whose rule a GM changed while it was open would be flagged too - read, not measured.
+    //
+    // A DIE NOT AS THE GM THROWS IT, IN EVERY WAY A TERM CAN DIFFER (E33 fix r1-G2, 07.10.2026; review
+    // round 1's sec m6 and cor M4). Faces alone were compared: a Hope die of two (`number` 2), one with a
+    // modifier of its own beyond its class's letter ("1d12r1"; `diceShape` reads the same letter out)
+    // and an advantage die at faces not the list's (`advantageDie`) raised no flag and told nobody
+    // (tier 2, at ba0cade's runtime). Each is one of the claim's `dice` now. A trace, not an award:
+    // the GM throws its own terms (`termsOf`, `onGmTerms`), so none of the three ever changed a roll -
+    // only what the GMs and the roller were told of it.
+    const other = (term, faces) => faces && (term?.faces !== faces || Math.trunc(Number(term?.number)) !== 1 || ownLetter(term).length > 0);
+    const unlike = [[terms[0], read.hopeDie], [terms[2], read.fearDie]].filter(([term, faces]) => other(term, faces)).length
+        + (fifth && read.advantageDie && terms[4]?.faces !== read.advantageDie[fifth > 0 ? "advantage" : "disadvantage"] ? 1 : 0);
     return { trait, traitValue: trait ? sheet.traits[trait] ?? 0 : 0,
         experiences: told.experiences.filter(key => Object.hasOwn(sheet.experiences, key)),
         flat: flatOf({ terms }), advantage: fifth * (Math.max(1, Math.trunc(Number(terms[4]?.number)) || 1)),
-        dice: Math.max(0, terms.filter(term => "faces" in (term ?? {})).length - 2 - (fifth ? 1 : 0)) };
+        dice: Math.max(0, terms.filter(term => "faces" in (term ?? {})).length - 2 - (fifth ? 1 : 0)) + unlike };
 }
 
 /**
@@ -1120,7 +1181,7 @@ function drawnOptions(nonce, { actionType, critical, advantage, modifiers, trait
 async function legalRollOf(packetRoll, actor, expected, told, { key = null, claimed = true, nonce = null } = {}) {
     const json = foundry.utils.deepClone(packetRoll && typeof packetRoll === "object" ? packetRoll : {});
     const sent = Array.isArray(json.terms) ? json.terms : [];
-    const claim = claimOf(sent, expected.sheet, told);
+    const claim = claimOf(sent, expected.sheet, told, expected.read);
     if (!expected.checked) return { json: await onGmTerms(json, actor, { key, claimed, nonce }), scored: null, claim };
     const scored = scoredOf(expected, claim);
     const { read } = expected;
@@ -1179,7 +1240,7 @@ async function tellRoller(sender, legal) {
  * Daggerheart's card (C13).
  */
 async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, roll: json,
-    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null) {
+    trait = null, experiences = [], calls = [], context = {} }, sender, incident = null, written = null) {
     const actor = game.actors.get(actorId ?? "");
     const cls = game.system?.api?.dice?.DualityRoll;
     if (!actor || typeof cls?.fromData !== "function") throw new Error("there is no character or no duality roll to draw");
@@ -1214,6 +1275,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
     await cls.buildEvaluate(roll, config, {});
     const rollId = foundry.utils.randomID();
     const message = await writeDrawnMessage(cls, roll, config, { actor, nonce, rollId, sender, keepCard: claimed === false });
+    written?.();
     await cls.dualityUpdate(config);
     if (typeof cls.handleTriggers === "function") await cls.handleTriggers(roll, config);
     if (config.costs.length) config.resourceUpdates.addResources(config.costs.map(c => ({ ...c, value: -c.value })));
@@ -1766,9 +1828,10 @@ function countedIn(expected, part) {
  * roll thrown on the lowest its action lists since fix r2-H2, and `trait` beside it where the
  * claim had another),
  * `modifier` (the flat sum past the statistic, which `trait` says), `dice` (a die beyond Hope,
- * Fear and the advantage die), `advantage`, `stash` (a hidden stash the packet did not name). A
- * `modifier` or an `advantage` flag names the list's rows that made the GM's number (`from`, E29 C9),
- * and its `expected` is the GM's number as thrown.
+ * Fear and the advantage die, or either of the first two at faces not the GM's - `claimOf`),
+ * `advantage`, `stash` (a hidden stash the packet did not name). A `modifier` or an `advantage`
+ * flag names the list's rows that made the GM's number (`from`, E29 C9), and its `expected` is
+ * the GM's number as thrown.
  */
 function checkRoll({ scored, claim }, told, expected) {
     const flags = [];
@@ -1905,9 +1968,13 @@ export function rollRecord(rollId) {
     return typeof rollId === "string" && rollId ? rollStore.get(rollId) : null;
 }
 
-/** The record of the roll a message holds, when the GM drew it and the record names that message; else null. */
+/**
+ * The record of the roll a message holds, when the GM drew it and the record names that message; else null.
+ * The message is a GM's (`isDrawnRoll`; E33 fix r1-G2, 07.10.2026, review round 1's sec m7): until then the
+ * raw flag was read, and a player's message carrying it and a record's id was answered with the record.
+ */
 export function drawnRecordOf(message) {
-    if (!message?.getFlag?.(MODULE_ID, "drawn")) return null;
+    if (!isDrawnRoll(message)) return null;
     const row = rollRecord(message.getFlag(MODULE_ID, "rollId"));
     return row && row.messageId === message.id ? row : null;
 }
@@ -2037,7 +2104,17 @@ function awayFromGms(config) {
     return Boolean(config) && config.evaluate !== false && !config.skips?.createMessage && !config.source?.message;
 }
 
-/** Daggerheart's own build, with the resource step skipped and the stamp handed to the message as it is created. */
+/**
+ * Daggerheart's own build, with the resource step skipped and the stamp handed to the message as it is created.
+ *
+ * A STUDENT'S STATISTIC IS A REACTION HERE TOO (E33 fix r1-G2, 07.10.2026; review round 1's sec m2).
+ * With a GM the draw's `kind` row makes a student's statistic from the sheet a reaction whatever its
+ * window said (roll-dialog.mjs `forceReaction` states the rule; `LEGAL_READERS.kind` applies it), and a
+ * Shift-click skips the window. With no GM nothing read the kind: a Shift-clicked statistic was thrown
+ * as the action its config said, the GMs' card said it would move Hope and Grant all moved it - 15-held's
+ * A3 read Aiko's Hope +1 at ba0cade. The kind is written here, before Daggerheart builds, for the roll
+ * `sheetRollOf` names of a character that is not a Monokuma - the row's own rule.
+ */
 async function throwUnwitnessed(cls, original, config, message) {
     let actorId = null;
     try {
@@ -2045,6 +2122,8 @@ async function throwUnwitnessed(cls, original, config, message) {
     } catch {
         actorId = null;
     }
+    const sheet = sheetRollOf(config);
+    if (sheet && !isMonokuma(sheet)) config.actionType = "reaction";
     const stamp = { nonce: foundry.utils.randomID(), actorId, at: Date.now() };
     config.skips = { ...(config.skips ?? {}), resources: true };
     config[UNWITNESSED] = stamp.nonce;
@@ -2073,10 +2152,19 @@ function stampUnwitnessed(message, data) {
  * A stamped roll no GM has decided, as the GMs' card lists it: the message, the character
  * the stamp names - played by the message's author, or the stamp asks nothing - the two
  * dice, and whether it was a reaction, which moves nothing. Null for anything else.
+ *
+ * NEVER A MESSAGE WITH A GM'S FLAGS (E33 fix r1-G2, 07.10.2026; review round 1's sec m1). A
+ * decision hands the message to the deciding GM as its author (`decideNow`), and a message
+ * whose author is a GM is read as the GM's draw everywhere (private-rolls.mjs `isDrawnRoll`).
+ * A player's stamped message carrying `drawn` and `rollId` was listed, decided and handed
+ * over like any stamped roll, and read as drawn on every client after (e33-review/secprobe1.log,
+ * P2, at ba0cade: drawn false, forged [drawn, rollId] before; drawn true, forged [] after). Such a
+ * message is nobody's roll here: its `forged` row names it (sheet-audit.mjs `onForgedCard`).
  */
 function awayRowOf(message) {
     const stamp = message?.getFlag?.(MODULE_ID, UNWITNESSED_FLAG);
     if (!stamp || typeof stamp !== "object" || Object.hasOwn(stamp, "granted")) return null;
+    if (forgedFlagsOf(message).length) return null;
     const author = message.author ?? null;
     const actor = game.actors.get(typeof stamp.actorId === "string" ? stamp.actorId : "");
     if (!author || author.isGM || !actor || !ownsActor(author, actor.id)) return null;

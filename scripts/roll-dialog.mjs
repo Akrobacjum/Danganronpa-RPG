@@ -44,8 +44,10 @@ export function registerRollDialog() {
  *
  * What is spent is what this window applied - the Calls it opened with
  * (`windowCalls`) - and nothing armed after it opened, which waits for the next
- * roll (S02-20). Exported, with the render hook, for the suite: Daggerheart's
- * window is not in the harness, so the tier-2 tests hand both a stand-in.
+ * roll (S02-20). Exported, with the render hook, for the suite: since E33 C2b the
+ * harness opens a glue window shaped as Daggerheart's (audit/harness/lib/dh-dice/
+ * applications/dialogs/d20RollDialog.mjs) and the tier-2 tests drive that one;
+ * until then they handed both a stand-in.
  *
  * A ROLL THE GM DRAWS IS SPENT BY THE GM (E08+E28 C12b). The window's list is kept on
  * its roll's claim before anything is awaited (private-rolls.mjs `noteWindowCalls`) and
@@ -529,11 +531,48 @@ function lockBonus(root, app, actor, armed) {
             // Unlike advantage, a flat bonus only ever comes from a Call -
             // `situationalAdvantage()` deals in advantage/disadvantage, not
             // in numbers - so the tooltip does not need the two-way check above.
-            extra.value = amount > 0 ? `+${amount}` : `${amount}`;
+            const bonus = amount > 0 ? `+${amount}` : `${amount}`;
+            // THE WINDOW KEEPS WHAT ITS FORM SENDS IT (E33 C3, 07.10.2026). Daggerheart's
+            // window copies its inputs into the roll's config only in its form's handler
+            // (d20RollDialog.mjs:150-171, 2.10.5, read: `config.extraFormula` :169), run on
+            // a change of the form (`submitOnChange`, :43-44); every render draws the input
+            // from that config (:132). A value a script writes is no change: at a9c98bf's
+            // runtime, and with this dispatch taken out of C3's (its mutant), the +1 was in
+            // the input and not in the roll, the GM scored it all the same, and an honest
+            // roll was flagged ["modifier","+1","0"] with one whisper to the GMs (tier 2, "a
+            // Meddle's +1 the window writes ..."). So the write says it changed, as chrome.mjs
+            // `step` does. The handler renders again (:170) and that render runs this again,
+            // so only a value the input does not hold is written - else the two would loop
+            // (read, not run). Foundry's half - a `change` in a form window runs its handler
+            // under `submitOnChange` - is written from its documented ApplicationV2, not
+            // measured: its source is not on this machine. Whether a table's Roll click
+            // submits the form too (the button has no `type`, rollSelection.hbs:195) is not
+            // known here (LIVE-E33).
+            if (extra.value !== bonus || (app.config && app.config.extraFormula !== bonus)) {
+                extra.value = bonus;
+                extra.dispatchEvent(new Event("change", { bubbles: true }));
+            }
             unlock(extra, "DRPG.RollDialog.forcedByCall");
             extra.readOnly = true;
         } else {
             disable(extra, "DRPG.RollDialog.bonusLocked");
+            // A LOCKED INPUT HOLDS NOTHING (E33 fix r1-G2, 07.10.2026; review round 1's sec m6 and cor
+            // M3). The lock disabled the input and left what it held: a Meddle's +1 written above and then
+            // taken back while the window was open stayed in the input and in the config (the handler
+            // above copies the form's data, and a disabled control is not in it, so only a later change
+            // of some other control would have cleared it), and a value the config was opened with was
+            // kept the same way. Measured in the glue window at ba0cade's runtime (tier 2): the input
+            // "+1" and `config.extraFormula` "+1" after the Meddle was spent; "+3" and "+3" opened with
+            // one and no Call. The GM no longer reads a Meddle it does not hold, so what was left was one
+            // false `modifier` whisper (roll-draw.mjs `checkRoll`) and a roll a window shows with a
+            // number the GM does not throw. The input is cleared, the config with it where the handler
+            // does not run (a disabled control is not in the form's data in Foundry either, as
+            // remembered of FormDataExtended, not read), and the same `change` is said.
+            if (extra.value !== "" || app.config?.extraFormula) {
+                extra.value = "";
+                if (app.config && app.config.extraFormula !== undefined) app.config.extraFormula = undefined;
+                extra.dispatchEvent(new Event("change", { bubbles: true }));
+            }
         }
     }
 }

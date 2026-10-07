@@ -35,6 +35,7 @@
 import { isPrimaryGm, whisperToGms, debug, error } from "./utils.mjs";
 import { dualityOfRoll } from "./reroll.mjs";
 import { rollSubjectNow, REROLL_SHOWN } from "./private-rolls.mjs";
+import { recordTrace } from "./sheet-audit.mjs";
 
 /** messageId -> { rolls, withFear }: the rolls each roll message stands on, as source data. */
 const firstOf = new Map();
@@ -126,7 +127,25 @@ export async function judgeRewrite(message, changes, options = {}, userId = null
         return { putBack: false, warned: warnGms("DRPG.Rolls.rewriteNotPutBack", message, user, userId) };
     }
     debug(`A roll's dice rewritten by ${user?.name ?? userId} were put back.`);
-    return { putBack: true, warned: warnGms("DRPG.Rolls.rewritePutBack", message, user, userId) };
+    const warned = warnGms("DRPG.Rolls.rewritePutBack", message, user, userId);
+    // The GMs' row of it (E33 C5a, sheet-audit.mjs `recordTrace`): the user Foundry named as the writer, the message and
+    // its total as kept and as rewritten - once per message and user, as the GMs are told.
+    if (warned) {
+        await recordTrace("rewrite", { actorId: actorIdsOf(message)[0] ?? null, userId: user?.id ?? userId ?? null, messageId: message.id,
+            change: { rolls: [totalOf(kept.rolls), totalOf(changes.rolls)] } })
+            .catch(err => error("Could not keep the GMs' row of a roll's dice put back", err));
+    }
+    return { putBack: true, warned };
+}
+
+/** The total of a message's first roll, as source data (a JSON string or an object), or null. */
+function totalOf(rolls) {
+    let roll = Array.isArray(rolls) ? rolls[0] : null;
+    if (typeof roll === "string") {
+        try { roll = JSON.parse(roll); } catch { return null; }
+    }
+    const total = Number(roll?.total);
+    return Number.isFinite(total) ? total : null;
 }
 
 /**

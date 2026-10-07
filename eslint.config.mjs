@@ -137,6 +137,7 @@ export default [
         "macros/**",                       // Foundry macro bodies: top-level return and await, which a module parser refuses
         "audit/handoff/**",                // a temporary hand-over folder, deleted in the 1.2.61 release commit
         "audit/harness/lib/dh-relay.mjs",  // Daggerheart's relay, copied verbatim and never edited (CLAUDE.md)
+        "audit/harness/lib/dh-dice/dice/**", // Daggerheart's dice, copied verbatim and never edited (audit/harness/README.md)
         "audit/harness/lint-fixtures/**"]  // planted violations, linted by run-all's lint part as a file of scripts/
     },
     { files: ["scripts/**/*.mjs"], languageOptions: { ...LANG, globals: { ...BROWSER, ...FOUNDRY } },
@@ -147,7 +148,7 @@ export default [
     // client-entry.mjs makes jsdom's window and document globals of the client process.
     { files: ["audit/harness/client-entry.mjs"], languageOptions: { globals: { window: "readonly", document: "readonly" } } },
     // Daggerheart's roll pipeline as the harness models it runs inside a client, whose shim puts Foundry's names on globalThis.
-    { files: ["audit/harness/lib/daggerheart.mjs"], languageOptions: { globals: { ...NODE, ...FOUNDRY } } },
+    { files: ["audit/harness/lib/daggerheart.mjs", "audit/harness/lib/dh-dice/**/*.mjs"], languageOptions: { globals: { ...NODE, ...FOUNDRY } } },
     // The live runner's page.evaluate functions run inside Foundry's page.
     { files: ["audit/live/**/*.mjs"], languageOptions: { globals: { ...NODE, ...BROWSER, ...FOUNDRY } } },
     { files: ["audit/live/page-hooks.js"], languageOptions: { ecmaVersion: "latest", sourceType: "script", globals: { ...BROWSER, ...FOUNDRY } }, rules: RULES }
