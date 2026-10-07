@@ -43,9 +43,10 @@ import { glassOn as motionGlassOn, SEAM_GLOW } from "./motion.mjs";
 import { seamWidth } from "./fog.mjs";
 
 const RING_NAME = "drpgRemnantRing";
-/* The seam's light, told apart from the seam - the same reason `SEAM_GLOW_NAME` exists
-   in fog.mjs: anything measuring "the ring" by taking the first child would measure the
-   bloom instead, which is strokes two to three times wider under a blur. */
+/* The seam's light, told apart from the seam - the same reason
+   `SEAM_GLOW_NAME` exists in fog-reveal.mjs: anything measuring "the ring" by taking the
+   first child would measure the bloom instead, which is strokes two to three times wider
+   under a blur. */
 const RING_GLOW_NAME = "drpgRemnantRingGlow";
 
 /** The zoom the rings were last struck at - see the `canvasPan` guard below. */

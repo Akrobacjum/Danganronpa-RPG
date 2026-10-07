@@ -402,7 +402,7 @@ function markFrame(element) {
        THE SETTING, NOT THE CLASS - and the first go used the class and left seven rounded
        cards on screen. `applyTheme()` puts `drpg-theme-stained-glass` on `<body>` at ready and
        the chat log renders at ready too, so which of the two lands first is a race. It is the
-       same trap `flashOutline` in fog.mjs has written out at length. */
+       same trap `flashOutline` in fog-reveal.mjs has written out at length. */
     element.style.setProperty("border-radius", styleNow().square ? "0px" : "4px", "important");
     return true;
 }

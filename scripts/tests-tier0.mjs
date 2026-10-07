@@ -3912,7 +3912,15 @@ const REGRESSIONS = [
             "the scene cannot be handed to it, so a deferred assembly has no way to say where");
         ok(/\[\.\.\.scene\.tokens\]/.test(gather),
             "the cast is read off the canvas, which only holds the scene somebody is looking at");
-        ok(!/canvas\.tokens\.placeables/.test(gather),
+        /* BOTH FUNCTIONS, BY NAME (E34 fix r1-G2, 07.10.2026; review r1 m4). Until E34 C2 this
+           read was `bodyOf` from gatherEveryone to the end of call-effects.mjs, so it took in
+           `fallbackGather`, which gatherEveryone hands the cast to when the region's teleport
+           throws. C2's `fnSource` stopped at gatherEveryone's own end: measured on 63b1908, a
+           `canvas.tokens.placeables` read planted in fallbackGather left this test green.
+           `bodyOf` to the end of call-world.mjs would cover it only while fallbackGather stays
+           the file's last function; read by name, either one leaving the file stops the test
+           instead. */
+        ok(!/canvas\.tokens\.placeables/.test(gather + fnSource(world, "fallbackGather")),
             "the canvas reading is back");
     }],
 

@@ -784,9 +784,10 @@ function armedOnBuyer(payload) {
 
 /*
  * RULE D (E05 C10, 26.09.2026; audit S06-11). A player's Call armed on a student the GMs know
- * is dead is refused: the buyer's browser offers the living it knows of (call-effects.mjs
- * `pickPlayer`), and a body nobody has found is one of those. Told as "cannot now", which
- * names nobody; why is in this GM's log. A Monocub is dead and still a target.
+ * is dead is refused: the buyer's browser offers the living it knows of
+ * (call-pickers.mjs `pickPlayer`), and a body nobody has found is one of those. Told as
+ * "cannot now", which names nobody; why is in this GM's log. A Monocub is dead and still a
+ * target.
  * ASKED LAST (E05 fix r2-G3, 27.09.2026; review S2-m1). It stood among the declaration's
  * guards, before the price: measured by the review, a player with no Hope who sent one
  * Support for a body nobody had found and one for a living student was told "cannot now"
@@ -1195,7 +1196,7 @@ export function playersOnly(why) {
     return made((sender, payload, ctx) => sender?.isGM ? why : null, "playersOnly", [], why);
 }
 
-/** The sender may see the project the packet names in `field` (`canSee`, projects.mjs). */
+/** The sender may see the project the packet names in `field` (projects-secrecy.mjs `canSee`). */
 export function canSeeProject(field, why) {
     return made(async (sender, payload, ctx) => {
         const { canSee } = await import("./projects.mjs");
