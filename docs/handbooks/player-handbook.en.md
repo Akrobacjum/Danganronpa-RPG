@@ -770,7 +770,7 @@ Bottom-left of your character sheet is a button with a word on it - **Safe Word*
 - **Messenger sounds**, and the **Sound** and **Music** volumes.
 
 > [!NOTE]
-> **Rolls are private:** every roll you make is seen by you and the GMs alone. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room. The one roll everybody reads is the GM's **Public roll** from the GM panel - a vote's tie, Monokuma's lottery (since 1.2.69).
+> **Rolls are private:** every roll you make is seen by you and the GMs alone. Nobody sees anyone else's dice, with two exceptions. A roll in a murder's fight is shown to the people in it - its dice, what it came to and which action it was - from the moment the incident begins to its end. A trap's builder is not among them: they see none of its dice and none of its cards, the card of the action that ends it included. What the opening roll came to is told to the roller's side alone - the killers of a direct murder, a trap's victim - and the clean-up stays the roller's own. A Monocub's rolls, Confusion included, are seen by everyone in their room. The one roll everybody reads is the GM's **Public roll** from the GM panel (not yet checked at a table) - a vote's tie, Monokuma's lottery (since 1.2.69).
 
 ---
 

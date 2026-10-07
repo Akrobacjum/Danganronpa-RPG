@@ -770,7 +770,7 @@ W lewym dolnym rogu karty postaci jest przycisk ze słowem - **Safe Word**, chyb
 - **Dźwięki komunikatora** oraz głośność **Dźwięk** i **Muzyka**.
 
 > [!NOTE]
-> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to **Rzut publiczny** GMa z panelu GMa - remis w głosowaniu, loteria Monokumy (od 1.2.69).
+> **Rzuty są prywatne:** każdy twój rzut widzisz tylko ty i GMowie. Nikt nie widzi cudzych kości, z dwoma wyjątkami. Rzut w walce podczas morderstwa widzą jego uczestnicy - kości, wynik i to, jaka to akcja - od chwili, gdy incydent się zaczyna, do jego końca. Budowniczy pułapki do nich nie należy: nie widzi z niego żadnych kości ani żadnej karty, także karty akcji, która go kończy. Wynik rzutu otwarcia poznaje tylko strona, która rzuca - zabójcy w Direct Murder, ofiara pułapki - a sprzątanie zostaje przy tym, kto rzuca. Rzuty Monocuba, łącznie z Confusion, widzą wszyscy w jego pokoju. Jedyny rzut, który czytają wszyscy, to **Rzut publiczny** GMa z panelu GMa (jeszcze nie sprawdzone przy stole) - remis w głosowaniu, loteria Monokumy (od 1.2.69).
 
 ---
 
