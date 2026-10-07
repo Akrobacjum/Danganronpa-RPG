@@ -150,10 +150,11 @@ import { rollFlags } from "./roll-draw.mjs";
 import { sheetWrites } from "./sheet-audit.mjs";
 import { relayGuardStatus } from "./relay-guard.mjs";
 import {
-    isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
+    isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isCrimeSilenced,
     meddleTargets, performMeddle, resolveMeddle, meddleDialog,
     openMonocubDialog
 } from "./monocub.mjs";
+import { isCallSilenced } from "./call-effects.mjs";
 import {
     mastermindActor, isMastermind, setMastermind, clearMastermind,
     mastermindLair, setMastermindLair, myLairRoom,
@@ -884,9 +885,18 @@ export const DrpgApi = {
     /** Opt in or out. Only ever on a character already marked dead. */
     setMonocub,
 
-    /** The guide's "stumbled onto the crime" ban, until the chapter ends. */
+    /** The guide's "stumbled onto the crime" ban, until the chapter ends: the crime-witness
+     *  marker, information only - it refuses nothing (ACT-12). */
     setSilenced,
-    isSilenced,
+    isCrimeSilenced,
+
+    /** The Despair Call "Silence": no Hope Calls until this time of day ends (call-effects.mjs). */
+    isCallSilenced,
+
+    /** `game.drpg.isSilenced` has answered the crime-witness question since the marker was
+     *  built, so a macro that reads it keeps reading what it read; the two readers got their
+     *  own names in 1.2.69 (E33 C9, D39) and this alias stays. */
+    isSilenced: isCrimeSilenced,
 
     /** GM-driven: spend a Monokuma's Despair to give somebody Hope, 1:1.
      *  Shared with the Mastermind below - the guide gives both the same trade. */

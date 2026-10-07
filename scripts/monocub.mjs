@@ -127,7 +127,7 @@ export async function setMonocub(actor, value = true) {
 export async function setSilenced(actor, silenced) {
     if (!game.user.isGM || !actor) return null;
 
-    const was = isSilenced(actor);
+    const was = isCrimeSilenced(actor);
     if (silenced) {
         await actor.setFlag(MODULE_ID, FLAGS.silencedChapter, getClock().chapter);
     } else {
@@ -146,8 +146,15 @@ export async function setSilenced(actor, silenced) {
     return actor;
 }
 
-/** Is the silence from stumbling onto a crime still in effect? */
-export function isSilenced(actor) {
+/**
+ * The crime-witness marker: is the chapter `setSilenced` stamped on the actor this one?
+ * Information only - it refuses nothing (a witness's Confusion lands, ACT-12) and mutes
+ * nothing; whether a Monocub keeps quiet is the player's own business (the owner, 05.10.2026).
+ * Named `isCrimeSilenced` since 1.2.69 (E33 C9, D39): until then this and the Despair Call's
+ * reader in call-effects.mjs were both `isSilenced`, and sheet.mjs renamed them at its door.
+ * `game.drpg.isSilenced` still answers this question (api.mjs).
+ */
+export function isCrimeSilenced(actor) {
     const chapter = actor?.getFlag(MODULE_ID, FLAGS.silencedChapter);
     return typeof chapter === "number" && chapter === getClock().chapter;
 }
@@ -566,7 +573,7 @@ export async function openMonocubDialog() {
     const buildRows = () => rosterOfDead().map(a => {
         const cub = isMonocub(a);
         const hope = cub ? resourceValue(a, "hope") : null;
-        const silenced = cub && isSilenced(a);
+        const silenced = cub && isCrimeSilenced(a);
         // What each pool can spend, and what it owes (E05 C12; despair.mjs `donorLabel`).
         const donors = gms.map(u =>
             `<option value="${u.id}">${foundry.utils.escapeHTML(donorLabel(u))}</option>`
@@ -660,7 +667,7 @@ export async function openMonocubDialog() {
         const actor = game.actors.get(row.id);
         if (!actor) continue;
         if (row.cub !== isMonocub(actor)) await setMonocub(actor, row.cub);
-        if (row.cub && row.silenced !== isSilenced(actor)) await setSilenced(actor, row.silenced);
+        if (row.cub && row.silenced !== isCrimeSilenced(actor)) await setSilenced(actor, row.silenced);
     }
 
     return result;

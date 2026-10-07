@@ -7044,6 +7044,52 @@ const REGRESSIONS = [
         equal(JSON.stringify([rows.filter(key => !fixed.includes(key)), fixed.filter(key => !rows.includes(key)),
             branches.filter(key => !situations.includes(key)), situations.filter(key => !branches.includes(key))]), JSON.stringify([[], [], [], []]),
         "a row of the GMs' roll list has no fixture, a fixture names no row, a branch of the situation row has no fixture, or a situation fixture names no branch (rows; fixtures; branches; situation fixtures)");
+    }],
+
+    ["R300 - each silence has one name: isCrimeSilenced in monocub.mjs, isCallSilenced in call-effects.mjs, isSilenced only as api.mjs's alias (D39)", async () => {
+        /*
+         * E33 C9 (D39; audit S09-48, S03-46). Two rules carried the name `isSilenced`
+         * until 1.2.69: the crime-witness marker on a Monocub (monocub.mjs; information
+         * only) and the Despair Call "Silence" on a living student (call-effects.mjs;
+         * no Hope Calls until the time of day ends), and sheet.mjs renamed them at its
+         * door - which is how a reader took one for the other. Each has its own name
+         * now, and `game.drpg.isSilenced` is kept as the crime's alias, the question it
+         * has always answered.
+         *
+         * WHY NAMES, NOT BEHAVIOUR ALONE: gm-panel.mjs (the Players window and
+         * `applyAliveStates`) and calls.mjs (`hopeCallRefusal`) take their reader by
+         * destructuring a dynamic import, so a name that is no longer exported is
+         * `undefined`, not a load error, and throws only when called - a Players window
+         * with no Monocub in it, or a pass that changes no marker, runs with it. The
+         * four tier-2 tests through `applyAliveStates` pass no `silenced` key, so none
+         * of them would see it (read 07.10.2026). This reads the names: each new one
+         * declared once, in its own file; the old identifier nowhere but the alias;
+         * neither new name imported under another; sheet.mjs taking each from its own
+         * module.
+         */
+        const files = (await otherSources()).filter(([file]) => file.endsWith(".mjs"))
+            .map(([file, raw]) => [file, stripComments(raw)]);
+        ok(files.length > 50, `only ${files.length} module file(s) were read - the crawl is not reaching the module`);
+        const declaring = name => files.filter(([, text]) => new RegExp(`^export function ${name}\\(`, "m").test(text))
+            .map(([file, text]) => `${file} x${text.match(new RegExp(`^export function ${name}\\(`, "mg")).length}`);
+        const where = (text, m) => `:${lineAt(text, m.index)}`;
+        const bare = [], aliased = [];
+        for (const [file, text] of files) {
+            for (const m of text.matchAll(/\bisSilenced\b/g)) {
+                if (file === "api.mjs" && /^\s*isSilenced:\s*isCrimeSilenced,?\s*$/.test(lineAround(text, m.index))) continue;
+                bare.push(`${file}${where(text, m)}`);
+            }
+            for (const m of text.matchAll(/\bis(?:Crime|Call)Silenced\s+as\s+\w+|\b\w+\s+as\s+is(?:Crime|Call)Silenced\b/g)) {
+                aliased.push(`${file}${where(text, m)} ${m[0]}`);
+            }
+        }
+        const sheet = files.find(([file]) => file === "sheet.mjs")?.[1] ?? "";
+        const takes = (name, from) => new RegExp(`import\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from\\s*"\\./${from}\\.mjs"`).test(sheet);
+        equal(JSON.stringify([declaring("isCrimeSilenced"), declaring("isCallSilenced"), bare, aliased,
+            [takes("isCrimeSilenced", "monocub"), takes("isCallSilenced", "call-effects"), takes("isCrimeSilenced", "call-effects"), takes("isCallSilenced", "monocub")]]),
+            JSON.stringify([["monocub.mjs x1"], ["call-effects.mjs x1"], [], [], [true, true, false, false]]),
+            "a silence's reader is declared elsewhere or more than once, the old name `isSilenced` is used outside api.mjs's alias, a new name is imported under another, "
+            + "or sheet.mjs does not take each reader from its own module (isCrimeSilenced declared; isCallSilenced declared; isSilenced at; renamed at; sheet.mjs takes crime/monocub, call/call-effects, crime/call-effects, call/monocub)");
     }]
 ];
 

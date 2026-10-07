@@ -16,7 +16,7 @@ import { forcedDeletion } from "./utils.mjs";
 import { gmStoresIdle } from "./gm-store.mjs";
 import {
     ok, must, needs, env, world, equal, wait, settle, until, moduleSources, otherSources, stripComments, bodyOf, fnSource,
-    STANDING, stableJson, moduleSettingValues, watchLog, cast
+    STANDING, stableJson, moduleSettingValues, watchLog, cast, systemSheetsAvailable
 } from "./tests-kit.mjs";
 import { GRID } from "./tests-grid.mjs";
 
@@ -32840,6 +32840,76 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([["", true, null], ["", true, null]]),
             "the locked bonus input kept a value, or the config did (the Meddle taken back and the window redrawn: value, disabled, config; opened with +3: the same)");
+    }],
+
+    ["each silence answers under its own name", async () => {
+        /*
+         * E33 C9 (D39). The crime-witness marker on a Monocub and the Despair Call
+         * "Silence" on a living student were both `isSilenced` until 1.2.69; this drives
+         * each road under its new name and reads all three answers (`game.drpg`'s
+         * `isCrimeSilenced`, its `isSilenced` alias, `isCallSilenced`) on both. The marker
+         * goes through the Players window's apply (`applyAliveStates` with a `silenced`
+         * key; the four tests through it before this one pass none, so its reader was
+         * never called there), the Call's restriction is written as `silenceEffect`
+         * writes it, and `hopeCallRefusal` answers with the Call's notice through
+         * calls.mjs's own import of the reader. Nothing else is asserted because
+         * nothing else moves: no flag, packet, card, text or handbook.
+         *
+         * THE BADGES: `standingEffects` in sheet.mjs is not exported and the headless
+         * harness stands a stub where the sheet would be (tests-kit.mjs
+         * `systemSheetsAvailable`), so where a sheet renders the badges are read off
+         * its pending stack, and where none does they are read off the source of
+         * `standingEffects` - which reader guards which icon - and the message says
+         * which road was read. Either way the marker's badge under the Call's reader
+         * (the mutant) shows: on the source road the cub shows nothing and the student
+         * both.
+         */
+        const [cub, student] = cast(2);
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const { hopeCallRefusal } = await import("./calls.mjs");
+        const CE = await import("./call-effects.mjs");
+        const M = await import("./monocub.mjs");
+        ok(typeof game.drpg.isCrimeSilenced === "function" && typeof game.drpg.isCallSilenced === "function" && typeof game.drpg.isSilenced === "function",
+            "game.drpg has no isCrimeSilenced, isCallSilenced or isSilenced");
+        const notice = game.i18n.localize("DRPG.Calls.silencedNotice");
+        const wasCub = Boolean(cub.getFlag(MODULE_ID, FLAGS.monocub));
+        const restrictionsBefore = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.restrictions) ?? {});
+        const seen = new Set(game.messages.map(m => m.id));
+        const three = a => [game.drpg.isCrimeSilenced(a), game.drpg.isSilenced(a), game.drpg.isCallSilenced(a)];
+        const rendered = systemSheetsAvailable();
+        const readers = { isCrimeSilenced: M.isCrimeSilenced, isCallSilenced: CE.isCallSilenced, isChained: CE.isChained };
+        const guards = rendered ? [] : [...fnSource(stripComments((await moduleSources()).get("sheet.mjs") ?? ""), "standingEffects")
+            .matchAll(/if \((\w+)\(actor\)\) \{\s*out\.push\(\{ icon: "([\w-]+)"/g)].map(m => [m[1], m[2]]);
+        const badges = async a => {
+            if (!rendered) return guards.filter(([fn]) => readers[fn]?.(a)).map(([, icon]) => icon);
+            await a.sheet.render(true);
+            await wait(900);
+            const icons = [...(a.sheet.element?.querySelectorAll(".drpg-pending-stack .drpg-pending-call i") ?? [])]
+                .map(i => [...i.classList].find(c => c.startsWith("fa-") && c !== "fa-solid"));
+            await a.sheet.close();
+            return icons.filter(c => c === "fa-user-slash" || c === "fa-comment-slash");
+        };
+        const read = [];
+        try {
+            if (!wasCub) await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            read.push(await applyAliveStates({ [cub.id]: { state: "monocub", silenced: true } }));
+            await settle();
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions,
+                { ...restrictionsBefore, [student.id]: { ...(restrictionsBefore[student.id] ?? {}), silenced: true } });
+            read.push(three(cub), three(student), await hopeCallRefusal(student), await badges(cub), await badges(student));
+            read.push(await applyAliveStates({ [cub.id]: { state: "monocub", silenced: false } }));
+            await settle();
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsBefore);
+            read.push(three(cub), three(student));
+        } finally {
+            await cub.unsetFlag(MODULE_ID, FLAGS.silencedChapter);
+            if (!wasCub) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            await game.settings.set(MODULE_ID, SETTINGS.restrictions, restrictionsBefore);
+            for (const m of game.messages.filter(m => !seen.has(m.id))) { try { await m.delete(); } catch { /* already gone */ } }
+        }
+        equal(stableJson(read), stableJson([1, [true, true, false], [false, false, true], notice, ["fa-user-slash"], ["fa-comment-slash"], 1, [false, false, false], [false, false, false]]),
+            `a silence answered under the wrong name, or the wrong badge was drawn (badges read off ${rendered ? "the rendered sheet" : "the source of standingEffects: no sheet renders here"}; `
+            + "marked: applied, cub crime/alias/call, student crime/alias/call, hopeCallRefusal, cub badges, student badges; cleared: applied, cub, student)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

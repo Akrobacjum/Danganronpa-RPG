@@ -620,7 +620,7 @@ async function openFailureLog() {
  * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
  * so this can be called again in place while the window stays open.
  */
-function aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, resourceMax }) {
+function aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax }) {
     /*
      * THE THREE MONOCUB COLUMNS ONLY EXIST WHEN A MONOCUB DOES (D-F4).
      *
@@ -658,7 +658,7 @@ function aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, re
                     ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
             <td style="text-align:center">${cub
                 ? `<input type="checkbox" name="silenced:${a.id}" ${
-                    isSilenced(a) ? "checked" : ""} />`
+                    isCrimeSilenced(a) ? "checked" : ""} />`
                 : "-"}</td>`;
 
         return `<tr data-actor="${a.id}">
@@ -811,7 +811,7 @@ async function openWhoIsAliveDialog() {
     // `killCharacter`, `reviveCharacter` and `setSilenced` went with the apply loop
     // (F15): `applyAliveStates` below imports what it writes.
     const { isDeceased, isDeadForGm, openDeathDialog } = await import("./chapter.mjs");
-    const { isMonocub, setMonocub, isSilenced } = await import("./monocub.mjs");
+    const { isMonocub, setMonocub, isCrimeSilenced } = await import("./monocub.mjs");
     const { monokumas, donorLabel } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
 
@@ -851,7 +851,7 @@ async function openWhoIsAliveDialog() {
 
     const table = () => {
         const donors = buildDonors();
-        return aliveTableHtml({ roster, stateOf, donors, isSilenced, resourceValue, resourceMax });
+        return aliveTableHtml({ roster, stateOf, donors, isCrimeSilenced, resourceValue, resourceMax });
     };
 
     // A row button's round trip, if one is running: this window did not answer,
@@ -952,7 +952,7 @@ export async function applyAliveStates(chosen = {}) {
     if (!game.user.isGM) return 0;
 
     const { isDeceased, isDeadForGm, reviveCharacter, markDeceased, publishDeath, pendingDeath, incidentVictimDied } = await import("./chapter.mjs");
-    const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
+    const { isMonocub, setMonocub, isCrimeSilenced, setSilenced } = await import("./monocub.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
     const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : isDeadForGm(a) ? "unfound" : "alive";
     /* A death kept by the GMs is published by the GM's hand here (E05 C10; the owner's Q3):
@@ -1002,7 +1002,7 @@ export async function applyAliveStates(chosen = {}) {
         // Silence only means anything for a cub, and only after the state above has
         // settled - a student promoted to Monocub in this same pass can be silenced
         // in it too.
-        if (isMonocub(actor) && "silenced" in want && want.silenced !== isSilenced(actor)) {
+        if (isMonocub(actor) && "silenced" in want && want.silenced !== isCrimeSilenced(actor)) {
             await setSilenced(actor, want.silenced);
             changed++;
         }

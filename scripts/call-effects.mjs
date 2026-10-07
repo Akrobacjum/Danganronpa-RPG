@@ -813,7 +813,7 @@ export function refusalBeforePaying(call, choice = {}) {
     if (call?.sealsRoom && choice.room && isSealed(choice.room)) {
         return i18n.format("DRPG.Calls.alreadySealed", { room: choice.room });
     }
-    if (call?.silences && target && isSilenced(target)) {
+    if (call?.silences && target && isCallSilenced(target)) {
         return i18n.format("DRPG.Calls.alreadySilenced", { name: target.name });
     }
     if (call?.chains && target && isChained(target)) {
@@ -1123,7 +1123,7 @@ async function sealRoomEffect(actor, call, choice, done) {
 
 // --- silence: no Hope Calls until this time of day ends ---
 async function silenceEffect(actor, call, choice, done) {
-    if (isSilenced(choice.target)) {
+    if (isCallSilenced(choice.target)) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySilenced", { name: choice.target.name }));
         throw new NothingToDo(`${choice.target.name} is already silenced`);
     }
@@ -1291,8 +1291,12 @@ export function restrictions() {
     }
 }
 
-/** May this character still spend Hope Calls? */
-export function isSilenced(actor) {
+/**
+ * The Despair Call "Silence": may this character still spend Hope Calls? Named
+ * `isCallSilenced` since 1.2.69 (E33 C9, D39) - the crime-witness marker on a Monocub is
+ * `isCrimeSilenced` in monocub.mjs, a different rule that until then shared this name.
+ */
+export function isCallSilenced(actor) {
     return Boolean(actor && restrictions()[actor.id]?.silenced);
 }
 

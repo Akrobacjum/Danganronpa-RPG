@@ -34,11 +34,13 @@ import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
 // menu with the crisis grid - see `openCrisisMenu` in action-rolls.mjs.
 import { murderState, sideOf, betrayalTarget, isTheirTurn, crisisTileLabel } from "./murder.mjs";
-// Two different silences, so both are renamed at the door rather than one of
-// them shadowing the other: a Monocub silenced for the chapter may not speak,
-// a player silenced by a Despair Call may not spend Hope.
-import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
-import { isSilenced as callSilenced, isChained, pendingGather, armedCallsShown } from "./call-effects.mjs";
+// Two different rules, each under its own name since 1.2.69 (E33 C9, D39): the
+// crime-witness marker on a Monocub (information only - it refuses nothing) and
+// the Despair Call "Silence" on a living student (no Hope Calls until the time of
+// day ends). Until then both arrived as `isSilenced` and were renamed at this door,
+// which is how a reader of this file took one for the other.
+import { isMonocub, isCrimeSilenced } from "./monocub.mjs";
+import { isCallSilenced, isChained, pendingGather, armedCallsShown } from "./call-effects.mjs";
 import { isDeceased, isDeadForGm } from "./chapter.mjs";
 
 import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
@@ -687,7 +689,7 @@ function refreshCallsPanels(actor, element) {
         const max = monokuma ? STARTING.despairMax : hopeMax(actor);
         const lockNote = callLockNote(monokuma);
 
-        panel.classList.toggle("drpg-silenced", callSilenced(actor));
+        panel.classList.toggle("drpg-silenced", isCallSilenced(actor));
 
         const pool = panel.querySelector(".drpg-calls-pool");
         if (pool) pool.textContent = `${held} / ${max}`;
@@ -1427,7 +1429,7 @@ function standingEffects(actor) {
     const out = [];
     if (!actor) return out;
 
-    if (callSilenced(actor)) {
+    if (isCallSilenced(actor)) {
         out.push({ icon: "fa-comment-slash", label: "DRPG.Calls.silencedBadge",
                    tooltip: "DRPG.Calls.silencedNotice" });
     }
@@ -1437,7 +1439,7 @@ function standingEffects(actor) {
     }
     // The Monocub's is a different silence - it is about speaking at the table,
     // not about spending Hope - so it says so rather than sharing a label.
-    if (cubSilenced(actor)) {
+    if (isCrimeSilenced(actor)) {
         out.push({ icon: "fa-user-slash", label: "DRPG.Monocub.silencedBadge",
                    tooltip: "DRPG.Monocub.silencedTooltip" });
     }
@@ -3472,7 +3474,7 @@ function injectMonocubPanel(tab, actor) {
     grid.append(meddleButton(actor));
     panel.append(grid);
 
-    if (isSilenced(actor)) {
+    if (isCrimeSilenced(actor)) {
         const note = document.createElement("p");
         note.className = "notes drpg-monocub-silenced";
         note.textContent = game.i18n.localize("DRPG.Monocub.silencedNoteShort");
@@ -3593,7 +3595,7 @@ function injectCallsPanel(tab, actor, monokuma) {
     // Refusal stays where it is. The dimming says "not now"; pressing anyway is
     // still how a player is told why.
     panel.className = `drpg-calls-panel ${monokuma ? "drpg-despair-panel" : "drpg-hope-panel"}${
-        callSilenced(actor) ? " drpg-silenced" : ""}`;
+        isCallSilenced(actor) ? " drpg-silenced" : ""}`;
 
     // The pool is on the bar for a Monokuma and nowhere else: Despair is the
     // only thing their sheet is about, and the number is not repeated anywhere
@@ -3835,12 +3837,9 @@ async function runCall(actor, key, kind) {
     // Silence closes the whole Hope menu. Checked here rather than inside
     // `spendHopeCall`, which only reached it after the target picker and the
     // confirmation - three dialogs to be told the menu was shut all along.
-    if (!despair) {
-        const { isSilenced } = await import("./call-effects.mjs");
-        if (isSilenced(actor)) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Calls.silencedNotice"));
-            return;
-        }
+    if (!despair && isCallSilenced(actor)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Calls.silencedNotice"));
+        return;
     }
 
     // Experience buys the use of an experience. With none written on the sheet
