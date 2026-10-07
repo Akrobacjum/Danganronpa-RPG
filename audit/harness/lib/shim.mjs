@@ -651,7 +651,11 @@ export function buildDocumentClasses(ctx) {
         // matched the time-of-day card instead.
         static async create(data, context = {}) {
             const stamp = d => ({ timestamp: Date.now(), ...d, author: d?.author ?? d?.user ?? ctx.userId() });
-            return super.create(Array.isArray(data) ? data.map(stamp) : stamp(data), context);
+            // v14's `create(data, { messageMode })`, as Daggerheart 2.10.5 makes a roll's message (dhRoll.mjs
+            // :162; E33 C11): the mode is on the data when the preCreate hook runs, as a document's own
+            // `_preCreate` runs before the hook. Whether v14 does it there is LIVE-E33-03.
+            const moded = d => (context.messageMode ? this.applyMode(stamp(d), context.messageMode) : stamp(d));
+            return super.create(Array.isArray(data) ? data.map(moded) : moded(data), context);
         }
         get timestamp() { return this._source.timestamp ?? 0; }
         get author() { return ctx.gameRef().users.get(this._source.author ?? this._source.user) ?? null; }
@@ -716,6 +720,21 @@ export function buildDocumentClasses(ctx) {
             if (mode === "gmroll" || mode === "blindroll") data.whisper = g.users.filter(u => u.isGM).map(u => u.id);
             if (mode === "blindroll") data.blind = true;
             if (mode === "selfroll") data.whisper = [g.user.id];
+            return data;
+        }
+        /* v14's mode on a message's data (E33 C11, 07.10.2026), as Daggerheart 2.10.5 calls it:
+           `ChatMessage.applyMode(msg, game.settings.get('core', 'messageMode'))` on a card's data
+           (actionField.mjs :328) and `cls.create(msgData, { messageMode })` for a roll (dhRoll.mjs
+           :159-162); its dialog lists `CONFIG.ChatMessage.modes` (d20RollDialog.mjs :74-75). What the
+           real one writes besides `whisper` and `blind` is not known here (LIVE-E33-03): this model
+           writes those two, so the module's `privateModeFields()` reads `{}` headless and a private
+           roll is its whisper alone - the module's rule either way. `applyRollMode` above stays as
+           v13's name, which this shim's own `Roll#toMessage` still takes. */
+        static applyMode(data, mode) {
+            const g = ctx.gameRef();
+            if (mode === "gm" || mode === "blind") data.whisper = g.users.filter(u => u.isGM).map(u => u.id);
+            if (mode === "blind") data.blind = true;
+            if (mode === "self") data.whisper = [g.user.id];
             return data;
         }
     }

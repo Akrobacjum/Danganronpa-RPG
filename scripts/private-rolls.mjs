@@ -856,7 +856,7 @@ function onPreCreateChatMessage(message, data, options, userId) {
     }
 
     try {
-        whisperRoll(message, data, userId, claimed);
+        whisperRoll(message, data, options, userId, claimed);
     } catch (err) {
         error("preCreateChatMessage failed", err);
     }
@@ -873,11 +873,88 @@ function onPreCreateChatMessage(message, data, options, userId) {
     }
 }
 
+/*
+ * THE WHISPER FIRST, THE MODE APART (E33 C11, 07.10.2026; audit S02-68; the plan's V7).
+ * Until 1.2.69 each rewrite in `whisperRoll` wrote the whisper list and
+ * `flags.core.rollMode: CONST.DICE_ROLL_MODES.PRIVATE` in one `updateSource`, under the
+ * one try of `onPreCreateChatMessage`: a browser on which reading that constant throws
+ * wrote neither, and the roll was created public. Foundry 14 deprecates the constant and
+ * 16 drops it - the audit's reading of v14 (U05-roll-pipeline-15), second-hand, since
+ * foundryvtt.com is refused by this machine's proxy; what is read first-hand is how
+ * Daggerheart 2.10.5 calls v14: `CONFIG.ChatMessage.modes`, `ChatMessage.applyMode(data,
+ * mode)` and the `core.messageMode` setting (actionField.mjs :328, dhRoll.mjs :159-162,
+ * d20RollDialog.mjs :74-75). Nothing in scripts/ ever read the flag back (grep, 05.10.2026;
+ * the comment here that said Dice So Nice did was false for 6.2.9). So the whisper alone
+ * decides who holds the dice (`isContentVisible`): it is written first, in its own try,
+ * and the mode after it and apart - what v14's `applyMode` writes for a GM whisper besides
+ * `whisper` and `blind`, read once per `applyMode` and `{}` where there is none. A mode
+ * that cannot be written is said once and costs the list nothing. What `applyMode` writes
+ * on a real document, and whether v14 applies a create's `messageMode` option before this
+ * hook or after it, is LIVE-E33-03.
+ */
+const PRIVATE_MODE = "gm";
+let modeMemo = null;          // { api, fields }: read again when ChatMessage.applyMode is another function
+let modeFailureSaid = false;
+
+/**
+ * What v14's `ChatMessage.applyMode({}, "gm")` writes besides `whisper` and `blind`, as flat
+ * paths; `{}` where the API is absent. Memoised on the function itself, so a wrapper put on
+ * `applyMode` after the first roll (libWrapper) is read, and so is the suite's stand-in. A
+ * throw inside `applyMode` is the caller's to say.
+ */
+export function privateModeFields() {
+    const api = globalThis.ChatMessage?.applyMode;
+    if (modeMemo && modeMemo.api === api) return modeMemo.fields;
+    const fields = {};
+    const modes = globalThis.CONFIG?.ChatMessage?.modes;
+    if (typeof api === "function" && modes && Object.hasOwn(modes, PRIVATE_MODE)) {
+        const data = {};
+        const out = api.call(globalThis.ChatMessage, data, PRIVATE_MODE);
+        const written = out && typeof out === "object" ? out : data;
+        for (const [path, value] of Object.entries(foundry.utils.flattenObject(written))) {
+            if (path !== "whisper" && path !== "blind") fields[path] = value;
+        }
+    } else {
+        debug("No ChatMessage.applyMode on this Foundry: a private roll is its whisper alone.");
+    }
+    modeMemo = { api, fields };
+    return fields;
+}
+
+/** The list, in its own try: the one write that decides who holds the dice. */
+function writeWhisper(message, whisper) {
+    try {
+        message.updateSource({ whisper, blind: false });
+        return true;
+    } catch (err) {
+        error("Could not write a roll's whisper list", err);
+        return false;
+    }
+}
+
+/**
+ * The mode, after the list and apart from it. `options` are the create's: Daggerheart
+ * 2.10.5 hands v14 the mode there (dhRoll.mjs :162), so whatever reads it after this hook
+ * reads the mode the list says.
+ */
+function writeMode(message, options) {
+    try {
+        const fields = privateModeFields();
+        if (Object.keys(fields).length) message.updateSource(fields);
+        if (options && typeof options === "object" && Object.hasOwn(options, "messageMode")) options.messageMode = PRIVATE_MODE;
+    } catch (err) {
+        if (modeFailureSaid) return;
+        modeFailureSaid = true;
+        debug("Could not write a private roll's message mode; its list of readers stands.", err);
+    }
+}
+
 /**
  * Who may read a roll, written into it as it is created; nothing is written
- * when rolls are not forced private. `claimed`: the module threw it.
+ * when rolls are not forced private. `options`: the create's. `claimed`: the
+ * module threw it.
  */
-function whisperRoll(message, data, userId, claimed) {
+function whisperRoll(message, data, options, userId, claimed) {
     if (!game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
 
     // Foundry v12+ exposes the creating user as `author`.
@@ -906,7 +983,7 @@ function whisperRoll(message, data, userId, claimed) {
      * to this one.
      */
     if (claimed) {
-        message.updateSource({ whisper: recipients, blind: false, "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE });
+        if (writeWhisper(message, recipients)) writeMode(message, options);
         debug("Rewrote a roll the module threw into a whisper to the GMs.");
         return;
     }
@@ -963,15 +1040,7 @@ function whisperRoll(message, data, userId, claimed) {
     // are now covered by the subject rules above.
     if (!author.isGM) recipients.push(author.id);
 
-    // Set the roll mode flag as well as the recipients. Modules that style
-    // or animate rolls (Dice So Nice among them) read `core.rollMode`, and
-    // a message whose recipients say "private" while its flag still says
-    // "public" is an inconsistent state we should not create.
-    message.updateSource({
-        whisper: Array.from(new Set(recipients)),
-        blind: false,
-        "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE
-    });
+    if (writeWhisper(message, Array.from(new Set(recipients)))) writeMode(message, options);
     debug(`Rewrote a roll for ${subject?.name ?? author.name} into a private whisper.`);
 }
 

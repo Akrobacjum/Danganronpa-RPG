@@ -6657,6 +6657,41 @@ const REGRESSIONS = [
             "the GM-side run does not ask the row's target rule again, throw the row's roll and score with the row's resolver");
     }],
 
+    ["R302 - a private roll's whisper is written first and in its own try, its mode after and apart, and CONST.DICE_ROLL_MODES and core.rollMode are used nowhere (S02-68)", async () => {
+        /*
+         * E33 C11 (audit S02-68; the plan's V7). Until 1.2.69 private-rolls.mjs wrote a roll's
+         * whisper list and `flags.core.rollMode: CONST.DICE_ROLL_MODES.PRIVATE` in one
+         * `updateSource` under one try, and migrate.mjs's rewrite of old rolls the same: a
+         * browser on which the constant throws - Foundry 14 deprecates it and 16 drops it, as
+         * the audit reads v14 - created the roll public, and nothing ever read the flag back.
+         * The rule now: `writeWhisper` writes the list and nothing of a mode, in its own try;
+         * `writeMode` writes what `privateModeFields` reads and no list, in its own; each road
+         * of `whisperRoll` calls the first and only then the second, and writes the document
+         * through neither of its own. Read off the source: every road comes out the same
+         * wherever the mode can be written, which is every Foundry the suite has run on.
+         */
+        const files = (await otherSources()).filter(([file]) => file.endsWith(".mjs")).map(([file, raw]) => [file, stripComments(raw)]);
+        ok(files.length > 50, `only ${files.length} module file(s) were read - the crawl is not reaching the module`);
+        const uses = [];
+        for (const [file, text] of files) {
+            for (const m of text.matchAll(/\bDICE_ROLL_MODES\b|\bcore\.rollMode\b/g)) uses.push(`${file}:${lineAt(text, m.index)} ${m[0]}`);
+        }
+        equal(JSON.stringify(uses), "[]", "CONST.DICE_ROLL_MODES or core.rollMode is read or written in the module - v14 deprecates the one and nothing reads the other");
+        const src = files.find(([file]) => file === "private-rolls.mjs")?.[1] ?? "";
+        const list = fnSource(src, "writeWhisper"), mode = fnSource(src, "writeMode"), roads = fnSource(src, "whisperRoll");
+        const ownTry = text => /\btry\s*\{/.test(text) && /\}\s*catch\b/.test(text);
+        const listWrites = list.match(/updateSource\(\{\s*whisper\b[^}]*\}\)/g) ?? [];
+        equal(JSON.stringify([listWrites.length, ownTry(list), /privateModeFields|applyMode|messageMode|flags\./.test(list)]), JSON.stringify([1, true, false]),
+            "writeWhisper does not write the list once, in its own try, with nothing of a mode (list writes; own try; names a mode)");
+        equal(JSON.stringify([ownTry(mode), /\bprivateModeFields\(\)/.test(mode), /\bwhisper\b/.test(mode)]), JSON.stringify([true, true, false]),
+            "writeMode does not read privateModeFields in its own try, or it touches the whisper list (own try; reads the fields; names the list)");
+        const paired = roads.match(/if \(writeWhisper\([^\n]*\)\) writeMode\(message, options\);/g) ?? [];
+        equal(JSON.stringify([paired.length, (roads.match(/\bwriteMode\(/g) ?? []).length, (roads.match(/\bwriteWhisper\(/g) ?? []).length, /updateSource\(/.test(roads)]),
+            JSON.stringify([2, 2, 2, false]),
+            "whisperRoll's two roads (a roll the module threw; any other) do not each write the list and only then the mode, or one writes the document itself (paired; mode calls; list calls; a direct write)");
+        log(`R302: ${files.length} module files hold no DICE_ROLL_MODES or core.rollMode; whisperRoll pairs the list before the mode on ${paired.length} roads`);
+    }],
+
     ["R220 - a module write names a reason of the closed list", async () => {
         /*
          * E29 C1, 05.10.2026; audit S17-12; the plan's 2.2. Every write the module makes on a

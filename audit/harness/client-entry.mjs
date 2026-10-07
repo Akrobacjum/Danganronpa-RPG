@@ -316,6 +316,9 @@ const FOREIGN_SETTING_DEFAULTS = {
     "daggerheart.Homebrew": { scope: "world", default: { maxFear: 12 } },
     "dice-so-nice.Appearance": { scope: "client", default: {} },
     "core.rollMode": { scope: "client", default: "publicroll" },
+    /* v14's name for it, as Daggerheart 2.10.5 reads it for every roll it makes (dhRoll.mjs :159,
+       actionField.mjs :328; E33 C11). The keys of `CONFIG.ChatMessage.modes` below are its values. */
+    "core.messageMode": { scope: "client", default: "public" },
     /* How loud playlists are ON THIS BROWSER. Foundry's own, client-scoped, and
        the module reads and writes it in two places: the Sound panel's Music
        slider proxies it rather than keeping a second volume beside it
@@ -1027,6 +1030,16 @@ globalThis.ui = {
 
 /* ------------------------------ CONFIG ----------------------------------- */
 
+/* v14's message modes as Daggerheart 2.10.5's roll dialog lists them - `Object.entries(CONFIG.ChatMessage.modes)`
+   to `{ action, label, icon }` (d20RollDialog.mjs :75) - and as the module's `privateModeFields` looks one up by
+   key. The keys are the audit's reading of v14; what the real table holds is LIVE-E33-03. */
+const MESSAGE_MODES = {
+    public: { label: "Public Roll", icon: "fa-solid fa-globe" },
+    gm: { label: "Private GM Roll", icon: "fa-solid fa-user-secret" },
+    blind: { label: "Blind GM Roll", icon: "fa-solid fa-eye-slash" },
+    self: { label: "Self Roll", icon: "fa-solid fa-user" }
+};
+
 globalThis.CONFIG = {
     debug: { hooks: false },
     // Foundry's own selection colours (CONTROLLED is its orange).
@@ -1056,7 +1069,7 @@ globalThis.CONFIG = {
     Item: { documentClass: classes.Item, typeLabels: {}, dataModels: {} },
     Token: { documentClass: classes.Token, objectClass: Object },
     Scene: { documentClass: classes.Scene },
-    ChatMessage: { documentClass: classes.ChatMessage, template: "" },
+    ChatMessage: { documentClass: classes.ChatMessage, template: "", modes: MESSAGE_MODES },
     User: { documentClass: classes.User },
     RollTable: { documentClass: classes.RollTable },
     Playlist: { documentClass: classes.Playlist },
@@ -1081,11 +1094,24 @@ const CONST = {
     DOCUMENT_OWNERSHIP_LEVELS: { INHERIT: -1, NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 },
     TOKEN_DISPOSITIONS: { SECRET: -2, HOSTILE: -1, NEUTRAL: 0, FRIENDLY: 1 },
     CHAT_MESSAGE_STYLES: { OTHER: 0, OOC: 1, IC: 2, EMOTE: 3 },
-    DICE_ROLL_MODES: { PUBLIC: "publicroll", PRIVATE: "gmroll", BLIND: "blindroll", SELF: "selfroll" },
     REGION_EVENTS: { TOKEN_ENTER: "tokenEnter", TOKEN_EXIT: "tokenExit", TOKEN_MOVE_IN: "tokenMoveIn", TOKEN_MOVE_OUT: "tokenMoveOut" },
     KEYBINDING_PRECEDENCE: { PRIORITY: 0, NORMAL: 1, DEFERRED: 2 }
 };
 globalThis.CONST = CONST;
+/* v13's roll-mode constant as v14 has it (E33 C11, 07.10.2026): a deprecation. Daggerheart 2.10.5 reads
+   the modes off `CONFIG.ChatMessage.modes` and the `core.messageMode` setting instead (d20RollDialog.mjs
+   :74-75, dhRoll.mjs :159); that the constant is deprecated in 14 and gone in 16 is the audit's reading
+   (U05-roll-pipeline-15; foundryvtt.com is refused here, so it is second-hand). A getter, so that a read
+   is counted (`__diceRollModesReads`) and warned, and a scenario can put a throwing one in its place. */
+Object.defineProperty(CONST, "DICE_ROLL_MODES", {
+    configurable: true, enumerable: false,
+    get() {
+        globalThis.__diceRollModesReads = (globalThis.__diceRollModesReads ?? 0) + 1;
+        console.warn("(harness) CONST.DICE_ROLL_MODES read: deprecated in v14 and gone in v16 - CONFIG.ChatMessage.modes is the v14 road");
+        return { PUBLIC: "publicroll", PRIVATE: "gmroll", BLIND: "blindroll", SELF: "selfroll" };
+    }
+});
+
 
 globalThis.foundry = {
     CONST,

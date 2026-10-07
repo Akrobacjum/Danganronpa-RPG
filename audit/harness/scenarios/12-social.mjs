@@ -68,6 +68,38 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
     check("PRIVACY: Aiko's roll is whispered past p2, so p2's chat log does not show it",
         onP2.held === true && onP2.whisper.length > 0 && !onP2.whisper.includes(p2.userId) && onP2.contentVisible === false,
         JSON.stringify(onP2));
+
+    /* A BARE ROLL ON A BROWSER WHERE CONST.DICE_ROLL_MODES THROWS (E33 C11, 07.10.2026; audit S02-68, the
+       plan's V7). Aiko's statistic above is drawn and written by the GM; this one is thrown on p1's own
+       browser (`new Roll().toMessage()`, no module road), so private-rolls.mjs's hook runs there. Until
+       1.2.69 it wrote the whisper and `flags.core.rollMode: CONST.DICE_ROLL_MODES.PRIVATE` in one write, and
+       a browser where reading the constant throws - Foundry 14 deprecates it, 16 drops it, as the audit reads
+       v14 - created the roll public. p1 puts a throwing getter in the constant's place for the one roll, puts
+       the harness's back, and counts the reads: none now, and the roll reaches the GMs and p1 alone. */
+    const bareRoll = await p1.eval(`
+        const had = Object.getOwnPropertyDescriptor(CONST, "DICE_ROLL_MODES");
+        let reads = 0;
+        Object.defineProperty(CONST, "DICE_ROLL_MODES", { configurable: true, get() { reads++; throw new Error("12-social: CONST.DICE_ROLL_MODES is gone"); } });
+        try {
+            const before = game.messages.contents.length;
+            const message = await new Roll("1d20").toMessage({ speaker: ChatMessage.getSpeaker({ actor: game.actors.get("${ids.aiko}") }) });
+            return { id: message?.id ?? null, made: game.messages.contents.length - before, reads, whisper: message?.whisper ?? null,
+                     blind: message?.blind ?? null, rollMode: message?._source?.flags?.core?.rollMode ?? null };
+        } finally {
+            if (had) Object.defineProperty(CONST, "DICE_ROLL_MODES", had); else delete CONST.DICE_ROLL_MODES;
+        }
+    `, { timeout: 30000 });
+    await settle(400);
+    const bareOnP2 = await p2.eval(`
+        const m = game.messages.get("${bareRoll.id}");
+        return m ? { held: true, whisper: m.whisper, contentVisible: m.isContentVisible } : { held: false };
+    `);
+    check("PRIVACY: a bare roll Aiko throws on a browser where CONST.DICE_ROLL_MODES throws still reaches the GMs and her alone, never reads the constant, and p2 cannot read it (S02-68)",
+        bareRoll.made === 1 && bareRoll.reads === 0 && Array.isArray(bareRoll.whisper) && bareRoll.whisper.includes(gm.userId) && bareRoll.whisper.includes(p1.userId)
+            && !bareRoll.whisper.includes(p2.userId) && bareRoll.blind === false && bareRoll.rollMode === null && bareOnP2.held === true && bareOnP2.contentVisible === false,
+        JSON.stringify({ bareRoll, bareOnP2 }), { flow: "private-rolls" });
+    // The bare roll is this check's alone: deleted so that no later count of the log holds it.
+    await gm.eval(`await game.messages.get("${bareRoll.id}")?.delete(); return true;`);
     console.log("[qa] what p2's console can still read of Aiko's private roll (documented, README 'Privacy'):", JSON.stringify(onP2.readable));
     const onP1 = await p1.eval(`const m = game.messages.get("${rollRes.id}");
         return m ? { contentVisible: m.isContentVisible, author: m.author?.id ?? null, drawn: m.getFlag("${MOD}", "drawn") === true,

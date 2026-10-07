@@ -13302,6 +13302,82 @@ const SCENARIOS = [
         }
     }],
 
+    ["a player's roll is whispered to the GMs and its owner where CONST.DICE_ROLL_MODES and ChatMessage.applyMode both throw", async () => {
+        /*
+         * E33 C11, 07.10.2026; audit S02-68; the plan's V7. Until 1.2.69 `whisperRoll` wrote
+         * the list and `flags.core.rollMode: CONST.DICE_ROLL_MODES.PRIVATE` in one write, so a
+         * browser where the constant throws (Foundry 14 deprecates it, 16 drops it - the
+         * audit's reading) created the roll public. A roll written in a player's name on this
+         * GM (`playerRollCard`): the hook runs here as it would on that player's browser, with
+         * the constant replaced by a getter that throws and v14's `ChatMessage.applyMode` by
+         * a function that throws. Expected: the GMs and the player, nobody else, not blind,
+         * the constant never read, the mode asked, nothing of a mode on the document.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player whose roll the whisper names");
+        const P = await import("./private-rolls.mjs");
+        ok(typeof P.privateModeFields === "function", "private-rolls.mjs exports no privateModeFields - the mode is not written apart from the whisper");
+        const { ownerOf, gmIds } = await import("./utils.mjs");
+        const student = cast(3).find(a => ownerOf(a) && !ownerOf(a).isGM);
+        must(student, "no student of the cast is owned by a player");
+        const player = ownerOf(student);
+        const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const constant = Object.getOwnPropertyDescriptor(CONST, "DICE_ROLL_MODES");
+        const apply = Object.getOwnPropertyDescriptor(ChatMessage, "applyMode");
+        let constReads = 0, modeCalls = 0, message = null;
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        Object.defineProperty(CONST, "DICE_ROLL_MODES", { configurable: true, get() { constReads++; throw new Error("SUITE C11: CONST.DICE_ROLL_MODES is gone"); } });
+        Object.defineProperty(ChatMessage, "applyMode", { configurable: true, writable: true, value: () => { modeCalls++; throw new Error("SUITE C11: applyMode throws"); } });
+        try {
+            message = await playerRollCard(player, student);
+            must(message, "the roll made no message");
+            const expected = [...new Set([...gmIds(), player.id])].sort();
+            equal(JSON.stringify([[...message.whisper].sort(), message.blind, constReads, modeCalls >= 1, message._source.flags?.core?.rollMode ?? null]),
+                JSON.stringify([expected, false, 0, true, null]),
+                "the roll is not whispered to exactly the GMs and its player, is blind, read the constant, never asked applyMode, or carries a core.rollMode flag (whisper; blind; constant reads; applyMode asked; flag)");
+        } finally {
+            if (constant) Object.defineProperty(CONST, "DICE_ROLL_MODES", constant); else delete CONST.DICE_ROLL_MODES;
+            if (apply) Object.defineProperty(ChatMessage, "applyMode", apply); else delete ChatMessage.applyMode;
+            if (message) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+        }
+    }],
+
+    ["a player's roll with no ChatMessage.applyMode and no CONFIG.ChatMessage.modes is whispered the same and its mode read as nothing", async () => {
+        /*
+         * E33 C11, 07.10.2026; audit S02-68. The other half of the same rule: a Foundry
+         * without v14's mode API (v13's, or a build that renamed it) gets the whisper alone -
+         * `privateModeFields` reads `{}` - and no `flags.core.rollMode`, which nothing reads.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player whose roll the whisper names");
+        const P = await import("./private-rolls.mjs");
+        ok(typeof P.privateModeFields === "function", "private-rolls.mjs exports no privateModeFields - the mode is not written apart from the whisper");
+        const { ownerOf, gmIds } = await import("./utils.mjs");
+        const student = cast(3).find(a => ownerOf(a) && !ownerOf(a).isGM);
+        must(student, "no student of the cast is owned by a player");
+        const player = ownerOf(student);
+        const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const apply = Object.getOwnPropertyDescriptor(ChatMessage, "applyMode");
+        const hadModes = Object.hasOwn(CONFIG.ChatMessage, "modes"), modes = CONFIG.ChatMessage.modes;
+        let message = null;
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        Object.defineProperty(ChatMessage, "applyMode", { configurable: true, writable: true, value: undefined });
+        delete CONFIG.ChatMessage.modes;
+        try {
+            const fields = P.privateModeFields();
+            message = await playerRollCard(player, student);
+            must(message, "the roll made no message");
+            const expected = [...new Set([...gmIds(), player.id])].sort();
+            equal(JSON.stringify([JSON.stringify(fields), [...message.whisper].sort(), message.blind, message._source.flags?.core?.rollMode ?? null]),
+                JSON.stringify(["{}", expected, false, null]),
+                "without the mode API the fields are not {}, or the roll is not whispered to exactly the GMs and its player, is blind, or carries a core.rollMode flag (fields; whisper; blind; flag)");
+        } finally {
+            if (apply) Object.defineProperty(ChatMessage, "applyMode", apply); else delete ChatMessage.applyMode;
+            if (hadModes) CONFIG.ChatMessage.modes = modes;
+            if (message) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+        }
+    }],
+
     ["a Reroll's dice are thrown to the roll's readers alone", async () => {
         /*
          * E06 C6, 27.09.2026; audit S02-13. A Reroll threw its new dice with

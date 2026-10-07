@@ -1116,7 +1116,10 @@ export async function neutraliseOldCards({ messages = null } = {}) {
                 if (!same(foundry.utils.getProperty(src, path), value)) out[path] = value;
             }
             if (whisper.some(notGm)) {
-                Object.assign(out, { whisper: gms, blind: false, "flags.core.rollMode": CONST.DICE_ROLL_MODES.PRIVATE });
+                // The list alone (E33 C11): nothing reads `flags.core.rollMode`, and a mode
+                // v14 writes is a new roll's (private-rolls.mjs `writeMode`), not this one
+                // update's to lose the list over.
+                Object.assign(out, { whisper: gms, blind: false });
             }
         } else if (kind === "rolls" && whisper.length) {
             const readers = oldRollReaders(message);
