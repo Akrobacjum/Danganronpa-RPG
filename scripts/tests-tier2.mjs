@@ -33043,6 +33043,160 @@ const SCENARIOS = [
                 + "(the first scan names it; the row after; the second scan names it; rows after; whispers naming it)");
     }],
 
+    ["a burst of refused relay requests about one student keeps every path and item it asked on the row of its key", async () => {
+        /*
+         * E33 fix r2-G1, 07.10.2026 (review round 2's sec m1). Until this fix a refused request that counted
+         * on its row (sheet-audit.mjs `recordTrace`'s fold) added its count and nothing else: measured at
+         * 51c5e9e (e33-review/secprobe2.log, R1), p1's refused Hope and then Stress about Botan inside 30 s
+         * read as one row "hope.value: 2 -> 4" times 2, the Stress in no row. Now a fold adds its paths to
+         * the row (`foldChange`: a path the row names keeps its first value and takes the latest asked), an
+         * item the row does not name to `items`, and that item's paths under `items.<id>.`. Five refused
+         * requests about the student - its Hope, the name of an item A made on it here, its Stress, the name
+         * of an item B made beside A, its Hope again with another value - reach the guard's own listener
+         * with the player's id, as fix r1-G1's burst test hands them, after the student's younger rows of
+         * the player are aged by the window. The guard judges another student's resources "refused" and
+         * another student's item "forged" (relay-guard.mjs `actorRefusal`, `itemRefusal`), two keys, so the
+         * burst is two rows. Read: every refused row of the player on the student since the start (its
+         * kind, its paths with their values, its count, its item and items, the paths the listing names).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "Foundry names only a connected sender");
+        const { player, other } = playerAndCharacters();
+        must(other, "no student the player does not own - the refusals would measure nothing");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which judges the relay - this would measure nothing");
+        const R = await import("./relay-guard.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { sheetWrites, sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const guard = (game.socket?.listeners?.(`system.${game.system.id}`) ?? []).find(fn => fn.__drpgRelayGuard);
+        must(guard, "the relay guard stands on no listener of Daggerheart's channel here - the requests would reach nothing");
+        const WINDOW = Number(R.WARN_EVERY_MS) || 30_000;
+        const HOPE = "system.resources.hope.value", STRESS = "system.resources.stress.value";
+        const [a, b] = await other.createEmbeddedDocuments("Item", [{ name: "SUITE r2-G1 item A", type: "loot" }, { name: "SUITE r2-G1 item B", type: "loot" }]);
+        must(a && b, `${other.name} could not be handed two items - the items' requests would measure nothing`);
+        try {
+            const hope = Number(foundry.utils.getProperty(other._source, HOPE)) || 0, stress = Number(foundry.utils.getProperty(other._source, STRESS)) || 0;
+            const [first, second] = hope >= 2 ? [hope - 1, hope - 2] : [hope + 1, hope + 2];
+            const packet = (doc, data) => ({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: doc.uuid, data } });
+            const asked = [[other, { [HOPE]: first }], [a, { name: `${a.name} suite` }], [other, { [STRESS]: stress + 1 }], [b, { name: `${b.name} suite` }],
+                [other, { [HOPE]: second }]];
+            const judged = asked.map(([doc, data]) => R.judgeRelay(packet(doc, data), player));
+            must(judged.every(j => j.verdict === "refuse" && j.sub === judged[0].sub) && judged.map(j => j.kind).join() === "refused,forged,refused,forged,refused",
+                `the five requests are not refused under the two keys this reads (${judged.map(j => `${j.verdict} ${j.sub} ${j.kind}`).join("; ")})`);
+            const from = Date.now();
+            const mine = () => Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.verdict === "refused" && row.actorId === other.id && row.userId === player.id);
+            for (const [id, row] of mine().filter(([, row]) => row.at >= from - WINDOW)) await sheetWriteStore.patch(id, { at: (Number(row.at) || 0) - WINDOW });
+            for (const [doc, data] of asked) guard(packet(doc, data), player.id);
+            await until(() => mine().filter(([, row]) => row.at >= from).reduce((n, [, row]) => n + (row.n ?? 1), 0) >= asked.length, 5000);
+            await sheetAuditIdle();
+            const listed = sheetWrites({ quiet: true });
+            const read = mine().filter(([, row]) => row.at >= from).map(([id, row]) => [row.kind ?? null, row.change ?? {}, row.n ?? 1, row.itemId ?? null, row.items ?? [],
+                (listed.find(r => r.id === id)?.change ?? "").split("; ").map(each => each.split(": ")[0]).sort()]).sort();
+            const theirs = `items.${b.id}.name`;
+            equal(stableJson(read), stableJson([
+                ["forged", { name: [a._source.name, `${a.name} suite`], [theirs]: [b._source.name, `${b.name} suite`] }, 2, a.id, [b.id], ["name", theirs].sort()],
+                ["refused", { [HOPE]: [hope, second], [STRESS]: [stress, stress + 1] }, 3, null, [], [HOPE, STRESS].sort()]]),
+                "a burst of refused requests about one student left other rows than one per key, or a row lost a path, a value, its count or an item "
+                    + "(rows since the start: the kind, the paths with their values, n, itemId, items, the paths the listing names)");
+        } finally {
+            await other.deleteEmbeddedDocuments("Item", [a.id, b.id].filter(id => other.items.has(id)));
+        }
+    }],
+
+    ["a burst of forged messages about two students leaves a row per student that names every flag", async () => {
+        /*
+         * E33 fix r2-G1, 07.10.2026 (review round 2's sec m1). Until this fix a forged message counted on its
+         * author's row whatever student it was about, and added only its message: measured at 51c5e9e
+         * (e33-review/secprobe2.log, F1), p1's three messages about Aiko (`drawn`), Botan (`rollId`) and Chie
+         * (`publicRoll`) inside 30 s were one row naming Aiko and `drawn`, n 3. Now a forged row is one
+         * author's about one student (sheet-audit.mjs `TRACE_KEYS`) and a fold adds its flags (`foldChange`).
+         * The suite is one GM, so the player's messages are made here with the player as their author, as
+         * C5a's test makes one, after the player's younger `forged` rows are aged by the window: one about
+         * their own student, one about another, one about their own again. Read: every `forged` row of the
+         * player since the start (whose student, its paths, its count, which of the messages it names).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the messages are a connected player's");
+        const { player, theirs, other } = playerAndCharacters();
+        must(other, "no student the player does not own - the burst would name one student");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which traces a player's messages - this would measure nothing");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const A = await import("./sheet-audit.mjs");
+        const WINDOW = Number((await import("./relay-guard.mjs")).WARN_EVERY_MS) || 30_000;
+        const mine = () => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && row.userId === player.id);
+        const from = Date.now();
+        for (const [id, row] of Object.entries(sheetWriteStore.entries() ?? {})) {
+            if (row?.verdict === "forged" && row.userId === player.id && row.at >= from - WINDOW) await sheetWriteStore.patch(id, { at: (Number(row.at) || 0) - WINDOW });
+        }
+        const made = [];
+        const post = async (actor, flags) => {
+            const message = await ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor }), content: "<p>suite r2-G1</p>", flags: { [MODULE_ID]: flags } });
+            made.push(message.id);
+            return message;
+        };
+        let read = null;
+        try {
+            await post(theirs, { drawn: true });
+            await post(other, { rollId: `suiteG1${foundry.utils.randomID(8)}` });
+            await post(theirs, { publicRoll: true });
+            await until(() => mine().filter(row => row.at >= from).reduce((n, row) => n + (row.n ?? 1), 0) >= made.length, 5000);
+            await A.sheetAuditIdle();
+            read = mine().filter(row => row.at >= from).map(row => [row.actorId === theirs.id ? "theirs" : row.actorId === other.id ? "other" : row.actorId,
+                Object.keys(row.change ?? {}).sort(), row.n ?? 1, [row.messageId, ...(row.messages ?? [])].map(id => made.indexOf(id))]).sort();
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+        }
+        const path = name => `flags.${MODULE_ID}.${name}`;
+        equal(stableJson(read), stableJson([["other", [path("rollId")], 1, [1]], ["theirs", [path("drawn"), path("publicRoll")], 2, [0, 2]]]),
+            "a burst of forged messages about two students did not leave one row per student, or a row lost a flag, its count or a message "
+                + "(rows since the start: whose student, its paths, n, the messages it names by their order)");
+    }],
+
+    ["the scan at ready ages a forged message by Foundry's creation stamp and not by the date its author wrote", async () => {
+        /*
+         * E33 fix r2-G1, 07.10.2026 (review round 2's sec m2). The scan at the primary's ready
+         * (sheet-audit.mjs `traceForgedAtReady`) lets be a message older than a row is kept, and until this
+         * fix it read the age off the message's `timestamp` - a field of the create, which its author writes:
+         * a forged message dated two days back went untraced. Now it reads `_stats.createdTime`, the stamp
+         * Foundry's server writes; the harness's server keeps the client's `timestamp` and stamps
+         * `createdTime` itself (cluster.mjs `applyOp`), and whether v13 and v14 do both at a table is
+         * LIVE-E33-10. A table whose server rewrote the `timestamp` traces the message either way. The
+         * message is the player's, made here as C5a's test makes one, dated two days back; its live row is
+         * dropped and the scan called as the existing scan test calls it, after the player's younger
+         * `forged` rows are aged by the window. Read: whether the scan names the message, and the row
+         * naming it after (the player, the student, the paths).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the message is a connected player's, about their own student");
+        const { player, theirs } = playerAndCharacters();
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which traces a player's messages - this would measure nothing");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const A = await import("./sheet-audit.mjs");
+        const WINDOW = Number((await import("./relay-guard.mjs")).WARN_EVERY_MS) || 30_000;
+        const from = Date.now();
+        for (const [id, row] of Object.entries(sheetWriteStore.entries() ?? {})) {
+            if (row?.verdict === "forged" && row.userId === player.id && row.at >= from - WINDOW) await sheetWriteStore.patch(id, { at: (Number(row.at) || 0) - WINDOW });
+        }
+        const message = await ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor: theirs }), content: "<p>suite r2-G1</p>",
+            timestamp: from - 2 * 24 * 60 * 60_000, flags: { [MODULE_ID]: { drawn: true } } });
+        const naming = () => Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.verdict === "forged" && (row.messageId === message.id || (row.messages ?? []).includes(message.id)));
+        let read = null;
+        try {
+            must(Number.isFinite(Number(message._stats?.createdTime)), "Foundry stamped no creation time on the message - the scan would age it by its timestamp and this would measure nothing");
+            await until(() => naming().length > 0, 3000);
+            await A.sheetAuditIdle();
+            await sheetWriteStore.dropMany(naming().map(([id]) => id));
+            must(naming().length === 0, "the live row could not be dropped - the scan would find the message named");
+            const traced = await A.traceForgedAtReady();
+            await A.sheetAuditIdle();
+            read = [Array.isArray(traced) && traced.includes(message.id), naming().map(([, row]) => [row.userId === player.id, row.actorId === theirs.id, Object.keys(row.change ?? {})])];
+        } finally {
+            await game.messages.get(message.id)?.delete();
+        }
+        equal(stableJson(read), stableJson([true, [[true, true, [`flags.${MODULE_ID}.drawn`]]]]),
+            "a forged message its author dated two days back was let be by the scan at ready, or its row is wrong "
+                + "(the scan names it; the row naming it after: the player, the student, the paths)");
+    }],
+
     ["a GM's flag a player writes onto their own message by update is traced; a GM's update of it is not", async () => {
         /*
          * E33 fix r1-G1, 07.10.2026 (review round 1's sec m4). A plain message of a player's passes the

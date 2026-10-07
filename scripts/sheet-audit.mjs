@@ -146,7 +146,7 @@ import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry } from "./inven
 import { readDuality } from "./despair-award.mjs";
 import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
-import { WARN_EVERY_MS } from "./relay-guard.mjs";
+import { WARN_EVERY_MS, TRACE_PATHS } from "./relay-guard.mjs";
 
 /** The module flags only a GM writes (the plan's 2.4), held in the mark and put back. */
 const GM_FLAGS = ["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "lootTrace", "swungWeapon",
@@ -2408,12 +2408,27 @@ async function keepRows(rows, at) {
  * ONE ROW PER BURST (E33 fix r1-G1, 07.10.2026; review round 1's sec M1). A trace repeated inside
  * `WARN_EVERY_MS` of its row counts on that row (`n`, listed as `times`) instead of adding one: a
  * refused request of the same sender, student, sub-operation and kind - the key the toast is said by
- * (relay-guard.mjs `reportRefusal`) - and a forged message of the same author, whose row then names
- * every message it counted (`messages`) so the scan at ready below finds each of them traced. The
- * traces are kept one after another (`traces`): a fold reads the row the trace before it wrote.
- * Measured at ba0cade (e33-review/secprobe1.log, P3): 40 refused requests from one console were 40
- * rows, 329 -> 12089 bytes of a store every GM's browser holds; now a row per key per 30 s. A
- * `rewrite` row is not folded: round 1 measured no burst of them (a doubt of fix r1-G1's note).
+ * (relay-guard.mjs `reportRefusal`) - and a forged message of the same author about the same student,
+ * whose row then names every message it counted (`messages`) so the scan at ready below finds each of
+ * them traced. The traces are kept one after another (`traces`): a fold reads the row the trace
+ * before it wrote. Measured at ba0cade (e33-review/secprobe1.log, P3): 40 refused requests from one
+ * console were 40 rows, 329 -> 12089 bytes of a store every GM's browser holds; now a row per key
+ * per 30 s. A `rewrite` row is not folded: round 1 measured no burst of them (a doubt of fix r1-G1's
+ * note).
+ *
+ * A FOLD KEEPS WHAT IT FOLDS (E33 fix r2-G1, 07.10.2026; review round 2's sec m1). Until this fix a
+ * fold patched the count and the message and nothing else, and a forged row was keyed by its author
+ * alone: measured at 51c5e9e (e33-review/secprobe2.log, R1 and F1), p1's refused Hope and then Stress
+ * about one student inside 30 s read as one row "hope.value: 2 -> 4" times 2, and three forged
+ * messages about three students as one row naming the first student and the first flag. Now a fold
+ * adds the trace's paths to the row (`foldChange`: a path already there keeps its first value and
+ * takes the latest asked, the union capped at `TRACE_PATHS`, names already cut by their judge, an
+ * item's paths under `items.<id>.` on a row that is not that item's), an item the row's own `itemId`
+ * is not to `items` (capped the same), and a forged row is one author's about one student, so each
+ * student a burst named has a row of its own. A refused request about another student's item is
+ * judged "forged" (relay-guard.mjs `itemRefusal`), a key apart from a refused Hope: a burst of both
+ * is two rows (measured 07.10.2026 by the tier-2 test "a burst of refused relay requests about one
+ * student keeps every path and item it asked on the row of its key").
  */
 const TRACE_WORDS = Object.freeze({
     refused: "DRPG.Audit.verdict.refused",
@@ -2422,13 +2437,13 @@ const TRACE_WORDS = Object.freeze({
 });
 
 /** The fields a trace must share with a row to count on it (null: a row of its own every time). */
-const TRACE_KEYS = Object.freeze({ refused: ["userId", "actorId", "sub", "kind"], forged: ["userId"], rewrite: null });
+const TRACE_KEYS = Object.freeze({ refused: ["userId", "actorId", "sub", "kind"], forged: ["userId", "actorId"], rewrite: null });
 
 /** The traces queued (`recordTrace`), kept one after another; how many are still to land. */
 let traces = Promise.resolve();
 let tracesQueued = 0;
 
-/** One trace row (a verdict of `TRACE_WORDS`) into `sheetWrites`, on the primary, or a count on the row it folds into. Answers the row's id, or null. */
+/** One trace row (a verdict of `TRACE_WORDS`) into `sheetWrites`, on the primary, or a count, its paths and its item on the row it folds into. Answers the row's id, or null. */
 export function recordTrace(verdict, fields = {}) {
     if (!TRACE_WORDS[verdict] || !isPrimaryGm()) return Promise.resolve(null);
     tracesQueued++;
@@ -2443,7 +2458,10 @@ async function traceNow(verdict, { actorId = null, itemId = null, userId = null,
     if (folded) {
         const [id, kept] = folded, n = (kept.n ?? 1) + 1;
         const names = kept.messageId === messageId || (kept.messages ?? []).includes(messageId);
-        await sheetWriteStore.patch(id, { n, ...(verdict === "forged" && messageId && !names ? { messages: [...(kept.messages ?? []), messageId] } : {}) });
+        const itemNamed = !itemId || kept.itemId === itemId || (kept.items ?? []).includes(itemId) || (kept.items ?? []).length >= TRACE_PATHS;
+        const whose = itemId && itemId !== kept.itemId ? `items.${itemId}.` : "";
+        await sheetWriteStore.patch(id, { n, change: foldChange(kept.change, change, whose), ...(itemNamed ? {} : { items: [...(kept.items ?? []), itemId] }),
+            ...(verdict === "forged" && messageId && !names ? { messages: [...(kept.messages ?? []), messageId] } : {}) });
         debug(`The GMs' audit: ${verdict} from ${game.users.get(userId ?? "")?.name ?? userId ?? "?"}, counted on its row (${n}).`);
         return id;
     }
@@ -2451,6 +2469,22 @@ async function traceNow(verdict, { actorId = null, itemId = null, userId = null,
     await keepRows({ [id]: { ...more, actorId, itemId, userId, reason: null, ref: null, change, covered: null, verdict, messageId, decided: null, at } }, at);
     debug(`The GMs' audit: ${verdict} from ${game.users.get(userId ?? "")?.name ?? userId ?? "?"}.`);
     return id;
+}
+
+/**
+ * A row's paths with a folded trace's added (fix r2-G1): a path the row names keeps its first value and takes the
+ * trace's asked one; a new one while the row names fewer than `TRACE_PATHS`. A trace about another document than
+ * the row's (an item, on a row of the student or of another item) names its paths under `whose` (`items.<id>.`), so
+ * one item's `name` is not read as the row's own.
+ */
+function foldChange(kept, change, whose = "") {
+    const merged = { ...(kept ?? {}) };
+    for (const [own, pair] of Object.entries(change ?? {})) {
+        const path = `${whose}${own}`;
+        if (Object.hasOwn(merged, path)) merged[path] = [merged[path]?.[0] ?? null, pair?.[1] ?? null];
+        else if (Object.keys(merged).length < TRACE_PATHS) merged[path] = pair;
+    }
+    return merged;
 }
 
 /** The newest row a trace counts on, as `[id, row]`, or null: the verdict's `TRACE_KEYS` equal and the row younger than `WARN_EVERY_MS`. */
@@ -2474,8 +2508,9 @@ function traceFolds(verdict, fields, at) {
  * else is done to it: no browser reads it as drawn and no award is paid for it (`forgedFlagsOf`'s
  * readers). Answers the row's id, or null. Exported for the suite. Since fix r1-G1 also called for
  * an update that writes such a flag (`onForgedUpdate`) and at the primary's ready for a message no
- * hook saw (`traceForgedAtReady`); a message of the same author inside `WARN_EVERY_MS` counts on
- * the author's row, which names it (`recordTrace`'s fold), and is still told once.
+ * hook saw (`traceForgedAtReady`); a message of the same author about the same student inside
+ * `WARN_EVERY_MS` counts on that row, which names it and its flags (`recordTrace`'s fold), and is
+ * still told once.
  */
 export async function onForgedCard(message) {
     if (!isPrimaryGm() || !message?.id) return null;
@@ -2519,6 +2554,13 @@ export async function onForgedUpdate(message, changes, userId) {
  * (`ROW_KEPT_MS`) is let be: its row, if it had one, is swept, and tracing it at every ready would
  * tell the GMs of it at every ready. Measured at ba0cade (15-held's G4, e33run/c6): such a message
  * left the GM who returned with rows 0, told 0. Answers the ids traced. Exported for the suite.
+ *
+ * A message's age is Foundry's own stamp of its creation (`_stats.createdTime`), not its `timestamp`
+ * (E33 fix r2-G1, 07.10.2026; review round 2's sec m2): `timestamp` is a field of the create, which
+ * its author writes, and until this fix a forged message dated over a day back by its author was let
+ * be. The harness's server keeps a client's `timestamp` and stamps `createdTime` itself (cluster.mjs
+ * `applyOp`); whether v13 and v14 do both on a player's create has not been read at a table
+ * (LIVE-E33-10). A message with no `createdTime` is aged by its `timestamp`, as before.
  */
 export async function traceForgedAtReady() {
     if (!isPrimaryGm() || !gmStoresHydrated()) return [];
@@ -2526,7 +2568,7 @@ export async function traceForgedAtReady() {
         .flatMap(row => [row.messageId, ...(row.messages ?? [])]));
     const since = Date.now() - ROW_KEPT_MS, traced = [];
     for (const message of [...(game.messages?.contents ?? [])]) {
-        if (named.has(message.id) || (Number(message.timestamp) || 0) < since || !forgedFlagsOf(message).length) continue;
+        if (named.has(message.id) || (Number(message._stats?.createdTime ?? message.timestamp) || 0) < since || !forgedFlagsOf(message).length) continue;
         try {
             if (await onForgedCard(message)) traced.push(message.id);
         } catch (err) {

@@ -414,8 +414,8 @@ function judgeDocument(data, sender, world) {
     });
 }
 
-/** How many of a refused request's paths its row keeps, and how long a name or a value it keeps of each. */
-const TRACE_PATHS = 12;
+/** How many of a refused request's paths its row keeps (and a folded row of any trace, sheet-audit.mjs `foldChange`), and how long a name or a value it keeps of each. */
+export const TRACE_PATHS = 12;
 const TRACE_VALUE = 160;
 
 /**

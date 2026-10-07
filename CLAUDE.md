@@ -294,7 +294,9 @@ player's own page, as a console would call the module, and reads the GMs' record
 before and after: a legal road must raise nothing - no flag, no row, no whisper, no
 refusal - and each forgery from a console must leave exactly its one trace naming
 its sender (`rollFlags()`; the `sheetWrites()` rows `refused`, `forged` and
-`rewrite`), undone or never applied. The harness throws Daggerheart's own roll
+`rewrite`), undone or never applied. A burst of one sender's refused requests or
+forged messages about one student inside half a minute is one row, which counts
+them (`times`) and keeps every path they named. The harness throws Daggerheart's own roll
 classes and runs a glue of its roll window for it (`audit/harness/README.md`,
 "Daggerheart's dice"); LIVE-E33-01 is the same scenario on a real Foundry.
 
