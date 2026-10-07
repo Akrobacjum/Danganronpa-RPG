@@ -867,7 +867,8 @@ export async function drawOnGm(packet, sender) {
  * THE ROLL IS THROWN ON THE GM'S TERMS (E08+E28 fix r2-H8, 05.10.2026; found reading E29's design).
  * Until this fix the GM threw the roll `fromData` rebuilt from the packet, and so took from the
  * packet what makes a roll what it is: its dice's faces, numbers and keep modifiers (`checkRoll`
- * counts dice, not faces); Daggerheart's `guaranteedCritical`, a critical whatever the dice
+ * counted dice, not faces - since E33 C3 a Hope or Fear die at other faces too, `claimOf`);
+ * Daggerheart's `guaranteedCritical`, a critical whatever the dice
  * (dualityRoll.mjs:13, :89-101, read in 2.10.5); and the roll's kind and steps - a `reaction`, or
  * `skips.resources`, `updateCountdowns` and `triggers`, give the GM no Fear on a roll with Fear
  * and tick no countdown (:256-321). Measured at 33bc497's runtime (tier 2, "a drawn roll is
@@ -1018,14 +1019,23 @@ function sheetOf(actor) {
         experiences: Object.fromEntries(held.map(([key, { name, value }]) => [key, { name: name ?? key, value: Number(value) || 0 }])) };
 }
 
-/** The packet's numbers against the character's (`sheet`): its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice. */
-function claimOf(terms, sheet, told) {
+/** The packet's numbers against the character's (`sheet`): its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice - a Hope or Fear die at faces not the GM's (`read`) among them. */
+function claimOf(terms, sheet, told, read = {}) {
     const fifth = ADVANTAGE_DICE[terms[4]?.class] ?? 0;
     const trait = traitKeyOf(told.trait);
+    // A DUALITY DIE AT OTHER FACES IS A DIE NOT COUNTED (E33 C3, 07.10.2026; the stage plan's 2.3, off
+    // the list: "a d20 Hope die"). The GM throws the Hope and the Fear die at its own faces (`termsOf`,
+    // the list's `hopeDie` and `fearDie`), so a packet's d20 Hope die was not counted - 14 as the honest
+    // 14 on the same dice - and, the dice counted by number, raised no flag and told nobody (tier 2, at
+    // a9c98bf's runtime). Each of the two at faces not the GM's is now one of the claim's `dice`: the
+    // `dice` flag, its one whisper to the GMs and the roller's "not counted" line, as a die beyond them
+    // has. An honest window builds both from the rules the GM reads (dualityRoll.mjs:135, :139); one
+    // whose rule a GM changed while it was open would be flagged too - read, not measured.
+    const unlike = [[terms[0], read.hopeDie], [terms[2], read.fearDie]].filter(([term, faces]) => faces && term?.faces !== faces).length;
     return { trait, traitValue: trait ? sheet.traits[trait] ?? 0 : 0,
         experiences: told.experiences.filter(key => Object.hasOwn(sheet.experiences, key)),
         flat: flatOf({ terms }), advantage: fifth * (Math.max(1, Math.trunc(Number(terms[4]?.number)) || 1)),
-        dice: Math.max(0, terms.filter(term => "faces" in (term ?? {})).length - 2 - (fifth ? 1 : 0)) };
+        dice: Math.max(0, terms.filter(term => "faces" in (term ?? {})).length - 2 - (fifth ? 1 : 0)) + unlike };
 }
 
 /**
@@ -1120,7 +1130,7 @@ function drawnOptions(nonce, { actionType, critical, advantage, modifiers, trait
 async function legalRollOf(packetRoll, actor, expected, told, { key = null, claimed = true, nonce = null } = {}) {
     const json = foundry.utils.deepClone(packetRoll && typeof packetRoll === "object" ? packetRoll : {});
     const sent = Array.isArray(json.terms) ? json.terms : [];
-    const claim = claimOf(sent, expected.sheet, told);
+    const claim = claimOf(sent, expected.sheet, told, expected.read);
     if (!expected.checked) return { json: await onGmTerms(json, actor, { key, claimed, nonce }), scored: null, claim };
     const scored = scoredOf(expected, claim);
     const { read } = expected;
@@ -1766,9 +1776,10 @@ function countedIn(expected, part) {
  * roll thrown on the lowest its action lists since fix r2-H2, and `trait` beside it where the
  * claim had another),
  * `modifier` (the flat sum past the statistic, which `trait` says), `dice` (a die beyond Hope,
- * Fear and the advantage die), `advantage`, `stash` (a hidden stash the packet did not name). A
- * `modifier` or an `advantage` flag names the list's rows that made the GM's number (`from`, E29 C9),
- * and its `expected` is the GM's number as thrown.
+ * Fear and the advantage die, or either of the first two at faces not the GM's - `claimOf`),
+ * `advantage`, `stash` (a hidden stash the packet did not name). A `modifier` or an `advantage`
+ * flag names the list's rows that made the GM's number (`from`, E29 C9), and its `expected` is
+ * the GM's number as thrown.
  */
 function checkRoll({ scored, claim }, told, expected) {
     const flags = [];

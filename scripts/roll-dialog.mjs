@@ -529,7 +529,27 @@ function lockBonus(root, app, actor, armed) {
             // Unlike advantage, a flat bonus only ever comes from a Call -
             // `situationalAdvantage()` deals in advantage/disadvantage, not
             // in numbers - so the tooltip does not need the two-way check above.
-            extra.value = amount > 0 ? `+${amount}` : `${amount}`;
+            const bonus = amount > 0 ? `+${amount}` : `${amount}`;
+            // THE WINDOW KEEPS WHAT ITS FORM SENDS IT (E33 C3, 07.10.2026). Daggerheart's
+            // window copies its inputs into the roll's config only in its form's handler
+            // (d20RollDialog.mjs:150-171, 2.10.5, read: `config.extraFormula` :169), run on
+            // a change of the form (`submitOnChange`, :43-44); every render draws the input
+            // from that config (:132). A value a script writes is no change: at a9c98bf's
+            // runtime, and with this dispatch taken out of C3's (its mutant), the +1 was in
+            // the input and not in the roll, the GM scored it all the same, and an honest
+            // roll was flagged ["modifier","+1","0"] with one whisper to the GMs (tier 2, "a
+            // Meddle's +1 the window writes ..."). So the write says it changed, as chrome.mjs
+            // `step` does. The handler renders again (:170) and that render runs this again,
+            // so only a value the input does not hold is written - else the two would loop
+            // (read, not run). Foundry's half - a `change` in a form window runs its handler
+            // under `submitOnChange` - is written from its documented ApplicationV2, not
+            // measured: its source is not on this machine. Whether a table's Roll click
+            // submits the form too (the button has no `type`, rollSelection.hbs:195) is not
+            // known here (LIVE-E33).
+            if (extra.value !== bonus) {
+                extra.value = bonus;
+                extra.dispatchEvent(new Event("change", { bubbles: true }));
+            }
             unlock(extra, "DRPG.RollDialog.forcedByCall");
             extra.readOnly = true;
         } else {

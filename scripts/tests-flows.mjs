@@ -106,6 +106,9 @@ export const FLOWS = Object.freeze([
     // primary (`roll.grant`); the harness has one GM, so 15 clicks it on the primary and R219 reads the waiter.
     // E29 C9 (05.10.2026): what a drawn roll may add up to is the GM's list (config.mjs LEGAL_ROLL_MODIFIERS); 13 reads
     // what the GM counted on every roll of its incidents.
+    // E33 C3 (07.10.2026): tier 2 draws p1's roll once per row of the GMs' list (config.mjs `LEGAL_ROLL_MODIFIERS`) and
+    // per branch of its `situation`, with the source and without (`MODIFIER_FIXTURES`), and six claims off it; R291 holds
+    // the fixtures' keys to the list's. Tiers, not a scenario: the flow's scenarios are as they were.
     { id: "gm-rolls-total", what: "The GM checks a roll's total against the roll message it can see",
         entry: { bridge: ["roll.draw", "roll.grant"] }, scenarios: ["40-flow", "30-security", "15-held", "13-murder-signals"], status: "covered", stage: "1.2.67" },
     // E29 fix r2-H4 (05.10.2026): a GM's yes is kept on the primary for the arm it allows (`call.yes`) - 40 says it on

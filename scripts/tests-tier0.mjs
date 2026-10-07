@@ -7012,6 +7012,35 @@ const REGRESSIONS = [
             `the reader found ${JSON.stringify(found.writers)} writing in character.mjs - it would measure nothing`);
         equal(JSON.stringify(found.problems), "[]",
             "a function of character.mjs writes a student's starting sheet on a player's browser - no GM gate before its first write, or a private writer reached from one without");
+    }],
+
+    ["R291 - every row of the GMs' roll list has a fixture in tier 2 and every fixture a row", async () => {
+        /*
+         * E33 C3, 07.10.2026; the stage plan's 2.3. Tier 2 drives every row of config.mjs
+         * `LEGAL_ROLL_MODIFIERS`, and every branch of its `situation` row as roll-draw.mjs
+         * `situationReading` reads them, from a fixture of `MODIFIER_FIXTURES` (tests-tier2.mjs), written
+         * from the handbooks and not imported from the list - so a row added to the list with no
+         * fixture would be a source nobody drew. Read from source, comments stripped: the list's keys
+         * (each row's `{ key: "..."` at a line's start), the fixtures' keys and their `situation`
+         * names (the same shape), and the action keys `situationReading` branches on (`key === "..."`).
+         * Each side must hold the other's. Tier 2's test asks the keys again of the live list before
+         * it draws anything; this one fails without a world.
+         */
+        const sources = new Map(await moduleSources());
+        const config = stripComments(sources.get("config.mjs") ?? ""), tier2 = stripComments(sources.get("tests-tier2.mjs") ?? "");
+        const block = (text, head) => bodyOf(text, head, { until: "\n]" });
+        const keysIn = (text, re) => [...text.matchAll(re)].map(m => m[1]);
+        const rows = keysIn(block(config, "export const LEGAL_ROLL_MODIFIERS = "), /^\s*\{ key: "(\w+)"/gm);
+        const fixtures = block(tier2, "const MODIFIER_FIXTURES = ");
+        const fixed = [...new Set(keysIn(fixtures, /^\s*\{ key: "(\w+)"/gm))];
+        const situations = keysIn(fixtures, /^\s*\{ key: "situation", situation: "(\w+)"/gm);
+        // To the function's closing brace: `fnSource` runs on to the next declaration, through the readers' table.
+        const branches = keysIn(bodyOf(stripComments(sources.get("roll-draw.mjs") ?? ""), "function situationReading(", { until: "\n}\n" }), /\bkey === "(\w+)"/g);
+        ok(rows.length >= 14 && fixed.length > 0 && branches.length >= 6,
+            `R291 read ${rows.length} row(s) of the list, ${fixed.length} fixture key(s) and ${branches.length} branch(es) of its situation - this would measure nothing`);
+        equal(JSON.stringify([rows.filter(key => !fixed.includes(key)), fixed.filter(key => !rows.includes(key)),
+            branches.filter(key => !situations.includes(key)), situations.filter(key => !branches.includes(key))]), JSON.stringify([[], [], [], []]),
+        "a row of the GMs' roll list has no fixture, a fixture names no row, a branch of the situation row has no fixture, or a situation fixture names no branch (rows; fixtures; branches; situation fixtures)");
     }]
 ];
 

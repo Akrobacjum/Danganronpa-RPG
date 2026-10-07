@@ -846,7 +846,7 @@ async function relayedDice(run) {
  * picked (`__forceExperiences`, E06 fix r1-G1); `trait` the statistic, Eye unless named (E29
  * fix r1-G10). The caller deletes the message.
  */
-async function neutralRoll(who, { remember = false, faces = null, title = null, experiences = null, trait = "eye" } = {}) {
+async function neutralRoll(who, { remember = false, faces = null, title = null, experiences = null, trait = "eye", situational = 0 } = {}) {
     const rolls = await import("./action-rolls.mjs");
     const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
     const hadPicks = Object.hasOwn(globalThis, "__forceExperiences"), picks = globalThis.__forceExperiences;
@@ -855,7 +855,7 @@ async function neutralRoll(who, { remember = false, faces = null, title = null, 
     try {
         if (faces) globalThis.__forceRoll = faces;
         if (experiences) globalThis.__forceExperiences = experiences;
-        const outcome = await rolls.rollTrait(who, trait, { remember, ...(title ? { title } : {}) });
+        const outcome = await rolls.rollTrait(who, trait, { remember, ...(title ? { title } : {}), ...(situational ? { situational } : {}) });
         return { outcome, message: outcome?.raw?.message ?? null };
     } finally {
         if (hadForce) globalThis.__forceRoll = force;
@@ -917,13 +917,15 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * value (Eye unless named; E29 fix r1-G10). `window` (E33 C2b) throws that roll through Daggerheart's
  * roll window, which the suite's rolls skip (`suiteRolling`), as the action's own roll (`remember`), so
  * the Calls armed on the character are the window's and not shielded from it (action-rolls.mjs
- * `shieldCalls`); `experiences` are the chips its player clicks (`neutralRoll`). Answers the verdict,
+ * `shieldCalls`); `experiences` are the chips its player clicks (`neutralRoll`). `situational` (E33 C3) is the
+ * die the action hands its roll - a room that favours the category, a tool in hand, the Night - given to the
+ * roll by name (action-rolls.mjs `rollTrait`), so a window puts it on as the action's would. Answers the verdict,
  * what was sent back, the answer's value, the GM's message and record, and `putBack`, which deletes
  * both messages and the record, puts Daggerheart's Fear back as found and the payment's actions as
  * they were. Ask the world's rows first - it writes.
  */
 async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null, trait = "eye",
-    window: throughWindow = false, experiences = null } = {}) {
+    window: throughWindow = false, experiences = null, situational = 0 } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -938,7 +940,7 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
     let thrown;
     try {
         if (throughWindow) game.drpg.suiteRolling = false;
-        thrown = await neutralRoll(actor, { trait, remember: throughWindow, experiences });
+        thrown = await neutralRoll(actor, { trait, remember: throughWindow, experiences, situational });
     } finally {
         game.drpg.suiteRolling = rolling;
         Hooks.off(`${game.system.id}.postDualityRollConfiguration`, hook);
@@ -1795,6 +1797,461 @@ async function cleanupFixture(who, note) {
             await settle();
         }
     };
+}
+
+/*
+ * EVERY ROW OF THE GMS' LIST, DRIVEN (E33 C3, 07.10.2026; the stage plan's 2.3). A drawn roll is thrown
+ * as the GM's list makes it (config.mjs `LEGAL_ROLL_MODIFIERS`, roll-draw.mjs `LEGAL_READERS`), so a
+ * source the list misses is a source a player loses. One fixture per key of the list, and for its
+ * `situation` row one per branch roll-draw.mjs `situationReading` reads - written from the handbooks,
+ * not imported from the list; tier 0's R291 holds both to the source. Each fixture is
+ * `{ key, situation, cite, road, arrange, claim, expect, flags, moves, moved }`:
+ *   - `arrange(t)` puts the source on, on the GM, through the module's own roads, and answers
+ *     `{ off, undo, ... }`: `off` takes the source away for a second draw, `undo` puts back everything;
+ *   - `claim(t, s, on)` is `drawnForPlayer`'s options for the packet an honest browser sends with the
+ *     source on or off: through the harness's roll window (E33 C2b) wherever a window puts the source on;
+ *   - `expect` is the row's reading the GM records (`record.legal.read[key]`), `flags` the flags the
+ *     handbook says the honest claim raises (none unless named);
+ *   - `moves` is how far the source moves the roll: `moved(A, B)`, the total with it less the total
+ *     without it unless named, on the same dice (`C3_DICE`).
+ * `t` is the cast (`modifierCast`). The dice are scripted on the GM for the draw: the same three
+ * draws, in turn, for every roll - a d12 shows 9, 5, 5, a d20 15, 8, 8, a d6 4 on the third draw and a
+ * d8 5 (Foundry's `ceil((1 - u) * faces)`).
+ */
+const C3_DICE = Object.freeze([0.25, 0.6, 0.4]);
+
+/* A rule of `actor`'s written by a GM, and its rules as they were for `off` and `undo`. */
+async function c3Rules(actor, changes) {
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    const rules = actor.toObject().system?.rules;
+    const back = () => trustedWrite(actor, { "system.rules": rules === undefined ? forcedDeletion() : rules }, { reason: "gmRuling" });
+    await trustedWrite(actor, changes, { reason: "gmRuling" });
+    const set = Object.entries(changes).every(([path, value]) => foundry.utils.getProperty(actor, path) === value);
+    if (!set) await back();
+    must(set, `${actor.name}'s ${Object.keys(changes)} could not be set - this would measure nothing`);
+    return { off: back, undo: back };
+}
+
+/* Values of `actor`'s written by a GM, and written back for `off` and `undo`. */
+async function c3Values(actor, changes) {
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    const was = Object.fromEntries(Object.keys(changes).map(path => [path, foundry.utils.getProperty(actor, path)]));
+    const back = async () => {
+        const moved = Object.entries(was).filter(([path, value]) => foundry.utils.getProperty(actor, path) !== value);
+        if (moved.length) await trustedWrite(actor, Object.fromEntries(moved), { reason: "gmRuling" });
+    };
+    await trustedWrite(actor, changes, { reason: "gmRuling" });
+    const set = Object.entries(changes).every(([path, value]) => foundry.utils.getProperty(actor, path) === value);
+    if (!set) await back();
+    must(set, `${actor.name}'s ${Object.keys(changes)} could not be written - this would measure nothing`);
+    return { off: back, undo: back };
+}
+
+/*
+ * A Call armed on `actor` by a GM (call-effects.mjs `appendArmedCall`) under a nonce of its own; `again`
+ * arms it again where the roll the packet is cut from spent it (`windowDraw`), `spend` spends it.
+ */
+async function c3Call(actor, entry) {
+    const E = await import("./call-effects.mjs");
+    const call = { amount: null, ...entry, nonce: entry.nonce ?? `E33C3${entry.key.toUpperCase()}${foundry.utils.randomID(6)}` };
+    const shown = () => E.armedCallsShown(actor).some(c => c.nonce === call.nonce);
+    await E.appendArmedCall(actor, call);
+    must(shown(), `the ${entry.key} was not armed - this would measure nothing`);
+    const spend = async () => { if (shown()) await E.spendCallsByNonce(actor, [call.nonce]); };
+    return { nonce: call.nonce, again: async () => { if (!shown()) await E.appendArmedCall(actor, call); }, spend, off: spend, undo: spend };
+}
+
+/* An effect a GM put on `actor` with `changes`, deleted for `off` and `undo`. */
+async function c3Effect(actor, name, changes) {
+    const [effect] = await actor.createEmbeddedDocuments("ActiveEffect", [{ name, transfer: false, changes }]);
+    const gone = async () => { if (effect) await actor.effects.get(effect.id)?.delete(); };
+    const held = Boolean(effect) && [...(actor.appliedEffects ?? [])].some(e => e.id === effect.id);
+    if (!held) await gone();
+    must(held, `${actor.name} holds no effect ${name} - this would measure nothing`);
+    return { off: gone, undo: gone };
+}
+
+/* A GM's statistic card for the roll (gm-bridge.mjs `settleCall`), as the pick a GM makes before it is thrown. */
+async function c3Pick(actor, kind, key, trait, variant = null) {
+    const { whisperToGms } = await import("./utils.mjs");
+    const { settleCall } = await import("./gm-bridge.mjs");
+    const m = await whisperToGms("<p>SUITE E33 C3 pick</p>");
+    must(m, "no card to settle a pick on - this would measure nothing");
+    await settleCall(m, "SUITE E33 C3", { type: "trait", actorId: actor.id, kind, key, variant, trait });
+}
+
+/* The room `actor` stands in alone, its region's flags `flags` (`favours`, `hinders`, `stashes`); `back` puts both back. */
+async function c3Room(actor, flags) {
+    const V = await import("./vault.mjs");
+    const stood = await standAlone(actor);
+    const region = V.regionsByName().get(stood.room);
+    const keys = [V.VAULT_FLAGS.stashes, V.VAULT_FLAGS.hinders, V.VAULT_FLAGS.favours];
+    const before = region ? keys.map(k => foundry.utils.deepClone(region.getFlag(MODULE_ID, k))) : [];
+    const path = k => `flags.${MODULE_ID}.${k}`;
+    const set = async ({ favours = [], hinders = [], stashes = [] } = {}) => region.update({ [path(V.VAULT_FLAGS.favours)]: favours,
+        [path(V.VAULT_FLAGS.hinders)]: hinders, [path(V.VAULT_FLAGS.stashes)]: stashes });
+    const back = async () => {
+        if (region) await region.update(Object.fromEntries(keys.map((k, i) => [path(k), before[i] === undefined ? forcedDeletion() : before[i]])));
+        await stood.back();
+    };
+    if (!region) await stood.back();
+    must(region, `${stood.room} has no region`);
+    await set(flags);
+    return { room: stood.room, set, back };
+}
+
+/* A project made by a GM, a tool in `actor`'s hand for it; `off` puts the tool down, `undo` deletes both. */
+async function c3Project(actor) {
+    const P = await import("./projects.mjs");
+    const { ACTIONS, TRAITS } = await import("./config.mjs");
+    const id = (await P.createProject({ name: "SUITE E33 C3 project", target: 6, room: null, trait: null }))?.id ?? null;
+    must(id, "the project was not made - this would measure nothing");
+    let tool = null;
+    const off = async () => { if (tool) await actor.items.get(tool.id)?.delete(); };
+    const undo = async () => { await off(); await P.deleteProject(id).catch(() => {}); };
+    try {
+        tool = await inHand(actor, "tool", "SUITE E33 C3 tool");
+    } catch (err) {
+        await undo();
+        throw err;
+    }
+    const [trait] = ACTIONS.project.traits.filter(t => Object.hasOwn(TRAITS, t));
+    return { id, trait, off, undo };
+}
+
+/* The incident's end, the cast's dead revived, and the clock as it was. */
+async function c3Incident(clock = null) {
+    const M = await import("./murder.mjs");
+    const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+    if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+    for (const a of game.actors.filter(x => x.type === "character")) if (isDeadForGm(a)) await reviveCharacter(a, { quiet: true });
+    if (clock) await setClock(clock);
+}
+
+const C3_SUPPORT = Object.freeze({ key: "support", kind: "hope", grants: "advantage" });
+
+const MODIFIER_FIXTURES = Object.freeze([
+    { key: "hopeDie", cite: "player-handbook.en.md:57 (a Hope die, d12)", road: "the rule written by a GM",
+        arrange: t => c3Rules(t.theirs, { "system.rules.dualityRoll.defaultHopeDice": 20 }),
+        claim: () => ({ window: true }), expect: 20, moves: 6 },
+    { key: "fearDie", cite: "player-handbook.en.md:57 (a Despair die, d12)", road: "the rule written by a GM",
+        arrange: t => c3Rules(t.theirs, { "system.rules.dualityRoll.defaultFearDice": 20 }),
+        claim: () => ({ window: true }), expect: 20, moves: 3 },
+    { key: "advantageDie", cite: "player-handbook.en.md:337 (Support: advantage)", road: "the rule written by a GM, a Support armed by a GM",
+        arrange: async t => {
+            const rule = await c3Rules(t.theirs, { "system.rules.roll.advantageFaces": 8 });
+            const call = await c3Call(t.theirs, C3_SUPPORT);
+            return { call, off: rule.off, undo: async () => { await rule.undo(); await call.undo(); } };
+        },
+        claim: (t, s) => ({ window: true, edit: p => ({ ...p, calls: [s.call.nonce] }), ready: s.call.again }),
+        expect: { advantage: 8, disadvantage: 8 }, moves: 1 },
+    { key: "trait", cite: "player-handbook.en.md:57 (plus your statistic)", road: "the statistic written by a GM",
+        arrange: async t => {
+            const { TRAITS } = await import("./config.mjs");
+            const path = `system.traits.${TRAITS.eye.dh}.value`;
+            return c3Values(t.theirs, { [path]: (Number(foundry.utils.getProperty(t.theirs, path)) || 0) + 1 });
+        },
+        claim: () => ({ window: true }), expect: { trait: "eye", traitFrom: "search", pick: null }, moves: 1 },
+    { key: "experience", cite: "player-handbook.en.md:338 (Experience: add your experience level)", road: "an Experience Call armed by a GM, its chip clicked in the window",
+        arrange: t => c3Call(t.theirs, { key: "experience", kind: "hope", grants: "experience" }),
+        claim: (t, s, on) => (on ? { window: true, experiences: [t.experience], edit: p => ({ ...p, calls: [s.nonce] }), ready: s.again } : { window: true }),
+        expect: 1, moves: t => t.experienceValue },
+    // FIXED IN C3 (07.10.2026; the commit's finding at a9c98bf): scored 1, moved the roll 1 - and flagged
+    // ["modifier","+1","0",["callBonus"]] with one whisper to the GMs. roll-dialog.mjs `lockBonus` wrote "+1" into the
+    // window's input and never into `config.extraFormula`; Daggerheart copies the input into the config only in its
+    // form's handler (d20RollDialog.mjs:150-171, 2.10.5, read), run on a change of the form (`submitOnChange`, :43-44).
+    // `lockBonus` now says the input changed, and the harness's window runs that handler on a change (its glue's
+    // header). Whether a table's Roll click submits the form as well (its button has no `type`: rollSelection.hbs:195)
+    // is Foundry's, whose source is not on this machine (LIVE-E33). Drawn in its own test below (`apart`): the fix's
+    // red first.
+    { key: "callBonus", cite: "player-handbook.en.md:700-703 (Confusion: help or hinder, a flat bonus)", road: "a Meddle's +1 armed by a GM",
+        apart: "the +1 reaches the roll only through the window's form - its own test, the red first of C3's fix",
+        arrange: t => c3Call(t.theirs, { key: "meddle", grants: "bonus", amount: 1 }),
+        claim: (t, s, on) => ({ window: true, ...(on ? { edit: p => ({ ...p, calls: [s.nonce] }), ready: s.again } : {}) }), expect: 1, moves: 1 },
+    { key: "effects", cite: "gm-handbook.en.md:299 (Daggerheart's roll bonuses, effects judged); no player line", road: "an effect a GM made; the window's choice of it on the packet by hand",
+        arrange: t => c3Effect(t.theirs, "SUITE E33 C3 bonus", [{ key: "system.bonuses.roll.trait.bonus", value: "2", type: "add" }]),
+        claim: (t, s, on) => ({ window: true, ...(on ? { edit: p => addedToPacket(p, 2, "SUITE E33 C3 bonus") } : {}) }), expect: [0, 2], moves: 2 },
+    { key: "calls", cite: "player-handbook.en.md:337 (Support: give another player advantage)", road: "p2's Support bought on p1 through call.arm",
+        arrange: async t => {
+            const G = await import("./bridge-guards.mjs");
+            const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+            const E = await import("./call-effects.mjs");
+            const hope = await c3Values(t.other, { "system.resources.hope.value": 3 });
+            const nonce = `E33C3SUPPORT${foundry.utils.randomID(6)}`;
+            const sent = [];
+            await G.judge(BRIDGE_ACTIONS, { action: "call.arm", requestId: `E33C3${nonce}`, actorId: t.theirs.id,
+                call: { ...C3_SUPPORT, from: t.other.id, nonce } }, t.otherPlayer.id, { send: (to, reply) => sent.push(reply) });
+            await settle();
+            const entry = E.armedCallsShown(t.theirs).find(c => c.nonce === nonce) ?? null;
+            must(entry, `p2's Support on ${t.theirs.name} was not armed (${stableJson(sent.map(r => [r?.action, r?.reason]))}) - this would measure nothing`);
+            const spend = async () => { if (E.armedCallsShown(t.theirs).some(c => c.nonce === nonce)) await E.spendCallsByNonce(t.theirs, [nonce]); };
+            return { nonce, again: async () => { if (!E.armedCallsShown(t.theirs).some(c => c.nonce === nonce)) await E.appendArmedCall(t.theirs, entry); },
+                off: spend, undo: async () => { await spend(); await hope.undo(); } };
+        },
+        claim: (t, s, on) => ({ window: true, ...(on ? { edit: p => ({ ...p, calls: [s.nonce] }), ready: s.again } : {}) }), expect: 1, moves: 4 },
+    { key: "hostile", cite: "player-handbook.en.md:363 (Obstacle: disadvantage on your roll); gm-handbook.en.md:916 (a left-out die is flagged)",
+        road: "an Obstacle written on the character 61 s before the draw, after the roll's window opened",
+        arrange: async t => {
+            const E = await import("./call-effects.mjs");
+            const { HOSTILE_GRACE } = await import("./config.mjs");
+            const nonce = `E33C3OBSTACLE${foundry.utils.randomID(6)}`;
+            const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
+            const listOf = () => { const f = t.theirs.getFlag(MODULE_ID, FLAGS.pendingCall); return Array.isArray(f) ? f : f ? [f] : []; };
+            const s = { on: true, nonce };
+            s.arm = async () => {
+                if (!s.on) return;
+                await t.theirs.update({ [flag]: [...listOf(), { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce, at: Date.now() - HOSTILE_GRACE - 1000 }] });
+                must(E.armedCallsShown(t.theirs).some(c => c.nonce === nonce), "the Obstacle was not armed - this would measure nothing");
+            };
+            s.off = () => { s.on = false; };
+            s.undo = async () => { if (E.armedCallsShown(t.theirs).some(c => c.nonce === nonce)) await E.spendCallsByNonce(t.theirs, [nonce]); };
+            return s;
+        },
+        claim: (t, s) => ({ window: true, edit: p => ({ ...p, calls: [] }), ready: s.arm }),
+        expect: { dice: -1, bonus: 0 }, flags: [["advantage", "-1", "0", ["hostile"]]], moves: -4 },
+    { key: "breakdown", cite: "player-handbook.en.md:49 (Breakdown: disadvantage on every roll)", road: "every Sanity mark marked by a GM",
+        arrange: t => c3Values(t.theirs, { "system.resources.stress.value": Number(t.theirs.system.resources.stress.max) }),
+        claim: () => ({ window: true }), expect: -1, moves: -4 },
+    { key: "situation", situation: "search", cite: "player-handbook.en.md:179 (a room favours a category)", road: "the room's favours written by a GM",
+        arrange: async t => {
+            const room = await c3Room(t.theirs, { favours: ["usable"] });
+            return { off: () => room.set(), undo: room.back };
+        },
+        claim: (t, s, on) => ({ window: true, situational: on ? 1 : 0, edit: p => ({ ...p, context: { category: "usable" } }) }), expect: 1, moves: 4 },
+    { key: "situation", situation: "murderOpening", cite: "player-handbook.en.md:525 (direct murder: advantage at Night)", road: "an incident opened by a GM at Night",
+        arrange: async t => {
+            const M = await import("./murder.mjs");
+            const clock = getClock() ?? {};
+            await setClock({ timeOfDay: "night" });
+            await heldInvitations(() => M.openMurder({ killerId: t.theirs.id, victimId: t.other.id, openingTrait: "body" }));
+            const state = M.murderState();
+            must(state?.stage === "openingRoll" && state.killerId === t.theirs.id, `the opening roll is not ${t.theirs.name}'s to throw: ${stableJson(state)}`);
+            return { off: () => setClock({ timeOfDay: "noon" }), undo: () => c3Incident(clock) };
+        },
+        claim: (t, s, on) => ({ actionKey: "murderOpening", trait: "body", window: true, situational: on ? 1 : 0, edit: p => ({ ...p, context: { side: "killer" } }) }),
+        expect: 1, moves: 4 },
+    { key: "situation", situation: "crisis", cite: "player-handbook.en.md:560 (Self-defence: an item usable as a weapon gives advantage)", road: "a fight opened by a GM, a weapon in hand",
+        arrange: async t => {
+            const M = await import("./murder.mjs");
+            await fightOpen(M, t.other, t.theirs);
+            await turnFor(M, t.theirs, "selfDefence");
+            const weapon = await inHand(t.theirs, "crimeTool", "SUITE E33 C3 weapon");
+            const off = async () => { await t.theirs.items.get(weapon.id)?.delete(); };
+            return { off, undo: async () => { await off(); await c3Incident(); } };
+        },
+        claim: (t, s, on) => ({ actionKey: "crisis", trait: "body", window: true, situational: on ? 1 : 0,
+            ready: async () => c3Pick(t.theirs, "crisis", "selfDefence", "body", (await import("./murder.mjs")).crisisVariant(t.theirs, "selfDefence") ?? null),
+            edit: p => ({ ...p, context: { crisis: "selfDefence" } }) }),
+        expect: 1, moves: 4 },
+    { key: "situation", situation: "project", cite: "player-handbook.en.md:229 (a Tool held ready gives advantage)", road: "a project made by a GM, a tool in hand",
+        arrange: t => c3Project(t.theirs),
+        claim: (t, s, on) => ({ actionKey: "project", trait: s.trait, window: true, situational: on ? 1 : 0, ready: () => c3Pick(t.theirs, "project", s.id, s.trait),
+            edit: p => ({ ...p, context: { projectId: s.id } }) }),
+        expect: 1, moves: 4 },
+    { key: "situation", situation: "sabotage", cite: "player-handbook.en.md:229 (a Tool held ready gives advantage)", road: "a project made by a GM, a tool in hand",
+        arrange: t => c3Project(t.theirs),
+        claim: (t, s, on) => ({ actionKey: "sabotage", trait: s.trait, window: true, situational: on ? 1 : 0, ready: () => c3Pick(t.theirs, "project", s.id, s.trait),
+            edit: p => ({ ...p, context: { targetProjectId: s.id } }) }),
+        expect: 1, moves: 4 },
+    { key: "situation", situation: "cleanup", cite: "player-handbook.en.md:594 (a Cleaning Tool in hand gives advantage)", road: "a fight a GM's Finishing blow ended into Stage 6, gloves in hand",
+        arrange: async t => {
+            const M = await import("./murder.mjs");
+            const { isCleaner } = await import("./cleanup.mjs");
+            const { CLEANUP, TRAITS } = await import("./config.mjs");
+            await fightOpen(M, t.theirs, t.other);
+            await turnFor(M, t.theirs, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: t.theirs.id, key: "finishingBlow", total: 99, isCritical: true, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && isCleaner(t.theirs), `the fixture's Stage 6, ${t.theirs.name} cleaning, did not come: ${stableJson(M.murderState())}`);
+            const gloves = await inHand(t.theirs, "cleaningTool", "SUITE E33 C3 gloves");
+            const off = async () => { await t.theirs.items.get(gloves.id)?.delete(); };
+            return { trait: CLEANUP.traits.find(x => Object.hasOwn(TRAITS, x)), off, undo: async () => { await off(); await c3Incident(); } };
+        },
+        claim: (t, s, on) => ({ actionKey: "cleanup", trait: s.trait, window: true, situational: on ? 1 : 0, ready: () => c3Pick(t.theirs, "cleanup", "cleanup", s.trait),
+            edit: p => ({ ...p, context: { cleanupKey: "eraseTrace" } }) }),
+        expect: 1, moves: 4 },
+    { key: "loadedDie", cite: "player-handbook.en.md:346 (Loaded Die: one die is set to 12)", road: "a Loaded Die armed by a GM, the packet's mark",
+        arrange: t => c3Call(t.theirs, { key: "freeCrit", kind: "hope", grants: "critical" }),
+        claim: (t, s, on) => (on ? { edit: p => ({ ...p, loaded: s.nonce, calls: [s.nonce] }) } : {}), expect: true, moves: 7 },
+    { key: "stashStep", cite: "player-handbook.en.md:435 (a hidden stash: one more step of disadvantage)", road: "a concealed stash of another student's in the room, written by a GM",
+        arrange: async t => {
+            const V = await import("./vault.mjs");
+            const INV = await import("./inventory.mjs");
+            const room = await c3Room(t.theirs, { stashes: [{ actorId: t.other.id, concealed: true }] });
+            const item = await INV.grantItem(t.other, { name: "SUITE E33 C3 hidden", category: "usable", tier: 1, override: true, quiet: true });
+            const gone = async () => { if (item) await t.other.items.get(item.id)?.delete(); };
+            if (item) await item.update({ [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.location}`]: INV.LOCATIONS.vault, [`flags.${MODULE_ID}.${INV.ITEM_FLAGS.stashRoom}`]: room.room });
+            await settle();
+            if (!item || V.stashItemsIn(t.other, room.room).length !== 1) { await gone(); await room.back(); }
+            must(item && V.stashItemsIn(t.other, room.room).length === 1, "the thing is not in the hidden stash - this would measure nothing");
+            return { off: async () => { await gone(); await room.set(); }, undo: async () => { await gone(); await room.back(); } };
+        },
+        claim: (t, s, on) => ({ edit: p => ({ ...p, context: { category: "usable", ...(on ? { stashDie: true } : {}) } }) }),
+        expect: true, moves: ["rolled", null], moved: (A, B) => [A.stash?.kind ?? null, B.stash?.kind ?? null] },
+    { key: "kind", cite: "roll-draw.mjs `onGmTerms` (a critical guaranteed by the character's own effects, a death move's Blaze of Glory); no handbook line",
+        road: "an effect a GM made guaranteeing a critical",
+        arrange: t => c3Effect(t.theirs, "SUITE E33 C3 critical", [{ key: "system.rules.roll.guaranteedCritical", value: "true", type: "override" }]),
+        claim: () => ({}), expect: { actionType: "action", critical: true }, moves: [true, false], moved: (A, B) => [A.critical, B.critical] }
+]);
+
+/** The cast the fixtures are drawn for: p1 and their character, p2 and theirs, and p1's experience with its value. */
+async function modifierCast() {
+    const { livingStudents } = await import("./chapter.mjs");
+    const { player, theirs } = playerAndCharacters();
+    const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+    must(livingStudents().some(a => a.id === theirs.id), `${theirs.name} is not a living student - the incident's fixtures would measure nothing`);
+    const other = livingStudents().find(a => a.id !== theirs.id && playerOf(a) && playerOf(a).id !== player.id);
+    must(other, "no other living student is played by another connected player - p2's Support and the incident's fixtures would measure nothing");
+    const [experience, held] = Object.entries(theirs.system?.experiences ?? {}).find(([, e]) => Number(e?.value)) ?? [];
+    must(experience, `${theirs.name} has no experience worth something - this would measure nothing of one`);
+    return { player, theirs, other, otherPlayer: playerOf(other), experience, experienceValue: Number(held.value) };
+}
+
+/**
+ * THE FIXTURES, EACH DRAWN TWICE (E33 C3): every one of `fixtures` arranged, drawn with its source and
+ * without it on the same dice (`judgedDraw`), and undone; the world's resources, messages, clock and
+ * payments put back after the last. Throws the first fixture's throw with every reading, else holds
+ * the readings to the fixtures' expectations in one `equal`, naming the fixtures that differ.
+ */
+async function fixturesHold(fixtures) {
+    const t = await modifierCast();
+    const D = await import("./roll-draw.mjs");
+    const { trustedWrite } = await import("./resource-guard.mjs");
+    const had = new Set(game.messages.contents.map(m => m.id));
+    const found = [t.theirs, t.other].map(a => [a, ["hope", "stress", "hitPoints"].map(k => [k, a.system.resources[k]?.value])]);
+    const clock = getClock() ?? {};
+    const read = [], want = [], threw = [];
+    try {
+        for (const fx of fixtures) {
+            const name = fx.situation ? `situation ${fx.situation}` : fx.key;
+            const flags = fx.flags ?? [];
+            want.push([name, true, true, fx.expect, flags, flags.length ? 1 : 0, false, typeof fx.moves === "function" ? fx.moves(t) : fx.moves]);
+            let s = null;
+            const sides = [];
+            try {
+                s = await fx.arrange(t);
+                for (const on of [true, false]) {
+                    if (!on) await s.off();
+                    sides.push(await judgedDraw(t, await fx.claim(t, s, on)));
+                }
+                const [A, B] = sides;
+                read.push([name, A.drawn, B.drawn, A.read?.[fx.key] ?? null, A.flags, A.whispers, A.told, (fx.moved ?? ((a, b) => a.total - b.total))(A, B)]);
+            } catch (err) {
+                threw.push(err);
+                read.push([name, `threw: ${err?.message ?? err}`]);
+            } finally {
+                await s?.undo();
+            }
+        }
+    } finally {
+        D.forgetPayments?.(t.theirs.id);
+        await c3Incident(clock);
+        for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+        for (const [a, values] of found) {
+            const changed = values.filter(([k, v]) => a.system.resources[k]?.value !== v);
+            if (changed.length) await trustedWrite(a, Object.fromEntries(changed.map(([k, v]) => [`system.resources.${k}.value`, v])), { reason: "gmRuling" });
+        }
+    }
+    if (threw.length) {
+        threw[0].message = `${threw[0].message} - every fixture: ${stableJson(read)}`;
+        throw threw[0];
+    }
+    const differ = read.filter((row, i) => stableJson(row) !== stableJson(want[i])).map(row => row[0]);
+    equal(stableJson(read), stableJson(want),
+        `a row of the GMs' list read its source other than the handbook gives it, flagged or told of an honest roll, or did not move the roll - ${differ.join(", ")} `
+        + `(per fixture: drawn with it, drawn without it, the row's reading, flags, whispers to the GMs, p1 told of anything not counted, how far the source moved the roll): `
+        + stableJson(read.filter(row => differ.includes(row[0]))));
+}
+
+/**
+ * ONE DRAW AS THE TESTS OF THE LIST READ IT (E33 C3): `drawnForPlayer` for `t.player` and `t.theirs`
+ * with `options`, its dice `C3_DICE` scripted on the GM from just before the packet is judged; then
+ * read, and put back. Answers whether it was drawn (or why not), the record's reading of the list, its
+ * flags `[kind, expected, claimed, from]`, how many whispers to the GMs said the roll was not counted as
+ * claimed (`DRPG.Rolls.unexpected`), whether the roller was told what was not counted (`rollerLine`, and
+ * a card sent to them saying it), the total, the critical, the stash's step and who the record names.
+ */
+async function judgedDraw(t, options = {}) {
+    const D = await import("./roll-draw.mjs");
+    const { wordsOf } = await import("./secret.mjs");
+    const Dice = CONFIG.Dice;
+    const hadU = Object.hasOwn(Dice, "randomUniform"), realU = Dice.randomUniform;
+    const had = new Set(game.messages.contents.map(m => m.id));
+    // The longest piece of each line that no name, list or escaping touches.
+    const piece = key => game.i18n.localize(key).split(/\{[a-z]+\}|['"&<>]/).sort((a, b) => b.length - a.length)[0];
+    const warned = piece("DRPG.Rolls.unexpected"), untold = piece("DRPG.Rolls.notCounted");
+    let F = null;
+    const cards = await wordsSent(async () => {
+        try {
+            F = await drawnForPlayer(t.player, t.theirs, { ...options, faces: null, ready: async () => {
+                await options.ready?.();
+                let i = 0;
+                Dice.randomUniform = () => C3_DICE[i++ % C3_DICE.length];
+            } });
+        } finally {
+            if (hadU) Dice.randomUniform = realU;
+            else delete Dice.randomUniform;
+        }
+    });
+    try {
+        const record = F.record;
+        let whispers = 0, named = false;
+        for (const m of game.messages.contents.filter(x => !had.has(x.id) && x.id !== F.message?.id)) {
+            const words = String(await wordsOf(m, 1000) ?? "");
+            if (words.includes(warned)) { whispers++; named = words.includes(t.theirs.name); }
+        }
+        return { drawn: record ? true : F.sent.map(r => r.reason ?? r.action), read: record?.legal?.read ?? null,
+            flags: (record?.flags ?? []).map(f => [f.kind, f.expected, f.claimed, ...(f.from ? [f.from] : [])]), whispers, named,
+            told: D.rollerLine(record ?? {}) !== null || cards.some(c => c.to.includes(t.player.id) && c.html.includes(untold)),
+            total: record?.total ?? null, critical: record?.isCritical ?? null, stash: F.value?.stash ?? null, userId: record?.userId ?? null,
+            used: record?.used?.calls ?? [], claimFlat: record?.claim?.flat ?? null, dice: (record?.dice ?? []).map(d => [d.faces, d.results.map(r => r.result)]) };
+    } finally {
+        await F?.putBack();
+    }
+}
+
+/* The advantage die where Daggerheart's `applyAdvantage` puts it: fifth, after its sign - as a window that applied one sends it. */
+function c3WithDie(packet) {
+    packet.roll.terms.splice(3, 0, { class: "OperatorTerm", options: {}, operator: "+", evaluated: false },
+        { class: "AdvantageDie", options: {}, number: 1, faces: 6, modifiers: ["a"], results: [], evaluated: false });
+    const formula = packet.roll.formula.replace(/^(1d12h? \+ 1d12f?)/, "$1 + 1d6a");
+    must(formula !== packet.roll.formula, `the packet's formula ${packet.roll.formula} does not start with the Hope and Fear dice - this would measure nothing`);
+    packet.roll.formula = formula;
+    return packet;
+}
+
+/* The packet's duality die at term `at` (0 Hope, 2 Fear) made a d20, its formula with it (`edit`). */
+function c3DieAt(packet, at, die, edit) {
+    const formula = edit(packet.roll.formula);
+    must(packet.roll.terms[at]?.faces === 12 && formula !== packet.roll.formula, `the packet's ${die} die is not a d12 (${packet.roll.formula}) - this would measure nothing`);
+    packet.roll.terms[at] = { ...packet.roll.terms[at], faces: 20 };
+    packet.roll.formula = formula;
+    return packet;
+}
+
+/*
+ * OFF THE LIST (E33 C3, 07.10.2026; the stage plan's 2.3). An honest Search of p1's drawn, then the same
+ * Search with its packet edited by `edit(packet, t)` to claim what no row of the GMs' list gives - each
+ * on the same dice (`judgedDraw`). Read: the edited roll's total against the honest one's, its flags'
+ * kinds, the whispers telling the GMs it was not counted as claimed and whether they name p1's
+ * character, and whether the record names p1 as its sender (what `rollFlags` lists).
+ */
+async function offListDraw(edit, kind) {
+    needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+    const { player, theirs } = playerAndCharacters();
+    const [experience, held] = Object.entries(theirs.system?.experiences ?? {}).find(([, e]) => Number(e?.value)) ?? [];
+    const t = { player, theirs, experience, experienceValue: Number(held?.value) || 0 };
+    const had = new Set(game.messages.contents.map(m => m.id));
+    try {
+        const honest = await judgedDraw(t, {});
+        must(honest.drawn === true && !honest.flags.length && !honest.whispers, `the honest Search was not drawn clean (${stableJson([honest.drawn, honest.flags, honest.whispers])}) - this would measure nothing`);
+        const off = await judgedDraw(t, { edit: p => edit(p, t) });
+        equal(stableJson([off.drawn, off.total === honest.total, off.flags.map(f => f[0]), off.whispers, off.named, off.userId === player.id]),
+            stableJson([true, true, [kind], 1, true, true]),
+            `a claim off the GMs' list was counted, not flagged once, or the GMs were not told once naming the roller (drawn; total as the honest roll's; flag kinds; whispers; naming ${theirs.name}; the record's sender p1) - read ${stableJson([honest.total, off.total, off.flags, off.dice])}`);
+    } finally {
+        for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+    }
 }
 
 const SCENARIOS = [
@@ -7146,6 +7603,114 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson(sources.map(([label]) => [label, [], true])),
             "a roll carrying only what the GMs hold was flagged, or did not spend the Call it applied (per source: flags, spent)");
     }],
+    ["every legal modifier the GM lists is scored without an alarm", async () => {
+        /*
+         * E33 C3, 07.10.2026; the stage plan's 2.3 and its risk: a source the GMs' list misses is a
+         * subtraction from an honest player's roll, so a fixture red here is a missing source. Every row
+         * of config.mjs `LEGAL_ROLL_MODIFIERS`, and every branch of its `situation`, driven by its
+         * fixture (`MODIFIER_FIXTURES`): the source put on by a GM, p1's roll cut from what an honest
+         * window builds with it, drawn as p1's (`drawnForPlayer`, which pays the action), then drawn
+         * again with the source taken off, on the same dice. Read per fixture: both drawn; the GM's
+         * reading of the row (`record.legal.read`); the flags; the whispers telling the GMs the roll was
+         * not counted as claimed; whether p1 was told anything was not counted; and how far the source
+         * moved the roll - so a reader that scores nothing cannot pass. The fixtures' keys are the
+         * list's first: a row with no fixture, or a fixture of no row, fails before anything is drawn.
+         * A fixture marked `apart` is drawn in its own test (the next one): the Meddle's +1, C3's fix.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "p2's Support and the incident's fixtures need two students, each with a player");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const { LEGAL_ROLL_MODIFIERS } = await import("./config.mjs");
+        const listed = LEGAL_ROLL_MODIFIERS.map(row => row.key), fixed = [...new Set(MODIFIER_FIXTURES.map(fx => fx.key))];
+        equal(stableJson([listed.filter(key => !fixed.includes(key)), fixed.filter(key => !listed.includes(key))]), stableJson([[], []]),
+            "a row of the GMs' list has no fixture, or a fixture names no row of it (rows with none; stale fixtures)");
+        await fixturesHold(MODIFIER_FIXTURES.filter(fx => !fx.apart));
+    }],
+    ["a Meddle's +1 the window writes is in the roll it sends and scored without an alarm", async () => {
+        /*
+         * E33 C3, 07.10.2026: the fixture of `callBonus`, drawn apart from the test above. Its +1 reaches
+         * the roll only through the window's form: roll-dialog.mjs `lockBonus` writes it into the input
+         * and says the input changed, and Daggerheart's form handler copies it into the config (see the
+         * fixture). Red at a9c98bf's runtime - an honest roll flagged ["modifier","+1","0",["callBonus"]],
+         * one whisper to the GMs - the commit's finding, and the red first of its fix.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "the cast needs two students, each with a player");
+        await fixturesHold(MODIFIER_FIXTURES.filter(fx => fx.key === "callBonus"));
+    }],
+
+    // OFF THE LIST (E33 C3): one claim each that no row of the GMs' list gives, on p1's Search (`offListDraw`).
+    ["a +5 term on a drawn roll is not counted and the GMs are told once", async () => {
+        await offListDraw(p => addedToPacket(p, 5), "modifier");
+    }],
+    ["an experience with no Experience Call on a drawn roll is not counted and the GMs are told once", async () => {
+        await offListDraw((p, t) => {
+            must(t.experience, `${t.theirs.name} has no experience worth something - this would measure nothing of one`);
+            return addedToPacket({ ...p, experiences: [t.experience] }, t.experienceValue);
+        }, "modifier");
+    }],
+    ["an effect bonus the GM does not hold on a drawn roll is not counted and the GMs are told once", async () => {
+        await offListDraw(p => addedToPacket(p, 2, "SUITE E33 C3 an effect the GMs do not hold"), "modifier");
+    }],
+    ["a Call nonce with no purchase on a drawn roll is not counted and the GMs are told once", async () => {
+        await offListDraw(p => c3WithDie({ ...p, calls: ["E33C3NOPURCHASE0"] }), "advantage");
+    }],
+    ["an advantage die nothing grants on a drawn roll is not counted and the GMs are told once", async () => {
+        await offListDraw(p => c3WithDie({ ...p, calls: [] }), "advantage");
+    }],
+    ["a d20 Hope die on a drawn roll is not counted and the GMs are told once", async () => {
+        // FIXED IN C3 (07.10.2026; the commit's finding at a9c98bf): not counted - the GM throws the duality dice at
+        // the rules' faces (roll-draw.mjs, THE ROLL IS THROWN ON THE GM'S TERMS), 14 as the honest 14 - but no flag
+        // and no whisper: `checkRoll` counted dice, not faces. Now a Hope or Fear die at faces not the GM's is one of
+        // the claim's dice (roll-draw.mjs `claimOf`).
+        await offListDraw(p => c3DieAt(p, 0, "Hope", f => f.replace(/^1d12/, "1d20")), "dice");
+    }],
+    ["a d20 Fear die on a drawn roll is not counted and the GMs are told once", async () => {
+        // E33 C3, 07.10.2026: the plan's case is the Hope die (the one above); the Fear die rides the same line of
+        // `claimOf`, and this draws it - its own test, since a test asks the world once, before it writes.
+        await offListDraw(p => c3DieAt(p, 2, "Fear", f => f.replace(/^(1d12h? \+ )1d12/, (_, head) => `${head}1d20`)), "dice");
+    }],
+
+    ["an Obstacle armed just over the grace before a draw applies when its packet omits it and one armed just within waits", async () => {
+        /*
+         * E33 C3, 07.10.2026; the owner's Q3 (a) of 05.10.2026, at its edge. A hostile Call armed more
+         * than `HOSTILE_GRACE` (60 s) before a draw applies to it whether its packet names it or not;
+         * one armed later waits for the next roll (roll-draw.mjs `hostileCalls`). E29 C9's test reads
+         * Obstacles two graces back and armed now; here one is written on p1's character 61 s before
+         * the draw and one 50 s before, each just before the GM judges a Search whose packet names no
+         * Call - so the draw's own seconds cannot carry either across the edge. Read per draw: the
+         * row's reading, the flags, whether the GM spent the Obstacle and whether it is still armed.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const { HOSTILE_GRACE } = await import("./config.mjs");
+        const flag = `flags.${MODULE_ID}.${FLAGS.pendingCall}`;
+        const listOf = () => { const f = theirs.getFlag(MODULE_ID, FLAGS.pendingCall); return Array.isArray(f) ? f : f ? [f] : []; };
+        must(!E.armedCallsShown(theirs).some(c => c?.grants === "disadvantage" || c?.grants === "advantage"),
+            `${theirs.name} has a Call of dice armed already - this would measure something else`);
+        const read = [], ours = [];
+        const had = new Set(game.messages.contents.map(m => m.id));
+        try {
+            for (const [edge, ago] of [["over", HOSTILE_GRACE + 1000], ["within", HOSTILE_GRACE - 10_000]]) {
+                const nonce = `E33C3Q3${edge.toUpperCase()}${foundry.utils.randomID(6)}`;
+                ours.push(nonce);
+                const F = await judgedDraw({ player, theirs }, { edit: p => ({ ...p, calls: [] }), ready: async () => {
+                    await theirs.update({ [flag]: [...listOf(), { key: "obstacle", kind: "despair", grants: "disadvantage", amount: null, nonce, at: Date.now() - ago }] });
+                    must(E.armedCallsShown(theirs).some(c => c.nonce === nonce), "the Obstacle was not armed - this would measure nothing");
+                } });
+                read.push([edge, F.drawn, F.read?.hostile ?? null, F.flags, F.used.includes(nonce), E.armedCallsShown(theirs).some(c => c.nonce === nonce)]);
+                if (E.armedCallsShown(theirs).some(c => c.nonce === nonce)) await E.spendCallsByNonce(theirs, [nonce]);
+            }
+        } finally {
+            const left = E.armedCallsShown(theirs).map(c => c.nonce).filter(n => ours.includes(n));
+            if (left.length) await E.spendCallsByNonce(theirs, left);
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+        }
+        equal(stableJson(read), stableJson([["over", true, { dice: -1, bonus: 0 }, [["advantage", "-1", "0", ["hostile"]]], true, false],
+            ["within", true, { dice: 0, bonus: 0 }, [], false, true]]),
+        "an Obstacle armed 61 s before the draw was shed by a packet that left it out, or one armed 50 s before was taken (per draw: drawn, the hostile row's reading, flags, spent, still armed)");
+    }],
+
     ["the GM's legal roll keeps its advantage die's class through fromData", async () => {
         /*
          * E33 C2a, 07.10.2026; the stage plan's 2.2. A Support's advantage die on a drawn Search, as the
