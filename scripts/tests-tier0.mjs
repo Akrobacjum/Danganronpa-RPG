@@ -5679,7 +5679,7 @@ const REGRESSIONS = [
             ["fog.mjs", "registerLedgerRoad", ["weak", "fillOnly"], false],
             ["fog.mjs", "liftDiscoveryLedger", ["weak", "fillOnly"], true],
             // An indirect murder's killer, builder, condition and trigger out of projectMeta (E05 C1).
-            ["projects.mjs", "liftProjectSecrets", ["weak", "fillOnly"], true],
+            ["projects-secrecy.mjs", "liftProjectSecrets", ["weak", "fillOnly"], true],
             // The declarations made in the dark out of the world's pendingMurders (E05 C3).
             ["eclipse.mjs", "liftPendingMurders", ["weak", "fillOnly"], true],
             // The Eclipse's crossings out of the world's eclipseMoves (E05 C4).
@@ -6967,7 +6967,7 @@ const REGRESSIONS = [
             ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
             ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
-            ["projects-ui.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
+            ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
             ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
             ["remnants.mjs", "retuneRemnant", "token", "a Remnant's token, replaced by its retuned one"],
