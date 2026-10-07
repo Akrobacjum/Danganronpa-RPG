@@ -13453,6 +13453,153 @@ const SCENARIOS = [
                 + "(whisper; blind; isPublicRoll; forged paths; rows naming it; every row the player's; the GMs' lines naming it)");
     }],
 
+    ["a GM's roll from a student's sheet keeps the create's mode and only a list of the GMs and the author is given the GMs' mode", async () => {
+        /*
+         * E33 fix r2-G2, 07.10.2026; review round 2's sec m3. C11 set v14's "gm" mode after every
+         * list of `whisperRoll`'s player road, and "gm" names the GMs and the author: on a GM's roll
+         * from a student's sheet the list also names the student's player, who would lose the roll
+         * if v14 applied the create's mode after the hook (LIVE-E33-03). Three rolls made here as
+         * Daggerheart makes one (`create(data, { messageMode })`, dhRoll.mjs :162, the mode its
+         * user's "public"), with v14's `applyMode` stood in by one that writes, for "gm", the GMs'
+         * whisper and a field besides it (what the real one writes besides is not known here): a
+         * GM's from the player's student, a GM's bare roll and the player's own. Read by a hook
+         * after the module's, as the create leaves them: the list, the create's mode and the field.
+         * Expected: the GM's roll from the sheet keeps "public" and no field; the other two, whose
+         * lists are the GMs and the author, are given "gm" and the field.
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player whose student a GM rolls from");
+        const { ownerOf, gmIds } = await import("./utils.mjs");
+        const student = cast(3).find(a => ownerOf(a) && !ownerOf(a).isGM);
+        must(student, "no student of the cast is owned by a player");
+        must(!game.user.character, "the GM has a character, so a GM's bare roll would be about it - this would measure nothing");
+        const player = ownerOf(student);
+        const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const apply = Object.getOwnPropertyDescriptor(ChatMessage, "applyMode");
+        const hadModes = Object.hasOwn(CONFIG.ChatMessage, "modes"), modes = CONFIG.ChatMessage.modes;
+        const seen = new Map();
+        const after = Hooks.on("preCreateChatMessage", (doc, data, options) => {
+            const flavor = doc._source?.flavor ?? "";
+            if (flavor.startsWith("suite r2-G2 ")) seen.set(flavor, [options?.messageMode ?? null, doc._source?.flags?.drpgSuite?.mode ?? null]);
+        });
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "reaction" } };
+        const made = [];
+        await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+        Object.defineProperty(ChatMessage, "applyMode", { configurable: true, writable: true, value: (data, mode) => {
+            if (mode === "gm") Object.assign(data, { whisper: gmIds(), flags: { ...(data.flags ?? {}), drpgSuite: { mode } } });
+            return data;
+        } });
+        CONFIG.ChatMessage.modes = { ...(modes ?? {}), gm: modes?.gm ?? {} };
+        try {
+            const rows = [
+                ["suite r2-G2 sheet", game.user.id, ChatMessage.getSpeaker({ actor: student })],
+                ["suite r2-G2 bare", game.user.id, { scene: null, actor: null, token: null, alias: game.user.name }],
+                ["suite r2-G2 own", player.id, ChatMessage.getSpeaker({ actor: student })]
+            ];
+            for (const [flavor, author, speaker] of rows) {
+                const message = await ChatMessage.create({ author, speaker, flavor, content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll } },
+                    { messageMode: "public" });
+                must(message?.id, `the roll "${flavor}" made no message`);
+                made.push(message);
+            }
+            const gms = gmIds();
+            equal(stableJson(made.map(m => [[...m.whisper].sort(), ...(seen.get(m._source.flavor) ?? [])])),
+                stableJson([[[...new Set([...gms, player.id])].sort(), "public", null], [[...gms].sort(), "gm", "gm"], [[...new Set([...gms, player.id])].sort(), "gm", "gm"]]),
+                "a GM's roll from a student's sheet was given the GMs' mode, or a GM's bare roll or a player's own was not (per roll: whisper; the create's mode; the mode's field)");
+        } finally {
+            Hooks.off("preCreateChatMessage", after);
+            if (apply) Object.defineProperty(ChatMessage, "applyMode", apply); else delete ChatMessage.applyMode;
+            if (hadModes) CONFIG.ChatMessage.modes = modes; else delete CONFIG.ChatMessage.modes;
+            for (const message of made) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+        }
+    }],
+
+    ["a Monocub's roll in a room with another student keeps the room on its whisper and the create's mode as it came", async () => {
+        /*
+         * E33 fix r2-G2, 07.10.2026; review round 2's sec m3. The room sees a Monocub's dice (the
+         * owner's Q3 (b), 27.09), so its list is wider than v14's "gm" mode; C11 set the mode on it
+         * all the same. A Monocub and another student, each with a player, stand alone in a room;
+         * the Monocub's player rolls as Daggerheart does (`create(data, { messageMode: "public" })`).
+         * Read by a hook after the module's: the list names the GMs and both players, and the
+         * create's mode is still "public" - the list alone decides who holds the dice.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a Monocub and a student in its room, each with a player");
+        const { gmIds } = await import("./utils.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [cub, other] = livingStudents().filter(player);
+        const wasCub = cub.getFlag(MODULE_ID, FLAGS.monocub) ?? null;
+        const { back } = await aloneTogether(cub, other);
+        const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        let mode = "unread", message = null;
+        const after = Hooks.on("preCreateChatMessage", (doc, data, options) => {
+            if (doc._source?.flavor === "suite r2-G2 cub") mode = options?.messageMode ?? null;
+        });
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+            await cub.setFlag(MODULE_ID, FLAGS.monocub, true);
+            await settle();
+            const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+                dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+                options: { actionType: "reaction" } };
+            message = await ChatMessage.create({ author: player(cub).id, speaker: ChatMessage.getSpeaker({ actor: cub }), flavor: "suite r2-G2 cub",
+                content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll } }, { messageMode: "public" });
+            must(message?.id, "the Monocub's roll made no message");
+            equal(stableJson([[...message.whisper].sort(), mode]), stableJson([[...new Set([...gmIds(), player(cub).id, player(other).id])].sort(), "public"]),
+                "a Monocub's roll in a room lost the room off its list, or was given the GMs' mode (whisper; the create's mode)");
+        } finally {
+            Hooks.off("preCreateChatMessage", after);
+            if (message) await message.delete();
+            if (wasCub === null) await cub.unsetFlag(MODULE_ID, FLAGS.monocub);
+            else await cub.setFlag(MODULE_ID, FLAGS.monocub, wasCub);
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+            await back();
+        }
+    }],
+
+    ["a GM's public roll speaks as the GM with a student's token selected", async () => {
+        /*
+         * E33 fix r2-G2, 07.10.2026; review round 2's sec m4. C12's `publicRoll` asked
+         * `ChatMessage.getSpeaker()`, which with no actor and no token speaks as the first token
+         * the user controls (Foundry's reading as remembered of v12/v13; the harness's
+         * `getSpeaker` has no such branch, so it is stood in here by one that has it, asking
+         * `canvas.tokens.controlled`). The GM selects a student's token and throws a public roll:
+         * the message names no actor and no token, and the GM's name. The stand-in's own answer
+         * is read first, so a stand-in that is not asked the way Foundry is asked measures nothing.
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student's token for the GM to select");
+        const [student] = cast(1);
+        const token = canvas.scene?.tokens?.find(t => t.actorId === student.id);
+        const placed = token ? canvas.tokens.get(token.id) : null;
+        must(placed, "the student has no token on the scene on screen");
+        const forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+        const speak = Object.getOwnPropertyDescriptor(ChatMessage, "getSpeaker");
+        const original = ChatMessage.getSpeaker;
+        let message = null;
+        Object.defineProperty(ChatMessage, "getSpeaker", { configurable: true, writable: true, value: function (args = {}) {
+            const chosen = canvas.tokens.controlled[0];
+            if (args.actor || args.token || !chosen) return original.call(this, args);
+            return { scene: canvas.scene?.id ?? null, actor: chosen.document.actorId, token: chosen.id, alias: args.alias ?? chosen.name };
+        } });
+        placed.control();
+        try {
+            must(ChatMessage.getSpeaker().actor === student.id, "the stood-in getSpeaker does not speak as the selected token - this would measure nothing");
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, true);
+            message = await game.drpg.publicRoll("1d6", { flavor: "suite r2-G2 public" });
+            must(message?.id, "the public roll made no message");
+            const speaker = message._source?.speaker ?? {};
+            equal(stableJson([speaker.actor ?? null, speaker.token ?? null, speaker.alias ?? null]), stableJson([null, null, game.user.name]),
+                "a GM's public roll with a student's token selected speaks as that token's actor or names a token, or not with the GM's name (actor; token; alias)");
+        } finally {
+            placed.release();
+            if (speak) Object.defineProperty(ChatMessage, "getSpeaker", speak); else delete ChatMessage.getSpeaker;
+            if (message) await message.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.forcePrivateRolls, forced);
+        }
+    }],
+
     ["perf() reports the round trip of a roll the GM drew", async () => {
         /*
          * E33 C13, 07.10.2026; the stage plan's 3.5; the owner's Q3 (a); LIVE-E28-03's question.

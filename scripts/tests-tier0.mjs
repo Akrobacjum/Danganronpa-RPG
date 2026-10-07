@@ -6669,6 +6669,9 @@ const REGRESSIONS = [
          * of `whisperRoll` calls the first and only then the second, and writes the document
          * through neither of its own. Read off the source: every road comes out the same
          * wherever the mode can be written, which is every Foundry the suite has run on.
+         * Since E33 fix r2-G2 (07.10.2026; review round 2's sec m3) the player road writes the
+         * mode only where its list is the GMs and the author (`modeNamesThem`): the pair reads
+         * `writeWhisper(...) && <one name>`, the list still first.
          */
         const files = (await otherSources()).filter(([file]) => file.endsWith(".mjs")).map(([file, raw]) => [file, stripComments(raw)]);
         ok(files.length > 50, `only ${files.length} module file(s) were read - the crawl is not reaching the module`);
@@ -6685,7 +6688,7 @@ const REGRESSIONS = [
             "writeWhisper does not write the list once, in its own try, with nothing of a mode (list writes; own try; names a mode)");
         equal(JSON.stringify([ownTry(mode), /\bprivateModeFields\(\)/.test(mode), /\bwhisper\b/.test(mode)]), JSON.stringify([true, true, false]),
             "writeMode does not read privateModeFields in its own try, or it touches the whisper list (own try; reads the fields; names the list)");
-        const paired = roads.match(/if \(writeWhisper\([^\n]*\)\) writeMode\(message, options\);/g) ?? [];
+        const paired = roads.match(/if \(writeWhisper\([^\n]*?\)(?: && \w+)?\) writeMode\(message, options\);/g) ?? [];
         equal(JSON.stringify([paired.length, (roads.match(/\bwriteMode\(/g) ?? []).length, (roads.match(/\bwriteWhisper\(/g) ?? []).length, /updateSource\(/.test(roads)]),
             JSON.stringify([2, 2, 2, false]),
             "whisperRoll's two roads (a roll the module threw; any other) do not each write the list and only then the mode, or one writes the document itself (paired; mode calls; list calls; a direct write)");

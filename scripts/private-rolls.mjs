@@ -933,9 +933,9 @@ function writeWhisper(message, whisper) {
 }
 
 /**
- * The mode, after the list and apart from it. `options` are the create's: Daggerheart
- * 2.10.5 hands v14 the mode there (dhRoll.mjs :162), so whatever reads it after this hook
- * reads the mode the list says.
+ * The mode, after the list and apart from it, and only on a list v14's "gm" names: the GMs and
+ * the author (`whisperRoll` asks). `options` are the create's: Daggerheart 2.10.5 hands v14 the
+ * mode there (dhRoll.mjs :162), so whatever reads it after this hook reads the mode the list says.
  */
 function writeMode(message, options) {
     try {
@@ -982,8 +982,9 @@ function whisperRoll(message, data, options, userId, claimed) {
         return;
     }
 
-    const recipients = gmIds();
-    if (!recipients.length) return;
+    const gms = gmIds();
+    if (!gms.length) return;
+    const recipients = [...gms];
 
     /*
      * A ROLL THE MODULE THREW GOES TO THE GMs ALONE (E06 C5b, 27.09.2026). A
@@ -1055,7 +1056,20 @@ function whisperRoll(message, data, options, userId, claimed) {
     // are now covered by the subject rules above.
     if (!author.isGM) recipients.push(author.id);
 
-    if (writeWhisper(message, Array.from(new Set(recipients)))) writeMode(message, options);
+    /*
+     * THE MODE ONLY WHERE THE LIST IS PRIVATE (E33 fix r2-G2, 07.10.2026; review round 2's
+     * sec m3). C11 wrote the "gm" mode after every list of this road, and v14's "gm" names the
+     * GMs and the author. A Monocub's roll is also the room's (the owner's Q3 (b) above) and a
+     * GM's roll from a student's sheet also that student's player's: if v14 applies a create's
+     * mode after this hook, those readers would lose the roll. Such a list keeps its whisper
+     * alone and the create's mode as it came, as every roll did before C11 - so under that
+     * order such a roll would follow the mode its sender chose; a list of the GMs and the
+     * author gets the mode. Which of the two orders v14 keeps is LIVE-E33-03, which now reads
+     * both wider roads too.
+     */
+    const list = Array.from(new Set(recipients));
+    const modeNamesThem = list.every(id => gms.includes(id) || id === author.id);
+    if (writeWhisper(message, list) && modeNamesThem) writeMode(message, options);
     debug(`Rewrote a roll for ${subject?.name ?? author.name} into a private whisper.`);
 }
 
@@ -1340,6 +1354,14 @@ export function isPublicRoll(message) {
  * use; a GM's ordinary `/r` is unchanged and still goes to the GMs. Refused with a notice on a
  * player's browser (the flag it would write is a forgery there) and for a formula Foundry cannot
  * read. Answers the message, or null.
+ *
+ * IT SPEAKS AS THE GM (E33 fix r2-G2, 07.10.2026; review round 2's sec m4). C12 asked
+ * `ChatMessage.getSpeaker()`, which with no actor and no token speaks as the first token the
+ * user controls (Foundry's reading as remembered of v12/v13, not read here; an alias alone does
+ * not stop that branch): a GM with a student's token selected posted, to every browser, a roll
+ * under that student's name. The speaker is written out instead - the GM's name and no scene,
+ * actor or token. A GM-drawn roll for a player never comes here (the module's claimed road in
+ * `whisperRoll`) and is unchanged.
  */
 export async function publicRoll(formula = "1d6", { flavor = "" } = {}) {
     if (!game.user?.isGM) {
@@ -1358,7 +1380,7 @@ export async function publicRoll(formula = "1d6", { flavor = "" } = {}) {
     }
     const message = await ChatMessage.create({
         author: game.user.id,
-        speaker: ChatMessage.getSpeaker(),
+        speaker: { scene: null, actor: null, token: null, alias: game.user.name },
         flavor: String(flavor ?? ""),
         rolls: [roll.toJSON()],
         sound: CONFIG.sounds?.dice ?? null,
