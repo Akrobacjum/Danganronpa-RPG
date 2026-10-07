@@ -1007,7 +1007,7 @@ function addedToPacket(packet, n, label = null) {
  * A PACKET'S ROLL AS ITS WINDOW CONFIGURED IT, for a test that rebuilds it with Daggerheart's
  * `fromData` (E29 fix r2-H1, 05.10.2026). A packet carries only the options a window may say
  * (roll-draw.mjs `DRAWN_OPTIONS`), and the constructor reads `options.source` without `?.`
- * (dualityRoll.mjs:185; the harness's `DualityRollMock` since the same fix): every roll a window
+ * (dualityRoll.mjs:185; the harness's roll since the same fix, Daggerheart's own since E33 C2a): every roll a window
  * configures has one, as every roll the GM writes does. Answers a copy; the packet is left as it was.
  */
 function configuredRollOf(packet) {
@@ -5981,7 +5981,9 @@ const SCENARIOS = [
         const die = sign => p => {
             p.roll.terms.splice(3, 0, { class: "OperatorTerm", operator: sign > 0 ? "+" : "-", evaluated: false },
                 { class: sign > 0 ? "AdvantageDie" : "DisadvantageDie", number: 1, faces: 6, modifiers: [], results: [], evaluated: false });
-            p.roll.formula = p.roll.formula.replace(/^1d12 \+ 1d12/, `1d12 + 1d12 ${sign > 0 ? "+" : "-"} 1d6`);
+            const formula = p.roll.formula.replace(/^(1d12h? \+ 1d12f?)/, `$1 ${sign > 0 ? "+ 1d6a" : "- 1d6d"}`);
+            must(formula !== p.roll.formula, `the packet's formula ${p.roll.formula} does not start with the Hope and Fear dice - this would measure nothing`);
+            p.roll.formula = formula;
             return p;
         };
         const arm = async (entry, byStore) => {
@@ -6383,7 +6385,9 @@ const SCENARIOS = [
                 const t = p.roll.terms;
                 t[0] = { ...t[0], number: 2, faces: 1, modifiers: ["kh"] };
                 t[2] = { ...t[2], faces: 1 };
-                p.roll.formula = p.roll.formula.replace(/^1d12 \+ 1d12/, "2d1kh + 1d1");
+                const formula = p.roll.formula.replace(/^1d12h? \+ 1d12f?/, "2d1kh + 1d1");
+                must(formula !== p.roll.formula, `the packet's formula ${p.roll.formula} does not start with the Hope and Fear dice - this would measure nothing`);
+                p.roll.formula = formula;
                 return p;
             });
             read.push([dice(one), /\dd1(?!\d)/.test(one.record.formula ?? "")]);
@@ -7024,7 +7028,9 @@ const SCENARIOS = [
         const die = sign => p => {
             p.roll.terms.splice(3, 0, { class: "OperatorTerm", operator: sign > 0 ? "+" : "-", evaluated: false },
                 { class: sign > 0 ? "AdvantageDie" : "DisadvantageDie", number: 1, faces: 6, modifiers: [], results: [], evaluated: false });
-            p.roll.formula = p.roll.formula.replace(/^1d12 \+ 1d12/, `1d12 + 1d12 ${sign > 0 ? "+" : "-"} 1d6`);
+            const formula = p.roll.formula.replace(/^(1d12h? \+ 1d12f?)/, `$1 ${sign > 0 ? "+ 1d6a" : "- 1d6d"}`);
+            must(formula !== p.roll.formula, `the packet's formula ${p.roll.formula} does not start with the Hope and Fear dice - this would measure nothing`);
+            p.roll.formula = formula;
             return p;
         };
         const arm = async (entry, byStore = false) => {
@@ -7077,6 +7083,235 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson(sources.map(([label]) => [label, [], true])),
             "a roll carrying only what the GMs hold was flagged, or did not spend the Call it applied (per source: flags, spent)");
     }],
+    ["the GM's legal roll keeps its advantage die's class through fromData", async () => {
+        /*
+         * E33 C2a, 07.10.2026; the stage plan's 2.2. A Support's advantage die on a drawn Search, as the
+         * GM's own list writes it (roll-draw.mjs `legalRollOf`): the GM rebuilds the roll with Daggerheart's
+         * `fromData` and throws it, and a Reroll or a reader rebuilds it again from its JSON. Daggerheart's
+         * `fromData` names the fifth term by the roll's advantage (dualityRoll.mjs:122-129, 2.10.5), its
+         * advantage die's class adds the letter `a` (die/advantageDie.mjs), and its `buildEvaluate` leaves
+         * the config the die and its total (d20Roll.mjs:167-171). Read, on the roll the GM throws (its
+         * `buildEvaluate` wrapped for the one draw, from just before the packet is judged): the fifth
+         * term's class, whether it is the roll's `dAdvantage`, its letter, the config's advantage (its
+         * kind, whether its die is the term's, whether its value is the term's total); then the thrown
+         * roll rebuilt from its JSON, and rebuilt from that JSON with the fifth term written as a plain
+         * die, which `fromData` must name again. Until C2a the harness's roll was a model of
+         * Daggerheart's (`DualityRollMock`): its config named no advantage die, its dice no letter.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const E = await import("./call-effects.mjs");
+        const cls = game.system.api.dice.DualityRoll;
+        const AdvantageDie = game.system.api.dice.diceTypes?.AdvantageDie ?? CONFIG.Dice.termTypes?.AdvantageDie;
+        must(typeof AdvantageDie === "function", "Daggerheart names no advantage die - this would measure nothing");
+        const own = Object.getOwnPropertyDescriptor(cls, "buildEvaluate");
+        must(typeof own?.value === "function", "the duality roll has no buildEvaluate of its own to watch - this would measure nothing");
+        // The advantage die where Daggerheart's `applyAdvantage` puts it: fifth, after its sign.
+        const withDie = p => {
+            p.roll.terms.splice(3, 0, { class: "OperatorTerm", operator: "+", evaluated: false },
+                { class: "AdvantageDie", number: 1, faces: 6, modifiers: ["a"], results: [], evaluated: false });
+            p.roll.formula = p.roll.formula.replace(/^(1d12h? \+ 1d12f?)/, "$1 + 1d6a");
+            return p;
+        };
+        const nonce = `E33C2A${foundry.utils.randomID(6)}`;
+        let seen = null, F = null;
+        try {
+            await E.appendArmedCall(theirs, { amount: null, key: "support", kind: "hope", grants: "advantage", nonce });
+            must(E.armedCallsShown(theirs).some(c => c.nonce === nonce), "the Support was not armed - this would measure nothing");
+            F = await drawnForPlayer(player, theirs, { faces: { hope: 7, fear: 4, advantage: 5 }, edit: p => withDie({ ...p, calls: [nonce] }),
+                ready: () => Object.defineProperty(cls, "buildEvaluate", { ...own, value: async function (roll, config, message) {
+                    const out = await own.value.call(this, roll, config, message);
+                    seen ??= { roll, advantage: foundry.utils.deepClone(config?.roll?.advantage ?? null) };
+                    return out;
+                } }) });
+        } finally {
+            Object.defineProperty(cls, "buildEvaluate", own);
+            await F?.putBack();
+            if (E.armedCallsShown(theirs).some(c => c.nonce === nonce)) await E.spendCallsByNonce(theirs, [nonce]);
+        }
+        must(seen, "the GM threw no roll for the draw - this would measure nothing");
+        const thrown = seen.roll, term = thrown.terms[4] ?? null;
+        const json = JSON.parse(JSON.stringify(thrown.toJSON()));
+        const back = cls.fromData(foundry.utils.deepClone(json));
+        const plain = foundry.utils.deepClone(json);
+        if (plain.terms?.[4]) plain.terms[4].class = "Die";
+        const named = cls.fromData(plain);
+        equal(stableJson([[term instanceof AdvantageDie, Boolean(term) && thrown.dAdvantage === term, (term?.modifiers ?? []).includes("a")],
+            [seen.advantage?.type ?? null, Boolean(term) && seen.advantage?.dice === term.denomination, Boolean(term) && seen.advantage?.value === term.total],
+            [back.terms[4] instanceof AdvantageDie, named.terms[4] instanceof AdvantageDie, Boolean(named.terms[4]) && named.dAdvantage === named.terms[4]]]),
+        stableJson([[true, true, true], [1, true, true], [true, true, true]]),
+        "the GM's roll lost its advantage die's class or its letter, its config did not name that die and its face, or its JSON did not rebuild it as one (the thrown term, the config's advantage, the rebuilt and the renamed term)");
+    }],
+
+    ["a player's update of a GM's message is refused", async () => {
+        /*
+         * E33 C2a, 07.10.2026; the stage plan's 2.2. A drawn roll's card is the GM's message about the
+         * player's own character (roll-draw.mjs `writeDrawnMessage`), and Daggerheart's own Reroll from the
+         * chat writes the rerolled roll into the message it was asked on (chatLog.mjs:110-116, 2.10.5:
+         * `message.update({ rolls: [reroll] })`). What keeps a player's browser from rewriting the GM's
+         * card is Foundry's refusal of an update by anybody but its author or a GM. The harness's server
+         * refuses it (cluster.mjs `canWrite`; measured 07.10.2026 by a probe run: p1's update of a GM's
+         * message threw "User lacks permission: update ChatMessage", which `permissionDenials` recorded,
+         * and the message was unchanged, while p1's update of its own message was written). In the
+         * suite, on the GM's browser, Foundry's own answer is read: whether the player may modify the
+         * GM's card of their draw, beside whether they may modify the character the card is about -
+         * they may, so a refusal of everything would not pass. Green before C2a: a guard. Foundry
+         * refusing it at a table is LIVE-E33-02.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const F = await drawnForPlayer(player, theirs, { faces: { hope: 9, fear: 4 } });
+        try {
+            must(F.message, "the GM wrote no card for the draw - this would measure nothing");
+            equal(stableJson([F.message.author?.id === game.user.id, F.message.canUserModify(player, "update"), theirs.canUserModify(player, "update")]),
+                stableJson([true, false, true]),
+                "the draw's card is not the GM's, the player may update it, or the player may not update their own character (the card's author, the card, the character)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a Call's advantage die takes the faces its rule names on Daggerheart's own roll", async () => {
+        /*
+         * E33 C2a, 07.10.2026; the stage plan's 2.2. A Call that grants advantage forces it in the roll
+         * window (roll-dialog.mjs `forceAdvantage`), and with it the die's faces the character's rules
+         * name, as Daggerheart's own advantage button does (d20RollDialog.mjs:174-190, 2.10.5: the rule's
+         * `defaultAdvantageDice` into the roll's `advantageFaces`); the window then builds its formula
+         * again (:133, `constructFormula`), whose `applyAdvantage` puts an advantage die of those faces
+         * fifth (dualityRoll.mjs:143-163). A student's list emptied and a Support armed; Daggerheart's
+         * roll built from the window's config as its `build` builds it (`createRollInstance`), with the
+         * character's roll data whose rules name an 8 (a copy: the character is not written); the window
+         * opened on it (`rollWindow`), then the formula built as the window's next render does. Read: the
+         * roll's `advantageFaces`, whether the formula could be built, and the fifth term - its class,
+         * faces, number and whether it is the roll's `dAdvantage`. Until C2a the harness's roll had no
+         * `constructFormula` and its `applyAdvantage` threw a d6 whatever the rule.
+         */
+        const [actor] = cast(1);
+        const C = await import("./call-effects.mjs");
+        const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
+        const DR = game.system.api.dice.DualityRoll;
+        const AdvantageDie = game.system.api.dice.diceTypes?.AdvantageDie ?? CONFIG.Dice.termTypes?.AdvantageDie;
+        must(typeof AdvantageDie === "function", "Daggerheart names no advantage die - this would measure nothing");
+        let win = null;
+        try {
+            await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
+            must(await C.armCall(actor, { key: "support", kind: "hope", grants: "advantage" }), "the Support could not be armed");
+            win = await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "eye", type: "trait", advantage: 0 }, source: { actor: actor.uuid }, experiences: [] });
+            const data = { ...actor.getRollData(), parent: actor };
+            data.rules = { ...(data.rules ?? {}), roll: { ...(data.rules?.roll ?? {}), defaultAdvantageDice: 8 } };
+            win.config.data = data;
+            win.roll = DR.createRollInstance(win.config);
+            win.open();
+            await settle();
+            const built = typeof win.roll.constructFormula === "function";
+            if (built) win.roll.constructFormula(win.config);
+            const term = win.roll.terms?.[4] ?? null;
+            equal(stableJson([win.config.roll.advantage, win.roll.advantageFaces, built,
+                [term instanceof AdvantageDie, term?.faces ?? null, term?.number ?? null, Boolean(term) && win.roll.dAdvantage === term]]),
+            stableJson([1, 8, true, [true, 8, 1, true]]),
+            "the Call did not force advantage at the rule's faces, or Daggerheart's roll did not build its advantage die of them (the window's advantage, the roll's faces, built, the fifth term)");
+        } finally {
+            await win?.cancel();
+            await C.consumeCalls(actor);
+        }
+    }],
+
+    ["a die a packet adds beyond Hope's and Fear's and the advantage's is not on the roll the GM throws", async () => {
+        /*
+         * E33 C2a, 07.10.2026; the stage plan's 2.2. Daggerheart's roll names its dice beyond the Hope,
+         * the Fear and the advantage die its extra dice (dualityRoll.mjs:65-68, 2.10.5), as a window's
+         * extra formula puts one on (d20Roll.mjs:118-123). A packet may say an extra formula
+         * (roll-draw.mjs `DRAWN_OPTIONS`), and the GM's own list writes none (`drawnOptions`). A drawn
+         * Search whose packet carries a d4 after its terms and `extraFormula` "1d4". Read: the claimed roll
+         * rebuilt by Daggerheart's `fromData` - its extra dice - and the roll the GM throws (its
+         * `buildEvaluate` wrapped for the one draw). Until C2a the harness's roll had no extra dice to name.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const cls = game.system.api.dice.DualityRoll;
+        const own = Object.getOwnPropertyDescriptor(cls, "buildEvaluate");
+        must(typeof own?.value === "function", "the duality roll has no buildEvaluate of its own to watch - this would measure nothing");
+        const withExtra = p => {
+            p.roll.terms = [...p.roll.terms, { class: "OperatorTerm", operator: "+", evaluated: false },
+                { class: "Die", number: 1, faces: 4, modifiers: [], results: [], evaluated: false }];
+            p.roll.formula = `${p.roll.formula} + 1d4`;
+            p.roll.options = { ...(p.roll.options ?? {}), extraFormula: "1d4" };
+            return p;
+        };
+        let seen = null, F = null;
+        try {
+            F = await drawnForPlayer(player, theirs, { faces: { hope: 9, fear: 4 }, edit: withExtra,
+                ready: () => Object.defineProperty(cls, "buildEvaluate", { ...own, value: async function (roll, config, message) {
+                    seen ??= roll;
+                    return own.value.call(this, roll, config, message);
+                } }) });
+        } finally {
+            Object.defineProperty(cls, "buildEvaluate", own);
+            await F?.putBack();
+        }
+        must(F.packet?.roll?.options?.extraFormula === "1d4", "the packet carried no extra formula - this would measure nothing");
+        const claimed = cls.fromData(configuredRollOf(F.packet));
+        equal(stableJson([claimed.extraDice?.map(d => d.faces) ?? null, seen ? seen.extraDice?.map(d => d.faces) ?? null : "not thrown"]),
+            stableJson([[4], []]),
+            "Daggerheart's roll did not name the packet's d4 as its extra die, or the GM threw it (the claimed roll's extra dice, the thrown roll's)");
+    }],
+
+    ["a duality roll rerolled live as Daggerheart's chat menu does is a duality roll again and moves Hope and Fear", async () => {
+        /*
+         * E33 C2a, 07.10.2026; the stage plan's 2.2. Daggerheart's own Reroll from the chat is
+         * `message.rolls[0].reroll({ liveRoll: true })` (chatLog.mjs:115, 2.10.5): Foundry's reroll
+         * (a clone thrown again), rebuilt by `fromData` as a duality roll, the dice shown, and - for
+         * anything but a reaction - the change of result settled on the character
+         * (dualityRoll.mjs:336-355; helpers.mjs `updateResourcesForDualityReroll`): from Hope to Fear,
+         * one Hope less and one Fear more, with Hope and Fear automation on. A character's statistic
+         * roll built as Daggerheart's `build` builds it and thrown 9 and 4 (Hope), then rerolled live
+         * with Foundry's randomiser scripted to 3 and 10 (Fear), its Hope at 2 and the GMs' Fear at 0.
+         * Read: whether the roll can be rerolled, the class of the result and of its two dice, their
+         * faces, whether it is with Fear, the first roll's Hope die, and the character's Hope and the
+         * Fear once settled. Until C2a the harness's roll had no reroll at all.
+         */
+        const [actor] = cast(1);
+        const DR = game.system.api.dice.DualityRoll;
+        const dice = game.system.api.dice.diceTypes ?? CONFIG.Dice.termTypes ?? {};
+        must(typeof dice.HopeDie === "function" && typeof dice.FearDie === "function", "Daggerheart names no Hope and Fear dice - this would measure nothing");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const hopePath = "system.resources.hope.value";
+        const hopeWas = foundry.utils.getProperty(actor, hopePath);
+        const fearOf = () => Number(game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear));
+        const D = CONFIG.Dice, real = D.randomUniform;
+        const scripted = async (faces, run) => {
+            const left = [...faces];
+            D.randomUniform = () => left.length ? 1 - (left.shift() - 0.5) / 12 : real();
+            try { return await run(); } finally { D.randomUniform = real; }
+        };
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        delete globalThis.__forceRoll;
+        let read = null;
+        try {
+            await trustedWrite(actor, { [hopePath]: 2 }, { reason: "gmRuling" });
+            read = await withDhAutomation({ hopeFear: { gm: true, players: true } }, async () => {
+                await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, 0);
+                const config = { roll: { trait: "eye", type: "trait", advantage: 0 }, actionType: "action", source: { actor: actor.uuid },
+                    data: actor.getRollData(), experiences: [], hasRoll: true };
+                const roll = DR.createRollInstance(config);
+                await scripted([9, 4], () => roll.evaluate());
+                const can = typeof roll.reroll === "function";
+                const again = can ? await scripted([3, 10], () => roll.reroll({ liveRoll: true })) : null;
+                await settle();
+                return [can, again instanceof DR, again?.dHope instanceof dice.HopeDie, again?.dFear instanceof dice.FearDie,
+                    [again?.dHope?.total ?? null, again?.dFear?.total ?? null, again?.withFear ?? null], roll.dHope.total,
+                    [Number(foundry.utils.getProperty(actor, hopePath)), fearOf()]];
+            });
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            if (foundry.utils.getProperty(actor, hopePath) !== hopeWas) await trustedWrite(actor, { [hopePath]: hopeWas }, { reason: "gmRuling" });
+        }
+        equal(stableJson(read), stableJson([true, true, true, true, [3, 10, true], 9, [1, 1]]),
+            "the live Reroll did not throw a duality roll again, or did not move Hope and Fear from Hope to Fear (can reroll, its class, its dice's, its faces and result, the first roll's Hope die, Hope and Fear)");
+    }],
+
 
     ["a Loaded Die bought and armed forces the first face on the GM and is spent there; one not armed does not", async () => {
         /*
@@ -24789,8 +25024,11 @@ const SCENARIOS = [
         }
         const total = 9 + Number(who.system?.traits?.instinct?.value ?? 0);
         const DR = game.system.api.dice.DualityRoll;
-        // Its options as Daggerheart's constructor needs them: it reads `data` and `source` (E29 fix r2-H1; client-entry.mjs `DualityRollMock`).
-        const back = handed ? DR.fromData(JSON.parse(JSON.stringify({ ...handed.toJSON(), options: { data: {}, source: {} } }))) : null;
+        // Its options as Daggerheart's constructor needs them: it reads `data` and `source` (E29 fix r2-H1), and `fromData` reads
+        // `roll` with no `?.` (dualityRoll.mjs:125, 2.10.5) - the roll's own, the summary its throw left (dhRoll.mjs:90). Until
+        // E33 C2a the harness's roll was a model that read `roll` with `?.`, and the options here had none; Daggerheart's own
+        // `fromData` threw on them ("Cannot read properties of undefined (reading 'advantage')").
+        const back = handed ? DR.fromData(JSON.parse(JSON.stringify({ ...handed.toJSON(), options: { data: {}, source: {}, roll: handed.options?.roll ?? {} } }))) : null;
         equal(stableJson([heard, seen, shadowed, handed && [handed._evaluated, handed.dHope?.total, handed.dFear?.total],
             [result?.roll?.hope?.value, result?.roll?.fear?.value, result?.roll?.total], [card?.dHope?.total, card?.dFear?.total, card?.total],
             back && [back instanceof DR, back._evaluated, back.dHope?.total, back.dFear?.total, back.total]]),

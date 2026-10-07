@@ -3,7 +3,7 @@
  * the module's state handling depends on merge/expand/diff behaviour.
  */
 
-import { ForcedDeletion, ForcedReplacement, isOperator, kindOf, replacementOf, LEGACY } from "./operators.mjs";
+import { isOperator, kindOf, replacementOf, LEGACY } from "./operators.mjs";
 
 /** An object to walk into: not null, not an array, not an operator in either form (lib/operators.mjs). */
 const walkable = v => v !== null && typeof v === "object" && !Array.isArray(v) && !isOperator(v);
@@ -55,16 +55,27 @@ export function unescapeHTML(str) {
     }[m]));
 }
 
-export function deepClone(v) {
+/*
+ * Foundry's documented rule (`foundry.utils.deepClone(original, {strict=false})`): arrays, dates and
+ * plain objects are copied, and any other object - a class instance - is handed back as it is, or
+ * refused under `strict`. Until E33 C2a's A2 (07.10.2026) this copied a class instance as a plain
+ * object, so it lost its class; Daggerheart's roll, copied into lib/dh-dice since C2a, keeps
+ * `baseTerms = deepClone(this.dice)` and names its extra dice by `includes` on it (d20Roll.mjs:99,
+ * :182, 2.10.5), and with copies every die of the roll read as extra in `config.roll.extra`. The
+ * operators of lib/operators.mjs are class instances too, so they come back as they are, as they do
+ * at a table - walked like plain objects they had become plain objects, which is why they were
+ * leaves here before. Written from Foundry's documentation; its source is not on this machine.
+ */
+export function deepClone(v, { strict = false } = {}) {
     if (v === null || typeof v !== "object") return v;
+    if (Array.isArray(v)) return v.map(x => deepClone(x, { strict }));
     if (v instanceof Date) return new Date(v);
-    // Operators are leaves: a deletion is one shared value, a replacement is copied
-    // as a replacement - walked like a plain object, either became a plain object.
-    if (v instanceof ForcedDeletion) return v;
-    if (v instanceof ForcedReplacement) return new ForcedReplacement(deepClone(v.replacement));
-    if (Array.isArray(v)) return v.map(deepClone);
+    if (v.constructor && v.constructor !== Object) {
+        if (strict) throw new Error("deepClone cannot clone advanced objects");
+        return v;
+    }
     const out = {};
-    for (const k of Object.keys(v)) out[k] = deepClone(v[k]);
+    for (const k of Object.keys(v)) out[k] = deepClone(v[k], { strict });
     return out;
 }
 

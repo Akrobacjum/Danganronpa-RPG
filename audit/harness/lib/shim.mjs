@@ -487,7 +487,19 @@ export function buildDocumentClasses(ctx) {
             }
             return out;
         }
-        getRollData() { return U.deepClone(this.system); }
+        /* The system's source (client-entry.mjs `diceRoll`'s note), and - since E33 C2a, when the harness's
+           roll became Daggerheart's own - the duality dice's faces where the source has no rules: Daggerheart's
+           character schema writes `rules.dualityRoll` at 12 and 12 into every character's source
+           (data/actor/character.mjs:263-277, 2.10.5), the seed's students carry none, and a roll with no
+           formula reads it with no `?.` on `rules` (dualityRoll.mjs:135, :139). Not modelled: the `system`,
+           `parent` and `id` a table's roll data reads through (actor.mjs:727-737), so the constructor adds no
+           experience (d20Roll.mjs:103-115) and no effect makes a critical certain (dualityRoll.mjs:194-198). */
+        getRollData() {
+            const data = U.deepClone(this.system ?? {});
+            data.rules ??= {};
+            data.rules.dualityRoll ??= { defaultHopeDice: 12, defaultFearDice: 12 };
+            return data;
+        }
         async toggleStatusEffect(statusId, { active, overlay = false } = {}) {
             // v12+ semantics: a status is an ActiveEffect carrying `statuses`.
             const existing = this.effects.contents.find(e => e.statuses.has(statusId));
@@ -851,6 +863,11 @@ export class Die {
     }
     get denomination() { return `d${this.faces}`; }
     get formula() { return `${this.number}d${this.faces}${this.modifiers.join("")}`; }
+    /* What Daggerheart's `calculateTotalModifiers` (dhRoll.mjs:335-347, lib/dh-dice) sums: the terms
+       whose total is not drawn. Foundry's RollTerm property, read since E33 C2a, when the harness's
+       roll became Daggerheart's own: without it every term read as drawn and a roll's
+       `modifierTotal` came out 0. */
+    get isDeterministic() { return false; }
     get total() {
         if (!this._evaluated) return undefined;
         return this.results.filter(r => r.active).reduce((sum, r) => sum + r.result, 0);
@@ -877,13 +894,17 @@ export class NumericTerm {
     constructor({ number = 0 } = {}) { this.number = Number(number); this._evaluated = true; }
     get total() { return this.number; }
     get formula() { return String(this.number); }
+    get isDeterministic() { return true; }
     evaluate() { return this; }
     toJSON() { return { class: "NumericTerm", number: this.number, evaluated: true }; }
 }
 export class OperatorTerm {
     constructor({ operator = "+" } = {}) { this.operator = operator; this._evaluated = true; }
     get total() { return this.operator; }
-    get formula() { return this.operator; }
+    /* Spaced, as Foundry writes a sign into a formula (`Roll.getFormula`; roll-draw.mjs `formulaOf`
+       writes the same). */
+    get formula() { return ` ${this.operator} `; }
+    get isDeterministic() { return true; }
     evaluate() { return this; }
     toJSON() { return { class: "OperatorTerm", operator: this.operator, evaluated: true }; }
 }
@@ -908,26 +929,46 @@ function parseTerms(formula) {
     return terms;
 }
 
+/*
+ * FOUNDRY'S ROLL, AS FAR AS DAGGERHEART'S OWN DICE CODE GOES (E33 C2a, 07.10.2026). From C2a the
+ * harness's duality roll is Daggerheart 2.10.5's classes, copied (lib/dh-dice, audit/harness/README.md
+ * "Daggerheart's dice"), and they extend this class. What they call that the shim did not have, each
+ * found by running them and reading what threw or came out wrong, written from Foundry's documented
+ * behaviour - Foundry's source is not on this machine, so none of it is measured against Foundry:
+ *   - no formula is no terms (`parse`), where the shim threw "1d20": Daggerheart builds a duality roll
+ *     with no formula and makes its dice itself (dualityRoll.mjs:131-141);
+ *   - `formula` read off the terms and `_formula` kept by the constructor, `getFormula` - Daggerheart
+ *     rebuilds the terms after the constructor and writes `_formula` (d20Roll.mjs:81-86, :193-195);
+ *   - `clone` and `reroll`: `new this.constructor(this._formula, this.data, this.options)`, then a
+ *     fresh evaluation, as reroll.mjs's note reads Foundry's (measured on the sandbox, E7) - what
+ *     Daggerheart's `reroll` (dualityRoll.mjs:336-355, d20Roll.mjs:210-219) builds on;
+ *   - the class a roll's JSON names is its class's name, as Foundry writes `this.constructor.name`
+ *     (Daggerheart's `fromData` reads "DualityRoll"); a plain roll's is "Roll".
+ */
 export class RollImpl {
-    // What `toJSON` writes as the class, as Foundry writes `this.constructor.name`; the
-    // harness's classes carry other names (DualityRollMock writes "DualityRoll").
     static JSON_CLASS = "Roll";
-    constructor(formula = "1d20", data = {}, options = {}) {
-        this.formula = String(formula);
+    constructor(formula, data = {}, options = {}) {
         this.data = data;
         this.options = options;
-        this.terms = parseTerms(this.formula);
+        this.terms = this.constructor.parse(formula, data);
+        this._formula = this.constructor.getFormula(this.terms);
         this._evaluated = false;
         this.total = undefined;
     }
     static create(formula, data, options) { return new this(formula, data, options); }
+    static parse(formula) { return formula ? parseTerms(formula) : []; }
+    static getFormula(terms) { return terms.map(t => t.formula).join(""); }
+    get formula() { return this.constructor.getFormula(this.terms); }
+    static get jsonClass() { return Object.hasOwn(this, "JSON_CLASS") ? this.JSON_CLASS : this.name; }
+    clone() { return new this.constructor(this._formula, this.data, this.options); }
+    async reroll(options = {}) { return this.clone().evaluate(options); }
     get dice() { return this.terms.filter(t => t instanceof Die); }
     /* Every die drawn, then the terms summed by their operators. A second evaluate of one
        instance throws rather than drawing more dice into it: the module clones a roll before
        it throws it again (reroll.mjs `rerollKeepingDice`). Foundry's own source is not on this
        machine; that its roll refuses a second evaluate is not measured here. */
     _evaluate() {
-        if (this._evaluated) throw new Error(`this ${this.constructor.JSON_CLASS} has already been evaluated`);
+        if (this._evaluated) throw new Error(`this ${this.constructor.jsonClass} has already been evaluated`);
         let total = 0, sign = 1;
         for (const term of this.terms) {
             if (term instanceof OperatorTerm) { sign = term.operator === "-" ? -1 : 1; continue; }
@@ -952,7 +993,7 @@ export class RollImpl {
     /* Foundry's shape (class, options, formula, terms, total, evaluated); `fromData` takes it
        back, so an unevaluated roll travels as JSON and is thrown where it lands. */
     toJSON() {
-        return { class: this.constructor.JSON_CLASS, options: this.options, formula: this.formula,
+        return { class: this.constructor.jsonClass, options: this.options, formula: this._formula,
             terms: this.terms.map(t => t.toJSON()), total: this.total, evaluated: this._evaluated };
     }
     static fromData(data) {

@@ -316,7 +316,8 @@ because Daggerheart's GM handlers do nothing there). Read its table before a
 Daggerheart upgrade, and see AUDIT §9 for what it assumes about Foundry and has
 not measured at a table.
 The headless harness runs Daggerheart's real relay, copied verbatim into
-`audit/harness/lib/dh-relay.mjs` - re-copy it from the new tag, never edit it.
+`audit/harness/lib/dh-relay.mjs`, and since E33 its dice classes into
+`audit/harness/lib/dh-dice/dice/` - re-copy both from the new tag, never edit them.
 
 ## How to add a bridge action
 

@@ -174,6 +174,55 @@ Storage and cookies, state that never touched the wire, the canvas, audio).
 Tools, not tests: `probes/README.md`. A probe is never part of a gate, and its
 number is not reused for a scenario.
 
+## Daggerheart's dice
+
+From E33 C2a (07.10.2026; the owner's decision P6 of 06.10.2026) the duality roll
+the module finds at `game.system.api.dice.DualityRoll` is Daggerheart's own, as
+its GM relay is: a model of it can be wrong in the module's favour. Where each
+part of a roll comes from:
+
+- **Daggerheart's code, copied verbatim** - `lib/dh-dice/dice/`: baseRoll.mjs,
+  dhRoll.mjs, d20Roll.mjs, dualityRoll.mjs, helpers.mjs and die/ (_module,
+  baseDie, dualityDie, hopeDie, fearDie, advantageDie, disadvantageDie), from
+  tag 2.10.5 (commit 6bf4b69f98), `module/dice/`. Each is the file byte for
+  byte under a header; never edit one, re-copy them on an upgrade. Lint skips
+  them as it skips dh-relay.mjs (eslint.config.mjs). The licence:
+  `lib/dh-dice/LICENSE`. A copy checks against the tag's file with
+  `sed '1,/^ \*\/$/d' <copy> | tail -n +2 | cmp - <tag>/module/dice/<file>`.
+  A line number a comment cites in one of them (`dualityRoll.mjs:125`) is the
+  tag's; the copy's is 16 further on, past the header.
+- **Foundry's, shimmed** (`lib/shim.mjs`): the roll (`parse`, `getFormula`,
+  `formula`, `clone`, `reroll`, `fromData`, `toJSON`), the terms (a die keeps
+  `kh`/`kl`; `isDeterministic`; an operator's spaced formula),
+  `CONFIG.Dice.randomUniform` and `termTypes`, `foundry.utils` (`deepClone`
+  hands a class instance back as it is, as Foundry documents it - lib/futil.mjs,
+  since C2a's A2), and `String#capitalize` and `Number.isNumeric`
+  (client-entry.mjs). Written from Foundry's documented behaviour; Foundry's
+  source is not on this machine, so none of it is measured against Foundry. A
+  die runs no modifier but `kh`/`kl`, and on these rolls no other changes a
+  result (baseDie.mjs:4-12 and what each names, read 07.10.2026): `h` and `f`
+  only set Dice So Nice's sound on the Hope and the Fear die
+  (`setDualityTriggers`), `a` and `d` name methods `BaseDie` does not define,
+  and `sc` and `c`, which do change results, are put on by none of the copied
+  rolls. The letters stay on the dice and in the formula.
+- **The harness's glue** - under `lib/dh-dice/`, at the paths the copies
+  import: `applications/dialogs/d20RollDialog.mjs` (the window, pressed at
+  once), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
+  if a copy ever calls them), `data/action/baseAction.mjs` (the
+  `ResourceUpdateMap` of `lib/daggerheart.mjs`); in client-entry.mjs
+  (`installDualityRoll`): the roll and the dice registered where Daggerheart
+  registers them, no triggers, no countdowns, the config ids the copies read,
+  and two seams assigned on the class - `buildEvaluate` (Daggerheart's own,
+  with the randomiser scripted by `__forceRoll`) and `toMessage` (the
+  harness's card); and the roll data's `rules.dualityRoll` (`getRollData`).
+
+So the roll's construction, formula, advantage dice and their faces, `fromData`,
+the summary its throw leaves in the config, `extraDice`, the resource step
+(critical.mjs's patch of it included) and a live reroll's settlement run for
+real. Not run: Daggerheart's window and its choices, its chat card, triggers and
+countdowns, anything read off the roll data's `parent` (no effect makes a
+critical certain, no rally die), and every roll at a table.
+
 ## What the harness cannot do
 
 - **No layout, canvas renderer, fonts, audio or Web Animations.** jsdom lays
@@ -234,12 +283,13 @@ number is not reused for a scenario.
   localStorage, read now or as it closed. The seeded four do not come back, a
   role changes only by a write, nobody is logged out for it, and there is no
   `game.users.activeGM`. `opLog` and `settingLog` say who wrote what.
-- **Daggerheart.** Its GM relay is 2.10.5's own code (`lib/dh-relay.mjs`). A
-  trait roll follows 2.6.5 (`lib/daggerheart.mjs`, E30): the config as
-  `rollTrait` and `diceRoll` build it, the card, then the resource step
+- **Daggerheart.** Its GM relay is 2.10.5's own code (`lib/dh-relay.mjs`), and
+  so is its duality roll since E33 C2a ("Daggerheart's dice" above). A trait
+  roll's config is built as 2.6.5's `rollTrait` and `diceRoll` build it
+  (`lib/daggerheart.mjs`, E30), the card is the harness's, and the resource step
   (`addDualityResourceUpdates`, with its Hope-and-Fear automation gate, reaction,
-  `skips`, defeated-actor and reroll rules) into a `ResourceUpdateMap` that the
-  caller commits. The dice are the harness's (`__forceRoll`), the Automation
+  `skips`, defeated-actor and reroll rules) fills a `ResourceUpdateMap` that the
+  caller commits. The faces are scripted by `__forceRoll`, the Automation
   setting is Daggerheart's own shape (the seed turns `hopeFear` on for both), and
   `CONFIG.DH.RESOURCE` is built as Daggerheart builds it. A commit is the
   actor's `modifyResource`: a GM or an Assistant writes the change, anybody else

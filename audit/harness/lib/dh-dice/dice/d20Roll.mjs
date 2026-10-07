@@ -1,0 +1,236 @@
+/*
+ * DAGGERHEART'S OWN CODE, copied VERBATIM for the headless harness (E33 C2a; the owner's decision P6
+ * of 06.10.2026: Daggerheart's dice classes run in the harness, as its GM relay does in dh-relay.mjs).
+ *
+ * Source: Foundryborne Daggerheart, tag 2.10.5 (commit 6bf4b69f98), module/dice/d20Roll.mjs - the whole file
+ * (220 lines). Everything after this comment and the one blank line under it is that file byte for
+ * byte, its imports included. An import that leaves module/dice/ lands on the harness's glue at the
+ * same relative path under lib/dh-dice/ (applications/, helpers/, data/), which says it is not
+ * Daggerheart's; audit/harness/README.md ("Daggerheart's dice") names the boundary.
+ *
+ * Re-copy it on an upgrade; never edit it. A model of this file could be wrong in the module's
+ * favour - the reason it is the file itself.
+ *
+ * MIT License, Copyright (c) 2025 WBHarry. The notice in full: lib/dh-dice/LICENSE.
+ */
+
+import D20RollDialog from '../applications/dialogs/d20RollDialog.mjs';
+import { triggerChatRollFx } from '../helpers/utils.mjs';
+import DHRoll from './dhRoll.mjs';
+
+export default class D20Roll extends DHRoll {
+    constructor(formula, data = {}, options = {}) {
+        super(formula, data, options);
+        this.constructFormula();
+    }
+
+    static ADV_MODE = {
+        NORMAL: 0,
+        ADVANTAGE: 1,
+        DISADVANTAGE: -1
+    };
+
+    static DefaultDialog = D20RollDialog;
+
+    get title() {
+        return game.i18n.localize('DAGGERHEART.GENERAL.d20Roll');
+    }
+
+    get d20() {
+        if (!(this.terms[0] instanceof foundry.dice.terms.Die)) this.createBaseDice();
+        return this.terms[0];
+    }
+
+    set d20(faces) {
+        if (!(this.terms[0] instanceof foundry.dice.terms.Die)) this.createBaseDice();
+        this.terms[0].faces = this.getFaces(faces);
+    }
+
+    get dAdvantage() {
+        return this.dice[2];
+    }
+
+    get isCritical() {
+        if (!this.d20._evaluated) return false;
+
+        const criticalThreshold = this.options.actionType === 'reaction' ? 20 : this.data.criticalThreshold;
+        return this.d20.total >= criticalThreshold;
+    }
+
+    get hasAdvantage() {
+        const adv = this.options.roll.advantage.type ?? this.options.roll.advantage;
+        return adv === this.constructor.ADV_MODE.ADVANTAGE;
+    }
+
+    get hasDisadvantage() {
+        const adv = this.options.roll.advantage.type ?? this.options.roll.advantage;
+        return adv === this.constructor.ADV_MODE.DISADVANTAGE;
+    }
+
+    static applyKeybindings(config) {
+        let keys = {
+            normal: false,
+            advantage: false,
+            disadvantage: false
+        };
+
+        if (config.event) {
+            keys = {
+                normal: config.event.shiftKey || config.event.altKey || config.event.ctrlKey,
+                advantage: config.event.altKey,
+                disadvantage: config.event.ctrlKey
+            };
+        }
+
+        // Should the roll configuration dialog be displayed?
+        config.dialog.configure ??= !Object.values(keys).some(k => k);
+
+        // Determine advantage mode
+        const advantage = config.roll.advantage === this.ADV_MODE.ADVANTAGE || keys.advantage || config.advantage;
+        const disadvantage =
+            config.roll.advantage === this.ADV_MODE.DISADVANTAGE || keys.disadvantage || config.disadvantage;
+        if (advantage && !disadvantage) config.roll.advantage = this.ADV_MODE.ADVANTAGE;
+        else if (!advantage && disadvantage) config.roll.advantage = this.ADV_MODE.DISADVANTAGE;
+        else config.roll.advantage = this.ADV_MODE.NORMAL;
+    }
+
+    constructFormula(config) {
+        this.createBaseDice();
+        this.configureModifiers();
+        this.resetFormula();
+        return this._formula;
+    }
+
+    createBaseDice() {
+        if (this.terms[0] instanceof foundry.dice.terms.Die) {
+            this.terms = [this.terms[0]];
+            return;
+        }
+        this.terms[0] = new foundry.dice.terms.Die({ faces: 20 });
+    }
+
+    configureModifiers() {
+        this.applyAdvantage();
+
+        this.baseTerms = foundry.utils.deepClone(this.dice);
+
+        this.options.roll.modifiers = this.applyBaseBonus();
+
+        let actorExperiences = this.options.data.system?.experiences ?? {};
+        if (this.options.roll.companionRoll) {
+            const companion = typeof this.options.data.companion === 'string' ? 
+                foundry.utils.fromUuidSync(this.options.data.companion) :
+                this.options.data.companion;
+            actorExperiences = companion?.system?.experiences ?? {};
+        }
+        for (const m of this.options.experiences?.filter(m => !!actorExperiences[m]) ?? []) {
+            this.options.roll.modifiers.push({
+                label: actorExperiences[m].name,
+                value: actorExperiences[m].value
+            });
+        }
+
+        this.addModifiers();
+        if (this.options.extraFormula) {
+            this.terms.push(
+                new foundry.dice.terms.OperatorTerm({ operator: '+' }),
+                ...this.constructor.parse(this.options.extraFormula, this.options.data)
+            );
+        }
+    }
+
+    applyAdvantage() {
+        this.d20.modifiers.findSplice(m => ['kh', 'kl'].includes(m));
+        if (!this.hasAdvantage && !this.hasDisadvantage) this.d20.number = 1;
+        else {
+            this.d20.number = 2;
+            this.d20.modifiers.push(this.hasAdvantage ? 'kh' : 'kl');
+        }
+    }
+
+    applyBaseBonus() {
+        const modifiers = foundry.utils.deepClone(this.options.roll.baseModifiers) ?? [];
+        modifiers.push(
+            ...this.getBonus(
+                'system.bonuses.roll',
+                'Roll Bonus'
+            )
+        );
+
+        return modifiers;
+    }
+
+    getActionChangeKeys() {
+        const changeKeys = new Set(['system.bonuses.roll']);
+        return changeKeys;
+    }
+
+    static async buildEvaluate(roll, config = {}, message = {}) {
+        await super.buildEvaluate(roll, config, message);
+
+        const data = config.roll;
+        data.type = config.actionType;
+        data.difficulty = config.roll.difficulty;
+        if (config.targets?.length) {
+            config.targets.forEach(target => {
+                const difficulty = config.roll.difficulty ?? target.difficulty ?? target.evasion;
+                target.hit = roll.isCritical || roll.total >= difficulty;
+            });
+            data.success = config.targets.some(target => target.hit);
+        } else if (config.roll.difficulty) data.success = roll.isCritical || roll.total >= config.roll.difficulty;
+        config.successConsumed = data.success;
+
+        data.advantage = {
+            type: config.roll.advantage,
+            dice: roll.dAdvantage?.denomination,
+            value: roll.dAdvantage?.total
+        };
+        data.dice = data.dice.map(dice => ({
+            ...dice,
+            results: dice.results.filter(x => !x.rerolled),
+            rerolled: {
+                any: dice.results.some(x => x.rerolled),
+                rerolls: dice.results.filter(x => x.rerolled)
+            }
+        }));
+        data.isCritical = roll.isCritical;
+        data.extra = roll.dice
+            .filter(d => !roll.baseTerms.includes(d))
+            .map(d => {
+                return {
+                    dice: d.denomination,
+                    value: d.total,
+                    results: d.results
+                };
+            });
+        data.modifierTotal = roll.modifierTotal;
+    }
+
+    resetFormula() {
+        return (this._formula = this.constructor.getFormula(this.terms));
+    }
+
+    async evaluate(options) {
+        const result = await super.evaluate(options);
+
+        if (this.constructor.name === 'D20Roll') {
+            const { gmRollTrigger } = CONFIG.DH.DICESONICE;
+            if (this.d20 && this.isCritical) {
+                this.d20.options.sfx = gmRollTrigger.sfxTriggers.critical;
+            }
+        }
+
+        return result;
+    }
+
+    async reroll(options) {
+        const result = await super.reroll(options);
+        if (this instanceof game.system.api.dice.DualityRoll) return result;
+
+        if (options?.liveRoll) {
+            await triggerChatRollFx([result]);
+        }
+
+        return result;
+    }
+}

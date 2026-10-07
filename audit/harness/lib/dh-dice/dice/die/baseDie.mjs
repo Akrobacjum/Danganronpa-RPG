@@ -1,0 +1,214 @@
+/*
+ * DAGGERHEART'S OWN CODE, copied VERBATIM for the headless harness (E33 C2a; the owner's decision P6
+ * of 06.10.2026: Daggerheart's dice classes run in the harness, as its GM relay does in dh-relay.mjs).
+ *
+ * Source: Foundryborne Daggerheart, tag 2.10.5 (commit 6bf4b69f98), module/dice/die/baseDie.mjs - the whole file
+ * (197 lines). Everything after this comment and the one blank line under it is that file byte for
+ * byte, its imports included. An import that leaves module/dice/ lands on the harness's glue at the
+ * same relative path under lib/dh-dice/ (applications/, helpers/, data/), which says it is not
+ * Daggerheart's; audit/harness/README.md ("Daggerheart's dice") names the boundary.
+ *
+ * Re-copy it on an upgrade; never edit it. A model of this file could be wrong in the module's
+ * favour - the reason it is the file itself.
+ *
+ * MIT License, Copyright (c) 2025 WBHarry. The notice in full: lib/dh-dice/LICENSE.
+ */
+
+import { triggerChatRollFx } from '../../helpers/utils.mjs';
+
+export default class BaseDie extends foundry.dice.terms.Die {
+    static MODIFIERS = {
+        ...foundry.dice.terms.Die.MODIFIERS,
+        sc: 'selfCorrecting',
+        c: 'comboDice',
+        h: 'hope',
+        f: 'fear',
+        a: 'advantage',
+        d: 'disadvantage'
+    };
+
+    hope() {
+        this.setDualityTriggers();
+    }
+
+    fear() {
+        this.setDualityTriggers();
+    }
+
+    setDualityTriggers() {
+        if (!(this._root instanceof game.system.api.dice.DualityRoll)) return;
+        
+        const { dHope, dFear, isCritical } = this._root;
+        if (dHope.total === undefined || dFear.total === undefined) return;
+
+        if (isCritical) {
+            dHope.options.sfx = CONFIG.DH.DICESONICE.dualityTrigger.sfxTriggers.critical;
+            dFear.options.sfx = CONFIG.DH.DICESONICE.dualityTrigger.sfxTriggers.critical;
+        } else if (dHope.total > dFear.total) {
+            dHope.options.sfx = CONFIG.DH.DICESONICE.dualityTrigger.sfxTriggers.hope;
+        } else if (dHope.total < dFear.total) {
+            dFear.options.sfx = CONFIG.DH.DICESONICE.dualityTrigger.sfxTriggers.fear;
+        }
+    }
+
+    async rerollResult(resultToReroll) {
+        const resultIndex = Number(resultToReroll);
+        const result = this.results[resultIndex];
+        result.rerolled = true;
+        result.active = false;
+        await this.roll({ reroll: true });
+
+        const rerolledResult = this.results[this.results.length - 1];
+        this.results.splice(this.results.length - 1, 1);
+        this.results.splice(resultIndex, 0, rerolledResult);
+
+        if (['c', 'cc'].some(x => this.modifiers.includes(x))) {
+            await this.handleComboDiceReroll(resultIndex, result);
+        }
+
+        rerolledResult.rerolled = true;
+        return rerolledResult;
+    }
+
+    /** @inheritDoc */
+    getResultCSS(result) {
+        // Accomodating ComboDie as a result can have a different denomination than the die as a whole
+        const css = super.getResultCSS(result);
+        const idx = css.findIndex(c => /d\d+/.test(c));
+        css[idx] = result.denomination ?? this.denomination;
+        return css;
+    }
+
+    /**
+     * Return the configured value as result if 1 is rolled
+     * Example: 6d6sc6  Roll 6d6, each result of 1 will be changed into 6
+     * @param {string} modifier     The matched modifier query
+     */
+    async selfCorrecting(modifier) {
+        const rgx = /(?:sc)([0-9]+)/i;
+        const match = modifier.match(rgx);
+        if (!match) return false;
+        let [target] = match.slice(1);
+        target = parseInt(target);
+        for (const r of this.results) {
+            if (r.result === 1) {
+                r.result = target;
+            }
+        }
+    }
+
+    async comboDice() {
+        /* ComboDice only works with exactly two dice and both have to be the same denomination */
+        if (this.number !== 2) {
+            ui.notifications.warn(game.i18n.localize('DAGGERHEART.UI.Notifications.comboDiceOnlyTwoDiceError'));
+            return false;
+        }
+
+        return this.rollComboDice();
+    }
+
+    async rollComboDice(options = {}) {
+        const { rerollStartIndex } = options;
+        const initialResultsLength = this.results.filter(x => x.active).length;
+        const result = await this.continueCombo();
+
+        /* The flow of DiceSoNice has no way of knowing that some of the results of a Die should be a different denomination 
+           We solve this by marking the results as hidden so they're not picked up by the auto roll of DiceSoNice.
+           The actual rolls are done here in place so every dice gets the correct denomination.
+        */
+        if (game.dice3d) {
+            const resultsToRoll = this.results.filter((x, index) => 
+                x.active && (!rerollStartIndex || index === rerollStartIndex || index > initialResultsLength - 1));
+            const rolls = [];
+            for (const result of resultsToRoll) {
+                const roll = await (new Roll(`1${result.denomination ?? this.denomination}`)).evaluate();
+                roll.terms[0].results = [result];
+                roll._evaluateTotal();
+                rolls.push(roll);
+            }
+
+            /* If there are other dice that will be rolled we cannot await here. The other dice will be awaited in the normal flow */
+            const promises = rolls.map(roll => game.dice3d.showForRoll(roll, game.user, true));
+            if (rerollStartIndex !== undefined || this._root.dice.length <= 1) {
+                await Promise.allSettled(promises);
+            }
+        }
+
+        for (const result of this.results)
+            result.hidden = true;
+
+        if (!this.modifiers.includes('c'))
+            this.modifiers.push('c');
+
+        return result;
+    }
+
+    async continueCombo() {
+        const activeResults = this.results.filter(x => x.active);
+        const lastIndex = activeResults.length - 1;
+        const lastResult = activeResults[lastIndex];
+
+        /* The Combo only continues if the latest roll was higher or equal to the previous */
+        if (lastResult.result < activeResults[lastIndex - 1].result) return false;
+
+        const lastFaces = lastResult.denomination ? 
+            Number(lastResult.denomination.slice(1)) : this.faces;
+        const currentDenomination = `d${lastFaces}`
+
+        const newRoll = await (new Roll(`1${currentDenomination}`)).evaluate();
+        this.results.push({ result: newRoll.total, denomination: currentDenomination, active: true });
+        this.number += 1;
+
+        return this.continueCombo();
+    }
+
+    async handleComboDiceReroll(rerolledIndex) {
+        const resultGroupingIndexes = this.results.map((x, index) => ({ index, active: x.active }))
+            .filter(x => x.active).map(x => x.index);
+        if (resultGroupingIndexes.length <= 1) return;
+
+        const rerolledResult = this.results[rerolledIndex];
+        const rerollGroupingIndex = resultGroupingIndexes.indexOf(rerolledIndex);
+
+        const previousIndex = resultGroupingIndexes[rerollGroupingIndex - 1];
+        const previousResult = this.results[previousIndex];
+        const nextIndex = resultGroupingIndexes[rerollGroupingIndex + 1];
+        const nextResult = this.results[nextIndex];
+
+        const dropDice = preceeding => {
+            const cutoffIndex = preceeding ? resultGroupingIndexes[rerollGroupingIndex + 1] + 1 : rerolledIndex + 1;
+            this.results = this.results.slice(0, cutoffIndex);
+            this.number = this.results.filter(x => x.active).length;
+        };
+
+        const isFinalHigher = 
+            rerollGroupingIndex === resultGroupingIndexes.length - 1 && rerolledResult.result >= previousResult?.result;
+        const isSemifinalLower = 
+            rerollGroupingIndex === resultGroupingIndexes.length - 2 && rerolledResult.result < nextResult?.result;
+        if (isFinalHigher || isSemifinalLower) {
+            /* (1) Rerolling any of the last two dice might introduce new results */
+            return await this.rollComboDice({ rerollStartIndex: rerollGroupingIndex });
+        } else if (rerolledResult.result < previousResult?.result){
+            /* (2) Rerolling a subsequent dice might invalidate later dice which should then be dropped */
+            dropDice(false);
+        } else if (rerolledResult.result >= nextResult?.result) {
+            /* (3) Rerolling a preceeding dice might invalidate later dice which should then be dropped */
+            dropDice(true);
+        }
+
+        const fakeRollFaces = 
+            rerolledResult.denomination ? rerolledResult.denomination.slice(1) : this.faces;
+        const fakeRoll = {
+            _evaluated: true,
+            dice: [new foundry.dice.terms.Die({
+                ...this,
+                results: [rerolledResult],
+                total: rerolledResult.result,
+                faces: fakeRollFaces
+            })],
+            options: { appearance: {} }
+        };
+        await triggerChatRollFx([fakeRoll]);
+        rerolledResult.hidden = true;
+    }
+}
