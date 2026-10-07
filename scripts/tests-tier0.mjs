@@ -1801,7 +1801,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
-        const effects = stripComments(sources.get("call-effects.mjs") ?? "");
+        const world = stripComments(sources.get("call-world.mjs") ?? "");
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
         ok(/FLAGS\.monocub/.test(check), "a Monocub counts as a body again");
@@ -1810,7 +1810,7 @@ const REGRESSIONS = [
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the automatic discovery check no longer waits in the discovery queue");
-        const gather = bodyOf(effects, "export async function gatherEveryone", { until: "async function fallbackGather" });
+        const gather = fnSource(world, "gatherEveryone");
         ok(/(?:isDeceased|isDeadForGm)\(/.test(gather), "gatherEveryone moves the dead again");
     }],
 
@@ -3888,13 +3888,13 @@ const REGRESSIONS = [
          * already gone: six Despair for an assembly that never happened, and there is
          * no repair anywhere in the module - `gatherEveryone` is not on `game.drpg`.
          */
-        const effects = stripComments(new Map(await otherSources()).get("call-effects.mjs") ?? "");
+        const world = stripComments(new Map(await otherSources()).get("call-world.mjs") ?? "");
 
-        const schedule = bodyOf(effects, "export async function scheduleGather", { until: "export async function runPendingGather" });
+        const schedule = bodyOf(world, "export async function scheduleGather", { until: "export async function runPendingGather" });
         ok(/sceneId: scene\.id/.test(schedule),
             "the order does not remember which scene its room is on");
 
-        const run = bodyOf(effects, "export async function runPendingGather", { until: "export async function gatherEveryone" });
+        const run = fnSource(world, "runPendingGather");
         ok(/game\.scenes\.get\(order\.sceneId\)/.test(run),
             "the order is carried out on whichever scene this GM is looking at");
         // `lastIndexOf`: the refusal branch does its own clear, and the one that
@@ -3907,7 +3907,7 @@ const REGRESSIONS = [
         ok(/gatherEveryone\(order\.room, scene\)/.test(run),
             "the scene is worked out and then not passed on");
 
-        const gather = bodyOf(effects, "export async function gatherEveryone");
+        const gather = fnSource(world, "gatherEveryone");
         ok(/gatherEveryone\(room, onScene = null\)/.test(gather),
             "the scene cannot be handed to it, so a deferred assembly has no way to say where");
         ok(/\[\.\.\.scene\.tokens\]/.test(gather),
@@ -4463,8 +4463,8 @@ const REGRESSIONS = [
          * the region cannot place the tokens itself, still wrote to `canvas.scene` -
          * the map on the primary GM's screen, not the assembly's. Review of stage D.
          */
-        const src = stripComments(new Map(await otherSources()).get("call-effects.mjs") ?? "");
-        const body = bodyOf(src, "async function fallbackGather(", { until: "\n}" });
+        const src = stripComments(new Map(await otherSources()).get("call-world.mjs") ?? "");
+        const body = fnSource(src, "fallbackGather");
         ok(/async function fallbackGather\(scene,/.test(body), "the fallback is not handed a scene");
         ok(!/canvas\.scene|canvas\.grid/.test(body),
             "the fallback reads the scene on this GM's screen instead of the assembly's");
@@ -4903,8 +4903,8 @@ const REGRESSIONS = [
         ok(/if \(!game\.user\.isGM\)/.test(spend), "spendDespairCall runs on a player's client");
         ok(/const paid = await adjustDespair\(/.test(spend) && /paid === null/.test(spend),
             "a Despair Call goes on when its pool did not move");
-        const effects = stripComments(sources.get("call-effects.mjs") ?? "");
-        ok(/return Boolean\(await writeWorld\(/.test(bodyOf(effects, "async function sealRoom(", { length: 300 })),
+        const world = stripComments(sources.get("call-world.mjs") ?? "");
+        ok(/return Boolean\(await writeWorld\(/.test(fnSource(world, "sealRoom")),
             "sealRoom says it sealed whether or not it wrote");
         const handover = stripComments(sources.get("handover.mjs") ?? "");
         ok(/isEclipse\(\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })), "a handover is not refused during an Eclipse on the GM's side");
@@ -6953,7 +6953,7 @@ const REGRESSIONS = [
             return out;
         };
         const NOT_A_STUDENT = [
-            ["call-effects.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
+            ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
             ["cleanup.mjs", "undoLastCleanup", "scene.tokens.get()", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
@@ -7191,7 +7191,7 @@ const REGRESSIONS = [
         const takes = (name, from) => new RegExp(`import\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from\\s*"\\./${from}\\.mjs"`).test(sheet);
         equal(JSON.stringify([declaring("isCrimeSilenced"), declaring("isCallSilenced"), bare, aliased,
             [takes("isCrimeSilenced", "monocub"), takes("isCallSilenced", "call-effects"), takes("isCrimeSilenced", "call-effects"), takes("isCallSilenced", "monocub")]]),
-            JSON.stringify([["monocub.mjs x1"], ["call-effects.mjs x1"], [], [], [true, true, false, false]]),
+            JSON.stringify([["monocub.mjs x1"], ["call-world.mjs x1"], [], [], [true, true, false, false]]),
             "a silence's reader is declared elsewhere or more than once, the old name `isSilenced` is used outside api.mjs's alias, a new name is imported under another, "
             + "or sheet.mjs does not take each reader from its own module (isCrimeSilenced declared; isCallSilenced declared; isSilenced at; renamed at; sheet.mjs takes crime/monocub, call/call-effects, crime/call-effects, call/monocub)");
     }]

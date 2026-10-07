@@ -83,6 +83,8 @@ files' rows here.
 
 | File | What lives there | Its facade |
 | --- | --- | --- |
+| `scripts/call-pickers.mjs` | the windows a Call opens to ask what it is pointed at (`pickTarget` and its pickers) | `call-effects.mjs` |
+| `scripts/call-world.mjs` | sealed rooms, the silence and the chain, and the called assembly: their readers and writers | `call-effects.mjs` |
 
 ## What the suite's four numbers mean
 
