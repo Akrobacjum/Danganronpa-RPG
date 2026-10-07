@@ -1,5 +1,6 @@
 /**
- * What `npm run lint` holds the code to (E30, audit S17-05): no-undef, and, for scripts/, drpg/bridge-result (E31).
+ * What `npm run lint` holds the code to (E30, audit S17-05): no-undef and no-import-assign (E34), and, for scripts/,
+ * drpg/bridge-result (E31).
  * ---------------------------------------------------------------------------
  * Run from audit/harness (`npm run lint`, or `node run-all.mjs lint`), which
  * points ESLint at the repository root and this file. It imports nothing, so
@@ -32,7 +33,10 @@ const BROWSER = names(`window document console fetch performance PerformanceObse
 // fetch, AbortController: the local gate's probe and verifier (audit/gate).
 const NODE = names(`process console setTimeout clearTimeout setInterval clearInterval performance URL Buffer
     Response structuredClone fetch AbortController`);
-const RULES = { "no-undef": ["error", { typeof: true }] };
+// no-import-assign (E34's review, round 1, 07.10.2026): a `let` a file split moves away is an import in the file that
+// writes it, and the write throws only when it runs - fog.mjs's lastFogReason moved as a plant was written at four
+// places, one of them a catch branch, and no-undef was quiet. 189 files, 0 problems at 55d851e; the plant, 4.
+const RULES = { "no-undef": ["error", { typeof: true }], "no-import-assign": "error" };
 /*
  * drpg/bridge-result (E31, 25.09.2026; audit S17-09). A request to the GM answers
  * the bridge's result, `{ ok, pending?, value?, refused?, reason? }`, and an object

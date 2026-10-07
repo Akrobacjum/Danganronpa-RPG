@@ -41,9 +41,12 @@
  *             see a renamed export: the importing file still declares the name.
  *   moves     tools/moved-only.mjs's planted pairs alone (E34 C1, 07.10.2026):
  *             the checker a file split runs on its own commit (`node
- *             tools/moved-only.mjs HEAD~1`) judges a fixture with nine planted
- *             faults, eleven problems to report - a changed moved line, a
- *             shadowing import, a dropped re-export and six more - and is red
+ *             tools/moved-only.mjs HEAD~1`) judges a fixture with thirty-five
+ *             problems to report - a changed moved line, two lines exchanged
+ *             in a moved function, a shadowing import, a write to a moved
+ *             `let`, a re-export bound to another declaration, a side-effect
+ *             import, a dropped re-export and the rest, across its eight
+ *             parts (E34 fix r1-G1) - and is red
  *             unless it reports exactly those, so it stays honest between the
  *             waves that use it
  *             (E34, E41, E54). It needs git, not a checkout: the fixture is a
