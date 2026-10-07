@@ -21,6 +21,11 @@
  * Health marks - back, the primary puts Agility back at once and asks about the Health mark on one card,
  * whose own Undo heals it back (S1, S2). The GM who returns comes back with the browser the GM who left
  * held (`storageOf`), as a GM's reload keeps it: the GMs' marks live in their browsers.
+ * Since E33 C6 (07.10.2026; that plan's 2.5, whose A4-A6 are G1-G3 here) also: a GM who is here and
+ * never answers a draw - p1's Search ends at the draw's 30 s as a closed window (G2); the GM leaving while
+ * p1's Search window is open - the draw refused at the build and the price given back (G1, the drop); a
+ * statistic clicked with no GM is a reaction, stamped, and Grant all moves nothing for it (G3); and a
+ * message with the draw's flags written with no GM is read as nothing by the GM who returns (G4).
  */
 export const layers = ["ci"];
 
@@ -82,6 +87,67 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
     phase("a GM away, and back", { flow: "gm-rolls-total" });
     const AIKO = `const aiko = game.actors.get("${IDS.aiko}");`;
     const UNTIL = `const until = async (test, ms = 6000) => { const end = Date.now() + ms; while (!test() && Date.now() < end) await new Promise(r => setTimeout(r, 100)); return test(); };`;
+
+    /* G2 (E33 C6, 07.10.2026; its plan's 2.5 calls it A5, a letter fix r2-H6 had already given to a check
+       below, so C6's are G1-G4): A GM WHO IS HERE AND NEVER ANSWERS A DRAW. The GM's module socket is put
+       aside, as 10-murder puts the players' aside, behind one stand-in: it takes p1's first `roll.draw`,
+       says "got it" to it as the GM's judge does once the guards have passed (bridge-guards.mjs `judge`),
+       answers nothing, and hands the socket back; every other packet goes on to the GM's own handlers.
+       p1's Search pays, opens its roll window and asks for the draw; the answer's clock (roll-draw.mjs
+       `DRAW_ANSWER_MS`) ends it as not answered, and the Search closes as a closed window does. That clock
+       is a constant of the roller's module, which no console on the GM's page reaches, so this waits its
+       real 30 s. A GM that never says "got it" is given up on by the waiter's other clock (`TIMING.ackMs`),
+       which R165 drives.
+       On 07.10.2026's first run of this check one message nobody named was counted on p1 and on the GM alike
+       (made 1, the rest as below); its authors and first words (`news`) are read since. The GM's load-time
+       migration is waited for first, as the likeliest source and not a measured one: it is not awaited at
+       `ready`, its summary was still printed after this phase began, and one of its clauses whispers to the
+       GMs (migrate.mjs `keepOldSafeword`). In the runs read after, it had nothing left to write (waited []). */
+    const g2Was = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const early = game.messages.size;
+        await (await import("${repoUrl}/scripts/migrate.mjs")).migrationOnLoad();
+        await new Promise(r => setTimeout(r, 300));
+        const waited = game.messages.contents.slice(early).map(m => String(m.content ?? "").slice(0, 120));
+        const list = game.socket._handlers.get("module.${MOD}");
+        const g2 = globalThis.__c6g2 = { aside: list.splice(0), seen: [], was: { messages: game.messages.size, records: Object.keys(S.rollStore.entries() ?? {}).length, waited } };
+        list.push((packet, senderId) => {
+            if (packet?.action === "roll.draw" && g2.seen.length === 0) {
+                g2.seen.push(senderId);
+                game.socket.emit("module.${MOD}", { action: "bridge.ack", requestId: packet.requestId, userId: senderId }, { recipients: [senderId] });
+                list.splice(0, list.length, ...g2.aside);
+                return;
+            }
+            for (const handler of g2.aside) handler(packet, senderId);
+        });
+        return g2.was;`);
+    const g2 = await p1.eval(`${AIKO} const A = await import("${repoUrl}/scripts/actions.mjs");
+        const { sayNotDone } = await import("${repoUrl}/scripts/bridge-guards.mjs");
+        globalThis.__notifications.length = 0;
+        const before = A.actionsLeft(aiko), messages = game.messages.size, seen = [];
+        const hook = Hooks.on("updateActor", doc => { if (doc.id === aiko.id) seen.push(A.actionsLeft(aiko)); });
+        const t0 = Date.now();
+        let answer;
+        try {
+            answer = await Promise.race([game.drpg.performAction(aiko, "search"), new Promise(r => setTimeout(() => r("still waiting"), 45000))]);
+        } finally {
+            Hooks.off("updateActor", hook);
+        }
+        const ms = Date.now() - t0;
+        await new Promise(r => setTimeout(r, 500));
+        return { answer: answer ?? null, ms, before, after: A.actionsLeft(aiko), seen, made: game.messages.size - messages,
+            said: globalThis.__notifications.map(n => n.msg), text: sayNotDone("roll.draw", "noAnswer", { notify: () => null }),
+            news: game.messages.contents.slice(messages).map(m => [m.author?.id, String(m.content ?? "").slice(0, 120)]) };`, { timeout: 90000 });
+    const g2Gm = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const g2 = globalThis.__c6g2, list = game.socket._handlers.get("module.${MOD}");
+        const back = list.length === g2.aside.length && g2.aside.every((handler, i) => list[i] === handler);
+        if (!back) list.splice(0, list.length, ...g2.aside);
+        delete globalThis.__c6g2;
+        return { seen: g2.seen, back, made: game.messages.size - g2.was.messages, records: Object.keys(S.rollStore.entries() ?? {}).length - g2.was.records };`);
+    check("G2: a GM who is here and never answers p1's Search's draw: it ends at the draw's 30 s as not answered, the action paid and given back, no message, p1 told once, nothing on the GM's record",
+        g2.answer === null && g2.ms >= 30000 && g2.ms < 40000 && g2.before > 0 && g2.after === g2.before && Math.min(...g2.seen) === g2.before - 1
+        && g2.made === 0 && g2.said.filter(s => s === g2.text).length === 1 && J(g2Gm.seen) === J([IDS.p1]) && g2Gm.back
+        && g2Gm.made === 0 && g2Gm.records === 0, J({ g2, g2Gm, g2Was }), { flow: "gm-rolls-total" });
+
     /* Hope below its maximum of 6 and actions to pay with, so "nothing moved" is a reading; and (C7) two Health
        marks, one for p1 to heal - each judged into the GMs' marks before the GM leaves, so they leave in its
        browser. The GM's stores are waited for first: read at this point of a run on 05.10.2026 (e29run/c7a1/probe)
@@ -95,8 +161,47 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         await A.setActions(aiko, 3);
         await (await import("${repoUrl}/scripts/sheet-audit.mjs")).sheetAuditIdle();
         return G.gmStoresHydrated() && S.sheetMarkStore.get(aiko.id)?.resources?.hitPoints?.value === aiko._source.system.resources.hitPoints.value;`);
+
+    /* G1 (E33 C6; its plan's A4): THE GM LEAVES WHILE p1'S SEARCH IS OPEN. p1 starts a Search with the GM
+       here, so the action's own gate (A1's) lets it through, and the Search's first window is held open
+       until the GM has gone; then it is answered as the harness answers any. The Search pays, throws, and
+       the draw is refused at Daggerheart's build (roll-draw.mjs `drawOrThrow`): the price given back as a
+       closed window's, no message, so nothing stamped, and p1 told it waits for a GM. H6's A4 below throws
+       that build itself, with nothing paid: what it does not read is the price. This is the stage's drop -
+       the GM does not come back. */
+    const g1Open = await p1.eval(`${AIKO} const A = await import("${repoUrl}/scripts/actions.mjs");
+        globalThis.__notifications.length = 0;
+        const g1 = globalThis.__c6g1 = { asked: null, before: A.actionsLeft(aiko), messages: game.messages.size, seen: [] };
+        const gate = new Promise(resolve => { g1.open = resolve; });
+        g1.hook = Hooks.on("updateActor", doc => { if (doc.id === aiko.id) g1.seen.push(A.actionsLeft(aiko)); });
+        globalThis.__dialogAnswers.push(async config => {
+            g1.asked = config.window?.title ?? "?";
+            await gate;
+            return foundry.applications.api.DialogV2.wait(config);
+        });
+        g1.run = game.drpg.performAction(aiko, "search");
+        const end = Date.now() + 6000;
+        while (g1.asked === null && Date.now() < end) await new Promise(r => setTimeout(r, 50));
+        return { asked: g1.asked, before: g1.before, gms: (await import("${repoUrl}/scripts/utils.mjs")).activeGmIds().length };`);
     await disconnect("gm");
     await settle(800);
+    const g1 = await p1.eval(`${AIKO} const A = await import("${repoUrl}/scripts/actions.mjs");
+        const g1 = globalThis.__c6g1;
+        const gms = (await import("${repoUrl}/scripts/utils.mjs")).activeGmIds().length;
+        let answer;
+        try {
+            g1.open?.();
+            answer = await Promise.race([g1.run, new Promise(r => setTimeout(() => r("still waiting"), 8000))]);
+            await new Promise(r => setTimeout(r, 500));
+        } finally {
+            Hooks.off("updateActor", g1.hook);
+            delete globalThis.__c6g1;
+        }
+        return { answer: answer ?? null, gms, before: g1.before, after: A.actionsLeft(aiko), seen: g1.seen, made: game.messages.size - g1.messages,
+            said: globalThis.__notifications.map(n => n.msg), text: game.i18n.localize("DRPG.Rolls.waitsForGm") };`, { timeout: 30000 });
+    check("G1: the GM leaving while p1's Search window is open: the draw is refused at the build, the action paid and given back, nothing made or stamped, and p1 told it waits for a GM",
+        g1Open.gms === 1 && typeof g1Open.asked === "string" && g1.gms === 0 && g1.answer === null && g1.before > 0 && g1.after === g1.before
+        && Math.min(...g1.seen) === g1.before - 1 && g1.made === 0 && g1.said.filter(s => s === g1.text).length === 1, J({ g1Open, g1 }), { flow: "gm-rolls-total" });
 
     // A1: the Search, raced against 8 s so a roll waiting on a GM who is not there is a reading too.
     const a1 = await p1.eval(`${AIKO} const A = await import("${repoUrl}/scripts/actions.mjs");
@@ -143,6 +248,26 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         typeof a2.id === "string" && a2.author === IDS.p1 && a2.stamp?.actorId === IDS.aiko && typeof a2.stamp?.nonce === "string"
         && typeof a2.stamp?.at === "number" && J(a2.owed) === "[]" && a2.after === a2.hope && sent.length === 0, J({ a2, sent }), { flow: "gm-rolls-total" });
 
+    /* G3 (E33 C6; its plan's A6): A STATISTIC CLICKED, NOT SHIFT-CLICKED, WITH NO GM. The click opens the roll
+       window (the harness's stand-in since E33 C2b), where roll-dialog.mjs `forceReaction` makes a student's
+       statistic from the sheet a reaction; with no GM it is thrown here and stamped (roll-draw.mjs
+       `throwUnwitnessed`). Read: the windows drawn, the roll's `options.actionType` as its message keeps it,
+       the stamp, and that nothing moved; checked after A3, whose Grant all decides it with A2's and moves
+       nothing for it (`grantRolls`: a reaction moves nothing). Its faces are A2's, a 9 and a 4, which as an
+       action would have granted a Hope. */
+    const g3From = socketTraffic.length;
+    const g3 = await p1.eval(`${AIKO} globalThis.__forceRoll = { hope: 9, fear: 4 };
+        const hope = aiko.system.resources.hope.value, windows = [];
+        const hook = Hooks.on("renderApplicationV2", app => windows.push(app?.constructor?.name ?? "?"));
+        let config = null;
+        try { config = await aiko.rollTrait("instinct"); } finally { delete globalThis.__forceRoll; Hooks.off("renderApplicationV2", hook); }
+        await config?.resourceUpdates?.updateResources();
+        await new Promise(r => setTimeout(r, 800));
+        const message = config?.message ?? null;
+        return { id: message?.id ?? null, stamp: message?.flags?.["${MOD}"]?.unwitnessed ?? null, author: message?.author?.id ?? null,
+            kind: message?.rolls?.[0]?.options?.actionType ?? null, windows, hope, after: aiko.system.resources.hope.value };`, { timeout: 30000 });
+    const g3Sent = socketTraffic.slice(g3From).filter(s => s.from === "p1").map(s => s.channel);
+
     /* A4: an action's roll that reaches Daggerheart's build with no GM - a GM who left between the
        action's start and its roll - is not thrown (roll-draw.mjs `drawOrThrow`): no message, and p1 is
        told it waits for a GM. Every action refuses at its start (A1), so nothing reached this refusal
@@ -160,6 +285,17 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
             text: game.i18n.localize("DRPG.Rolls.waitsForGm") };`, { timeout: 30000 });
     check("A4: with no GM connected, an action's roll that reaches Daggerheart's build is not thrown: nothing made, and p1 is told it waits for a GM",
         a4.answer === null && a4.threw === null && a4.made === 0 && a4.said.includes(a4.text), J(a4), { flow: "gm-rolls-total" });
+
+    /* G4 (E33 C6; C5a's doubt (d)): A MESSAGE WITH FLAGS ONLY A GM'S BROWSER WRITES, WRITTEN WHILE NO GM IS
+       CONNECTED. p1's console writes a duality card of Aiko's with the draw's two flags, Fear over Hope, as
+       83's F4 does with a GM there. Nothing judges it as it is created: the primary's `createChatMessage`
+       hook (sheet-audit.mjs `onForgedCard`) has no primary to run on. Read on gm0 after A5 below. */
+    const g4 = await p1.eval(`${AIKO} const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 4 }, dFear: { total: 9 },
+            dice: [{ faces: 12, total: 4, results: [{ result: 4, active: true }] }, { faces: 12, total: 9, results: [{ result: 9, active: true }] }],
+            options: { actionType: "action" } };
+        const m = await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor: aiko }), content: '<div class="dice-roll">Duality</div>',
+            rolls: [roll], system: { roll }, flags: { "${MOD}": { drawn: true, rollId: "C6NOGMROLL000001" } } });
+        return { card: m?.id ?? null, author: m?.author?.id ?? null };`, { timeout: 30000 });
 
     /* The sheet half (E29 C7): p1's console raises Aiko's Agility by one and heals one Health mark, past its
        own browser's guard, with no GM to judge either. Read back on p1; judged at the GM's return (S1). */
@@ -190,13 +326,18 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
             const message = game.messages.get(${J(a2.id)});
             return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), listed, hope, after: aiko.system.resources.hope.value,
                 button: Boolean(button), buttonsLeft: Boolean(li?.querySelector(".drpg-away-actions")), again: again.length,
-                granted: message?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null, author: message?.author?.id ?? null };`, { timeout: 60000 });
+                granted: message?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null, author: message?.author?.id ?? null,
+                reaction: { granted: game.messages.get(${J(g3.id)})?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null, author: game.messages.get(${J(g3.id)})?.author?.id ?? null } };`, { timeout: 60000 });
     } catch (err) {
         a3 = { error: String(err?.message ?? err) };
     }
     check("A3: back, the GM gets one card listing p1's stamped roll, and Grant all moves its Hope once and makes it the GM's",
-        a3?.primary === true && J(a3.listed) === J([[a2.id]]) && a3.button && !a3.buttonsLeft && a3.again === 0 && a3.after === a3.hope + 1
+        a3?.primary === true && J((a3.listed ?? []).map(ids => [...ids].sort())) === J([[a2.id, g3.id].sort()]) && a3.button && !a3.buttonsLeft && a3.again === 0 && a3.after === a3.hope + 1
         && a3.granted === true && a3.author === "USERGA0000000000", J(a3), { flow: "gm-rolls-total" });
+    check("G3: with no GM connected, a statistic clicked on p1's sheet opens its window and is thrown as a reaction, stamped, moving nothing; back, Grant all decides it and moves nothing for it",
+        typeof g3.id === "string" && g3.windows.length > 0 && g3.kind === "reaction" && g3.author === IDS.p1 && g3.stamp?.actorId === IDS.aiko
+        && typeof g3.stamp?.nonce === "string" && g3.after === g3.hope && g3Sent.length === 0 && (a3?.listed ?? []).flat().includes(g3.id)
+        && a3.reaction?.granted === true && a3.reaction.author === "USERGA0000000000" && a3.after === a3.hope + 1, J({ g3, g3Sent, a3 }), { flow: "gm-rolls-total" });
 
     /* A5: A STAMPED MESSAGE CREATED WHILE A GM IS HERE (fix r2-H6; review m2, C18's `c18-despair-not-aside`).
        A stamp is its roller's word - a roll begun as the GM connected, or one a console wrote - so the
@@ -249,6 +390,26 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
     check("A5: a stamped Fear result written while the GM is here pays no Despair at its creation, and one when its card's Grant all is clicked",
         Boolean(a5?.monokuma) && typeof a5.written === "string" && a5.card === true && a5.atCreation === 0 && a5.afterGrant === 1 && a5.granted === true,
         J(a5), { flow: "gm-rolls-total" });
+
+    /* G4, read on gm0 (doubt (d)): it holds p1's card and reads it as nothing - not drawn, since only a GM's
+       message is (private-rolls.mjs `isDrawnRoll`) - and whether a `forged` row or a GMs' card names it is
+       in the details: reported, not asserted, as C6 does not change what a returning GM checks. */
+    let g4Gm = null;
+    try {
+        g4Gm = await gm0.eval(`const P = await import("${repoUrl}/scripts/private-rolls.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+            const id = ${J(g4.card ?? "none")}, m = game.messages.get(id);
+            const out = { held: Boolean(m), author: m?.author?.id ?? null, drawn: m ? P.isDrawnRoll(m) : null, forged: m ? P.forgedFlagsOf(m) : null,
+                rows: Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.verdict === "forged").length,
+                told: game.messages.contents.filter(x => (cardFlag(x, "forgedCard") ?? x.flags?.["${MOD}"]?.forgedCard) === id).length };
+            await m?.delete();
+            return out;`, { timeout: 30000 });
+    } catch (err) {
+        g4Gm = { error: String(err?.message ?? err) };
+    }
+    check("G4: a message with the draw's flags p1 wrote while no GM was connected is held by the GM who returns and read there as nothing - not drawn",
+        typeof g4.card === "string" && g4.author === IDS.p1 && g4Gm?.held === true && g4Gm.author === IDS.p1 && g4Gm.drawn === false
+        && J(g4Gm.forged) === J([`flags.${MOD}.drawn`, `flags.${MOD}.rollId`]), J({ g4, g4Gm }), { flow: "sheet-audit" });
 
     for (const [who, client] of [["p1", p1], ["gm0", gm0]]) {
         const errs = await client.eval(`return globalThis.__errors.slice(0, 5);`).catch(err => [String(err?.message ?? err)]);

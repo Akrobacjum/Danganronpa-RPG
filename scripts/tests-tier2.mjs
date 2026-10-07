@@ -11480,6 +11480,54 @@ const SCENARIOS = [
         }
     }],
 
+    ["a drawn roll its GM acknowledged and never answered ends at the draw's own clock as not answered and said once; an answer after it plays nothing", async () => {
+        /*
+         * E33 C6, 07.10.2026; that plan's 2.5 and 1.7 item 7. A player's drawn roll asks the GM with
+         * `bridgeRequest("roll.draw", ..., { settle: "reply", timeoutMs: DRAW_ANSWER_MS })` (roll-draw.mjs
+         * `drawAndPlay`), and a GM who said "got it" and then nothing - gone mid-draw, its draw stuck -
+         * ends it at that clock as a closed roll window ends a roll: `noAnswer`, said once, nothing made.
+         * The suite is the primary GM, whose own requests never leave it, so the wait is R165's waiter:
+         * `createWaiter` with fakes and a clock that only records, asked as drawAndPlay's source asks.
+         * Read: the clocks set and which still runs after the "got it", the answer before and when the
+         * answer's clock fires, what was said, and a GM's answer after it - which nothing takes:
+         * drawAndPlay hands the waiter no `late` and returns on an answer that names no message. A
+         * player's browser waiting the real 30 s, its Search and its price given back: 15-held G2.
+         */
+        const { createWaiter } = await import("./bridge-guards.mjs");
+        const { TIMING } = await import("./config.mjs");
+        const src = stripComments((await moduleSources()).get("roll-draw.mjs") ?? "");
+        const draw = fnSource(src, "drawAndPlay");
+        const clockMs = Number((/\bconst DRAW_ANSWER_MS = ([\d_]+);/.exec(src)?.[1] ?? "").replaceAll("_", ""));
+        const asks = [/bridgeRequest\("roll\.draw", [^;]*\{ settle: "reply", timeoutMs: DRAW_ANSWER_MS \}\)/.test(draw),
+            /if \(!answer\?\.ok \|\| typeof answer\.value\?\.messageId !== "string"\) return;/.test(draw), /\blate\b/.test(draw)];
+        const sent = [], said = [], timers = [];
+        const clock = { set: (fn, ms) => timers.push({ fn, ms, live: true }) - 1, clear: i => { if (timers[i]) timers[i].live = false; } };
+        const waiter = createWaiter({
+            emit: (packet, to) => sent.push({ packet, to }),
+            gmIds: () => ["C6GM"],
+            me: () => ({ id: "C6ME", isGM: false, isPrimary: false }),
+            notify: (action, reason) => said.push(`${action} ${reason}`),
+            fromGm: id => id === "C6GM",
+            clock,
+            report: () => null
+        });
+        let result = null;
+        const asked = waiter.request("roll.draw", { actorId: "C6ACTOR" }, { settle: "reply", timeoutMs: clockMs });
+        asked.then(r => { result = r; });
+        const reply = (action, extra = {}) => waiter.onReply({ action, userId: "C6ME", requestId: sent[0]?.packet.requestId, ...extra }, "C6GM");
+        reply("bridge.ack");
+        await wait(0);
+        const afterAck = [timers.map(t => [t.ms, t.live]), result];
+        timers[1]?.fn();
+        const answered = await asked;
+        reply("bridge.done", { value: { messageId: "C6LATEMESSAGE01" } });
+        await wait(0);
+        equal(stableJson([asks, clockMs > TIMING.ackMs && clockMs < TIMING.rulingMs, sent.map(s => [s.packet.action, s.to]), afterAck, answered, result, said, waiter.waiting()]),
+            stableJson([[true, true, false], true, [["roll.draw", ["C6GM"]]], [[[TIMING.ackMs, false], [clockMs, true]], null], { ok: false, reason: "noAnswer" },
+                { ok: false, reason: "noAnswer" }, ["roll.draw noAnswer"], 0]),
+            `a drawn roll's wait is not the draw's own clock (${clockMs} ms), settled before it or other than noAnswer, was said other than once, or took an answer after it (drawAndPlay asks with DRAW_ANSWER_MS, returns on no message, has no late; the clock between the waiter's two; sent; clocks and answer after the "got it"; when the clock fired; after a late answer; said; waiting)`);
+    }],
+
     ["Grant all grants each stamped roll once", async () => {
         /*
          * E08+E28 C18, 04.10.2026; the plan's 3.7. A roll thrown while no GM was connected is
