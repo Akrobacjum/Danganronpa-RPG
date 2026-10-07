@@ -32218,7 +32218,10 @@ const SCENARIOS = [
          * result with `drawn` and `rollId`, then a critical with `rollId` alone, then a plain critical.
          * Read: whether each flagged message reads as drawn, whether the Monokuma's pool or the overflow
          * moved, each one's rows (the player, the student, the paths) and whispers, and the relay's
-         * verdict on +1 Hope after the flagged critical and after the plain one.
+         * verdict on +1 Hope after the flagged critical and after the plain one. Since fix r1-G1 the
+         * critical, posted inside `WARN_EVERY_MS` of the first, counts on the first's row - which names
+         * both (`messages`, n 2) - instead of a row of its own (sheet-audit.mjs `recordTrace`'s fold);
+         * its whisper is still its own.
          */
         needs(world.atLeast("connectedPlayersWithCharacter", 1), "the message is a connected player's, about their own student");
         const player = game.users.find(u => !u.isGM && u.active && u.character?.type === "character");
@@ -32244,8 +32247,8 @@ const SCENARIOS = [
             made.push(message.id);
             return message;
         };
-        const rowsOf = message => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && row.messageId === message.id)
-            .map(row => [row.userId === player.id, row.actorId === student.id, Object.keys(row.change ?? {}).sort()]);
+        const rowsOf = message => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && (row.messageId === message.id || (row.messages ?? []).includes(message.id)))
+            .map(row => [row.userId === player.id, row.actorId === student.id, Object.keys(row.change ?? {}).sort(), row.n ?? 1]);
         const toldOf = message => game.messages.contents.filter(m => cardFlag(m, "forgedCard") === message.id).length;
         const hopeVerdict = () => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: student.uuid, data: { [HOPE]: 3 } } }, player).verdict;
         let read = null;
@@ -32272,9 +32275,10 @@ const SCENARIOS = [
             await game.settings.set(MODULE_ID, SETTINGS.despairFromRolls, hadAward);
         }
         const path = name => `flags.${MODULE_ID}.${name}`;
-        equal(stableJson(read), stableJson([false, false, false, [[true, true, [path("drawn"), path("rollId")]]], [[true, true, [path("rollId")]]], 1, 1, "refuse", "forward"]),
-            "a player's message with a GM's flags read as drawn, paid Despair or covered Hope, or was not named once to the GMs "
-                + "(drawn: as drawn; critical: as drawn; the pool moved; rows of each; whispers of each; the relay's +1 Hope after the flagged critical and after a plain one)");
+        const both = [[true, true, [path("drawn"), path("rollId")], 2]];
+        equal(stableJson(read), stableJson([false, false, false, both, both, 1, 1, "refuse", "forward"]),
+            "a player's message with a GM's flags read as drawn, paid Despair or covered Hope, was not named once to the GMs, or the second did not count on the first's row "
+                + "(drawn: as drawn; critical: as drawn; the pool moved; the row naming each: the player, the student, its paths, its count; whispers of each; the relay's +1 Hope after the flagged critical and after a plain one)");
     }],
 
     ["a GM's card with the same flags stands", async () => {
@@ -32424,6 +32428,239 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([[true, true, [total, total + 7]]]),
             "a rewrite put back left no row, or one not naming the player, the student or the totals (rows: the player, the student, kept and rewritten)");
+    }],
+
+    ["a burst of refused relay requests counts on one row; a long path name is cut; the next window opens a row of its own", async () => {
+        /*
+         * E33 fix r1-G1, 07.10.2026 (review round 1's sec M1). Measured at ba0cade (e33-review/secprobe1.log,
+         * P3): 40 refused requests from one console left 40 `refused` rows, 329 -> 12089 bytes of a store
+         * every GM's browser holds, and one path name of 4022 characters kept whole. Now a refused request
+         * inside `WARN_EVERY_MS` of its row - the same sender, student, sub-operation and kind, the key the
+         * toast is said by - counts on that row (sheet-audit.mjs `recordTrace`, `n`; `sheetWrites` lists it
+         * as `times`), a path name is cut as a value is (relay-guard.mjs `studentTrace`, `TRACE_VALUE`), and
+         * a request after the window has a row of its own. The requests reach the guard's own listener with
+         * the player's id, as C5a's test hands one. A row of the key younger than the window is aged by the
+         * window before each part, as the window passing would, so each part opens its own row. Read: every
+         * refused row of the player on the student since the start, oldest first (its paths' lengths, its
+         * count, `times` as listed), and the student's Hope after.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "Foundry names only a connected sender");
+        const { player, other } = playerAndCharacters();
+        must(other, "no student the player does not own - the refusals would measure nothing");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which judges the relay - this would measure nothing");
+        const R = await import("./relay-guard.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { sheetWrites, sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const guard = (game.socket?.listeners?.(`system.${game.system.id}`) ?? []).find(fn => fn.__drpgRelayGuard);
+        must(guard, "the relay guard stands on no listener of Daggerheart's channel here - the requests would reach nothing");
+        const WINDOW = Number(R.WARN_EVERY_MS) || 30_000;
+        const HOPE = "system.resources.hope.value", LONG = `flags.${MODULE_ID}.${"x".repeat(4000)}`;
+        const held = foundry.utils.getProperty(other._source, HOPE);
+        const asked = Number(held) >= 1 ? Number(held) - 1 : 1;
+        const packet = data => ({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: other.uuid, data } });
+        for (const data of [{ [LONG]: 1 }, { [HOPE]: asked }]) {
+            const judged = R.judgeRelay(packet(data), player);
+            must(judged.verdict === "refuse", `the relay does not refuse ${Object.keys(data)[0].slice(0, 40)} (${judged.verdict}) - this would measure nothing`);
+        }
+        const from = Date.now();
+        const mine = () => Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.verdict === "refused" && row.actorId === other.id && row.userId === player.id);
+        const age = async rows => { for (const [id, row] of rows) await sheetWriteStore.patch(id, { at: (Number(row.at) || 0) - WINDOW }); };
+        await age(mine().filter(([, row]) => row.at >= from - WINDOW));
+        guard(packet({ [LONG]: 1 }), player.id);
+        await until(() => mine().some(([, row]) => row.at >= from), 3000);
+        await sheetAuditIdle();
+        await age(mine().filter(([, row]) => row.at >= from));
+        for (let i = 0; i < 40; i++) guard(packet({ [HOPE]: asked }), player.id);
+        await until(() => mine().some(([, row]) => row.n === 40), 8000);
+        await sheetAuditIdle();
+        await age(mine().filter(([, row]) => row.at >= from));
+        guard(packet({ [HOPE]: asked }), player.id);
+        await until(() => mine().some(([, row]) => row.at >= from), 3000);
+        await sheetAuditIdle();
+        const listed = sheetWrites({ quiet: true });
+        const since = mine().filter(([, row]) => row.at >= from - WINDOW).sort(([, a], [, b]) => a.at - b.at)
+            .map(([id, row]) => [Object.keys(row.change ?? {}).map(path => path.length), row.n ?? 1, listed.find(r => r.id === id)?.times ?? null]);
+        equal(stableJson([since, foundry.utils.getProperty(other._source, HOPE)]), stableJson([[[[160], 1, 1], [[HOPE.length], 40, 40], [[HOPE.length], 1, 1]], held]),
+            "a burst of refused requests left a row each, a long path name was kept whole, the count or its listing is wrong, or a request after the window counted on the old row "
+                + "(rows since the start, oldest first: the paths' lengths, n, times; the Hope after)");
+    }],
+
+    ["a forged message the primary never saw is traced once its stores are ready; a traced one not again", async () => {
+        /*
+         * E33 fix r1-G1, 07.10.2026 (review round 1's sec m3; C5a's doubt (d)). A message carrying a GM's
+         * flags under a player's name, written while no GM was connected, meets no `createChatMessage` hook
+         * on a primary: measured at ba0cade (15-held's G4, e33run/c6) the GM who returned held it with rows 0
+         * and told 0. Now the primary scans the messages once its stores hold the rows (sheet-audit.mjs
+         * `traceForgedAtReady`, at `onGmStoresHydrated`) and traces each such message no `forged` row names
+         * (`onForgedCard`: its row, the GMs told once). The suite is the primary and heard the message, so its
+         * live row is dropped - a store that never saw the message holds none - and the scan is called as the
+         * hydration calls it, then once more. Read: whether the first scan names the message, the row naming
+         * it after (the player, the student, the paths), whether the second scan names it, the rows after it,
+         * and the whispers naming the message (the live one and the scan's).
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the message is a connected player's, about their own student");
+        const player = game.users.find(u => !u.isGM && u.active && u.character?.type === "character");
+        must(player, "no connected player has a student as their character");
+        const student = player.character;
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which traces a player's messages - this would measure nothing");
+        const { cardFlag } = await import("./secret.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const A = await import("./sheet-audit.mjs");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 4 }, dFear: { total: 9 },
+            dice: [{ faces: 12, total: 4, results: [{ result: 4, active: true }] }, { faces: 12, total: 9, results: [{ result: 9, active: true }] }],
+            options: { actionType: "action" } };
+        const message = await ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor: student }),
+            content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll }, flags: { [MODULE_ID]: { drawn: true, rollId: `suiteG1${foundry.utils.randomID(8)}` } } });
+        const naming = () => Object.entries(sheetWriteStore.entries() ?? {}).filter(([, row]) => row?.verdict === "forged" && (row.messageId === message.id || (row.messages ?? []).includes(message.id)));
+        const told = () => game.messages.contents.filter(m => cardFlag(m, "forgedCard") === message.id).length;
+        const scan = async () => typeof A.traceForgedAtReady === "function" ? await A.traceForgedAtReady() : null;
+        let read = null;
+        try {
+            await until(() => naming().length > 0, 3000);
+            await A.sheetAuditIdle();
+            await sheetWriteStore.dropMany(naming().map(([id]) => id));
+            must(naming().length === 0, "the live row could not be dropped - the scan would find the message named");
+            const first = await scan();
+            await A.sheetAuditIdle();
+            const afterFirst = naming().map(([, row]) => [row.userId === player.id, row.actorId === student.id, Object.keys(row.change ?? {}).sort()]);
+            const second = await scan();
+            await A.sheetAuditIdle();
+            await settle();
+            read = [Array.isArray(first) && first.includes(message.id), afterFirst, Array.isArray(second) && second.includes(message.id), naming().length, told()];
+        } finally {
+            await game.messages.get(message.id)?.delete();
+        }
+        const path = name => `flags.${MODULE_ID}.${name}`;
+        equal(stableJson(read), stableJson([true, [[true, true, [path("drawn"), path("rollId")]]], false, 1, 2]),
+            "a forged message with no row was not traced at the primary's ready, was traced twice, or the GMs were not told of it "
+                + "(the first scan names it; the row after; the second scan names it; rows after; whispers naming it)");
+    }],
+
+    ["a GM's flag a player writes onto their own message by update is traced; a GM's update of it is not", async () => {
+        /*
+         * E33 fix r1-G1, 07.10.2026 (review round 1's sec m4). A plain message of a player's passes the
+         * primary's `createChatMessage` check (sheet-audit.mjs `onForgedCard`); one of the flags only a GM's
+         * browser writes, added to it afterwards by its author's update (private-rolls.mjs `gmOnlyFlagsIn`),
+         * reached no hook until this fix, and the message carried it untraced. Now the primary's
+         * `updateChatMessage` hook (`onForgedUpdate`) traces such an update as a create is, when the one who
+         * wrote it is not a GM: a GM's own update of a player's message is nobody's forgery (roll-draw.mjs
+         * `decideNow` writes its mark and the GM as author in one update). The suite's writes are the GM's,
+         * so the handler is called as the hook calls it - with the GM's id, then the player's - and a repeat
+         * counts on the row (`recordTrace`'s fold). Read: the rows naming the message after its creation,
+         * after this GM's own update, after the handler with the GM's id, with the player's id (the row: the
+         * player, the student), with a change naming no GM's flag, and after a repeat (the count's rise), and
+         * the whispers naming the message.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the message is a connected player's, about their own student");
+        const player = game.users.find(u => !u.isGM && u.active && u.character?.type === "character");
+        must(player, "no connected player has a student as their character");
+        const student = player.character;
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which traces a player's messages - this would measure nothing");
+        const { cardFlag } = await import("./secret.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const A = await import("./sheet-audit.mjs");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 4 }, dFear: { total: 9 },
+            dice: [{ faces: 12, total: 4, results: [{ result: 4, active: true }] }, { faces: 12, total: 9, results: [{ result: 9, active: true }] }],
+            options: { actionType: "action" } };
+        const message = await ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor: student }),
+            content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll } });
+        const naming = () => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged" && (row.messageId === message.id || (row.messages ?? []).includes(message.id)));
+        const told = () => game.messages.contents.filter(m => cardFlag(m, "forgedCard") === message.id).length;
+        const changes = { flags: { [MODULE_ID]: { drawn: true, rollId: `suiteG1${foundry.utils.randomID(8)}` } } };
+        const handle = async (data, userId) => typeof A.onForgedUpdate === "function" ? await A.onForgedUpdate(game.messages.get(message.id), data, userId) : undefined;
+        let read = null;
+        try {
+            await settle();
+            const plain = naming().length;
+            await message.update(changes);
+            await settle();
+            const byGm = naming().length;
+            const asGm = await handle(changes, game.user.id);
+            await A.sheetAuditIdle();
+            const afterGm = naming().length;
+            const asPlayer = await handle(changes, player.id);
+            await A.sheetAuditIdle();
+            const rows = naming().map(row => [row.userId === player.id, row.actorId === student.id]), n = naming()[0]?.n ?? 1;
+            const noFlag = await handle({ content: "<p>edited</p>" }, player.id);
+            await A.sheetAuditIdle();
+            const afterNoFlag = naming().map(row => (row.n ?? 1) - n);
+            const again = await handle(changes, player.id);
+            await A.sheetAuditIdle();
+            await settle();
+            read = [plain, byGm, asGm, afterGm, typeof asPlayer === "string", rows, noFlag, afterNoFlag, again === asPlayer, naming().map(row => (row.n ?? 1) - n), told()];
+        } finally {
+            await game.messages.get(message.id)?.delete();
+        }
+        equal(stableJson(read), stableJson([0, 0, null, 0, true, [[true, true]], null, [0], true, [1], 2]),
+            "a GM's flag a player wrote onto their message by update was not traced, a GM's update was, a change naming no such flag was, or a repeat did not count on the row "
+                + "(rows after the creation; after this GM's update; the handler's answer with the GM's id; rows after; the answer with the player's id is a row; "
+                + "the rows: the player, the student; the answer to a change with no GM's flag; the count's rise after it; a repeat answers the same row; its rise; whispers naming the message)");
+    }],
+
+    ["the relay's gain a roll covered leaves a covered row naming the roll; a roll a row names covers nothing again", async () => {
+        /*
+         * E33 fix r1-G1, 07.10.2026 (review round 1's sec m5 = cor M5; E29's plan 2.5 and 2.8, "a write that
+         * stood on credit or a judge has a covered row"). The relay's gain of a player's own roll stands as far
+         * as that roll covers it (sheet-audit.mjs `relayGainRefusal`, `rollCovering`) and until this fix left
+         * no row, counted in the primary's memory alone (`rollsCounted`): at c618bf9, 83's L10 and F4b read
+         * none (e33run/c5b-a1/it2.log). Now the gain leaves a `covered` row - the player, the student, each
+         * gained path from the GMs' value to the one asked, `ref` the roll's message, `kind` `rollGain`, no
+         * reason - and a roll a row names covers nothing again, on this GM or on a primary that reloaded.
+         * The judge is asked as C5a's test asks it (relay-guard.mjs `judgeRelay`, the player). Read: the
+         * verdict on +1 Hope after the player's roll, the covered rows naming that roll, and the verdict
+         * after a second roll that a row written by hand already names, as another primary's row would.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the roll is a connected player's, about their own student");
+        const player = game.users.find(u => !u.isGM && u.active && u.character?.type === "character");
+        must(player, "no connected player has a student as their character - the relay would judge nobody's Hope");
+        const student = player.character;
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which judges the relay - this would measure nothing");
+        const { judgeRelay } = await import("./relay-guard.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const A = await import("./sheet-audit.mjs");
+        const HOPE = "system.resources.hope.value";
+        must(Number(student.system.resources?.hope?.max) >= 3, "the student's Hope cannot rise to 3");
+        const hadLock = game.settings.get(MODULE_ID, SETTINGS.lockPlayerResources);
+        const made = [];
+        const post = async () => {
+            const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 9 }, dFear: { total: 4 },
+            dice: [{ faces: 12, total: 9, results: [{ result: 9, active: true }] }, { faces: 12, total: 4, results: [{ result: 4, active: true }] }],
+            options: { actionType: "action" } };
+            const message = await ChatMessage.create({ author: player.id, speaker: ChatMessage.getSpeaker({ actor: student }),
+                content: "<div class=\"dice-roll\">Duality</div>", rolls: [roll], system: { roll } });
+            made.push(message.id);
+            return message;
+        };
+        const ask = () => judgeRelay({ action: "DhGMUpdate", data: { action: "DhGMUpdateDocument", uuid: student.uuid, data: { [HOPE]: 3 } } }, player).verdict;
+        const naming = id => Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "covered" && row.ref === id);
+        let read = null;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, true);
+            await student.update({ [HOPE]: 2 });
+            await auditFromScratch(student);
+            const first = await post();
+            await settle();
+            const verdict = ask();
+            await until(() => naming(first.id).length > 0, 3000);
+            await A.sheetAuditIdle();
+            const rows = naming(first.id).map(row => [row.userId === player.id, row.actorId === student.id, row.itemId, row.reason, row.kind, row.change?.[HOPE] ?? null, row.messageId]);
+            const second = await post();
+            await settle();
+            const at = Date.now();
+            await sheetWriteStore.patchMany({ [foundry.utils.randomID()]: { actorId: student.id, itemId: null, userId: player.id, reason: null, ref: second.id,
+                change: { [HOPE]: [2, 3] }, covered: null, verdict: "covered", kind: "rollGain", messageId: null, decided: null, at } });
+            read = [verdict, rows, ask()];
+        } finally {
+            for (const id of made) await game.messages.get(id)?.delete();
+            await game.settings.set(MODULE_ID, SETTINGS.lockPlayerResources, hadLock);
+        }
+        equal(stableJson(read), stableJson(["forward", [[true, true, null, null, "rollGain", [2, 3], null]], "refuse"]),
+            "the relay's gain a roll covered left no covered row naming the roll, or a roll a row already names covered a gain again "
+                + "(the verdict after the roll; the rows naming it: the player, the student, item, reason, kind, the Hope from and to, message; the verdict with the second roll named by a row)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

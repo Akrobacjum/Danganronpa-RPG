@@ -104,7 +104,8 @@ const OWNER = 3;
 const RECENT_MS = 10_000;
 /** More Fear steps than this from one player in `RECENT_MS` are pointed out to the GM (never refused). */
 const FEAR_STEPS_NOTED = 4;
-const WARN_EVERY_MS = 30_000;
+/** How often one sender's refusals of one kind are said - the toast, and the GMs' row they count on (sheet-audit.mjs `recordTrace`, fix r1-G1). */
+export const WARN_EVERY_MS = 30_000;
 /** Distinct unreviewed packet names whispered to the GMs in one session; the rest go to the console. */
 const SHAPES_WHISPERED = 3;
 
@@ -413,24 +414,28 @@ function judgeDocument(data, sender, world) {
     });
 }
 
-/** How many of a refused request's paths its row keeps, and how long a value it keeps of each. */
+/** How many of a refused request's paths its row keeps, and how long a name or a value it keeps of each. */
 const TRACE_PATHS = 12;
 const TRACE_VALUE = 160;
 
 /**
  * What the GMs' row of a refused request names (E33 C5a; sheet-audit.mjs `recordTrace`): the student
  * the document is or belongs to, the item when it is one, and each path with its value now and the
- * value asked - the first `TRACE_PATHS`, a long value cut. Null for a document that is not a student's.
+ * value asked - the first `TRACE_PATHS`, a long value cut, and since fix r1-G1 a long name cut the
+ * same way: at ba0cade a request whose one path name was 4022 characters long kept it whole in a row
+ * every GM's browser holds (review round 1's sec M1, e33-review/secprobe1.log P3). Null for a
+ * document that is not a student's.
  */
 function studentTrace(doc, flat) {
     const actor = doc.documentName === "Actor" ? doc : doc.parent?.documentName === "Actor" ? doc.parent : null;
     if (actor?.type !== "character") return null;
+    const cut = text => text.length > TRACE_VALUE ? `${text.slice(0, TRACE_VALUE - 1)}…` : text;
     const kept = value => {
         const text = JSON.stringify(value) ?? null;
-        return text !== null && text.length > TRACE_VALUE ? `${text.slice(0, TRACE_VALUE - 1)}…` : value ?? null;
+        return text !== null && text.length > TRACE_VALUE ? cut(text) : value ?? null;
     };
     const change = Object.fromEntries(Object.entries(flat).slice(0, TRACE_PATHS)
-        .map(([path, value]) => [path, [kept(foundry.utils.getProperty(doc._source ?? doc, path)), kept(value)]]));
+        .map(([path, value]) => [cut(path), [kept(foundry.utils.getProperty(doc._source ?? doc, path)), kept(value)]]));
     return { actorId: actor.id, itemId: doc === actor ? null : doc.id, change };
 }
 
@@ -899,7 +904,8 @@ function reportRefusal(verdict, sender) {
         }
     }
     if (verdict.kind === "shape") shapeWarning(verdict.sub ?? "?");
-    // A request about a student leaves a row naming its sender, as Foundry named it (E33 C5a).
+    // A request about a student leaves a row naming its sender, as Foundry named it (E33 C5a); a repeat
+    // inside WARN_EVERY_MS - the toast's own key - counts on that row instead (fix r1-G1).
     if (verdict.trace) {
         void sheetAudit?.recordTrace("refused", { ...verdict.trace, userId: sender.id, sub: verdict.sub ?? null, kind: verdict.kind })
             .catch(err => error("Could not keep the GMs' row of a refused Daggerheart request", err));

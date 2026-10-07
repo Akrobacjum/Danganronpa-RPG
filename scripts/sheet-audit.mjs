@@ -144,8 +144,9 @@ import { tellRefused, bridgeRequest } from "./bridge-guards.mjs";
 import { cardFlag, cardWriter, updateSecret } from "./secret.mjs";
 import { ITEM_FLAGS, CAP_OVERRIDE, isBroken, isStashed, canCarry } from "./inventory.mjs";
 import { readDuality } from "./despair-award.mjs";
-import { forgedFlagsOf } from "./private-rolls.mjs";
+import { forgedFlagsOf, gmOnlyFlagsIn } from "./private-rolls.mjs";
 import { spentByGm } from "./call-effects.mjs";
+import { WARN_EVERY_MS } from "./relay-guard.mjs";
 
 /** The module flags only a GM writes (the plan's 2.4), held in the mark and put back. */
 const GM_FLAGS = ["deceased", "monocub", "silencedChapter", "advances", "sheetAtStart", "lootTrace", "swungWeapon",
@@ -669,9 +670,9 @@ function inOrder(actorId, job) {
     return run;
 }
 
-/** Resolves once every write queued on any student has been judged (tier 2, and anything that reads the stores after a write). */
+/** Resolves once every write queued on any student has been judged, and every trace queued kept (tier 2, and anything that reads the stores after a write). */
 export async function sheetAuditIdle() {
-    while (chains.size) await Promise.all([...chains.values()]);
+    while (chains.size || tracesQueued) await Promise.all([...chains.values(), traces]);
 }
 
 /** Resolves once every write queued on these students has been judged (C8: a Call's purchase and a drawn roll). Anything else in `ids` is passed over. */
@@ -1779,15 +1780,17 @@ export function onItemWrite(item, changes, options, userId, { primary = isPrimar
     for (const waiter of [...consumptionWaiters]) waiter();
 }
 
-/** The Daggerheart rolls whose gain a relay write was covered by, on this GM (a reload forgets them; each covers for a minute). */
+/** The Daggerheart rolls whose gain a relay write was covered by, on this GM (a reload forgets them - their `covered` rows do not, fix r1-G1; each covers for a minute). */
 const rollsCounted = new Set();
 
-/** The latest Daggerheart roll that covers `need`: that user's, about that student, recent, not drawn, not a reaction, not counted. */
+/** The latest Daggerheart roll that covers `need`: that user's, about that student, recent, not drawn, not a reaction, not counted - here or by a row. */
 function rollCovering(actor, sender, need) {
     const since = Date.now() - ROLL_COVER_MS, messages = game.messages?.contents ?? [];
+    // A roll a `covered` row names covered a gain already: here, or on the primary before a reload or a change of primary (fix r1-G1).
+    const named = new Set(Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "covered" && row.kind === "rollGain" && row.ref).map(row => row.ref));
     for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i];
-        if ((message.timestamp ?? 0) < since || rollsCounted.has(message.id)) continue;
+        if ((message.timestamp ?? 0) < since || rollsCounted.has(message.id) || named.has(message.id)) continue;
         if (message.author?.id !== sender.id || message.speaker?.actor !== actor.id) continue;
         // A player's message carrying a flag only a GM's browser writes covers nothing (E33 C5a, `onForgedCard`).
         if (message.getFlag?.(MODULE_ID, "drawn") || forgedFlagsOf(message).length || message.rolls?.[0]?.options?.actionType === "reaction") continue;
@@ -1805,7 +1808,8 @@ function rollCovering(actor, sender, need) {
  * rise; a gain, measured from the GMs' value, stands only as far as a Daggerheart roll covers it -
  * a duality roll that user wrote about that student in the last `ROLL_COVER_MS`, with Hope or a
  * critical (`CRITICAL`'s Hope), not drawn by the GM, not a reaction, not counted before. Answers
- * why not, or null. With `lockPlayerResources` off, null (the owner's Q2 (a)).
+ * why not, or null; a gain a roll covers leaves a `covered` row naming the roll (`keepGainRow`).
+ * With `lockPlayerResources` off, null (the owner's Q2 (a)).
  */
 export function relayGainRefusal(actor, flat, sender) {
     if (actor?.type !== "character" || !sender || sender.isGM || !locked()) return null;
@@ -1820,7 +1824,27 @@ export function relayGainRefusal(actor, flat, sender) {
     const roll = rollCovering(actor, sender, need);
     if (!roll) return `${Object.keys(need).join(", ")} raised on ${actor.name} with no roll of theirs to give it`;
     rollsCounted.add(roll.id);
+    void keepGainRow(actor, sender, roll, flat, values, need);
     return null;
+}
+
+/**
+ * THE GAIN'S ROW (E33 fix r1-G1, 07.10.2026; review round 1's sec m5 = cor M5; E29's plan 2.5 and 2.8,
+ * "a write that stood on credit or a judge has a covered row"). A `covered` row of the gain a roll
+ * gave: the sender, the student, each gained path from the GMs' value to the one asked, `ref` the
+ * roll's message, `kind` `rollGain` - so the GMs can read which roll covered it, and so "a roll
+ * covers once" outlives this browser's memory of it (`rollsCounted`): `rollCovering` skips a roll a
+ * row names, after a reload or a change of primary too. Nothing is said: the row is the GMs' to read,
+ * as a Rest's is (`record`). Until this fix the gain left no row: 83's L10 and F4b read none at
+ * c618bf9 (e33run/c5b-a1/it2.log). On the primary, whose store it is.
+ */
+function keepGainRow(actor, sender, roll, flat, values, need) {
+    if (!isPrimaryGm()) return Promise.resolve();
+    const at = Date.now();
+    const change = Object.fromEntries(Object.keys(need).map(key => [LEDGER[key].path, [values[key], Number(flat[LEDGER[key].path])]]));
+    return keepRows({ [foundry.utils.randomID()]: { actorId: actor.id, itemId: null, userId: sender.id, reason: null, ref: roll.id, change, covered: null,
+        verdict: "covered", kind: "rollGain", messageId: null, decided: null, at } }, at)
+        .catch(err => error("Could not keep the GMs' row of the gain a roll covered", err));
 }
 
 /** The rolls a write's taking of the GMs' armed Calls stood on, on this GM (`callsCover`; a reload forgets them). */
@@ -2379,6 +2403,16 @@ async function keepRows(rows, at) {
  * the sender or the author, never a field of what was sent. Listed by `sheetWrites` with the others,
  * each with its words (`TRACE_WORDS`); none waits for a GM's decision. Until C5a none of them left a
  * row: at 214cb0b (07.10.2026, tier 2) each of the three left the store as it found it.
+ *
+ * ONE ROW PER BURST (E33 fix r1-G1, 07.10.2026; review round 1's sec M1). A trace repeated inside
+ * `WARN_EVERY_MS` of its row counts on that row (`n`, listed as `times`) instead of adding one: a
+ * refused request of the same sender, student, sub-operation and kind - the key the toast is said by
+ * (relay-guard.mjs `reportRefusal`) - and a forged message of the same author, whose row then names
+ * every message it counted (`messages`) so the scan at ready below finds each of them traced. The
+ * traces are kept one after another (`traces`): a fold reads the row the trace before it wrote.
+ * Measured at ba0cade (e33-review/secprobe1.log, P3): 40 refused requests from one console were 40
+ * rows, 329 -> 12089 bytes of a store every GM's browser holds; now a row per key per 30 s. A
+ * `rewrite` row is not folded: round 1 measured no burst of them (a doubt of fix r1-G1's note).
  */
 const TRACE_WORDS = Object.freeze({
     refused: "DRPG.Audit.verdict.refused",
@@ -2386,13 +2420,50 @@ const TRACE_WORDS = Object.freeze({
     rewrite: "DRPG.Audit.verdict.rewrite"
 });
 
-/** One trace row (a verdict of `TRACE_WORDS`) into `sheetWrites`, on the primary. Answers its id, or null. */
-export async function recordTrace(verdict, { actorId = null, itemId = null, userId = null, messageId = null, change = {}, ...more } = {}) {
-    if (!TRACE_WORDS[verdict] || !isPrimaryGm()) return null;
-    const at = Date.now(), id = foundry.utils.randomID();
+/** The fields a trace must share with a row to count on it (null: a row of its own every time). */
+const TRACE_KEYS = Object.freeze({ refused: ["userId", "actorId", "sub", "kind"], forged: ["userId"], rewrite: null });
+
+/** The traces queued (`recordTrace`), kept one after another; how many are still to land. */
+let traces = Promise.resolve();
+let tracesQueued = 0;
+
+/** One trace row (a verdict of `TRACE_WORDS`) into `sheetWrites`, on the primary, or a count on the row it folds into. Answers the row's id, or null. */
+export function recordTrace(verdict, fields = {}) {
+    if (!TRACE_WORDS[verdict] || !isPrimaryGm()) return Promise.resolve(null);
+    tracesQueued++;
+    const run = traces.then(() => traceNow(verdict, fields)).finally(() => { tracesQueued--; });
+    traces = run.catch(() => null);
+    return run;
+}
+
+async function traceNow(verdict, { actorId = null, itemId = null, userId = null, messageId = null, change = {}, ...more }) {
+    const at = Date.now();
+    const folded = traceFolds(verdict, { actorId, userId, messageId, ...more }, at);
+    if (folded) {
+        const [id, kept] = folded, n = (kept.n ?? 1) + 1;
+        const names = kept.messageId === messageId || (kept.messages ?? []).includes(messageId);
+        await sheetWriteStore.patch(id, { n, ...(verdict === "forged" && messageId && !names ? { messages: [...(kept.messages ?? []), messageId] } : {}) });
+        debug(`The GMs' audit: ${verdict} from ${game.users.get(userId ?? "")?.name ?? userId ?? "?"}, counted on its row (${n}).`);
+        return id;
+    }
+    const id = foundry.utils.randomID();
     await keepRows({ [id]: { ...more, actorId, itemId, userId, reason: null, ref: null, change, covered: null, verdict, messageId, decided: null, at } }, at);
     debug(`The GMs' audit: ${verdict} from ${game.users.get(userId ?? "")?.name ?? userId ?? "?"}.`);
     return id;
+}
+
+/** The newest row a trace counts on, as `[id, row]`, or null: the verdict's `TRACE_KEYS` equal and the row younger than `WARN_EVERY_MS`. */
+function traceFolds(verdict, fields, at) {
+    const keys = TRACE_KEYS[verdict];
+    if (!keys) return null;
+    const same = (a, b) => (a ?? null) === (b ?? null);
+    let found = null;
+    for (const entry of Object.entries(sheetWriteStore.entries() ?? {})) {
+        const kept = entry[1], age = at - (Number(kept?.at) || 0);
+        if (kept?.verdict !== verdict || age < 0 || age >= WARN_EVERY_MS || !keys.every(key => same(kept[key], fields[key]))) continue;
+        if (!found || kept.at > found[1].at) found = entry;
+    }
+    return found;
 }
 
 /**
@@ -2400,7 +2471,10 @@ export async function recordTrace(verdict, { actorId = null, itemId = null, user
  * only a GM's browser writes (private-rolls.mjs `forgedFlagsOf`) gets one `forged` row - the message,
  * its speaker's character, its author, each flag with its value - and one line to the GMs. Nothing
  * else is done to it: no browser reads it as drawn and no award is paid for it (`forgedFlagsOf`'s
- * readers). Answers the row's id, or null. Exported for the suite.
+ * readers). Answers the row's id, or null. Exported for the suite. Since fix r1-G1 also called for
+ * an update that writes such a flag (`onForgedUpdate`) and at the primary's ready for a message no
+ * hook saw (`traceForgedAtReady`); a message of the same author inside `WARN_EVERY_MS` counts on
+ * the author's row, which names it (`recordTrace`'s fold), and is still told once.
  */
 export async function onForgedCard(message) {
     if (!isPrimaryGm() || !message?.id) return null;
@@ -2418,6 +2492,47 @@ export async function onForgedCard(message) {
         error("Could not tell the GMs of a message carrying a GM's flags", err);
     }
     return id;
+}
+
+/**
+ * `updateChatMessage`, on the primary (E33 fix r1-G1, 07.10.2026; review round 1's sec m4): a
+ * message's author may write its flags, so one of a GM's flags can reach a player's message after
+ * its creation's check above - until this fix untraced. An update whose changes name one of them
+ * (private-rolls.mjs `gmOnlyFlagsIn`), written by a user who is not a GM, is traced as a create is
+ * (`onForgedCard`: the message's flags as they stand now, the GMs told; a repeat counts on the row).
+ * A GM's own update of a player's message is nobody's forgery and leaves none standing: the grant of
+ * a roll thrown with no GM writes its mark and the GM as author in one update (roll-draw.mjs
+ * `decideNow`). Answers the row's id, or null. Exported for the suite, whose writes are all a GM's.
+ */
+export async function onForgedUpdate(message, changes, userId) {
+    if (!isPrimaryGm() || !message?.id || game.users.get(userId ?? "")?.isGM || !gmOnlyFlagsIn(changes).length) return null;
+    return onForgedCard(message);
+}
+
+/**
+ * THE SCAN AT READY (E33 fix r1-G1, 07.10.2026; review round 1's sec m3, C5a's doubt (d)). On the
+ * primary once its stores hold the rows (`registerSheetAudit`, with the comparison at ready): every
+ * message carrying a GM's flags under another author (`forgedFlagsOf`) that no `forged` row names -
+ * one written while no GM was connected, which no `createChatMessage` hook saw - is traced as a
+ * create is (`onForgedCard`: its row, the GMs told once). A message older than a row is kept
+ * (`ROW_KEPT_MS`) is let be: its row, if it had one, is swept, and tracing it at every ready would
+ * tell the GMs of it at every ready. Measured at ba0cade (15-held's G4, e33run/c6): such a message
+ * left the GM who returned with rows 0, told 0. Answers the ids traced. Exported for the suite.
+ */
+export async function traceForgedAtReady() {
+    if (!isPrimaryGm() || !gmStoresHydrated()) return [];
+    const named = new Set(Object.values(sheetWriteStore.entries() ?? {}).filter(row => row?.verdict === "forged")
+        .flatMap(row => [row.messageId, ...(row.messages ?? [])]));
+    const since = Date.now() - ROW_KEPT_MS, traced = [];
+    for (const message of [...(game.messages?.contents ?? [])]) {
+        if (named.has(message.id) || (Number(message.timestamp) || 0) < since || !forgedFlagsOf(message).length) continue;
+        try {
+            if (await onForgedCard(message)) traced.push(message.id);
+        } catch (err) {
+            error("Could not trace a message carrying a GM's flags written while no GM was connected", err);
+        }
+    }
+    return traced;
 }
 
 /* ---------------------------------------------------------------------------
@@ -2902,7 +3017,9 @@ export function sheetWrites({ quiet = false } = {}) {
             // A flagged write's decision (C5): which, and the GM who made it.
             decided: row.decided ? `${row.decided.how} (${game.users.get(row.decided.by ?? "")?.name ?? row.decided.by ?? "?"})` : "-",
             // A trace's words (C5a): what was refused, forged or put back, as the GMs read it; "-" for a write's row.
-            what: TRACE_WORDS[row.verdict] ? game.i18n.format(TRACE_WORDS[row.verdict], { sub: row.sub ?? "?" }) : "-"
+            what: TRACE_WORDS[row.verdict] ? game.i18n.format(TRACE_WORDS[row.verdict], { sub: row.sub ?? "?" }) : "-",
+            // How many traces inside WARN_EVERY_MS the row counts (fix r1-G1); 1 for a write's row.
+            times: row.n ?? 1
         }));
     if (!quiet) {
         console.log(game.i18n.format("DRPG.Audit.listTitle", { n: rows.length }));
@@ -2961,6 +3078,7 @@ export function registerSheetAudit() {
     Hooks.on("renderChatMessageHTML", onRenderFlagged);
     Hooks.on("createChatMessage", onRollHeard);
     Hooks.on("createChatMessage", message => { void onForgedCard(message); });
+    Hooks.on("updateChatMessage", (message, changes, options, userId) => { void onForgedUpdate(message, changes, userId); });
     Hooks.on("createActor", actor => { if (actor?.type === "character") void refillMarks(); });
     Hooks.on("userConnected", primaryLeft);
     Hooks.on("deleteActor", actor => {
@@ -2973,5 +3091,6 @@ export function registerSheetAudit() {
         if (!isPrimaryGm() || gmStoresQuiet()) return;
         void compareAtReady();
         void fillMarks();
+        void traceForgedAtReady();
     });
 }

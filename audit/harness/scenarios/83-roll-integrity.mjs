@@ -10,7 +10,8 @@
  *
  * THE READINGS (`readings()` below), taken on every client before a road and again after it:
  *   - the GM: `rollFlags({ quiet: true })` and `sheetWrites({ quiet: true })` (roll-draw.mjs,
- *     sheet-audit.mjs) - the rows that were not there before. Two verdicts are not flags and are kept
+ *     sheet-audit.mjs) - the rows that were not there before, or that counted another trace since
+ *     (`times`: fix r1-G1 folds a repeat inside 30 s onto its row). Two verdicts are not flags and are kept
  *     apart: `listed`, what a player may move within its bounds (E29 Q2 (a)), and `covered`, a gain that
  *     stood on a judge - a Rest, an item used, a Search's find, a price (sheet-audit.mjs `record`, E29
  *     fix r1-G4: "nothing is said") - which is how L1 and L7 read that their judge ran. The cards
@@ -99,7 +100,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             const A = await import("${SCRIPT("sheet-audit")}"), D = await import("${SCRIPT("roll-draw")}"), S = await import("${SCRIPT("gm-stores")}");
             await A.sheetAuditIdle();
             g.flags = new Set(D.rollFlags({ quiet: true }).map(r => r.rollId));
-            g.writes = new Set(A.sheetWrites({ quiet: true }).map(r => r.id));
+            g.writes = new Map(A.sheetWrites({ quiet: true }).map(r => [r.id, r.times ?? 1]));
             g.rolls = new Set(Object.keys(S.rollStore.entries() ?? {}));
         }
         return true;`;
@@ -115,9 +116,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
             const flagged = D.rollFlags({ quiet: true }).filter(r => !g.flags.has(r.rollId));
             out.flags = flagged.map(r => r.character + " (" + r.action + "): " + r.flags);
             out.flagRows = flagged.map(r => ({ rollId: r.rollId, character: r.character, player: r.player, action: r.action, flags: r.flags }));
-            const rows = A.sheetWrites({ quiet: true }).filter(r => !g.writes.has(r.id))
+            const rows = A.sheetWrites({ quiet: true }).filter(r => g.writes.get(r.id) !== (r.times ?? 1))
                 .map(r => ({ text: r.character + " " + r.verdict + " " + r.reason + ": " + r.change, verdict: r.verdict, reason: r.reason, character: r.character,
-                    id: r.id, player: r.player, change: r.change, what: r.what }));
+                    id: r.id, player: r.player, change: r.change, what: r.what, times: r.times ?? 1, ref: St.sheetWriteStore.entries()?.[r.id]?.ref ?? null }));
             out.rows = rows.filter(r => r.verdict !== "listed" && r.verdict !== "covered").map(r => r.text);
             out.trace = rows.filter(r => r.verdict !== "listed" && r.verdict !== "covered");
             out.warns = g.warns.filter(w => w.n > g.warnMark).map(w => w.text);
@@ -434,7 +435,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     /* p1 posts Aiko's duality card as Daggerheart writes one, with Hope, and asks Daggerheart's relay for its Hope
        (actor.mjs `modifyResource`), as 20-crit-hope does. The plan wrote "listed" for it; measured on 07.10.2026
        (e33run/scratch/c4/logs/r1.log) the write leaves no row at all - it is written on the GM's client (CLAUDE.md, the
-       trust model), and the audit judges a player's writes - so it ran is read off Aiko's Hope alone. */
+       trust model), and the audit judges a player's writes - so it ran is read off Aiko's Hope alone. Since fix r1-G1
+       (round 1's sec m5 = cor M5) the gain the card covered has a `covered` row naming the card (sheet-audit.mjs
+       keepGainRow), set aside by quietOf as every covered row is and read by L10's third check. */
     phase("L10: Daggerheart's own roll's Hope, through the relay", { flow: "sheet-audit" });
     await setOn(aiko, { "system.resources.hope.value": 2 });
     await settle(300);
@@ -453,6 +456,9 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     await p1.eval(`await game.messages.get(${J(l10.card ?? "none")})?.delete(); return true;`);
     road("L10", "the Hope Aiko's own roll asked for lands on the GM", Boolean(l10.card) && l10Now.hope === 3,
         r10, { l10, hope: l10Now.hope, listed: r10.gm.listed, covered: r10.gm.covered });
+    check("L10: the gain's covered row names Aiko's card, the Hope from 2 to 3 and no reason", Boolean(l10.card)
+        && r10.gm.covered.filter(x => x.ref === l10.card).map(x => x.change + " / " + x.reason).join("|") === "system.resources.hope.value: 2 -> 3 / -",
+        J({ card: l10.card, covered: r10.gm.covered }), { flow: "sheet-audit" });
 
     /* ------------ the repeats: L4 and L7 with the players' resources unlocked ------------ */
 
@@ -836,10 +842,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
        modifyResource) - as L10 does for a statistic's card - then asks for it a second time on the same card. Its
        dice are p1's browser's: what stands on them is layer two's open part (CLAUDE.md, the trust model; E29 2.5),
        so the first Hope stands. The plan's 2.4 has it `listed`, naming the message; measured on 07.10.2026
-       (e33run/c5b-a1/it2.log) it leaves no row at all, as L10 does - C4's round-1 finding (a), open: the GM
-       counts the card against the one gain it covers (sheet-audit.mjs relayGainRefusal, rollsCounted) and keeps
-       no row of it. What ties the gain to p1's card is read instead: the card covers one gain, so the second ask
-       is refused with a `refused` row naming p1, and p1 is told `relay`. */
+       (e33run/c5b-a1/it2.log) it left no row at all at c618bf9, as L10 did - C4's round-1 finding (a); since fix
+       r1-G1 (round 1's sec m5 = cor M5) the GM keeps a `covered` row of the one gain the card covers, naming the
+       card (sheet-audit.mjs keepGainRow), and a roll a row names covers nothing again after a reload either. What
+       ties the gain to p1's card is read off that row and the second ask: refused with a `refused` row naming p1,
+       and p1 told `relay`. */
     phase("F4b: a card shaped as Daggerheart's item roll, then its Hope through the relay, twice", { flow: "sheet-audit" });
     await setOn(aiko, { "system.resources.hope.value": 2 });
     await settle(400);
@@ -860,11 +867,44 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
     const f4bNow = await onAll(hopeOf(aiko));
     await p1.eval(`await game.messages.get(${J(f4b.card ?? "none")})?.delete(); return true;`);
     forgery("F4b", { ran: "p1's item card was written and its Hope asked twice", undone: "the first Hope stands (3 on all four clients, layer two's open part), the second is never applied",
-        trace: "the card covers one gain: the second ask leaves a refused row naming p1, and p1 told `relay`" },
+        trace: "the card covers one gain, its covered row naming the card: the second ask leaves a refused row naming p1, and p1 told `relay`" },
     { did: Boolean(f4b.card), undone: allAre(f4bOnce, 3) && allAre(f4bNow, 3), r: rf4b,
         own: x => x.startsWith(`row: ${names.aiko} refused `) || x === "p1 refused: daggerheart relay",
-        trace: p1Rows(rf4b, "refused", names.aiko).length === 1 && rf4b.p1.refused.some(x => x[1] === "relay"),
+        trace: p1Rows(rf4b, "refused", names.aiko).length === 1 && rf4b.p1.refused.some(x => x[1] === "relay")
+            && rf4b.gm.covered.some(x => x.ref === f4b.card && x.player === names.p1 && x.character === names.aiko),
         details: { f4b, once: f4bOnce, now: f4bNow } });
+
+    /* ------------- F4c. The draw's flags written onto p1's own card by update ------------- */
+
+    /* p1's console writes a plain duality card of Aiko's, as Daggerheart does, then adds the draw's two flags to it
+       with Foundry's own update, as a card's author may: the creation's check (sheet-audit.mjs onForgedCard) saw no
+       flag, and until fix r1-G1 (review round 1's sec m4) nothing read the update - the card carried the flags
+       untraced. The primary's `updateChatMessage` hook (onForgedUpdate) now traces it as a create is: a forged row
+       naming p1 and the flags, one card to the GMs; the card is still read as nothing. Inside 30 s of F4 the row is
+       F4's, counting one more and naming this card too (the fold of sec M1), which the readings count as new. */
+    phase("F4c: the draw's flags added to p1's own card by update", { flow: "sheet-audit" });
+    mark = await readings();
+    const f4c = await p1.eval(`const a = game.actors.get("${aiko}");
+        const roll = { class: "DualityRoll", formula: "1d12 + 1d12", total: 13, evaluated: true, dHope: { total: 4 }, dFear: { total: 9 },
+            dice: [{ faces: 12, total: 4, results: [{ result: 4, active: true }] }, { faces: 12, total: 9, results: [{ result: 9, active: true }] }],
+            options: { actionType: "action" } };
+        const m = await ChatMessage.create({ author: game.user.id, speaker: ChatMessage.getSpeaker({ actor: a }), content: '<div class="dice-roll">Duality</div>',
+            rolls: [roll], system: { roll } });
+        await new Promise(r => setTimeout(r, 600));
+        const updated = await m?.update({ "flags.${MOD}.drawn": true, "flags.${MOD}.rollId": "C5BINVENTEDROLL2" }).then(() => true).catch(err => String(err?.message ?? err));
+        return { card: m?.id ?? null, updated };`, { timeout: 60000 });
+    await settle(1500);
+    const rf4c = await mark.since();
+    const f4cRead = await onAll(`const P = await import("${SCRIPT("private-rolls")}"); const m = game.messages.get(${J(f4c.card ?? "none")});
+        return m ? [P.isDrawnRoll(m), P.forgedFlagsOf(m).length] : null;`);
+    await p1.eval(`await game.messages.get(${J(f4c.card ?? "none")})?.delete(); return true;`);
+    forgery("F4c", { ran: "p1's plain card was written and the draw's flags added to it by its author's update",
+        undone: "not read as drawn on any client, its two flags read as a forgery on each",
+        trace: "a forged row naming p1 and the card's flags, and one card to the GMs" },
+    { did: Boolean(f4c.card) && f4c.updated === true, undone: allAre(f4cRead, [false, 2]), r: rf4c,
+        own: x => x.startsWith(`row: ${names.aiko} forged `) || x.startsWith("audit card: "),
+        trace: p1Rows(rf4c, "forged", names.aiko).some(x => x.change.includes(`flags.${MOD}.drawn`) && x.change.includes(`flags.${MOD}.rollId`)) && rf4c.gm.audit.length === 1,
+        details: { f4c, read: f4cRead } });
 
     /* ----------- F6a. "Reroll action roll" on a drawn roll's card ----------- */
 
@@ -1019,6 +1059,6 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
         return true;`, { timeout: 60000 });
     await settle(800);
 
-    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F6a", "F6b", "F5c", "F5b"];
+    const forgeries = ["F1", "F1b", "F2", "F3", "F5a", "F7", "F4", "F4b", "F4c", "F6a", "F6b", "F5c", "F5b"];
     note("the forgeries that ran", J(forgeries.map(k => `${k}: ${forged[k] ? "ran" : "DID NOT RUN"}`)));
 }

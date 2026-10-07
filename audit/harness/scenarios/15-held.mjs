@@ -25,7 +25,8 @@
  * never answers a draw - p1's Search ends at the draw's 30 s as a closed window (G2); the GM leaving while
  * p1's Search window is open - the draw refused at the build and the price given back (G1, the drop); a
  * statistic clicked with no GM is a reaction, stamped, and Grant all moves nothing for it (G3); and a
- * message with the draw's flags written with no GM is read as nothing by the GM who returns (G4).
+ * message with the draw's flags written with no GM is read as nothing by the GM who returns (G4), who since
+ * fix r1-G1 traces it once its stores are ready: one forged row naming it, the GMs told once.
  */
 export const layers = ["ci"];
 
@@ -392,24 +393,25 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         J(a5), { flow: "gm-rolls-total" });
 
     /* G4, read on gm0 (doubt (d)): it holds p1's card and reads it as nothing - not drawn, since only a GM's
-       message is (private-rolls.mjs `isDrawnRoll`) - and whether a `forged` row or a GMs' card names it is
-       in the details: reported, not asserted, as C6 does not change what a returning GM checks. */
+       message is (private-rolls.mjs `isDrawnRoll`) - and, since fix r1-G1 (review round 1's sec m3), traces it
+       once its stores hold the rows (sheet-audit.mjs `traceForgedAtReady`): one `forged` row naming the card and
+       one GMs' card. Measured at ba0cade, where nothing scanned at ready: rows 0, told 0. */
     let g4Gm = null;
     try {
         g4Gm = await gm0.eval(`const P = await import("${repoUrl}/scripts/private-rolls.mjs"), S = await import("${repoUrl}/scripts/gm-stores.mjs");
             const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
             const id = ${J(g4.card ?? "none")}, m = game.messages.get(id);
             const out = { held: Boolean(m), author: m?.author?.id ?? null, drawn: m ? P.isDrawnRoll(m) : null, forged: m ? P.forgedFlagsOf(m) : null,
-                rows: Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.verdict === "forged").length,
+                rows: Object.values(S.sheetWriteStore.entries() ?? {}).filter(r => r?.verdict === "forged" && (r.messageId === id || (r.messages ?? []).includes(id))).length,
                 told: game.messages.contents.filter(x => (cardFlag(x, "forgedCard") ?? x.flags?.["${MOD}"]?.forgedCard) === id).length };
             await m?.delete();
             return out;`, { timeout: 30000 });
     } catch (err) {
         g4Gm = { error: String(err?.message ?? err) };
     }
-    check("G4: a message with the draw's flags p1 wrote while no GM was connected is held by the GM who returns and read there as nothing - not drawn",
+    check("G4: a message with the draw's flags p1 wrote while no GM was connected is held by the GM who returns, read there as nothing - not drawn - and traced once its stores are ready: one forged row naming it, the GMs told once",
         typeof g4.card === "string" && g4.author === IDS.p1 && g4Gm?.held === true && g4Gm.author === IDS.p1 && g4Gm.drawn === false
-        && J(g4Gm.forged) === J([`flags.${MOD}.drawn`, `flags.${MOD}.rollId`]), J({ g4, g4Gm }), { flow: "sheet-audit" });
+        && J(g4Gm.forged) === J([`flags.${MOD}.drawn`, `flags.${MOD}.rollId`]) && g4Gm.rows === 1 && g4Gm.told === 1, J({ g4, g4Gm }), { flow: "sheet-audit" });
 
     for (const [who, client] of [["p1", p1], ["gm0", gm0]]) {
         const errs = await client.eval(`return globalThis.__errors.slice(0, 5);`).catch(err => [String(err?.message ?? err)]);

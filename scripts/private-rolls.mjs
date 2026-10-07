@@ -1190,7 +1190,9 @@ const DRAWN_FLAG = "drawn";
  * - the stamp itself is the roller's own. A message whose author is not a GM and that carries one of
  * them is a forgery: it is not read as drawn (`isDrawnRoll`), awards nothing (despair-award.mjs,
  * sheet-audit.mjs `rollCovering`), and the primary names it to the GMs once (sheet-audit.mjs
- * `onForgedCard`). The module's other GM-written card flags are read through the card's writer
+ * `onForgedCard` - at its creation, at an update that writes one of them (`onForgedUpdate`,
+ * `gmOnlyFlagsIn` below) and, for one written while no GM was connected, at the primary's ready
+ * (`traceForgedAtReady`); fix r1-G1). The module's other GM-written card flags are read through the card's writer
  * where they grant anything (secret.mjs `cardWriter` and `GM_META`: `ruling`, the audit's cards,
  * `gmPopup`, `callCard`) and are not in this list. E33 C12's `publicRoll` joins it here.
  */
@@ -1201,6 +1203,16 @@ export function forgedFlagsOf(message) {
     if (!message || message.author?.isGM) return [];
     return GM_ONLY_FLAGS.filter(name => foundry.utils.getProperty(message.flags?.[MODULE_ID] ?? {}, name) !== undefined)
         .map(name => `flags.${MODULE_ID}.${name}`);
+}
+
+/**
+ * The `GM_ONLY_FLAGS` an update's changes write - the flag itself, a path under it, or a parent object
+ * that holds it - as `forgedFlagsOf` names them; [] for none (fix r1-G1, sheet-audit.mjs `onForgedUpdate`).
+ */
+export function gmOnlyFlagsIn(changes) {
+    const keys = Object.keys(foundry.utils.flattenObject(changes ?? {}));
+    return GM_ONLY_FLAGS.map(name => `flags.${MODULE_ID}.${name}`)
+        .filter(path => keys.some(key => key === path || key.startsWith(`${path}.`) || path.startsWith(`${key}.`)));
 }
 
 /**
