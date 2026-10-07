@@ -1573,8 +1573,13 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        situation it read and the flags it raised. One roll is flagged, and for two reasons this file
        gives it: the trap victim's roll of the fight above is thrown straight at `rollTrait`, past the
        crisis menu, so no GM was asked its statistic (`pick`, fix r2-H8's), and it lacks the die a trap's
-       victim is owed (murder.mjs `crisisSituational`), which the GM counts since C9 and the harness's
-       roll, with no roll window, cannot carry (`advantage`, +1 against 0, from the situation). Measured
+       victim is owed (murder.mjs `crisisSituational`), which the GM counts since C9 and no roll thrown
+       past the menu carries: the menu arms it (`takeCrisisAction`) and the roll window applies what is
+       armed (roll-dialog.mjs `advantageSources`) (`advantage`, +1 against 0, from the situation). Until
+       E33 C2b this said the harness's roll, with no roll window, could not carry it; since C2b the window
+       is a stand-in on which the module's hooks run, and the flag stays - measured with E29 C9's probe
+       on a2d871c and on C2b's tree, the same two flags on that roll and none on any other
+       (e33run/scratch/c2b/logs/s13-head.log, s13-after.log). Measured
        on C9's tree (e29run/c9a1): those two flags on that roll, none on the eight others. With no pick the
        GM threw that roll on the statistic it claimed until E29 fix r2-H2 (the round-2 security review's M2;
        its record held to none); since, on the lowest the trap victim's table lists as the GM holds Aiko,

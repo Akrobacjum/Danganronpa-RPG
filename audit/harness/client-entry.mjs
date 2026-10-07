@@ -127,6 +127,16 @@ for (const k of ["HTMLElement", "HTMLInputElement", "HTMLSelectElement", "HTMLTe
             set(value) { own.set?.call(this, value); }
         });
     }
+    /* AND A FORM IS STILL AN HTMLElement (E33 C2b, 07.10.2026). The proxy above stands in the form's
+       prototype chain where HTMLElement.prototype stood, and `instanceof` walks past it without meeting
+       that prototype: every form here answered `form instanceof HTMLElement` false, which no browser
+       does. Measured on C2b's roll window, Daggerheart's a `form` (d20RollDialog.mjs:26): roll-dialog.mjs's
+       render hook read the element as jQuery's - its `[0]`, a form's first control - and did nothing
+       (e33run/scratch/c2b/logs/t2-dbg1.log: HTMLFormElement, instanceof false). Answered here for
+       HTMLElement itself; its subclasses keep the plain test. */
+    const HE = dom.window.HTMLElement, plain = Function.prototype[Symbol.hasInstance];
+    Object.defineProperty(HE, Symbol.hasInstance, { configurable: true,
+        value(v) { return plain.call(this, v) || (this === HE && plain.call(dom.window.HTMLFormElement, v)); } });
 }
 if (!globalThis.requestAnimationFrame) {
     globalThis.requestAnimationFrame = fn => setTimeout(() => fn(performance.now()), 16);
@@ -802,7 +812,8 @@ globalThis.__harnessWorldState = () => JSON.parse(JSON.stringify({
  * E08+E28 C10 `diceRoll` hands the config to the roll class's `build`
  * (Daggerheart's own classes, `installDualityRoll` above): the dice are drawn from `CONFIG.Dice.randomUniform`,
  * which globalThis.__forceRoll = {hope, fear} scripts for one evaluation, and the
- * roll window stands in as pressed at once; game.drpg.suiteRolling asks for none.
+ * roll window is the harness's stand-in, the module's hooks running on it (since E33 C2b;
+ * lib/dh-dice/applications/dialogs/d20RollDialog.mjs); game.drpg.suiteRolling asks for none.
  *
  * THE MESSAGE AS 2.6.5 WRITES IT (E06 C1, 27.09.2026), read in its source, not measured on a
  * real message (LIVE-E06-02 does that). actor.mjs `rollTrait` (:568-590) gives the config a
@@ -857,7 +868,9 @@ classes.Actor.prototype.diceRoll = async function diceRoll(config) {
     config.resourceUpdates = new ResourceUpdateMap(this);
     // The experiences the roll dialog would have picked (d20RollDialog.mjs keeps them on the
     // config): none, unless a test names them in globalThis.__forceExperiences, as __forceRoll
-    // names the dice (E06 fix r1-G1: the Reroll's bookmark keeps them).
+    // names the dice (E06 fix r1-G1: the Reroll's bookmark keeps them). Where the window opens
+    // (E33 C2b) they are the chips its stand-in clicks: the window empties the list it is given
+    // (d20RollDialog.mjs:12), and a chip the module locked refuses the click.
     config.experiences = [...(config.experiences ?? globalThis.__forceExperiences ?? [])];
 
     // The harness's own keys since E30, on the config before the roll is built as they were

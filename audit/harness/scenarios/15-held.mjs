@@ -121,11 +121,17 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
 
     // A2: a statistic from the sheet, its resources committed afterwards as Daggerheart's
     // character sheet does (character-sheet.mjs:855, 2.10.5) - the harness's `rollTrait` leaves that to its caller.
+    // Shift-clicked (character-sheet.mjs:847 hands the click's event on; d20Roll.mjs:70, 2.10.5 - D20Roll's
+    // `applyKeybindings`, overriding dhRoll.mjs:219's same rule - sets `dialog.configure` false on a Shift-, Alt- or
+    // Ctrl-click, so Daggerheart itself skips the window): since E33 C2b a plain click opens the harness's roll
+    // window, where roll-dialog.mjs `forceReaction` makes Aiko's statistic a reaction, and A3's Grant all then moved
+    // no Hope (2 -> 2, C2b, 07.10.2026). Before C2b no window opened and the roll was the skipped window's without
+    // saying so; A3 reads its Hope moved once.
     const sentFrom = socketTraffic.length;
     const a2 = await p1.eval(`${AIKO} globalThis.__forceRoll = { hope: 9, fear: 4 };
         const hope = aiko.system.resources.hope.value;
         let config = null;
-        try { config = await aiko.rollTrait("instinct"); } finally { delete globalThis.__forceRoll; }
+        try { config = await aiko.rollTrait("instinct", { event: { shiftKey: true } }); } finally { delete globalThis.__forceRoll; }
         const owed = config?.resourceUpdates ? [...config.resourceUpdates.keys()] : null;
         await config?.resourceUpdates?.updateResources();
         await new Promise(r => setTimeout(r, 800));

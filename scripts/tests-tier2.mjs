@@ -914,12 +914,16 @@ async function playerRollBookmark(player, actor, actionKey, context = {}, { reco
  * opening's nothing - their turn and their stage are the test's; `ready`, where given, is awaited
  * after that and just before the packet is judged (E29 fix r1-G5: what the draw must meet). `trait`
  * is the statistic of the roll the packet is cut from, so its formula carries that statistic's
- * value (Eye unless named; E29 fix r1-G10). Answers the verdict, what was sent back, the
- * answer's value, the GM's message and record, and `putBack`, which deletes both messages and the
- * record, puts Daggerheart's Fear back as found and the payment's actions as they were. Ask the
- * world's rows first - it writes.
+ * value (Eye unless named; E29 fix r1-G10). `window` (E33 C2b) throws that roll through Daggerheart's
+ * roll window, which the suite's rolls skip (`suiteRolling`), as the action's own roll (`remember`), so
+ * the Calls armed on the character are the window's and not shielded from it (action-rolls.mjs
+ * `shieldCalls`); `experiences` are the chips its player clicks (`neutralRoll`). Answers the verdict,
+ * what was sent back, the answer's value, the GM's message and record, and `putBack`, which deletes
+ * both messages and the record, puts Daggerheart's Fear back as found and the payment's actions as
+ * they were. Ask the world's rows first - it writes.
  */
-async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null, trait = "eye" } = {}) {
+async function drawnForPlayer(player, actor, { actionKey = "search", faces = { hope: 9, fear: 4 }, edit = null, watch = null, pay = true, ready = null, trait = "eye",
+    window: throughWindow = false, experiences = null } = {}) {
     const G = await import("./bridge-guards.mjs");
     const P = await import("./private-rolls.mjs");
     const D = await import("./roll-draw.mjs");
@@ -930,10 +934,13 @@ async function drawnForPlayer(player, actor, { actionKey = "search", faces = { h
         if (!packet && config?.[P.ROLL_NONCE]) packet = D.drawPacketOf(roll, config, { subject: actor, actionKey });
     });
     const made = [];
+    const rolling = game.drpg.suiteRolling;
     let thrown;
     try {
-        thrown = await neutralRoll(actor, { trait });
+        if (throughWindow) game.drpg.suiteRolling = false;
+        thrown = await neutralRoll(actor, { trait, remember: throughWindow, experiences });
     } finally {
+        game.drpg.suiteRolling = rolling;
         Hooks.off(`${game.system.id}.postDualityRollConfiguration`, hook);
     }
     made.push(thrown.message?.id);
@@ -984,6 +991,53 @@ async function payAction(actor) {
     if (left < 1) await trustedWrite(actor, { [path]: 1 }, { reason: "gmRuling" });
     await trustedWrite(actor, { [path]: Math.max(1, left) - 1 }, { reason: "gmRuling", [PAID_AS_PLAYER]: true });
     return { back: async () => { if (actionsLeft(actor) !== left) await trustedWrite(actor, { [path]: left }, { reason: "gmRuling" }); } };
+}
+
+/**
+ * A PLAYER'S ROLL AS ITS WINDOW CONFIGURED IT, DRAWN BY THE GM (E33 C2b, 07.10.2026). `entry`, a Call,
+ * is armed on the player's character by the GM (`appendArmedCall`) under a nonce of its own, and the
+ * roll the packet is cut from is thrown through Daggerheart's roll window (`drawnForPlayer`'s
+ * `window`), where roll-dialog.mjs's hooks apply it. Nothing is put on the packet's roll: what is on
+ * it is what the window put there. The packet names the Call, as a roller's browser names the Calls
+ * its window applied (`noteWindowCalls`; this roll is the GM's own, whose claim is not the packet's),
+ * and the Call, spent by that roll, is armed again under its nonce before the GM judges the packet.
+ * `options` go to `drawnForPlayer`. Answers its answer and the Call's nonce; the caller puts the
+ * draw back and spends what is left armed.
+ */
+async function windowDraw(player, theirs, entry, options = {}) {
+    const E = await import("./call-effects.mjs");
+    const call = { amount: null, ...entry, nonce: `E33C2B${entry.key.toUpperCase()}${foundry.utils.randomID(6)}` };
+    const armed = async () => {
+        if (!E.armedCallsShown(theirs).some(c => c.nonce === call.nonce)) await E.appendArmedCall(theirs, call);
+    };
+    await armed();
+    must(E.armedCallsShown(theirs).some(c => c.nonce === call.nonce), `the ${entry.key} was not armed - this would measure nothing`);
+    const F = await drawnForPlayer(player, theirs, { faces: { hope: 7, fear: 4, advantage: 5 }, window: true,
+        edit: p => ({ ...p, calls: [call.nonce] }), ready: armed, ...options });
+    return { ...F, nonce: call.nonce };
+}
+
+/* The Calls `windowDraw` armed on the character and nobody spent, spent. */
+async function windowCallsBack(theirs) {
+    const E = await import("./call-effects.mjs");
+    const left = E.armedCallsShown(theirs).map(c => c.nonce).filter(n => String(n).startsWith("E33C2B"));
+    if (left.length) await E.spendCallsByNonce(theirs, left);
+}
+
+/*
+ * What a drawn roll adds up to on the GM's faces, read off its packet (E29 C10, 05.10.2026; shared since
+ * E33 C2b): the Hope and the Fear die, the advantage die's kept face with its sign, the packet's numbers.
+ */
+function totalAsBuilt(F) {
+    const terms = F.packet.roll.terms;
+    const sign = terms[4]?.class === "AdvantageDie" ? 1 : terms[4]?.class === "DisadvantageDie" ? -1 : 0;
+    const kept = sign ? Math.max(...(F.record.dice?.[2]?.results ?? []).filter(r => r.active).map(r => r.result)) : 0;
+    return F.record.hope + F.record.fear + sign * kept + numbersOn(terms);
+}
+
+/* The numbers on a roll's terms, JSON as a packet carries them, each with its sign. */
+function numbersOn(terms) {
+    return terms.reduce((sum, t, i) => sum + (typeof t?.number === "number" && !("faces" in t) ? (terms[i - 1]?.operator === "-" ? -1 : 1) * t.number : 0), 0);
 }
 
 /**
@@ -1512,27 +1566,44 @@ function playerRollCard(player, student) {
 }
 
 /**
- * A ROLL WINDOW STOOD IN FOR (E08+E28 C7, 03.10.2026). Daggerheart's roll window is not in the
- * harness, so roll-dialog.mjs's two hooks are called on a stand-in carrying what they read:
- * the `roll-selection` class, the roll's config with the character as `data.parent`, and the
- * markup a test reads (`html`). Called directly, not through `Hooks.callAll`: every other
- * window hook of the module would be handed the stand-in too. `open()` is the first render;
- * `render()` is a redraw, a beat later, as the module asks for one; `submit()` is the close of
- * a pressed Roll and `cancel()` of a window closed unsubmitted (`config` false), both awaited.
+ * A ROLL WINDOW (E08+E28 C7, 03.10.2026; Daggerheart's own since E33 C2b). The window Daggerheart's
+ * duality roll opens (its `DefaultDialog`: at a table Daggerheart's, headless the harness's stand-in,
+ * lib/dh-dice/applications/dialogs/d20RollDialog.mjs), on that roll built from `config` as its `build`
+ * builds one (`createRollInstance`) - its data the character's roll data with the character as its
+ * `parent` unless `config.data` names some, its advantage none unless `config.roll` says. The module's
+ * hooks run on it as Foundry fires them, every other window hook of the module's too. `open()` renders
+ * it and waits for the renders its hooks asked for; `renders` counts the renders the hooks were handed;
+ * `submit()` presses Roll and `cancel()` closes it unsubmitted, each waiting for what the close hook
+ * writes; `note()` is the module's line for the Calls that wait. Until C2b the two hooks were called
+ * directly on a div carrying the class, a config and the markup a test passed; at a table this opens
+ * Daggerheart's window, not measured there.
  */
-async function rollWindow(actor, config = {}, html = "") {
-    const D = await import("./roll-dialog.mjs");
-    const element = document.createElement("div");
-    element.className = "application roll-selection";
-    element.innerHTML = html;
+async function rollWindow(actor, config = {}) {
+    const DR = game.system.api.dice.DualityRoll;
+    const data = config.data ?? Object.defineProperty(actor.getRollData(), "parent", { value: actor, configurable: true });
+    const cfg = { ...config, roll: { advantage: 0, ...(config.roll ?? {}) }, source: { actor: actor.uuid, ...(config.source ?? {}) }, data };
+    const app = new DR.DefaultDialog(DR.createRollInstance(cfg), cfg);
+    let renders = 0;
+    const counting = Hooks.on("renderApplicationV2", shown => { if (shown === app) renders += 1; });
+    const done = async options => {
+        if (app.rendered) await app.close(options);
+        Hooks.off("renderApplicationV2", counting);
+        await settle();
+    };
     return {
-        element, options: { classes: ["roll-selection"] }, renders: 0,
-        config: { roll: {}, ...config, data: { parent: actor } },
-        open() { this.renders += 1; D.onRenderApplication(this, this.element); return this; },
-        render() { this.renders += 1; queueMicrotask(() => D.onRenderApplication(this, this.element)); return this; },
-        submit() { return D.onCloseApplication(this); },
-        cancel() { this.config = false; return D.onCloseApplication(this); },
-        note() { return this.element.querySelector(".drpg-calls-waiting")?.textContent ?? null; }
+        app, config: cfg,
+        get roll() { return app.roll; },
+        get element() { return app.element; },
+        get renders() { return renders; },
+        async open() {
+            await app.render({ force: true });
+            if (typeof app.settled === "function") await app.settled();
+            else await settle();
+            return this;
+        },
+        submit() { return done({ submitted: true }); },
+        cancel() { return done(); },
+        note() { return app.element?.querySelector(".drpg-calls-waiting")?.textContent ?? null; }
     };
 }
 
@@ -6003,14 +6074,6 @@ const SCENARIOS = [
             ["meddle +1", { key: "meddle", grants: "bonus", amount: 1 }, true, p => addedToPacket(p, 1)],
             ["meddle -1", { key: "meddle", grants: "bonus", amount: -1 }, true, p => addedToPacket(p, -1)]
         ];
-        // What the packet's roll adds up to on the GM's faces: its Hope and Fear die, its advantage die's kept face, its numbers.
-        const asBuilt = F => {
-            const terms = F.packet.roll.terms;
-            const sign = terms[4]?.class === "AdvantageDie" ? 1 : terms[4]?.class === "DisadvantageDie" ? -1 : 0;
-            const kept = sign ? Math.max(...(F.record.dice?.[2]?.results ?? []).filter(r => r.active).map(r => r.result)) : 0;
-            const numbers = terms.reduce((sum, t, i) => sum + (typeof t?.number === "number" && !("faces" in t) ? (terms[i - 1]?.operator === "-" ? -1 : 1) * t.number : 0), 0);
-            return F.record.hope + F.record.fear + sign * kept + numbers;
-        };
         const read = [], armed = [];
         try {
             for (const [label, entry, byStore, edit] of sources) {
@@ -6019,7 +6082,7 @@ const SCENARIOS = [
                 const F = await drawnForPlayer(player, theirs, { faces: { hope: 7, fear: 4 }, edit: p => edit({ ...p, calls: [nonce] }) });
                 try {
                     must(F.record, `the GM kept no record of the ${label} draw - this would measure nothing`);
-                    read.push([label, (F.record.flags ?? []).map(f => f.kind), F.record.total === asBuilt(F)]);
+                    read.push([label, (F.record.flags ?? []).map(f => f.kind), F.record.total === totalAsBuilt(F)]);
                 } finally {
                     await F.putBack();
                 }
@@ -7189,7 +7252,6 @@ const SCENARIOS = [
         const [actor] = cast(1);
         const C = await import("./call-effects.mjs");
         const { DRPG_ACTION_ROLL } = await import("./action-rolls.mjs");
-        const DR = game.system.api.dice.DualityRoll;
         const AdvantageDie = game.system.api.dice.diceTypes?.AdvantageDie ?? CONFIG.Dice.termTypes?.AdvantageDie;
         must(typeof AdvantageDie === "function", "Daggerheart names no advantage die - this would measure nothing");
         let win = null;
@@ -7197,13 +7259,9 @@ const SCENARIOS = [
             await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
             must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
             must(await C.armCall(actor, { key: "support", kind: "hope", grants: "advantage" }), "the Support could not be armed");
-            win = await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "eye", type: "trait", advantage: 0 }, source: { actor: actor.uuid }, experiences: [] });
             const data = { ...actor.getRollData(), parent: actor };
             data.rules = { ...(data.rules ?? {}), roll: { ...(data.rules?.roll ?? {}), defaultAdvantageDice: 8 } };
-            win.config.data = data;
-            win.roll = DR.createRollInstance(win.config);
-            win.open();
-            await settle();
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true, roll: { trait: "eye", type: "trait", advantage: 0 }, source: { actor: actor.uuid }, experiences: [], data })).open();
             const built = typeof win.roll.constructFormula === "function";
             if (built) win.roll.constructFormula(win.config);
             const term = win.roll.terms?.[4] ?? null;
@@ -7215,6 +7273,173 @@ const SCENARIOS = [
             await win?.cancel();
             await C.consumeCalls(actor);
         }
+    }],
+
+    ["a Support's advantage die is in the roll the harness throws and scored without a flag", async () => {
+        /*
+         * E33 C2b, 07.10.2026; the plan's E29 Q5 (b). Until C2b the harness's roll window was pressed at
+         * once, so a Call's die was on no roll the harness threw: the GM counted the Support and flagged
+         * the roll it drew (advantage +1 expected, 0 claimed), and E29's tests put the die on the packet
+         * by hand (C10's "a roll its window built right ..."). A player's Support armed by the GM and the
+         * packet cut from a roll thrown through the window, nothing put on it (`windowDraw`). Read: the
+         * packet's fifth term - its class and faces - the die in its formula, the record's flags and
+         * whether its total is its dice as built.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        let F = null;
+        try {
+            F = await windowDraw(player, theirs, { key: "support", kind: "hope", grants: "advantage" });
+            must(F.record, "the GM kept no record of the draw - this would measure nothing");
+            const term = F.packet.roll.terms[4] ?? null;
+            equal(stableJson([term?.class ?? null, term?.faces ?? null, / \+ 1d6a\b/.test(F.packet.roll.formula ?? ""),
+                (F.record.flags ?? []).map(f => f.kind), F.record.total === totalAsBuilt(F)]),
+            stableJson(["AdvantageDie", 6, true, [], true]),
+            "the window did not put the Support's die on the roll the harness threw, or the GM flagged the roll or scored it other than as built (the fifth term's class and faces, the formula's die, flags, total as built)");
+        } finally {
+            await F?.putBack();
+            await windowCallsBack(theirs);
+        }
+    }],
+
+    ["an Experience a Call bought is in the formula the harness throws and scored without a flag", async () => {
+        /*
+         * E33 C2b, 07.10.2026; the plan's E29 Q5 (b). An Experience Call opens the experience chips of the
+         * roll window it is spent on (roll-dialog.mjs `lockExperiences`); a click puts the pick on the
+         * config (d20RollDialog.mjs:191-209, 2.10.5) and the next render its value in the formula (:133,
+         * d20Roll.mjs:103-117). Until C2b the harness's window was pressed at once and its roll data held
+         * no `system` to read the value in, so the experience was named and never added, and the GM,
+         * which counts it, flagged the roll. A player's Experience Call armed by the GM and the packet cut
+         * from a roll thrown through the window, its player clicking the character's first experience
+         * (`windowDraw`). Read: the packet's experiences, the numbers on its roll against the statistic's
+         * value and the experience's (a neutral roll's modifiers carry no names, private-rolls.mjs), the
+         * record's flags and its total as built.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const [key, experience] = Object.entries(theirs.system?.experiences ?? {})[0] ?? [];
+        must(key && experience?.name, `${theirs.name} has no experience - this would measure nothing of one`);
+        const { TRAITS } = await import("./config.mjs");
+        const statistic = Number(theirs.system?.traits?.[TRAITS.eye?.dh]?.value) || 0;
+        let F = null;
+        try {
+            F = await windowDraw(player, theirs, { key: "experience", kind: "hope", grants: "experience" }, { experiences: [key] });
+            must(F.record, "the GM kept no record of the draw - this would measure nothing");
+            equal(stableJson([F.packet.experiences ?? null, numbersOn(F.packet.roll.terms), (F.record.flags ?? []).map(f => f.kind), F.record.total === totalAsBuilt(F)]),
+                stableJson([[key], statistic + Number(experience.value), [], true]),
+                "the window did not put the experience the Call bought into the roll the harness threw, or the GM flagged the roll or scored it other than as built (the packet's experiences, the numbers on its roll, flags, total as built)");
+        } finally {
+            await F?.putBack();
+            await windowCallsBack(theirs);
+        }
+    }],
+
+    ["an Obstacle's disadvantage die is thrown at the faces its rule names and scored without a flag", async () => {
+        /*
+         * E33 C2b, 07.10.2026; the plan's E29 Q5 (b). An Obstacle forces disadvantage in its target's roll
+         * window (roll-dialog.mjs `forceAdvantage`) at the faces the character's rules name for it, as
+         * Daggerheart's own disadvantage button takes them (d20RollDialog.mjs:173-189, 2.10.5:
+         * `defaultDisadvantageDice`), and the GM reads the same rule (roll-draw.mjs `LEGAL_READERS`). The
+         * player's character given a d10 for it (`trustedWrite`, put back after), an Obstacle armed by the
+         * GM and the packet cut from a roll thrown through the window (`windowDraw`). Read: the packet's
+         * fourth and fifth terms - the sign, the die's class and faces - the record's flags and its total
+         * as built. Until C2b no die was on the roll and the GM flagged it.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const rules = theirs.toObject().system?.rules;
+        let F = null;
+        try {
+            await trustedWrite(theirs, { "system.rules.roll.defaultDisadvantageDice": 10 }, { reason: "gmRuling" });
+            must(Number(theirs.system?.rules?.roll?.defaultDisadvantageDice) === 10, `${theirs.name}'s disadvantage die could not be set - this would measure nothing`);
+            F = await windowDraw(player, theirs, { key: "obstacle", kind: "despair", grants: "disadvantage" });
+            must(F.record, "the GM kept no record of the draw - this would measure nothing");
+            const [sign, term] = [F.packet.roll.terms[3] ?? null, F.packet.roll.terms[4] ?? null];
+            equal(stableJson([sign?.operator ?? null, term?.class ?? null, term?.faces ?? null, (F.record.flags ?? []).map(f => f.kind), F.record.total === totalAsBuilt(F)]),
+                stableJson(["-", "DisadvantageDie", 10, [], true]),
+                "the window did not put the Obstacle's die on the roll the harness threw at the faces the rule names, or the GM flagged the roll or scored it other than as built (the sign, the fifth term's class and faces, flags, total as built)");
+        } finally {
+            await F?.putBack();
+            await windowCallsBack(theirs);
+            await trustedWrite(theirs, { "system.rules": rules === undefined ? forcedDeletion() : rules }, { reason: "gmRuling" });
+        }
+    }],
+
+    ["a statistic clicked on a student's sheet goes through its window as a reaction", async () => {
+        /*
+         * E33 C2b, 07.10.2026. A student's statistic rolled from the sheet is a reaction: the roll window's
+         * reaction chip is forced on and locked (roll-dialog.mjs `forceReaction`), so the roll pays nothing
+         * (despair-award.mjs reads the same fact off the message). The table's own test ("THE ONE PLACE THE
+         * WINDOW ITSELF IS TESTED") needs Daggerheart's sheets and is skipped headless, and until C2b the
+         * harness's window was pressed at once, so a statistic from the sheet stayed an action. A student's
+         * Instinct rolled as the sheet rolls it, the chip clicked once it is drawn (a render hook of this
+         * test's, after the module's). Read: the chip drawn selected and locked, the config's actionType
+         * after the click, then the config's and the message's once thrown.
+         */
+        const [who] = cast(1);
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let chip = null, result = null;
+        const hook = Hooks.on("renderApplicationV2", (app, element) => {
+            const found = element?.classList?.contains("roll-selection") ? element.querySelector('[data-action="toggleReaction"]') : null;
+            if (!found || chip) return;
+            chip = [found.classList.contains("selected"), found.classList.contains("drpg-locked")];
+            found.click();
+            chip.push(app.config?.actionType ?? null);
+        });
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 4 };
+            result = await who.rollTrait("instinct", {});
+        } finally {
+            Hooks.off("renderApplicationV2", hook);
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await result?.message?.delete();
+            await settle();
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+        }
+        equal(stableJson([chip, result?.actionType ?? null, result?.message?.rolls?.[0]?.options?.actionType ?? null]),
+            stableJson([[true, true, "reaction"], "reaction", "reaction"]),
+            "a statistic from a student's sheet was not thrown as a reaction, or its window's chip was not forced on and locked (the chip: selected, locked, the actionType after a click; the config's; the message's)");
+    }],
+
+    ["a Call a sheet roll's window applied is on its roll and spent by its close", async () => {
+        /*
+         * E33 C2b, 07.10.2026; audit S02-20's rule (roll-dialog.mjs `onCloseApplication`): a Call buys one
+         * roll, and the window that applied it spends it as it closes - the only spender of a roll from the
+         * sheet, which no module action throws (`throwDice` spends its own). A student's list emptied, a
+         * Support armed (`armCall`) and Instinct rolled as the sheet rolls it, its advantage die's face
+         * scripted. Read: the advantage Daggerheart's throw wrote on the config - its kind, its die and
+         * its face - and the Calls armed once the close has settled. Until C2b the harness's window was pressed at once: no
+         * die, and the Support stayed armed.
+         */
+        const [who] = cast(1);
+        const C = await import("./call-effects.mjs");
+        const { gameSettings } = CONFIG.DH.SETTINGS;
+        const fear = game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear);
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let result = null, read = null;
+        try {
+            await who.unsetFlag(MODULE_ID, FLAGS.pendingCall);
+            must(C.pendingCalls(who).length === 0, `${who.name} has a Confusion armed`);
+            must(await C.armCall(who, { key: "support", kind: "hope", grants: "advantage" }), "the Support could not be armed");
+            globalThis.__forceRoll = { hope: 9, fear: 4, advantage: 3 };
+            result = await who.rollTrait("instinct", {});
+            await settle();
+            const thrown = result?.roll?.advantage ?? {};
+            read = [thrown.type ?? null, thrown.dice ?? null, thrown.value ?? null, C.pendingCalls(who).map(e => e.key)];
+        } finally {
+            if (hadForce) globalThis.__forceRoll = force;
+            else delete globalThis.__forceRoll;
+            await C.consumeCalls(who);
+            await result?.message?.delete();
+            await settle();
+            if (game.settings.get(CONFIG.DH.id, gameSettings.Resources.Fear) !== fear) await game.settings.set(CONFIG.DH.id, gameSettings.Resources.Fear, fear);
+        }
+        equal(stableJson(read), stableJson([1, "d6", 3, []]),
+            "the window of a roll from the sheet did not put the Support's die on it, or its close did not spend the Support (the thrown advantage: kind, die, face; the Calls armed after)");
     }],
 
     ["a die a packet adds beyond Hope's and Fear's and the advantage's is not on the roll the GM throws", async () => {
@@ -13457,8 +13682,7 @@ const SCENARIOS = [
             await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
             must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
             must(await C.armCall(actor, { key: "support", kind: "hope", grants: "advantage" }), "the Support could not be armed");
-            win = (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true })).open();
-            await settle();
+            win = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true })).open();
             const drawn = win.renders;
             must(await C.armCall(actor, { key: "obstacle", kind: "despair", grants: "disadvantage" }), "the Obstacle could not be armed");
             await until(() => win.note() !== null);
@@ -13507,7 +13731,7 @@ const SCENARIOS = [
             must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
             must(await C.armCall(actor, { key: "support", kind: "hope", grants: "advantage" }), "the Support could not be armed");
             actor.rollTrait = async (dh, config) => {
-                await (await rollWindow(actor, config)).open().submit();
+                await (await (await rollWindow(actor, config)).open()).submit();
                 read.afterClose = C.pendingCalls(actor).map(entry => entry.key);
                 must(await C.armCall(actor, { key: "obstacle", kind: "despair", grants: "disadvantage" }), "the Obstacle could not be armed");
                 read.counting = true;
@@ -13547,9 +13771,7 @@ const SCENARIOS = [
         const C = await import("./call-effects.mjs");
         const { DRPG_ACTION_ROLL, TRAIT_BY_GM, performAction } = await import("./action-rolls.mjs");
         const { SearchTokens } = await import("./search-tokens.mjs");
-        const SELECT = `<select name="trait">${["agility", "strength", "finesse", "instinct", "presence", "knowledge"]
-            .map(k => `<option value="${k}">${k}</option>`).join("")}</select>`;
-        const state = win => { const s = win.element.querySelector("select"); return [s.disabled, s.dataset.tooltip ?? null]; };
+        const state = win => { const s = win.element.querySelector('select[name="trait"]'); return [s?.disabled ?? null, s?.dataset.tooltip ?? null]; };
         await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
         const stood = await standAlone(actor);
         const ruling = game.i18n.localize("DRPG.TraitRuling.title");
@@ -13560,12 +13782,12 @@ const SCENARIOS = [
             await actor.unsetFlag(MODULE_ID, FLAGS.pendingCall);
             must(C.pendingCalls(actor).length === 0, `${actor.name} has a Confusion armed`);
             must(await C.armCall(actor, { key: "determination", kind: "hope", grants: "trait" }), "Resolve could not be armed");
-            const resolved = (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true }, SELECT)).open();
+            const resolved = await (await rollWindow(actor, { [DRPG_ACTION_ROLL]: true })).open();
             const withResolve = state(resolved);
             await resolved.submit();
             const left = C.pendingCalls(actor).map(entry => entry.grants);
             actor.rollTrait = async (dh, config) => {
-                const win = (await rollWindow(actor, config, SELECT)).open();
+                const win = await (await rollWindow(actor, config)).open();
                 thrown.push([dh, config?.[TRAIT_BY_GM] === true, state(win)]);
                 await win.cancel();
                 return null;

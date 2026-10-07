@@ -10,7 +10,14 @@ export async function run({ gm, p1, check, phase, settle, repoUrl, IDS }) {
         await actor.update({ "system.resources.hope.value": 0, "system.resources.hope.max": 12 });
         const before = actor.system.resources.hope.value;
         globalThis.__forceRoll = { hope: 7, fear: 7 }; // tie => critical
-        const cfg = await actor.rollTrait("agility", {});
+        // Shift-clicked, as character-sheet.mjs:847 (2.10.5) hands the click on: Daggerheart itself
+        // skips the window (d20Roll.mjs:70, D20Roll's \`applyKeybindings\` overriding dhRoll.mjs:219's
+        // same rule, sets \`dialog.configure\` false on a Shift-, Alt- or Ctrl-click). Since E33 C2b
+        // the harness opens the roll window, and on it roll-dialog.mjs \`forceReaction\` makes a
+        // student's statistic a reaction, which pays no Hope - so a plain click read delta 0 here
+        // (C2b, 07.10.2026). Before C2b no window opened, and this roll was the skipped window's
+        // without saying so; this scenario reads Hope on an action.
+        const cfg = await actor.rollTrait("agility", { event: { shiftKey: true } });
         // Committed as the sheet's trait button commits it (character.mjs #rollAttribute):
         // Daggerheart's rollTrait only prepares the map. The harness's roll used to commit it
         // itself, which is why this scenario never had to (E30, lib/daggerheart.mjs).
@@ -29,7 +36,7 @@ export async function run({ gm, p1, check, phase, settle, repoUrl, IDS }) {
         await actor.update({ "system.resources.hope.value": 0, "system.resources.hope.max": 12 });
         const before = actor.system.resources.hope.value;
         globalThis.__forceRoll = { hope: 9, fear: 4 }; // hope>fear, not crit
-        const plain = await actor.rollTrait("agility", {});
+        const plain = await actor.rollTrait("agility", { event: { shiftKey: true } }); // Shift-clicked, as above
         await plain.resourceUpdates.updateResources();
         await new Promise(r => setTimeout(r, 400));
         return { delta: game.actors.getName("Chie Mori").system.resources.hope.value - before };

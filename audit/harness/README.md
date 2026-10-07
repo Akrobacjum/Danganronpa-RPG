@@ -206,22 +206,26 @@ part of a roll comes from:
   and `sc` and `c`, which do change results, are put on by none of the copied
   rolls. The letters stay on the dice and in the formula.
 - **The harness's glue** - under `lib/dh-dice/`, at the paths the copies
-  import: `applications/dialogs/d20RollDialog.mjs` (the window, pressed at
-  once), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
+  import: `applications/dialogs/d20RollDialog.mjs` (since E33 C2b a stand-in
+  shaped as the window - its config, its roll, the markup the module's hooks
+  read and its actions, the hooks fired through the shim's render and close;
+  its header says what it leaves out), `helpers/utils.mjs` (two of Daggerheart's helpers, and two that throw
   if a copy ever calls them), `data/action/baseAction.mjs` (the
   `ResourceUpdateMap` of `lib/daggerheart.mjs`); in client-entry.mjs
   (`installDualityRoll`): the roll and the dice registered where Daggerheart
   registers them, no triggers, no countdowns, the config ids the copies read,
   and two seams assigned on the class - `buildEvaluate` (Daggerheart's own,
   with the randomiser scripted by `__forceRoll`) and `toMessage` (the
-  harness's card); and the roll data's `rules.dualityRoll` (`getRollData`).
+  harness's card); and the roll data's `rules.dualityRoll` and `system`
+  (`getRollData`).
 
 So the roll's construction, formula, advantage dice and their faces, `fromData`,
 the summary its throw leaves in the config, `extraDice`, the resource step
 (critical.mjs's patch of it included) and a live reroll's settlement run for
-real. Not run: Daggerheart's window and its choices, its chat card, triggers and
-countdowns, anything read off the roll data's `parent` (no effect makes a
-critical certain, no rally die), and every roll at a table.
+real, and the window's choices reach them as its actions make them (E33 C2b).
+Not run: the window's form (a select changed, a formula typed), its chat card,
+triggers and countdowns, anything read off the roll data's `parent` (no effect
+makes a critical certain, no rally die), and every roll at a table.
 
 ## What the harness cannot do
 

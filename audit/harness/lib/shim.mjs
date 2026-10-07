@@ -491,13 +491,17 @@ export function buildDocumentClasses(ctx) {
            roll became Daggerheart's own - the duality dice's faces where the source has no rules: Daggerheart's
            character schema writes `rules.dualityRoll` at 12 and 12 into every character's source
            (data/actor/character.mjs:263-277, 2.10.5), the seed's students carry none, and a roll with no
-           formula reads it with no `?.` on `rules` (dualityRoll.mjs:135, :139). Not modelled: the `system`,
-           `parent` and `id` a table's roll data reads through (actor.mjs:727-737), so the constructor adds no
-           experience (d20Roll.mjs:103-115) and no effect makes a critical certain (dualityRoll.mjs:194-198). */
+           formula reads it with no `?.` on `rules` (dualityRoll.mjs:135, :139). Since E33 C2b the `system` a
+           table's roll data reads through (actor.mjs:727-737, a proxy's override with no `ownKeys`, so it is
+           in no copy and no JSON of the data - here a property that is not enumerable): the roll window
+           lists its experiences (d20RollDialog.mjs:113) and the roll adds the one picked (d20Roll.mjs:103-115).
+           Not modelled: `parent` and `id`, so no effect makes a critical certain (dualityRoll.mjs:194-198)
+           and the roll window has no `actor` (its glue says what that leaves out). */
         getRollData() {
             const data = U.deepClone(this.system ?? {});
             data.rules ??= {};
             data.rules.dualityRoll ??= { defaultHopeDice: 12, defaultFearDice: 12 };
+            Object.defineProperty(data, "system", { value: U.deepClone(this.system ?? {}), configurable: true, writable: true, enumerable: false });
             return data;
         }
         async toggleStatusEffect(statusId, { active, overlay = false } = {}) {
