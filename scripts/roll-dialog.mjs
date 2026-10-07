@@ -546,7 +546,7 @@ function lockBonus(root, app, actor, armed) {
             // measured: its source is not on this machine. Whether a table's Roll click
             // submits the form too (the button has no `type`, rollSelection.hbs:195) is not
             // known here (LIVE-E33).
-            if (extra.value !== bonus) {
+            if (extra.value !== bonus || (app.config && app.config.extraFormula !== bonus)) {
                 extra.value = bonus;
                 extra.dispatchEvent(new Event("change", { bubbles: true }));
             }
@@ -554,6 +554,23 @@ function lockBonus(root, app, actor, armed) {
             extra.readOnly = true;
         } else {
             disable(extra, "DRPG.RollDialog.bonusLocked");
+            // A LOCKED INPUT HOLDS NOTHING (E33 fix r1-G2, 07.10.2026; review round 1's sec m6 and cor
+            // M3). The lock disabled the input and left what it held: a Meddle's +1 written above and then
+            // taken back while the window was open stayed in the input and in the config (the handler
+            // above copies the form's data, and a disabled control is not in it, so only a later change
+            // of some other control would have cleared it), and a value the config was opened with was
+            // kept the same way. Measured in the glue window at ba0cade's runtime (tier 2): the input
+            // "+1" and `config.extraFormula` "+1" after the Meddle was spent; "+3" and "+3" opened with
+            // one and no Call. The GM no longer reads a Meddle it does not hold, so what was left was one
+            // false `modifier` whisper (roll-draw.mjs `checkRoll`) and a roll a window shows with a
+            // number the GM does not throw. The input is cleared, the config with it where the handler
+            // does not run (a disabled control is not in the form's data in Foundry either, as
+            // remembered of FormDataExtended, not read), and the same `change` is said.
+            if (extra.value !== "" || app.config?.extraFormula) {
+                extra.value = "";
+                if (app.config && app.config.extraFormula !== undefined) app.config.extraFormula = undefined;
+                extra.dispatchEvent(new Event("change", { bubbles: true }));
+            }
         }
     }
 }

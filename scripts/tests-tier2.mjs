@@ -2220,6 +2220,16 @@ function c3WithDie(packet) {
     return packet;
 }
 
+/* The packet's duality die at term `at` (0 Hope, 2 Fear), a d12 of one, as `change` reshapes it, its formula with it (`edit`); E33 fix r1-G2. */
+function c3DieShaped(packet, at, die, change, edit) {
+    const term = packet.roll.terms[at], formula = edit(packet.roll.formula);
+    must(term?.faces === 12 && Number(term.number) === 1 && formula !== packet.roll.formula,
+        `the packet's ${die} die is not one d12 (${packet.roll.formula}) - this would measure nothing`);
+    packet.roll.terms[at] = change(term);
+    packet.roll.formula = formula;
+    return packet;
+}
+
 /* The packet's duality die at term `at` (0 Hope, 2 Fear) made a d20, its formula with it (`edit`). */
 function c3DieAt(packet, at, die, edit) {
     const formula = edit(packet.roll.formula);
@@ -32661,6 +32671,171 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson(["forward", [[true, true, null, null, "rollGain", [2, 3], null]], "refuse"]),
             "the relay's gain a roll covered left no covered row naming the roll, or a roll a row already names covered a gain again "
                 + "(the verdict after the roll; the rows naming it: the player, the student, item, reason, kind, the Hope from and to, message; the verdict with the second roll named by a row)");
+    }],
+
+
+    /* REVIEW ROUND 1'S G2 (E33 fix r1-G2, 07.10.2026): a forged card is never handed over, a no-GM statistic is a
+       reaction (15-held's A2/A3 and 20-crit-hope measure that one: the no-GM road runs on a player's browser), the
+       dice claim reads what it says, and a locked bonus input holds nothing. */
+    ["a player's stamped message with the draw's flags is never listed or decided or handed over and reads no record", async () => {
+        /*
+         * E33 fix r1-G2, 07.10.2026; review round 1's sec m1 and sec m7. A stamped message of a player's with
+         * `drawn` and `rollId` on it was listed on the GMs' card of rolls thrown with no GM like any stamped
+         * roll, and a decision handed it to the deciding GM as its author (roll-draw.mjs `decideNow`) - after
+         * which every client read it as the GM's draw (private-rolls.mjs `isDrawnRoll` asks the author). And
+         * `drawnRecordOf` read the raw flag, so a player's message naming a record's id was answered with the
+         * record. The player's half as "Grant all grants each stamped roll once" makes it: a 9 and a 4 of the
+         * player's character thrown here, made theirs with a stamp, the two flags and a record naming the
+         * message; a second, this GM's own, with the same. Read: whether the card was written for the first,
+         * how many Grant all decided, its author, its stamp's mark, whether it reads as drawn, its forged
+         * flags, the Hope moved from 0, the record read for it, and the record read for the GM's own. At
+         * ba0cade's runtime the first was listed, decided, the GM's, drawn and read with its record.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "a connected player who plays a character");
+        const { player, theirs } = playerAndCharacters();
+        const D = await import("./roll-draw.mjs");
+        const P = await import("./private-rolls.mjs");
+        const { rollStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const ids = [];
+        const stamped = async (author, faces) => {
+            const { message } = await neutralRoll(theirs, { faces });
+            must(message, `no roll of ${theirs.name} was thrown - this would measure nothing`);
+            const rollId = `R1G2${foundry.utils.randomID(10)}`;
+            ids.push(rollId);
+            await rollStore.patch(rollId, { rollId, actorId: theirs.id, userId: player.id, actionKey: null, messageId: message.id,
+                total: message.rolls?.[0]?.total ?? 13, isCritical: false, withHope: true, at: Date.now() });
+            await message.update({ author, [`flags.${MODULE_ID}.${D.UNWITNESSED_FLAG}`]: { nonce: foundry.utils.randomID(), actorId: theirs.id, at: Date.now() },
+                [`flags.${MODULE_ID}.drawn`]: true, [`flags.${MODULE_ID}.rollId`]: rollId });
+            return message;
+        };
+        let read = null;
+        try {
+            const forged = await stamped(player.id, { hope: 9, fear: 4 });
+            const own = await stamped(game.user.id, { hope: 9, fear: 4 });
+            must(P.forgedFlagsOf(forged).length === 2 && P.forgedFlagsOf(own).length === 0, "the flags did not land as a player's and a GM's - this would measure nothing");
+            await theirs.update({ "system.resources.hope.value": 0 });
+            const card = await D.askAboutUnwitnessed([forged]);
+            const decided = await withDhAutomation({ hopeFear: { players: true } }, async () => {
+                const granted = await D.decideUnwitnessed([forged.id], true);
+                await until(() => theirs.system.resources.hope.value !== 0, 3000);
+                await settle();
+                return granted.length;
+            });
+            const after = game.messages.get(forged.id);
+            read = [card === null, decided, after?.author?.id === player.id, after?.getFlag(MODULE_ID, D.UNWITNESSED_FLAG)?.granted ?? null, P.isDrawnRoll(after),
+                P.forgedFlagsOf(after).length, theirs.system.resources.hope.value, D.drawnRecordOf(after) === null, D.drawnRecordOf(own)?.rollId === ids[1]];
+        } finally {
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+            for (const id of ids) if (rollStore.has(id)) await rollStore.drop(id);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([true, 0, true, null, false, 2, 0, true, true]),
+            "a player's stamped message with a GM's flags was listed, decided, handed over, read as drawn or answered with a record, or the GM's own was not "
+                + "(no card; decided; still the player's; its mark; as drawn; forged flags; Hope from 0; no record for it; the GM's own record read)");
+    }],
+
+    ["a Hope die of two on a drawn roll is not counted and the GMs are told once", async () => {
+        // E33 fix r1-G2 (07.10.2026; review round 1's sec m6, cor M4): a d12 as the GM's, two of them (`number` 2).
+        // Faces alone were compared at ba0cade: no flag, no whisper. roll-draw.mjs `claimOf`.
+        await offListDraw(p => c3DieShaped(p, 0, "Hope", term => ({ ...term, number: 2 }), f => f.replace(/^1d12/, "2d12")), "dice");
+    }],
+    ["a Fear die rerolling its ones on a drawn roll is not counted and the GMs are told once", async () => {
+        // E33 fix r1-G2 (07.10.2026; sec m6, cor M4): one d12 as the GM's, with a modifier of its own ("r1") beyond its
+        // class's letter, which `diceShape` reads out and `claimOf` lets by.
+        await offListDraw(p => c3DieShaped(p, 2, "Fear", term => ({ ...term, modifiers: [...(term.modifiers ?? []), "r1"] }),
+            f => f.replace(/^(1d12h? \+ )1d12f?/, (_, head) => `${head}1d12r1`)), "dice");
+    }],
+    ["an advantage die at faces not the GM's on a drawn roll is not counted and the GMs are told once", async () => {
+        /*
+         * E33 fix r1-G2, 07.10.2026; review round 1's sec m6 and cor M4. A Support armed on p1's character by
+         * a GM (`c3Call`) gives the roll an advantage die at the list's faces (`advantageDie`), which the
+         * window applies; the same draw with that die's faces changed on the packet. The GM throws its own
+         * die, so the total is the honest one's; the claim's `dice` names the difference since this fix -
+         * at ba0cade `claimOf` compared the duality dice's faces only. Read as `offListDraw` reads a claim
+         * off the list, against the honest draw with the Support.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter", 1), "the draw is asked by a player, and Foundry names only a connected one");
+        const { player, theirs } = playerAndCharacters();
+        const t = { player, theirs };
+        const had = new Set(game.messages.contents.map(m => m.id));
+        const support = await c3Call(theirs, C3_SUPPORT);
+        try {
+            const claim = edit => ({ window: true, edit: p => edit({ ...p, calls: [support.nonce] }), ready: support.again });
+            const honest = await judgedDraw(t, claim(p => p));
+            const faces = honest.read?.advantageDie?.advantage ?? null;
+            must(honest.drawn === true && !honest.flags.length && !honest.whispers && Number.isInteger(faces),
+                `the honest Search with a Support was not drawn clean at the list's faces (${stableJson([honest.drawn, honest.flags, honest.whispers, faces])}) - this would measure nothing`);
+            const other = faces === 8 ? 6 : 8;
+            // The GM's draw of the honest roll spent the Support; the second window needs it armed, as `fixturesHold` arms a source for each side.
+            await support.again();
+            const off = await judgedDraw(t, claim(p => {
+                const term = p.roll.terms[4];
+                const formula = p.roll.formula.replace(new RegExp(`^(1d12h? \\+ 1d12f? \\+ 1)d${faces}`), `$1d${other}`);
+                must(term?.class === "AdvantageDie" && term.faces === faces && formula !== p.roll.formula,
+                    `the window put no advantage die at the GM's d${faces} on the packet (${p.roll.formula}) - this would measure nothing`);
+                p.roll.terms[4] = { ...term, faces: other };
+                p.roll.formula = formula;
+                return p;
+            }));
+            equal(stableJson([off.drawn, off.total === honest.total, off.flags.map(f => f[0]), off.whispers, off.named, off.userId === player.id]),
+                stableJson([true, true, ["dice"], 1, true, true]),
+                `an advantage die at other faces was counted, not flagged once, or the GMs were not told once naming the roller (drawn; total as the honest roll's; flag kinds; whispers; naming ${theirs.name}; the record's sender p1) - read ${stableJson(off)}`);
+        } finally {
+            await support.undo();
+            for (const m of game.messages.contents.filter(x => !had.has(x.id))) await m.delete();
+        }
+    }],
+
+    ["a Meddle's +1 taken back while its window is open leaves the bonus input and the config empty; so does a bonus the window opened with", async () => {
+        /*
+         * E33 fix r1-G2, 07.10.2026; review round 1's sec m6 and cor M3. roll-dialog.mjs `lockBonus` writes a
+         * Meddle's +1 into the window's bonus input and says it changed, so the form's handler copies it into
+         * the config (C3). With no Call arming a bonus the lock disabled the input and left what it held: the
+         * +1 of a Meddle spent while the window was open, and a value the config was opened with. The glue
+         * window (the harness's D20RollDialog; this GM's own window at a table) opened on a student's statistic
+         * with a Meddle and a Support armed, the Meddle spent while it is open, and the window redrawn as it
+         * redraws at a table - on `updateActor` with the character's flags (`redrawRollWindows`), called here
+         * as Foundry calls it for that write: the spend's own write was heard by no `updateActor` on this GM
+         * (measured 07.10.2026, three runs, with and without the Support keeping the flag: heard [], the
+         * window still "+1" and unlocked after 3 s, renders 2 -> 2 or 3; the same hook called by hand
+         * redrew and cleared it) - a reading of the harness, not chased here. Then one opened with
+         * `extraFormula` "+3" and no Call. Read, each: the input's value, whether it is disabled, the
+         * config's extra formula. At ba0cade's runtime: "+1", true, "+1" and "+3", true, "+3".
+         */
+        const [actor] = cast(1);
+        const E = await import("./call-effects.mjs");
+        if (!game.settings.get(MODULE_ID, SETTINGS.lockRollDialog)) await game.settings.set(MODULE_ID, SETTINGS.lockRollDialog, true);
+        const input = win => win?.element?.querySelector('input[name="extraFormula"]') ?? null;
+        const state = win => [input(win)?.value ?? null, input(win)?.disabled ?? null, win?.app?.config?.extraFormula ?? null];
+        const meddle = await c3Call(actor, { key: "meddle", grants: "bonus", amount: 1 });
+        const support = await c3Call(actor, C3_SUPPORT);
+        let win = null, win2 = null, read = null;
+        try {
+            win = await (await rollWindow(actor, { roll: { trait: "agility" } })).open();
+            const armed = state(win);
+            must(armed[0] === "+1" && armed[2] === "+1", `the window did not write the Meddle's +1 into its input and config (${stableJson(armed)}) - this would measure nothing`);
+            await meddle.spend();
+            must(!E.armedCallsShown(actor).some(c => c.nonce === meddle.nonce) && E.armedCallsShown(actor).some(c => c.nonce === support.nonce),
+                "the Meddle was not taken back, or the Support went with it - this would measure nothing");
+            Hooks.callAll("updateActor", actor, { flags: { [MODULE_ID]: { [FLAGS.pendingCall]: actor.getFlag(MODULE_ID, FLAGS.pendingCall) } } }, {}, game.user.id);
+            await until(() => input(win)?.value === "" && !win.app.config?.extraFormula, 3000);
+            await settle();
+            const taken = state(win);
+            await win.cancel();
+            win2 = await (await rollWindow(actor, { roll: { trait: "agility" }, extraFormula: "+3" })).open();
+            await until(() => input(win2)?.value === "" && !win2.app.config?.extraFormula, 3000);
+            await settle();
+            read = [taken, state(win2)];
+        } finally {
+            await win?.cancel();
+            await win2?.cancel();
+            await meddle.undo();
+            await support.undo();
+        }
+        equal(stableJson(read), stableJson([["", true, null], ["", true, null]]),
+            "the locked bonus input kept a value, or the config did (the Meddle taken back and the window redrawn: value, disabled, config; opened with +3: the same)");
     }],
 
     /* The incident's invariant grid (E32 C1, 28.09.2026; audit S17-10): one entry per

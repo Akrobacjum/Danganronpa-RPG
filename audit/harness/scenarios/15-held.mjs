@@ -12,7 +12,7 @@
  * returns is a late account, `gm0`. The suite runs on a GM and cannot drop itself either. With
  * no GM connected: p1's Search is refused before its price (A1); a statistic from p1's sheet is
  * thrown, stamped and moves nothing (A2); and back, the GM gets one card for it and Grant all
- * moves its Hope once (A3).
+ * decides it (A3).
  * Since fix r2-H6 (05.10.2026; review m2) also: an action's roll that reaches Daggerheart's build
  * with no GM is not thrown (A4); A3's Grant all is a click on the card's button; and a stamped
  * message created while the GM is back pays its Despair at the Grant, once, not at its creation (A5).
@@ -27,6 +27,10 @@
  * statistic clicked with no GM is a reaction, stamped, and Grant all moves nothing for it (G3); and a
  * message with the draw's flags written with no GM is read as nothing by the GM who returns (G4), who since
  * fix r1-G1 traces it once its stores are ready: one forged row naming it, the GMs told once.
+ * Since fix r1-G2 (07.10.2026; review round 1's sec m2 and cor M1): A2's Shift-clicked statistic is a
+ * reaction as well (roll-draw.mjs `throwUnwitnessed`), thrown with Fear over Hope, and A3's Grant all moves
+ * neither its Hope nor the GMs' Despair for it - until then A3 read its Hope moved once, and no throw of
+ * this scenario reached `grantRolls`' Despair guard.
  */
 export const layers = ["ci"];
 
@@ -228,13 +232,15 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
     // A2: a statistic from the sheet, its resources committed afterwards as Daggerheart's
     // character sheet does (character-sheet.mjs:855, 2.10.5) - the harness's `rollTrait` leaves that to its caller.
     // Shift-clicked (character-sheet.mjs:847 hands the click's event on; d20Roll.mjs:70, 2.10.5 - D20Roll's
-    // `applyKeybindings`, overriding dhRoll.mjs:219's same rule - sets `dialog.configure` false on a Shift-, Alt- or
+    // `applyKeybindings`, overriding dhRoll.mjs:219's same rule, sets `dialog.configure` false on a Shift-, Alt- or
     // Ctrl-click, so Daggerheart itself skips the window): since E33 C2b a plain click opens the harness's roll
-    // window, where roll-dialog.mjs `forceReaction` makes Aiko's statistic a reaction, and A3's Grant all then moved
-    // no Hope (2 -> 2, C2b, 07.10.2026). Before C2b no window opened and the roll was the skipped window's without
-    // saying so; A3 reads its Hope moved once.
+    // window, where roll-dialog.mjs `forceReaction` makes Aiko's statistic a reaction (G3 below reads that road).
+    // Since fix r1-G2 the skipped window's roll is a reaction too (roll-draw.mjs `throwUnwitnessed` writes the kind
+    // the draw's `kind` row would), thrown here with Fear over Hope, a 4 and a 9: as an action, A3's Grant all would
+    // move the GMs' Despair for it (`grantRolls`, its Despair guard; cor M1). At ba0cade the roll was the action its
+    // config said (kind "action"), and A3 read Aiko's Hope moved once on a 9 and a 4.
     const sentFrom = socketTraffic.length;
-    const a2 = await p1.eval(`${AIKO} globalThis.__forceRoll = { hope: 9, fear: 4 };
+    const a2 = await p1.eval(`${AIKO} globalThis.__forceRoll = { hope: 4, fear: 9 };
         const hope = aiko.system.resources.hope.value;
         let config = null;
         try { config = await aiko.rollTrait("instinct", { event: { shiftKey: true } }); } finally { delete globalThis.__forceRoll; }
@@ -243,19 +249,19 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         await new Promise(r => setTimeout(r, 800));
         const message = config?.message ?? null;
         return { id: message?.id ?? null, stamp: message?.flags?.["${MOD}"]?.unwitnessed ?? null, author: message?.author?.id ?? null,
-            owed, hope, after: aiko.system.resources.hope.value };`, { timeout: 30000 });
+            kind: message?.rolls?.[0]?.options?.actionType ?? null, fear: message?.rolls?.[0]?.dFear?.total ?? null, owed, hope, after: aiko.system.resources.hope.value };`, { timeout: 30000 });
     const sent = socketTraffic.slice(sentFrom).filter(s => s.from === "p1").map(s => s.channel);
-    check("A2: with no GM connected, a statistic from p1's sheet is thrown in p1's browser, stamped for the GMs, and moves nothing",
+    check("A2: with no GM connected, a statistic Shift-clicked on p1's sheet is thrown in p1's browser as a reaction, stamped for the GMs, and moves nothing",
         typeof a2.id === "string" && a2.author === IDS.p1 && a2.stamp?.actorId === IDS.aiko && typeof a2.stamp?.nonce === "string"
-        && typeof a2.stamp?.at === "number" && J(a2.owed) === "[]" && a2.after === a2.hope && sent.length === 0, J({ a2, sent }), { flow: "gm-rolls-total" });
+        && typeof a2.stamp?.at === "number" && a2.kind === "reaction" && a2.fear === 9 && J(a2.owed) === "[]" && a2.after === a2.hope && sent.length === 0, J({ a2, sent }), { flow: "gm-rolls-total" });
 
     /* G3 (E33 C6; its plan's A6): A STATISTIC CLICKED, NOT SHIFT-CLICKED, WITH NO GM. The click opens the roll
        window (the harness's stand-in since E33 C2b), where roll-dialog.mjs `forceReaction` makes a student's
        statistic from the sheet a reaction; with no GM it is thrown here and stamped (roll-draw.mjs
        `throwUnwitnessed`). Read: the windows drawn, the roll's `options.actionType` as its message keeps it,
        the stamp, and that nothing moved; checked after A3, whose Grant all decides it with A2's and moves
-       nothing for it (`grantRolls`: a reaction moves nothing). Its faces are A2's, a 9 and a 4, which as an
-       action would have granted a Hope. */
+       nothing for it (`grantRolls`: a reaction moves nothing). Its faces are a 9 and a 4, which as an
+       action would have granted a Hope (A2 carries the Fear throw since fix r1-G2). */
     const g3From = socketTraffic.length;
     const g3 = await p1.eval(`${AIKO} globalThis.__forceRoll = { hope: 9, fear: 4 };
         const hope = aiko.system.resources.hope.value, windows = [];
@@ -305,7 +311,10 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         await aiko.update({ "system.traits.agility.value": was.agility + 1, "system.resources.hitPoints.value": was.hp - 1 }, { drpgAutomated: true });
         return { ...was, written: [src().traits.agility.value, src().resources.hitPoints.value] };`, { timeout: 30000 });
 
-    // A3: a GM connects; the primary's card lists the roll, and Grant all - its button clicked, then asked again - moves its Hope once.
+    // A3: a GM connects; the primary's card lists the two reactions, and Grant all - its button clicked, then asked again -
+    // decides them as the GM's and moves nothing: not Aiko's Hope, and not the GMs' Despair for A2's Fear result
+    // (`grantRolls`' guard, cor M1: "Rolls grant Despair" is switched on and Aiko's Monokuma's pool set to 0 for the
+    // read, both put back after; the mutant without the guard paid one, corr-runs/15-m-despair.log at ba0cade).
     let a3 = null;
     try {
         // With the browser the GM who left closed with (E29 C7): its stores hold the marks the sheet half is judged against.
@@ -313,32 +322,47 @@ async function awayAndBack({ gm, gm0, p1, check, phase, settle, connect, disconn
         await settle(6000);
         a3 = await gm0.eval(`${AIKO} ${UNTIL} const { cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
             const D = await import("${repoUrl}/scripts/roll-draw.mjs");
+            const P = await import("${repoUrl}/scripts/despair.mjs");
+            const { monokumaFor } = await import("${repoUrl}/scripts/assignments.mjs");
             const cards = () => game.messages.contents.filter(m => m.author?.id === game.user.id && cardFlag(m, "awayCard"));
             await until(() => cards().length > 0 && Array.isArray(cardFlag(cards()[0], "awayRolls")));
             const listed = cards().map(m => cardFlag(m, "awayRolls"));
-            const hope = aiko.system.resources.hope.value;
+            const monokuma = monokumaFor(aiko);
+            globalThis.__a3 = { grant: game.settings.get("${MOD}", "despairFromRolls"), monokuma: monokuma?.id ?? null, pool: monokuma ? P.getDespair(monokuma.id) : null };
+            await game.settings.set("${MOD}", "despairFromRolls", true);
+            if (monokuma) await P.setDespair(monokuma.id, 0);
+            const hope = aiko.system.resources.hope.value, despair = monokuma ? P.getDespair(monokuma.id) : null;
             // The card as a GM's chat log draws it (roll-draw.mjs \`onRenderUnwitnessed\`), and its Grant all clicked.
             const li = cards()[0] ? await cards()[0].renderHTML() : null;
             const button = li?.querySelector('[data-drpg-away="grant"]') ?? null;
             button?.click();
-            await until(() => aiko.system.resources.hope.value !== hope, 4000);
+            const message = () => game.messages.get(${J(a2.id)});
+            await until(() => message()?.flags?.["${MOD}"]?.unwitnessed?.granted === true, 4000);
+            await new Promise(r => setTimeout(r, 2500));
             const again = await D.decideUnwitnessed(listed[0] ?? [], true);
             await new Promise(r => setTimeout(r, 500));
-            const message = game.messages.get(${J(a2.id)});
             return { primary: (await import("${repoUrl}/scripts/utils.mjs")).isPrimaryGm(), listed, hope, after: aiko.system.resources.hope.value,
+                monokuma: monokuma?.id ?? null, despair, despairAfter: monokuma ? P.getDespair(monokuma.id) : null,
                 button: Boolean(button), buttonsLeft: Boolean(li?.querySelector(".drpg-away-actions")), again: again.length,
-                granted: message?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null, author: message?.author?.id ?? null,
+                granted: message()?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null, author: message()?.author?.id ?? null,
                 reaction: { granted: game.messages.get(${J(g3.id)})?.flags?.["${MOD}"]?.unwitnessed?.granted ?? null, author: game.messages.get(${J(g3.id)})?.author?.id ?? null } };`, { timeout: 60000 });
     } catch (err) {
         a3 = { error: String(err?.message ?? err) };
+    } finally {
+        await gm0.eval(`const P = await import("${repoUrl}/scripts/despair.mjs");
+            const { grant, monokuma, pool } = globalThis.__a3 ?? {};
+            delete globalThis.__a3;
+            if (monokuma && typeof pool === "number") await P.setDespair(monokuma, pool);
+            if (typeof grant === "boolean") await game.settings.set("${MOD}", "despairFromRolls", grant);
+            return true;`, { timeout: 30000 }).catch(() => null);
     }
-    check("A3: back, the GM gets one card listing p1's stamped roll, and Grant all moves its Hope once and makes it the GM's",
-        a3?.primary === true && J((a3.listed ?? []).map(ids => [...ids].sort())) === J([[a2.id, g3.id].sort()]) && a3.button && !a3.buttonsLeft && a3.again === 0 && a3.after === a3.hope + 1
-        && a3.granted === true && a3.author === "USERGA0000000000", J(a3), { flow: "gm-rolls-total" });
+    check("A3: back, the GM gets one card listing p1's stamped reaction, and Grant all decides it as the GM's, moving neither its Hope nor the GMs' Despair for its Fear result",
+        a3?.primary === true && J((a3.listed ?? []).map(ids => [...ids].sort())) === J([[a2.id, g3.id].sort()]) && a3.button && !a3.buttonsLeft && a3.again === 0 && a3.after === a3.hope
+        && typeof a3.monokuma === "string" && a3.despair === 0 && a3.despairAfter === 0 && a3.granted === true && a3.author === "USERGA0000000000", J(a3), { flow: "gm-rolls-total" });
     check("G3: with no GM connected, a statistic clicked on p1's sheet opens its window and is thrown as a reaction, stamped, moving nothing; back, Grant all decides it and moves nothing for it",
         typeof g3.id === "string" && g3.windows.length > 0 && g3.kind === "reaction" && g3.author === IDS.p1 && g3.stamp?.actorId === IDS.aiko
         && typeof g3.stamp?.nonce === "string" && g3.after === g3.hope && g3Sent.length === 0 && (a3?.listed ?? []).flat().includes(g3.id)
-        && a3.reaction?.granted === true && a3.reaction.author === "USERGA0000000000" && a3.after === a3.hope + 1, J({ g3, g3Sent, a3 }), { flow: "gm-rolls-total" });
+        && a3.reaction?.granted === true && a3.reaction.author === "USERGA0000000000" && a3.after === a3.hope, J({ g3, g3Sent, a3 }), { flow: "gm-rolls-total" });
 
     /* A5: A STAMPED MESSAGE CREATED WHILE A GM IS HERE (fix r2-H6; review m2, C18's `c18-despair-not-aside`).
        A stamp is its roller's word - a roll begun as the GM connected, or one a console wrote - so the

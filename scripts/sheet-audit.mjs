@@ -2398,7 +2398,8 @@ async function keepRows(rows, at) {
  * name: a Daggerheart request about a student refused on this browser (`refused`, relay-guard.mjs
  * `reportRefusal`: the request's sub-operation and what it asked of each path), a message whose author
  * is not a GM carrying a flag only a GM's browser writes (`forged`, `onForgedCard` below: the message
- * and its flags), and a roll's dice a player rewrote, put back (`rewrite`, reroll-receipts.mjs
+ * and its flags - no browser reads it as drawn, and no GM's card lists, decides or takes it over,
+ * roll-draw.mjs `awayRowOf` since fix r1-G2), and a roll's dice a player rewrote, put back (`rewrite`, reroll-receipts.mjs
  * `judgeRewrite`: the message and its total before and after). The user is the one Foundry named as
  * the sender or the author, never a field of what was sent. Listed by `sheetWrites` with the others,
  * each with its words (`TRACE_WORDS`); none waits for a GM's decision. Until C5a none of them left a

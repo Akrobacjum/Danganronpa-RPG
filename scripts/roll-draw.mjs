@@ -52,7 +52,7 @@ import { primaryGmId, isPrimaryGm, announce, whisperToGms, warn, error, esc } fr
 import { bridgeRequest, ownsActor } from "./bridge-guards.mjs";
 import { readDuality, awardRollDespair } from "./despair-award.mjs";
 import { answerKeysOpen, rollStore, sheetMarkStore } from "./gm-stores.mjs";
-import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn } from "./private-rolls.mjs";
+import { ROLL_NONCE, supersedingRoll, rollClaimOf, keepSubject, neutralRollOf, readHere, awaitDrawn, isDrawnRoll, forgedFlagsOf } from "./private-rolls.mjs";
 import { LOADED_DIE, loadDie, standAsideFor } from "./forced-roll.mjs";
 import { DRPG_ACTION_ROLL, DRAWN_ROLL, searchOdds, stashStepFor } from "./action-rolls.mjs";
 import { actionsLeft, freeActionsLeft } from "./actions.mjs";
@@ -1019,10 +1019,11 @@ function sheetOf(actor) {
         experiences: Object.fromEntries(held.map(([key, { name, value }]) => [key, { name: name ?? key, value: Number(value) || 0 }])) };
 }
 
-/** The packet's numbers against the character's (`sheet`): its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice - a Hope or Fear die at faces not the GM's (`read`) among them. */
+/** The packet's numbers against the character's (`sheet`): its statistic, the experiences it names that the character holds, its flat sum, its advantage dice and any other dice - a duality or advantage die not as the GM throws it (`read`) among them. */
 function claimOf(terms, sheet, told, read = {}) {
     const fifth = ADVANTAGE_DICE[terms[4]?.class] ?? 0;
     const trait = traitKeyOf(told.trait);
+    const ownLetter = term => (term?.modifiers ?? []).filter(m => m !== DIE_LETTER[term?.class]);
     // A DUALITY DIE AT OTHER FACES IS A DIE NOT COUNTED (E33 C3, 07.10.2026; the stage plan's 2.3, off
     // the list: "a d20 Hope die"). The GM throws the Hope and the Fear die at its own faces (`termsOf`,
     // the list's `hopeDie` and `fearDie`), so a packet's d20 Hope die was not counted - 14 as the honest
@@ -1031,7 +1032,17 @@ function claimOf(terms, sheet, told, read = {}) {
     // `dice` flag, its one whisper to the GMs and the roller's "not counted" line, as a die beyond them
     // has. An honest window builds both from the rules the GM reads (dualityRoll.mjs:135, :139); one
     // whose rule a GM changed while it was open would be flagged too - read, not measured.
-    const unlike = [[terms[0], read.hopeDie], [terms[2], read.fearDie]].filter(([term, faces]) => faces && term?.faces !== faces).length;
+    //
+    // A DIE NOT AS THE GM THROWS IT, IN EVERY WAY A TERM CAN DIFFER (E33 fix r1-G2, 07.10.2026; review
+    // round 1's sec m6 and cor M4). Faces alone were compared: a Hope die of two (`number` 2), one with a
+    // modifier of its own beyond its class's letter ("1d12r1"; `diceShape` reads the same letter out)
+    // and an advantage die at faces not the list's (`advantageDie`) raised no flag and told nobody
+    // (tier 2, at ba0cade's runtime). Each is one of the claim's `dice` now. A trace, not an award:
+    // the GM throws its own terms (`termsOf`, `onGmTerms`), so none of the three ever changed a roll -
+    // only what the GMs and the roller were told of it.
+    const other = (term, faces) => faces && (term?.faces !== faces || Math.trunc(Number(term?.number)) !== 1 || ownLetter(term).length > 0);
+    const unlike = [[terms[0], read.hopeDie], [terms[2], read.fearDie]].filter(([term, faces]) => other(term, faces)).length
+        + (fifth && read.advantageDie && terms[4]?.faces !== read.advantageDie[fifth > 0 ? "advantage" : "disadvantage"] ? 1 : 0);
     return { trait, traitValue: trait ? sheet.traits[trait] ?? 0 : 0,
         experiences: told.experiences.filter(key => Object.hasOwn(sheet.experiences, key)),
         flat: flatOf({ terms }), advantage: fifth * (Math.max(1, Math.trunc(Number(terms[4]?.number)) || 1)),
@@ -1916,9 +1927,13 @@ export function rollRecord(rollId) {
     return typeof rollId === "string" && rollId ? rollStore.get(rollId) : null;
 }
 
-/** The record of the roll a message holds, when the GM drew it and the record names that message; else null. */
+/**
+ * The record of the roll a message holds, when the GM drew it and the record names that message; else null.
+ * The message is a GM's (`isDrawnRoll`; E33 fix r1-G2, 07.10.2026, review round 1's sec m7): until then the
+ * raw flag was read, and a player's message carrying it and a record's id was answered with the record.
+ */
 export function drawnRecordOf(message) {
-    if (!message?.getFlag?.(MODULE_ID, "drawn")) return null;
+    if (!isDrawnRoll(message)) return null;
     const row = rollRecord(message.getFlag(MODULE_ID, "rollId"));
     return row && row.messageId === message.id ? row : null;
 }
@@ -2048,7 +2063,17 @@ function awayFromGms(config) {
     return Boolean(config) && config.evaluate !== false && !config.skips?.createMessage && !config.source?.message;
 }
 
-/** Daggerheart's own build, with the resource step skipped and the stamp handed to the message as it is created. */
+/**
+ * Daggerheart's own build, with the resource step skipped and the stamp handed to the message as it is created.
+ *
+ * A STUDENT'S STATISTIC IS A REACTION HERE TOO (E33 fix r1-G2, 07.10.2026; review round 1's sec m2).
+ * With a GM the draw's `kind` row makes a student's statistic from the sheet a reaction whatever its
+ * window said (roll-dialog.mjs `forceReaction` states the rule; `LEGAL_READERS.kind` applies it), and a
+ * Shift-click skips the window. With no GM nothing read the kind: a Shift-clicked statistic was thrown
+ * as the action its config said, the GMs' card said it would move Hope and Grant all moved it - 15-held's
+ * A3 read Aiko's Hope +1 at ba0cade. The kind is written here, before Daggerheart builds, for the roll
+ * `sheetRollOf` names of a character that is not a Monokuma - the row's own rule.
+ */
 async function throwUnwitnessed(cls, original, config, message) {
     let actorId = null;
     try {
@@ -2056,6 +2081,8 @@ async function throwUnwitnessed(cls, original, config, message) {
     } catch {
         actorId = null;
     }
+    const sheet = sheetRollOf(config);
+    if (sheet && !isMonokuma(sheet)) config.actionType = "reaction";
     const stamp = { nonce: foundry.utils.randomID(), actorId, at: Date.now() };
     config.skips = { ...(config.skips ?? {}), resources: true };
     config[UNWITNESSED] = stamp.nonce;
@@ -2084,10 +2111,19 @@ function stampUnwitnessed(message, data) {
  * A stamped roll no GM has decided, as the GMs' card lists it: the message, the character
  * the stamp names - played by the message's author, or the stamp asks nothing - the two
  * dice, and whether it was a reaction, which moves nothing. Null for anything else.
+ *
+ * NEVER A MESSAGE WITH A GM'S FLAGS (E33 fix r1-G2, 07.10.2026; review round 1's sec m1). A
+ * decision hands the message to the deciding GM as its author (`decideNow`), and a message
+ * whose author is a GM is read as the GM's draw everywhere (private-rolls.mjs `isDrawnRoll`).
+ * A player's stamped message carrying `drawn` and `rollId` was listed, decided and handed
+ * over like any stamped roll, and read as drawn on every client after (e33-review/secprobe1.log,
+ * P2, at ba0cade: drawn false, forged [drawn, rollId] before; drawn true, forged [] after). Such a
+ * message is nobody's roll here: its `forged` row names it (sheet-audit.mjs `onForgedCard`).
  */
 function awayRowOf(message) {
     const stamp = message?.getFlag?.(MODULE_ID, UNWITNESSED_FLAG);
     if (!stamp || typeof stamp !== "object" || Object.hasOwn(stamp, "granted")) return null;
+    if (forgedFlagsOf(message).length) return null;
     const author = message.author ?? null;
     const actor = game.actors.get(typeof stamp.actorId === "string" ? stamp.actorId : "");
     if (!author || author.isGM || !actor || !ownsActor(author, actor.id)) return null;

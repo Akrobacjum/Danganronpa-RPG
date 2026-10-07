@@ -1188,8 +1188,11 @@ const DRAWN_FLAG = "drawn";
  * card of rolls thrown with no GM (roll-draw.mjs `askAboutUnwitnessed`); and the decision on such a roll's
  * stamp, `unwitnessed.granted`, which a GM writes as it takes the message over (roll-draw.mjs `decideNow`)
  * - the stamp itself is the roller's own. A message whose author is not a GM and that carries one of
- * them is a forgery: it is not read as drawn (`isDrawnRoll`), awards nothing (despair-award.mjs,
- * sheet-audit.mjs `rollCovering`), and the primary names it to the GMs once (sheet-audit.mjs
+ * them is a forgery: it is not read as drawn (`isDrawnRoll`, and roll-draw.mjs `drawnRecordOf` reads no
+ * record for it), awards nothing (despair-award.mjs, sheet-audit.mjs `rollCovering`), is never listed on
+ * the GMs' card of rolls thrown with no GM, decided or handed to a GM as its author (roll-draw.mjs
+ * `awayRowOf`; fix r1-G2 - until then a decision made it a GM's message, read as drawn everywhere), and
+ * the primary names it to the GMs once (sheet-audit.mjs
  * `onForgedCard` - at its creation, at an update that writes one of them (`onForgedUpdate`,
  * `gmOnlyFlagsIn` below) and, for one written while no GM was connected, at the primary's ready
  * (`traceForgedAtReady`); fix r1-G1). The module's other GM-written card flags are read through the card's writer
