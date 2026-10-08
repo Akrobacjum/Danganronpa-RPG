@@ -1557,13 +1557,26 @@ async function onBulletWrite(item, changes, options, userId) {
          *
          * Cut by the class `bulletDescription` stamps, which is the only
          * thing here that knows the two halves apart.
+         *
+         * AND ONLY WORDS THE WRITE CHANGED (E09 fix r2-G5, 08.10.2026; cor N3, sec S2-2). A write of
+         * the description is not a write of the words: a GM restyling one copy, or touching its lab
+         * paragraph (read in the code, not measured), sent that copy's words up as new, and
+         * `setRemnantPublic` - which compares with the trace's - found them changed wherever the
+         * copy's differ from the trace's. A reshaped trace's copies held from before it do, so the
+         * killer's words went off the ledger and off the copies found since (tier 2 "a GM's sheet edit of a held copy that keeps its words leaves
+         * a reshaped trace's words", red on the code before it, 08.10.2026). The words are compared
+         * with the copy's own as the GMs hold them (`bulletAsHeld`): this write did not touch the
+         * words' flag (the line above would have read it), so the flag still holds the words before
+         * it. A change of the words goes to every copy, as r2-G1's rule has it.
          */
         if (wrote("system.description") && patch.playerText === undefined) {
             // A template, whose content is inert: read for its text, never run.
             const wrap = document.createElement("template");
             wrap.innerHTML = String(item.system?.description ?? "");
             for (const block of wrap.content.querySelectorAll(".drpg-bullet-analysis")) block.remove();
-            patch.playerText = wrap.content.textContent.replace(/\s+/g, " ").trim();
+            const plain = text => String(text ?? "").replace(/\s+/g, " ").trim();
+            const words = plain(wrap.content.textContent);
+            if (words !== plain(bulletAsHeld(item).getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText))) patch.playerText = words;
         }
         if (!Object.keys(patch).length) return;
 

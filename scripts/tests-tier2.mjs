@@ -14023,6 +14023,135 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM's rename of one held copy of a reshaped trace leaves the other copies their words", async () => {
+        /*
+         * E09 fix r2-G5, 08.10.2026 (cor N3, sec S2-2); the road truth-bullets.mjs `onBulletWrite` takes. A
+         * GM's edit of one held bullet goes up to its trace (`setRemnantPublicById`), and from there to every
+         * copy: until r2-G1 the whole record went, so a GM renaming one investigator's copy of a reshaped
+         * trace put the killer's words on every copy held before the reshape. The trace copied by the
+         * reshaper and a second student; the reshape approved; the GM's rename of the second student's copy,
+         * written on the item as its sheet writes it. Read: the ledger's name and words, and each copy.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who, holder] = cast(2);
+        const R = await import("./remnants.mjs");
+        const RENAMED = "SUITE r2-G5 a cup, renamed on one copy";
+        const F = await reshapeCopiesFixture(who, [holder], "SUITE r2-G5 a GM's rename of one held copy");
+        try {
+            const { applied } = await F.reshape();
+            must(applied === true && R.remnantPublic(F.trace)?.playerText === C9_STORY.text, "the reshape was not approved - this would measure nothing");
+            await F.copies[1].update({ name: RENAMED });
+            await settle();
+            const pub = R.remnantPublic(F.trace);
+            equal(stableJson([[pub?.name, pub?.playerText], F.copies.map(F.words)]),
+                stableJson([[RENAMED, C9_STORY.text], [[RENAMED, C9_FOUND.playerText, true], [RENAMED, C9_FOUND.playerText, true]]]),
+                "a GM's rename of one held copy of a reshaped trace put the reshaped words on the copies held before it, or the name missed one "
+                + "(the ledger's name and words; each copy's name, words and found description)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a Key row's Save of a reshaped trace's reading sends the copies the reading alone", async () => {
+        /*
+         * E09 fix r2-G5, 08.10.2026 (sec S2-2); the Key tab's road (investigation.mjs `saveKeyPlan`), the
+         * Traces tab's twin beside r2-G1's "a Save of a reshaped trace's reading sends the copies the reading
+         * alone". A Key row pointed at a placed trace pushes the words the GM changes on it onto the trace,
+         * and until r2-G1 the trace's whole record went on to every copy. The trace copied by the reshaper
+         * and a second student; the reshape approved; the trace made a Key by the GM afterwards (a fixture
+         * trace placed as a Key came out of the reshape unapproved, 08.10.2026; why was not read), a row of a chapter
+         * nobody has planned pointed at it, and the dashboard's Save of that row's reading as the form hands
+         * it on. Read: the ledger's name and reading, and each copy's name, words, found description and the
+         * reading its answer key holds.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who, holder] = cast(2);
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { secretOf } = await import("./truth-bullets.mjs");
+        const READING = "SUITE r2-G5 the lab says a key";
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        const F = await reshapeCopiesFixture(who, [holder], "SUITE r2-G5 a Key row's Save of a reshaped trace");
+        let read = null;
+        try {
+            const { applied } = await F.reshape();
+            must(applied === true && R.remnantPublic(F.trace)?.name === C9_STORY.name, "the reshape was not approved - this would measure nothing");
+            await R.setRemnantFlags(F.trace, { type: "key" });
+            await settle();
+            must(R.remnantData(F.trace)?.type === "key", "the trace was not made a Key - this would measure nothing");
+            await setClock({ chapter: fresh });
+            await I.setKeyPlan({ chapter: fresh, entries: [{ scale: "standard", tokenId: F.trace.id, sceneId: F.scene.id }] });
+            await gmStoresIdle();
+            const plan = I.keyPlan();
+            must(plan.entries[0]?.tokenId === F.trace.id, "the plan's row does not point at the fixture's trace - this would measure nothing");
+            await I.applyDashboardSave({ traces: [], keyRows: [{ slot: 0, scale: plan.entries[0].scale,
+                fields: { analysis: { value: READING, drawn: R.remnantPublic(F.trace)?.analyzedText ?? "" } } }] }, { traces: [], plan });
+            await settle();
+            const pub = R.remnantPublic(F.trace);
+            read = [[pub?.name, pub?.analyzedText], F.copies.map(c => [...(F.words(c) ?? []), secretOf(c.uuid)?.analyzedText ?? null])];
+        } finally {
+            const rows = Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith(`${fresh}:`));
+            if (rows.length) await S.keyPlanStore.dropMany(rows);
+            await setClock(clock);
+            await F.putBack();
+        }
+        const found = [C9_FOUND.name, C9_FOUND.playerText, true];
+        equal(stableJson(read), stableJson([[C9_STORY.name, READING], [[...found, READING], [...found, READING]]]),
+            "a Key row's Save of a reshaped trace's reading put the reshape on a copy held before it, or the reading missed a copy's answer key "
+            + "(the ledger's name and reading; each copy's name, words, found description and its key's reading)");
+    }],
+
+    ["a GM's sheet edit of a held copy that keeps its words leaves a reshaped trace's words", async () => {
+        /*
+         * E09 fix r2-G5, 08.10.2026 (cor N3, sec S2-2); `onBulletWrite`'s description road. A GM's write of
+         * one held bullet's description is read back as its words and goes up to the trace, and from there
+         * to every copy, whether the words moved or not: a GM who restyled one investigator's copy of a
+         * reshaped trace (this test) or touched its lab paragraph (by reading) wrote that copy's words -
+         * found before the reshape - over the killer's on the ledger and on the copy found after it. The
+         * trace where a player's character stands, copied by the reshaper and a second student; the
+         * reshape approved; that character's Observe, which reads the reshaped words; the GM's write of the second student's
+         * description with its words as they stand, set in italics; then a second write that changes them,
+         * which still reaches every copy (the GM's ruling, r2-G1's rule). Read after each: the ledger's
+         * name and words, the copy found after the reshape, and the reshaper's copy.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const students = cast(3);
+        const { player, actor: finder, where } = await playerInRoom();
+        const [who, holder] = students.filter(a => a.id !== finder.id);
+        const R = await import("./remnants.mjs");
+        const { bulletDescription } = await import("./truth-bullets.mjs");
+        const WORDS = "SUITE r2-G5 the GM's own words for it";
+        const F = await reshapeCopiesFixture(who, [holder], "SUITE r2-G5 a GM's sheet edit of one held copy",
+            { scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, sourceActor: finder.id });
+        try {
+            const { applied } = await F.reshape();
+            must(applied === true, "the approval was refused - this would measure nothing");
+            const after = await F.find(player, finder);
+            must(after, "the finder's Observe made no copy of the fixture's trace - this would measure nothing");
+            const read = () => {
+                const pub = R.remnantPublic(F.trace);
+                return [[pub?.name, pub?.playerText], F.words(after)?.slice(0, 2) ?? null, F.words(F.copy)];
+            };
+            await F.copies[1].update({ "system.description": `<p><em>${C9_FOUND.playerText}</em></p>` });
+            await settle();
+            const kept = read();
+            await F.copies[1].update({ "system.description": bulletDescription(WORDS) });
+            await settle();
+            const ruled = read();
+            equal(stableJson([kept, ruled]), stableJson([
+                [[C9_STORY.name, C9_STORY.text], [C9_STORY.name, C9_STORY.text], [C9_FOUND.name, C9_FOUND.playerText, true]],
+                [[C9_STORY.name, WORDS], [C9_STORY.name, WORDS], [C9_FOUND.name, WORDS, false]]]),
+                "a GM's sheet edit of one held copy wrote its words over a reshaped trace's when it kept them, or a change of them missed a copy "
+                + "(after each write: the ledger's name and words; the copy found after the reshape; the reshaper's copy with its found description)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
     ["two rulings of one reshape at once run once, and the second is told it was ruled", async () => {
         /*
          * E09 C10, 08.10.2026. Nothing marked a reshape's proposal as ruled: each ruling read the
