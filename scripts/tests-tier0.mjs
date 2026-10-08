@@ -2474,10 +2474,11 @@ const REGRESSIONS = [
          * must not leak. What is read here is the two roads that model did not
          * have when T-2 met it.
          */
-        const analyze = stripComments(sources.get("analyze.mjs") ?? "");
-        const identify = bodyOf(analyze, "async function identify(");
-        ok(/secret\.analyzedText\s*\|\|\s*remnantPublic(?:ById)?\(/.test(identify),
-            "identify no longer asks the trace when a bullet's secret holds no reading");
+        // In truth-bullets.mjs `publishReading` since E09 C8: the write Analyze and the chapter's reveal share.
+        const tb = stripComments(sources.get("truth-bullets.mjs") ?? "");
+        const publish = bodyOf(tb, "export async function publishReading(");
+        ok(/secret\.analyzedText\s*\|\|\s*remnantPublic(?:ById)?\(/.test(publish),
+            "publishing a reading no longer asks the trace when a bullet's secret holds no reading");
 
         // A looted trace is usually already revealed, so `revealSourceOf` returns
         // before it reconciles the new copy: the loot mint reads the ledger itself.
@@ -7059,6 +7060,8 @@ const REGRESSIONS = [
             ["season-setup.mjs", "wipeSeason", "resetSeason"],
             ["states.mjs", "syncOnce", "syncStates"],
             ["states.mjs", "clearSystemConditions", "syncOnce"],
+            ["truth-bullets.mjs", "publishReading", "identify"],
+            ["truth-bullets.mjs", "publishReading", "revealAllBulletTypes"],
             ["truth-bullets.mjs", "revertPlayerBulletEdit", "onBulletWrite"],
             ["utils.mjs", "replaceFlag", "writeNote"],
             ["utils.mjs", "replaceFlag", "settleNoteFlags"],
@@ -7149,7 +7152,10 @@ const REGRESSIONS = [
          * `propagateCrimeTieMany` and `propagateRealType` (folded into `propagateVerdicts`, the planned row it
          * judges now): 76 rows, 19 ITEM (read live 08.10.2026, none without a row). E09 C7 added
          * `keyFeeOf`, the fee's count, where its planned row said: 77 rows, 20 ITEM (read live
-         * 08.10.2026, none without a row). The
+         * 08.10.2026, none without a row). E09 C8 struck `revealAllBulletTypes` and
+         * `openChapterEndDialog` (both read through chapter.mjs `revealPlan` now, which decides) and
+         * added `revealPlan` and `publishReading`, the write `identify` and the reveal share:
+         * 77 rows, 20 ITEM (read live 08.10.2026, none without a row). The
          * reader is run first on a fixture with a judged reader, a reader whose field is only in a
          * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
          */
@@ -7166,7 +7172,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#observe.resolve#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
             ["PACKET gm-bridge.mjs#observe.resolve#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
             ["PACKET gm-bridge.mjs#analyze.resolve#actorId", "judged: knownSender + owns(actorId) (E28)"],
-            ["PACKET gm-bridge.mjs#analyze.resolve#itemId", "judged: resolveAnalyze looks it up on that one character and decides on bulletAsHeld (E29); C8 moves identify's write into publishReading and keeps the held read"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#itemId", "judged: resolveAnalyze looks it up on that one character and decides on bulletAsHeld (E29); identify's write is truth-bullets.mjs publishReading since C8, given the held copy"],
             ["PACKET gm-bridge.mjs#analyze.resolve#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
             ["PACKET gm-bridge.mjs#analyze.resolve#isCritical", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
             ["PACKET gm-bridge.mjs#analyze.resolve#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
@@ -7202,9 +7208,8 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#project.sabotage#relief", "judged: held by repairOf to the tools the GM sees (E28)"],
             ["PACKET gm-bridge.mjs#reroll.ask#actorId", "judged: knownSender + owns(actorId); the Reroll receipt (E28); C9's Undo is a GM's"],
             ["ITEM analyze.mjs#resolveAnalyze", "judged: reads bulletAsHeld (E29); unchanged by E09"],
-            ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld; C8 extracts its write into truth-bullets.mjs publishReading with the held copy passed in, and moves E33 C1a's GM_ROADS row"],
-            ["ITEM chapter.mjs#revealAllBulletTypes", "judged from C8: each decision on bulletAsHeld, the set from allBullets by design (H22); at base it decides on the document"],
-            ["ITEM chapter.mjs#openChapterEndDialog", "judged from C1: the sweep's count is sweepPlan's remove.length; the reveal's count reads the documents (allBullets), C8's"],
+            ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld and hands the held copy to truth-bullets.mjs publishReading, which writes (C8)"],
+            ["ITEM chapter.mjs#revealPlan", "judged (C8): each decision on bulletAsHeld (sparedBySweep's Faint, the kind and analyzed), in one synchronous pass; the set from allBullets by design (H22); revealAllBulletTypes writes it and openChapterEndDialog counts it"],
             ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
             ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
@@ -7215,6 +7220,7 @@ const REGRESSIONS = [
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
+            ["ITEM truth-bullets.mjs#publishReading", "judged (C8): takes the held copy from its caller (identify, revealAllBulletTypes through revealPlan); the answer key and the trace's public record for the rest"],
             ["ITEM truth-bullets.mjs#publishLootSource", "judged (C2; census-found, not in plan.md): isIdentified and the source already shown read off bulletAsHeld"],
             ["ITEM truth-bullets.mjs#truthBulletData", "not a sink: the accessor; each caller is its own row"],
             ["ITEM truth-bullets.mjs#propagateRemnantPublic", "judged (C2): hasReading off bulletAsHeld, and the name and img it falls back to (unreached: publicOf names every row); the answer key always"],

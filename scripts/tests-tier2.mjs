@@ -760,6 +760,35 @@ async function sweepCountsShown() {
 }
 
 /**
+ * BULLETS FOR THE CHAPTER'S REVEAL (E09 C8): the GM gives `student` one bullet per spec (`createTruthBullet`'s options,
+ * a `name` each), `run(made)` reveals that student alone (and sweeps, where the test says), and `read` is asked of the
+ * bullets as they are after it - null for one the run took - before the bullets and their answer keys are taken back.
+ * Answers what `read` answered.
+ */
+async function revealedBullets(student, specs, run, read) {
+    const T = await import("./truth-bullets.mjs");
+    const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+    const made = [];
+    try {
+        for (const spec of specs) {
+            const bullet = await T.createTruthBullet(student, { playerText: "SUITE E09 C8", ...spec, name: `SUITE E09 C8 ${spec.name}` });
+            must(bullet, `the bullet "${spec.name}" was not made - this would measure nothing`);
+            made.push(bullet);
+        }
+        await sheetAuditIdle();
+        await run(made);
+        await settle();
+        return read(made.map(b => student.items.get(b.id) ?? null));
+    } finally {
+        for (const b of made) {
+            if (student.items.has(b.id)) await student.items.get(b.id).delete();
+            await T.dropSecret(b.uuid);
+        }
+        await sheetAuditIdle();
+    }
+}
+
+/**
  * A TRACE AND THREE COPIES OF IT ON ONE STUDENT (E09 C2), for the verdicts' tests: a Prep placed on the scene on
  * screen (Faint where `faint` says), and copies made by the GM as an Observe makes them - one analysed, one not,
  * and one not analysed given `analyzed` on this browser alone (`updateSource`: the document holds it and no GM's
@@ -17012,6 +17041,116 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([3, 6, 6]),
             "a bullet a player's write made, or a deleted find made again, counted toward the fee or held it, or a deleted find still counted (Despair to each pool after each step)");
+    }],
+
+    ["a Faint the sweep keeps stays analysable", async () => {
+        /*
+         * E09 C8, 08.10.2026; S05-18, the plan's V3. Guide p. 29: a Faint bullet survives the chapter's sweep, and its
+         * holder may analyse it again in the next chapter. The End of chapter panel reveals before it sweeps
+         * (chapter.mjs `applyChapterEnd`): the GM gives a student an unanalysed Faint, and the student is revealed and
+         * swept alone (`revealAllBulletTypes`, `sweepTruthBullets`). Read: whether the student still holds it, whether
+         * the GMs hold it analysed, and whether it can be analysed in the next chapter (`isAnalysable`, on the copy as
+         * the GMs hold it). Before C8 (scratchpad/c8run/red.log, 08.10.2026) [true,true,false]: the reveal had written `analyzed`
+         * on it, and an analysed bullet can never be analysed again.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the sweep reads - this would measure nothing");
+        const C = await import("./chapter.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        const [student] = cast(1);
+        const next = getClock().chapter + 1;
+        const read = await revealedBullets(student, [{ name: "an unanalysed Faint", faint: true }], async ([faint]) => {
+            must(!faint.getFlag(MODULE_ID, F.analyzed) && T.faintOf(faint) && T.isAnalysable(faint),
+                "the Faint bullet is analysed, not Faint in its answer key, or not analysable before the chapter ends - this would measure nothing");
+            await C.revealAllBulletTypes({ actors: [student] });
+            await C.sweepTruthBullets({ actors: [student] });
+        }, ([faint]) => {
+            const held = faint && T.bulletAsHeld(faint);
+            return [Boolean(faint), held ? held.getFlag(MODULE_ID, F.analyzed) === true : null, held ? T.isAnalysable(held, next) : null];
+        });
+        equal(stableJson(read), stableJson([true, false, true]),
+            "the chapter's end left a Faint bullet that cannot be analysed in the next chapter (still held; analysed as the GMs hold it; analysable next chapter)");
+    }],
+
+    ["the chapter's reveal leaves a Final unread and analysable", async () => {
+        /*
+         * E09 C8, 08.10.2026; S05-18 and the owner's Q1, answer (a): the reveal spares a Final as the sweep does (guide
+         * p. 32: a Final Truth Bullet is outside the sweep), so it is not read for its holder by the chapter's end and
+         * stays theirs to analyse. The GM gives a student a Final with a reading; the student is revealed and swept
+         * alone. Read: still held, its kind, analysed, the reading on the item, analysable in the next chapter. Before C8
+         * (scratchpad/c8run/red.log, 08.10.2026) [true,"final",true,"",false]: analysed by the reveal, without its reading, and spent.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the sweep reads - this would measure nothing");
+        const C = await import("./chapter.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        const [student] = cast(1);
+        const next = getClock().chapter + 1;
+        const READING = "SUITE E09 C8 the Final reading";
+        const read = await revealedBullets(student, [{ name: "a Final", realType: "final", analyzedText: READING }], async ([final]) => {
+            must(!final.getFlag(MODULE_ID, F.analyzed) && T.isAnalysable(final), "the Final is analysed before the chapter ends - this would measure nothing");
+            await C.revealAllBulletTypes({ actors: [student] });
+            await C.sweepTruthBullets({ actors: [student] });
+        }, ([final]) => {
+            const held = final && T.bulletAsHeld(final);
+            return held ? [true, held.getFlag(MODULE_ID, F.shownType), held.getFlag(MODULE_ID, F.analyzed) === true,
+                held.getFlag(MODULE_ID, F.analyzedText) ?? "", T.isAnalysable(held, next)] : [false];
+        });
+        equal(stableJson(read), stableJson([true, "final", false, "", true]),
+            "the chapter's end read a Final for its holder or took it (still held; its kind; analysed; the reading on the item; analysable next chapter)");
+    }],
+
+    ["a revealed Key carries its reading", async () => {
+        /*
+         * E09 C8, 08.10.2026; S05-18. A bullet the chapter's reveal gives up shows what an Analyze would have shown:
+         * its kind, the reading the GM wrote for it, the description with the reading, and its tie to the crime. The GM
+         * gives a student a Key and a Neutral, each with a reading and tied to the crime, and the student is revealed
+         * alone. Read, per bullet: analysed, the reading on the item, the description holding it, the tie. Before C8
+         * (scratchpad/c8run/red.log, 08.10.2026) [[true,"",false,true],[true,"",false,null]]: the reveal wrote the kind, `analyzed` and Faint, and no reading.
+         */
+        const C = await import("./chapter.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        const [student] = cast(1);
+        const KEY = "SUITE E09 C8 the Key reading", NEUTRAL = "SUITE E09 C8 the Neutral reading";
+        const read = await revealedBullets(student, [
+            { name: "a Key", realType: "key", analyzedText: KEY, tiedToCrime: true },
+            { name: "a Neutral", analyzedText: NEUTRAL, tiedToCrime: true }
+        ], async made => {
+            must(made.every(b => !b.getFlag(MODULE_ID, F.analyzed) && !b.getFlag(MODULE_ID, F.analyzedText)),
+                "a bullet carries its reading before the reveal - this would measure nothing");
+            await C.revealAllBulletTypes({ actors: [student] });
+        }, made => made.map((b, i) => b && [b.getFlag(MODULE_ID, F.analyzed) === true, b.getFlag(MODULE_ID, F.analyzedText) ?? "",
+            String(b.system?.description ?? "").includes([KEY, NEUTRAL][i]), b.getFlag(MODULE_ID, F.tiedToCrime) ?? null]));
+        equal(stableJson(read), stableJson([[true, KEY, true, true], [true, NEUTRAL, true, true]]),
+            "a bullet the chapter's reveal gave up shows less than an Analyze would (per bullet, a Key and a Neutral: analysed; the reading; the description holding it; the tie)");
+    }],
+
+    ["the chapter's reveal decides on the copy the GMs hold", async () => {
+        /*
+         * E09 C8, 08.10.2026; S05-18 and the plan's 1b (each decision of the reveal on `bulletAsHeld`). A player's
+         * write of their own bullet stands on the document until its put-back lands, and the GMs' copy does not take
+         * it. A Key the GM gives a student is given `analyzed` on this browser alone (`updateSource`, the state such a
+         * write leaves), so the document reads as revealed and the GMs hold it unread; the student is revealed alone.
+         * Read: analysed, the reading on the item. Before C8 (scratchpad/c8run/red.log, 08.10.2026) [true,""]: the reveal
+         * asked the document, passed the Key over, and its holder was never given its reading.
+         */
+        const C = await import("./chapter.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        const ANALYZED = `flags.${MODULE_ID}.${F.analyzed}`;
+        const [student] = cast(1);
+        const KEY = "SUITE E09 C8 the forged Key reading";
+        const read = await revealedBullets(student, [{ name: "a Key given analyzed", realType: "key", analyzedText: KEY }], async ([key]) => {
+            key.updateSource({ flags: { [MODULE_ID]: { [F.analyzed]: true } } });
+            must(key.getFlag(MODULE_ID, F.analyzed) === true && T.bulletGuardStatus(key.uuid).copy?.[ANALYZED] === false,
+                "the Key's analyzed did not stand on the document alone, outside the GMs' copy - this would measure nothing");
+            await C.revealAllBulletTypes({ actors: [student] });
+        }, ([key]) => key && [key.getFlag(MODULE_ID, F.analyzed) === true, key.getFlag(MODULE_ID, F.analyzedText) ?? ""]);
+        equal(stableJson(read), stableJson([true, KEY]),
+            "the chapter's reveal passed over a bullet the GMs hold unread because its document said it was read (analysed; the reading)");
     }],
 
     ["the Traces tab saves against the trace it was drawn from and not the trace now", async () => {

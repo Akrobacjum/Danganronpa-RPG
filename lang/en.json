@@ -1726,7 +1726,8 @@
       "promoteSkip": "None of them",
       "endTitle": "End the chapter",
       "endIntro": "Chapter {chapter} is wrapping up. Tick what should happen.",
-      "optReveal": "Reveal what every Truth Bullet really is ({n} still unidentified)",
+      "optReveal": "Reveal what the Truth Bullets really are, with their readings ({n} to reveal)",
+      "revealKeeps": "Faint and Final Truth Bullets are not revealed: they stay as their holders have them, still to be analysed, in the next chapter too.",
       "endNote": "Revealing the types is permanent, and so are the three clean-ups above. Nothing else here deletes anything.",
       "endConfirm": "Do it",
       "doneReveal": {

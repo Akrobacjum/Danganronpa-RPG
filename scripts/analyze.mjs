@@ -22,11 +22,8 @@
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import {
     TRUTH_BULLET_FLAGS, secretOf, setSecret, isTruthBullet, isAnalysable, bulletDescription, faintOf, NOT_AN_EDIT, shownSourceAction,
-    bulletAsHeld
+    bulletAsHeld, publishReading
 } from "./truth-bullets.mjs";
-// The trace's own `public` record, for a reading a bullet's secret was minted
-// without (T-2). Static: remnants.mjs does not import this file.
-import { remnantPublicById } from "./remnants.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article, esc } from "./utils.mjs";
 import { answerKeysRefusal } from "./gm-stores.mjs";
 
@@ -245,48 +242,13 @@ async function identify(item, actor, realType, isCritical, dc, total) {
     // is doubtful at all (Faint), and what the lab actually says about the
     // object. All four were waiting in the bullet's secret since creation, so a
     // trace the killer has since wiped still identifies completely.
-    const secret = secretOf(item.uuid);
-    // Its Faint and its text as the GMs hold them (fix r2-H17, `resolveAnalyze`).
+    // Its Faint and its text as the GMs hold them (fix r2-H17, `resolveAnalyze`). The write is the one the
+    // chapter's reveal makes too (truth-bullets.mjs `publishReading`, E09 C8), and so is the reading's lookup:
+    // `identify` only ever runs on a GM's client, which can read the trace's `public` record directly.
     const held = bulletAsHeld(item);
-
-    /*
-     * THE SECRET IS THE FAST PATH, THE TRACE IS THE FALLBACK (T-2).
-     *
-     * `propagateRemnantPublic` files a rewritten reading into every copy's
-     * secret, analysed or not - but only the copies it can see at that moment.
-     * A copy minted afterwards from a trace that was already revealed is never
-     * reconciled by `revealSourceOf`, and a secret filed on another GM's
-     * browser may not have reached this one, so a secret can hold "" while the
-     * trace holds the GM's words. `identify` only ever runs on a GM's client,
-     * which can read the trace's `public` record directly: one lookup here
-     * instead of an audit of every creation site. A bullet with no trace
-     * behind it keeps whatever its secret was given.
-     */
-    const analyzedText = secret.analyzedText
-        || remnantPublicById(secret.sceneId, secret.remnantId)?.analyzedText
-        || "";
+    let analyzedText;
     try {
-        await item.update({
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
-            // A loot's, not while its death is the GMs' alone (truth-bullets.mjs `shownSourceAction`).
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: await shownSourceAction(secret),
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null,
-            /* Faint joined this list in 1.2.47. It used to sit on the item from
-               creation, so the badge announced a doubtful trace to somebody who
-               had not analysed it - `faintOf` knows both roads for a world made
-               before that. */
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(held),
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: analyzedText,
-            // Rebuilt from the FLAG rather than patched onto whatever the
-            // description currently holds: a GM may have rewritten the Observe
-            // half since this bullet was created, and the flag is the copy that
-            // followed that edit. Reading the rendered HTML back would make the
-            // description its own source of truth, which is how the two halves
-            // would start to disagree.
-            "system.description": bulletDescription(
-                held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "", analyzedText)
-        }, { [NOT_AN_EDIT]: true });
+        analyzedText = await publishReading(item, { ...secretOf(item.uuid), realType }, { held });
     } catch (err) {
         error("Could not identify the Truth Bullet after a successful Analyze", err);
         return;

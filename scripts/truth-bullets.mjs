@@ -354,6 +354,50 @@ export function bulletDescription(playerText, analyzedText = "") {
     }</strong> ${esc(analyzedText)}</p>`;
 }
 
+/**
+ * A COPY GIVES UP WHAT IT REALLY WAS, WHOLE (E09 C8, S05-18). The kind, `analyzed`, the four facts that wait in the
+ * answer key until then (which action left the trace, its tie, Faint, the reading) and the description rebuilt with
+ * the reading, in one write that is not an edit of the trace (`NOT_AN_EDIT`). Two roads give it: a successful Analyze
+ * (analyze.mjs `identify`, where this was written until C8) and the chapter's reveal (chapter.mjs
+ * `revealAllBulletTypes`). Until C8 the reveal wrote its own three of them - the kind, `analyzed` and Faint - so a Key
+ * it revealed showed its kind and never its reading (tier 2 "a revealed Key carries its reading", red on the code
+ * before C8, 08.10.2026). `held` is the copy as the GMs hold it (`bulletAsHeld`), which the caller has decided on:
+ * Faint and the player's text are read off it, not off a document a player's write may be waiting on. GM-side, as
+ * every reader of the answer key is; its callers are behind a GM's gate. Answers the reading it published; a write
+ * that fails throws, and the caller says which road it was.
+ *
+ * THE SECRET IS THE FAST PATH, THE TRACE IS THE FALLBACK (T-2). `propagateRemnantPublic` files a rewritten reading
+ * into every copy's secret, analysed or not - but only the copies it can see at that moment. A copy minted afterwards
+ * from a trace that was already revealed is never reconciled by `revealSourceOf`, and a secret filed on another GM's
+ * browser may not have reached this one, so a secret can hold "" while the trace holds the GM's words: one lookup of
+ * the trace's `public` record here instead of an audit of every creation site. A bullet with no trace behind it keeps
+ * whatever its secret was given.
+ */
+export async function publishReading(item, secret, { held = bulletAsHeld(item) } = {}) {
+    const { remnantPublicById } = await import("./remnants.mjs");
+    const analyzedText = secret.analyzedText
+        || remnantPublicById(secret.sceneId, secret.remnantId)?.analyzedText
+        || "";
+    await item.update({
+        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: secret.realType ?? "neutral",
+        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
+        // A loot's, not while its death is the GMs' alone (`shownSourceAction`).
+        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: await shownSourceAction(secret),
+        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null,
+        /* Faint joined this list in 1.2.47. It used to sit on the item from creation, so the badge announced a
+           doubtful trace to somebody who had not analysed it - `faintOf` knows both roads for a world made before
+           that. */
+        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(held),
+        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: analyzedText,
+        // Rebuilt from the FLAG rather than patched onto whatever the description currently holds: a GM may have
+        // rewritten the Observe half since this bullet was created, and the flag is the copy that followed that edit.
+        // Reading the rendered HTML back would make the description its own source of truth, which is how the two
+        // halves would start to disagree.
+        "system.description": bulletDescription(held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "", analyzedText)
+    }, { [NOT_AN_EDIT]: true });
+    return analyzedText;
+}
+
 export function isAnalysable(item, chapter = null) {
     if (!isTruthBullet(item)) return false;
     if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return false;
