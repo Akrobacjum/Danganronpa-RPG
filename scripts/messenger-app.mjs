@@ -879,6 +879,28 @@ async function ruleDeclineReshape(action, data) {
     return told ? settled("DRPG.Bridge.settledDeclined") : null;
 }
 
+/*
+ * AN OBSERVE'S FOCUSED GAZE (E09 C12; audit S05-27). "Pick a trace" opens the picker on this
+ * GM's browser and sends the pick to the primary GM, which checks it against the traces the
+ * character could be shown now and answers the player (observe.mjs `pickFromCard`, gm-bridge.mjs
+ * `askObservePick`). A pick the primary did not take leaves the card open, unless nobody is
+ * waiting on it any more - then the card says so. The card carries the ask's request id, the
+ * character and the player's own words, and no trace.
+ */
+async function rulePickObserveTrace(action, data) {
+    const { pickFromCard } = await import("./observe.mjs");
+    const picked = await pickFromCard({ rid: data.rid, by: data.by, request: data.desc ?? "" });
+    if (picked === "gone") return settled("DRPG.Observe.pickGone");
+    return picked === "picked" ? settled("DRPG.Bridge.settledAnswered") : null;
+}
+
+async function ruleRefuseObserveTrace(action, data) {
+    const { askObservePick } = await import("./gm-bridge.mjs");
+    const refused = await askObservePick({ rid: data.rid, actorId: data.by, refuse: true });
+    if (refused === "gone") return settled("DRPG.Observe.pickGone");
+    return refused === "refused" ? settled("DRPG.Bridge.settledDeclined") : null;
+}
+
 // ---------------------------------------------------------------- generic
 //
 // Every ruling card carries at least one of these two, or one of the
@@ -1120,6 +1142,8 @@ const CARD_ACTIONS = {
     declineProject: ruleDeclineProject,
     approveReshape: ruleApproveReshape,
     declineReshape: ruleDeclineReshape,
+    pickObserveTrace: rulePickObserveTrace,
+    refuseObserveTrace: ruleRefuseObserveTrace,
     reply: ruleReply,
     observeMiss: ruleObserveMiss,
     decline: ruleDecline,

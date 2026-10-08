@@ -1718,6 +1718,113 @@ async function playerInRoom() {
 }
 
 /**
+ * A FOCUSED GAZE ASKED AS A PLAYER'S BROWSER ASKS IT (E09 C12; audit S05-27). Two traces where a
+ * connected player's character stands (`near`, `far`) and one in another room (`away`), each with
+ * its own subject; `ask()` judges that player's `observe.target` packet with a "specific"
+ * declaration and the request `near`'s subject, as the bridge judges it, under a fresh request id.
+ * Every window is answered here: a picker with the option whose words hold the subject `answer`
+ * names (null when none), anything else null, and each picker's options are kept (`picks`). The
+ * primary's packets are recorded rather than sent: what the judge sends the asker (`told`) and the
+ * `bridge.done` it emits to the asker of one of these requests (`sent`). `press(action)` presses a
+ * button of the newest Observe card as a GM's messenger does (`wireCallActions`) and waits for the
+ * click to end; `warned` keeps the GM's warnings. `putBack` deletes the traces and puts Foundry's
+ * `wait`, `socket.emit` and `ui.notifications.warn` back. Ask the world's rows first: it writes.
+ */
+async function focusedGazeFixture() {
+    const G = await import("./bridge-guards.mjs");
+    const B = await import("./gm-bridge.mjs");
+    const remnants = await import("./remnants.mjs");
+    const { allRooms, positionIn } = await import("./movement.mjs");
+    const { contentOf, cardFlag } = await import("./secret.mjs");
+    const { wireCallActions } = await import("./messenger-app.mjs");
+    const { observeStore } = await import("./gm-stores.mjs");
+    const { player, actor, where } = await playerInRoom();
+    const elsewhere = allRooms(where.scene).find(room => room !== where.room) ?? null;
+    must(elsewhere, `the scene holds no room but ${where.room} - this would measure nothing`);
+    const subjects = { near: "C12 the cup on the desk", far: "C12 the scratch on the door", away: "C12 the trace in another room" };
+    const had = new Set(game.messages.contents.map(m => m.id));
+    const rids = new Set(), told = [], sent = [], warned = [], picks = [];
+    const F = { player, actor, where, subjects, told, sent, warned, picks, traces: {}, answer: null, B, contentOf, cardFlag };
+    const Dlg = foundry.applications.api.DialogV2;
+    const own = Object.getOwnPropertyDescriptor(Dlg, "wait");
+    const socket = game.socket, emit = socket.emit, warn = ui.notifications.warn;
+    Dlg.wait = async config => {
+        let content = config?.content ?? null;
+        if (typeof content === "string") {
+            const wrap = document.createElement("template");
+            wrap.innerHTML = content;
+            content = wrap.content;
+        }
+        const select = content?.querySelector?.('select[name="remnant"]');
+        if (!select) return null;
+        const options = [...select.options].map(o => [o.value, o.textContent]);
+        picks.push(options.map(o => o[1]));
+        return F.answer ? options.find(o => o[1].includes(F.answer))?.[0] ?? null : null;
+    };
+    socket.emit = function (event, packet, options, ...rest) {
+        if (packet?.action === "bridge.done" && rids.has(packet.requestId)) {
+            sent.push(packet);
+            return undefined;
+        }
+        return emit.call(this, event, packet, options, ...rest);
+    };
+    ui.notifications.warn = (message, ...rest) => {
+        warned.push(String(message));
+        return warn.call(ui.notifications, message, ...rest);
+    };
+    F.putBack = async () => {
+        if (own) Object.defineProperty(Dlg, "wait", own);
+        else delete Dlg.wait;
+        socket.emit = emit;
+        ui.notifications.warn = warn;
+        for (const trace of Object.values(F.traces)) {
+            await remnants.dropRemnantSecret(trace);
+            if (where.scene.tokens.has(trace.id)) await where.scene.deleteEmbeddedDocuments("Token", [trace.id]);
+        }
+    };
+    try {
+        for (const [name, at] of [["near", where.tokenDoc], ["far", where.tokenDoc], ["away", positionIn(elsewhere, where.tokenDoc)]]) {
+            F.traces[name] = await remnants.placeRemnant({ type: "prep", visibility: "evident", scene: where.scene,
+                x: at.x, y: at.y, subject: subjects[name], note: `test fixture - an Observe card's ${name} trace` });
+            must(F.traces[name], `the ${name} trace was not placed`);
+        }
+    } catch (err) {
+        await F.putBack();
+        throw err;
+    }
+    F.ask = async () => {
+        const rid = `C12${foundry.utils.randomID(10)}`;
+        rids.add(rid);
+        await G.judge(B.BRIDGE_ACTIONS, { action: "observe.target", requestId: rid, actorId: actor.id, declaration: "specific",
+            request: subjects.near }, player.id, { send: (to, packet) => told.push(packet) });
+        await settle();
+        return rid;
+    };
+    F.card = () => game.messages.contents.filter(m => !had.has(m.id)
+        && String(contentOf(m) ?? "").includes('data-drpg-call="pickObserveTrace"')).at(-1) ?? null;
+    F.settled = message => Boolean(message && cardFlag(game.messages.get(message.id), "settled"));
+    F.press = async (action, answer = null) => {
+        const message = F.card();
+        if (!message) return false;
+        F.answer = answer;
+        const body = document.createElement("div");
+        body.innerHTML = contentOf(message);
+        wireCallActions(body, message);
+        const button = body.querySelector(`[data-drpg-call="${action}"]`);
+        if (!button) return false;
+        button.click();
+        await until(() => !button.disabled || F.settled(message), 8000);
+        await settle();
+        return true;
+    };
+    F.rows = () => Object.values(observeStore.entries()).filter(row => row?.actorId === actor.id
+        && Object.values(F.traces).some(trace => trace.id === row.tokenId));
+    F.pickOf = (rid, tokenId, refuse = false) => typeof B.askObservePick === "function"
+        ? B.askObservePick({ rid, actorId: actor.id, tokenId, refuse }) : null;
+    return F;
+}
+
+/**
  * A swing to measure (E32+E07 C8): a direct murder between two students with players, its
  * opening ruled a success and the killer's turn come, the victim with no marks, and the killer
  * holding a Tier 1 knife readied - one point of durability, so the first Despair breaks it.
@@ -14237,6 +14344,161 @@ const SCENARIOS = [
                 "a reshape with one of its two fields was put to the GMs, or held back the erase a critical bought "
                 + "(the Tamper's proposal, the critical's proposal, the trace standing)");
         } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a GM's pick on an Observe card answers the player's focused gaze from the traces the primary reads again", async () => {
+        /*
+         * E09 C12, 08.10.2026; audit S05-27. A player's "focus your gaze" opened the picker on the
+         * primary GM's browser and nowhere else: no card, so no other GM learned the question was
+         * asked, and the player waited out the clock behind a hidden window. Judged as the bridge
+         * judges the player's packet, then answered from the card the way a GM's messenger does.
+         * Read: the windows opened while the ask was judged (none - the picker is the clicking GM's),
+         * that a card was posted and nothing answered the asker yet, then after "Pick a trace" (the
+         * picker answered with the far trace) the options it listed (the two traces where the
+         * character stands, not the one in another room), the asker's answer, the row the primary
+         * wrote for its key, and the card closed. Red on the code before C12: the picker opened while
+         * the ask was judged and no card was posted.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the traces lie where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("namedRooms", 2), "a third trace lies in another room");
+        const F = await focusedGazeFixture();
+        try {
+            await F.ask();
+            // Held, not found again: a settled card has no buttons left to find it by.
+            const card = F.card();
+            const asked = [F.picks.length, Boolean(card), F.told.filter(p => p.action === "bridge.done").length];
+            const pressed = await F.press("pickObserveTrace", F.subjects.far);
+            const listed = (F.picks[0] ?? []).map(text => Object.entries(F.subjects).find(([, subject]) => text.includes(subject))?.[0] ?? "?").sort();
+            const done = F.sent.at(-1)?.value ?? null;
+            const row = done?.key ? (await import("./gm-stores.mjs")).observeStore.get(done.key) : null;
+            equal(stableJson([asked, pressed, listed, F.sent.length, done?.ok ?? null,
+                row ? [row.actorId, row.by, row.declaration, row.tokenId, row.request] : null, F.settled(card)]),
+            stableJson([[0, true, 0], true, ["far", "near"], 1, true,
+                [F.actor.id, F.player.id, "specific", F.traces.far.id, F.subjects.near], true]),
+            "a player's focused gaze was not put on a card and picked from it (windows while asked, card, answers while asked; "
+                + "pressed; the picker's traces; answers sent, its ok; the row written for its key; the card closed)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a forged pick of an Observe's target is refused and told and a pick the primary cannot find writes nothing", async () => {
+        /*
+         * E09 C12, 08.10.2026; audit S05-27, the plan's 2.3 (class 6). A pick is a GM's: the player
+         * who asked could otherwise choose the trace their own roll is scored against. And the
+         * primary reads the list again rather than take the clicking GM's word: a trace in another
+         * room is not one this Observe can land on. Read: the code a player's `observe.pick` for its
+         * own ask is refused with, then a GM's pick of the trace in another room (its answer and the
+         * GM's warning), the asker's answers and the rows written after both, and that the card
+         * still answers a GM's pick of a trace in the room. Red on the code before C12: no card,
+         * and no `observe.pick` to refuse.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the traces lie where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("namedRooms", 2), "a third trace lies in another room");
+        const G = await import("./bridge-guards.mjs");
+        const F = await focusedGazeFixture();
+        try {
+            const rid = await F.ask();
+            await G.judge(F.B.BRIDGE_ACTIONS, { action: "observe.pick", requestId: `C12${foundry.utils.randomID(8)}`, rid,
+                actorId: F.actor.id, tokenId: F.traces.near.id }, F.player.id, { send: (to, packet) => F.told.push(packet) });
+            await settle();
+            const forged = F.told.filter(p => p.action === "bridge.refused" && p.what === "observe.pick").map(p => p.reason);
+            const away = await F.pickOf(rid, F.traces.away.id);
+            const notThere = game.i18n.format("DRPG.Observe.pickNotThere", { name: F.actor.name });
+            const after = [F.sent.length, F.rows().length, F.warned.filter(w => w === notThere).length];
+            const pressed = await F.press("pickObserveTrace", F.subjects.near);
+            equal(stableJson([forged, away, after, pressed, F.sent.at(-1)?.value?.ok ?? null, F.rows().map(row => row.tokenId)]),
+                stableJson([["gmOnly"], "notThere", [0, 0, 1], true, true, [F.traces.near.id]]),
+                "a player's pick, or a GM's of a trace the character cannot be shown, was taken (the player's refusal; the GM's "
+                    + "answer; answers, rows and warnings after both; a pick from the card after them, its answer, the rows)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["the player's copy of an Observe card names no trace before a GM's pick or after it", async () => {
+        /*
+         * E09 C12, 08.10.2026; audit S05-27. The card lives in the player's thread, and every word of
+         * it a player's browser holds is theirs to read: the candidates and their difficulties are
+         * drawn only in the picker of the GM who presses "Pick a trace". Read: the card's words as the
+         * player holds them (secret.mjs `wordsFor`) while it waits and once a GM has picked - each
+         * holds the player's own request, and none holds a trace's subject, its token's id or a
+         * difficulty. Red on the code before C12: there is no card to hold the request.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the traces lie where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("namedRooms", 2), "a third trace lies in another room");
+        const { wordsFor } = await import("./secret.mjs");
+        const F = await focusedGazeFixture();
+        try {
+            await F.ask();
+            const card = F.card();
+            const read = () => {
+                const words = wordsFor(F.player.id, String(F.contentOf(card && game.messages.get(card.id)) ?? ""));
+                const named = [F.subjects.far, F.subjects.away, ...Object.values(F.traces).map(t => t.id)].filter(x => words.includes(x));
+                return [words.includes(F.subjects.near), named, /\bDC\s*\d/.test(words)];
+            };
+            const waiting = read();
+            const pressed = await F.press("pickObserveTrace", F.subjects.near);
+            equal(stableJson([waiting, pressed, F.settled(card), read()]),
+                stableJson([[true, [], false], true, true, [true, [], false]]),
+                "the player's copy of the Observe card names a trace or a difficulty (while it waits: its request, the traces named, "
+                    + "a difficulty; pressed; closed; after the pick)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["an Observe card's pick after its player stopped waiting or after another GM's or a Refuse is refused and told the GM", async () => {
+        /*
+         * E09 C12, 08.10.2026; audit S05-27. A pick is for a player still waiting on it, and for one
+         * GM: a second answer would write a second row for one roll. The player's browser stops
+         * waiting at `TIMING.rulingMs`; the primary holds the ask that long from its arrival. Read,
+         * with the clock set to nothing for the press: the GM's warning, the asker's answers, the
+         * rows, and the card's closing line; then, on a second ask, two GMs' picks at once - what
+         * each was answered, the asker's answers and the rows; then, on a third, the card's Refuse
+         * and a pick after it - the Refuse is the ask's one answer, sent by the primary, and the
+         * pick finds nobody waiting. Red on the code before C12: no card, and no pick to send.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the traces lie where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("namedRooms", 2), "a third trace lies in another room");
+        const { TIMING } = await import("./config.mjs");
+        const F = await focusedGazeFixture();
+        const clock = TIMING.rulingMs;
+        try {
+            await F.ask();
+            const card = F.card();
+            TIMING.rulingMs = 0;
+            await wait(5);
+            let pressed;
+            try {
+                pressed = await F.press("pickObserveTrace", F.subjects.near);
+            } finally {
+                TIMING.rulingMs = clock;
+            }
+            const gone = game.i18n.localize("DRPG.Observe.pickGone");
+            const late = [pressed, F.warned.filter(w => w === gone).length, F.sent.length, F.rows().length,
+                String(F.contentOf(card && game.messages.get(card.id)) ?? "").includes(gone)];
+            const rid = await F.ask();
+            const both = await Promise.all([F.pickOf(rid, F.traces.near.id), F.pickOf(rid, F.traces.far.id)]);
+            const once = [F.sent.length, F.rows().length];
+            const third = await F.ask();
+            const refusedCard = F.card();
+            const refused = await F.press("refuseObserveTrace");
+            const afterRefuse = [F.sent.at(-1)?.value ?? null, await F.pickOf(third, F.traces.near.id), F.sent.length, F.rows().length,
+                F.settled(refusedCard)];
+            equal(stableJson([late, [...both].sort(), once, refused, afterRefuse]),
+                stableJson([[true, 1, 0, 0, true], ["gone", "picked"], [1, 1], true, [{ ok: false, reason: "refused" }, "gone", 2, 1, true]]),
+                "a pick was taken after its player stopped waiting, twice, or after a Refuse (pressed, warned, answers, rows, the "
+                    + "card's line; the two GMs' answers, answers sent and rows after them; the Refuse pressed, the asker's last "
+                    + "answer, a pick after it, answers sent, rows, the card closed)");
+        } finally {
+            TIMING.rulingMs = clock;
             await F.putBack();
         }
     }],

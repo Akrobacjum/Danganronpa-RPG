@@ -59,6 +59,8 @@ const ACTION_HOPE_CALL = "call.approve";
 const ACTION_CALL_YES = "call.yes";
 const ACTION_OBSERVE_TARGET = "observe.target";
 const ACTION_OBSERVE_RESOLVE = "observe.resolve";
+/** GM -> primary GM: a GM's pick or refusal on an Observe card (E09 C12; observe.mjs `pickFromCard`, `askObservePick`). */
+const ACTION_OBSERVE_PICK = "observe.pick";
 const ACTION_CLEANUP_TRACES = "cleanup.traces";
 const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 /* N-2: the player picked their own Level Up and the GM's client writes it. */
@@ -269,9 +271,11 @@ async function handleObserveTarget(payload, sender, ctx) {
         declaration: payload.declaration,
         request: payload.request,
         // The key is minted for this account and no other (E03; audit S05-03).
-        userId: sender.isGM ? null : sender.id
+        userId: sender.isGM ? null : sender.id,
+        // A focused gaze is put on every GM's card and answered later (E09 C12).
+        asked: ctx
     });
-    return { reply: result };
+    return result?.later || result?.refused ? result : { reply: result };
 }
 
     // Stage 6's picker. Which traces a killer's own client may act on is
@@ -1387,6 +1391,12 @@ async function handleReshapeRuling(payload, sender) {
         verdict: payload.verdict }, sender.id) };
 }
 
+/** The run of `observe.pick` (E09 C12): a GM's pick or refusal on an Observe card, held to the ask this primary keeps (`observePickOnPrimary`). */
+async function handleObservePick(payload, sender) {
+    return { reply: await observePickOnPrimary({ rid: payload.rid, actorId: payload.actorId, tokenId: payload.tokenId,
+        refuse: payload.refuse }, sender.id) };
+}
+
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
 async function handleCardPost(payload, sender) {
     const { postAsked, cardTooLong } = await import("./secret.mjs");
@@ -2027,6 +2037,26 @@ export const BRIDGE_ACTIONS = table({
             verdict: "\"approve\" or \"decline\" (cleanup.mjs ruleReshape); anything else rules on nothing"
         }
     },
+    /*
+     * AN OBSERVE'S FOCUSED GAZE, PICKED ON THE PRIMARY GM (E09 C12, 08.10.2026; audit S05-27).
+     * The card is every GM's, and the pick is checked where the ask is kept: the primary holds
+     * who asked, for which character and in which room (`observeAsks`), reads the list of
+     * traces again, and writes the Observe's row only for a trace on it. A GM's alone: the
+     * card's buttons are drawn for GMs.
+     */
+    [ACTION_OBSERVE_PICK]: {
+        label: "DRPG.Bridge.what.observe.pick",
+        guards: [gmOnly("only a GM picks what an Observe is aimed at")],
+        sanitize: pick({ rid: as.id, actorId: as.id, tokenId: as.id, refuse: as.bool }),
+        run: handleObservePick,
+        answer: "reply",
+        claims: {
+            rid: "the ask this primary keeps under that request (observePickOnPrimary); one it does not keep - answered, given up, never asked - is refused and told",
+            actorId: "compared to the character of the ask kept under rid; another character's is refused and told",
+            tokenId: "read again on the primary: one of observeCandidates for that character in the room it asked in (observe.mjs pickObserveTarget), else nothing is written and the GM is told",
+            refuse: "the GM's Refuse: the asker is told the Observe was refused, and nothing is written"
+        }
+    },
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",
         guards: [knownSender, guardCardSpeaker, guardCardReaders],
@@ -2376,6 +2406,103 @@ async function askTraitByCard(payload, ctx) {
         veiled: true
     });
     return posted === false ? { refused: "the ruling card could not be posted" } : { later: true };
+}
+
+/**
+ * The Observes this primary put on a card, by request (E09 C12): who asked, for which
+ * character, in which room, with what words and when - what a GM's pick is held to
+ * (`observePickOnPrimary`), read from the ask as it arrived and never from the card. The
+ * oldest go first. Kept in memory: a primary that reloads keeps none, so a pick on a card it
+ * put up before is refused and told, and the player's browser asks again (`resend`).
+ */
+const observeAsks = new Map();
+const OBSERVE_ASKS_KEPT = 100;
+
+/**
+ * A player's focused gaze, put to every GM as a card in the player's thread (E09 C12; shaped
+ * as `askDynamicByCard`). The card names the character, the room and the player's own words,
+ * and no trace: the candidates and their difficulties are drawn only in the picker of the GM
+ * who presses "Pick a trace" (observe.mjs `pickFromCard`).
+ */
+export async function askObserveByCard({ actor, room, request = "", userId = null }, ctx) {
+    if (!ctx?.requestId || askedByCard.has(ctx.requestId)) return { later: true };
+    askedByCard.add(ctx.requestId);
+    observeAsks.set(ctx.requestId, { asker: ctx.asker, userId, actorId: actor.id, room, request, at: Date.now() });
+    while (observeAsks.size > OBSERVE_ASKS_KEPT) observeAsks.delete(observeAsks.keys().next().value);
+    const data = { rid: ctx.requestId, by: actor.id, desc: request };
+    const posted = await callGm(actor, {
+        title: game.i18n.localize("DRPG.Observe.cardTitle"),
+        request,
+        room,
+        gmBody: game.i18n.localize("DRPG.Observe.cardHint"),
+        actions: [
+            { action: "pickObserveTrace", label: game.i18n.localize("DRPG.Observe.cardPick"), data },
+            { action: "refuseObserveTrace", label: game.i18n.localize("DRPG.Observe.pickRefuse"), data }
+        ]
+    });
+    if (posted !== false) return { later: true };
+    observeAsks.delete(ctx.requestId);
+    return { refused: "the ruling card could not be posted" };
+}
+
+/**
+ * A GM's pick (`tokenId`) or Refuse (`refuse`) on an Observe card, on the primary (E09 C12).
+ * Held to the ask kept under `rid`: none kept, another character's, or one past the asker's
+ * clock (`TIMING.rulingMs` from its arrival here, a little later than the asker's own) is
+ * "gone". The ask is marked as being answered before anything waits, so of two GMs' picks at
+ * once the second is "gone" too. A pick the primary does not find among the traces the
+ * character could be shown now is "notThere", and the card stays open. Answers `{ value, told }`:
+ * value "picked", "refused", "gone" or "notThere"; told, the notice for the GM who pressed.
+ * The asker is answered here, once: `{ ok: true, key }`, or `{ ok: false, reason: "refused" }`
+ * as a GM's closed picker always answered.
+ */
+async function observePickOnPrimary({ rid, actorId, tokenId = null, refuse = false }, by) {
+    const asked = observeAsks.get(rid ?? "");
+    const who = game.users.get(by ?? "")?.name ?? by;
+    if (!asked || asked.answering || asked.actorId !== actorId || Date.now() - asked.at > TIMING.rulingMs) {
+        warn(`An Observe card's ${refuse ? "refusal" : "pick"} by ${who} was not taken: this primary GM keeps no Observe waiting under that request for that character.`);
+        if (asked && !asked.answering && asked.actorId === actorId) observeAsks.delete(rid);
+        return { value: "gone", told: "DRPG.Observe.pickGone" };
+    }
+    asked.answering = true;
+    const answer = value => game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_DONE, requestId: rid, userId: asked.asker, value
+    }, { recipients: [asked.asker] });
+    try {
+        if (refuse) {
+            observeAsks.delete(rid);
+            answer({ ok: false, reason: "refused" });
+            return { value: "refused", told: null };
+        }
+        const { pickObserveTarget } = await import("./observe.mjs");
+        const picked = await pickObserveTarget({ actorId, room: asked.room, tokenId, userId: asked.userId, request: asked.request });
+        if (!picked.ok) {
+            warn(`An Observe card's pick by ${who} was not taken: that trace is not one ${game.actors.get(actorId)?.name ?? actorId} could be shown in ${asked.room} now (${picked.reason}).`);
+            return { value: "notThere", told: "DRPG.Observe.pickNotThere" };
+        }
+        observeAsks.delete(rid);
+        answer({ ok: true, key: picked.key });
+        return { value: "picked", told: null };
+    } finally {
+        asked.answering = false;
+    }
+}
+
+/**
+ * A GM's pick or Refuse on an Observe card, sent to the primary GM (E09 C12; `observe.pick`).
+ * The notice the primary answered with is shown here, to the GM who pressed. What the primary
+ * answered ("picked", "refused", "gone", "notThere"), or null when it could not be asked.
+ */
+export async function askObservePick({ rid, actorId, tokenId = null, refuse = false } = {}) {
+    const asked = { rid, actorId, tokenId, refuse: Boolean(refuse) };
+    const res = await ask(ACTION_OBSERVE_PICK, asked, {
+        onPrimary: true,
+        local: () => observePickOnPrimary(asked, game.user.id)
+    });
+    if (!res.ok) return null;
+    const told = res.value?.told ?? null;
+    if (told) ui.notifications.warn(game.i18n.format(told, { name: game.actors.get(actorId ?? "")?.name ?? "?" }));
+    return res.value?.value ?? null;
 }
 
 /**

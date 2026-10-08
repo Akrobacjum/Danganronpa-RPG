@@ -178,28 +178,16 @@ async function sweepPending() {
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}>}
  */
-export async function chooseObserveTarget({ actorId, declaration, request = "", userId = null } = {}) {
+export async function chooseObserveTarget({ actorId, declaration, request = "", userId = null, asked = null } = {}) {
     if (!game.user.isGM) return { ok: false, reason: "notGm" };
     sweepPending();
 
     const actor = game.actors.get(actorId);
     if (!actor) return { ok: false, reason: "noActor" };
 
-    // Located without the canvas on purpose. This runs on the GM's client, which
-    // is very often looking at a different scene than the player acting - and
-    // the canvas-bound lookup would report the character as standing nowhere,
-    // quietly turning every Observe into the Daily Life fallback.
-    const { locateActor } = await import("./movement.mjs");
-    const where = locateActor(actor);
-    if (!where?.room) return { ok: false, reason: "noRoom" };
-
-    // A Remnant already copied is not a second find - the guide's Truth Bullet
-    // is the player's copy of a trace, and one trace yields one copy per person.
-    const already = copiedRemnants(actor);
     const followingTraces = declaration === DECLARATIONS.followTraces;
-    const candidates = rankForObserve(where.room, where.scene,
-        { preferSource: followingTraces ? actorId : null })
-        .filter(c => !already.has(c.token.id));
+    const { where, candidates } = await observeCandidates(actor, { preferOwn: followingTraces });
+    if (!where?.room) return { ok: false, reason: "noRoom" };
     const room = where.room;
 
     /* The other thing this room can give up, and only to one declaration - see
@@ -237,6 +225,20 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
     }
 
     let chosen;
+    if (declaration === DECLARATIONS.specific && asked) {
+        /*
+         * A PLAYER'S FOCUSED GAZE IS PICKED ON EVERY GM'S CARD (E09 C12, 08.10.2026; audit
+         * S05-27). The picker opened on the primary GM's browser and nowhere else: a second
+         * GM never learned the question existed, and a primary whose window was hidden left
+         * the player waiting out the whole clock. Now the question is a card in the player's
+         * thread (gm-bridge.mjs `askObserveByCard`), any GM's click opens the picker on that
+         * GM's own browser (`pickFromCard`), and the pick is checked and written here, on the
+         * primary (`pickObserveTarget`). The bridge's `{ later: true }` or `{ refused }`, not
+         * a target: the player's answer is sent when a GM has picked or refused.
+         */
+        const { askObserveByCard } = await import("./gm-bridge.mjs");
+        return askObserveByCard({ actor, room, request, userId }, asked);
+    }
     if (declaration === DECLARATIONS.specific) {
         chosen = await askWhichRemnant(actor, room, request, candidates);
         // A GM who closes the picker has refused the request, which is a real
@@ -277,14 +279,42 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
         chosen = declaration === DECLARATIONS.nonObvious ? shelf[shelf.length - 1] : shelf[0];
     }
 
+    return { ok: true, key: await pendObserve({ actor, userId, where, declaration, request, chosen, secret }) };
+}
+
+/**
+ * Where an observer stands and the traces they could be shown there (E09 C12, split out of
+ * `chooseObserveTarget`): `{ where, candidates }`, `where` null for a character standing in no
+ * room. Read on any GM's browser - the clicking GM's picker and the primary's check of the pick
+ * read the same list - and, with `room`, empty unless the character still stands in that room.
+ *
+ * Located without the canvas on purpose. This runs on a GM's client, which is very often
+ * looking at a different scene than the player acting - and the canvas-bound lookup would
+ * report the character as standing nowhere, quietly turning every Observe into the Daily Life
+ * fallback. A Remnant already copied is not a second find - the guide's Truth Bullet is the
+ * player's copy of a trace, and one trace yields one copy per person.
+ */
+export async function observeCandidates(actor, { room = null, preferOwn = false } = {}) {
+    const { locateActor } = await import("./movement.mjs");
+    const where = actor ? locateActor(actor) : null;
+    if (!where?.room) return { where: null, candidates: [] };
+    if (room && where.room !== room) return { where, candidates: [] };
+    const already = copiedRemnants(actor);
+    const candidates = rankForObserve(where.room, where.scene, { preferSource: preferOwn ? actor.id : null })
+        .filter(c => !already.has(c.token.id));
+    return { where, candidates };
+}
+
+/** Write one Observe's pending row for the trace `chosen` (and the project `secret`, if any), and answer its key. */
+async function pendObserve({ actor, userId, where, declaration, request, chosen, secret = null }) {
     const key = foundry.utils.randomID();
     readPending();
     pending.set(key, {
         at: Date.now(),
-        actorId,
+        actorId: actor.id,
         // The account that asked for this key (E03) - see `observeResolveRefusal`.
         by: userId,
-        room,
+        room: where.room,
         declaration,
         request,
         tokenId: chosen.token.id,
@@ -300,8 +330,47 @@ export async function chooseObserveTarget({ actorId, declaration, request = "", 
     // and a GM who reloads in between used to lose the declaration (ACT-08).
     await writePending();
 
-    log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${room} (DC ${chosen.dc}).`);
-    return { ok: true, key };
+    log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${where.room} (DC ${chosen.dc}).`);
+    return key;
+}
+
+/**
+ * A GM's pick from an Observe card, checked and written on the primary (E09 C12): the trace
+ * must be one the character could be shown now, in the room they asked in - the list is read
+ * again here, never taken from the clicking GM's - and the row is written as
+ * `chooseObserveTarget` writes a picked one. `{ ok, key }`, or `{ ok: false, reason }` with
+ * nothing written.
+ */
+export async function pickObserveTarget({ actorId, room, tokenId, userId = null, request = "" } = {}) {
+    if (!game.user.isGM) return { ok: false, reason: "notGm" };
+    sweepPending();
+    const actor = game.actors.get(actorId ?? "");
+    if (!actor) return { ok: false, reason: "noActor" };
+    const { where, candidates } = await observeCandidates(actor, { room });
+    const chosen = candidates.find(c => c.token.id === tokenId);
+    if (!chosen) return { ok: false, reason: "notThere" };
+    return { ok: true, key: await pendObserve({ actor, userId, where, declaration: DECLARATIONS.specific, request, chosen }) };
+}
+
+/**
+ * A GM's "Pick a trace" on an Observe card (E09 C12; messenger-app.mjs `pickObserveTrace`):
+ * the picker, drawn on this GM's browser from this GM's copy of the ledger - the candidates and
+ * their difficulties are on no card - and the pick sent to the primary (`askObservePick`).
+ * What the primary answered ("picked", "gone", "notThere"), or null when nothing was asked:
+ * the picker closed, or no trace left where the character stands.
+ */
+export async function pickFromCard({ rid, by, request = "" } = {}) {
+    const actor = game.actors.get(by ?? "");
+    if (!game.user.isGM || !actor || !rid) return null;
+    const { where, candidates } = await observeCandidates(actor);
+    if (!candidates.length) {
+        ui.notifications.warn(game.i18n.format("DRPG.Observe.pickNothing", { name: actor.name }));
+        return null;
+    }
+    const chosen = await askWhichRemnant(actor, where.room, request, candidates, { refuse: false });
+    if (!chosen) return null;
+    const { askObservePick } = await import("./gm-bridge.mjs");
+    return askObservePick({ rid, actorId: actor.id, tokenId: chosen.token.id });
 }
 
 /* ==========================================================================
@@ -455,8 +524,12 @@ function mostRelevant(candidates) {
     return latest.length ? latest : tied;
 }
 
-/** The GM decides which trace is closest to what the player asked for. */
-async function askWhichRemnant(actor, room, request, candidates) {
+/**
+ * The GM decides which trace is closest to what the player asked for. From a card
+ * (`refuse: false`) the picker has no Refuse of its own: the card has one, and closing the
+ * picker leaves the card to be answered.
+ */
+async function askWhichRemnant(actor, room, request, candidates, { refuse = true } = {}) {
     const options = candidates.map((c, i) => {
         const label = [
             `${c.data.visibilityLabel} ${c.data.typeLabel}`,
@@ -485,7 +558,7 @@ async function askWhichRemnant(actor, room, request, candidates) {
                 action: "ok", label: game.i18n.localize("DRPG.Observe.pickConfirm"), default: true,
                 callback: (e, b, d) => d.element.querySelector("[name=remnant]").value
             },
-            { action: "refuse", label: game.i18n.localize("DRPG.Observe.pickRefuse") }
+            ...(refuse ? [{ action: "refuse", label: game.i18n.localize("DRPG.Observe.pickRefuse") }] : [])
         ],
         rejectClose: false
     });

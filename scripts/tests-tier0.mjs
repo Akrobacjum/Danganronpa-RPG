@@ -7184,14 +7184,22 @@ const REGRESSIONS = [
          * read as rows without a place (the parse-only census at the fix, 08.10.2026: "3 stale
          * verdict(s)"); with it, 77 rows, 20 ITEM again. E09 C10 added the four fields of
          * `cleanup.ruling`, a GM's ruling on a reshape asked of the primary, where their planned rows
-         * said: 81 rows, 51 PACKET (read live 08.10.2026, none without a row). The
+         * said: 81 rows, 51 PACKET (read live 08.10.2026, none without a row). E09 C12 added the
+         * four fields of `observe.pick`, a GM's pick or Refuse on an Observe card asked of the
+         * primary, and its two card actions, `pickObserveTrace` and `refuseObserveTrace`, where the
+         * planned rows said (with `refuse`, which the plan did not name): 87 rows, 55 PACKET, 6 CARD
+         * (read live 08.10.2026, none without a row and no row without a place). The
          * reader is run first on a fixture with a judged reader, a reader whose field is only in a
          * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
          */
         const INVESTIGATION_CENSUS = [
-            ["PACKET gm-bridge.mjs#observe.target#actorId", "judged: knownSender + owns(actorId); C12 moves the specific branch to every GM's card and a GM-only observe.pick, the asker stays judged here"],
+            ["PACKET gm-bridge.mjs#observe.target#actorId", "judged: knownSender + owns(actorId); since C12 a focused gaze is put on every GM's card (askObserveByCard) and picked through the GM-only observe.pick, the asker judged here"],
             ["PACKET gm-bridge.mjs#observe.target#declaration", "judged: chooseObserveTarget compares it to DECLARATIONS, an unknown one answered with a reason"],
-            ["PACKET gm-bridge.mjs#observe.target#request", "judged: read only as the asker's word for 'focus'; the candidates are recomputed on the primary from C12 (observeCandidates), never taken from it"],
+            ["PACKET gm-bridge.mjs#observe.target#request", "judged: read only as the asker's word for 'focus', shown on the card and in the picker; the candidates are read on the primary (observeCandidates), never taken from it"],
+            ["PACKET gm-bridge.mjs#observe.pick#rid", "judged (C12): gmOnly, run on the primary (askObservePick, onPrimary); the ask the primary keeps under it (observeAsks) must still be waiting and not being answered, else refused and told the GM"],
+            ["PACKET gm-bridge.mjs#observe.pick#actorId", "judged (C12): gmOnly; must be the character of the ask kept under rid, else refused and told the GM"],
+            ["PACKET gm-bridge.mjs#observe.pick#tokenId", "judged (C12): read again on the primary - one of observeCandidates for that character in the room it asked in (pickObserveTarget), else nothing is written and the GM is told"],
+            ["PACKET gm-bridge.mjs#observe.pick#refuse", "judged (C12): gmOnly; a GM's Refuse of the ask kept under rid, told to the asker as a refusal, nothing written"],
             ["PACKET gm-bridge.mjs#cleanup.traces#actorId", "judged: knownSender + owns(actorId); lists the traces of the cleaner's own room; E09 adds no read"],
             ["PACKET gm-bridge.mjs#cleanup.traces#mine", "judged: a filter over the cleaner's own room's list; widens nothing"],
             ["PACKET gm-bridge.mjs#cleanup.ruling#actorId", "judged: gmOnly (a GM sender) and ruled on the primary (askReshapeRuling, onPrimary); claimRuling rules only on the row of that character's last clean-up, and refuses and tells without one"],
@@ -7199,7 +7207,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#cleanup.ruling#attempt", "judged: claimRuling - must be the row's attempt, else refused and told; `ruled` marked in the same synchronous step, so a second ruling is refused and told"],
             ["PACKET gm-bridge.mjs#cleanup.ruling#verdict", "judged: approve or decline only (ruleReshape); anything else rules on nothing"],
             ["PACKET gm-bridge.mjs#observe.resolve#actorId", "judged: knownSender + owns(actorId) (E28)"],
-            ["PACKET gm-bridge.mjs#observe.resolve#key", "judged: must be the asker's pending row (F7, gmObservePending on the primary); from C12 that row is written only by the primary after a GM's pick it recomputed"],
+            ["PACKET gm-bridge.mjs#observe.resolve#key", "judged: must be the asker's pending row (F7, gmObservePending on the primary); since C12 a focused gaze's row is written only by the primary, from a GM's pick it read again (pickObserveTarget)"],
             ["PACKET gm-bridge.mjs#observe.resolve#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
             ["PACKET gm-bridge.mjs#observe.resolve#isCritical", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
             ["PACKET gm-bridge.mjs#observe.resolve#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
@@ -7262,13 +7270,15 @@ const REGRESSIONS = [
             ["ITEM truth-bullets.mjs#onBulletWrite", "put back: E29's put-back on the primary (judgedFor)"],
             ["CARD messenger-app.mjs#approveReshape", "refused and told (C10): the card carries only the attempt; the proposal is read off the attempt row on the primary (askReshapeRuling), `ruled` marked before any await after the store's hydration, a second ruling refused and told; the card is the GM's (posted from the GM's client - a player cannot update a message they did not author: Foundry's permission, read not measured)"],
             ["CARD messenger-app.mjs#declineReshape", "refused and told (C10): as approveReshape; the erase on the erase road is the row's `erases`"],
+            ["CARD messenger-app.mjs#pickObserveTrace", "judged (C12): the clicking GM's picker from its own copy of the ledger, the pick sent as observe.pick; the primary reads the list again"],
+            ["CARD messenger-app.mjs#refuseObserveTrace", "judged (C12): a GM's Refuse sent as observe.pick on the primary, told to the asker"],
             ["CARD messenger-app.mjs#observeMiss", "judged: a GM's card (callGm, posted from the GM's client); chargeObserveMiss reads the actor on the GM (H24); E09 adds no read"],
             ["CARD messenger-app.mjs#keyRemnantHere", "out of scope: opens the GM's own placement dialog with the player's room and note as a suggestion the GM confirms"],
             ["STORE gm-stores.mjs#remnantStore", "not a source: a GM store on GM browsers (plan 1b a); C3's Save writes it only where `drawn` equals the ledger"],
             ["STORE gm-stores.mjs#keyPlanStore", "not a source: a GM store (1b e); since C6 also each chapter's `:case` row, the closed case's Key count, written by closeIncident on the closing GM (recordCaseKeys) and read by caseKeyCount; under the chapter the case opened in, and dropped by a reset that keeps the plan, since fix r1-G3"],
             ["STORE gm-stores.mjs#cleanupAttemptStore", "not a source: a GM store (1b a); C10 adds the proposal and `ruled`"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (1b e); C7 leaves keysCharged as it is (E10 inherits)"],
-            ["STORE settings.mjs#observePending", "not a source: a client setting on the primary (1b f); C12 writes it only from a recomputed pick"],
+            ["STORE settings.mjs#observePending", "not a source: a client setting on the primary (1b f); since C12 a focused gaze's row is written there only from a pick the primary read again"],
             ["STORE remnants.mjs#TOKEN_KEEPS", "not a source: the token keeps no ledger field (1b a)"]
         ];
         const ROADS = /remnant\.|observe\.|cleanup\.|analyze\.|murder\.cleanup|project\.sabotage|handover\.bullet|tieForItem|reroll\.ask/;

@@ -10,10 +10,14 @@
  * Phases are letters, so a later E09 commit adds one without renumbering:
  *   A  three traces in Dorm A on the GM - a Prep tied to the crime, a Faint and a Key: both
  *      GMs hold their rows, and no player's browser holds a word of them.
- *   O  p1 focuses its gaze (Observe, "specific"): the primary GM's pick dialog lists the
- *      room's traces and is answered with the tied one, its description dialog with three
- *      markers; p1 holds one copy of that trace, without the reading, and p1's thread holds
- *      no GM body (S05-34, asserted closed).
+ *   O  p1 focuses its gaze (Observe, "specific"): (E09 C12) the question is a card in p1's
+ *      thread, and no picker opens on the primary GM; gm2 presses Pick a trace on its own copy
+ *      of the card, its picker lists the room's three traces and is answered with the tied one,
+ *      and the card closes; the primary's description dialog is answered with three markers.
+ *      p1 holds one copy of that trace, without the reading, p1's thread holds no GM body
+ *      (S05-34, asserted closed), and p1's copy of the card holds its request and no trace. On
+ *      the code before C12 (08.10.2026) the primary's picker opened and was answered, gm2 saw
+ *      no card, and p1 held none (O1 and O5 red).
  *   N  p1 Analyzes the copy: read on p1, it shows its type and the reading the GM wrote.
  *   T  p2 finds the same trace (a general Observe) and reshapes it (Tamper, "transform");
  *      the GM's card counts the two copies already held, gm2 approves it from its own copy of
@@ -83,7 +87,9 @@
  * phase P, 36 in 17.6 s (24.7 s with the cluster's start, one run, 08.10.2026); with E09 C9's
  * phase T, 38 in 21.0 s (the cluster's own count, one run, 08.10.2026), two 3-second waits of
  * it for a renaming of p1's and p2's copies that no longer comes; with E09 C10's T8 and T9,
- * 40 in 22.7 s (the same count, one run, 08.10.2026).
+ * 40 in 22.7 s (the same count, one run, 08.10.2026); with E09 C12's O5, 41 in 22.4 s (28.3 s with
+ * the cluster's start, one run, 08.10.2026), and 42.8 s on the code before C12, where gm2 waits out
+ * 20 s for a card that never comes.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -151,11 +157,11 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
 
     /* ------------------------------ O. Observe ------------------------------ */
 
-    begin("O", "p1 focuses its gaze; the primary picks the trace and describes it", "search-observe");
-    await gm.eval(`globalThis.__s62 = { windows: globalThis.__dialogWindows, picks: [], other: [] };
-        globalThis.__dialogWindows = true;
-        const describe = game.i18n.localize("DRPG.Observe.describeTitle");
-        const answer = cfg => {
+    begin("O", "p1 focuses its gaze; gm2 picks the trace from the card, the primary describes it", "search-observe");
+    /* The GM keeps a picker answerer: on the code before E09 C12 (08.10.2026) the primary's own
+       picker opened, was answered here, and O1 below counts it. From C12 the GM answers only the
+       description, and the pick is gm2's, made from its own copy of the card in p1's thread. */
+    const pickAnswerer = `const answer = cfg => {
             // The content is an element (utils.mjs dialogContent), so the pick is read off its select.
             const select = cfg?.content?.querySelector?.('select[name="remnant"]');
             if (select) {
@@ -166,10 +172,16 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
             if (cfg?.window?.title === describe) return { name: ${J(MARK.name)}, playerText: ${J(MARK.playerText)}, analyzedText: ${J(MARK.analyzed)} };
             globalThis.__s62.other.push(cfg?.window?.title ?? "?");
             return null;
-        };
+        };`;
+    for (const client of [gm, gm2]) await client.eval(`globalThis.__s62 = { windows: globalThis.__dialogWindows, picks: [], other: [] };
+        globalThis.__s62had = new Set(game.messages.contents.map(m => m.id));
+        globalThis.__dialogWindows = true;
+        const describe = game.i18n.localize("DRPG.Observe.describeTitle");
+        ${pickAnswerer}
         globalThis.__dialogAnswers.push(answer, answer);
         return true;`);
-    const observed = await p1.eval(`${until} ${TB}
+    // Not awaited: from C12 p1's Observe waits on gm2's pick, which the next eval makes.
+    const observing = p1.eval(`${until} ${TB}
         const actor = game.actors.get("${IDS.aiko}"), { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
         globalThis.__s62had = new Set(game.messages.contents.map(m => m.id));
         globalThis.__dialogAnswers.push(() => ({ value: "specific", form: { querySelector: () => ({ value: ${J(MARK.request)} }) } }));
@@ -182,17 +194,42 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         const copy = await until(() => TB.bulletsOf(actor)[0], 15000);
         const data = copy ? TB.truthBulletData(copy) : null;
         const fresh = game.messages.contents.filter(m => !globalThis.__s62had.has(m.id));
+        const title = game.i18n.localize("DRPG.Observe.cardTitle");
+        const card = fresh.find(m => String(contentOf(m) ?? "").includes(title));
+        const cardWords = card ? String(contentOf(card) ?? "") : null;
         return { err, left0, left: game.drpg.actionsLeft(actor), copies: TB.bulletsOf(actor).length,
             copy: data ? { id: copy.id, name: data.name, playerText: data.playerText, analyzedText: data.analyzedText, shownType: data.shownType,
                 words: JSON.stringify(copy.toObject()).includes(${J(MARK.analyzed)}) } : null,
             fresh: fresh.length, gmBodies: fresh.filter(m => String(contentOf(m) ?? "").includes("drpg-gm-only")).length,
+            card: cardWords === null ? null : { request: cardWords.includes(${J(MARK.request)}),
+                leaked: ${J([MARK.tiedSubject, MARK.tiedNote, MARK.faintNote, MARK.keyNote, "pickObserveTrace", "DC"])}.filter(w => cardWords.includes(w)) },
             dialogs: globalThis.__dialogLog.map(d => d.title).slice(-6) };`, { timeout: 90000 });
-    const picked = await gm.eval(`${TB} const s = globalThis.__s62, out = { picks: s.picks, other: s.other };
+    const answered = await gm2.eval(`${until}
+        const { contentOf, cardFlag } = await import("${repoUrl}/scripts/secret.mjs");
+        const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
+        const find = () => game.messages.contents.find(m => !globalThis.__s62had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="pickObserveTrace"'));
+        const card = await until(find, 20000);
+        let clicked = false;
+        if (card) {
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            const button = body.querySelector('[data-drpg-call="pickObserveTrace"]');
+            button?.click();
+            clicked = Boolean(button);
+        }
+        const settled = card ? Boolean(await until(() => cardFlag(game.messages.get(card.id), "settled"), 20000)) : false;
+        return { card: card?.id ?? null, clicked, settled };`, { timeout: 60000 });
+    const observed = await observing;
+    const picksOf = client => client.eval(`${TB} const s = globalThis.__s62, out = { picks: s.picks, other: s.other };
         globalThis.__dialogWindows = s.windows; globalThis.__dialogAnswers.length = 0;
         out.remnants = TB.bulletsOf(game.actors.get("${IDS.aiko}")).map(i => TB.secretOf(i.uuid)?.remnantId ?? null);
         return out;`);
-    verdict("the primary's pick lists the room's three traces and nothing else asked it a question",
-        picked.picks.length === 1 && picked.picks[0].length === 3 && picked.other.length === 0, J(picked));
+    const picked = { gm: await picksOf(gm), gm2: await picksOf(gm2) };
+    picked.remnants = picked.gm.remnants;
+    verdict("no picker opened on the primary while p1 asked; gm2's card was pressed and settled, its picker listing the room's three traces",
+        picked.gm.picks.length === 0 && picked.gm.other.length === 0 && picked.gm2.other.length === 0
+            && picked.gm2.picks.length === 1 && picked.gm2.picks[0].length === 3 && answered.clicked && answered.settled, J({ picked, answered }));
     verdict("p1 spent one action and holds one copy, of the tied trace, under the words the GM wrote",
         !observed.err && observed.left === observed.left0 - 1 && observed.copies === 1 && J(picked.remnants) === J([ids.tied])
             && observed.copy?.name === MARK.name && observed.copy?.playerText === MARK.playerText, J({ observed, remnants: picked.remnants }));
@@ -200,6 +237,8 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         observed.copy && observed.copy.analyzedText === "" && observed.copy.words === false, J(observed.copy));
     verdict("p1's thread grew and holds no GM body (S05-34 stays closed)",
         observed.fresh > 0 && observed.gmBodies === 0, J({ fresh: observed.fresh, gmBodies: observed.gmBodies }));
+    verdict("p1's copy of the card holds its request and no trace, no note, no DC and no button",
+        observed.card?.request === true && observed.card.leaked.length === 0, J(observed.card));
 
     /* ------------------------------ N. Analyze ------------------------------ */
 
