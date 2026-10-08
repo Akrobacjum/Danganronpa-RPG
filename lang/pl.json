@@ -1561,6 +1561,14 @@
         "many": "Zaktualizowano {n} śladów.",
         "other": "Zaktualizowano {n} śladów."
       },
+      "traceImage": "Obraz",
+      "savedOver": {
+        "one": "Jedno pole zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisane: {list}. Okno pokazuje, co jest w nim teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "few": "{n} pola zmieniły się gdzie indziej, gdy to okno było otwarte, i nie zostały zapisane: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "many": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać.",
+        "other": "{n} pól zmieniło się gdzie indziej, gdy to okno było otwarte, i nie zostało zapisanych: {list}. Okno pokazuje, co jest w nich teraz; wpisz swoje jeszcze raz, jeśli ma zostać."
+      },
+      "savedOverItem": "{field} - {row}: „{value}”",
       "createHereTitle": "Utwórz tu Key Remnant",
       "createHereIntro": "Wskazali punkt zainteresowania, a ty uznajesz, że coś tam jest. To stawia ślad na mapie i może go podpiąć pod jeden z pięciu zaplanowanych tropów.",
       "whichSlot": "Który zaplanowany trop to jest?",
@@ -1596,6 +1604,11 @@
       "noRooms": "Na tej scenie nie ma jeszcze pokoi, więc nie ma gdzie postawić śladu. Najpierw narysuj regiony - Ustawienia pokoi wyjaśniają, jak.",
       "keyDcNote": "Key Remnant to najłatwiejsza do zauważenia rzecz w pokoju, a jak łatwo go zauważyć, zależy od tego, gdzie go postawisz, a nie od skali powyżej: {list}. Zwykły dowód na tym samym stopniu widoczności jest trudniejszy o trzy do sześciu. Skala mówi, ile trop zdradza.",
       "newTraceUnfindable": "Nic nie znajdzie śladu tego rodzaju przy tej trudności - Observe nie ma dla niego progu."
+    },
+    "Live": {
+      "movedUnder": "Zmienione gdzie indziej na: {value}",
+      "ticked": "zaznaczone",
+      "unticked": "niezaznaczone"
     },
     "Vault": {
       "foundStashPending": "Znajdujesz czyjąś skrytkę. Co z niej wyjdzie, rozstrzygnie się za chwilę.",

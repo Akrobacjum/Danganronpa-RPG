@@ -25,6 +25,10 @@
  *      reading, both GMs' copies hold none, the answer key and p1's copy hold it. On the code
  *      before C2 (08.10.2026) both failed: the Faint reached no key, and p2's copy read the
  *      new reading, put back to unanalysed, with both GMs' copies holding it.
+ *   D  (E09 C3) the Investigation Dashboard stands open on the GM with a name typed into the
+ *      Faint trace's row when gm2 approves a reshape of that trace: the GM's window redraws
+ *      (the words show the reshape, the typed name stays and is marked with the reshaped
+ *      one), and the GM's Save refuses the name and says so once - both GMs keep the reshape.
  *   E  (E09 C1) the chapter ends: the GM gives p1's student an unanalysed Faint, a Neutral and
  *      a Final; the Investigation Dashboard's "Sweep Truth Bullets" confirm (answered no) and
  *      the End of chapter panel (its sweep alone ticked) each give the number the sweep then
@@ -46,7 +50,8 @@
  *
  * No `timeoutMs`: measured 08.10.2026 alone, its 17 checks took 7.6 s (13 s with the
  * cluster's start), far inside run-all's shared five minutes and the plan's 150 s budget.
- * With E09 C2's phase V, 23 checks in 6.6 s (the cluster's own count, 08.10.2026).
+ * With E09 C2's phase V, 23 checks in 6.6 s (the cluster's own count, 08.10.2026); with E09
+ * C3's phase D, 28 in 8.9 s (the same count, one run, 08.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -59,7 +64,7 @@ const MARK = {
     tiedSubject: "S62 tied subject", tiedNote: "S62 tied note", faintNote: "S62 faint note", keyNote: "S62 key note",
     name: "S62 found name", playerText: "S62 seen words", analyzed: "S62 reading",
     request: "S62 the cup on the desk", reshapedName: "S62 reshaped name", reshapedText: "S62 reshaped words",
-    rewritten: "S62 rewritten reading"
+    rewritten: "S62 rewritten reading", typed: "S62 typed name", dName: "S62 D reshaped name", dText: "S62 D reshaped words"
 };
 const NOT_CRITICAL = { hope: 11, fear: 9 };
 
@@ -329,6 +334,62 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
             && J(forged.p2) === J([false, "", false]) && J(forged.gm) === J([false, "", MARK.rewritten]) && J(forged.gm2) === J([false, "", MARK.rewritten])
             && forged.p1 === MARK.rewritten, J(forged));
 
+    /* ------------------------------ D. the dashboard under a ruling ------------------------------ */
+
+    begin("D", "gm2 approves a reshape while the GM's dashboard stands open with a name typed in its row", "trace-remnant");
+    const publicOn = client => client.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const scene = game.scenes.get("${IDS.scene}");
+        return Object.fromEntries(${J(Object.entries(ids))}.map(([k, id]) => {
+            const p = R.remnantData(scene.tokens.get(id))?.public ?? {};
+            return [k, [p.name ?? "", p.playerText ?? ""]];
+        }));`);
+    const before = { gm: await publicOn(gm), gm2: await publicOn(gm2) };
+    const row = `${IDS.scene}__${ids.faint}`;
+    const caseWindows = `const open = () => [...foundry.applications.instances.values()].filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));`;
+    const typed = await gm.eval(`${until} ${caseWindows}
+        const I = await import("${repoUrl}/scripts/investigation.mjs");
+        const d = globalThis.__s62d = { windows: globalThis.__dialogWindows, warned: [], warn: ui.notifications.warn };
+        globalThis.__dialogWindows = true;
+        ui.notifications.warn = (text, ...rest) => { d.warned.push(String(text)); return d.warn.call(ui.notifications, text, ...rest); };
+        d.answer = Promise.resolve().then(() => I.openInvestigationDashboard()).catch(e => String(e));
+        d.app = await until(() => open().find(a => a.element) ?? null, 10000);
+        // The window opens on the clock's chapter, and phase A's traces carry none (placeRemnant stamps only what it is
+        // handed): widened to every chapter first, as a GM looking for them would.
+        const chapter = d.app?.element?.querySelector('[data-drpg-filter="chapter"]');
+        if (chapter) { chapter.value = ""; chapter.dispatchEvent(new Event("change", { bubbles: true })); }
+        const name = await until(() => d.app?.element?.querySelector('[name="name.${row}"]'), 10000);
+        const drawn = name?.value ?? null;
+        if (name) name.value = ${J(MARK.typed)};
+        return { open: Boolean(d.app), listed: Boolean(name), drawn };`, { timeout: 30000 });
+    const ruled = await gm2.eval(`const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
+        return await Cl.applyReshapeRuling({ actorId: "${IDS.botan}", tokenId: "${ids.faint}", name: ${J(MARK.dName)}, text: ${J(MARK.dText)} });`, { timeout: 30000 });
+    verdict("the dashboard is open on the GM with a name typed in the Faint trace's row, and gm2's ruling is honoured",
+        typed.open && typed.listed && ruled === true, J({ typed, ruled }));
+    const redrawn = await gm.eval(`${until} const d = globalThis.__s62d;
+        const field = name => d.app?.element?.querySelector('[name="' + name + '"]');
+        await until(() => field("text.${row}")?.value === ${J(MARK.dText)}, 15000);
+        const name = field("name.${row}");
+        return { text: field("text.${row}")?.value ?? null, name: name?.value ?? null,
+            marked: Boolean(name?.classList.contains("drpg-moved-under")), title: name?.title ?? "" };`, { timeout: 30000 });
+    verdict("the GM's open window redraws: the words show the reshape, the typed name stays and is marked with the reshaped one",
+        redrawn.text === MARK.dText && redrawn.name === MARK.typed && redrawn.marked && redrawn.title.includes(MARK.dName), J(redrawn));
+    const saved = await gm.eval(`${until} ${caseWindows} const d = globalThis.__s62d;
+        d.app?.element?.querySelector('footer.form-footer button[data-action="save"]')?.click();
+        const again = await until(() => open().find(a => a !== d.app && a.element) ?? null, 15000);
+        for (const a of open()) await a.close();
+        const answer = await Promise.race([d.answer, new Promise(r => setTimeout(() => r("still waiting"), 10000))]);
+        const { gmStoresIdle } = await import("${repoUrl}/scripts/gm-store.mjs");
+        await gmStoresIdle();
+        ui.notifications.warn = d.warn; globalThis.__dialogWindows = d.windows; delete globalThis.__s62d;
+        return { reopened: Boolean(again), answer: answer ?? null, warned: d.warned };`, { timeout: 60000 });
+    verdict("the GM's Save refuses the typed name and says so once, naming it",
+        saved.reopened && saved.answer === null && saved.warned.length === 1 && saved.warned[0].includes(MARK.typed), J(saved));
+    await settle(800);
+    const after = { gm: await publicOn(gm), gm2: await publicOn(gm2) };
+    const others = side => J({ ...after[side], faint: null }) === J({ ...before[side], faint: null });
+    verdict("both GMs hold the reshape after the Save, and the other two traces as they were",
+        ["gm", "gm2"].every(side => J(after[side].faint) === J([MARK.dName, MARK.dText]) && others(side)), J({ before, after }));
+
     /* ------------------------------ E. the chapter's end ------------------------------ */
 
     begin("E", "the chapter ends with an unanalysed Faint, a Neutral and a Final on p1's student", "truth-bullets");
@@ -359,7 +420,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
 
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "V", "E"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "D", "E"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

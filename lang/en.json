@@ -1550,6 +1550,12 @@
         "one": "Updated {n} trace.",
         "other": "Updated {n} traces."
       },
+      "traceImage": "Image",
+      "savedOver": {
+        "one": "One field had changed elsewhere while this window was open, and was not saved: {list}. The window shows what it holds now; type yours again if it should stand.",
+        "other": "{n} fields had changed elsewhere while this window was open, and were not saved: {list}. The window shows what they hold now; type yours again if they should stand."
+      },
+      "savedOverItem": "{field} of {row}: \"{value}\"",
       "createHereTitle": "Create a Key Remnant here",
       "createHereIntro": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on one of the five clues you planned.",
       "whichSlot": "Which planned clue is this?",
@@ -1567,6 +1573,11 @@
       "finalNobody": "Nobody has found it",
       "chargeTooLate": "The clock has already moved to chapter {now}; the plan for chapter {was} is no longer the live one, so nothing was charged for unfound Key Remnants. Charge it from the trial floor before ending the chapter.",
       "traceAnalysis": "What analysis reveals"
+    },
+    "Live": {
+      "movedUnder": "Changed elsewhere to: {value}",
+      "ticked": "ticked",
+      "unticked": "not ticked"
     },
     "Vault": {
       "foundStashPending": "You find somebody's stash. What comes out of it settles in a moment.",

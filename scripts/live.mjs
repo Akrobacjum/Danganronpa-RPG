@@ -81,7 +81,7 @@ const living = new Set();
  *                                   still found - which means `build` must
  *                                   return an element carrying the same class.
  * @param {Function} options.build   Returns the replacement: markup, or a node.
- * @param {object}  [options.watch]  `{ actors, tokens, items, settings, settingKeys, hooks }`.
+ * @param {object}  [options.watch]  `{ actors, tokens, items, settings, settingKeys, stores, hooks }`.
  * @param {number}  [options.delay]  Debounce, ms.
  * @param {Function}[options.after]  Run after a successful rebuild, with the new
  *                                   element - for anything the region needs that
@@ -166,35 +166,7 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
 
     const schedule = foundry.utils.debounce(rebuild, delay);
 
-    const names = [
-        ...WORLD_HOOKS,
-        ...(watch.actors ? ACTOR_HOOKS : []),
-        ...(watch.tokens ? TOKEN_HOOKS : []),
-        ...(watch.items ? ITEM_HOOKS : []),
-        ...(watch.hooks ?? [])
-    ];
-
-    const listeners = names.map(name => [name, Hooks.on(name, () => schedule())]);
-
-    // Settings are filtered rather than watched wholesale: every module in the
-    // world writes settings, and a window has no business redrawing because
-    // somebody else's module saved a preference.
-    listeners.push(["updateSetting", Hooks.on("updateSetting", setting => {
-        const key = setting?.key ?? "";
-        /* A KEY THAT IS NOT OURS, NAMED IN FULL.
-
-           The filter below exists so a window does not redraw because some other
-           module saved a preference, and it was right until something of ours was
-           stored somewhere else: a project IS a Daggerheart countdown, kept in
-           `daggerheart.Countdowns`, so every write to one was filtered out as
-           somebody else's business. `settingKeys` is the way to say "this one too",
-           and it takes the whole key because that is what makes it a deliberate
-           exception rather than a wider net. */
-        if (watch.settingKeys?.includes(key)) return schedule();
-        if (!key.startsWith(`${MODULE_ID}.`)) return;
-        if (watch.settings && !watch.settings.includes(key.split(".").pop())) return;
-        schedule();
-    })]);
+    const listeners = listenFor(watch, schedule);
 
     /* RULE 1's other half. Without this a deferred refresh waits for the next
      * world change, which may never come - so the GM finishes typing and the
@@ -260,6 +232,64 @@ export function keepLive(app, { region, build, watch = {}, delay = TIMING.coales
 }
 
 /**
+ * What `keepLive` and `keepFresh` listen to, for both: the world hooks, the opt-in
+ * document hooks, this module's settings and the GM stores a window names. It was
+ * written out twice, once in each, until the stores joined it (E09 C3).
+ *
+ * @returns {Array<[string, number]>} Hook name and id, for `Hooks.off`.
+ */
+function listenFor(watch, schedule) {
+    const names = [
+        ...WORLD_HOOKS,
+        ...(watch.actors ? ACTOR_HOOKS : []),
+        ...(watch.tokens ? TOKEN_HOOKS : []),
+        ...(watch.items ? ITEM_HOOKS : []),
+        ...(watch.hooks ?? [])
+    ];
+
+    const listeners = names.map(name => [name, Hooks.on(name, () => schedule())]);
+
+    // Settings are filtered rather than watched wholesale: every module in the
+    // world writes settings, and a window has no business redrawing because
+    // somebody else's module saved a preference.
+    listeners.push(["updateSetting", Hooks.on("updateSetting", setting => {
+        const key = setting?.key ?? "";
+        /* A KEY THAT IS NOT OURS, NAMED IN FULL.
+
+           The filter below exists so a window does not redraw because some other
+           module saved a preference, and it was right until something of ours was
+           stored somewhere else: a project IS a Daggerheart countdown, kept in
+           `daggerheart.Countdowns`, so every write to one was filtered out as
+           somebody else's business. `settingKeys` is the way to say "this one too",
+           and it takes the whole key because that is what makes it a deliberate
+           exception rather than a wider net. */
+        if (watch.settingKeys?.includes(key)) return schedule();
+        if (!key.startsWith(`${MODULE_ID}.`)) return;
+        if (watch.settings && !watch.settings.includes(key.split(".").pop())) return;
+        schedule();
+    })]);
+
+    /* A GM STORE IS A CLIENT SETTING, AND `updateSetting` NEVER HEARS ONE (E09 C3, S05-26).
+       The trace ledger and the Key plan live in GM stores (gm-stores.mjs), whose rows each GM's
+       browser keeps in a client setting: a write fires `clientSettingChanged` with the full key
+       and no `updateSetting` at all. So the case dashboard, which watched settings, stood on a
+       reshape another GM approved until it was closed - and its Save then wrote the old words
+       back. `watch.stores` names the stores by their handles (gm-stores.mjs), and the key
+       is the handle's own (`spec.key`): a SETTINGS name of a store handed anywhere outside
+       the engine is what R171 looks for.
+       Measured on the harness, 08.10.2026: a store write on this browser and another GM's
+       write merged in here both fire it, because the merge is flushed to the setting as well
+       (gm-store.mjs `touched`) - scenario 62, phase D. */
+    if (watch.stores?.length) {
+        const keys = watch.stores.map(store => `${MODULE_ID}.${store.spec.key}`);
+        listeners.push(["clientSettingChanged", Hooks.on("clientSettingChanged", key => {
+            if (keys.includes(key)) schedule();
+        })]);
+    }
+    return listeners;
+}
+
+/**
  * Is the person looking at this window in the middle of using it?
  *
  * Focus inside a text field, a select being chosen from, or something
@@ -317,7 +347,9 @@ function keyFor(element, root) {
  * the world says NOW, which is the entire point of the refresh; a field the GM
  * has typed into is theirs and is put back untouched. `defaultValue` and
  * `defaultChecked` are the browser's own record of what the markup said, so
- * "has the user changed this" needs no bookkeeping of ours.
+ * "has the user changed this" needs no bookkeeping of ours - and with each dirty
+ * field goes what it was drawn from (`drawnOf`), so `restore` can tell a field
+ * the world moved under from one it did not (E09 C3).
  */
 function capture(element) {
     const scrolls = new Map();
@@ -336,16 +368,7 @@ function capture(element) {
         opens.set(keyFor(node, element), node.open);
     }
     for (const node of element.querySelectorAll("input, textarea, select")) {
-        const key = keyFor(node, element);
-        if (node.type === "checkbox" || node.type === "radio") {
-            if (node.checked !== node.defaultChecked) dirty.set(key, { checked: node.checked });
-        } else if (node.tagName === "SELECT") {
-            if ([...node.options].some(o => o.selected !== o.defaultSelected)) {
-                dirty.set(key, { value: node.value });
-            }
-        } else if (node.value !== node.defaultValue) {
-            dirty.set(key, { value: node.value });
-        }
+        if (isDirty(node)) dirty.set(keyFor(node, element), { value: heldIn(node), drawn: drawnOf(node) });
     }
 
     /*
@@ -388,7 +411,20 @@ function restore(element, { scrolls, opens, dirty, tab }) {
         for (const node of element.querySelectorAll("input, textarea, select")) {
             const was = dirty.get(keyFor(node, element));
             if (!was) continue;
-            if ("checked" in was) node.checked = was.checked;
+            /* MOVED UNDER THE PERSON TYPING (E09 C3, S05-26). The new markup's default is
+               what the world holds now. Where that is neither what this field was drawn
+               from nor what they typed, somebody else changed the same field meanwhile:
+               their value stays, the field keeps the default it was drawn from - so a Save
+               that writes a field only where its drawn value is still the world's refuses
+               it (investigation.mjs `applyDashboardSave`) - and it says what it was changed
+               to. Where the world now holds what they typed, the field is simply clean. */
+            const now = drawnOf(node);
+            if (now !== was.drawn && now !== was.value) {
+                setDrawn(node, was.drawn);
+                node.classList.add("drpg-moved-under");
+                node.title = game.i18n.format("DRPG.Live.movedUnder", { value: shownAs(node, now) });
+            }
+            if (node.type === "checkbox" || node.type === "radio") node.checked = was.value;
             else node.value = was.value;
         }
     }
@@ -419,6 +455,70 @@ function restore(element, { scrolls, opens, dirty, tab }) {
             }
         }
     }
+}
+
+/* ==========================================================================
+ * WHAT A FIELD WAS DRAWN FROM
+ * --------------------------------------------------------------------------
+ * A form that stays open while the world moves has two values per field: what
+ * it holds now and what the markup drew it from. `capture` carries the second
+ * so a rebuild can tell an edit the world moved under from one it did not, and
+ * a Save that writes only what the person changed reads the same two (the case
+ * dashboard's, E09 C3). One definition here, so the carry and the Save cannot
+ * disagree about which fields are dirty.
+ * ========================================================================== */
+
+/**
+ * What the markup drew this field from: `defaultChecked` for a box, the
+ * `selected` option for a select (the first, as a browser shows, when none is),
+ * `defaultValue` for the rest. A hidden input has no default of its own - its
+ * `value` IS its attribute - so one that a control writes (the portrait pickers'
+ * `img.*`) states it in `data-drpg-drawn`.
+ */
+export function drawnOf(node) {
+    if (node.dataset?.drpgDrawn !== undefined) return node.dataset.drpgDrawn;
+    if (node.type === "checkbox" || node.type === "radio") return node.defaultChecked;
+    if (node.tagName === "SELECT") {
+        return ([...node.options].find(o => o.defaultSelected) ?? node.options[0])?.value ?? "";
+    }
+    return node.defaultValue;
+}
+
+/** What the field holds now: `checked` for a box, `value` for the rest. */
+export function heldIn(node) {
+    return node.type === "checkbox" || node.type === "radio" ? node.checked : node.value;
+}
+
+/** Has the person changed this field since it was drawn? */
+export function isDirty(node) {
+    if (node.dataset?.drpgDrawn !== undefined) return node.value !== node.dataset.drpgDrawn;
+    if (node.type === "checkbox" || node.type === "radio") return node.checked !== node.defaultChecked;
+    // Against the option drawn, not option by option: a select drawn with none `selected`
+    // shows its first, and that one's `selected` differs from its default untouched.
+    if (node.tagName === "SELECT") return node.value !== drawnOf(node);
+    return node.value !== node.defaultValue;
+}
+
+/**
+ * Give a field back the default it was drawn from. Before its value is put back,
+ * always: setting a default on a field nobody has typed into moves its value too.
+ */
+function setDrawn(node, drawn) {
+    if (node.dataset?.drpgDrawn !== undefined) node.dataset.drpgDrawn = drawn;
+    else if (node.type === "checkbox" || node.type === "radio") node.defaultChecked = drawn;
+    else if (node.tagName === "SELECT") for (const o of node.options) o.defaultSelected = o.value === drawn;
+    else node.defaultValue = drawn;
+}
+
+/** A field's value as the person reads it: a box ticked or not, an option's label. */
+function shownAs(node, value) {
+    if (node.type === "checkbox" || node.type === "radio") {
+        return game.i18n.localize(value ? "DRPG.Live.ticked" : "DRPG.Live.unticked");
+    }
+    if (node.tagName === "SELECT") {
+        return [...node.options].find(o => o.value === value)?.textContent?.trim() || value;
+    }
+    return value;
 }
 
 /* ==========================================================================
@@ -581,7 +681,7 @@ export function handOff(dialog, work) {
  *
  * @param {object}   app            The application.
  * @param {Function} options.run    Called on every change. Given the window element.
- * @param {object}  [options.watch] `{ actors, tokens, items, settings, settingKeys, hooks }`.
+ * @param {object}  [options.watch] `{ actors, tokens, items, settings, settingKeys, stores, hooks }`.
  * @param {number}  [options.delay] Debounce, ms.
  * @returns {Function} Stop listening.
  */
@@ -602,30 +702,7 @@ export function keepFresh(app, { run, watch = {}, delay = TIMING.coalesceMs } = 
     };
 
     const schedule = foundry.utils.debounce(tick, delay);
-    const names = [
-        ...WORLD_HOOKS,
-        ...(watch.actors ? ACTOR_HOOKS : []),
-        ...(watch.tokens ? TOKEN_HOOKS : []),
-        ...(watch.items ? ITEM_HOOKS : []),
-        ...(watch.hooks ?? [])
-    ];
-    const listeners = names.map(name => [name, Hooks.on(name, () => schedule())]);
-    listeners.push(["updateSetting", Hooks.on("updateSetting", setting => {
-        const key = setting?.key ?? "";
-        /* A KEY THAT IS NOT OURS, NAMED IN FULL.
-
-           The filter below exists so a window does not redraw because some other
-           module saved a preference, and it was right until something of ours was
-           stored somewhere else: a project IS a Daggerheart countdown, kept in
-           `daggerheart.Countdowns`, so every write to one was filtered out as
-           somebody else's business. `settingKeys` is the way to say "this one too",
-           and it takes the whole key because that is what makes it a deliberate
-           exception rather than a wider net. */
-        if (watch.settingKeys?.includes(key)) return schedule();
-        if (!key.startsWith(`${MODULE_ID}.`)) return;
-        if (watch.settings && !watch.settings.includes(key.split(".").pop())) return;
-        schedule();
-    })]);
+    const listeners = listenFor(watch, schedule);
 
     const closeId = Hooks.on("closeApplicationV2", closed => {
         if (closed === app) stop();

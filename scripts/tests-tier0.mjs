@@ -4369,8 +4369,9 @@ const REGRESSIONS = [
         const sources = new Map(await otherSources());
         const inv = stripComments(sources.get("investigation.mjs") ?? "");
         ok(/name="keyanalysis:\$\{i\}"/.test(inv), "the Key planner has no box for a clue's reading");
-        ok(/analysis: q\(`keyanalysis:\$\{i\}`\)/.test(inv), "the planner draws the box and never reads it back");
-        ok(/patch\.analyzedText = row\.analysis/.test(inv),
+        // E09 C3: the form hands on a changed field by name, and a placed row's push reads `words`.
+        ok(/\["analysis", `keyanalysis:\$\{i\}`\]/.test(inv), "the planner draws the box and never reads it back");
+        ok(/patch\.analyzedText = words\.analysis/.test(inv),
             "a reading typed on a placed Key row never reaches the trace");
         ok(/analyzedText: row\.analysis/.test(inv), "a planned Key Remnant is placed without its reading");
         ok(/analysis: row\.analysis \?\? ""/.test(inv), "the stored plan drops the reading on every save");

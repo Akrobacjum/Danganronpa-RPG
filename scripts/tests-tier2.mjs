@@ -891,6 +891,36 @@ async function drawnMurderWindow(open) {
 }
 
 /**
+ * The Investigation Dashboard drawn, opened as a GM opens it (E09 C3). `field(name)` reads an
+ * input fresh, because a redraw replaces them; `save()` presses Save, waits for the window the
+ * Save reopens on and closes it, so the whole Save has run when it returns; `close()` closes
+ * whatever copy stands. Each settles `answer`, the opener's own promise.
+ */
+async function drawnCaseWindow() {
+    const investigation = await import("./investigation.mjs");
+    const open = () => [...foundry.applications.instances.values()]
+        .filter(a => a.rendered && a.options?.classes?.includes("drpg-window-case"));
+    const before = new Set(open());
+    const answer = Promise.resolve().then(() => investigation.openInvestigationDashboard()).catch(() => null);
+    await until(() => open().some(a => !before.has(a) && a.element), 6000);
+    const app = open().find(a => !before.has(a)) ?? null;
+    const close = async () => {
+        for (const a of open()) await a.close();
+        await answer;
+    };
+    return {
+        app, answer, close,
+        field: name => app?.element?.querySelector(`[name="${CSS.escape(name)}"]`) ?? null,
+        save: async () => {
+            const seen = new Set(open());
+            app?.element?.querySelector('footer.form-footer button[data-action="save"]')?.click();
+            await until(() => open().some(a => !seen.has(a) && a.element), 6000);
+            await close();
+        }
+    };
+}
+
+/**
  * The incident's dice this client relayed while `run` ran (E06 C6): each `dice.show`
  * packet (private-rolls.mjs `relayIncidentDice`) as { id, to } - the message's id and
  * the users it was addressed to. Shaped as `wordsSent`, above.
@@ -16301,9 +16331,11 @@ const SCENARIOS = [
          * old key holds nothing. A save that changes one slot stamps that slot's field and no
          * other slot's, which is how a GM writing another slot keeps theirs; a save from a
          * window drawn before another GM's edit arrived, with what it showed as its `base`,
-         * does not take that edit back; a Save that changed nothing still leaves each slot of
-         * its chapter a row, by its scale alone (a chapter with rows is a planned one, which
-         * the unfound-Key charge asks); a blank where the row holds nothing writes nothing.
+         * does not take that edit back; a plan handed over whole that changed nothing still
+         * leaves each slot of its chapter a row, by its scale alone (a chapter with rows is a
+         * planned one, which the unfound-Key charge asks - and since E09 C3 the dashboard's Save
+         * hands over only the slots it changed, "a reshape approved under an open dashboard
+         * survives Save"); a blank where the row holds nothing writes nothing.
          * The clock is put back.
          */
         const E = await import("./gm-store.mjs");
@@ -16410,14 +16442,13 @@ const SCENARIOS = [
          * E05 fix r1-G5, S1-m7 (pre-existing, found by the C5 session). `applyDashboardSave`
          * used to measure a row's changes against `allTraces()` read fresh at Save - the
          * world now, not the world the Traces tab drew - so a rename, an image, a reading
-         * or a verdict another GM wrote while this window stood open (a GM store merge
-         * redraws no open dashboard) differed from the stale form and was written back over
-         * it; and the three verdicts travelled together, so ticking one box sent the other
-         * two as the stale form still showed them. Fixed the same way `setKeyPlan`'s `base`
-         * fixed the plan: `shown`, the traces the tab was drawn from. `applyDashboardSave` is
-         * exported so this can be measured directly - every input it reads is an argument -
-         * with `shown` a snapshot taken before another GM's edit and `traces` the fresh read
-         * after it, exactly what the dashboard's own Save handler now passes.
+         * or a verdict another GM wrote while this window stood open differed from the stale
+         * form and was written back over it; and the three verdicts travelled together, so
+         * ticking one box sent the other two as the stale form still showed them. Fixed then
+         * with `shown`, the traces the tab was drawn from; since E09 C3 the form hands on only
+         * the fields the GM changed, each with what it was drawn from (`readDashboardForm`),
+         * and this hands `applyDashboardSave` the result such a form gives - Faint ticked over
+         * a trace another GM has renamed and tied since - with `traces` the fresh read.
          */
         const remnants = await import("./remnants.mjs");
         const I = await import("./investigation.mjs");
@@ -16434,7 +16465,6 @@ const SCENARIOS = [
 
             const key = `${scene.id}__${token.id}`;
             const shownData = remnants.remnantData(token);
-            const shown = [{ token, data: shownData, scene }];
 
             // Another GM's edit, while this GM's window is still open on the old data.
             await remnants.setRemnantPublic(token, { name: "SUITE another GM's rename" });
@@ -16442,18 +16472,12 @@ const SCENARIOS = [
             await settle();
 
             const traces = [{ token, data: remnants.remnantData(token), scene }];
-            // The stale form: what `shown` showed, with Faint the only box this GM ticked -
-            // Tied-to-crime and Reinforced ride along at whatever `shown` had, which is not
-            // what the store holds any more.
+            // The stale form: Faint the only box this GM ticked, drawn from what the tab showed.
             const result = {
                 keyRows: [],
-                traces: [{
-                    key, name: shownData.public?.name ?? "", img: shownData.public?.img ?? "",
-                    text: shownData.public?.playerText ?? "", analysis: shownData.public?.analyzedText ?? "",
-                    type: shownData.type, faint: true, tiedToCrime: shownData.tiedToCrime, reinforced: shownData.reinforced
-                }]
+                traces: [{ key, fields: { faint: { value: true, drawn: Boolean(shownData.faint) } } }]
             };
-            await I.applyDashboardSave(result, { traces, plan: I.keyPlan(), shown });
+            await I.applyDashboardSave(result, { traces, plan: I.keyPlan() });
             await settle();
 
             const after = remnants.remnantData(token);
@@ -16464,6 +16488,243 @@ const SCENARIOS = [
             ok(after.faint === true, "a stale Traces Save's own ticked box (Faint) was not written");
         } finally {
             if (token) await token.delete().catch(() => {});
+        }
+    }],
+
+    ["a reshape approved under an open dashboard survives Save", async () => {
+        /*
+         * E09 C3, V1 (S05-26). The dashboard listened for actors, items and world settings,
+         * and the ledger is a client setting on each GM's browser: a ruling written to it, or
+         * another GM's Save merged into it, redrew nothing (a store write reaches only
+         * `clientSettingChanged`). The window went on showing the trace as it was before the
+         * ruling, and the GM's next Save wrote that back over it. Three halves, on one fixture
+         * in a chapter of its own that nobody has planned:
+         *   - the ruling lands while the window stands open, and the row shows it;
+         *   - a Save that changed nothing, pressed while a redraw is held off (focus inside the
+         *     window, live.mjs RULE 1) over a write the window has not drawn, writes nothing:
+         *     no ledger write, nothing refused, and no Key plan row for the chapter - which
+         *     every Save used to fill in by scale, making the chapter a planned one;
+         *   - a name the GM typed before a second ruling is marked, refused at Save and told
+         *     (`DRPG.Investigation.savedOver`, once, naming what they typed), and the ruling stands.
+         * The ruling here writes through `reshapeTrace` (read in the code); scenario 62's
+         * phase D has it come from the other GM's browser.
+         */
+        const remnants = await import("./remnants.mjs");
+        const cleanup = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const scene = canvas.scene;
+        const [who] = cast(1);
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        const planRows = () => Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith(`${fresh}:`));
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let ledgerWrites = 0;
+        const counter = Hooks.on("clientSettingChanged", key => {
+            if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) ledgerWrites++;
+        });
+        let token = null;
+        let win = null;
+        try {
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            await setClock({ chapter: fresh });
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - E09 C3 reshape under the dashboard"
+            });
+            must(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "SUITE as drawn", playerText: "SUITE words as drawn" });
+            await gmStoresIdle();
+            const key = `${scene.id}__${token.id}`;
+
+            win = await drawnCaseWindow();
+            must(win.app?.element, "the dashboard did not open");
+            must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
+                open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
+                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+
+            /* ---- the ruling lands under the open window, and the window shows it ---- */
+            ok(await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id, name: "SUITE reshaped", text: "SUITE reshaped words" }),
+                "the ruling refused a trace that was standing");
+            await until(() => win.field(`name.${key}`)?.value === "SUITE reshaped", 4000);
+            equal(win.field(`name.${key}`)?.value, "SUITE reshaped", "the open dashboard still shows the name the ruling replaced");
+            equal(win.field(`text.${key}`)?.value, "SUITE reshaped words", "the open dashboard still shows the words the ruling replaced");
+
+            /* ---- a Save that changed nothing writes nothing, even over a write it has not drawn ---- */
+            win.field(`text.${key}`).focus();
+            await remnants.setRemnantPublic(token, { name: "SUITE another GM's name" });
+            await gmStoresIdle();
+            await wait(300);
+            must(win.field(`name.${key}`)?.value === "SUITE reshaped",
+                "the window redrew with focus inside it, so this half has no stale window to measure");
+            ledgerWrites = 0;
+            await win.save();
+            await gmStoresIdle();
+            equal(ledgerWrites, 0, "a Save that changed nothing wrote to the ledger");
+            equal(remnants.remnantData(token).public?.name, "SUITE another GM's name",
+                "a Save that changed nothing wrote the name its window had not redrawn over the newer one");
+            equal(warned.length, 0, `a Save that changed nothing refused something: ${stableJson(warned)}`);
+            equal(stableJson(planRows()), "[]", "a Save that changed nothing made an unplanned chapter a planned one");
+
+            /* ---- a field typed before a second ruling is marked, refused and told ---- */
+            win = await drawnCaseWindow();
+            must(win.field(`name.${key}`), "the dashboard did not reopen on the fixture trace");
+            win.field(`name.${key}`).value = "SUITE typed by this GM";
+            ok(await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id, name: "SUITE reshaped again", text: "SUITE reshaped again, words" }),
+                "the second ruling refused a trace that was standing");
+            await until(() => win.field(`text.${key}`)?.value === "SUITE reshaped again, words", 4000);
+            const name = win.field(`name.${key}`);
+            equal(name?.value, "SUITE typed by this GM", "the redraw threw away what the GM had typed");
+            ok(name?.classList.contains("drpg-moved-under"), "the field the ruling moved under the GM's typing is not marked");
+            await win.save();
+            await gmStoresIdle();
+            equal(remnants.remnantData(token).public?.name, "SUITE reshaped again", "the GM's Save wrote over a reshape ruled while the window was open");
+            equal(warned.length, 1, `the refusal was not told once: ${stableJson(warned)}`);
+            ok(warned[0]?.includes("SUITE typed by this GM"), `the refusal does not give back what the GM typed: ${warned[0]}`);
+        } finally {
+            ui.notifications.warn = warn;
+            Hooks.off("clientSettingChanged", counter);
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            const rows = planRows();
+            if (rows.length) await S.keyPlanStore.dropMany(rows);
+            await setClock(clock);
+        }
+    }],
+
+    ["a field changed under the window is marked and refused while the rest is saved", async () => {
+        /*
+         * E09 C3 (S05-26). A GM types a name, rewrites the words and ticks Reinforced on a
+         * trace; while they do, the trace's name changes underneath them (on this browser a
+         * write to the ledger, the same store write another GM's merge ends in). The redraw
+         * keeps all three and marks the one the world moved - class `drpg-moved-under`, its
+         * title the value there now (`DRPG.Live.movedUnder`). The Save writes the two nobody
+         * else touched and refuses the third, and says so once.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const scene = canvas.scene;
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let token = null;
+        let win = null;
+        try {
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - E09 C3 a field moved under the window"
+            });
+            must(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "SUITE as drawn", playerText: "SUITE words as drawn" });
+            await gmStoresIdle();
+            const key = `${scene.id}__${token.id}`;
+            win = await drawnCaseWindow();
+            must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
+                open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
+                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+
+            win.field(`name.${key}`).value = "SUITE this GM's name";
+            win.field(`text.${key}`).value = "SUITE this GM's words";
+            win.field(`reinf.${key}`).checked = true;
+            await remnants.setRemnantPublic(token, { name: "SUITE the other name" });
+            await until(() => win.field(`name.${key}`)?.classList.contains("drpg-moved-under"), 4000);
+
+            const name = win.field(`name.${key}`);
+            ok(name?.classList.contains("drpg-moved-under"), "the field the world moved under the GM's typing is not marked");
+            equal(name?.title, game.i18n.format("DRPG.Live.movedUnder", { value: "SUITE the other name" }),
+                "the mark does not say what the field holds now");
+            equal(name?.value, "SUITE this GM's name", "the redraw threw away the name the GM typed");
+            equal(win.field(`text.${key}`)?.value, "SUITE this GM's words", "the redraw threw away the words the GM typed");
+            ok(!win.field(`text.${key}`)?.classList.contains("drpg-moved-under"), "a field nothing moved under is marked");
+            ok(win.field(`reinf.${key}`)?.checked === true, "the redraw unticked the box the GM ticked");
+
+            await win.save();
+            await gmStoresIdle();
+            const after = remnants.remnantData(token);
+            equal(after.public?.name, "SUITE the other name", "the Save wrote the GM's name over the one the world moved it to");
+            equal(after.public?.playerText, "SUITE this GM's words", "the refusal took the rest of the Save with it: the words");
+            ok(after.reinforced === true, "the refusal took the rest of the Save with it: Reinforced");
+            equal(warned.length, 1, `the refusal was not told once: ${stableJson(warned)}`);
+            ok(warned[0]?.includes("SUITE this GM's name"), `the refusal does not give back what the GM typed: ${warned[0]}`);
+        } finally {
+            ui.notifications.warn = warn;
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+        }
+    }],
+
+    ["two GMs: B's untouched field takes A's value", async () => {
+        /*
+         * E09 C3 (S05-26). GM B has the dashboard open and is writing a trace's reading; GM A
+         * saves a name, a tie and a kind for the same trace. B's window redraws with A's three
+         * as if drawn that way - the values, the defaults behind them, no mark - and B's Save
+         * writes B's reading and nothing else, telling nobody anything. A's Save is a ledger
+         * write made on this browser here, the same store write a merge from A's browser ends
+         * in; scenario 62's phase D runs the two browsers.
+         */
+        const remnants = await import("./remnants.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const scene = canvas.scene;
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let token = null;
+        let win = null;
+        try {
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - E09 C3 two GMs"
+            });
+            must(token, "could not place the fixture trace");
+            await remnants.setRemnantPublic(token, { name: "SUITE as drawn" });
+            await gmStoresIdle();
+            const key = `${scene.id}__${token.id}`;
+            win = await drawnCaseWindow();
+            must(win.field(`name.${key}`)?.value === "SUITE as drawn", `the dashboard does not list the fixture trace as drawn: ${stableJson({
+                open: Boolean(win.app?.element), value: win.field(`name.${key}`)?.value ?? null,
+                rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
+
+            win.field(`analysis.${key}`).value = "SUITE B's reading";
+            await remnants.setRemnantPublic(token, { name: "SUITE A's name" });
+            await remnants.setRemnantFlags(token, { tiedToCrime: true, type: "neutral" });
+            await until(() => win.field(`name.${key}`)?.value === "SUITE A's name" && win.field(`type.${key}`)?.value === "neutral", 4000);
+
+            const name = win.field(`name.${key}`);
+            const tie = win.field(`crime.${key}`);
+            const type = win.field(`type.${key}`);
+            equal(name?.value, "SUITE A's name", "B's untouched name did not take A's");
+            equal(name?.defaultValue, "SUITE A's name", "B's untouched name took A's value but not as drawn, so B's Save would refuse it");
+            ok(tie?.checked === true && tie?.defaultChecked === true, "B's untouched tie did not take A's, as drawn");
+            equal(type?.value, "neutral", "B's untouched kind did not take A's");
+            ok(![name, tie, type].some(n => n?.classList.contains("drpg-moved-under")), "a field B never touched is marked");
+            equal(win.field(`analysis.${key}`)?.value, "SUITE B's reading", "the redraw threw away B's reading");
+
+            await win.save();
+            await gmStoresIdle();
+            const after = remnants.remnantData(token);
+            equal(after.public?.analyzedText, "SUITE B's reading", "B's reading was not saved");
+            equal(after.public?.name, "SUITE A's name", "B's Save changed A's name");
+            ok(after.tiedToCrime === true, "B's Save changed A's tie");
+            equal(after.type, "neutral", "B's Save changed A's kind");
+            equal(warned.length, 0, `B was told of a refusal B had no reason for: ${stableJson(warned)}`);
+        } finally {
+            ui.notifications.warn = warn;
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
         }
     }],
 

@@ -39,8 +39,8 @@ import { isDeadForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, wireDashboardTabs } from "./utils.mjs";
-import { alreadyOpen, keepLive, keepFresh } from "./live.mjs";
-import { keyPlanStore } from "./gm-stores.mjs";
+import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./live.mjs";
+import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -137,9 +137,11 @@ export function keyPlan() {
  * nothing is not written at all - a slot nobody has written here is not one this GM
  * emptied. A hole in `entries` is a slot left alone (`openKeyRemnantHere` writes one slot).
  * The one field written either way is a slot's scale where the row has none: it is the
- * slot's, never a GM's word, so every Save of the planner leaves each slot of its chapter a
- * row - and a chapter with rows is a planned one (`chargeForUnfoundKeys`), as the world key's
- * `chapter` was after any Save.
+ * slot's, never a GM's word, so every slot `entries` names is left a row - and a chapter with
+ * rows is a planned one (`chargeForUnfoundKeys`). The dashboard's Save names only the slots
+ * the GM changed (E09 C3, S05-16's planner half): until then it handed every slot over, so
+ * pressing Save on a chapter nobody had planned left it with rows - a planned one, to
+ * `chargeForUnfoundKeys` - whether or not anybody had planned anything.
  *
  * Nothing is filed when the chapter changes, because nothing is replaced: until 1.2.64 a
  * plan saved for another chapter moved the one it replaced under `archive` first (the GM
@@ -411,8 +413,9 @@ export async function chargeForUnfoundKeys() {
        chapter the clock says - the two agree by construction. Run against the real thing it
        billed 12 Despair to two pools for a case that had just been closed. What was actually
        planned is only in what is stored: until 1.2.64 the setting's one `chapter`, and since
-       E05 C5 the chapters the GM store holds rows for - every Save of the planner writes each
-       slot's scale, so a chapter somebody planned has rows. The clock's chapter with rows is
+       E05 C5 the chapters the GM store holds rows for - a Save of the planner writes the scale
+       of each slot it changes (of every slot, until E09 C3), so a chapter somebody planned has
+       rows. The clock's chapter with rows is
        planned, whatever came after it (a clock wound back, a plan kept through a reset); one
        without them, while another chapter has some, is the case the guard is for, and the GMs
        are told the newest planned chapter.
@@ -474,12 +477,18 @@ export async function chargeForUnfoundKeys() {
 }
 
 /**
- * Apply the Key Remnant planner's five rows, exactly as `openKeyPlanner()`
+ * Apply the Key Remnant planner's rows the GM changed, exactly as `openKeyPlanner()`
  * used to on its own Save - now called from the Investigation Dashboard's
  * single Save instead of a dialog of its own. See the "Key Remnants" tab in
  * `openInvestigationDashboard`.
+ *
+ * `rows` holds only the changed fields of the changed rows (`readDashboardForm`), each with
+ * what it was drawn from; a field another GM changed since is refused (`writable`), and the
+ * slots nobody touched are holes `setKeyPlan` leaves alone - so they take no scale either.
+ *
+ * @returns {Promise<{entries: Array, created: number, refused: Array}>}
  */
-async function saveKeyPlan(plan, rows, { base = null } = {}) {
+async function saveKeyPlan(plan, rows) {
     // A row with a room chosen and no existing token means "make this one".
     //
     // The planner used to be able to do exactly one thing: point an entry at a
@@ -488,10 +497,23 @@ async function saveKeyPlan(plan, rows, { base = null } = {}) {
     // GM opens this screen is to turn them into traces on the map. Marking an
     // existing Prep Remnant as Key also silently rewrote evidence that had
     // already been found.
+    const placed = placedKeyRemnants();
     const entries = [];
+    const refused = [];
     let created = 0;
-    for (const [i, row] of rows.entries()) {
-        if (row.tokenId || !row.createIn) {
+    for (const row of rows) {
+        const stored = plan.entries?.[row.slot] ?? {};
+        const now = keyRowShows(stored, placed);
+        const take = writable(row.fields, now, refused, keyRowLabel(row.slot));
+        // NOTHING TO WRITE, NOTHING WRITTEN: a slot the GM did not touch, or one whose every
+        // change was refused, stays a hole, and `setKeyPlan` neither fills its scale nor
+        // creates the chapter's plan for it (E09 C3, S05-16's planner half).
+        if (!Object.keys(take).length) continue;
+        const [tokenId, sceneId] = ("token" in take ? take.token : now.token)?.split("|") ?? [];
+        const entry = { scale: row.scale };
+        for (const field of ["name", "text", "analysis", "note"]) if (field in take) entry[field] = take[field];
+        if ("token" in take) Object.assign(entry, { tokenId: tokenId || null, sceneId: sceneId || null });
+        if (tokenId || !take.room) {
             /* AN EDIT ON A PLACED ROW IS AN EDIT ON THE TRACE. The two public fields are the
                Remnant's, not the plan's - `setRemnantPublic` writes them to the ledger and
                pushes them down onto every Truth Bullet already copied from it, which is what
@@ -502,48 +524,52 @@ async function saveKeyPlan(plan, rows, { base = null } = {}) {
                been written, and the row still carried the plan's old name - so renaming a Key
                Remnant on the Traces tab lasted until the next line, and every later Save put
                the plan's version back onto the trace and every bullet copied from it. A field
-               is pushed now only when it differs from the stored plan, or the row was pointed
-               at a different trace; and the stored plan then takes the trace's words, so this
-               tab stops showing a name the trace no longer has. */
-            const stored = plan.entries?.[i] ?? {};
-            const token = row.tokenId
-                ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null
-                : null;
+               is pushed now only when the GM changed it on this tab (E09 C3: measured against
+               what the tab drew, where F6 compared with the stored plan), or the row was
+               pointed at a different trace, which takes the plan's words; and the stored plan
+               then takes the trace's words for what was pushed. */
+            const token = tokenId ? game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null : null;
             if (token) {
-                const repointed = row.tokenId !== (stored.tokenId ?? null);
+                const repointed = "token" in take;
+                const words = {
+                    name: take.name ?? (repointed ? stored.name : ""),
+                    text: take.text ?? (repointed ? stored.text : ""),
+                    analysis: take.analysis ?? (repointed ? stored.analysis : "")
+                };
                 const patch = {};
-                if (row.name && (repointed || row.name !== (stored.name ?? ""))) patch.name = row.name;
-                if (row.text && (repointed || row.text !== (stored.text ?? ""))) patch.playerText = row.text;
-                if (row.analysis && (repointed || row.analysis !== (stored.analysis ?? ""))) {
-                    patch.analyzedText = row.analysis;
+                if (words.name) patch.name = words.name;
+                if (words.text) patch.playerText = words.text;
+                if (words.analysis) patch.analyzedText = words.analysis;
+                if (Object.keys(patch).length) {
+                    await setRemnantPublic(token, patch);
+                    const said = remnantData(token)?.public ?? {};
+                    if (patch.name) entry.name = said.name || words.name;
+                    if (patch.playerText) entry.text = said.playerText || words.text;
+                    if (patch.analyzedText) entry.analysis = said.analyzedText || words.analysis;
                 }
-                if (Object.keys(patch).length) await setRemnantPublic(token, patch);
-                const now = remnantData(token)?.public ?? {};
-                entries.push(stripDraft({
-                    ...row, name: now.name || row.name, text: now.playerText || row.text,
-                    analysis: now.analyzedText || row.analysis
-                }));
-                continue;
             }
-            entries.push(stripDraft(row));
+            entries[row.slot] = entry;
             continue;
         }
 
-        const token = await createKeyRemnant(row);
+        const words = field => take[field] ?? now[field];
+        const token = await createKeyRemnant({
+            scale: row.scale, name: words("name"), text: words("text"), analysis: words("analysis"),
+            note: words("note"), createIn: take.room, visibility: row.visibility
+        });
         if (token) {
             created += 1;
-            entries.push({
-                scale: row.scale, name: row.name, text: row.text, analysis: row.analysis ?? "",
-                note: row.note,
-                tokenId: token.id, sceneId: token.parent?.id ?? canvas?.scene?.id ?? null
+            entries[row.slot] = stripDraft({
+                scale: row.scale, name: words("name"), text: words("text"), analysis: words("analysis"),
+                note: words("note"), tokenId: token.id, sceneId: token.parent?.id ?? canvas?.scene?.id ?? null
             });
         } else {
-            entries.push(stripDraft(row));
+            entries[row.slot] = entry;
         }
     }
 
-    await setKeyPlan({ chapter: plan.chapter, entries }, { base });
-    return { entries, created };
+    await setKeyPlan({ chapter: plan.chapter, entries });
+    return { entries, created, refused };
 }
 
 /** The stored shape - the room/visibility pickers are input, not plan data. */
@@ -553,6 +579,58 @@ function stripDraft(row) {
         analysis: row.analysis ?? "", note: row.note ?? "",
         tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null
     };
+}
+
+/**
+ * What a Key Remnant row draws for a stored entry (E09 C3): the plan's words, the trace's own
+ * reading where the plan holds none, and the trace it points at as the picker's value - "" when
+ * there is none or it is gone. `caseKeyRows` draws from this and a Save reads the plan now
+ * through it, so what was drawn and what is there now are compared in one shape.
+ */
+function keyRowShows(entry, placed) {
+    const here = entry.tokenId ? placed.find(r => r.token.id === entry.tokenId) ?? null : null;
+    return {
+        name: entry.name ?? "",
+        text: entry.text ?? "",
+        analysis: entry.analysis || here?.data?.public?.analyzedText || "",
+        note: entry.note ?? "",
+        token: here ? `${here.token.id}|${here.scene.id}` : ""
+    };
+}
+
+/** How a refusal names a Key Remnant row: the tab, and which planned clue. */
+function keyRowLabel(slot) {
+    return `${game.i18n.localize("DRPG.Investigation.tabKeyRemnants")} ${slot + 1}`;
+}
+
+/**
+ * The part of a row's changes a Save may write (E09 C3, S05-26). `fields` holds only what the
+ * GM changed, each as `{ value, drawn }` - what the field holds and what the window drew it
+ * from (`readDashboardForm`); `now` is the same row read off the ledger at the Save. A field the
+ * ledger still holds as drawn is the GM's to write. One the ledger has moved since - another
+ * GM's Save merged in, a ruling - is refused and listed in `refused`, unless it now says what
+ * the GM typed anyway. A field `now` does not describe (the Key tab's room picker, an input and
+ * not a stored value) is taken as it is.
+ */
+function writable(fields, now, refused, row) {
+    const take = {};
+    for (const [field, { value, drawn }] of Object.entries(fields)) {
+        if (!(field in now)) take[field] = value;
+        else if (same(now[field], value)) continue;
+        else if (same(now[field], drawn)) take[field] = value;
+        else refused.push({ row, field, value });
+    }
+    return take;
+}
+
+/**
+ * Two field values the same as the form holds them. A textarea drops a leading line break and
+ * gives back `\n` for every line ending, and the text fields are saved trimmed, so text is
+ * compared past both; anything else exactly.
+ */
+function same(a, b) {
+    const plain = v => typeof v === "string" ? v.replace(/\r\n?/g, "\n").trim() : v;
+    return plain(a) === plain(b);
 }
 
 /**
@@ -1233,10 +1311,54 @@ function caseStudentRows(students) {
     }).join("");
 }
 
+/**
+ * What a Traces tab row draws for a trace, keyed as the form names its fields (`name.<row>`,
+ * `crime.<row>`...) - E09 C3. `caseTraceRows` draws from it and a Save reads the ledger now
+ * through it, so what was drawn and what is there now are compared in one shape. A type the
+ * list does not know is drawn as the first option, because that is what the select shows.
+ */
+function traceShows(data) {
+    return {
+        img: data.public?.img || ICON,
+        name: data.public?.name || "",
+        text: data.public?.playerText || "",
+        analysis: data.public?.analyzedText || "",
+        type: REMNANT_TYPES[data.type] ? data.type : Object.keys(REMNANT_TYPES)[0],
+        faint: Boolean(data.faint),
+        crime: Boolean(data.tiedToCrime),
+        reinf: Boolean(data.reinforced)
+    };
+}
+
+/** The Traces tab's fields, by the prefix of their names in the form. */
+const TRACE_FIELDS = ["img", "name", "text", "analysis", "type", "faint", "crime", "reinf"];
+
+/** What a refusal calls each field: the column it is under. */
+const FIELD_LABELS = {
+    img: "DRPG.Investigation.traceImage", name: "DRPG.Investigation.traceName",
+    text: "DRPG.Investigation.traceText", analysis: "DRPG.Investigation.traceAnalysis",
+    type: "DRPG.Investigation.traceType", faint: "DRPG.Remnant.faintColumn",
+    crime: "DRPG.Remnant.crimeColumn", reinf: "DRPG.Remnant.reinforcedColumn",
+    note: "DRPG.Investigation.keyNoteLabel", token: "DRPG.Investigation.onMap"
+};
+
+/** A refused value as the GM typed or picked it: a box, a type, a trace by its name. */
+function refusedAs(field, value, traces) {
+    if (typeof value === "boolean") return game.i18n.localize(value ? "DRPG.Live.ticked" : "DRPG.Live.unticked");
+    if (field === "type") return REMNANT_TYPES[value]?.label ?? value;
+    if (field === "token") {
+        const trace = traces.find(t => `${t.token.id}|${t.scene.id}` === value);
+        return trace ? trace.data.public?.name || traceContextLine(trace.data) || value
+            : game.i18n.localize("DRPG.Investigation.notPlaced");
+    }
+    return value;
+}
+
 /** One editable row per trace the reader is shown. */
 function caseTraceRows(shown, finders) {
     return shown.map(({ token, data, scene }) => {
         const key = rowKey(scene.id, token.id);
+        const shows = traceShows(data);
         const who = Array.from(finders.get(token.id) ?? []);
         const found = who.length
             ? esc(who.join(", "))
@@ -1249,13 +1371,13 @@ function caseTraceRows(shown, finders) {
         const aria = column => ` aria-label="${esc(`${game.i18n.localize(column)}: ${row}`)}"`;
         return `<tr>
             <td>
-                <img src="${esc(data.public?.img || ICON)}" alt="" class="drpg-project-portrait"
+                <img src="${esc(shows.img)}" alt="" class="drpg-project-portrait"
                      data-drpg-portrait="${key}" />
-                <input type="hidden" name="img.${key}" value="${esc(data.public?.img || ICON)}" />
-                <input type="text" name="name.${key}"${aria("DRPG.Investigation.traceName")} value="${esc(data.public?.name || "")}" />
+                <input type="hidden" name="img.${key}" value="${esc(shows.img)}" data-drpg-drawn="${esc(shows.img)}" />
+                <input type="text" name="name.${key}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}" />
                 <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>
             </td>
-            <td><textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}>${esc(data.public?.playerText || "")}</textarea></td>
+            <td><textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}>${esc(shows.text)}</textarea></td>
             ${/* The second tier, edited in the same row as the first. Side by
                   side on purpose: the two sentences describe one object and a
                   GM writing the lab reading wants the observation in view, not
@@ -1263,7 +1385,7 @@ function caseTraceRows(shown, finders) {
                   ever gets to read this one. */ ""}
             <td><textarea name="analysis.${key}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
                 placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
-                >${esc(data.public?.analyzedText || "")}</textarea></td>
+                >${esc(shows.analysis)}</textarea></td>
             ${/* WHAT IT REALLY IS, CORRECTED BY HAND. The column that used to be
                   free-text tags. The module decides the type from whatever action
                   left the trace and gets the common cases right; the rest are
@@ -1273,11 +1395,11 @@ function caseTraceRows(shown, finders) {
                   in a player's pack (`propagateVerdicts`), and changes what they
                   are SHOWN only where they have already analysed it. */ ""}
             <td><select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES).map(([value, def]) =>
-                `<option value="${esc(value)}"${value === data.type ? " selected" : ""}>${
+                `<option value="${esc(value)}"${value === shows.type ? " selected" : ""}>${
                     esc(def.label)}</option>`).join("")}</select></td>
-            <td style="text-align:center"><input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${data.faint ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")} ${data.tiedToCrime ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${data.reinforced ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")} ${shows.crime ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} /></td>
             <td>${found}</td>
         </tr>`;
     }).join("");
@@ -1393,6 +1515,7 @@ export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOp
         // stores a scale and a sentence, and everything a GM wants to compare
         // between two clues - who left them, where, when - belongs to the trace.
         const here = placed.find(r => r.token.id === entry.tokenId)?.data ?? null;
+        const shows = keyRowShows(entry, placed);
         const context = traceContextLine(here);
         const state = !entry.tokenId
             ? `<em>${game.i18n.localize("DRPG.Investigation.notPlaced")}</em>`
@@ -1408,19 +1531,19 @@ export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOp
             `${keys.map(k => game.i18n.localize(k)).join(": ")} - ${i + 1}`)}"`;
         return `<tr${overLimit ? ' style="opacity:.6"' : ""}>
             <td><strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong></td>
-            <td><input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")} value="${esc(entry.name ?? "")}"
+            <td><input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}"
                 placeholder="${game.i18n.localize("DRPG.Remnant.tokenName")}" /></td>
             <td><textarea name="keytext:${i}" rows="2"${aria("DRPG.Investigation.traceText")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${
-                esc(entry.text ?? "")}</textarea>
+                esc(shows.text)}</textarea>
                 ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}</td>
             ${/* The second tier, as on the Traces tab (21.09). A placed row falls back
                   on the trace's own reading: a plan saved before this column existed
                   holds none, and an empty box would read as "nothing written". */ ""}
             <td><textarea name="keyanalysis:${i}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
                 placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}">${
-                esc(entry.analysis || here?.public?.analyzedText || "")}</textarea></td>
-            <td><input type="text" name="note:${i}"${aria("DRPG.Investigation.keyNoteLabel")} value="${esc(entry.note ?? "")}"
+                esc(shows.analysis)}</textarea></td>
+            <td><input type="text" name="note:${i}"${aria("DRPG.Investigation.keyNoteLabel")} value="${esc(shows.note)}"
                 placeholder="${game.i18n.localize("DRPG.Investigation.keyNotePlaceholder")}" /></td>
             <td>
                 <select name="token:${i}"${aria("DRPG.Investigation.onMap")}>
@@ -1559,34 +1682,12 @@ function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlac
     </div>`;
 }
 
-/**
- * The plan the dashboard's Key Remnant inputs were last drawn from (E05 C5). A Save writes
- * what differs from it and nothing else (`setKeyPlan`'s `base`): the window stays open while
- * another GM's edits merge in underneath it, and what it still shows of a slot this GM did not
- * touch is no longer the plan. One dashboard per browser (`alreadyOpen`), so one of these.
- */
-let shownKeyPlan = null;
-
-/**
- * The traces the dashboard's Traces tab was last drawn from (E05 fix r1-G5, S1-m7,
- * pre-existing). `applyDashboardSave` used to measure a row's changes against `allTraces()`
- * read fresh at Save - the world now, not the world the tab showed - so a name, image, text
- * or verdict another GM wrote while this window stood open (a GM store merge redraws no
- * open dashboard) differed from the stale form and was written back over it. Same shape as
- * `shownKeyPlan`, and the same fix: keep what was drawn, diff against that.
- */
-let shownTraces = null;
-
 /** The whole dashboard as markup - a function of the world, so `keepLive` can call it again. */
 function caseHtml(reading, { allRooms, murderState, finalRemnants, finalTruthPlacedThisChapter }) {
     const students = evidenceByStudent();
     const traces = allTraces();
-    // What the Traces tab's inputs are drawn from, and so what a Save measures its changes against.
-    shownTraces = traces;
     const finders = findersByAnyRemnant();
     const plan = keyPlan();
-    // What the plan's inputs are drawn from, and so what a Save measures its changes against.
-    shownKeyPlan = plan;
     const status = keyPlanStatus();
     const rooms = allRooms();
     // The opening roll's own limit on how many Key Remnants this chapter gets
@@ -1673,6 +1774,25 @@ function readDashboardForm(d) {
     const plan = keyPlan();
     const form = d.element.querySelector("form");
     const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
+    /* ONLY WHAT THE GM CHANGED, AND WHAT IT WAS DRAWN FROM (E09 C3, S05-26). Every field read
+       back as it stood, and Save wrote whatever differed from the world at that moment - so a
+       ruling or another GM's Save that merged in under the open window (a GM store write, which
+       redrew nothing until C3) differed from the stale field and was written back over. A field
+       is handed on now only when the GM changed it, as `{ value, drawn }`: `applyDashboardSave`
+       writes it only where the ledger still holds `drawn`. The drawn value is the field's own
+       default, which `keepLive` carries across a redraw (live.mjs `drawnOf`). */
+    const changed = pairs => {
+        const fields = {};
+        for (const [field, name] of pairs) {
+            const node = q(name);
+            if (!node || !isDirty(node)) continue;
+            const held = heldIn(node);
+            const value = typeof held === "string" ? held.trim() : held;
+            const drawn = drawnOf(node);
+            if (!same(value, drawn)) fields[field] = { value, drawn };
+        }
+        return fields;
+    };
     return {
         // The Final Key Remnant fields ride the same Save the
         // whole dashboard uses - same reasoning their old home
@@ -1694,33 +1814,17 @@ function readDashboardForm(d) {
             q(`name.${rowKey(scene.id, token.id)}`)
         ).map(({ token, scene }) => {
             const key = rowKey(scene.id, token.id);
-            return {
-                key,
-                img: q(`img.${key}`)?.value ?? "",
-                name: q(`name.${key}`)?.value.trim() ?? "",
-                text: q(`text.${key}`)?.value.trim() ?? "",
-                analysis: q(`analysis.${key}`)?.value.trim() ?? "",
-                type: q(`type.${key}`)?.value ?? "",
-                faint: q(`faint.${key}`)?.checked ?? false,
-                tiedToCrime: q(`crime.${key}`)?.checked ?? false,
-                reinforced: q(`reinf.${key}`)?.checked ?? false
-            };
+            return { key, fields: changed(TRACE_FIELDS.map(field => [field, `${field}.${key}`])) };
         }),
-        keyRows: plan.entries.map((entry, i) => {
-            const raw = q(`token:${i}`)?.value ?? "";
-            const [tokenId, sceneId] = raw ? raw.split("|") : [null, null];
-            return {
-                scale: entry.scale,
-                name: q(`keyname:${i}`)?.value.trim() ?? "",
-                text: q(`keytext:${i}`)?.value.trim() ?? "",
-                analysis: q(`keyanalysis:${i}`)?.value.trim() ?? "",
-                note: q(`note:${i}`)?.value.trim() ?? "",
-                tokenId: tokenId || null,
-                sceneId: sceneId || null,
-                createIn: q(`room:${i}`)?.value || null,
-                visibility: q(`vis:${i}`)?.value || "evident"
-            };
-        })
+        // Every slot, its `fields` empty where nothing changed: `saveKeyPlan` skips those, which
+        // is what keeps a Save from filling in the chapter's scales by itself.
+        keyRows: plan.entries.map((entry, i) => ({
+            slot: i, scale: entry.scale, visibility: q(`vis:${i}`)?.value || "evident",
+            fields: changed([
+                ["name", `keyname:${i}`], ["text", `keytext:${i}`], ["analysis", `keyanalysis:${i}`],
+                ["note", `note:${i}`], ["token", `token:${i}`], ["room", `room:${i}`]
+            ])
+        }))
     };
 }
 
@@ -1998,11 +2102,17 @@ export async function openInvestigationDashboard() {
                went on saying "Nobody has found it" with `refreshes: 0`. A freshly opened copy
                said "Player A", which is how a rendering bug and a liveness bug tell themselves
                apart. The ledger write does not save us either - it is a setting, and no
-               `updateSetting` reached the listener for it. */
+               `updateSetting` reached the listener for it.
+
+               AND THE TWO GM STORES (E09 C3, S05-26). The ledger and the Key plan are client
+               settings now, and their writes - this browser's, and another GM's merged in -
+               reach `clientSettingChanged` and nothing else, so a ruling or another GM's Save
+               left this window drawing the world from before it, and its Save wrote that back
+               over. `stores` hears both (live.mjs `listenFor`). */
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true, items: true },
+                watch: { actors: true, items: true, stores: [remnantStore, keyPlanStore] },
                 after: () => { wireCase(dialog); wireCaseFilters(dialog, reading, () => live?.refresh?.()); }
             });
         },
@@ -2017,36 +2127,43 @@ export async function openInvestigationDashboard() {
 
     // `traces` and `plan` read fresh, for the same reason the callback above does: the window
     // has been standing open and rebuilding itself, so what a row is APPLIED to (which token,
-    // which stored slot) is the world now. What each row is DIFFED against, to decide what a
-    // stale form may not write back, is `shownTraces`/`shownKeyPlan` - the world this window
-    // last drew (S1-m7; `setKeyPlan`'s `base` already worked this way for the plan).
-    await applyDashboardSave(action, { traces: allTraces(), plan: keyPlan(), shown: shownTraces });
+    // which stored slot) and what a changed field is checked against are the world now. What
+    // the window drew each field from rides in the form itself (E09 C3; until then the
+    // `shownTraces`/`shownKeyPlan` snapshots of S1-m7 and E05 C5).
+    await applyDashboardSave(action, { traces: allTraces(), plan: keyPlan() });
     return openInvestigationDashboard();
 }
 
 /**
  * Commit the dashboard's single Save across all three tabs.
  *
- * Exported for the suite (E05 fix r1-G5, S1-m7), which hands it a synthetic `shown` beside a
- * trace changed as if by another GM: every input it reads is an argument, so the stale-window
- * question - does a Save take back an edit this window never saw - can be measured directly.
+ * `result.traces` and `result.keyRows` hold only the fields the GM changed, each with what the
+ * window drew it from (`readDashboardForm`); `traces` and `plan` are the world now. A field is
+ * written where the world still holds what was drawn, and refused and told where a ruling or
+ * another GM's Save moved it under the open window (E09 C3, S05-26) - the rest of the Save goes
+ * on. A field nobody touched is not written at all, which is S1-m7's rule per field: the form's
+ * own defaults replaced its `shown` snapshot of the traces as drawn.
+ *
+ * Exported for the suite, which hands it a synthetic result beside a trace changed as if by
+ * another GM: every input it reads is an argument.
+ *
+ * @returns {Promise<{tracesChanged: number, created: number, refused: number}>}
  */
-export async function applyDashboardSave(result, { traces, plan, shown = traces }) {
+export async function applyDashboardSave(result, { traces, plan }) {
     let tracesChanged = 0;
+    const refused = [];
     for (const row of result.traces) {
         const trace = traces.find(t => rowKey(t.scene.id, t.token.id) === row.key);
         if (!trace) continue;
-        const { token } = trace;
-        // What this row is measured against: the trace as the tab drew it, not the trace now
-        // (S1-m7). A row `shown` holds no match for (created after the window opened) falls
-        // back to the fresh read - nothing was open to take back yet.
-        const was = shown.find(t => rowKey(t.scene.id, t.token.id) === row.key)?.data ?? trace.data;
+        const { token, data } = trace;
+        const take = writable(row.fields, traceShows(data), refused,
+            data.public?.name || traceContextLine(data) || row.key);
 
         const publicPatch = {};
-        if (row.name !== (was.public?.name ?? "")) publicPatch.name = row.name;
-        if (row.img !== (was.public?.img ?? "")) publicPatch.img = row.img;
-        if (row.text !== (was.public?.playerText ?? "")) publicPatch.playerText = row.text;
-        if (row.analysis !== (was.public?.analyzedText ?? "")) publicPatch.analyzedText = row.analysis;
+        if ("name" in take) publicPatch.name = take.name;
+        if ("img" in take) publicPatch.img = take.img;
+        if ("text" in take) publicPatch.playerText = take.text;
+        if ("analysis" in take) publicPatch.analyzedText = take.analysis;
         if (Object.keys(publicPatch).length) {
             await setRemnantPublic(token, publicPatch);
             // A human GM has now decided what this trace says, so a player
@@ -2056,28 +2173,38 @@ export async function applyDashboardSave(result, { traces, plan, shown = traces 
             tracesChanged++;
         }
 
-        /* THE FOUR VERDICTS, WRITTEN ONE AT A TIME NOW (S1-m7's second half). They used to
-           ride together: any one of them changing sent all three booleans as the form showed
-           them, so ticking Faint on a stale form wrote Tied-to-crime and Reinforced back to
-           whatever this window had on screen, taking back another GM's verdict of either.
-           `setRemnantFlags` already treats a field left at its default (`null`) as untouched
-           (see there), so a patch built from only what changed leaves the rest alone. */
-        const typeChanged = row.type && row.type !== was.type;
+        /* THE FOUR VERDICTS, WRITTEN ONE AT A TIME (S1-m7's second half). They used to ride
+           together: any one of them changing sent all three booleans as the form showed them,
+           so ticking Faint on a stale form wrote Tied-to-crime and Reinforced back over another
+           GM's verdict of either. `setRemnantFlags` treats a field left at its default (`null`)
+           as untouched (see there), so a patch of only what was taken leaves the rest alone. */
         const flagPatch = {};
-        if (typeChanged) flagPatch.type = row.type;
-        if (row.faint !== was.faint) flagPatch.faint = row.faint;
-        if (row.tiedToCrime !== was.tiedToCrime) flagPatch.tiedToCrime = row.tiedToCrime;
-        if (row.reinforced !== was.reinforced) flagPatch.reinforced = row.reinforced;
+        if (take.type) flagPatch.type = take.type;
+        if ("faint" in take) flagPatch.faint = take.faint;
+        if ("crime" in take) flagPatch.tiedToCrime = take.crime;
+        if ("reinf" in take) flagPatch.reinforced = take.reinf;
         if (Object.keys(flagPatch).length) {
             await setRemnantFlags(token, flagPatch);
             tracesChanged++;
         }
     }
 
-    const { created } = await saveKeyPlan(plan, result.keyRows, { base: shownKeyPlan });
+    const { created, refused: unplanned } = await saveKeyPlan(plan, result.keyRows);
+    refused.push(...unplanned);
 
     const parts = [];
     if (tracesChanged) parts.push(plural("DRPG.Investigation.tracesSaved", { n: tracesChanged }));
     if (created) parts.push(plural("DRPG.Investigation.plannerCreated", { n: created }));
     if (parts.length) ui.notifications.info(parts.join(" "));
+
+    /* SAID, AND IT STAYS UP. The window reopens on the ledger after a Save, so a refused field
+       comes back showing what the world holds and the GM's own value is gone from it - this
+       message is the only place it still exists, for them to type again. */
+    if (refused.length) {
+        const list = refused.map(r => game.i18n.format("DRPG.Investigation.savedOverItem", {
+            field: game.i18n.localize(FIELD_LABELS[r.field]), row: r.row, value: refusedAs(r.field, r.value, traces)
+        })).join("; ");
+        ui.notifications.warn(plural("DRPG.Investigation.savedOver", { n: refused.length, list }), { permanent: true });
+    }
+    return { tracesChanged, created, refused: refused.length };
 }

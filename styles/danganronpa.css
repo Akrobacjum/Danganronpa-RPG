@@ -2284,6 +2284,14 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
     background: rgba(var(--drpg-crimson-rgb), 0.12);
 }
 
+/* A field the person changed while the world changed it underneath them (live.mjs
+   `restore`, E09 C3): it keeps what they typed, its title says what is there now,
+   and a Save refuses it. Drawn inside the box so a table cell does not shift. */
+.drpg-moved-under {
+    outline: 2px solid var(--drpg-crimson);
+    outline-offset: -2px;
+}
+
 /* ==========================================================================
    MODULE DIALOGS
    --------------------------------------------------------------------------
