@@ -7178,7 +7178,11 @@ const REGRESSIONS = [
          * 08.10.2026, none without a row). E09 C8 struck `revealAllBulletTypes` and
          * `openChapterEndDialog` (both read through chapter.mjs `revealPlan` now, which decides) and
          * added `revealPlan` and `publishReading`, the write `identify` and the reveal share:
-         * 77 rows, 20 ITEM (read live 08.10.2026, none without a row). The
+         * 77 rows, 20 ITEM (read live 08.10.2026, none without a row). E09 fix r1-G4 moved
+         * `publishLootSource`, `propagateRemnantPublic` and `propagateVerdicts` onto truth-bullets.mjs
+         * `copiesInKey`, which hands each the held copy, so HELD names it: without it the three rows
+         * read as rows without a place (the parse-only census at the fix, 08.10.2026: "3 stale
+         * verdict(s)"); with it, 77 rows, 20 ITEM again. The
          * reader is run first on a fixture with a judged reader, a reader whose field is only in a
          * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
          */
@@ -7244,10 +7248,10 @@ const REGRESSIONS = [
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
             ["ITEM truth-bullets.mjs#publishReading", "judged (C8): takes the held copy from its caller (identify, revealAllBulletTypes through revealPlan); the answer key and the trace's public record for the rest"],
-            ["ITEM truth-bullets.mjs#publishLootSource", "judged (C2; census-found, not in plan.md): isIdentified and the source already shown read off bulletAsHeld"],
+            ["ITEM truth-bullets.mjs#publishLootSource", "judged (C2; census-found, not in plan.md): isIdentified and the source already shown read off the held copy; the copies the answer key lists since fix r1-G4 (copiesInKey: bulletAsHeld, the category the key's)"],
             ["ITEM truth-bullets.mjs#truthBulletData", "not a sink: the accessor; each caller is its own row"],
-            ["ITEM truth-bullets.mjs#propagateRemnantPublic", "judged (C2): hasReading off bulletAsHeld, and the name and img it falls back to (unreached: publicOf names every row); the answer key always"],
-            ["ITEM truth-bullets.mjs#propagateVerdicts", "judged (C2): the flags (faint, tiedToCrime, shownType) only where isIdentified(bulletAsHeld(item)), every copy decided in one synchronous pass (H3, H17); the answer key always; C13 sends the kind and Faint together through it"],
+            ["ITEM truth-bullets.mjs#propagateRemnantPublic", "judged (C2): hasReading off the held copy (copiesInKey since fix r1-G4: bulletAsHeld, the category the key's, every copy the answer key lists), and the name and img it falls back to (unreached: publicOf names every row); the answer key always"],
+            ["ITEM truth-bullets.mjs#propagateVerdicts", "judged (C2): the flags (faint, tiedToCrime, shownType) only where isIdentified(held) (bulletAsHeld; through copiesInKey since fix r1-G4, the category the key's, every copy the answer key lists), every copy decided in one synchronous pass (H3, H17); the answer key always; C13 sends the kind and Faint together through it"],
             ["ITEM truth-bullets.mjs#migrateTruthBullets", "out of scope: a one-time shape migration on a GM, writes the legacy fields back to their new names and decides no verdict"],
             ["ITEM truth-bullets.mjs#onBulletWrite", "put back: E29's put-back on the primary (judgedFor)"],
             ["CARD messenger-app.mjs#approveReshape", "refused and told from C10: the card carries only the tag, the proposal is read off the attempt row, `ruled` set before the first await, a second ruling refused; the card is the GM's (posted from the GM's client - a player cannot update a message they did not author: Foundry's permission, read not measured)"],
@@ -7263,7 +7267,7 @@ const REGRESSIONS = [
         ];
         const ROADS = /remnant\.|observe\.|cleanup\.|analyze\.|murder\.cleanup|project\.sabotage|handover\.bullet|tieForItem|reroll\.ask/;
         const FIELDS = new RegExp(`\\b(?:${["tiedToCrime", "faint", "realType", "shownType", "analyzed", "analyzedText", "playerText", "sourceAction"].join("|")})\\b`);
-        const HELD = /\b(?:bulletAsHeld|bulletsHeldBy|itemsHeldNow|itemsAsHeld|judgedFor)\s*\(/;
+        const HELD = /\b(?:bulletAsHeld|bulletsHeldBy|itemsHeldNow|itemsAsHeld|judgedFor|copiesInKey)\s*\(/;
         const RAW = /\b(?:truthBulletData|bulletsOf|allBullets|copiedRemnants|findersByRemnant)\s*\(|\.items\b[^;\n]{0,80}\btruthBullet\b|getFlag\(\s*MODULE_ID\s*,\s*["']truthBullet/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
         const CARD = /Reshape|observe|Remnant|Observe|keyRemnant/;

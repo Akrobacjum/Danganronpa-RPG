@@ -958,10 +958,13 @@ async function handleRemnant(payload, sender, ctx) {
  * project is not the packet's: it is the target `handleSabotage` noted on the GMs' row of the roll the
  * trace names (`noteFactOfRoll`; parked there while the row is not kept yet - `factsOfRoll`), and that
  * row must be the sender's Sabotage roll of the trace's own character. The tie then asks the same as
- * a Work's: an indirect murder whose killer or proposer is that character. A bystander's Sabotage of
- * somebody else's trap leaves an untied trace, as the plan decided (E09 plan, C5). A Sabotage whose
- * packet froze nothing and was not a miss notes no target (`handleSabotage`), so its trace is not tied
- * (read in the code, not measured).
+ * a Work's: an indirect murder whose killer or proposer is that character (projects.mjs
+ * `buildsOwnMurder`, which a GM's own drop asks too since E09 fix r1-G4). A bystander's Sabotage of
+ * somebody else's trap leaves an untied trace, as the plan decided (E09 plan, C5). A Sabotage of a
+ * project already frozen freezes nothing and notes its target all the same since fix r1-G4
+ * (`handleSabotage`; the round-1 security review's F7): until then its trace was left undecided where
+ * the same Sabotage of a trap not frozen yet was tied (tier 2 "a Sabotage of the saboteur's own trap
+ * already frozen leaves a tied trace").
  */
 async function worksOwnMurder(payload, actor, action, sender) {
     if (!actor) return false;
@@ -972,11 +975,8 @@ async function worksOwnMurder(payload, actor, action, sender) {
         projectId = (await factsOfRoll(payload.rollId, { by: sender.id, actorId: actor.id, actions: ["sabotage"] }))?.targetProjectId;
     }
     if (typeof projectId !== "string" || !projectId) return false;
-    const { isIndirectMurder } = await import("./projects.mjs");
-    const { secretsOf } = await import("./projects-secrecy.mjs");
-    if (!isIndirectMurder(projectId)) return false;
-    const { killerId, by } = secretsOf(projectId);
-    return killerId === actor.id || by === actor.id;
+    const { buildsOwnMurder } = await import("./projects.mjs");
+    return buildsOwnMurder(projectId, actor.id);
 }
 
 /*
@@ -1134,8 +1134,13 @@ async function handleSabotage(payload, sender, ctx) {
        and the Reroll into a miss left the project frozen. The fact now waits for its row (`noteFactOfRoll`); a packet naming no roll
        writes none. Since E09 C5 the fact names the packet's character too: the trace that follows reads
        its target off this fact to decide its tie, and asks it of the trace's character (`worksOwnMurder`);
-       `owns` and the roll's record (`rolled.actor`) have held `actorId` to the sender's and the roll's. */
-    if ((result || !difficulty) && payload.rollId) {
+       `owns` and the roll's record (`rolled.actor`) have held `actorId` to the sender's and the roll's.
+       And whatever the freeze did (E09 fix r1-G4, 08.10.2026; the round-1 security review's F7): a
+       Sabotage of a project frozen since its picker was drawn freezes nothing, and noted nothing, so
+       its trace was left undecided where the C5 rule ties the saboteur's own. The target is the one
+       the roll was drawn for (`rolled.named`) and the sender can see (`canSeeProject`); the repair is
+       noted only when one was made, so a Reroll of it takes back nothing (reroll.mjs `settleSabotage`). */
+    if (payload.rollId) {
         await rolls.noteFactOfRoll(payload.rollId, { by: sender.id, actorId: payload.actorId ?? null, actions: ["sabotage"] },
             { targetProjectId: payload.targetId, repairId: result?.repair?.id ?? null });
     }

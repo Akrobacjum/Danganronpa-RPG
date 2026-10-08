@@ -234,6 +234,38 @@ export function bulletsOf(actor) {
 }
 
 /**
+ * THE COPIES OF A TRACE AS THE ANSWER KEY LISTS THEM (E09 fix r1-G4, 08.10.2026; the round-1 security
+ * review's F4). A GM's verdict, a trace's new words and a death's loot source went to the copies on
+ * the students' sheets (`bulletsOf`), the category the document holds - which the holder can write:
+ * a copy whose category its holder took off was passed over until the sheet audit put it back, and its
+ * answer key kept the verdict it had before for good (tier 2 "a verdict reaches a copy whose category
+ * its holder took off"). The answer key is the GMs' own: every row whose trace `matches`, resolved to
+ * its item with no wait (the passes run inside a GM's write - H17), on a student's sheet, whatever the
+ * document's category says now. A row whose item is gone is passed over. Each comes as `{ item, held }`:
+ * `held` is the copy as the GMs hold it (`bulletAsHeld`) with the category the key gives it - the
+ * passes' "identified" and "has the reading" ask `isTruthBullet` first, and asked of the document's
+ * category they wrote the key and still left the copy's item as it was (measured on the fix's first
+ * run, 08.10.2026: both copies read unidentified with their category off).
+ */
+function copiesInKey(matches) {
+    const out = [];
+    for (const [uuid, row] of Object.entries(bulletStore.entries() ?? {})) {
+        if (!row || !matches(row)) continue;
+        let item = null;
+        try { item = fromUuidSync(uuid); } catch { item = null; }
+        if (item?.documentName !== "Item" || item.parent?.type !== "character") continue;
+        const copy = bulletAsHeld(item);
+        out.push({ item, held: {
+            id: copy.id, uuid: copy.uuid,
+            get name() { return copy.name; },
+            get img() { return copy.img; },
+            getFlag: (scope, key) => scope === MODULE_ID && key === "category" ? BULLET_CATEGORY : copy.getFlag(scope, key)
+        } });
+    }
+    return out;
+}
+
+/**
  * Can this bullet still be analysed, by whoever is holding it?
  *
  * Two ways to be out: it is already identified, or this copy was burned on a
@@ -295,16 +327,11 @@ export async function shownSourceAction({ sourceAction = null, sceneId = null, r
 export async function publishLootSource(trace) {
     if (!game.user.isGM || !trace?.tokenId) return 0;
     let n = 0;
-    for (const actor of game.actors ?? []) {
-        if (actor.type !== "character") continue;
-        for (const item of bulletsOf(actor)) {
-            const secret = secretOf(item.uuid);
-            if (secret.sourceAction !== "loot" || secret.remnantId !== trace.tokenId || secret.sceneId !== trace.sceneId) continue;
-            const held = bulletAsHeld(item);
-            if (!isIdentified(held) || held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.sourceAction) === "loot") continue;
-            await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: "loot" });
-            n++;
-        }
+    // The copies the answer key lists (`copiesInKey`), not the sheets' (E09 fix r1-G4).
+    for (const { item, held } of copiesInKey(row => row.sourceAction === "loot" && row.remnantId === trace.tokenId && row.sceneId === trace.sceneId)) {
+        if (!isIdentified(held) || held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.sourceAction) === "loot") continue;
+        await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: "loot" });
+        n++;
     }
     return n;
 }
@@ -777,8 +804,9 @@ export function faintOf(item) {
  * record.
  *
  * Called from remnants.mjs's `setRemnantPublic` - never on its own - because
- * finding "every bullet copied from this trace" reads `secretOf(item.uuid)
- * .remnantId`, the answer key, and that only resolves on a GM's client.
+ * finding "every bullet copied from this trace" reads the answer key's
+ * `remnantId` (`copiesInKey` since E09 fix r1-G4), and that only resolves on a
+ * GM's client.
  * Which fields move: name, portrait and the description a player
  * reads - never `realType`, `gmNote` or anything else the ledger's secret
  * half holds.
@@ -810,40 +838,36 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
     if (!game.user.isGM || !remnantTokenId || !pub) return 0;
 
     let touched = 0;
-    for (const actor of game.actors) {
-        if (actor.type !== "character") continue;
-        for (const item of bulletsOf(actor)) {
-            if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
-            const analyzedText = pub.analyzedText ?? "";
-            try {
-                // The road that reaches every copy, analysed or not. Filed first
-                // so that a failure on the item below cannot leave the ledger
-                // holding the older sentence. `ifLive`: it amends a row this GM
-                // holds (the line above found it), and never starts one.
-                await setSecret(item.uuid, { analyzedText }, { ifLive: true });
+    // The copies the answer key lists (`copiesInKey`), not the sheets' (E09 fix r1-G4).
+    for (const { item, held } of copiesInKey(row => row.remnantId === remnantTokenId)) {
+        const analyzedText = pub.analyzedText ?? "";
+        try {
+            // The road that reaches every copy, analysed or not. Filed first
+            // so that a failure on the item below cannot leave the ledger
+            // holding the older sentence. `ifLive`: it amends a row this GM
+            // holds (the line above found it), and never starts one.
+            await setSecret(item.uuid, { analyzedText }, { ifLive: true });
 
-                // And this holder's own half. `hasReading` is the whole gate: a
-                // bullet still showing Neutral - or a Key or a Final nobody has
-                // analysed yet - gets the Observe text and an empty second tier,
-                // which is what its flags already said.
-                const held = bulletAsHeld(item);
-                const earned = hasReading(held) ? analyzedText : "";
+            // And this holder's own half. `hasReading` is the whole gate: a
+            // bullet still showing Neutral - or a Key or a Final nobody has
+            // analysed yet - gets the Observe text and an empty second tier,
+            // which is what its flags already said.
+            const earned = hasReading(held) ? analyzedText : "";
 
-                // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
-                // where this write came from, not about the bullet. `watchBulletEdits`
-                // below reads it to know this is the trace talking and not a GM,
-                // which is the whole of the loop guard.
-                await item.update({
-                    name: pub.name || held.name,
-                    img: pub.img || held.img,
-                    "system.description": bulletDescription(pub.playerText ?? "", earned),
-                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
-                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned
-                }, { [FROM_REMNANT]: true });
-                touched++;
-            } catch (err) {
-                error(`Could not propagate the Remnant's public record onto "${item.name}"`, err);
-            }
+            // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
+            // where this write came from, not about the bullet. `watchBulletEdits`
+            // below reads it to know this is the trace talking and not a GM,
+            // which is the whole of the loop guard.
+            await item.update({
+                name: pub.name || held.name,
+                img: pub.img || held.img,
+                "system.description": bulletDescription(pub.playerText ?? "", earned),
+                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
+                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned
+            }, { [FROM_REMNANT]: true });
+            touched++;
+        } catch (err) {
+            error(`Could not propagate the Remnant's public record onto "${item.name}"`, err);
         }
     }
     return touched;
@@ -905,13 +929,10 @@ export async function propagateVerdicts(remnantTokenIds, { faint = null, tiedToC
     if (!game.user.isGM || !ids.size || !Object.keys(secret).length) return 0;
 
     const secrets = {}, identified = [];
-    for (const actor of game.actors) {
-        if (actor.type !== "character") continue;
-        for (const item of bulletsOf(actor)) {
-            if (!ids.has(secretOf(item.uuid).remnantId)) continue;
-            secrets[item.uuid] = { ...secret };
-            if (isIdentified(bulletAsHeld(item))) identified.push(item);
-        }
+    // The copies the answer key lists (`copiesInKey`), not the sheets' (E09 fix r1-G4).
+    for (const { item, held } of copiesInKey(row => ids.has(row.remnantId))) {
+        secrets[item.uuid] = { ...secret };
+        if (isIdentified(held)) identified.push(item);
     }
     if (!Object.keys(secrets).length) return 0;
     // `ifLive`: it amends rows this GM holds (the pass above found them), and never starts one.

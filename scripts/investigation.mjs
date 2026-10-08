@@ -739,13 +739,24 @@ function stripDraft(row) {
  * reading where the plan holds none, and the trace it points at as the picker's value - "" when
  * there is none or it is gone. `caseKeyRows` draws from this and a Save reads the plan now
  * through it, so what was drawn and what is there now are compared in one shape.
+ *
+ * A PLACED ROW'S WORDS ARE THE TRACE'S (E09 fix r1-G4, 08.10.2026; the round-1 goal check's S05-26/G1).
+ * A Save pushes a placed row's changed words onto the trace (`saveKeyPlan`), and the row drew and was
+ * compared with the plan's: a reshape, a ruling or the Traces tab rewrote the trace and left the plan
+ * as it was, so the row went on showing the plan's words, `writable` found them unmoved, and the GM's
+ * edit was written over a trace the tab had never shown. Read off the trace now, a write the window
+ * did not draw is refused and told like the Traces tab's (tier 2 "a placed Key row draws its trace's
+ * words and refuses an edit over a write it never drew"). The analysis with them: it is pushed the
+ * same way. A row whose trace is gone, or was placed before the trace kept public words, draws the
+ * plan's.
  */
 function keyRowShows(entry, placed) {
     const here = entry.tokenId ? placed.find(r => r.token.id === entry.tokenId) ?? null : null;
+    const pub = here?.data?.public ?? null;
     return {
-        name: entry.name ?? "",
-        text: entry.text ?? "",
-        analysis: entry.analysis || here?.data?.public?.analyzedText || "",
+        name: (pub ? pub.name : entry.name) ?? "",
+        text: (pub ? pub.playerText : entry.text) ?? "",
+        analysis: (pub ? pub.analyzedText : entry.analysis) ?? "",
         note: entry.note ?? "",
         token: here ? `${here.token.id}|${here.scene.id}` : ""
     };

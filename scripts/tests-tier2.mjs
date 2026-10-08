@@ -1519,14 +1519,15 @@ async function projectPackets(player, actor) {
  * row of another roll instead of sending the packet (`{ actor }`: a Sabotage that character
  * made, its row kept in `player`'s name), and the trace names that roll. Answers the tie the GMs'
  * ledger holds for the trace left (true, false or null), "none" when it left none, or the refusal
- * the Sabotage was told - an untied trace behind a refused Sabotage would measure nothing; takes its
- * roll, record, row and trace back. `sabotageTraps` makes the indirect murders in `where`'s room,
- * seen by `player` (a trap is seen only by its builder's players until it is shared, and a Sabotage
- * of one the sender cannot see is refused, `cannotSee` - measured 08.10.2026, the bystander's and the
- * proposer's), one per Sabotage, as a frozen project notes no target (gm-bridge.mjs `handleSabotage`),
- * and deletes them with the repairs the Sabotages made.
+ * the Sabotage was told - an untied trace behind a refused Sabotage would measure nothing; with
+ * `refused`, `[the refusal or null, the tie]`, for a Sabotage refused on purpose (E09 fix r1-G4: a trap
+ * already frozen). Takes its roll, record, row and trace back. `sabotageTraps` makes the indirect
+ * murders in `where`'s room, seen by `player` (a trap is seen only by its builder's players until it is
+ * shared, and a Sabotage of one the sender cannot see is refused, `cannotSee` - measured 08.10.2026, the
+ * bystander's and the proposer's), one per Sabotage, as a frozen project freezes nothing more
+ * (gm-bridge.mjs `handleSabotage`), and deletes them with the repairs the Sabotages made.
  */
-async function sabotageTraceTie(F, player, actor, where, target, { data = {}, early = false, row = null } = {}) {
+async function sabotageTraceTie(F, player, actor, where, target, { data = {}, early = false, row = null, refused = false } = {}) {
     const { remnantData } = await import("./remnants.mjs");
     const A = await import("./action-rolls.mjs");
     const S = await import("./gm-stores.mjs");
@@ -1554,7 +1555,9 @@ async function sabotageTraceTie(F, player, actor, where, target, { data = {}, ea
                 experiences: [], context: { targetProjectId: target, penalty: 0, relief: 0 } });
         }
         const left = scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.subject === subject);
-        return told ? `the Sabotage was refused: ${told}` : left.length === 1 ? left[0].tiedToCrime : "none";
+        const tie = left.length === 1 ? left[0].tiedToCrime : "none";
+        if (refused) return [told, tie];
+        return told ? `the Sabotage was refused: ${told}` : tie;
     } finally {
         for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
         await record.putBack();
@@ -11355,7 +11358,7 @@ const SCENARIOS = [
          * connected player's character in a room; an indirect murder there whose killer is that
          * character, one whose proposer is, and a third the Sabotage reaches before its roll's row is
          * kept (`sabotageTraceTie`, `early`). Read: the tie the GMs' ledger holds for each trace.
-         * Red at C5's parent: <measured by A2>.
+         * Red at C5's parent (722ac89's runtime, this test kept): [null,null,null].
          */
         needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -11385,7 +11388,7 @@ const SCENARIOS = [
          * roller's browser asks it tied for anybody's Sabotage of an indirect murder. A connected
          * player's character in a room Sabotages a trap there whose killer and proposer are another
          * character, the packet asking it tied; then one of its own, the same way. Read: the two ties.
-         * Red at C5's parent: <measured by A2>.
+         * Red at C5's parent (722ac89's runtime, this test kept): [null,null], the killer's untied.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -11417,7 +11420,8 @@ const SCENARIOS = [
          * character's Sabotage of the trap, kept in the same player's name (`sabotageTraceTie`,
          * `row`; a GM whose Daggerheart is not the draw's build reads no record of the roll,
          * bridge-guards.mjs `rollsFor`, so the row is all that names its character); (c) Sabotages
-         * the trap itself. Read: the three ties. Red at C5's parent: <measured by A2>.
+         * the trap itself. Read: the three ties. Red at C5's parent (722ac89's runtime, this test
+         * kept): [null,null,null], the killer's own untied.
          */
         needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
         needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
@@ -11438,6 +11442,127 @@ const SCENARIOS = [
         } finally {
             await traps.putBack();
             await F.putBack();
+        }
+    }],
+
+    ["a Sabotage of the saboteur's own trap already frozen leaves a tied trace", async () => {
+        /*
+         * E09 fix r1-G4, 08.10.2026; the round-1 security review's F7, which the correctness review read
+         * as not real (a victim's death ties every undecided trace of its chapter, remnants.mjs
+         * `tieChapterTraces`) - measured here before any death. The bridge notes a Sabotage's target on
+         * its roll's row only when the freeze was made or the roll missed (gm-bridge.mjs
+         * `handleSabotage`), and a trace's tie reads that target (`worksOwnMurder`): a Sabotage of a trap
+         * frozen since its picker was drawn - another's Sabotage landing first - froze nothing, noted
+         * nothing, and its trace was left undecided where the C5 rule ties the saboteur's own. A
+         * connected player's character in a room; a trap there whose killer is that character, frozen by
+         * the GM, and one whose killer and proposer are another character, frozen the same way; the
+         * character Sabotages each (`sabotageTraceTie`, the refusal kept). Read for each: what the
+         * Sabotage was told ("refused", the code a "nothing was carried out" is told by,
+         * bridge-guards.mjs), and the tie the GMs' ledger holds for its trace.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id);
+        must(other, "no second character to be the other trap's killer - this would measure nothing");
+        const F = await projectPackets(player, actor);
+        const traps = sabotageTraps(F, where, player);
+        try {
+            const frozen = async secrets => {
+                const id = await traps.make(secrets);
+                must(await F.P.sabotageProject(id, 3), "the GM's own Sabotage froze nothing - this would measure nothing");
+                return id;
+            };
+            const read = [];
+            for (const secrets of [{ killerId: actor.id }, { killerId: other.id, by: other.id }]) {
+                read.push(await sabotageTraceTie(F, player, actor, where, await frozen(secrets), { refused: true }));
+            }
+            equal(stableJson(read), stableJson([["refused", true], ["refused", null]]),
+                "a Sabotage of a trap already frozen left the saboteur's own trace undecided, or tied a bystander's, or was not refused "
+                    + "(the trap's killer, a bystander: what the Sabotage was told, the trace's tie)");
+        } finally {
+            await traps.putBack();
+            await F.putBack();
+        }
+    }],
+
+    ["a GM's own Work or Sabotage of an indirect murder ties its trace only for the trap's killer or proposer", async () => {
+        /*
+         * E09 fix r1-G4, 08.10.2026; the round-1 goal check's G2b, and the security review's note K6 for
+         * the Work. A player's Work or Sabotage trace is tied by the bridge only when the character is
+         * the trap's killer or proposer (gm-bridge.mjs `worksOwnMurder`; fix r2-G3, E09 C5), and a GM's
+         * own action places its trace on its own client, where the drop tied any character's trace of
+         * any indirect murder (action-rolls.mjs `hideProjectTraces`, `dropSabotageTrace`): the same
+         * Sabotage left a tied trace or an untied one by which browser rolled it. A student stood alone
+         * in a room; three traps there seen by every player - another character's, the student's own as
+         * its killer, and another's the student proposed; on each the student Works and then Sabotages
+         * it, from this GM's browser, the rolls 9 and 5 and the Work's cover window closed (an Obvious
+         * trace). Read for each trap: the tie of the Work's trace and of the Sabotage's ("none": no
+         * trace).
+         */
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the saboteur alone");
+        const [actor] = cast(1);
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id);
+        must(other, "no second character to be a trap's killer - this would measure nothing");
+        const { performAction } = await import("./action-rolls.mjs");
+        const P = await import("./projects.mjs");
+        const { remnantsOn, remnantData } = await import("./remnants.mjs");
+        const stood = await standAlone(actor);
+        const cover = game.i18n.localize("DRPG.Roll.hideTraces");
+        const pick = { row: "work", project: null };
+        const windows = answerWindows((cfg, root) => {
+            const radio = root.querySelector(`input[name="variant"][value="${pick.row}"]`);
+            if (radio) radio.checked = true;
+            for (const name of ["project", "sabotage"]) {
+                const select = root.querySelector(`select[name="${name}"]`);
+                if (select) select.value = pick.project;
+            }
+            return press(cfg, root);
+        });
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        const own = Object.getPrototypeOf(actor).rollTrait;
+        const made = [];
+        const left = names => game.scenes.contents.flatMap(s => remnantsOn(s)).filter(t => names.includes(remnantData(t)?.subject));
+        const names = [];
+        try {
+            globalThis.__forceRoll = { hope: 9, fear: 5 };
+            actor.rollTrait = async function (key, config) {
+                return String(config?.title ?? "").startsWith(cover) ? null : own.call(actor, key, config);
+            };
+            const viewers = game.users.filter(u => !u.isGM).map(u => u.id);
+            const read = [];
+            for (const [label, secrets] of [["another's", { killerId: other.id, by: other.id }], ["own", { killerId: actor.id, by: actor.id }],
+                ["proposed", { killerId: other.id, by: actor.id }]]) {
+                const name = `SUITE r1-G4 ${label} trap ${foundry.utils.randomID(4)}`;
+                names.push(name);
+                const id = (await P.createProject({ name, target: 12, room: stood.room, trait: "hand", indirectMurder: true, viewers, ...secrets }))?.id ?? null;
+                must(id && P.isIndirectMurder(id), `the ${label} trap could not be made - this would measure nothing`);
+                made.push(id);
+                pick.project = id;
+                const ties = [];
+                for (const row of ["work", "sabotage"]) {
+                    pick.row = row;
+                    await performAction(actor, "project", { free: true });
+                    await settle();
+                    const trace = left([name]).map(t => remnantData(t)).filter(d => d.action === (row === "work" ? "project" : "sabotage"));
+                    ties.push(trace.length === 1 ? trace[0].tiedToCrime ?? null : trace.length ? "several" : "none");
+                }
+                read.push(ties);
+            }
+            equal(stableJson(read), stableJson([[null, null], [true, true], [true, true]]),
+                "a GM's own Work or Sabotage tied a bystander's trace of somebody else's trap, or left the killer's or the proposer's untied "
+                    + "(another's trap, the student's own, one the student proposed: the Work's trace's tie, the Sabotage's)");
+        } finally {
+            windows.restore();
+            delete actor.rollTrait;
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            for (const t of left(names)) {
+                try { await t.delete(); } catch { /* already gone */ }
+            }
+            made.push(...P.allProjects().filter(p => made.includes(P.repairs(p.id))).map(p => p.id));
+            for (const id of made) await P.deleteProject(id).catch(() => {});
+            await stood.back();
         }
     }],
 
@@ -16835,7 +16960,8 @@ const SCENARIOS = [
          * is opened on a critical, its victim dies, it is closed, and the dashboard drawn again.
          * Read each time: whether the limit's override is there, and which plan rows are drawn
          * over the limit. A case with no body keeps no count (murder-rules.mjs `closeIncident`
-         * asks `leftABody`). Red at the parent: <measured by A2>.
+         * asks `leftABody`). Red at the parent (ec25540's runtime, this test kept): both draws
+         * {over:[],override:false} - the case closed with a body drew no limit.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         needs(env.dialogs(), "the dashboard is read off its drawn window");
@@ -16925,8 +17051,8 @@ const SCENARIOS = [
          * it would bill against is another chapter's. Another chapter is planned; on the
          * chapter after it nobody planned, a direct murder opened on a critical is closed with
          * its victim dead, the dashboard is drawn, and the charge is asked for. Read: the
-         * planner's limit, and whether the charge stamped itself as made. Red at the parent:
-         * <measured by A2> (its limit). Since E09 C7 the charge reads the closed cases, not the
+         * planner's limit, and whether the charge stamped itself as made. Red at the parent
+         * (ec25540's runtime, this test kept): [{over:[],override:false}, false] (its limit). Since E09 C7 the charge reads the closed cases, not the
          * plan (`keyFeeOf`): the case's own chapter is the live one, so the charge is made -
          * until C7 it was refused, the stamp left unset. Asked through `keyFeeCharged` since E09
          * fix r1-G3 (k1's fee tests): asked directly, the charge it makes stayed in every
@@ -17613,6 +17739,80 @@ const SCENARIOS = [
                 await token.delete().catch(() => {});
             }
         }
+    }],
+
+    ["a placed Key row draws its trace's words and refuses an edit over a write it never drew", async () => {
+        /*
+         * E09 fix r1-G4, 08.10.2026; the round-1 goal check's S05-26/G1. A Key Remnant row pointed at a
+         * placed trace pushes the words the GM changes on it onto the trace (investigation.mjs
+         * `saveKeyPlan`), and it drew and compared the plan's: a write on the trace - a ruling, the
+         * Traces tab, another GM - left the plan as it was, so the row showed the plan's words, the Save
+         * found them unmoved, and the GM's edit went over a trace the tab had never shown, with nothing
+         * said. A Key trace placed in a chapter of its own nobody has planned, named as the plan's row
+         * pointing at it names it; its words and reading rewritten (`setRemnantPublic`, the write every one of those
+         * ends in on a GM's browser) before the dashboard opens; then a name typed on the row and the
+         * trace renamed again under the open window. Read: the name, the words and the reading the row
+         * drew, the trace's name after the Save, and what the Save told.
+         */
+        const remnants = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./gm-stores.mjs");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const scene = canvas.scene;
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        const planRows = () => Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith(`${fresh}:`));
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let token = null;
+        let win = null;
+        let read = null;
+        try {
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            await setClock({ chapter: fresh });
+            token = await remnants.placeRemnant({
+                type: "key", visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                note: "test fixture - E09 fix r1-G4 a placed Key row"
+            });
+            must(token, "could not place the fixture Key trace");
+            await remnants.setRemnantPublic(token, { name: "SUITE r1-G4 planned", playerText: "SUITE r1-G4 planned words" });
+            await I.setKeyPlan({ chapter: fresh, entries: [{ scale: "standard", name: "SUITE r1-G4 planned", text: "SUITE r1-G4 planned words",
+                analysis: "SUITE r1-G4 planned reading", note: "", tokenId: token.id, sceneId: scene.id }] });
+            await remnants.setRemnantPublic(token, { name: "SUITE r1-G4 rewritten", playerText: "SUITE r1-G4 rewritten words",
+                analyzedText: "SUITE r1-G4 rewritten reading" });
+            await gmStoresIdle();
+
+            win = await drawnCaseWindow();
+            must(win.field("keyname:0") && win.field("token:0")?.value === `${token.id}|${scene.id}`,
+                `the dashboard's Key tab does not hold the fixture's row pointed at its trace - this would measure nothing: ${stableJson({
+                    open: Boolean(win.app?.element), token: win.field("token:0")?.value ?? null })}`);
+            const drawn = [win.field("keyname:0").value, win.field("keytext:0").value, win.field("keyanalysis:0")?.value ?? null];
+            win.field("keyname:0").value = "SUITE r1-G4 typed by this GM";
+            await remnants.setRemnantPublic(token, { name: "SUITE r1-G4 rewritten again" });
+            await gmStoresIdle();
+            await until(() => win.field("keyname:0")?.classList.contains("drpg-moved-under"), 3000);
+            must(win.field("keyname:0")?.value === "SUITE r1-G4 typed by this GM", "the redraw threw away what the GM had typed - this would measure nothing");
+            await win.save();
+            await gmStoresIdle();
+            read = [drawn, remnants.remnantData(token)?.public?.name ?? null, warned.length,
+                warned.some(w => w.includes("SUITE r1-G4 typed by this GM"))];
+        } finally {
+            ui.notifications.warn = warn;
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            const rows = planRows();
+            if (rows.length) await S.keyPlanStore.dropMany(rows);
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson([["SUITE r1-G4 rewritten", "SUITE r1-G4 rewritten words", "SUITE r1-G4 rewritten reading"],
+            "SUITE r1-G4 rewritten again", 1, true]),
+            "a placed Key row drew the plan's words over its trace's, or its Save wrote the GM's name over a rename the window never drew without telling "
+                + "(the row's name, words and reading as drawn, the trace's name after the Save, the warnings, whether one gives back what the GM typed)");
     }],
 
     ["two GMs: B's untouched field takes A's value", async () => {
@@ -19531,6 +19731,68 @@ const SCENARIOS = [
             "a copy the GMs hold unanalysed earned a reading or a loot source from a GM's write (for the analysed copy, the one not, and the one "
                 + "given `analyzed` on the document alone: the item's reading, the description's, the key's; how many loot copies the publication "
                 + "wrote, and the source each shows)");
+    }],
+
+    ["a verdict reaches a copy whose category its holder took off", async () => {
+        /*
+         * E09 fix r1-G4, 08.10.2026; the round-1 security review's F4, which the correctness review read
+         * as not real (its item 3: such a copy misses verdicts on its holder's item only). The three
+         * passes that move a GM's word down to the copies - a verdict (`propagateVerdicts`), a trace's
+         * words (`propagateRemnantPublic`), a death's loot source (`publishLootSource`) - listed the
+         * copies on the students' sheets by the category the document holds, which its holder can
+         * write; the sheet audit puts it back, and a pass in between passed the copy over, its answer
+         * key included, which the chapter's sweep reads (chapter.mjs `sparedBySweep`). The fixture as
+         * the tests above' (`traceCopies`), and a loot copy, analysed, of a trace the GMs' rows do not
+         * hold, its source taken off by a GM's write; each analysed copy's category taken off on this
+         * browser alone (`updateSource`: the state a holder's write waiting for its put-back leaves);
+         * the GM's Faint and tie on the trace, a new reading, and the loot publication; the category
+         * put back. Read: the analysed copy's key - Faint, tie, reading - and its item's Faint and
+         * reading; the loot copy's source.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        const READING = "SUITE r1-G4 the reading";
+        const LOOT = { tokenId: "suiteG4LootTrace", sceneId: "suiteG4Scene" };
+        const [student] = cast(1);
+        const fx = await traceCopies(student);
+        const [copy] = fx.copies;
+        const category = copy.getFlag(MODULE_ID, "category");
+        let loot = null;
+        let read = null;
+        try {
+            loot = await T.createTruthBullet(student, { name: "SUITE r1-G4 loot", realType: "resolution", playerText: "SUITE r1-G4",
+                remnantId: LOOT.tokenId, sceneId: LOOT.sceneId, sourceAction: "loot", analyzed: true });
+            must(loot, "the loot copy was not made - this would measure nothing");
+            await loot.update({ [`flags.${MODULE_ID}.${F.sourceAction}`]: null });
+            await settle();
+            const analysed = [copy, loot].map(b => T.isIdentified(T.bulletAsHeld(b)));
+            for (const b of [copy, loot]) b.updateSource({ flags: { [MODULE_ID]: { category: null } } });
+            const ready = [analysed, [copy, loot].map(b => [T.isTruthBullet(b), T.secretOf(b.uuid).remnantId ?? null]),
+                loot.getFlag(MODULE_ID, F.sourceAction) ?? null];
+            must(stableJson(ready) === stableJson([[true, true], [[false, fx.token.id], [false, LOOT.tokenId]], null]),
+                `the copies still hold their category, are not analysed or have no answer key, or the loot copy shows a source - this would measure nothing: ${stableJson(ready)}`);
+            await R.setRemnantFlags(fx.token, { faint: true, tiedToCrime: true });
+            await R.setRemnantPublic(fx.token, { analyzedText: READING });
+            await T.publishLootSource(LOOT);
+            await settle();
+            for (const b of [copy, loot]) b.updateSource({ flags: { [MODULE_ID]: { category } } });
+            const key = T.secretOf(copy.uuid);
+            read = [[key.faint === true, key.tiedToCrime === true, key.analyzedText === READING,
+                copy.getFlag(MODULE_ID, F.faint) === true, copy.getFlag(MODULE_ID, F.analyzedText) === READING],
+            loot.getFlag(MODULE_ID, F.sourceAction) ?? null];
+        } finally {
+            for (const b of [copy, loot].filter(Boolean)) b.updateSource({ flags: { [MODULE_ID]: { category } } });
+            if (loot) {
+                if (student.items.has(loot.id)) await student.items.get(loot.id).delete();
+                await T.dropSecret(loot.uuid);
+            }
+            await fx.back();
+        }
+        equal(stableJson(read), stableJson([[true, true, true, true, true], "loot"]),
+            "a GM's verdict, a trace's new reading or a death's loot source passed over a copy whose category was off the document "
+                + "(the analysed copy: its key's Faint, tie and reading, its item's Faint and reading; the loot copy's source)");
     }],
 
     ["throwing a broken thing away leaves a Prep trace before a murder and a Tamper one after", async () => {

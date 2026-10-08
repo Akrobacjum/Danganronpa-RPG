@@ -61,16 +61,20 @@ run until a v14 sandbox exists (audit/gate/README.md).
 ## Numbers
 
 A scenario's number is how a comment, a commit and an audit find it a year
-later, so a number is never reused or reassigned, and a retired row stays. A new
-scenario takes the next free number in its decade - 0x the harness and the
-suite, 1x the session and the murder, 2x dice, 3x security, 4x the flows through
-a day, 5x language, 6x GM stores and migrations, 7x behaviour and secrets, 8x
-several clients and budgets, 9x measurements - and the stage that writes a
-planned file flips its row to `exists` in the same commit. A row, its file and
-the file's `layers` export must agree: `node tools/check.mjs registry` fails
-otherwise, and on a planned row whose stage has shipped. Status is `exists`,
-`planned`, `probe` (a tool in `probes/`, never a gate) or `retired`; Stage is the
-release or stage the status belongs to.
+later, so a number is never reused or reassigned once its scenario exists, and a
+retired row stays. A planned row's number may move until its file is written:
+E09 C0 gave 62 to the investigation and moved the planned migration drill to 63,
+when the drill had no file, no run, and its number stood nowhere but this table
+(the round-1 review's git grep at f88133d). A new scenario takes the next free
+number in its decade - 0x the harness and the suite, 1x the session and the
+murder, 2x dice, 3x security, 4x the flows through a day, 5x language, 6x GM
+stores and migrations, 7x behaviour and secrets, 8x several clients and budgets,
+9x measurements - and the stage that writes a planned file flips its row to
+`exists` in the same commit. A row, its file and the file's `layers` export must
+agree: `node tools/check.mjs registry` fails otherwise, and on a planned row
+whose stage has shipped. Status is `exists`, `planned`, `probe` (a tool in
+`probes/`, never a gate) or `retired`; Stage is the release or stage the status
+belongs to.
 
 <!-- scenarios:start -->
 | No. | File | Layers | Status | Stage | What it asks |

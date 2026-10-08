@@ -37,7 +37,7 @@ import { tamperQuote, witnessesTo } from "./cleanup.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
-import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn } from "./projects.mjs";
+import { projectsAvailableIn, addProgress, isIndirectMurder, isSecret, scaleFor, projectsListedIn, buildsOwnMurder } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, forcedDeletion, isPrimaryGm, log, warn, error, plural, cardHead, esc, easedBy, gmIds, activeGmIds, ownerOf, MESSAGE_FLAG } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
@@ -3164,8 +3164,11 @@ async function hideProjectTraces(actor, project, progress, lines) {
         // (Dawid, 28.08). An indirect murder IS the murder, built in
         // instalments, so the traces of building it are the traces of
         // committing it. `null` for every other project, which leaves
-        // the incident rule free to answer.
-        tiedToCrime: project.indirectMurder ? true : null,
+        // the incident rule free to answer - and for a bystander's Work on
+        // somebody else's trap, which the bridge has left untied for a
+        // player's since fix r2-G3 and a GM's own client tied until E09 fix
+        // r1-G4 (`buildsOwnMurder`, the same question on both).
+        tiedToCrime: buildsOwnMurder(project.id, actor.id) ? true : null,
         // A player's packet is never taken at its word on the tie: the GM reads it off this
         // project (gm-bridge.mjs `handleRemnant`, fix r2-G3).
         projectId: project.id,
@@ -3611,8 +3614,10 @@ async function dropSabotageTrace(actor, def, roll, { project, room, success, hit
     const visibility = success ? hit.remnant : def.failureRemnant;
     return dropRemnant(actor, {
         type: "prep",
-        // Sabotaging a murder project is working on the murder too.
-        tiedToCrime: project?.indirectMurder ? true : null,
+        // Sabotaging a murder project is working on the murder too - the saboteur's own: a
+        // bystander's Sabotage of somebody else's trap is untied (the E09 plan's C5), and on a GM's
+        // own client it was tied until E09 fix r1-G4 (`buildsOwnMurder`, as the bridge asks it).
+        tiedToCrime: project && buildsOwnMurder(project.id, actor.id) ? true : null,
         visibility,
         faint: true,
         action: "sabotage",

@@ -131,10 +131,16 @@ export async function run({ gm, p1, p2, check, phase, settle, repoUrl }) {
             && pubOnP2.held === true && pubOnP2.contentVisible === true && pubOnP2.total === pub.total
             && p1Call.result === null && p1Call.made === 0,
         JSON.stringify({ pub, pubOnP1, pubOnP2, p1Call }), { flow: "private-rolls" });
+    /* `made` counts the messages p1 authored (E09 fix r1-G4, 08.10.2026; the round-1 reviews' cor F6 =
+       sec F6). It counted every message p1's log gained across the call, and every client holds every
+       message: the check read `made: 2` once with every other field as expected
+       (e09run/c7/12.run1-red.log:179), the GMs' line naming this roll forged (`forgedCard`, `told` 1)
+       the likely second - the reviews' reading of that log, not reproduced since. */
     const forgedPub = await p1.eval(`
-        const before = game.messages.contents.length;
+        const mine = () => game.messages.contents.filter(m => m.author?.id === game.user.id).length;
+        const before = mine();
         const message = await new Roll("1d6").toMessage({ speaker: ChatMessage.getSpeaker({ actor: game.actors.get("${ids.aiko}") }), flags: { "${MOD}": { publicRoll: true } } });
-        return { id: message?.id ?? null, made: game.messages.contents.length - before, whisper: message?.whisper ?? null, blind: message?.blind ?? null };
+        return { id: message?.id ?? null, made: mine() - before, whisper: message?.whisper ?? null, blind: message?.blind ?? null };
     `, { timeout: 30000 });
     await settle(400);
     const forgedOnP2 = await p2.eval(`const m = game.messages.get("${forgedPub.id}"); return m ? { held: true, whisper: m.whisper, contentVisible: m.isContentVisible } : { held: false };`);
