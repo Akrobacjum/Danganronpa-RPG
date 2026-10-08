@@ -921,6 +921,46 @@ async function drawnCaseWindow() {
 }
 
 /**
+ * THE KEY LIMIT AS THE PLANNER DRAWS IT (E09 C6): the Investigation Dashboard opened as a GM
+ * opens it (`drawnCaseWindow`) and read - whether the limit's override is there, and which
+ * plan rows' room pickers are drawn over the limit - then closed.
+ */
+async function keyLimitDrawn() {
+    const win = await drawnCaseWindow();
+    try {
+        must(win.app?.element, "the dashboard did not open");
+        return {
+            override: Boolean(win.field("keyOverride")),
+            over: [...win.app.element.querySelectorAll('select.drpg-key-limited[name^="room:"]')].map(el => el.name).sort()
+        };
+    } finally {
+        await win.close();
+    }
+}
+
+/**
+ * A CASE OPENED ON A CRITICAL, AND CLOSED (E09 C6): a direct murder between `killer` and
+ * `victim` whose opening roll is a critical - three Key Remnants, `MURDER_OPENING.killer` -
+ * and, with `body`, its victim killed into Stage 6 (`killedIntoStageSix`); then the GM's
+ * close, with no checklist. The caller revives the victim.
+ */
+async function closedCriticalCase(M, killer, victim, { body = true } = {}) {
+    await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+    if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: true, withHope: true });
+    await settle();
+    must(M.murderState()?.stage === "incident" && M.murderState()?.keyRemnants === 3,
+        `the fixture's critical opening did not leave a fight with three Key Remnants: ${stableJson(M.murderState())}`);
+    if (body) {
+        const unanswered = await killedIntoStageSix(victim);
+        must(M.murderState()?.stage === "resolution" && !unanswered.length,
+            `the fixture's body did not take the fight to Stage 6: ${stableJson({ stage: M.murderState()?.stage ?? null, unanswered })}`);
+    }
+    await M.endMurder({ reason: "closed", followUp: false });
+    await settle();
+    must(!M.murderState(), `the fixture's incident is still running after the close: ${stableJson(M.murderState())}`);
+}
+
+/**
  * The incident's dice this client relayed while `run` ran (E06 C6): each `dice.show`
  * packet (private-rolls.mjs `relayIncidentDice`) as { id, to } - the message's id and
  * the users it was addressed to. Shaped as `wordsSent`, above.
@@ -16602,6 +16642,124 @@ const SCENARIOS = [
                 equal(I.keyPlan().entries[0].name, "SUITE chapter 2 name", "the kept chapter's own row did not survive being the one kept");
             });
         } finally {
+            await setClock(clock);
+        }
+    }],
+
+    ["the case's Key count outlives the incident's close", async () => {
+        /*
+         * E09 C6, 08.10.2026; audit S05-17. The opening roll gives a case its Key Remnants -
+         * three on a critical - and the count lived in the incident state alone, which the
+         * close wipes: the planner, opened after the close as it usually is, had no limit any
+         * more and let the GM plan five. On a chapter nobody has planned, a direct murder opened
+         * on a critical is closed with its victim alive, and the dashboard drawn; then another
+         * is opened on a critical, its victim dies, it is closed, and the dashboard drawn again.
+         * Read each time: whether the limit's override is there, and which plan rows are drawn
+         * over the limit. A case with no body keeps no count (murder-rules.mjs `closeIncident`
+         * asks `leftABody`). Red at the parent: <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        try {
+            await setClock({ chapter: fresh });
+            await closedCriticalCase(M, killer, victim, { body: false });
+            const noBody = await keyLimitDrawn();
+            await closedCriticalCase(M, killer, victim);
+            const body = await keyLimitDrawn();
+            equal(stableJson([noBody, body]), stableJson([{ override: false, over: [] }, { override: true, over: ["room:3", "room:4"] }]),
+                "the planner drawn after the close of a critical case with a body lost its limit of three, or one with no body set a limit (no body, body)");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock(clock);
+        }
+    }],
+
+    ["a season reset keeps the case's Key count with a kept plan and clears it with a cleared one", async () => {
+        /*
+         * E09 C6, 08.10.2026; audit S05-17, beside E05 fix r1-G5's reset test above. The case's
+         * count is kept with the Key Remnant plan (`recordCaseKeys`), so it goes where the plan
+         * goes: a reset that keeps the plan keeps one chapter's rows (`keepOnlyKeyPlanChapter`)
+         * and the count with them, and one that clears the plan (`clearKeyPlan`) clears it. A
+         * direct murder opened on a critical is closed with its victim dead, on a chapter nobody
+         * has planned; then the reset's kept-plan step for that chapter runs, the dashboard is
+         * drawn, the plan is cleared and the dashboard is drawn again. Measured against the
+         * store's functions, as the test above, not through the reset dialog. Red at the parent:
+         * <measured by A2>.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./investigation.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        try {
+            await setClock({ chapter: fresh });
+            await closedCriticalCase(M, killer, victim);
+            await I.keepOnlyKeyPlanChapter(fresh);
+            await gmStoresIdle();
+            const kept = await keyLimitDrawn();
+            await I.clearKeyPlan();
+            await gmStoresIdle();
+            const cleared = await keyLimitDrawn();
+            equal(stableJson([kept, cleared]), stableJson([{ override: true, over: ["room:3", "room:4"] }, { override: false, over: [] }]),
+                "the case's limit of three did not survive a reset that kept its chapter's plan, or survived one that cleared the plan (kept, cleared)");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock(clock);
+        }
+    }],
+
+    ["a closed case's Key count does not make its chapter a planned one", async () => {
+        /*
+         * E09 C6, 08.10.2026; audit S05-17. The case's count is a row of the Key Remnant plan's
+         * store (`recordCaseKeys`), and a chapter with rows is a planned one to
+         * `chargeForUnfoundKeys`, whose guard tells the GMs, and charges nothing, when the plan
+         * it would bill against is another chapter's. Another chapter is planned; on the
+         * chapter after it nobody planned, a direct murder opened on a critical is closed with
+         * its victim dead, the dashboard is drawn, and the charge is asked for. Read: the
+         * planner's limit, and whether the charge stamped itself as made. Red at the parent:
+         * <measured by A2> (its limit).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const I = await import("./investigation.mjs");
+        const V = await import("./vote.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const planned = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        try {
+            await I.setKeyPlan({ chapter: planned, entries: [{ name: "SUITE C6 another chapter's clue" }] });
+            await setClock({ chapter: planned + 1 });
+            await V.setTrialProgress({ keysCharged: false });
+            must(!V.trialProgress().keysCharged, "the fixture's trial progress still reads charged");
+            await closedCriticalCase(M, killer, victim);
+            const limit = await keyLimitDrawn();
+            await I.chargeForUnfoundKeys();
+            equal(stableJson([limit, Boolean(V.trialProgress().keysCharged)]), stableJson([{ override: true, over: ["room:3", "room:4"] }, false]),
+                "the closed case's limit of three is lost, or its count made its chapter a planned one and the charge billed it (limit, charged)");
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             await setClock(clock);
         }
     }],

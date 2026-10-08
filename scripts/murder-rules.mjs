@@ -3264,6 +3264,22 @@ async function closeIncident(state, { reason, followUp }) {
         }
     }
 
+    /* THE CASE'S KEY COUNT, BEFORE THE WIPE TAKES IT (E09 C6, 08.10.2026; audit S05-17). The
+       opening roll's count of Key Remnants lived in the state alone: the checklist below said
+       "3 Key Remnants still to place", and the planner, opened after the close, had no limit
+       and let the GM plan five. Kept in the Key Remnant plan's store under the clock's chapter
+       (investigation.mjs `recordCaseKeys`, read by `caseKeyCount`) for a case that left a body
+       (`leftABody`) - a failed opening or a fight crowded out has no case to plan. A dynamic
+       import, because investigation.mjs reaches this file through its static imports. */
+    if (Number.isFinite(state?.keyRemnants) && leftABody(state)) {
+        try {
+            const { recordCaseKeys } = await import("./investigation.mjs");
+            await recordCaseKeys(getClock()?.chapter, state.keyRemnants);
+        } catch (err) {
+            error("Could not keep the case's Key Remnant count", err);
+        }
+    }
+
     // Both halves, and the participants' copies with them: an incident that is
     // over must not leave its cast sitting on anybody's client. The swing memo
     // goes with it - `endResolution` above was the one thing that read it.

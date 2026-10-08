@@ -959,7 +959,9 @@ export const sheetWriteStore = defineGmStore({
  * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
  * no season stamped on it, so any chapter left standing would otherwise read as planned
  * before this season ever opened the planner (`chargeForUnfoundKeys`). No old key: the first
- * rows come out of the world by `liftKeyPlan`.
+ * rows come out of the world by `liftKeyPlan`. Beside a chapter's slots, one case row since
+ * E09 C6, `${chapter}:case`: `{ keys }`, the closed case's Key Remnant count
+ * (investigation.mjs `recordCaseKeys`), which no slot reader takes.
  */
 export const keyPlanStore = defineGmStore({
     name: "keyPlan", key: SETTINGS.gmKeyPlan,

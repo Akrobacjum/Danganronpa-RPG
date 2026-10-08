@@ -7211,7 +7211,7 @@ const REGRESSIONS = [
             ["CARD messenger-app.mjs#observeMiss", "judged: a GM's card (callGm, posted from the GM's client); chargeObserveMiss reads the actor on the GM (H24); E09 adds no read"],
             ["CARD messenger-app.mjs#keyRemnantHere", "out of scope: opens the GM's own placement dialog with the player's room and note as a suggestion the GM confirms"],
             ["STORE gm-stores.mjs#remnantStore", "not a source: a GM store on GM browsers (plan 1b a); C3's Save writes it only where `drawn` equals the ledger"],
-            ["STORE gm-stores.mjs#keyPlanStore", "not a source: a GM store (1b e); C6 adds the `:case` row"],
+            ["STORE gm-stores.mjs#keyPlanStore", "not a source: a GM store (1b e); since C6 also each chapter's `:case` row, the closed case's Key count, written by closeIncident on the closing GM (recordCaseKeys) and read by caseKeyCount"],
             ["STORE gm-stores.mjs#cleanupAttemptStore", "not a source: a GM store (1b a); C10 adds the proposal and `ruled`"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (1b e); C7 leaves keysCharged as it is (E10 inherits)"],
             ["STORE settings.mjs#observePending", "not a source: a client setting on the primary (1b f); C12 writes it only from a recomputed pick"],

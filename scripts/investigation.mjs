@@ -41,6 +41,7 @@ import {
     workingScene, esc, wireDashboardTabs } from "./utils.mjs";
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
+import { murderState } from "./incident-store.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -56,6 +57,9 @@ const SCALE_LABELS = KEY_REMNANTS.scaleLabels;
 /** A plan row's fields, in the order a row is written. */
 const PLAN_FIELDS = ["scale", "name", "text", "analysis", "note", "tokenId", "sceneId"];
 const planKey = (chapter, slot) => `${chapter}:${slot}`;
+/** A chapter's case row (E09 C6, `recordCaseKeys`): beside its slots, and not one of them. */
+const caseKey = chapter => `${chapter}:case`;
+const isCaseKey = key => String(key).endsWith(":case");
 const blank = value => value === undefined || value === null || value === "";
 /** Whether a row says anything a GM wrote: the scale alone is the slot's, not the GM's. */
 const worthKeeping = row => Boolean(row?.name || row?.text || row?.analysis || row?.note || row?.tokenId);
@@ -72,10 +76,16 @@ function chapterRows(chapter) {
     return rows;
 }
 
-/** Every chapter this GM's browser holds rows for, newest first. */
+/**
+ * Every chapter this GM's browser holds slot rows for, newest first. A case row (`recordCaseKeys`)
+ * is the close's, not a GM's plan, so it plans no chapter (E09 C6): counted, it would make the
+ * chapter of every closed case a planned one, and `chargeForUnfoundKeys` would bill its unfound
+ * slots against a plan nobody wrote instead of telling the GMs the plan is another chapter's.
+ */
 function plannedChapters() {
     const chapters = new Set();
     for (const key of Object.keys(keyPlanStore.entries())) {
+        if (isCaseKey(key)) continue;
         const chapter = Number(String(key).split(":")[0]);
         if (Number.isFinite(chapter)) chapters.add(chapter);
     }
@@ -247,7 +257,7 @@ export async function liftKeyPlan() {
     return { lifted, kept, emptied: true };
 }
 
-/** Every chapter's plan this GM's browser holds, taken away (the season reset). */
+/** Every chapter's plan this GM's browser holds, taken away (the season reset) - each chapter's case row with it. */
 export async function clearKeyPlan() {
     if (!game.user.isGM) return;
     if (isPrimaryGm()) await keyPlanStore.clear();
@@ -270,12 +280,53 @@ export async function clearKeyPlan() {
  * clock back to 1 - the chapter the season was ending on, shown again once a new season's
  * clock reaches that number, exactly as 1.2.63's did. Called on the primary alone
  * (`wipeSeason` is), so `dropMany` needs no `clearKeyPlan`-style branch for another GM.
+ * The kept chapter's case row (`recordCaseKeys`, E09 C6) is kept with its slots: it is the
+ * size of the case those slots were planned for.
  */
 export async function keepOnlyKeyPlanChapter(chapter) {
     if (!game.user.isGM) return 0;
     const drop = Object.keys(keyPlanStore.entries()).filter(key => Number(key.split(":")[0]) !== Number(chapter));
     if (drop.length) await keyPlanStore.dropMany(drop);
     return drop.length;
+}
+
+/**
+ * THE CASE'S KEY COUNT OUTLIVES THE CLOSE (E09 C6, 08.10.2026; audit S05-17). The opening
+ * roll decides how many Key Remnants a case gets - five on Hope, four on Despair, three on a
+ * critical (`MURDER_OPENING`) - and the number lived in the incident state alone, which the
+ * close wipes (murder-rules.mjs `closeIncident`). The checklist the close shows said "3 Key
+ * Remnants still to place", and the planner, opened after the close as it usually is, had no
+ * limit any more and let the GM plan five. The close keeps the number here, a row of the Key
+ * Remnant plan's store beside the chapter's slots, `${chapter}:case` - a GM store, on GM
+ * browsers only, and written by the GM who closes. The slot readers do not take it
+ * (`chapterRows` reads integer slots, `plannedChapters` skips it), a season reset that keeps
+ * the plan keeps it with its chapter, and one that does not clears it with the rest.
+ *
+ * @param {number} chapter  The chapter the case was closed in.
+ * @param {number} keys     The incident's `keyRemnants`.
+ * @returns {Promise<boolean>} Whether a row was written.
+ */
+export async function recordCaseKeys(chapter, keys) {
+    if (!game.user.isGM || !Number.isFinite(Number(chapter)) || !Number.isFinite(keys)) return false;
+    await keyPlanStore.patch(caseKey(Number(chapter)), { keys });
+    return true;
+}
+
+/**
+ * How many Key Remnants a chapter's case has (E09 C6): the close's row (`recordCaseKeys`), or
+ * while an incident runs and before its close the incident's own count, or null - no case yet,
+ * "plan freely". The row first: once a case is closed its count is the one its opening roll
+ * gave, and the incident state is empty, or a later incident's of the same chapter (a
+ * betrayal's), whose own close writes the row again.
+ *
+ * @param {number} [chapter]  The clock's chapter by default.
+ * @returns {number|null}
+ */
+export function caseKeyCount(chapter = getClock().chapter) {
+    const kept = game.user?.isGM ? keyPlanStore.get(caseKey(chapter))?.keys : null;
+    if (Number.isFinite(kept)) return kept;
+    const live = murderState()?.keyRemnants;
+    return Number.isFinite(live) ? live : null;
 }
 
 /** Every Key Remnant currently on the map, across every scene. */
@@ -1703,7 +1754,7 @@ function caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlac
 }
 
 /** The whole dashboard as markup - a function of the world, so `keepLive` can call it again. */
-function caseHtml(reading, { allRooms, murderState, finalRemnants, finalTruthPlacedThisChapter }) {
+function caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapter }) {
     const students = evidenceByStudent();
     const traces = allTraces();
     const finders = findersByAnyRemnant();
@@ -1712,8 +1763,9 @@ function caseHtml(reading, { allRooms, murderState, finalRemnants, finalTruthPla
     const rooms = allRooms();
     // The opening roll's own limit on how many Key Remnants this chapter gets
     // - `null` before a murder has happened, meaning "no limit yet, plan
-    // freely". See `def.keyRemnants` in config.mjs and `murderState()`.
-    const limit = murderState()?.keyRemnants ?? null;
+    // freely". See `def.keyRemnants` in config.mjs and `caseKeyCount`, which
+    // keeps it past the incident's close (E09 C6).
+    const limit = caseKeyCount(plan.chapter);
 
     /* THE TWO PICKERS SAY WHAT IS THERE, NOT WHAT THE LAST DEFAULT WAS.
        -----------------------------------------------------------------------
@@ -1987,7 +2039,6 @@ export async function openInvestigationDashboard() {
     }
 
     const { allRooms } = await import("./movement.mjs");
-    const { murderState } = await import("./murder.mjs");
     // The Final Key Remnant planner lived on the Mastermind screen, where it
     // shared a window with the one secret the module guards hardest - a GM
     // planting the endgame clue had the Mastermind's name on screen every
@@ -2037,7 +2088,7 @@ export async function openInvestigationDashboard() {
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
 
-    const buildCase = () => caseHtml(reading, { allRooms, murderState, finalRemnants, finalTruthPlacedThisChapter });
+    const buildCase = () => caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapter });
 
     const content = dialogContent(buildCase());
 
