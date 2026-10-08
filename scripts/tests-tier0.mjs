@@ -2903,13 +2903,15 @@ const REGRESSIONS = [
          * ruling card was never settled.
          */
         const murderSrc = stripComments(new Map(await otherSources()).get("murder-ui.mjs") ?? "");
-        /* E34 C8 (1.2.70): this read ran on to `rollOpening`, which moved to murder-rules.mjs; it ended at the
-           window's own closing brace then. Not fnSource at C8: its cut runs on into the tracker's `lastReask` and
-           `REASK_COOLDOWN_MS` lines, which moved-only's cuts part reads red under a name a test cuts (measured 07.10.2026).
-           E34 C9 moved the window to murder-ui.mjs with those two lines still after it, and moved-only read its cut
-           there equal to C8's (07.10.2026), so the read is fnSource's now. */
-        const dialog = fnSource(murderSrc, "openMurderDialog");
-        ok(dialog.length > 500, "openMurderDialog is gone from murder-ui.mjs, or its cut is too short to be the window");
+        /* E34 C8 (1.2.70): this read ran on to `rollOpening`, which moved to murder-rules.mjs; it ends at the
+           window's own closing brace now - the window alone, which is all R59 asserts on. Not fnSource: its cut runs on
+           into the tracker's `lastReask` and `REASK_COOLDOWN_MS` lines, and a cut a test reads by name is one
+           moved-only's cuts part holds to the base. C9 made the read fnSource's, each of C8 and C9 green on its own,
+           and over the family's whole range (e12ca46 to a5e5fed) moved-only read that cut 5611 -> 5680 characters, red
+           (the round-2 review's m5). Fix r2-G2 (08.10.2026) put C8's read back: 14783 characters with comments
+           stripped, in murder.mjs at C8 and in murder-ui.mjs since C9. */
+        const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "\n}\n" });
+        ok(dialog.length > 500, "openMurderDialog is gone from murder-ui.mjs, or its read ends too soon to be the window");
 
         ok(dialog.includes("isEclipse("),
             "the murder window opens during an Eclipse and only refuses at Confirm");
@@ -4834,7 +4836,10 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const murder = stripComments(sources.get("murder-rules.mjs") ?? "");
-        ok(fnSource(murder, "takeCrisisAction").includes("crisisRefusal("),
+        /* The first 1200 characters, as the read was before E34 C8 made it the whole function (11245 characters with
+           comments stripped, crisisRefusal( at 200 - measured at 55d851e and a5e5fed): fix r2-G2 (08.10.2026; the
+           round-2 review's m6) put the bound back: a call moved further into the function is no longer read as asked. */
+        ok(bodyOf(murder, "export async function takeCrisisAction(", { length: 1200 }).includes("crisisRefusal("),
             "the player's own client no longer asks crisisRefusal");
         /*
          * THROUGH THE TABLE (E31, 25.09.2026). The bridge's `crisisRefusal` is asked in
@@ -5959,11 +5964,17 @@ const REGRESSIONS = [
         ok(!stray.length, `the world half of an incident is written outside writeState, restoreState and the lifts: ${stray.join(", ")}`);
         const storeSrc = stripComments(new Map(sources).get("incident-store.mjs") ?? "");
         for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(storeSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
-        const keys = named(new Map(sources).get("murder-rules.mjs") ?? "");
+        // E34 fix r2-G2 (08.10.2026; the round-2 review's m7): the census reads every file murder.mjs was split into and
+        // the facade, as the one read of murder.mjs did before E34 - a write moved to any of them is still read.
+        const family = ["incident-store.mjs", "murder-rules.mjs", "murder-ui.mjs", "murder.mjs"];
+        const familySources = new Map(sources);
+        const byFile = family.map(file => [file, named(familySources.get(file) ?? "")]);
+        ok(family.every(file => familySources.has(file)), `the census reads a file of the incident that is not among the module's sources: ${family.join(", ")}`);
+        const keys = byFile.flatMap(([, fileKeys]) => fileKeys);
         // Not a reading of nothing: the incident's writes name the stage, the turn and the method (measured in murder.mjs 26.09: 74 names, 26 of them distinct).
         // E34 C8 (1.2.70): the writes moved to murder-rules.mjs with the rules - 88 names read there on 07.10.2026, 0 in murder.mjs.
-        ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in murder-rules.mjs's writes - too few to trust`);
-        log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in murder-rules.mjs's writes`);
+        ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in the incident's writes - too few to trust`);
+        log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in the incident's writes (${byFile.map(([file, fileKeys]) => `${file} ${fileKeys.length}`).join(", ")})`);
         const bad = unlisted(keys);
         ok(!bad.length, `a write of an incident names a field neither the public list nor the cast holds: ${bad.join(", ")}`);
     }],
@@ -6283,13 +6294,18 @@ const REGRESSIONS = [
            summed (07.10.2026: 15 writes and 4 queued spans in the store, 9 and 7 in murder.mjs; the
            24 and 11 murder.mjs held alone before the move). E34 C8 moved the transitions on to murder-rules.mjs,
            which the reader and the transitions below follow: the two summed read 24 and 11 again, and murder.mjs
-           alone 0 and 0 (07.10.2026). */
+           alone 0 and 0 (07.10.2026). E34 fix r2-G2 (08.10.2026; the round-2 review's m7) reads murder-ui.mjs and the
+           facade too - every file murder.mjs was split into, as the one read of murder.mjs covered all of it - so a
+           write that moves to the window is still read. */
         const sources = new Map(await otherSources());
-        const found = ["incident-store.mjs", "murder-rules.mjs"].map(file => read(file, sources.get(file) ?? ""))
+        const family = ["incident-store.mjs", "murder-rules.mjs", "murder-ui.mjs", "murder.mjs"];
+        ok(family.every(file => sources.has(file)), `the reader reads a file of the incident that is not among the module's sources: ${family.join(", ")}`);
+        const perFile = family.map(file => read(file, sources.get(file) ?? ""));
+        const found = perFile
             .reduce((a, b) => ({ spans: a.spans + b.spans, writes: a.writes + b.writes, stray: [...a.stray, ...b.stray], again: [...a.again, ...b.again] }));
         // Not a reading of nothing: measured on 28.09, 17 writes and 8 queued spans.
-        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in incident-store.mjs and murder-rules.mjs - too few to trust`);
-        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in incident-store.mjs and murder-rules.mjs`);
+        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in the incident's files - too few to trust`);
+        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in ${family.map((file, i) => `${file} ${perFile[i].writes}/${perFile[i].spans}`).join(", ")}`);
         ok(!found.stray.length, `an incident's write runs outside its queue: ${found.stray.join(", ")}`);
         ok(!found.again.length, `a write in the incident's queue queues another, and the chain would wait on itself: ${found.again.join(", ")}`);
 

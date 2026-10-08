@@ -358,8 +358,9 @@ async function claimedOn(actor, bookmark) {
  * Why the action a row names cannot be taken back now, asked before the payment
  * (the plan's 2.5), or null. Each undo checks again as it writes. A crisis action is
  * asked what its undo's packet was asked by the bridge until C4a (`crisisUndoRefusal`,
- * murder.mjs); an Observe, a clean-up and an Analyze what their own undo asks first.
- * An action with no check here answers null and is replayed.
+ * murder-rules.mjs, re-exported by murder.mjs); an Observe, a clean-up and an Analyze
+ * what their own undo asks first. An action with no check here answers null and is
+ * replayed.
  *
  * A CLEAN-UP AND AN ANALYZE ARE ASKED TOO (E08+E28 fix r1-G3, 04.10.2026; the round-1
  * review's M1). Since C4a their replays run on this client, the bridge settles a local

@@ -1132,7 +1132,7 @@ async function queued(run, label, write) {
 }
 
 /**
- * A pack used as the player's browser uses one before it tells the GM (murder.mjs
+ * A pack used as the player's browser uses one before it tells the GM (murder-rules.mjs
  * `afterCrisisRoll`): a Tier 1 heal - one Health mark off - and one off the pack. Answers what
  * it started from, as the browser sends it.
  */

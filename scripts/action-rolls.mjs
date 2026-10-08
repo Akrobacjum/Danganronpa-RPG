@@ -3896,8 +3896,8 @@ async function performTamper(actor, def, options) {
 
 /**
  * The incident's own actions, behind the Direct Murder tile - which a fight draws as
- * "Fight back" on the victim's side and "Crisis actions" on the others (murder.mjs
- * `crisisTileLabel`, E32+E07 C16).
+ * "Fight back" on the victim's side and "Crisis actions" on the others
+ * (murder-rules.mjs `crisisTileLabel`, E32+E07 C16).
  *
  * THE CRISIS GRID USED TO BE A SECOND GRID ON THE SHEET, drawn in place of the
  * ordinary one. It is a menu now, for the same reason the clean-up panel became

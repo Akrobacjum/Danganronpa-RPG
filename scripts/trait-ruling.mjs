@@ -26,7 +26,7 @@
  * packet says only which definition.
  *
  * The crisis actions ask (C11b), and so do the openings and Stage 6's rolls
- * (C11c): an opening on a GM's browser alone, since a GM sends it (murder.mjs
+ * (C11c): an opening on a GM's browser alone, since a GM sends it (murder-rules.mjs
  * `rollOpening`; `guardTraitRuling` refuses one from a player), and a clean-up
  * from whoever throws it.
  *

@@ -960,7 +960,7 @@ export function gmMeansWrite(actor, write) {
  * `hopeFromDespairEffect`, `damageEffect`); a Hope Call bought on a GM's client and its price given back (calls.mjs
  * `spendHopeCall`); a rest (rest.mjs `applyRest`); an advancement (level-up.mjs `applyAdvancement`, with `numberHeld`);
  * a missed Observe's Sanity (observe.mjs `chargeObserveMiss`) and a resolution's (cleanup.mjs `markResolutionStress`);
- * and the incident's marks - a Despair opening's Sanity, a hit, a drain, a resolution's blood (murder.mjs
+ * and the incident's marks - a Despair opening's Sanity, a hit, a drain, a resolution's blood (murder-rules.mjs
  * `resolveKillerOpening`, `takeReserves`, `spendStress`). A Hope maximum is Daggerheart's world setting less the scars,
  * whatever the sheet's maximum says: on a GM's client less the scars the GMs hold, since fix r2-H25 (`maxHeld`).
  * No job here waits on itself, by reading (H17's caution): each reads, computes and makes its one `trustedWrite`

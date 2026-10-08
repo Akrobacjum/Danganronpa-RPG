@@ -291,11 +291,11 @@ export const INCIDENT_FIGHT = Object.freeze([
  * 03.10.2026), what each player was last sent of a standing packet - nothing, or the
  * betrayal offer alone - split a stamp per user, kept by the GMs so that every GM repeats
  * it (incident-store.mjs `sendCast`). `resetRecord` leaves it, no stamp of it is sent, and
- * murder.mjs reads the incident without it (`readCast`); a reset of the incident group
+ * incident-store.mjs reads the incident without it (`readCast`); a reset of the incident group
  * empties it with the record. Nor `openingNotices` (E32+E07 fix r2-G4, 03.10.2026; the
  * correctness review's m3): the ids of the opening's request cards and of the line that a GM
  * is picking its statistic, a stamp per card, so that whichever GM resolves the opening,
- * takes it back or closes the murder deletes the cards another GM posted (murder.mjs
+ * takes it back or closes the murder deletes the cards another GM posted (incident-store.mjs
  * `retireOpeningNotices`). The same way as `sent`: left by `resetRecord`, sent to nobody, and
  * read out of the incident by `readCast` and `castCopyFor`.
  */
@@ -418,7 +418,7 @@ export const deathCopy = defineGmCopy({
 });
 
 /**
- * The fields that say who is in an incident (murder.mjs, `castOwners`): the seats,
+ * The fields that say who is in an incident (incident-store.mjs, `castOwners`): the seats,
  * and the betrayal offer, which keeps the accomplice's copy after the close (D18).
  */
 export const CAST_SEATS = Object.freeze(["killerId", "victimId", "thirdId", "betrayal"]);

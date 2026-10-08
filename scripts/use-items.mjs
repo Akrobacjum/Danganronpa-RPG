@@ -406,7 +406,7 @@ function usedStamp(actor, item) {
  * again on a GM after its rewind gave the item and the heal back (murder-rules.mjs `afterCrisisRoll`).
  * Its questions were asked at the first use, so it asks none: the reserve is the one the first
  * use restored (`resource`, where this item can restore it, else the first it offers). Its Hope
- * bonus is paid as a fresh use's is: the rewind takes the first use's back (murder.mjs
+ * bonus is paid as a fresh use's is: the rewind takes the first use's back (murder-rules.mjs
  * `undoLastCrisis`, fix r1-G6; the round-1 review's m5 - C6b paid none and took none back, so a
  * tier 3 rerolled into a miss kept 2 Hope for a use that no longer happened). No card and no
  * stamp: the first use's card stands, and a trap that watches for the item heard it then

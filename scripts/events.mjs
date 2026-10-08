@@ -181,7 +181,7 @@ function incidentCard() {
      * there, so `victim` was always undefined and the card returned null the
      * instant the opening roll ended: the panel simply vanished for the rest of
      * the incident, on the GM's screen as well as everybody else's. Same merge
-     * `murderState()` makes in murder.mjs, and the same one `openingCard` above
+     * `murderState()` makes in incident-store.mjs, and the same one `openingCard` above
      * already made.
      */
     const state = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}), ...incidentCast() };

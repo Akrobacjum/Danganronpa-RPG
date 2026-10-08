@@ -494,7 +494,7 @@ export const SETTINGS = {
      *
      * World-scoped, so every browser holds it (D6: nothing world-scoped is
      * hidden), and it holds only what a bystander may know: the fields
-     * murder.mjs lists in `PUBLIC_INCIDENT`, each with its reason - that an
+     * incident-store.mjs lists in `PUBLIC_INCIDENT`, each with its reason - that an
      * incident runs, and at which stage. Nothing in it names anyone.
      *
      * It used to hold more. This comment said until 1.2.64 that the killer could
@@ -525,7 +525,7 @@ export const SETTINGS = {
      * copy over a recipient-addressed socket. A student who is not in the
      * incident receives nothing at all, not an empty envelope.
      *
-     * Each participant is sent `castFor`'s copy (murder.mjs; E06 C3, and its fix
+     * Each participant is sent `castFor`'s copy (incident-store.mjs; E06 C3, and its fix
      * r1-G4): nothing for a holder not yet in the incident's audience at its stage
      * (`incidentAudienceIds` - a direct murder's victim before the opening roll
      * succeeds), no Reroll receipt (`lastCrisis`, a GM's to judge), no builder's name

@@ -4509,13 +4509,13 @@ const SCENARIOS = [
 
     ["a close breaks the knife the GMs hold the killer swung, though a write of the player's has put it in a stash", async () => {
         /*
-         * E29 fix r2-H21, 06.10.2026; fix r2-H20's "not measured". The close breaks each killer's swung weapon (murder.mjs
-         * `endMurder`, cleanup.mjs `endResolution` and `destroyTools`), chosen off the killer as the GMs hold them since
-         * fix r2-H20 - a choice H20's tests measured on the discovery alone. As the test above: the killer stabs the
-         * victim with a Tier 1 knife and the fight reaches Stage 6; then the knife is put in a stash where the GMs' mark
-         * does not see it (the audit's aside, a failed put-back's state), and the GM closes the incident. Read: whether
-         * the knife broke. Green at 4e5b868 (fix r2-H20's held read); red under the mutant that reads the document
-         * (e29run/r2h21m, m14): the knife stayed whole.
+         * E29 fix r2-H21, 06.10.2026; fix r2-H20's "not measured". The close breaks each killer's swung weapon
+         * (murder-rules.mjs `endMurder`, cleanup.mjs `endResolution` and `destroyTools`), chosen off the killer as the
+         * GMs hold them since fix r2-H20 - a choice H20's tests measured on the discovery alone. As the test above: the
+         * killer stabs the victim with a Tier 1 knife and the fight reaches Stage 6; then the knife is put in a stash
+         * where the GMs' mark does not see it (the audit's aside, a failed put-back's state), and the GM closes the
+         * incident. Read: whether the knife broke. Green at 4e5b868 (fix r2-H20's held read); red under the mutant that
+         * reads the document (e29run/r2h21m, m14): the knife stayed whole.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -12590,7 +12590,7 @@ const SCENARIOS = [
          * E08+E28 C6b, 03.10.2026; audit S04-18. The Reroll's replay on a GM sent the crisis
          * packet with the new number alone, so a critical Strike rerolled into a critical had no
          * pick: its card read "the killer chooses" and the victim's sheet took nothing. The
-         * replay keeps the first throw's pick from the GMs' row now (murder.mjs
+         * replay keeps the first throw's pick from the GMs' row now (murder-rules.mjs
          * `afterCrisisRoll`). At the killer's turn (`swingFixture`) the killer's player's roll is
          * bookmarked and a critical Strike on Sanity judged as the listener judges it; then the
          * Reroll is made on this GM (`rerollAgain`), a critical again, its replay on the row

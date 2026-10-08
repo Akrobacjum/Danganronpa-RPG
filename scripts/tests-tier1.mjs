@@ -5290,11 +5290,12 @@ const INVARIANTS = [
          * E32 C5a, 28.09.2026; audit S04-03. `openMurder` wrote a patch that named a new
          * incident's fields one by one, and a field it left out crossed from the last incident
          * into the next - `thirdActed` into a betrayal's until E32 C2. It writes
-         * `freshIncidentState` whole now (murder.mjs), so that list is the one to hold: every
-         * field of `PUBLIC_INCIDENT` and of `CAST_FIELDS` but `betrayal`, which a close keeps
-         * (D18), and nothing else. Then what it opens with - the stage, the killers' turn, the
-         * kind, the clock's reading it was handed - and that it is pure: two calls with the same
-         * answers are equal and share nothing, so a caller that changes one does not change the next.
+         * `freshIncidentState` whole now (murder-rules.mjs, re-exported by murder.mjs), so that
+         * list is the one to hold: every field of `PUBLIC_INCIDENT` and of `CAST_FIELDS` but
+         * `betrayal`, which a close keeps (D18), and nothing else. Then what it opens with -
+         * the stage, the killers' turn, the kind, the clock's reading it was handed - and that
+         * it is pure: two calls with the same answers are equal and share nothing, so a caller
+         * that changes one does not change the next.
          */
         const M = await import("./murder.mjs");
         const S = await import("./gm-stores.mjs");

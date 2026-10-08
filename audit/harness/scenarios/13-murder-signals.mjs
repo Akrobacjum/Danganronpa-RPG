@@ -1245,7 +1245,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         method.victim.copy === true && method.victim.builder === false && method.bystander.copy === null && method.killer.copy === null,
         JSON.stringify(method));
 
-    /* AND THE KILLER IS LET BACK IN AT STAGE 6 (`castOwners`, murder.mjs), the trap in their
+    /* AND THE KILLER IS LET BACK IN AT STAGE 6 (`castOwners`, incident-store.mjs), the trap in their
        copy. The GM rules the victim's roll a failure - the trap closes - and moves the incident
        on. Red on the C7 tree: the killer was sent the cast, without `indirect`, which was the
        world half's. The gate compares both halves since E05 C8; a mutant comparing the world

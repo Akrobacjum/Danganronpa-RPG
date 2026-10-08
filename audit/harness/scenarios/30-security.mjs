@@ -4571,13 +4571,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
 
     /*
      * A CRISIS SWING AND A WORK'S RELIEF ON A WRITE OF A PLAYER'S CONSOLE (E29 fix r2-H22, 06.10.2026; fix r2-H21's seam
-     * (a)). Fixes r2-H18 and r2-H20 read the killer's weapon and the worker's tools as the GMs hold them (murder.mjs
-     * `applyCrisisAction`'s `held`, `carriesWeapon`, `swungWeapon`; action-rolls.mjs `reliefHeld`), and tier 2 measures
-     * each on a GM's write the GMs' mark does not see. These drive them from a player's console, through the bridge, on
-     * the GMs' record of a roll the GM drew. A write the audit puts back stands on the document until its put-back lands,
-     * and for good where the put-back fails; so that every run reads the second state, the put-back of the case's item is
-     * refused here by a hook of the GM's (`preUpdateItem` answering false to an `auditPutBack` write). In an incident the
-     * GM opens, Botan's other Crime Tools stowed by the GM, Botan swings at Chie at his turn with
+     * (a)). Fixes r2-H18 and r2-H20 read the killer's weapon and the worker's tools as the GMs hold them
+     * (murder-rules.mjs `applyCrisisAction`'s `held`, `carriesWeapon`, `swungWeapon`; action-rolls.mjs `reliefHeld`),
+     * and tier 2 measures each on a GM's write the GMs' mark does not see. These drive them from a player's console,
+     * through the bridge, on the GMs' record of a roll the GM drew. A write the audit puts back stands on the document
+     * until its put-back lands, and for good where the put-back fails; so that every run reads the second state, the
+     * put-back of the case's item is refused here by a hook of the GM's (`preUpdateItem` answering false to an
+     * `auditPutBack` write). In an incident the GM opens, Botan's other Crime Tools stowed by the GM, Botan swings at
+     * Chie at his turn with
      *   - a Tier 1 knife the GM broke, which p2's console readies again (`equipped`, no judged field: nothing put back);
      *   - a Tier 1 knife the GM put in a stash, which p2's console takes out and readies (the place put back, refused);
      * each named in the packet as the weapon swung, on a hit with Hope. Read: Chie's Health marks (a Tier 1 weapon
