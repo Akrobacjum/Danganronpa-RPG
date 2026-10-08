@@ -14330,6 +14330,156 @@ const SCENARIOS = [
                 + "(the erase's answer, the trail's, actions back, marks back, whispers saying why and what came back, the Reroll's answer, actions after it)");
     }],
 
+    ["a clean-up the GM refuses gives back no price the GMs did not see paid", async () => {
+        /*
+         * E09 fix r2-G3, 08.10.2026; review round 2 sec S2-1. Since C11 a clean-up the GM's side refuses gives back the
+         * step of Tamper's price its packet says the player's browser paid before the dice (cleanup.mjs `refundRefused`),
+         * and nothing on the GM tied that step to a payment: a packet naming a step, on a clean-up roll the GM drew, had
+         * it given back whether anything was paid or not. The player's character with an action spent and a Sanity step
+         * marked - by the GM, the GMs' credit then emptied (`auditFromScratch`), so no payment the GMs saw stands - and no
+         * incident running, so the clean-up is not theirs to make (`blockedOnGm`); then two packets as that player's
+         * browser sends them, each on a clean-up roll of its own the GMs hold for the character: one saying it paid the
+         * Sanity step, one the action. Read: the codes the bridge told the player, the whispers that said why, the
+         * actions spent and the marks after. Until this fix: the action and the Sanity step came back.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const M = await import("./murder.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { player, theirs: actor } = playerAndCharacters();
+        must(!M.murderState()?.active, "an incident is running - the clean-up would be the killer's to make");
+        const ACTIONS = "system.resources.actions.value", STRESS = "system.resources.stress.value";
+        const top = actionsMax(actor), marks = PRICE_CHAINS.tamper.steps.find(s => s.pay === "stress")?.amount;
+        must(top >= 1 && marks && Number(actor.system.resources?.stress?.max) >= marks,
+            `${actor.name} has no action or Sanity to have spent, or the chain no Sanity step - this would measure nothing`);
+        const had = { [ACTIONS]: actor.system.resources.actions.value, [STRESS]: actor.system.resources.stress.value };
+        const why = game.i18n.localize("DRPG.Cleanup.blocked.noIncident");
+        const rolls = [], records = [], told = [];
+        let read = null;
+        try {
+            await actor.update({ [ACTIONS]: top - 1, [STRESS]: marks });
+            await auditFromScratch(actor);
+            const since = game.messages.size;
+            for (const pay of ["stress", "action"]) {
+                const { message } = await neutralRoll(actor);
+                must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+                rolls.push(message);
+                records.push(await recordFor(message, player, actor, "cleanup", { total: 30 }));
+                await G.judge(BRIDGE_ACTIONS, { action: "murder.cleanup", requestId: `suite-r2g3-unpaid-${pay}`, actorId: actor.id,
+                    key: "eraseTrace", tokenId: "SUITER2G3NOTRACE", total: 30, isCritical: false, withHope: true, viaAction: false,
+                    price: pay, grant: false, rollId: message.id },
+                player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                await settle();
+            }
+            const said = [...game.messages].slice(since).filter(m => contentOf(m).includes(why)).length;
+            read = [told, said, top - actionsLeft(actor), actor.system.resources.stress.value];
+        } finally {
+            for (const kept of records) await kept.putBack();
+            for (const message of rolls) await game.messages.get(message.id)?.delete();
+            await actor.update(had);
+        }
+        equal(stableJson(read), stableJson([[], 2, 1, marks]),
+            "a clean-up the GM refused gave back a price no payment the GMs saw stands for (codes told, refusals said, actions spent, Sanity marks)");
+    }],
+
+    ["Stage 6's own refusals give the killer back the step they paid and no more", async () => {
+        /*
+         * E09 fix r2-G3, 08.10.2026; review round 2 sec S2-3. resolveStageSix refuses a misleading trail aimed at a
+         * student `framingCandidates` leaves out and a body carried off from a room the killer is not in (cleanup.mjs),
+         * both after the killer's browser has paid its step before the dice (T-1), and neither gave it back: a body or a
+         * target that changed while the dice were in the air cost an honest killer the step. Two students with players,
+         * standing in different named rooms: the killer kills, and in Stage 6 - a Sanity step of theirs marked and a
+         * Burst banked, with no payment the GMs saw (`auditFromScratch`) - pays the Sanity step as their browser pays it
+         * (the player's write, judged) and sends a trail aimed at themselves; pays again and sends Move the body; sends
+         * the trail once more, saying it paid a step it did not; then pays the action's step with the Burst, as
+         * `spendAction` does, and sends Move the body. Each as the killer's browser sends it, on a clean-up roll of its
+         * own the GMs hold. Last, the Sanity step paid twice and three trails refused at once, as a GM's own Stage 6
+         * refuses them (`requestCleanup`'s local road): each refusal's refund is queued before the first one's write
+         * is heard (sheet-audit.mjs `creditRefund`). Read: the codes the bridge told, the marks after each of the first
+         * three packets, the Bursts after the fourth and the marks after the three at once, what those three answered,
+         * and the refund lines whispered for a Sanity step and for an action. Until this fix: both refusals kept the step.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("studentsInRooms", 2), "the body lies in a room the killer does not stand in");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { priceLabel } = await import("./price.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const scene = canvas?.scene;
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const standing = livingStudents().filter(a => playerOf(a) && tokenOf(a) && locateActor(a)?.room);
+        const killer = standing[0] ?? null, victim = standing.find(a => locateActor(a).room !== locateActor(killer).room) ?? null;
+        must(killer && victim, "no two students with players stand in different named rooms on the scene on screen");
+        const player = playerOf(killer), step = PRICE_CHAINS.tamper.steps.find(s => s.pay === "stress");
+        const action = PRICE_CHAINS.tamper.steps.find(s => s.pay === "action");
+        const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(killer._source, STRESS));
+        const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`, bursts = () => Number(foundry.utils.getProperty(killer._source, GRANTS)) || 0;
+        must(step && action && Number(killer.system.resources?.stress?.max) >= 3 * step.amount,
+            `${killer.name}'s Sanity cannot take three steps, or the chain has no Sanity or action step - this would measure nothing`);
+        const had = { [STRESS]: marks(), [GRANTS]: bursts() };
+        let since = game.messages.size, read = null;
+        const lines = what => [...game.messages].slice(since).filter(m => contentOf(m).includes(game.i18n.format("DRPG.Price.refunded", { what: priceLabel(what) }))).length;
+        const rolls = [], records = [], told = [], after = [];
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            must(!CL.bodyIsHere(killer), "the body lies in the killer's room - this would measure nothing");
+            await killer.update({ [STRESS]: step.amount, [GRANTS]: 1 });
+            await auditFromScratch(killer);
+            since = game.messages.size;
+            for (const [key, paid, price] of [["misleadingTrail", "stress", "stress"], ["moveBody", "stress", "stress"], ["misleadingTrail", null, "stress"],
+                ["moveBody", "burst", "action"]]) {
+                if (paid === "stress") await asPlayerWrite(killer, { [STRESS]: marks() + step.amount }, player, { reason: "price" });
+                if (paid === "burst") await asPlayerWrite(killer, { [GRANTS]: bursts() - 1 }, player, { reason: "spend" });
+                await sheetAuditIdle();
+                const { message } = await neutralRoll(killer);
+                must(message, `no roll of ${killer.name} was thrown - this would measure nothing`);
+                rolls.push(message);
+                records.push(await recordFor(message, player, killer, "cleanup", { total: 30 }));
+                await G.judge(BRIDGE_ACTIONS, { action: "murder.cleanup", requestId: `suite-r2g3-six-${rolls.length}`, actorId: killer.id,
+                    key, targetId: key === "misleadingTrail" ? killer.id : null, total: 30, isCritical: false, withHope: true,
+                    viaAction: false, price, grant: paid === "burst", rollId: message.id },
+                player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                await settle();
+                await sheetAuditIdle();
+                after.push(price === "action" ? bursts() : marks());
+            }
+            for (let paid = 0; paid < 2; paid++) await asPlayerWrite(killer, { [STRESS]: marks() + step.amount }, player, { reason: "price" });
+            await sheetAuditIdle();
+            const atOnce = await Promise.all([1, 2, 3].map(() => CL.resolveStageSix({ actorId: killer.id, key: "misleadingTrail", targetId: killer.id,
+                total: 30, withHope: true, price: "stress" })));
+            await settle();
+            await sheetAuditIdle();
+            after.push(marks());
+            read = [told, after, atOnce.map(answer => answer?.refused ?? null), lines(step), lines(action)];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            for (const kept of records) await kept.putBack();
+            for (const message of rolls) await game.messages.get(message.id)?.delete();
+            await killer.update(had);
+        }
+        const framed = "that student cannot be framed";
+        equal(stableJson(read), stableJson([["cannotFrame", "notThere", "cannotFrame", "notThere"], [step.amount, step.amount, step.amount, 1, step.amount],
+            [framed, framed, framed], 4, 1]),
+            "a refusal of Stage 6's own kept the step an honest killer paid, gave back one nobody paid, or did not say what came back "
+                + "(codes told; marks after the trail, the move and the unpaid trail, Bursts after the move paid with one, marks after two payments "
+                + "and three trails refused at once; what those three answered; refund lines for a Sanity step, for an action)");
+    }],
+
     ["a body that would not move leaves no trail of being dragged", async () => {
         /*
          * E09 C11, 08.10.2026; audit S05-47. Move the body's success teleports the victim's token into

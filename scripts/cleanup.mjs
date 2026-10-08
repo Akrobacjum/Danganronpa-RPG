@@ -1331,9 +1331,10 @@ export async function askTransformChange(actor) {
  * The refusals, checked after the trace has been found and before the GM's side
  * charges anything. Answers the result object to hand back, or null when the
  * attempt may go ahead. `price` is the step the player's browser says it paid
- * (T-1): a refusal gives it back and says so (`refundRefused`).
+ * (T-1), and `grant` whether a Burst paid it: a refusal gives back what of it the
+ * GMs saw paid and says so (`refundRefused`).
  */
-async function cleanupRefusal(actor, token, data, viaAction, price = null) {
+async function cleanupRefusal(actor, token, data, viaAction, price = null, grant = false) {
     /*
      * NOT "ONLY YOUR OWN" ANY MORE (ACT-02, 17.09).
      *
@@ -1367,7 +1368,7 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null) {
     if (viaAction && !watchedItHappen && !copiedRemnants(actor).has(token.id)) {
         error(`Refused a Tamper by ${actor.name}: they have not found that trace.`);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>${
-            await refundRefused(actor, price)}`);
+            await refundRefused(actor, price, grant)}`);
         return { removed: false, notFound: true };
     }
 
@@ -1378,7 +1379,7 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null) {
     if (data.reinforced) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.reinforced", {
             what: foundry.utils.escapeHTML(`${data.visibilityLabel} ${data.typeLabel}`)
-        })}</p>${await refundRefused(actor, price)}`);
+        })}</p>${await refundRefused(actor, price, grant)}`);
         return { removed: false, reinforced: true };
     }
     return null;
@@ -1698,7 +1699,7 @@ export async function resolveCleanup({
     const actor = game.actors.get(actorId);
     if (!actor) return null;
     // Said and paid back (`blockedOnGm`); a GM's Reroll of an attempt that stands is refused as before.
-    if (!viaAction && !isCleaner(actor)) return undo ? null : blockedOnGm(actor, price);
+    if (!viaAction && !isCleaner(actor)) return undo ? null : blockedOnGm(actor, price, grant);
 
     // A Reroll: put the scene back the way it was before scoring the new number,
     // or the second attempt would be measured against a room the first one had
@@ -1743,7 +1744,7 @@ export async function resolveCleanup({
      * its Sanity - and scored the new number on top. With no row, the Reroll is not replayed
      * and the GMs are told (`undoLastCleanup`).
      */
-    const refused = await cleanupRefusal(actor, token, data, viaAction, price);
+    const refused = await cleanupRefusal(actor, token, data, viaAction, price, grant);
     if (refused) {
         await forgetAttempt(actorId);
         return refused;
@@ -2297,7 +2298,7 @@ export async function resolveStageSix({
     const actor = game.actors.get(actorId);
     const def = CLEANUP.actions?.[key];
     if (!actor || !def) return null;
-    if (!viaAction && !isCleaner(actor)) return blockedOnGm(actor, price);
+    if (!viaAction && !isCleaner(actor)) return blockedOnGm(actor, price, grant);
 
     /*
      * ONE OF THE THREE IS STAGE 6 ONLY, AND IT IS THE OBVIOUS ONE.
@@ -2306,6 +2307,13 @@ export async function resolveStageSix({
      * afternoon. Carrying a body is not: there has to be a body, `applyMoveBody`
      * reads it off `murderState()`, and a Tamper packet naming "moveBody" would
      * otherwise reach a function that assumes an incident it is not in.
+     *
+     * IT KEEPS THE PRICE, where the two refusals below give it back (E09 fix
+     * r2-G3, 08.10.2026; review round 2 sec S2-3). No sheet sends this packet:
+     * the Tamper tile offers the trail alone (action-rolls.mjs, `attemptStageSix`
+     * with `viaAction`), and Move the body is Stage 6's own panel's, which never
+     * claims the tile's door - so one that arrives was written by hand, and what
+     * it paid on the way, if anything, is not an honest killer's.
      */
     if (viaAction && key === "moveBody") {
         error(`Refused a Tamper by ${actor.name}: a body is not an ordinary action.`);
@@ -2319,12 +2327,27 @@ export async function resolveStageSix({
      * packet from the console could plant a trail pointing at the killer
      * themselves, the victim or a Monokuma - the three `framingCandidates`
      * leaves out - or carry the body off from a room the killer was not in.
-     * Asked here before anything is paid.
+     *
+     * ASKED BEFORE THE GM'S SIDE PAYS ANYTHING, NOT BEFORE THE KILLER HAS (E09
+     * fix r2-G3, 08.10.2026; review round 2 sec S2-3). This said "before
+     * anything is paid", true of this side only since T-1: the killer's browser
+     * pays its step before the dice (`chargeTamper`), and both refusals kept it,
+     * so a target or a body that moved while the dice were in the air cost an
+     * honest killer the step - measured at 97e0eef by tier 2 ("Stage 6's own
+     * refusals give the killer back the step they paid and no more"), Sanity
+     * 2 and 3 marks where 1 was owed after each. Given back now as the other
+     * refusals give it, as far as the GMs saw it paid (`refundRefused`), and
+     * said in a whisper of the refusal's own, in the words the bridge tells it
+     * with.
      */
     if (key === "misleadingTrail" && !(await framingCandidates(actor)).some(a => a.id === targetId)) {
+        await refundStageSix(actor, "cannotFrame", price, grant);
         return { refused: "that student cannot be framed" };
     }
-    if (key === "moveBody" && !bodyIsHere(actor)) return { refused: "the body is not in the killer's room" };
+    if (key === "moveBody" && !bodyIsHere(actor)) {
+        await refundStageSix(actor, "notThere", price, grant);
+        return { refused: "the body is not in the killer's room" };
+    }
     // The tool written down and the tier of its relief, as the GMs hold them (`resolveCleanup`'s note, fix r2-H20).
     const { actorAsHeld } = await import("./sheet-audit.mjs");
     const held = await actorAsHeld(actor);
@@ -2831,22 +2854,42 @@ function validPrice(price) {
 }
 
 /**
- * Give back what a refused attempt paid on the player's browser, and answer the line that says so ("" for none).
+ * Give back what a refused attempt paid on the player's browser, as far as the GMs saw it paid, and answer the line
+ * that says so ("" for none).
  *
  * A REFUSAL ON THE GM KEPT THE PRICE (E09 C11, 08.10.2026; audit S05-46). Since T-1 the price is paid on the player's
  * browser before the dice (`chargeTamper`), so the GM's side has nothing of its own to hold back when it refuses: a
  * trace the GM reinforced while the dice were in the air answered "it will not come off" and the action or the Sanity
- * mark stayed spent, and the comment above the check said the Sanity was not taken. Given back here as the step
- * `validPrice` names, read off the table, never off the packet; a Burst claimed comes back as an action, as the
- * critical's does (`handBack`), since this side cannot tell a Burst from an action. Quiet, because the line goes
- * into the refusal's own whisper rather than a second card.
+ * mark stayed spent, and the comment above the check said the Sanity was not taken.
+ *
+ * NOT ON THE PACKET'S WORD (E09 fix r2-G3, 08.10.2026; review round 2 sec S2-1). C11 gave back the step `validPrice`
+ * names - the table's amount, but the packet's step - and nothing on the GM ties a drawn clean-up roll to a payment:
+ * measured at 97e0eef by tier 2 ("a clean-up the GM refuses gives back no price the GMs did not see paid"), a student
+ * who paid nothing had the action and the Sanity step given back for two packets saying they were paid. The step now
+ * comes back only as far as the GMs' audit holds credit for it - what the payment the GMs saw left - and the credit is
+ * taken, so one payment comes back once (sheet-audit.mjs `creditRefund`). A Burst claimed is asked of a Burst's credit
+ * and comes back as a Burst, as `refundAction` gives one back; the line says "action", as the price's lines do. Where
+ * this browser holds no mark of the student - a GM's own clean-up run on a GM who is not the primary, the stores not
+ * hydrated yet, a Monokuma - the document is the record, as `meansHeld` says, and the step named comes back as C11
+ * gave it, a Burst as an action (`handBack`'s reason). Quiet, because the line goes into the refusal's own whisper
+ * rather than a second card.
  */
-async function refundRefused(actor, price) {
+async function refundRefused(actor, price, grant = false) {
     const step = validPrice(price);
     if (!step) return "";
-    const receipt = { pay: step.pay, amount: step.amount, grant: false };
-    const landed = await refundPrice(actor, receipt, { quiet: true });
-    return landed ? `<p>${game.i18n.format("DRPG.Price.refunded", { what: priceLabel(receipt) })}</p>` : "";
+    const burst = step.pay === "action" && Boolean(grant);
+    const { creditRefund } = await import("./sheet-audit.mjs");
+    const back = await creditRefund(actor, step.pay === "stress" ? "stress" : burst ? "freeActionGrants" : "actions", burst ? 1 : step.amount);
+    const named = { pay: step.pay, amount: step.amount, grant: false };
+    const landed = back === null ? await refundPrice(actor, named, { quiet: true }) : back > 0;
+    const what = back === null || burst ? named : { ...named, amount: back };
+    return landed ? `<p>${game.i18n.format("DRPG.Price.refunded", { what: priceLabel(what) })}</p>` : "";
+}
+
+/** Before one of Stage 6's own refusals (`resolveStageSix`): what the killer paid given back as far as the GMs saw it, said with the bridge's reason (`why`) where any came back. */
+async function refundStageSix(actor, why, price, grant) {
+    const line = await refundRefused(actor, price, grant);
+    if (line) await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Bridge.why.${why}`)}</p>${line}`);
 }
 
 /**
@@ -2857,11 +2900,11 @@ async function refundRefused(actor, price) {
  * heard nothing. The reason is `cleanupBlocker`'s, in the words the sheet uses before the dice (`refuseCleanup`).
  * Not null, so the bridge does not add a refusal of its own to the whisper.
  */
-async function blockedOnGm(actor, price) {
+async function blockedOnGm(actor, price, grant = false) {
     const why = cleanupBlocker(actor) ?? "notYours";
     log(`Refused a clean-up by ${actor.name} on the GM: ${why}.`);
     await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Cleanup.blocked.${why}`)}</p>${
-        await refundRefused(actor, price)}`);
+        await refundRefused(actor, price, grant)}`);
     return { removed: false, success: false, blocked: why };
 }
 
