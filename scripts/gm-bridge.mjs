@@ -49,6 +49,8 @@ const ACTION_DIFFICULTY = "dynamic.difficulty";
 const ACTION_AUDIT_DECIDE = "audit.decide";
 /** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; investigation.mjs `askToChargeForUnfoundKeys`). */
 const ACTION_KEYS_CHARGE = "keys.charge";
+/** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
+const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
 const ACTION_TRAIT_RULING = "trait.ruling";
 /** player -> GM: "may I spend this Call, and here is what for". */
@@ -1378,6 +1380,13 @@ async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
+async function handleReshapeRuling(payload, sender) {
+    const { ruleReshape } = await import("./cleanup.mjs");
+    return { reply: await ruleReshape({ actorId: payload.actorId, tokenId: payload.tokenId, attempt: payload.attempt,
+        verdict: payload.verdict }, sender.id) };
+}
+
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
 async function handleCardPost(payload, sender) {
     const { postAsked, cardTooLong } = await import("./secret.mjs");
@@ -1997,6 +2006,27 @@ export const BRIDGE_ACTIONS = table({
         run: handleKeysCharge,
         answer: "reply"
     },
+    /*
+     * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
+     * each GM's ruling used to run on its own browser against its own copy of the synced
+     * attempt store: two GMs - or Approve and Decline on one card - both wrote. The primary
+     * reads the proposal off the attempt's row and marks the row ruled in one step
+     * (cleanup.mjs `claimRuling`), so every GM's click is sent here (`askReshapeRuling`).
+     * A GM's alone: the card's buttons are drawn for GMs.
+     */
+    [ACTION_RESHAPE_RULING]: {
+        label: "DRPG.Bridge.what.cleanup.ruling",
+        guards: [gmOnly("only a GM rules on a reshaped trace")],
+        sanitize: pick({ actorId: as.id, tokenId: as.id, attempt: as.text, verdict: as.text }),
+        run: handleReshapeRuling,
+        answer: "reply",
+        claims: {
+            actorId: "the row of that character's last clean-up in the GMs' store, and nothing is done without one (cleanup.mjs claimRuling)",
+            tokenId: "compared to the row's trace by claimRuling; a trace that differs is refused",
+            attempt: "compared to the row's attempt by claimRuling; an attempt a Reroll or a later attempt replaced is refused",
+            verdict: "\"approve\" or \"decline\" (cleanup.mjs ruleReshape); anything else rules on nothing"
+        }
+    },
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",
         guards: [knownSender, guardCardSpeaker, guardCardReaders],
@@ -2378,6 +2408,26 @@ export async function answerHopeCall(requestId, asker, verdict) {
         action: ACTION_DONE, requestId, userId: asker, value: false
     }, { recipients: [asker] });
     return true;
+}
+
+/**
+ * A GM's Approve or Decline on a reshape card (`verdict` "approve" or "decline"), ruled on the
+ * primary GM (E09 C10; `cleanup.ruling`). The notices the ruling raised there are shown here, to
+ * the GM who pressed. Answers what the ruling answered - true, false for a card whose attempt is
+ * no longer the GMs', null for nothing ruled - or null when the primary could not be asked.
+ */
+export async function askReshapeRuling(verdict, { by, trace, attempt } = {}) {
+    const asked = { actorId: by, tokenId: trace, attempt, verdict };
+    const res = await ask(ACTION_RESHAPE_RULING, asked, {
+        onPrimary: true,
+        local: () => import("./cleanup.mjs").then(m => m.ruleReshape(asked, game.user.id))
+    });
+    if (!res.ok) return null;
+    for (const [level, key, data] of res.value?.told ?? []) {
+        if (!["info", "warn"].includes(level)) continue;
+        ui.notifications[level](data ? game.i18n.format(key, data) : game.i18n.localize(key));
+    }
+    return res.value?.value ?? null;
 }
 
 /**

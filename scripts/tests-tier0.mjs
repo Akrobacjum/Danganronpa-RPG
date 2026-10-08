@@ -7182,7 +7182,9 @@ const REGRESSIONS = [
          * `publishLootSource`, `propagateRemnantPublic` and `propagateVerdicts` onto truth-bullets.mjs
          * `copiesInKey`, which hands each the held copy, so HELD names it: without it the three rows
          * read as rows without a place (the parse-only census at the fix, 08.10.2026: "3 stale
-         * verdict(s)"); with it, 77 rows, 20 ITEM again. The
+         * verdict(s)"); with it, 77 rows, 20 ITEM again. E09 C10 added the four fields of
+         * `cleanup.ruling`, a GM's ruling on a reshape asked of the primary, where their planned rows
+         * said: 81 rows, 51 PACKET (read live 08.10.2026, none without a row). The
          * reader is run first on a fixture with a judged reader, a reader whose field is only in a
          * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
          */
@@ -7192,6 +7194,10 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#observe.target#request", "judged: read only as the asker's word for 'focus'; the candidates are recomputed on the primary from C12 (observeCandidates), never taken from it"],
             ["PACKET gm-bridge.mjs#cleanup.traces#actorId", "judged: knownSender + owns(actorId); lists the traces of the cleaner's own room; E09 adds no read"],
             ["PACKET gm-bridge.mjs#cleanup.traces#mine", "judged: a filter over the cleaner's own room's list; widens nothing"],
+            ["PACKET gm-bridge.mjs#cleanup.ruling#actorId", "judged: gmOnly (a GM sender) and ruled on the primary (askReshapeRuling, onPrimary); claimRuling rules only on the row of that character's last clean-up, and refuses and tells without one"],
+            ["PACKET gm-bridge.mjs#cleanup.ruling#tokenId", "judged: claimRuling - must be the trace the attempt row names, else refused and told"],
+            ["PACKET gm-bridge.mjs#cleanup.ruling#attempt", "judged: claimRuling - must be the row's attempt, else refused and told; `ruled` marked in the same synchronous step, so a second ruling is refused and told"],
+            ["PACKET gm-bridge.mjs#cleanup.ruling#verdict", "judged: approve or decline only (ruleReshape); anything else rules on nothing"],
             ["PACKET gm-bridge.mjs#observe.resolve#actorId", "judged: knownSender + owns(actorId) (E28)"],
             ["PACKET gm-bridge.mjs#observe.resolve#key", "judged: must be the asker's pending row (F7, gmObservePending on the primary); from C12 that row is written only by the primary after a GM's pick it recomputed"],
             ["PACKET gm-bridge.mjs#observe.resolve#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
@@ -7254,8 +7260,8 @@ const REGRESSIONS = [
             ["ITEM truth-bullets.mjs#propagateVerdicts", "judged (C2): the flags (faint, tiedToCrime, shownType) only where isIdentified(held) (bulletAsHeld; through copiesInKey since fix r1-G4, the category the key's, every copy the answer key lists), every copy decided in one synchronous pass (H3, H17); the answer key always; C13 sends the kind and Faint together through it"],
             ["ITEM truth-bullets.mjs#migrateTruthBullets", "out of scope: a one-time shape migration on a GM, writes the legacy fields back to their new names and decides no verdict"],
             ["ITEM truth-bullets.mjs#onBulletWrite", "put back: E29's put-back on the primary (judgedFor)"],
-            ["CARD messenger-app.mjs#approveReshape", "refused and told from C10: the card carries only the tag, the proposal is read off the attempt row, `ruled` set before the first await, a second ruling refused; the card is the GM's (posted from the GM's client - a player cannot update a message they did not author: Foundry's permission, read not measured)"],
-            ["CARD messenger-app.mjs#declineReshape", "refused and told from C10: as approveReshape"],
+            ["CARD messenger-app.mjs#approveReshape", "refused and told (C10): the card carries only the attempt; the proposal is read off the attempt row on the primary (askReshapeRuling), `ruled` marked before any await after the store's hydration, a second ruling refused and told; the card is the GM's (posted from the GM's client - a player cannot update a message they did not author: Foundry's permission, read not measured)"],
+            ["CARD messenger-app.mjs#declineReshape", "refused and told (C10): as approveReshape; the erase on the erase road is the row's `erases`"],
             ["CARD messenger-app.mjs#observeMiss", "judged: a GM's card (callGm, posted from the GM's client); chargeObserveMiss reads the actor on the GM (H24); E09 adds no read"],
             ["CARD messenger-app.mjs#keyRemnantHere", "out of scope: opens the GM's own placement dialog with the player's room and note as a suggestion the GM confirms"],
             ["STORE gm-stores.mjs#remnantStore", "not a source: a GM store on GM browsers (plan 1b a); C3's Save writes it only where `drawn` equals the ledger"],
@@ -7503,6 +7509,37 @@ const REGRESSIONS = [
             "the reader does not tell the flattened or raw tie from the kept one");
         equal(JSON.stringify([empty, flat]), JSON.stringify([[], []]),
             "a writer or reader of the tie was not found, flattens it to two states with Boolean() or passes an old token's flag on raw (not found; flattens)");
+    }],
+
+    ["R306 - a reshape's ruling is claimed before anything waits: claimRuling marks `ruled` with no await, and the store's hydration is the only wait before either ruling claims", async () => {
+        /*
+         * E09 C10, 08.10.2026. Two rulings of one reshape both ran - Approve and Decline on one card,
+         * or two GMs' Approve - because each read the attempt's row, awaited, and wrote, and nothing
+         * marked the proposal ruled. cleanup.mjs `claimRuling` reads the row and marks it in one
+         * synchronous step, and every GM's ruling is run on the primary (gm-bridge.mjs
+         * `askReshapeRuling`), so of two rulings there exactly one finds it unmarked. Tier 2 measures
+         * the race ("two rulings of one reshape at once run once, and the second is told it was
+         * ruled"); this holds the shape it rests on, which a later edit could undo without that test
+         * noticing - an await added before the claim in a road the test does not take: `claimRuling`
+         * is a plain function with no await that reads `.ruled` and patches `ruled:`, and in
+         * `applyReshapeRuling` and `declineReshapeRuling` the one await before `claimRuling(` is
+         * `cleanupAttemptStore.whenHydrated()`. Read off the source, comments stripped.
+         */
+        const sources = new Map(await otherSources());
+        const cleanup = stripComments(sources.get("cleanup.mjs") ?? "");
+        const claim = fnSource(cleanup, "claimRuling");
+        const waits = text => [...text.matchAll(/\bawait\s+([\w$.]+)/g)].map(m => m[1]);
+        const beforeClaim = name => {
+            const body = fnSource(cleanup, name);
+            return waits(bodyOf(body, "claimRuling(", { back: body.length }));
+        };
+        ok(JSON.stringify(waits("await a.b(); x = await c(); await  d.e.f;")) === JSON.stringify(["a.b", "c", "d.e.f"]),
+            "the reader does not find the awaits of a line it is shown");
+        equal(JSON.stringify([/^function\s+claimRuling\s*\(/.test(claim), /\bawait\b/.test(claim), /\.ruled\b/.test(claim),
+            /\bpatch\([^;]*\bruled:/.test(claim), beforeClaim("applyReshapeRuling"), beforeClaim("declineReshapeRuling")]),
+        JSON.stringify([true, false, true, true, ["cleanupAttemptStore.whenHydrated"], ["cleanupAttemptStore.whenHydrated"]]),
+        "a reshape's ruling can wait before it claims the proposal (claimRuling a plain function, an await in it, its read of "
+            + "`ruled`, its mark; the awaits before the claim in applyReshapeRuling and in declineReshapeRuling)");
     }]
 ];
 

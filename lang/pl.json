@@ -1278,10 +1278,11 @@
       "reshapeDeclined": "{name} decyduje, że ślad mówi dalej to, co mówił. Tura i Sanity pozostają wydane.",
       "reshapeDeclinedGm": "Odrzucono. {name} dostaje informację, że ślad się nie zmienił.",
       "reshapeRulingGone": "Tego śladu już nie ma, więc nie ma czego przemianować.",
-      "reshapeUnsent": "Propozycji przerobienia śladu nie udało się dostarczyć do wątku. Na śladzie nic nie zapisano - rozstrzygnij to słowami i przemianuj go ręcznie, jeśli się zgadzasz.",
+      "reshapeUnsent": "Propozycji przerobienia śladu nie udało się dostarczyć do wątku. Na śladzie nie zapisano nic z tej historii - rozstrzygnij to słowami i przemianuj go ręcznie, jeśli się zgadzasz. Przy zacieraniu ślad i tak zniknął, bo kupił to krytyczny sukces.",
       "reshapeUnsentPlayer": "Robota zrobiona, ale twoja historia nie dotarła do GM-a. Opowiedz ją na głos; na śladzie nic nie zapisano.",
-      "reshapeVoided": "Cofnięte przez Reroll, zanim {name} rozstrzygnął.",
-      "reshapeTakenBack": "Reroll cofnął tę próbę, więc ta karta już o niczym nie rozstrzyga.",
+      "reshapeVoided": "Cofnięte przez Reroll albo zastąpione późniejszą próbą, zanim {name} rozstrzygnął.",
+      "reshapeTakenBack": "Reroll albo późniejsza próba zajęła miejsce tej, więc ta karta już o niczym nie rozstrzyga.",
+      "alreadyRuled": "To przerobienie śladu zostało już rozstrzygnięte (przez: {name}).",
       "reshapeDeclinedErased": "{name} nie przyjmuje twojej wersji. Krytyczny sukces i tak zabiera ślad - zniknął."
     },
     "Reserve": {
@@ -2573,6 +2574,7 @@
         "remnant.tieForItem": "Powiązanie śladu ze zbrodnią",
         "observe.target": "Wybór celu Observe",
         "cleanup.traces": "Ślady w zasięgu",
+        "cleanup.ruling": "Rozstrzygnięcie GM-a o przerobionym śladzie",
         "call.approve": "Zgoda na Hope Call",
         "call.yes": "Zgoda GM-a na Hope Call",
         "dynamic.difficulty": "Trudność akcji Dynamic",

@@ -855,7 +855,9 @@ export const rerollJournalStore = defineGmStore({
  * A CLEAN-UP'S RECEIPT (E08+E28 C3, 03.10.2026; audit S05-44). A row per character, what their
  * last clean-up attempt did, so a Reroll can take it back (cleanup.mjs `undoLastCleanup`):
  * `tokenId`, `attempt`, the Sanity before and after, `free`, `erased` (the trace's whole
- * creation data, its token id with it), `leftBehind`, `transformed` and `handedBack`. Until
+ * creation data, its token id with it), `leftBehind`, `transformed` and `handedBack` - and, for a
+ * reshape put to the GMs, its `proposal` (written before the card goes) and `ruled` (who ruled,
+ * on which GM's browser, which way; E09 C10, cleanup.mjs `claimRuling`). Until
  * 1.2.67 a Map on the GM's browser that resolved the attempt, so a GM's reload lost it while
  * the player's Reroll still said the clean-up was replayed. Synced between the GMs and not
  * backed up: a row is worth one Reroll, minutes long - the Reroll's bookmark's trade. Cut by

@@ -225,7 +225,7 @@ export const FLOWS = Object.freeze([
     { id: "sound", what: "A sound played for other browsers",
         entry: { sockets: ["sfx.mjs"] }, scenarios: [], status: "planned", stage: "E50" },
     { id: "trace-remnant", what: "Traces: placed, tied to the crime, re-rated by a Reroll, cleaned up",
-        entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces"] },
+        entry: { bridge: ["remnant.place", "remnant.tieForItem", "remnant.edit", "cleanup.traces", "cleanup.ruling"] },
         scenarios: ["10-murder", "30-security", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E39" },
     // E32+E07 C11b (02.10.2026): the crisis actions ask it; C11c the clean-up, and the openings, which a GM picks on its own browser;
     // C11d a project stored without a statistic, once (40-flow drives a player's first and second Work on one).

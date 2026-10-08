@@ -589,10 +589,20 @@ export function wireCallActions(body, message = null) {
         return;
     }
 
+    /*
+     * EVERY BUTTON OF THE CARD IS HELD WHILE ONE CLICK RUNS (E09 C10, 08.10.2026). Only
+     * the button pressed used to be, so Approve and then Decline on one card, pressed
+     * before the first had answered, were both asked. The rulings themselves refuse a
+     * second one now (cleanup.mjs `claimRuling`); this keeps the second click from
+     * being asked at all.
+     */
+    let busy = false;
+    const hold = held => { for (const each of buttons) each.disabled = held; };
     for (const button of buttons) {
         button.addEventListener("click", async event => {
             event.preventDefault();
             event.stopPropagation();
+            if (busy) return;
 
             // Disabled for the duration of the click and NOT one moment longer.
             // It used to be disabled on the way in and re-enabled only in the
@@ -601,18 +611,21 @@ export function wireCallActions(body, message = null) {
             // no way back except closing the whole window and opening it again
             // (Dawid, 26.08). Backing out of a ruling is not an error and must
             // not be punished like one.
-            button.disabled = true;
+            busy = true;
+            hold(true);
             try {
                 const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
                 if (message && outcome?.settled) {
                     const { settleCall } = await import("./gm-bridge.mjs");
                     await settleCall(message, outcome.settled, outcome.ruling ?? null);
-                    return; // The card redraws itself; this button is gone.
+                    return; // The card redraws itself; these buttons are gone.
                 }
             } catch (err) {
                 error("Could not act on the ruling card", err);
+            } finally {
+                busy = false;
             }
-            button.disabled = false;
+            hold(false);
         });
     }
 }
@@ -841,21 +854,15 @@ async function ruleDeclineProject(action, data) {
 /*
  * N-3, 21.09: a reshaped trace is a proposal, like a project.
  *
- * The words are on the card so the ruling survives a reload; the trace is
- * read fresh inside `applyReshapeRuling`, because the thing being ruled on
- * is the trace as it stands now, not as it stood when the dice landed.
+ * The card carries which attempt it was raised for; the words are on that
+ * attempt's row in the GMs' store, which survives a reload (E09 C10), and the
+ * trace is read fresh inside `applyReshapeRuling`, because the thing being
+ * ruled on is the trace as it stands now, not as it stood when the dice landed.
+ * Ruled on the primary GM, whichever GM pressed (`askReshapeRuling`).
  */
 async function ruleApproveReshape(action, data) {
-    const { applyReshapeRuling } = await import("./cleanup.mjs");
-    const applied = await applyReshapeRuling({
-        actorId: data.by,
-        tokenId: data.trace,
-        name: data.rname ?? "",
-        text: data.rtext ?? "",
-        softer: data.softer || null,
-        tie: Boolean(data.tie),
-        attempt: data.attempt ?? ""
-    });
+    const { askReshapeRuling } = await import("./gm-bridge.mjs");
+    const applied = await askReshapeRuling("approve", { by: data.by, trace: data.trace, attempt: data.attempt ?? "" });
     /* `false` is a ruling that went through - a Reroll had taken the attempt back,
        and the card says so - where `null` leaves the card open to be answered. The
        same split `ruleApproveMurder` draws. */
@@ -866,13 +873,8 @@ async function ruleApproveReshape(action, data) {
 async function ruleDeclineReshape(action, data) {
     // No refund, and the comment on `proposeReshape` says why: the Sanity
     // and the turn bought the attempt, and the attempt happened.
-    const { declineReshapeRuling } = await import("./cleanup.mjs");
-    const told = await declineReshapeRuling({
-        actorId: data.by,
-        tokenId: data.trace || null,
-        erase: Boolean(data.erase),
-        attempt: data.attempt ?? ""
-    });
+    const { askReshapeRuling } = await import("./gm-bridge.mjs");
+    const told = await askReshapeRuling("decline", { by: data.by, trace: data.trace, attempt: data.attempt ?? "" });
     if (told === false) return settled("DRPG.Cleanup.reshapeVoided");
     return told ? settled("DRPG.Bridge.settledDeclined") : null;
 }

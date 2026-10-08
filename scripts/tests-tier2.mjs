@@ -2212,6 +2212,33 @@ async function cleanupFixture(who, note, place = {}) {
  * `words(item)` is a copy as its holder's sheet reads it. `putBack` deletes the copies and the
  * finds with their answer keys, then everything `cleanupFixture` puts back.
  */
+/*
+ * A RULING AS A CARD MAKES IT (E09 C10, 08.10.2026). The card carries the attempt alone and the ruling
+ * reads the proposal off the attempt's row (cleanup.mjs `claimRuling`), so a test that rules names the
+ * attempt the GMs hold for that character (`heldAttempt`). `approveHeld` approves it, with `proposal`'s
+ * fields written over the row's first - a tie the killer's reshape would carry, on a fixture whose
+ * Tamper is not the killer's. `proposeOnRow` writes a row of its own for a trace no clean-up touched and
+ * answers its attempt; the caller drops the row.
+ */
+async function heldAttempt(who) {
+    const { attemptOf } = await import("./cleanup.mjs");
+    return (await attemptOf(who.id))?.attempt ?? "";
+}
+async function approveHeld(who, tokenId, proposal = {}) {
+    const cleanup = await import("./cleanup.mjs");
+    const { cleanupAttemptStore } = await import("./gm-stores.mjs");
+    const row = await cleanup.attemptOf(who.id);
+    if (row?.proposal && Object.keys(proposal).length) await cleanupAttemptStore.patch(who.id, { proposal: { ...row.proposal, ...proposal } });
+    return cleanup.applyReshapeRuling({ actorId: who.id, tokenId, attempt: row?.attempt ?? "" });
+}
+async function proposeOnRow(who, tokenId, proposal = {}) {
+    const { cleanupAttemptStore } = await import("./gm-stores.mjs");
+    const attempt = foundry.utils.randomID();
+    await cleanupAttemptStore.patch(who.id, { actorId: who.id, tokenId, attempt, ruled: null,
+        proposal: { name: "", text: "", softer: null, tie: false, erases: false, ...proposal } });
+    return attempt;
+}
+
 const C9_FOUND = Object.freeze({ name: "SUITE C9 a cup on the desk", playerText: "SUITE C9 it was there all along" });
 const C9_STORY = Object.freeze({ name: "SUITE C9 a vase of flowers", text: "SUITE C9 nothing happened in here" });
 async function reshapeCopiesFixture(who, holders, note, place = {}) {
@@ -2242,7 +2269,7 @@ async function reshapeCopiesFixture(who, holders, note, place = {}) {
             await settle();
             const said = await Promise.all(game.messages.filter(m => !had.has(m.id)).map(m => wordsOf(m, 2000)));
             const card = said.find(html => html.includes('data-drpg-call="approveReshape"') && html.includes(`data-trace="${F.trace.id}"`)) ?? null;
-            const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, ...C9_STORY });
+            const applied = await approveHeld(who, F.trace.id);
             await settle();
             return { tried, card, applied };
         },
@@ -13582,7 +13609,7 @@ const SCENARIOS = [
             must(remnantData(F.trace)?.tiedToCrime === null, "the fixture's trace is decided before the reshape - this would measure nothing");
             await F.scrub(30, { mode: "transform", change });
             await settle();
-            const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, ...change, tie: true });
+            const applied = await approveHeld(who, F.trace.id, { tie: true });
             await settle();
             must(applied === true, "the approval was refused - this would measure nothing");
             const approved = remnantData(F.trace);
@@ -13735,6 +13762,207 @@ const SCENARIOS = [
                 "the erase's Reroll did not put the reshaped trace back, or wrote its words on a copy already held "
                 + "(the trace standing; its words; each copy's name, words and found description)");
         } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["two rulings of one reshape at once run once, and the second is told it was ruled", async () => {
+        /*
+         * E09 C10, 08.10.2026. Nothing marked a reshape's proposal as ruled: each ruling read the
+         * attempt's row, awaited, and wrote, so Approve and Decline on one card - or two GMs' Approve,
+         * each on their own copy - both ran. A Tamper that succeeds, then Approve and Decline on its
+         * card at once, as the card's two buttons would run them on the primary. Read: what each
+         * answered, how often the second was told it was ruled already, and the trace's type.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const cleanup = await import("./cleanup.mjs");
+        const { remnantData } = await import("./remnants.mjs");
+        const F = await cleanupFixture(who, "SUITE E09 C10 two rulings at once");
+        const change = { name: "SUITE E09 C10 a teapot", text: "SUITE E09 C10 it was always there" };
+        const warned = [];
+        const warn = ui.notifications.warn;
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            await F.scrub(30, { mode: "transform", change });
+            await settle();
+            const attempt = await heldAttempt(who);
+            must(attempt, "the Tamper kept no attempt - this would measure nothing");
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            const asked = { actorId: who.id, tokenId: F.trace.id, attempt };
+            const both = await Promise.all([cleanup.applyReshapeRuling(asked), cleanup.declineReshapeRuling(asked)]);
+            await settle();
+            const ruled = game.i18n.format("DRPG.Cleanup.alreadyRuled", { name: game.user.name });
+            equal(stableJson([both, warned.filter(text => text === ruled).length, remnantData(F.trace)?.type ?? null]),
+                stableJson([[true, null], 1, "resolution"]),
+                "two rulings of one reshape both ran, or the second was not told it was ruled "
+                + "(what Approve and Decline answered, the times the second was told, the trace's type)");
+        } finally {
+            ui.notifications.warn = warn;
+            await F.putBack();
+        }
+    }],
+
+    ["the reshape card carries the attempt alone, and the ruling writes the proposal its row holds", async () => {
+        /*
+         * E09 C10, 08.10.2026. The words, the quieter band and the tie rode on the card's buttons as
+         * `data-*`, and the ruling wrote what the click handed it, so whoever pressed Approve chose
+         * what it wrote. A Tamper that succeeds (a plain success: no quieter band; not the killer: no
+         * tie), then an approval handed other words, a band and a tie. Read: whether the card's
+         * buttons carry any of the proposal, what the approval answered, and the trace's name, words,
+         * band and tie.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const cleanup = await import("./cleanup.mjs");
+        const { remnantData, remnantPublic } = await import("./remnants.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const F = await cleanupFixture(who, "SUITE E09 C10 the proposal on the row");
+        const change = { name: "SUITE E09 C10 a coat stand", text: "SUITE E09 C10 it was moved for the cleaners" };
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            must(remnantData(F.trace)?.tiedToCrime === null, "the fixture's trace is decided before the reshape - this would measure nothing");
+            const had = new Set(game.messages.map(m => m.id));
+            await F.scrub(30, { mode: "transform", change });
+            await settle();
+            const said = await Promise.all(game.messages.filter(m => !had.has(m.id)).map(m => wordsOf(m, 2000)));
+            const card = said.find(html => html.includes('data-drpg-call="approveReshape"') && html.includes(`data-trace="${F.trace.id}"`)) ?? "";
+            must(card, "no reshape card was raised for the fixture's trace - this would measure nothing");
+            const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, attempt: await heldAttempt(who),
+                name: "SUITE E09 C10 forged", text: "SUITE E09 C10 forged words", softer: "hidden", tie: true });
+            await settle();
+            const data = remnantData(F.trace);
+            const pub = remnantPublic(F.trace);
+            equal(stableJson([/data-(rname|rtext|softer|tie|erase)=/.test(card), applied, pub?.name ?? null, pub?.playerText ?? null,
+                data?.visibility ?? null, data?.tiedToCrime ?? null]),
+            stableJson([false, true, change.name, change.text, "evident", null]),
+            "the reshape card carries its proposal, or the ruling wrote what it was handed rather than what the attempt proposed "
+                + "(the proposal on the card's buttons, what the approval answered, the trace's name, words, band and tie)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["the erase road's undelivered card still erases the trace the critical bought", async () => {
+        /*
+         * E09 C10, 08.10.2026. A critical on the erase road with a rewrite asks the GMs for the
+         * rewrite, and the erase it bought travelled only on the card's Decline - so a card that did
+         * not go, or a throw on the way to it, left the trace standing with no button that would
+         * ever take it. Two halves, each a critical erase with a rewrite on a fixture of its own: the
+         * card's post answered with nothing (`ChatMessage.create` for the one veiled card, so the
+         * thread's post comes back empty and `callGm` answers false), and the card's GM half throwing
+         * as it is drawn. Read, for each: whether the attempt says it removed the trace, and whether
+         * the trace stands.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const [who] = cast(1);
+        const rewrite = { name: "SUITE E09 C10 a decoy", text: "SUITE E09 C10 a decoy, nothing more", visibility: "subtle" };
+        const fixtures = [];
+        const half = async (note, stub) => {
+            const F = await cleanupFixture(who, note);
+            fixtures.push(F);
+            must(F.trace && F.copy, "a fixture's trace or its copy was not made - this would measure nothing");
+            const id = F.trace.id;
+            const out = await stub(() => F.scrub(30, { isCritical: true, transform: rewrite }));
+            await settle();
+            return [out?.removed ?? null, Boolean(F.scene.tokens.get(id))];
+        };
+        try {
+            let refused = 0;
+            const unsent = await half("SUITE E09 C10 an erase whose card did not go", async run => {
+                const own = Object.getOwnPropertyDescriptor(ChatMessage, "create");
+                const create = ChatMessage.create;
+                ChatMessage.create = function (data, ...rest) {
+                    if (!refused && data?.flags?.[MODULE_ID]?.veiled) { refused++; return Promise.resolve(null); }
+                    return create.call(this, data, ...rest);
+                };
+                try { return await run(); } finally {
+                    if (own) Object.defineProperty(ChatMessage, "create", own);
+                    else delete ChatMessage.create;
+                }
+            });
+            must(refused === 1, `the stub refused ${refused} veiled cards, not the reshape's one - this would measure nothing`);
+            const thrown = await half("SUITE E09 C10 an erase whose card threw", async run => {
+                const own = Object.getOwnPropertyDescriptor(game.i18n, "format");
+                const format = game.i18n.format;
+                game.i18n.format = function (key, ...rest) {
+                    if (key === "DRPG.Cleanup.reshapeRulingWas") throw new Error("SUITE E09 C10 the card's GM half threw");
+                    return format.call(this, key, ...rest);
+                };
+                try { return await run(); } finally {
+                    if (own) Object.defineProperty(game.i18n, "format", own);
+                    else delete game.i18n.format;
+                }
+            });
+            equal(stableJson([unsent, thrown]), stableJson([[true, false], [true, false]]),
+                "a critical erase whose rewrite could not be put to the GMs left the trace it bought "
+                + "(for the card that did not go and the card that threw: the attempt's removed, the trace standing)");
+        } finally {
+            for (const F of fixtures) await F.putBack();
+        }
+    }],
+
+    ["a click on a ruling card holds every button of the card until it ends", async () => {
+        /*
+         * E09 C10, 08.10.2026. A click disabled the button pressed and no other, so the card's other
+         * button could be pressed while the first click's ruling was still running. Two buttons whose
+         * actions no ruling knows (`runCallAction` answers null for them, and the card stays open),
+         * wired as a GM's card is, and the first clicked. Read: both buttons' disabled state as the
+         * click starts, and once it has ended.
+         */
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const body = document.createElement("div");
+        body.innerHTML = '<div class="drpg-call-actions"><button type="button" class="drpg-call-action" data-drpg-call="suiteC10First">a</button>'
+            + '<button type="button" class="drpg-call-action" data-drpg-call="suiteC10Second">b</button></div>';
+        wireCallActions(body, null);
+        const [first, second] = body.querySelectorAll("button");
+        must(first && second && !first.disabled && !second.disabled, "the fixture's two buttons were not drawn enabled - this would measure nothing");
+        first.click();
+        const during = [first.disabled, second.disabled];
+        await settle();
+        equal(stableJson([during, [first.disabled, second.disabled]]), stableJson([[true, true], [false, false]]),
+            "a click on a ruling card left its other button live, or did not give the buttons back when it ended "
+            + "(both buttons disabled as the click starts, then once it has ended)");
+    }],
+
+    ["a ruling made before the attempt has ended stands, and is the only one", async () => {
+        /*
+         * E09 C10, 08.10.2026. The card is posted before the attempt ends, and the attempt's row was
+         * written only when it ended - over whatever a ruling made in between had written. Now the
+         * row is kept before the card goes and kept again at the end (`keepAttempt`), and the second
+         * write leaves the ruling's marks. A Tamper that succeeds, approved as its card is posted (the
+         * first veiled card of the attempt), then approved again once the attempt has ended. Read:
+         * what the first and the second answered, and whether the row holds the first's snapshot.
+         * The snapshot was there at the parent and under the mutant that nulls the second write
+         * (08.10.2026: here the approval's snapshot lands after the attempt's end, its claim
+         * before), so the second ruling is what tells them apart: true at the parent, null now.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const cleanup = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const F = await cleanupFixture(who, "SUITE E09 C10 a ruling before the attempt ends");
+        const change = { name: "SUITE E09 C10 a hat rack", text: "SUITE E09 C10 it was there before the party" };
+        const rulings = [];
+        const hook = Hooks.on("createChatMessage", message => {
+            if (rulings.length || !message.flags?.[MODULE_ID]?.veiled) return;
+            rulings.push(heldAttempt(who).then(attempt => cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, attempt })));
+        });
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            await F.scrub(30, { mode: "transform", change });
+            await settle();
+            Hooks.off("createChatMessage", hook);
+            must(rulings.length === 1, "no card was posted for the hook to rule on - this would measure nothing");
+            const first = await rulings[0];
+            await settle();
+            const second = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, attempt: await heldAttempt(who) });
+            await settle();
+            equal(stableJson([first, second, Boolean(S.cleanupAttemptStore.get(who.id)?.transformed)]), stableJson([true, null, true]),
+                "a ruling made before the attempt ended was written over by the attempt's own receipt "
+                + "(what the ruling made as the card was posted answered, what the one after the attempt answered, the row's snapshot)");
+        } finally {
+            Hooks.off("createChatMessage", hook);
             await F.putBack();
         }
     }],
@@ -17848,7 +18076,8 @@ const SCENARIOS = [
                 rows: win.app?.element?.querySelectorAll('[data-drpg-panel="traces"] tbody tr').length ?? null })}`);
 
             /* ---- the ruling lands under the open window, and the window shows it ---- */
-            ok(await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id, name: "SUITE reshaped", text: "SUITE reshaped words" }),
+            ok(await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id,
+                attempt: await proposeOnRow(who, token.id, { name: "SUITE reshaped", text: "SUITE reshaped words" }) }),
                 "the ruling refused a trace that was standing");
             await until(() => win.field(`name.${key}`)?.value === "SUITE reshaped", 4000);
             equal(win.field(`name.${key}`)?.value, "SUITE reshaped", "the open dashboard still shows the name the ruling replaced");
@@ -17874,7 +18103,8 @@ const SCENARIOS = [
             win = await drawnCaseWindow();
             must(win.field(`name.${key}`), "the dashboard did not reopen on the fixture trace");
             win.field(`name.${key}`).value = "SUITE typed by this GM";
-            ok(await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id, name: "SUITE reshaped again", text: "SUITE reshaped again, words" }),
+            ok(await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: token.id,
+                attempt: await proposeOnRow(who, token.id, { name: "SUITE reshaped again", text: "SUITE reshaped again, words" }) }),
                 "the second ruling refused a trace that was standing");
             await until(() => win.field(`text.${key}`)?.value === "SUITE reshaped again, words", 4000);
             const name = win.field(`name.${key}`);
@@ -17895,6 +18125,7 @@ const SCENARIOS = [
             }
             const rows = planRows();
             if (rows.length) await S.keyPlanStore.dropMany(rows);
+            if (token && S.cleanupAttemptStore.get(who.id)?.tokenId === token.id) await S.cleanupAttemptStore.drop(who.id);
             await setClock(clock);
         }
     }],
@@ -25244,10 +25475,8 @@ const SCENARIOS = [
                 "the card does not name the trace it is about");
 
             // ---- and the ruling is what writes ---------------------------
-            const applied = await cleanup.applyReshapeRuling({
-                actorId: who.id, tokenId: first.id,
-                name: `Spilled paint ${stamp}`, text: "A tin went over during the afternoon."
-            });
+            // The words are the attempt's (E09 C10): the card names the attempt alone.
+            const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: first.id, attempt: await heldAttempt(who) });
             await settle();
             ok(applied, "the approval refused a trace that was still standing");
             const after = remnants.remnantData(first);
@@ -25261,7 +25490,7 @@ const SCENARIOS = [
             const second = await fixture();
             await tamper(second, `Nothing here ${stamp}`, "Just a scuff.");
             await settle();
-            await cleanup.declineReshapeRuling({ actorId: who.id });
+            await cleanup.declineReshapeRuling({ actorId: who.id, tokenId: second.id, attempt: await heldAttempt(who) });
             await settle();
             const kept = remnants.remnantData(second);
             equal(kept.type, "prep", "a declined reshape changed the trace anyway");
@@ -25302,10 +25531,7 @@ const SCENARIOS = [
                 change: { name: `Stale ${stamp}`, text: "A card from dice that are gone." }
             });
             await settle();
-            const voided = await cleanup.applyReshapeRuling({
-                actorId: who.id, tokenId: fourth.id, attempt: stale,
-                name: `Stale ${stamp}`, text: "A card from dice that are gone."
-            });
+            const voided = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: fourth.id, attempt: stale });
             equal(voided, false, "a card from an attempt a Reroll took back was not refused");
             ok(!remnants.remnantData(fourth)?.public?.name?.includes(String(stamp)),
                 "a Reroll that lost still let the older card write the lie");
@@ -25323,9 +25549,7 @@ const SCENARIOS = [
             await settle();
             ok(remnants.remnantData(fifth), "a proposed rewrite erased the trace before any ruling");
             const decoy = await attemptOf(fifth);
-            const erased = await cleanup.declineReshapeRuling({
-                actorId: who.id, tokenId: fifth.id, erase: true, attempt: decoy
-            });
+            const erased = await cleanup.declineReshapeRuling({ actorId: who.id, tokenId: fifth.id, attempt: decoy });
             await settle();
             ok(erased, "the decline on the erase road was refused");
             ok(!canvas.scene.tokens.get(fifth.id),
@@ -30628,7 +30852,7 @@ const SCENARIOS = [
                 await before(F);
                 await F.scrub(30, { mode: "transform", change });
                 await settle();
-                const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, ...change, tie: true });
+                const applied = await approveHeld(who, F.trace.id, { tie: true });
                 await settle();
                 must(applied === true && tieOf(F, F.trace.id) === true, "the reshape was not approved with its tie - this would measure nothing");
                 return F;

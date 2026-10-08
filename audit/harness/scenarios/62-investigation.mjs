@@ -16,10 +16,13 @@
  *      no GM body (S05-34, asserted closed).
  *   N  p1 Analyzes the copy: read on p1, it shows its type and the reading the GM wrote.
  *   T  p2 finds the same trace (a general Observe) and reshapes it (Tamper, "transform");
- *      the GM's card counts the two copies already held, the GM approves it, the GMs' ledger
- *      takes the story, and p1's and p2's copies keep the name and words they were found with
- *      (E09 C9: a reshape leaves the copies already held). On the code before C9 (08.10.2026)
- *      both copies read the reshaped name and words, and the card counted nothing.
+ *      the GM's card counts the two copies already held, gm2 approves it from its own copy of
+ *      the card, the GMs' ledger takes the story, and p1's and p2's copies keep the name and
+ *      words they were found with (E09 C9: a reshape leaves the copies already held). On the
+ *      code before C9 (08.10.2026) both copies read the reshaped name and words, and the card
+ *      counted nothing. (E09 C10) gm2's approval is ruled on the primary GM and kept as gm2's,
+ *      and the GM's Approve on its own copy of the card, open all along, is refused and told
+ *      and tells p2 nothing.
  *   V  (E09 C2) the GM's verdicts on the tied trace reach the copies: a Faint reaches both
  *      copies' answer keys on both GMs and the item of p1's analysed copy, not p2's; and p2's
  *      console gives its unanalysed copy `analyzed`, the GM rewrites the trace's reading as
@@ -28,7 +31,8 @@
  *      before C2 (08.10.2026) both failed: the Faint reached no key, and p2's copy read the
  *      new reading, put back to unanalysed, with both GMs' copies holding it.
  *   D  (E09 C3) the Investigation Dashboard stands open on the GM with a name typed into the
- *      Faint trace's row when gm2 approves a reshape of that trace: the GM's window redraws
+ *      Faint trace's row when gm2 approves a reshape of that trace (since E09 C10 on a proposal
+ *      gm2 writes on the attempt's row first): the GM's window redraws
  *      (the words show the reshape, the typed name stays and is marked with the reshaped
  *      one), and the GM's Save refuses the name and says so once - both GMs keep the reshape.
  *   K  (E09 C7) a chapter-2 trial after a chapter-1 plan: a case of three closed in chapter 2
@@ -78,7 +82,8 @@
  * phase E, 33 in 13.1 s (20 s with the cluster's start, one run, 08.10.2026); with E09 fix r1-G3's
  * phase P, 36 in 17.6 s (24.7 s with the cluster's start, one run, 08.10.2026); with E09 C9's
  * phase T, 38 in 21.0 s (the cluster's own count, one run, 08.10.2026), two 3-second waits of
- * it for a renaming of p1's and p2's copies that no longer comes.
+ * it for a renaming of p1's and p2's copies that no longer comes; with E09 C10's T8 and T9,
+ * 40 in 22.7 s (the same count, one run, 08.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -214,7 +219,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
 
     /* ------------------------------ T. Tamper ------------------------------ */
 
-    begin("T", "p2 reshapes the trace p1 holds; the GM approves", "trace-remnant");
+    begin("T", "p2 reshapes the trace p1 holds; gm2 approves", "trace-remnant");
     const move = (aiko, botan) => gm.eval(`const scene = game.scenes.get("${IDS.scene}");
         await scene.tokens.get("TOKAIKO000000000").update(${J(aiko)});
         await scene.tokens.get("TOKBOTAN00000000").update(${J(botan)});
@@ -250,25 +255,39 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
             return { err, rolled: Boolean(r?.roll), total: r?.roll?.total ?? null, notes: globalThis.__notifications.slice(-3).map(n => n.msg) };`, { timeout: 90000 });
         verdict("p2's reshape is rolled and sent", !tamper.err && tamper.rolled, J(tamper));
 
-        const approved = await gm.eval(`${until}
+        const shown = await gm.eval(`${until}
             const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
             const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
             const { plural } = await import("${repoUrl}/scripts/utils.mjs");
             const find = () => game.messages.contents.find(m => !globalThis.__s62had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="approveReshape"'));
             const card = await until(find, 20000);
             const counted = Boolean(card) && String(contentOf(card) ?? "").includes(foundry.utils.escapeHTML(plural("DRPG.Cleanup.reshapeRulingCopies", { n: 2 })));
-            let clicked = false;
+            // The GM's own copy of the card, wired and left open: the phase's last check presses it once gm2 has ruled.
             if (card) {
                 const body = document.createElement("div");
                 body.innerHTML = contentOf(card);
+                wireCallActions(body, card);
+                globalThis.__s62card = body;
+            }
+            return { card: card?.id ?? null, counted };`, { timeout: 60000 });
+        const approved = await gm2.eval(`${until}
+            const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+            const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
+            const card = await until(() => game.messages.get(${J(shown.card)}), 20000);
+            const words = await until(() => String((card && contentOf(card)) ?? "").includes('data-drpg-call="approveReshape"') ? contentOf(card) : null, 20000);
+            let clicked = false;
+            if (words) {
+                const body = document.createElement("div");
+                body.innerHTML = words;
                 wireCallActions(body, card);
                 const button = body.querySelector('[data-drpg-call="approveReshape"]');
                 button?.click();
                 clicked = Boolean(button);
             }
-            return { card: Boolean(card), clicked, counted };`, { timeout: 60000 });
-        verdict("the GM is shown the reshape and approves it from the card", approved.card && approved.clicked, J(approved));
-        verdict("the card tells the GM that the two copies already held, p1's and p2's, keep their words", approved.counted, J(approved));
+            return { card: Boolean(card), words: Boolean(words), clicked };`, { timeout: 60000 });
+        verdict("the GM is shown the reshape, and gm2 approves it from its own copy of the card",
+            Boolean(shown.card) && approved.words && approved.clicked, J({ shown, approved }));
+        verdict("the card tells the GM that the two copies already held, p1's and p2's, keep their words", shown.counted, J(shown));
 
         const ledger = await gm.eval(`${until}
             const R = await import("${repoUrl}/scripts/remnants.mjs");
@@ -289,6 +308,29 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
             const fresh = game.messages.contents.filter(m => !globalThis.__s62had.has(m.id));
             return { fresh: fresh.length, gmBodies: fresh.filter(m => String(contentOf(m) ?? "").includes("drpg-gm-only")).length };`);
         verdict("p2's thread holds no GM body of the reshape card", thread.gmBodies === 0, J(thread));
+
+        // E09 C10: gm2's click was ruled on the primary, and the GM's copy of the card, still open, is refused and told.
+        const ruledOn = await gm.eval(`${until} const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+            const ruled = await until(() => S.cleanupAttemptStore.get("${IDS.botan}")?.ruled ?? null, 10000);
+            return ruled ? { by: ruled.by ?? null, on: ruled.on ?? null, verdict: ruled.verdict ?? null } : null;`, { timeout: 30000 });
+        verdict("gm2's approval is ruled on the primary GM, as gm2's",
+            ruledOn?.by === "USERGM2000000000" && ruledOn?.on === IDS.gm && ruledOn?.verdict === "approve", J(ruledOn));
+        const toldP2 = () => p2.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+            return game.messages.contents.filter(m => String(contentOf(m) ?? "").includes(${J(MARK.reshapedName)})).length;`);
+        const toldBefore = await toldP2();
+        const again = await gm.eval(`${until}
+            const body = globalThis.__s62card; delete globalThis.__s62card;
+            const button = body?.querySelector('[data-drpg-call="approveReshape"]') ?? null;
+            const had = globalThis.__notifications.length;
+            button?.click();
+            await until(() => button && !button.disabled, 10000);
+            const ruled = game.i18n.format("DRPG.Cleanup.alreadyRuled", { name: game.users.get("USERGM2000000000")?.name ?? "" });
+            return { pressed: Boolean(button), told: globalThis.__notifications.slice(had).filter(n => n.level === "warn" && n.msg === ruled).length };`,
+        { timeout: 30000 });
+        await settle(800);
+        const toldAfter = await toldP2();
+        verdict("the GM's later Approve on its open copy of the card is refused and told, and tells p2 nothing more",
+            again.pressed && again.told === 1 && toldAfter === toldBefore, J({ again, toldBefore, toldAfter }));
     } finally {
         await move({ x: 300, y: 300 }, { x: 1300, y: 300 });
     }
@@ -399,8 +441,14 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         const drawn = name?.value ?? null;
         if (name) name.value = ${J(MARK.typed)};
         return { open: Boolean(d.app), listed: Boolean(name), drawn };`, { timeout: 30000 });
+    // A ruling reads its proposal off the attempt's row since E09 C10, so gm2 writes one first, then rules on its own
+    // browser (the console road, cleanup.mjs `applyReshapeRuling`): the write still comes from the other GM's browser.
     const ruled = await gm2.eval(`const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
-        return await Cl.applyReshapeRuling({ actorId: "${IDS.botan}", tokenId: "${ids.faint}", name: ${J(MARK.dName)}, text: ${J(MARK.dText)} });`, { timeout: 30000 });
+        const { cleanupAttemptStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        await cleanupAttemptStore.whenHydrated();
+        await cleanupAttemptStore.patch("${IDS.botan}", { actorId: "${IDS.botan}", tokenId: "${ids.faint}", attempt: "S62DRESHAPE00001",
+            ruled: null, proposal: { name: ${J(MARK.dName)}, text: ${J(MARK.dText)}, softer: null, tie: false, erases: false } });
+        return await Cl.applyReshapeRuling({ actorId: "${IDS.botan}", tokenId: "${ids.faint}", attempt: "S62DRESHAPE00001" });`, { timeout: 30000 });
     verdict("the dashboard is open on the GM with a name typed in the Faint trace's row, and gm2's ruling is honoured",
         typed.open && typed.listed && ruled === true, J({ typed, ruled }));
     const redrawn = await gm.eval(`${until} const d = globalThis.__s62d;

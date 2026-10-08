@@ -944,9 +944,24 @@ export function reshapeCardParts(data, { name = "", text = "", softer = null, ti
  * Remnant. Those are the rules answering; this is a player writing prose.
  */
 async function proposeReshape(actor, token, data, {
-    name = "", text = "", softer = null, tie = false, done = [], erases = false, attempt = ""
+    name = "", text = "", softer = null, tie = false, done = [], erases = false, receipt
 } = {}) {
     const { body, gmBody } = reshapeCardParts(data, { name, text, softer, tie, copies: heldCopiesOf(token.id) });
+
+    /*
+     * THE PROPOSAL IS KEPT BY THE GMS, ON THE ATTEMPT'S ROW, BEFORE THE CARD EXISTS (E09 C10,
+     * 08.10.2026). Until this commit the words, the quieter band, the tie and the erase rode on
+     * the card's buttons as `data-*`, and the ruling took them off the click: whoever could press
+     * Approve chose what Approve wrote, the row knew nothing of a proposal, and a card a GM could
+     * press already existed while the row of its attempt was not yet written - the receipt was kept
+     * only when the attempt ended, after the card. Now the row holds the proposal from before the
+     * card goes, and the buttons carry the attempt alone; the ruling reads what it writes off the
+     * row (`claimRuling`). The row is the attempt's own receipt, so a later attempt by the same
+     * character replaces it, and a card from the earlier one is refused as a Reroll's is.
+     */
+    receipt.proposal = { name, text, softer: softer ?? null, tie: Boolean(tie), erases: Boolean(erases) };
+    await keepAttempt(receipt);
+    const attempt = receipt.attempt;
 
     const { callGm } = await import("./gm-bridge.mjs");
     const sent = await callGm(actor, {
@@ -962,30 +977,16 @@ async function proposeReshape(actor, token, data, {
                 label: game.i18n.localize("DRPG.Cleanup.reshapeApprove"),
                 // Lowercase keys only: `data-*` arrives through `dataset`, which
                 // lowercases everything, so `tokenId` would read back undefined.
-                data: {
-                    by: actor.id,
-                    scene: token.parent?.id ?? "",
-                    trace: token.id,
-                    rname: name,
-                    rtext: text,
-                    softer: softer ?? "",
-                    tie: tie ? "1" : "",
-                    attempt
-                }
+                // What the approval writes is the row's, not the button's (above).
+                data: { by: actor.id, scene: token.parent?.id ?? "", trace: token.id, attempt }
             },
             {
                 action: "declineReshape",
                 label: game.i18n.localize("DRPG.Cleanup.reshapeDecline"),
-                /* The trace and `erase` travel too: on the erase road the dice bought an
-                   ERASE and the rewrite was the upgrade the player chose on top of it,
-                   so a GM who refuses the story still owes them the erase. */
-                data: {
-                    by: actor.id,
-                    scene: token.parent?.id ?? "",
-                    trace: token.id,
-                    erase: erases ? "1" : "",
-                    attempt
-                }
+                /* The trace travels too: on the erase road the dice bought an ERASE and the
+                   rewrite was the upgrade the player chose on top of it, so a GM who refuses
+                   the story still owes them the erase - which the row's `erases` says. */
+                data: { by: actor.id, scene: token.parent?.id ?? "", trace: token.id, attempt }
             }
         ]
     });
@@ -1009,6 +1010,44 @@ async function proposeReshape(actor, token, data, {
     return true;
 }
 
+/** Where a ruling's notices go when nobody asked for them back: this browser's own. */
+function tellHere(level, key, data = null) {
+    ui.notifications[level](data ? game.i18n.format(key, data) : game.i18n.localize(key));
+}
+
+/**
+ * ONE RULING PER PROPOSAL, AND IT IS TAKEN BEFORE ANYTHING WAITS (E09 C10, 08.10.2026).
+ *
+ * Measured at the parent (08.10.2026): Approve and Decline on one card at once both
+ * answered true (tier 2, "two rulings of one reshape at once run once"), and in
+ * scenario 62 the GM's Approve on its own open copy of the card, pressed after gm2's,
+ * ran again and told the player a second time (T9: 3 messages, then 4). Nothing
+ * marked a proposal as ruled; each ruling read the row, awaited, and wrote. Here the
+ * row is read and marked `ruled` in one synchronous step, so of two rulings on one
+ * browser exactly one finds it unmarked; `askReshapeRuling` (gm-bridge.mjs) sends
+ * every GM's ruling to the primary, which makes that one browser.
+ *
+ * The proposal is the row's (`proposeReshape`), and a row that does not hold one for
+ * this trace under this attempt is refused: a Reroll's replay, a later attempt by the
+ * same character, a chapter's reset. No row is no longer "proves nothing": the row is
+ * where the words are, so without it there is nothing to rule on.
+ */
+function claimRuling(actorId, tokenId, attempt, by, verdict) {
+    const row = cleanupAttemptStore.get(actorId ?? "") ?? null;
+    const tag = String(attempt ?? "").slice(0, 32);
+    if (!row?.proposal || !tokenId || row.tokenId !== tokenId || !tag || row.attempt !== tag) {
+        log(`Reshape ruling refused: the GMs hold no proposal of attempt ${tag || "(none)"} on ${tokenId}.`);
+        return { refused: "DRPG.Cleanup.reshapeTakenBack", value: false };
+    }
+    if (row.ruled) {
+        const name = game.users.get(row.ruled.by)?.name ?? String(row.ruled.by ?? "");
+        log(`Reshape ruling refused: attempt ${tag} was ruled already (${row.ruled.verdict}).`);
+        return { refused: "DRPG.Cleanup.alreadyRuled", data: { name }, value: null };
+    }
+    const marking = cleanupAttemptStore.patch(actorId, { ruled: { by, on: game.user.id, verdict } }, { ifLive: true });
+    return { proposal: { ...row.proposal }, marking };
+}
+
 /**
  * The GM pressed Approve. NOW the words land.
  *
@@ -1017,19 +1056,31 @@ async function proposeReshape(actor, token, data, {
  * chapter sweep, another killer's clean-up or the GM's own hand may have taken
  * it - in which case there is nothing to relabel and both sides are told.
  *
- * BOUNDED AGAIN ON ARRIVAL. These values come off `dataset`, and the module's
- * habit is that a field is bounded by the code that uses it rather than by the
- * code that was supposed to produce it. It costs two lines.
+ * THE WORDS ARE THE ROW'S (E09 C10), and still bounded again on arrival: the
+ * module's habit is that a field is bounded by the code that uses it rather than
+ * by the code that was supposed to produce it. It costs two lines.
+ *
+ * `tell` is where the notices go: this browser's, or back to the GM who asked the
+ * primary to rule (`ruleReshape`); `by` is the GM who pressed.
  */
-export async function applyReshapeRuling({
-    actorId, tokenId, name = "", text = "", softer = null, tie = false, attempt = ""
-} = {}) {
+export async function applyReshapeRuling({ actorId, tokenId, attempt = "" } = {}, { tell = tellHere, by = game.user.id } = {}) {
     if (!game.user.isGM) return null;
+    await cleanupAttemptStore.whenHydrated();
     const actor = game.actors.get(actorId) ?? null;
     const token = findRemnantToken(tokenId);
     const data = token ? remnantData(token) : null;
+    /*
+     * A CARD FROM AN ATTEMPT A REROLL TOOK BACK RULES ON NOTHING (review of
+     * stage D). The card carries the attempt it was raised for; a Reroll replays
+     * the attempt under a new id, which the row then holds - measured the way the
+     * review wrote it: a lost Reroll, then Approve on the older card, used to put
+     * the lie on the trace anyway. `claimRuling`, with no wait before it: only a
+     * trace that stands and is not reinforced is claimed, and the two refusals
+     * below leave the proposal to be ruled on again.
+     */
+    const claim = data && !data.reinforced ? claimRuling(actorId, tokenId, attempt, by, "approve") : null;
     if (!data) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeRulingGone"));
+        tell("warn", "DRPG.Cleanup.reshapeRulingGone");
         if (actor) await whisperToOwner(actor, `<p>${
             game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
         return null;
@@ -1043,29 +1094,16 @@ export async function applyReshapeRuling({
      * for.
      */
     if (data.reinforced) {
-        ui.notifications.warn(game.i18n.format("DRPG.Cleanup.reinforced", {
-            what: `${data.visibilityLabel} ${data.typeLabel}`
-        }));
+        tell("warn", "DRPG.Cleanup.reinforced", { what: `${data.visibilityLabel} ${data.typeLabel}` });
         return null;
     }
-
-    /*
-     * A CARD FROM AN ATTEMPT A REROLL TOOK BACK RULES ON NOTHING (review of
-     * stage D). The card carries the attempt it was raised for; a Reroll replays
-     * the attempt under a new id. So a receipt for this same trace under another
-     * id is positive evidence the dice this card describes no longer exist, and
-     * the card is refused rather than written - measured the way the review wrote
-     * it: a lost Reroll, then Approve on the older card, used to put the lie on
-     * the trace anyway. No receipt at all (a reload, another GM's browser, the
-     * console road) proves nothing, and the card is honoured as it always was.
-     */
-    const tag = String(attempt ?? "").slice(0, 32);
-    const standing = await attemptOf(actorId);
-    if (tag && standing?.tokenId === tokenId && standing.attempt !== tag) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeTakenBack"));
-        return false;
+    if (claim.refused) {
+        tell("warn", claim.refused, claim.data);
+        return claim.value;
     }
+    await claim.marking;
 
+    const { name = "", text = "", softer = null, tie = false } = claim.proposal;
     const limits = CLEANUP.transformAction?.limits ?? {};
     const safeName = plainText(name, limits.name ?? 60);
     const safeText = plainText(text, limits.text ?? 400);
@@ -1080,13 +1118,13 @@ export async function applyReshapeRuling({
      * row the roll opened (E08+E28 C3: a GM store now, where it was a Map whose
      * object this wrote through) - and only onto a row still standing.
      */
-    const receipt = standing?.tokenId === tokenId ? {} : null;
+    const receipt = {};
     await reshapeTrace(token, data, {
         name: safeName, text: safeText, softer: quieter, tie: Boolean(tie),
         receipt,
         done
     });
-    if (receipt?.transformed) {
+    if (receipt.transformed) {
         await cleanupAttemptStore.patch(actorId, { transformed: receipt.transformed }, { ifLive: true });
     }
 
@@ -1106,19 +1144,20 @@ export async function applyReshapeRuling({
  * Nothing to refund, for the reason written at the top of this block: the price
  * bought the attempt, and the attempt happened.
  */
-export async function declineReshapeRuling({ actorId, tokenId = null, erase = false, attempt = "" } = {}) {
+export async function declineReshapeRuling({ actorId, tokenId = null, attempt = "" } = {}, { tell = tellHere, by = game.user.id } = {}) {
     if (!game.user.isGM) return null;
+    await cleanupAttemptStore.whenHydrated();
     const actor = game.actors.get(actorId);
     if (!actor) return null;
 
-    // The same guard as the approval, and it matters MORE here: the erase below
+    // The same claim as the approval, and it matters MORE here: the erase below
     // would otherwise remove a trace a Reroll's replay had left standing.
-    const tag = String(attempt ?? "").slice(0, 32);
-    const standing = await attemptOf(actorId);
-    if (tag && tokenId && standing?.tokenId === tokenId && standing.attempt !== tag) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeTakenBack"));
-        return false;
+    const claim = claimRuling(actorId, tokenId, attempt, by, "decline");
+    if (claim.refused) {
+        tell("warn", claim.refused, claim.data);
+        return claim.value;
     }
+    await claim.marking;
 
     /*
      * THE ERASE THE CRITICAL BOUGHT (review of stage D). On the erase road the
@@ -1130,16 +1169,15 @@ export async function declineReshapeRuling({ actorId, tokenId = null, erase = fa
      * like every erase, with the receipt filled in first so a Reroll can put it
      * back. Read fresh, as the approval reads it: a trace swept or reinforced in
      * the meantime is left alone. No refund, and no price call - the critical's
-     * hand-back already ran when the dice landed.
+     * hand-back already ran when the dice landed. Whether it erases is the row's
+     * `erases` since E09 C10, not the button's.
      */
     let said = "DRPG.Cleanup.reshapeDeclined";
-    if (erase && tokenId) {
+    if (claim.proposal.erases) {
         const token = findRemnantToken(tokenId);
         const data = token ? remnantData(token) : null;
         if (data && !data.reinforced) {
-            if (standing?.tokenId === tokenId) {
-                await cleanupAttemptStore.patch(actorId, { erased: recreationDataFor(token) }, { ifLive: true });
-            }
+            await cleanupAttemptStore.patch(actorId, { erased: recreationDataFor(token) }, { ifLive: true });
             await removeRemnant(token);
             said = "DRPG.Cleanup.reshapeDeclinedErased";
         }
@@ -1148,10 +1186,25 @@ export async function declineReshapeRuling({ actorId, tokenId = null, erase = fa
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Cleanup.reshapeRulingTitle")
     })}<p><em>${foundry.utils.escapeHTML(game.i18n.format(
-        said, { name: game.user.name }))}</em></p>`);
-    ui.notifications.info(game.i18n.format("DRPG.Cleanup.reshapeDeclinedGm",
-        { name: actor.name }));
+        said, { name: game.users.get(by)?.name ?? game.user.name }))}</em></p>`);
+    tell("info", "DRPG.Cleanup.reshapeDeclinedGm", { name: actor.name });
     return true;
+}
+
+/**
+ * A ruling on a reshape card, on the primary GM's browser (E09 C10; `cleanup.ruling`
+ * in gm-bridge.mjs). Answers what the ruling answered and the notices it raised, as
+ * `[level, key, data]`, for the GM who pressed to be shown on their own screen. `by`
+ * is that GM's id.
+ */
+export async function ruleReshape({ actorId, tokenId, attempt, verdict } = {}, by = game.user.id) {
+    const told = [];
+    const tell = (level, key, data = null) => { told.push([level, key, data]); };
+    const asked = { actorId, tokenId, attempt };
+    const value = verdict === "approve" ? await applyReshapeRuling(asked, { tell, by })
+        : verdict === "decline" ? await declineReshapeRuling(asked, { tell, by })
+            : null;
+    return { value, told };
 }
 
 /**
@@ -1372,7 +1425,7 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         try {
             // N-3: the GM rules on the lie. See the block above `proposeReshape`.
             await proposeReshape(actor, token, data, {
-                name, text, softer, tie: byTheKiller, done, attempt: receipt.attempt
+                name, text, softer, tie: byTheKiller, done, receipt
             });
         } catch (err) {
             error("Could not put a transform's reshape to the GM", err);
@@ -1421,30 +1474,7 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
         ? transform
         : null;
 
-    if (rewrite) {
-        try {
-            /*
-             * THE SAME RULING, BY THE SAME ARGUMENT (N-3).
-             *
-             * This is the erase road's critical reward rather than the Tamper
-             * action, but what lands on the trace is identical: a name and a
-             * sentence a player wrote, on the GM's own evidence. Gating one and
-             * not the other would leave a road where the words apply themselves,
-             * and a rule with a door next to it is not a rule.
-             */
-            await proposeReshape(actor, token, data, {
-                name: rewriteName,
-                text: rewriteText,
-                softer: rewrite.visibility,
-                tie: isCleaner(actor),
-                done,
-                erases: true,
-                attempt: receipt.attempt
-            });
-        } catch (err) {
-            error("Could not put a critical clean-up's reshape to the GM", err);
-        }
-    } else if (outcome.removes && !transforming) {
+    const erase = async () => {
         try {
             receipt.erased = recreationDataFor(token);
             // Through `removeRemnant` rather than `token.delete()`: it owns the
@@ -1457,10 +1487,48 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
         } catch (err) {
             error("Could not remove the Remnant a clean-up erased", err);
         }
+    };
+
+    let put = null;
+    if (rewrite) {
+        /*
+         * THE SAME RULING, BY THE SAME ARGUMENT (N-3).
+         *
+         * This is the erase road's critical reward rather than the Tamper
+         * action, but what lands on the trace is identical: a name and a
+         * sentence a player wrote, on the GM's own evidence. Gating one and
+         * not the other would leave a road where the words apply themselves,
+         * and a rule with a door next to it is not a rule.
+         *
+         * A PROPOSAL NOBODY CAN RULE ON STILL ERASES (E09 C10, 08.10.2026). The
+         * rewrite is the upgrade chosen on top of an erase the dice bought, and
+         * only the Decline button carried that erase - so a card that did not go
+         * (`proposeReshape` answers false) or a throw on the way to it left the
+         * trace standing with no button that would ever take it, while the GMs
+         * were told to "relabel it by hand if you allow it". Anything but a card
+         * that went erases here as a plain critical does, and the attempt reports
+         * an erase and no reshape.
+         */
+        try {
+            put = await proposeReshape(actor, token, data, {
+                name: rewriteName,
+                text: rewriteText,
+                softer: rewrite.visibility,
+                tie: isCleaner(actor),
+                done,
+                erases: true,
+                receipt
+            });
+        } catch (err) {
+            error("Could not put a critical clean-up's reshape to the GM", err);
+        }
+        if (put !== true && outcome.removes && !transforming) await erase();
+    } else if (outcome.removes && !transforming) {
+        await erase();
     } else {
         done.push(game.i18n.localize("DRPG.Cleanup.stillThere"));
     }
-    return { rewrite, rewriteName };
+    return { rewrite: put === true ? rewrite : null, rewriteName };
 }
 
     /*
@@ -2388,9 +2456,13 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
  * an attempt that ends without one (`forgetAttempt`).
  * ========================================================================== */
 
-/** Every field of a receipt, each written, so a row holds one attempt's and nothing of the one before it. */
+/**
+ * Every field of a receipt, each written, so a row holds one attempt's and nothing of the one before it.
+ * `proposal` is a reshape's words as the card put them (`proposeReshape`); `ruled` is never on a
+ * receipt - the ruling writes it (`claimRuling`) - and is listed so a new attempt clears it.
+ */
 const RECEIPT_FIELDS = ["actorId", "tokenId", "attempt", "free", "stressBefore", "stressAfter",
-    "erased", "leftBehind", "transformed", "handedBack"];
+    "erased", "leftBehind", "transformed", "handedBack", "proposal", "ruled"];
 
 /**
  * What a character's last clean-up attempt did, as the GMs' store holds it; null for none.
@@ -2401,10 +2473,17 @@ export async function attemptOf(actorId) {
     return cleanupAttemptStore.get(actorId ?? "") ?? null;
 }
 
-/** The receipt of an attempt that ended, over whatever the row held. */
+/**
+ * The receipt of an attempt, over whatever the row held. A reshape keeps it twice - once before its
+ * card goes (`proposeReshape`), once when the attempt ends - and a ruling may land between the two
+ * (E09 C10, 08.10.2026): its `ruled`, its `transformed`, a decline's `erased`. So the second write
+ * of the SAME attempt leaves what the receipt does not hold as the row has it, and only a new
+ * attempt nulls every field.
+ */
 function keepAttempt(receipt) {
+    const again = cleanupAttemptStore.get(receipt.actorId)?.attempt === receipt.attempt;
     return cleanupAttemptStore.patch(receipt.actorId,
-        Object.fromEntries(RECEIPT_FIELDS.map(f => [f, receipt[f] ?? null])));
+        Object.fromEntries(RECEIPT_FIELDS.map(f => [f, receipt[f] ?? (again ? undefined : null)])));
 }
 
 /** No receipt: the last attempt is not this character's to take back any more. */
