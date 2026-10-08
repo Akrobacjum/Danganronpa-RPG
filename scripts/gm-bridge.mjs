@@ -916,7 +916,7 @@ async function handleRemnant(payload, sender, ctx) {
         const narrowed = narrowPlayerRemnant(data, actor, locateActor(actor, { sceneId: data.sceneId ?? null }), getClock());
         if (narrowed.refused) return { refused: narrowed.refused };
         data = narrowed.data;
-        if (await worksOwnMurder(payload.data?.projectId, actor, data.action)) data.tiedToCrime = true;
+        if (await worksOwnMurder(payload, actor, data.action, sender)) data.tiedToCrime = true;
     }
     // A trace this client could not place (no scene, no Remnant actor, a token
     // that could not be created) is a failure, not "placed" (E31 review): the
@@ -947,12 +947,31 @@ async function handleRemnant(payload, sender, ctx) {
  * above drops every packet's `tiedToCrime` - so since E03 a trap built from a player's browser left
  * untied traces, which the chapter's end sweeps. Judged here on the GMs' record, not on the packet:
  * the project it names is an indirect murder, and the sender's character is its killer or the one
- * who proposed it. A Sabotage's trace is not judged: until E08+E28 C16 nothing the GMs kept recorded a
- * failed one's target, and the roll's row that does now is not read here.
+ * who proposed it.
+ *
+ * AND A SABOTAGE OF IT (E09 C5, 08.10.2026; audit S10-17). The roller's browser ties the trace of a
+ * Sabotage of an indirect murder (action-rolls.mjs `dropSabotageTrace`) and the rebuild dropped that
+ * too, so the killer's Sabotage of their own trap left an untied trace (read in the code at C5's parent:
+ * this answered false for every action but a Work; the tier-2 tests' red is in C5's message). The
+ * project is not the packet's: it is the target `handleSabotage` noted on the GMs' row of the roll the
+ * trace names (`noteFactOfRoll`; parked there while the row is not kept yet - `factsOfRoll`), and that
+ * row must be the sender's Sabotage roll of the trace's own character. The tie then asks the same as
+ * a Work's: an indirect murder whose killer or proposer is that character. A bystander's Sabotage of
+ * somebody else's trap leaves an untied trace, as the plan decided (E09 plan, C5). A Sabotage whose
+ * packet froze nothing and was not a miss notes no target (`handleSabotage`), so its trace is not tied
+ * (read in the code, not measured).
  */
-async function worksOwnMurder(projectId, actor, action) {
-    if (action !== "project" || typeof projectId !== "string" || !projectId || !actor) return false;
-    const { isIndirectMurder, secretsOf } = await import("./projects.mjs");
+async function worksOwnMurder(payload, actor, action, sender) {
+    if (!actor) return false;
+    let projectId = null;
+    if (action === "project") projectId = payload.data?.projectId;
+    else if (action === "sabotage") {
+        const { factsOfRoll } = await import("./action-rolls.mjs");
+        projectId = (await factsOfRoll(payload.rollId, { by: sender.id, actorId: actor.id, actions: ["sabotage"] }))?.targetProjectId;
+    }
+    if (typeof projectId !== "string" || !projectId) return false;
+    const { isIndirectMurder } = await import("./projects.mjs");
+    const { secretsOf } = await import("./projects-secrecy.mjs");
     if (!isIndirectMurder(projectId)) return false;
     const { killerId, by } = secretsOf(projectId);
     return killerId === actor.id || by === actor.id;
@@ -1111,9 +1130,11 @@ async function handleSabotage(payload, sender, ctx) {
        row, read as the packet arrived, was the previous Sabotage's or none: `roll.bookmark`'s run
        ended after this one in 5 of 5 of the review's runs at f941051 (2 of 3 of its 97 at d20fadb),
        and the Reroll into a miss left the project frozen. The fact now waits for its row (`noteFactOfRoll`); a packet naming no roll
-       writes none. */
+       writes none. Since E09 C5 the fact names the packet's character too: the trace that follows reads
+       its target off this fact to decide its tie, and asks it of the trace's character (`worksOwnMurder`);
+       `owns` and the roll's record (`rolled.actor`) have held `actorId` to the sender's and the roll's. */
     if ((result || !difficulty) && payload.rollId) {
-        await rolls.noteFactOfRoll(payload.rollId, { by: sender.id, actions: ["sabotage"] },
+        await rolls.noteFactOfRoll(payload.rollId, { by: sender.id, actorId: payload.actorId ?? null, actions: ["sabotage"] },
             { targetProjectId: payload.targetId, repairId: result?.repair?.id ?? null });
     }
     if (!difficulty) return { reply: null };

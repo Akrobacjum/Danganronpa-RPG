@@ -14,7 +14,8 @@
  *      its roller for a roll whose document names nobody, and two reports that are not the
  *      sender's to make (A10), and since E08+E28 C8 a rewrite of its rolls put back. Since E32+E07 C11b also a crisis action's statistic, put to the GMs
  *      by its own player and picked on the card (A11). Since E08+E28 C2 also a roll's bookmark for the
- *      Reroll, kept on the GMs from its roller's report (A12).
+ *      Reroll, kept on the GMs from its roller's report (A12). Since E09 C5 also a Sabotage's trace, tied to the
+ *      crime when the saboteur's character is the trap's killer (A14).
  *   B  what E31 adds, each written red (`expectedRed`, with what it measured) until the commit that
  *      made it so, and a plain check since: a refusal carries its reason, in the player's own
  *      language; a refused request is not acknowledged; an exception on the GM's side ends as one
@@ -486,6 +487,59 @@ export async function run({ gm, ag, p1, p2, p3, check, phase, settle, opLog, set
         await game.messages.get("${a12roll ?? ""}")?.delete();
         if (S.rerollBookmarkStore?.has("${IDS.aiko}")) await S.rerollBookmarkStore.drop("${IDS.aiko}");
         return true;`);
+
+    /* A SABOTAGE'S TRACE OF THE SABOTEUR'S OWN TRAP (E09 C5, 08.10.2026; audit S10-17). p2's browser does what
+       action-rolls.mjs `performSabotage` does after its windows: Botan's roll drawn and kept on the GMs' row
+       (`remember`, as the action's own roll is), the Sabotage naming it and awaited, then the trace in the shape
+       `dropSabotageTrace` sends - asked tied, as it asks for any indirect murder. The GM decides the tie from the
+       target its Sabotage noted on that roll's row: tied for the trap Botan is the killer of, not for Aiko's (shared
+       with p2: a trap is seen only by its builder's players until then, and a Sabotage of one unseen is refused). The
+       tier-2 tests make the row late on purpose; here the bookmark, the Sabotage and the trace race as the
+       browsers send them. */
+    phase("a Sabotage's trace of the saboteur's own trap", { flow: "trace-remnant" });
+    const a14traps = await gm.eval(`const P = ${projects};
+        const own = await P.createProject({ name: "E09 C5 Botan's trap", target: 8, room: "Cafeteria", indirectMurder: true, killerId: "${IDS.botan}" });
+        const theirs = await P.createProject({ name: "E09 C5 Aiko's trap", target: 8, room: "Cafeteria", indirectMurder: true, killerId: "${IDS.aiko}",
+            viewers: ["${IDS.p2}"] });
+        return { own: own?.id ?? null, theirs: theirs?.id ?? null };`, { timeout: 60000 });
+    await settle(600);
+    await clearFailures(gm);
+    mark = await refusedCount(p2);
+    const sabotageWithTrace = (targetId, subject) => p2.eval(`const A = await import("${repoUrl}/scripts/action-rolls.mjs");
+        const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const actor = game.actors.get("${IDS.botan}");
+        ${payFor(IDS.botan)}
+        globalThis.__forceRoll = { hope: 9, fear: 5 };
+        let thrown = null;
+        try { thrown = await A.rollTrait(actor, "eye", { actionKey: "sabotage", context: { targetProjectId: "${targetId}", penalty: 0, relief: 0 } }); }
+        finally { delete globalThis.__forceRoll; }
+        const rollId = thrown?.raw?.[A.DRAWN_ROLL]?.messageId ?? null;
+        const frozen = await ${projects}.sabotageProject("${targetId}", 3, { rollId, actorId: actor.id, penalty: 0, relief: 0 });
+        const placed = await R.dropRemnant(actor, { type: "prep", tiedToCrime: true, visibility: "subtle", faint: true,
+            action: "sabotage", rollId, subject: "${subject}", note: "E09 C5" });
+        return { rollId, repair: frozen?.repair?.id ?? null, placed: Boolean(placed) };`, { timeout: 60000 });
+    const a14own = await sabotageWithTrace(a14traps.own, "E09 C5 own trap");
+    const a14theirs = await sabotageWithTrace(a14traps.theirs, "E09 C5 Aiko's trap");
+    await settle(1200);
+    const a14 = { a14traps, a14own, a14theirs,
+        ties: await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+            const tie = subject => canvas.scene.tokens.contents.map(t => R.remnantData(t)).filter(d => d?.subject === subject).map(d => d.tiedToCrime);
+            return { own: tie("E09 C5 own trap"), theirs: tie("E09 C5 Aiko's trap") };`),
+        logged: [...await refusalsLogged(gm, "project.sabotage"), ...await refusalsLogged(gm, "remnant.place")],
+        told: await refusedSince(p2, mark) };
+    check("A14: a player's Sabotage of the trap their character is the killer of leaves a tied trace, and of another's trap an untied one - refused nowhere",
+        Boolean(a14own.rollId && a14own.repair && a14own.placed && a14theirs.rollId && a14theirs.repair && a14theirs.placed)
+        && JSON.stringify(a14.ties) === JSON.stringify({ own: [true], theirs: [null] }) && !a14.logged.length && !a14.told.length,
+        JSON.stringify(a14));
+    await gm.eval(`const P = ${projects}; const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const traps = ${JSON.stringify(Object.values(a14traps).filter(Boolean))};
+        for (const id of [...P.allProjects().filter(p => traps.includes(P.repairs(p.id))).map(p => p.id), ...traps]) await P.deleteProject(id);
+        const left = canvas.scene.tokens.contents.filter(t => ["E09 C5 own trap", "E09 C5 Aiko's trap"].includes(R.remnantData(t)?.subject));
+        for (const t of left) await t.delete();
+        for (const id of ${JSON.stringify([a14own.rollId, a14theirs.rollId].filter(Boolean))}) await game.messages.get(id)?.delete();
+        if (S.rerollBookmarkStore?.has("${IDS.botan}")) await S.rerollBookmarkStore.drop("${IDS.botan}");
+        return true;`, { timeout: 60000 });
 
     /* ------------------------------------------------------ B. what E31 adds */
 

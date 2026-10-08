@@ -1329,6 +1329,79 @@ async function projectPackets(player, actor) {
 }
 
 /**
+ * A PLAYER'S SABOTAGE AND ITS TRACE, AS THE PRIMARY JUDGES THEM (E09 C5, 08.10.2026). `F` is
+ * `projectPackets(player, actor)` and `where` the room `actor` stands in (`playerInRoom`). A roll
+ * of `actor`'s kept on the GMs' row as `player`'s Sabotage of `target` (`playerRollBookmark`), the
+ * GMs' record of it at 13 (`recordFor`), the Sabotage's packet naming it, then the trace's packet
+ * in the shape the roller's browser sends (action-rolls.mjs `dropSabotageTrace`: tied when the
+ * project is an indirect murder), `data` changed in it. `early` takes the row away before the
+ * Sabotage and keeps it again after the trace, as a `roll.bookmark` slower than both leaves it (the
+ * facts are parked, action-rolls.mjs `noteFactOfRoll`). `row` writes the Sabotage's fact on the GMs'
+ * row of another roll instead of sending the packet (`{ actor }`: a Sabotage that character
+ * made, its row kept in `player`'s name), and the trace names that roll. Answers the tie the GMs'
+ * ledger holds for the trace left (true, false or null), "none" when it left none, or the refusal
+ * the Sabotage was told - an untied trace behind a refused Sabotage would measure nothing; takes its
+ * roll, record, row and trace back. `sabotageTraps` makes the indirect murders in `where`'s room,
+ * seen by `player` (a trap is seen only by its builder's players until it is shared, and a Sabotage
+ * of one the sender cannot see is refused, `cannotSee` - measured 08.10.2026, the bystander's and the
+ * proposer's), one per Sabotage, as a frozen project notes no target (gm-bridge.mjs `handleSabotage`),
+ * and deletes them with the repairs the Sabotages made.
+ */
+async function sabotageTraceTie(F, player, actor, where, target, { data = {}, early = false, row = null } = {}) {
+    const { remnantData } = await import("./remnants.mjs");
+    const A = await import("./action-rolls.mjs");
+    const S = await import("./gm-stores.mjs");
+    const scene = where.scene, had = new Set(scene.tokens.map(t => t.id));
+    const subject = `SUITE C5 sabotage ${foundry.utils.randomID(6)}`;
+    const roller = row?.actor ?? actor;
+    const B = await playerRollBookmark(player, roller, "sabotage", { targetProjectId: target, penalty: 0, relief: 0 });
+    const record = await recordFor(B.message, player, actor, "sabotage", { total: 13 });
+    try {
+        // Kept by the GM itself where the bridge would not keep it - another character's roll in this player's name, as
+        // the row of a player who plays both holds it.
+        if (row && S.rerollBookmarkStore.get(roller.id)?.messageId !== B.message.id) {
+            await A.keepGmBookmark({ actorId: roller.id, messageId: B.message.id, actionKey: "sabotage", context: { targetProjectId: target } }, player);
+        }
+        must(S.rerollBookmarkStore.get(roller.id)?.messageId === B.message.id,
+            "the Sabotage's roll was not kept on the GMs' row - this would measure nothing");
+        if (early) await S.rerollBookmarkStore.drop(roller.id);
+        if (row) await A.noteFactOfRoll(B.message.id, { by: player.id, actorId: roller.id, actions: ["sabotage"] }, { targetProjectId: target, repairId: null });
+        const told = row ? null : await F.ask("project.sabotage", { targetId: target, difficulty: 3, rollId: B.message.id, penalty: 0, relief: 0 });
+        await B.ask({ action: "remnant.place", requestId: `suite-c5-${subject}`, rollId: B.message.id,
+            data: { sourceActor: actor.id, action: "sabotage", type: "prep", visibility: "subtle", faint: true, sceneId: scene.id,
+                subject, tiedToCrime: true, ...data } });
+        if (early) {
+            await B.ask({ action: "roll.bookmark", actorId: roller.id, messageId: B.message.id, actionKey: "sabotage", trait: "eye",
+                experiences: [], context: { targetProjectId: target, penalty: 0, relief: 0 } });
+        }
+        const left = scene.tokens.filter(t => !had.has(t.id)).map(t => remnantData(t)).filter(d => d?.subject === subject);
+        return told ? `the Sabotage was refused: ${told}` : left.length === 1 ? left[0].tiedToCrime : "none";
+    } finally {
+        for (const t of scene.tokens.filter(t => !had.has(t.id))) await t.delete();
+        await record.putBack();
+        await B.putBack();
+    }
+}
+
+/** The traps `sabotageTraceTie` is thrown at, and their putting back (above). */
+function sabotageTraps(F, where, player) {
+    const made = [];
+    return {
+        make: async secrets => {
+            const project = await F.P.createProject({ name: `SUITE C5 trap ${made.length + 1}`, target: 12, room: where.room,
+                indirectMurder: true, viewers: [player.id], ...secrets });
+            must(project?.id && F.P.isIndirectMurder(project.id), "could not make an indirect murder - this would measure nothing");
+            made.push(project.id);
+            return project.id;
+        },
+        putBack: async () => {
+            const all = [...F.P.allProjects().filter(p => made.includes(F.P.repairs(p.id))).map(p => p.id), ...made];
+            for (const id of all) await F.P.deleteProject(id).catch(() => {});
+        }
+    };
+}
+
+/**
  * A ROLL THE GM CAN THROW AGAIN (E08+E28 C4a, 03.10.2026). The harness's roll message holds
  * plain JSON, with no `Roll#reroll`, and the Reroll on the GM rebuilds the roll by its own
  * class (reroll.mjs `rollAsThrown`) and throws that again. So `message.rolls` reads, on this
@@ -11050,6 +11123,101 @@ const SCENARIOS = [
             if (readied) await readied.setFlag(MODULE_ID, EQUIPPED_FLAG, true);
             await record?.putBack();
             await B.putBack();
+            await F.putBack();
+        }
+    }],
+
+    ["a killer's or a proposer's Sabotage of their own indirect murder leaves a tied trace", async () => {
+        /*
+         * E09 C5, 08.10.2026; audit S10-17, its Sabotage half (the Work half closed in E32+E07 fix
+         * r2-G3). The roller's browser ties the trace of a Sabotage of an indirect murder, and the GM's
+         * rebuild of a player's trace dropped that, so the trap's builder left an untied trace: '?' on
+         * the dashboard, left out of the murder-first order, and swept at the chapter's end as Faint. A
+         * connected player's character in a room; an indirect murder there whose killer is that
+         * character, one whose proposer is, and a third the Sabotage reaches before its roll's row is
+         * kept (`sabotageTraceTie`, `early`). Read: the tie the GMs' ledger holds for each trace.
+         * Red at C5's parent: <measured by A2>.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id);
+        must(other, "no second character to be the trap's killer - this would measure nothing");
+        const F = await projectPackets(player, actor);
+        const traps = sabotageTraps(F, where, player);
+        try {
+            const ties = [
+                await sabotageTraceTie(F, player, actor, where, await traps.make({ killerId: actor.id })),
+                await sabotageTraceTie(F, player, actor, where, await traps.make({ killerId: other.id, by: actor.id })),
+                await sabotageTraceTie(F, player, actor, where, await traps.make({ killerId: actor.id }), { early: true })
+            ];
+            equal(stableJson(ties), stableJson([true, true, true]),
+                "a Sabotage of the saboteur's own indirect murder left a trace not tied to the crime (killer, proposer, row kept after the trace)");
+        } finally {
+            await traps.putBack();
+            await F.putBack();
+        }
+    }],
+
+    ["a bystander's Sabotage of an indirect murder leaves an untied trace", async () => {
+        /*
+         * E09 C5, 08.10.2026; audit S10-17 and the plan's C5: the tie is the GM's, from the target
+         * `handleSabotage` noted on the GMs' row and the trap's secrets, never the packet - and the
+         * roller's browser asks it tied for anybody's Sabotage of an indirect murder. A connected
+         * player's character in a room Sabotages a trap there whose killer and proposer are another
+         * character, the packet asking it tied; then one of its own, the same way. Read: the two ties.
+         * Red at C5's parent: <measured by A2>.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id);
+        must(other, "no second character to be the trap's killer - this would measure nothing");
+        const F = await projectPackets(player, actor);
+        const traps = sabotageTraps(F, where, player);
+        try {
+            const ties = [
+                await sabotageTraceTie(F, player, actor, where, await traps.make({ killerId: other.id, by: other.id })),
+                await sabotageTraceTie(F, player, actor, where, await traps.make({ killerId: actor.id }))
+            ];
+            equal(stableJson(ties), stableJson([null, true]),
+                "a bystander's Sabotage of somebody else's trap left a tied trace, or the trap's killer's an untied one (bystander, killer)");
+        } finally {
+            await traps.putBack();
+            await F.putBack();
+        }
+    }],
+
+    ["a Sabotage trace's tie reads neither the packet's project nor another character's roll", async () => {
+        /*
+         * E09 C5, 08.10.2026; the plan's C5 ("a forged packet's projectId is not read"). A trace
+         * tied from the packet would let any Sabotage claim the trap: the Work's trace names its
+         * project in the packet (`worksOwnMurder`), a Sabotage's never counts. A connected player's
+         * character in a room, the killer of a trap there: (a) Sabotages a plain project, its trace's
+         * packet naming the trap as `projectId`; (b) leaves a trace naming the roll of another
+         * character's Sabotage of the trap, kept in the same player's name (`sabotageTraceTie`,
+         * `row`; a GM whose Daggerheart is not the draw's build reads no record of the roll,
+         * bridge-guards.mjs `rollsFor`, so the row is all that names its character); (c) Sabotages
+         * the trap itself. Read: the three ties. Red at C5's parent: <measured by A2>.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the project stands in the room the player's character stands in");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        const { player, actor, where } = await playerInRoom();
+        const other = game.actors.find(a => a.type === "character" && a.id !== actor.id);
+        must(other, "no second character to have made the other Sabotage - this would measure nothing");
+        const F = await projectPackets(player, actor);
+        const traps = sabotageTraps(F, where, player);
+        try {
+            const plain = await F.project(where.room);
+            const ties = [
+                await sabotageTraceTie(F, player, actor, where, plain, { data: { projectId: await traps.make({ killerId: actor.id }) } }),
+                await sabotageTraceTie(F, player, actor, where, await traps.make({ killerId: actor.id }), { row: { actor: other } }),
+                await sabotageTraceTie(F, player, actor, where, await traps.make({ killerId: actor.id }))
+            ];
+            equal(stableJson(ties), stableJson([null, null, true]),
+                "a Sabotage's trace was tied from the packet's project or from another character's roll, or the killer's own was not (packet, other roll, own)");
+        } finally {
+            await traps.putBack();
             await F.putBack();
         }
     }],

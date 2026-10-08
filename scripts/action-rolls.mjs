@@ -1291,6 +1291,26 @@ export async function noteFactOfRoll(messageId, { by, actorId = null, actions },
     return true;
 }
 
+/**
+ * The facts the GMs hold for the roll `messageId` names, read the way `noteFactOfRoll` writes
+ * them (E09 C5, 08.10.2026): the row's, when that row is `by`'s roll of `actorId` for one of
+ * `actions`; while no row of that message is kept, the facts parked for it under the same sender,
+ * character and action, merged - a Sabotage's packet can come before its roll's `roll.bookmark`
+ * has kept the row (above), and so can the trace that follows it. Null when neither holds any:
+ * a row that is another's, another character's or another action's answers nothing. Read in one
+ * synchronous step after the store's hydration. A GM's only.
+ */
+export async function factsOfRoll(messageId, { by, actorId = null, actions }) {
+    if (!game.user?.isGM || typeof messageId !== "string" || !messageId || !by) return null;
+    await rerollBookmarkStore.whenHydrated();
+    const wanted = { by, actorId, actions };
+    const [rowActor, row] = Object.entries(rerollBookmarkStore.entries()).find(([, r]) => r?.messageId === messageId) ?? [];
+    if (row) return rowTakes(row, rowActor, wanted) ? { ...(row.facts ?? {}) } : null;
+    const parked = (factsAwaitingRow.get(messageId) ?? []).filter(w => w.by === by
+        && (!actorId || w.actorId === actorId) && w.actions.some(action => actions.includes(action)));
+    return parked.length ? Object.assign({}, ...parked.map(w => w.facts)) : null;
+}
+
 /*
  * AND THE RESOLVERS' FACTS THE SAME WAY (E08+E28 fix r1-G2, 04.10.2026; the round-1 review's B1,
  * its rest). A crisis action, an Analyze, a clean-up, an Observe and a Search's plant are carried
