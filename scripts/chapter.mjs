@@ -216,7 +216,7 @@ export async function killCharacter(actor, { keepBullets = false, secret = null 
      * Outside an incident there are no participants and this is exactly what
      * it always was, a whisper to the GMs.
      *
-     * "Inside" is `incidentAudienceIds` (murder.mjs) at the stage the kill leaves,
+     * "Inside" is `incidentAudienceIds` (incident-store.mjs) at the stage the kill leaves,
      * the one table every card of the incident reads (E06 C4, 27.09.2026; audit
      * S04-01). It was every participant's owner, and a trap's builder is a
      * participant who is in no room: a death while the trap runs told them it had
@@ -386,7 +386,7 @@ async function destroyBullets(actor) {
  * Phase one of a death kept secret (E05 C10): the GMs' row and the copies of those who may
  * know, and nothing written on the actor. `known` is the players of the incident's seats as
  * they are now - every kill site runs after the stage has moved, so a trap's killer is back
- * in (murder.mjs `incidentKnowers`); the victim's own player knows by ownership. Answers the
+ * in (incident-store.mjs `incidentKnowers`); the victim's own player knows by ownership. Answers the
  * record, or null when the row did not take - and the caller then publishes the death as
  * before, since a death lost is worse than one told early.
  */
@@ -475,7 +475,7 @@ export async function publishDeath(actor) {
  * window is where one is made known. Answers how many.
  * What "nowhere" means at the trial (E05 fix r2-G1, 27.09.2026; review F1, S2-m6): the
  * student is living to the table (rule A) - a ballot, a Level Up with the class - and the
- * trial asks for no killer of theirs (murder.mjs `trialBlackenedIds`). The notice said
+ * trial asks for no killer of theirs (incident-store.mjs `trialBlackenedIds`). The notice said
  * "no ballot, no count" while the victim's player was sent a ballot and the killer was
  * counted (review F1): the ballot stays, the count goes, and the notice says so.
  */

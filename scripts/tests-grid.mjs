@@ -79,7 +79,7 @@ import { ok, must, needs, world, wait, until, settle, stableJson } from "./tests
  * THE TABLES (the plan's 2.1), written from the handbooks, not imported
  * ========================================================================== */
 
-/** What the world half of an incident may hold (murder.mjs `PUBLIC_INCIDENT`, E05 C8; the stage alone since E32 C2), as the grid's own list. */
+/** What the world half of an incident may hold (incident-store.mjs `PUBLIC_INCIDENT`, E05 C8; the stage alone since E32 C2), as the grid's own list. */
 const PUBLIC_FIELDS = Object.freeze(["active", "stage"]);
 
 /**
@@ -1132,7 +1132,7 @@ async function queued(run, label, write) {
 }
 
 /**
- * A pack used as the player's browser uses one before it tells the GM (murder.mjs
+ * A pack used as the player's browser uses one before it tells the GM (murder-rules.mjs
  * `afterCrisisRoll`): a Tier 1 heal - one Health mark off - and one off the pack. Answers what
  * it started from, as the browser sends it.
  */
@@ -1344,7 +1344,7 @@ async function assertIncidentInvariants(run) {
  * tracker line (`recent`) and its success at the action's threshold are the record's (a Finishing
  * blow's threshold moves, so its success is not read); where it is not this roll's, nothing of the
  * kind is read. A critical with a pick (a Strike's) lands the pick: the tracker line's `changes`,
- * read off the victim's sheet before the pass (murder.mjs `landedSince`, so the drain at the
+ * read off the victim's sheet before the pass (murder-rules.mjs `landedSince`, so the drain at the
  * victim's turn is not in it), are the action's critical amount on the resource picked and none on
  * the other - after the first throw and after a Reroll's replay alike (fix r2-G3: until then only
  * the marks below were compared, which a pick landed the wrong way round on both throws passes

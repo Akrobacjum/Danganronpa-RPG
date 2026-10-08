@@ -183,7 +183,7 @@ export function registerGmBridge() {
  * `senderId` is checked rather than the payload: an invitation to roll is an
  * instruction to spend this character's resources, and only a GM may issue it.
  *
- * It carries the statistic a GM picked for it (E32+E07 C11c; murder.mjs
+ * It carries the statistic a GM picked for it (E32+E07 C11c; murder-rules.mjs
  * `openingTraitFor`), the one this client throws; `throwOpeningRoll` holds it to the
  * two the side lists.
  */
@@ -628,7 +628,7 @@ async function handleCrisis(payload, sender, ctx, prepared) {
         // item would give a Reroll the run of another sheet.
         usedItemId: actor?.items?.has(payload.usedItemId) ? payload.usedItemId : null,
         // Same test: the swing names an item, and only one the sender holds. The
-        // damage is read off it since E32+E07 C8, and murder.mjs `swungWeapon`
+        // damage is read off it since E32+E07 C8, and murder-rules.mjs `swungWeapon`
         // narrows it further, to a readied Crime Tool on an action that swings.
         swungId: actor?.items?.has(payload.swungId) ? payload.swungId : null,
         // What the item's use started from, as the player read it: their own character's
@@ -1530,7 +1530,7 @@ export const BRIDGE_ACTIONS = table({
             choice: as.oneOf("stress", "hp"), usedItemId: as.id, swungId: as.id, free: as.bool, before: as.raw, rollId: as.id }),
         run: handleCrisis,
         // Answered once applied, which can wait on the GM: two killers' victim
-        // running out is asked of them (`checkVictimSpent`, murder.mjs).
+        // running out is asked of them (`checkVictimSpent`, murder-rules.mjs).
         answer: "reply",
         /* A crisis action's roll, on the GMs' record of it (E08+E28 C17). A packet that names
            none threw none - a third party's decision, a free take - and `guardCrisisRoll`

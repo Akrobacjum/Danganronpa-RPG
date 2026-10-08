@@ -26,7 +26,7 @@
  * packet says only which definition.
  *
  * The crisis actions ask (C11b), and so do the openings and Stage 6's rolls
- * (C11c): an opening on a GM's browser alone, since a GM sends it (murder.mjs
+ * (C11c): an opening on a GM's browser alone, since a GM sends it (murder-rules.mjs
  * `rollOpening`; `guardTraitRuling` refuses one from a player), and a clean-up
  * from whoever throws it.
  *
@@ -141,7 +141,7 @@ export function resolveArmed(actor) {
  *
  * `seams` is the suite's (R212): who this browser is, whether Resolve is armed,
  * and the two ways of asking, each defaulting to the real one. One caller outside
- * the suite hands one in: the opening (murder.mjs `rollOpening`), whose roll is a
+ * the suite hands one in: the opening (murder-rules.mjs `rollOpening`), whose roll is a
  * supporting one that every Call is shielded from, so an armed Resolve buys no
  * picker there and the GM picks.
  */
@@ -209,7 +209,7 @@ export function traitWithValue(actor, trait) {
 
 /**
  * The class of the GM's window that picks for a kind of roll: the opening's is closed
- * when the incident it was for closes (murder.mjs `revokeOpeningInvitation`), because
+ * when the incident it was for closes (murder-rules.mjs `revokeOpeningInvitation`), because
  * nothing awaits that window but the invitation it would send.
  */
 export const pickWindowClass = kind => `drpg-trait-pick-${kind}`;

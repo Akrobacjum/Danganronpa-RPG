@@ -408,7 +408,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, canary, repoUr
         return t ? { id: t.id, scene: t.parent?.id ?? null, hidden: t.hidden, marked: t.getFlag("${MOD}", "fromIncident") ?? null } : null;`, { timeout: 60000 });
     await p3.eval(`delete globalThis.__forceRoll; globalThis.__dialogAuto = false; return true;`);
     /* THE CRISIS ROLL'S BOOKMARK (E05 C7, 26.09.2026; audit S02-01). A crisis action's roll is
-       bookmarked for a Reroll (murder.mjs `takeCrisisAction`); here p3 throws Chie's the way that
+       bookmarked for a Reroll (murder-rules.mjs `takeCrisisAction`); here p3 throws Chie's the way that
        roll is thrown, and the GM rules the blow as before. Until 1.2.64 the bookmark was Chie's
        actor flag, which this phase's world scan found on p1 and p2 (measured on the C6 tree with
        this roll); E05 C7 made it p3's own client setting, and E08+E28 C4a the GMs' row, which

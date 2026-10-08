@@ -1351,7 +1351,7 @@ async function throwDrawn({ actorId, actionKey, nonce, claimed, loaded, costs, r
  *   - the advantage dice, summed and capped as roll-dialog.mjs `advantageSources` sums them: the
  *     Calls the roll applied (`calls`), the hostile ones it did not name (`hostile`, below),
  *     Breakdown (`breakdown`), and the situation (`situation`), per action: a Search's room, an
- *     opening's Night, a crisis action's own (murder.mjs `crisisSituational`), a tool in hand for
+ *     opening's Night, a crisis action's own (murder-rules.mjs `crisisSituational`), a tool in hand for
  *     a Work or a Sabotage, a Cleaning Tool for a clean-up but a body moved;
  *   - a hidden stash in the room this GM sees the searcher in (`stashStep`), against the packet's word.
  * A HOSTILE CALL COUNTS NAMED OR NOT (the owner's Q3 (a), 05.10.2026). A disadvantage or a bonus below
@@ -1444,7 +1444,7 @@ function traitKeyOf(trait) {
  * picking Body, rolled with Eye; one with no card made for it - were held to nothing and flagged
  * nothing. Now this GM
  * reads the action's own definition, as the ruling reads it (trait-ruling.mjs `listedTraits`):
- * a crisis action at the variant the character rolls here (murder.mjs `crisisVariant`), a project
+ * a crisis action at the variant the character rolls here (murder-rules.mjs `crisisVariant`), a project
  * given no statistic, an action of the generic table - a pick is due where it lists several. The
  * clean-up's step and its door were not in the packet's context, so until E29 C9 a clean-up rolled
  * with a statistic one of its single-statistic roads rolls - Tamper's Shadow, a Stage 6 action's own -
@@ -1461,7 +1461,7 @@ const TOLD_AS = Object.freeze({ palm: Object.freeze({ key: "palm", part: "unseen
 /**
  * The statistics the definition a roll is told for lists, read from this GM's config as the
  * ruling reads it (trait-ruling.mjs `listedTraits`): a crisis action at the variant the character
- * rolls here (murder.mjs `crisisVariant`), the project a Work or a Sabotage names, a clean-up's
+ * rolls here (murder-rules.mjs `crisisVariant`), the project a Work or a Sabotage names, a clean-up's
  * step - through Tamper's door Tamper's first, which cleanup.mjs `cleanupTrait` rolls whatever
  * the step - or an action of the table, whole or the part its key is told for (`TOLD_AS`). `[]`
  * for none this GM knows.
@@ -1667,7 +1667,7 @@ function openingSideOf(actor, context, state) {
 function situationReading(actor, { key, context, ready: { vault, murder, items, cleanup, heldNow } }) {
     if (key === "search") return searchOdds(actor, roomOfActor(actor), context.category ?? null, vault).situational;
     if (key === "murderOpening") {
-        // The Night's die, the opening roll's own (murder.mjs `throwOpeningRoll`, `rollTrait`'s `situational`).
+        // The Night's die, the opening roll's own (murder-rules.mjs `throwOpeningRoll`, `rollTrait`'s `situational`).
         const side = openingSideOf(actor, context, murder.murderState());
         const def = side ? MURDER_OPENING[side] ?? {} : {};
         return side && murder.atNight() ? (def.nightAdvantage ? 1 : def.nightDisadvantage ? -1 : 0) : 0;

@@ -158,7 +158,7 @@ export const FLOWS = Object.freeze([
     // GM - in that run the GMs' records of the three rolls were p3's and claimed. L9's phase is this flow's since C14c;
     // it was gm-rolls-total's, which 83's other phases keep.
     { id: "murder-incident", what: "The incident: the opening roll, the crisis actions, the betrayal, the park, the clean-up",
-        entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["murder.mjs"] },
+        entry: { bridge: ["murder.openingResult", "murder.crisis", "murder.betrayal", "murder.park", "murder.cleanup"], sockets: ["incident-store.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "13-murder-signals", "19-standing-cast", "30-security", "60-ledger", "61-gmstore-case", "83-roll-integrity"],
         suite: ["tests-grid.mjs"], status: "covered", stage: "1.2.69" },
     { id: "pre-session-note", what: "A player's pre-session note: sent to the primary GM, or kept until one connects, and each player's copy of their own",

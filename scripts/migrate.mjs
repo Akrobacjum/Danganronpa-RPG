@@ -934,7 +934,7 @@ const CLAUSES = [
          * 1.2.66 the world half of `murderState` held the round, whose side acts, the hindrances,
          * what is spent and the rest of the fight, on every browser; since then they are the
          * cast's. Once, on the primary, after the cast's copies arrived and after the method's
-         * lift, with the rules written on `liftIntoCast` (murder.mjs): while an incident runs,
+         * lift, with the rules written on `liftIntoCast` (incident-store.mjs): while an incident runs,
          * into the cast weak and fill-only and out of the world half only once the cast reads
          * back holding them, then each participant's copy; with none running, out of the world
          * half.

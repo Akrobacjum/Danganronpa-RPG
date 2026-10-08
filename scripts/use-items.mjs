@@ -198,7 +198,7 @@ export function readiedItem(actor) {
  * @param {Item|null} tool  Captured BEFORE the roll.
  * @param {object}    roll  What `rollTrait` returned.
  * @param {object}    [held]  The tool as the GMs hold it, where a GM's road read it so (the
- *   crisis's swing, murder.mjs `wearSwing`; E29 fix r2-H18): whether it is broken and how much
+ *   crisis's swing, murder-rules.mjs `wearSwing`; E29 fix r2-H18): whether it is broken and how much
  *   it can take are read off it, and the wear is written to `tool` (inventory.mjs `wearItem`).
  * @returns {Promise<string|null>} the name of what broke, or null.
  */
@@ -403,10 +403,10 @@ function usedStamp(actor, item) {
 
 /*
  * `again` (E08+E28 C6b, 03.10.2026; audit S04-18): `{ resource }`, a use a Reroll's replay makes
- * again on a GM after its rewind gave the item and the heal back (murder.mjs `afterCrisisRoll`).
+ * again on a GM after its rewind gave the item and the heal back (murder-rules.mjs `afterCrisisRoll`).
  * Its questions were asked at the first use, so it asks none: the reserve is the one the first
  * use restored (`resource`, where this item can restore it, else the first it offers). Its Hope
- * bonus is paid as a fresh use's is: the rewind takes the first use's back (murder.mjs
+ * bonus is paid as a fresh use's is: the rewind takes the first use's back (murder-rules.mjs
  * `undoLastCrisis`, fix r1-G6; the round-1 review's m5 - C6b paid none and took none back, so a
  * tier 3 rerolled into a miss kept 2 Hope for a use that no longer happened). No card and no
  * stamp: the first use's card stands, and a trap that watches for the item heard it then
@@ -414,7 +414,7 @@ function usedStamp(actor, item) {
  * it counts as used and restores nothing.
  *
  * `held` (E29 fix r2-H20, 06.10.2026; as H19's ruling) is the item as the GMs hold it, where a
- * GM's road read it so - the replay's use (murder.mjs `afterCrisisRoll`, from `applyCrisisAction`'s
+ * GM's road read it so - the replay's use (murder-rules.mjs `afterCrisisRoll`, from `applyCrisisAction`'s
  * `held`): whether it is a usable, broken or stashed, its tier and its kind are read off it, and
  * its count by `consume`; the writes go to `item`, the document. Until this fix (4d1532c,
  * e29run/r2h20red, 06.10.2026) the replay of a Tier 1 healing pack given tier 3 where the GMs'

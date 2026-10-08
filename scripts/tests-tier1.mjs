@@ -835,10 +835,10 @@ const INVARIANTS = [
          * they would have thought of it.
          */
         const src = stripComments(
-            await fetch(`/modules/${MODULE_ID}/scripts/murder.mjs`).then(r => r.text()));
+            await fetch(`/modules/${MODULE_ID}/scripts/murder-rules.mjs`).then(r => r.text()));
 
         // The whole function (E32 C5a): the Class Trial's refusal pushed the fight's past 2600 characters.
-        const body = bodyOf(src, "export function betrayalTarget", { until: "\n}" });
+        const body = fnSource(src, "betrayalTarget");
         // The offer lives in the cast (CASE-04), never on the actor: a flag is
         // world data every client receives.
         ok(/readCast\(\)\.betrayal/.test(body),
@@ -878,7 +878,9 @@ const INVARIANTS = [
         // comment's length, so the note above the arming counts too. The suite
         // then reported the window "armed somewhere else" while it sat exactly
         // where it always had. A function ends at its own closing brace.
-        const writer = bodyOf(src, "async function writeState", { until: "\n}" });
+        // E34 C7a (1.2.70): the writer is incident-store.mjs's; the rest of this reads murder-rules.mjs (E34 C8).
+        const writer = fnSource(stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/incident-store.mjs`).then(r => r.text())), "writeState");
         ok(/armBetrayalWindow/.test(writer),
             "the window is armed somewhere other than the single state writer");
         ok(/before\.stage !== "resolution"/.test(writer),
@@ -886,8 +888,8 @@ const INVARIANTS = [
 
         // Single use, spent before the attempt rather than after it - since E32 C5a in the one
         // path the tile and the GM's checklist share, before the incident it opens.
-        const opener = bodyOf(src, "async function openBetrayal", { until: "\n}" });
-        ok(/openBetrayal\(/.test(bodyOf(src, "export async function betrayAsPlayer", { until: "\n}" })),
+        const opener = fnSource(src, "openBetrayal");
+        ok(/openBetrayal\(/.test(fnSource(src, "betrayAsPlayer")),
             "the tile's betrayal does not go through openBetrayal, the path that spends the offer");
         const takenAt = opener.search(/takeBetrayalOffer\(/);
         ok(takenAt > 0 && takenAt < opener.search(/\bopenMurder\(/),
@@ -995,7 +997,7 @@ const INVARIANTS = [
          * Cheap to write down and it covers the whole module, not this stage.
          */
         const guilty = [];
-        for (const file of ["traps", "projects", "gm-panel", "sheet", "murder"]) {
+        for (const file of ["traps", "projects", "projects-secrecy", "gm-panel", "sheet", "murder", "incident-store", "murder-rules", "murder-ui"]) {
             const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
             for (const m of src.matchAll(/game\.i18n\.localize\([^)]*\)\s*\|\|/g)) {
                 guilty.push(`${file}.mjs :: ${m[0].slice(0, 60)}`);
@@ -1240,7 +1242,7 @@ const INVARIANTS = [
         const files = [
             "music", "investigation", "trial-floor-ui", "projects-ui", "vault",
             "tables", "season-setup", "mastermind", "rules", "monocub",
-            "gm-team-dialog", "gm-items", "gm-panel", "murder", "voice", "trial"
+            "gm-team-dialog", "gm-items", "gm-panel", "murder", "murder-ui", "voice", "trial"
         ];
 
         const missing = [];
@@ -3962,10 +3964,10 @@ const INVARIANTS = [
            "own": the sender reads the stamps itself - the offers', from the store's rows for the
            user's characters (C8), the fog's, a section of the store (C9), and since E05 the
            crossings' and the note's (C4, C6) - so a call of it passes none. */
-        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
+        const SENDERS = [["mastermind.mjs", "sendDoorFlag"], ["incident-store.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo", "own"],
             ["fog.mjs", "sendStoreTo", "own"], ["eclipse.mjs", "sendMovesTo", "own"], ["pre-session-note.mjs", "sendNoteTo", "own"],
             // E05 C10: the deaths a player may know, a stamp per body read off the store's rows.
-            ["murder.mjs", "sendDeathsTo", "own"],
+            ["incident-store.mjs", "sendDeathsTo", "own"],
             // E05 C13: which trace each of a player's bullets came from, a stamp per bullet read off the rows.
             ["truth-bullets.mjs", "sendBulletRefsTo", "own"]];
         // The crossings' copy (E05 C4) is an owner's whole set, a stamp per character, as the offers are;
@@ -4181,8 +4183,9 @@ const INVARIANTS = [
             J({ killerId: "K", killerTurnId: "K", victimId: "V", betrayal: null }), "a field the write left out of what this browser held was not removed");
         equal(J(M.castFieldsToWrite({ thirdId: null, notAField: 1 }, { thirdId: "T" })), J({ thirdId: null }),
             "a named null was not written, or a field the record does not have was");
-        const src = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
-        ok(/const fields = castFieldsToWrite\(next, previous\);/.test(fnSource(src, "writeCast")), "writeCast does not stamp what castFieldsToWrite names");
+        const sources = new Map(await otherSources());
+        const src = stripComments(sources.get("murder-rules.mjs") ?? "");
+        ok(/const fields = castFieldsToWrite\(next, previous\);/.test(fnSource(stripComments(sources.get("incident-store.mjs") ?? ""), "writeCast")), "writeCast does not stamp what castFieldsToWrite names");
         for (const fn of ["passTurn", "thirdPartyEnters"]) {
             const body = fnSource(src, fn);
             const asked = body.indexOf("castHeldHere(state)"), wrote = body.indexOf("writeState(");
@@ -4211,19 +4214,19 @@ const INVARIANTS = [
         const sources = new Map(await otherSources());
         const src = file => stripComments(sources.get(file) ?? "");
         const found = [];
-        for (const [file, fn] of [["mastermind.mjs", "sendDoorFlag"], ["murder.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo"], ["fog.mjs", "sendStoreTo"]]) {
+        for (const [file, fn] of [["mastermind.mjs", "sendDoorFlag"], ["incident-store.mjs", "sendCast"], ["gm-bridge.mjs", "sendOffersTo"], ["fog.mjs", "sendStoreTo"]]) {
             const body = fnSource(src(file), fn);
             const asked = body.indexOf("gmStoresQuiet()"), sent = body.search(/\bemit\(/);
             if (asked < 0 || sent < asked) found.push(`${file} ${fn} sends without asking whether the suite holds the stores`);
         }
-        for (const [file, fn, reads] of [["mastermind.mjs", "registerMastermind", "const mine = readStore();"], ["murder.mjs", "registerIncidentCastSync", "const cast = readCast();"],
+        for (const [file, fn, reads] of [["mastermind.mjs", "registerMastermind", "const mine = readStore();"], ["incident-store.mjs", "registerIncidentCastSync", "const cast = readCast();"],
             ["fog.mjs", "registerLedgerRoad", "sendStoreTo(sender);"], ["gm-bridge.mjs", "handleAdvancementAsk", "sendOffersTo(sender.id)"]]) {
             const body = fnSource(src(file), fn);
             const waited = body.indexOf("whenGmStoresAudible()"), read = body.indexOf(reads);
             if (waited < 0 || read < waited) found.push(`${file} ${fn} answers a player's request before the suite lets the stores go`);
         }
         for (const [file, key, compare, tell, baseline] of [["mastermind.mjs", "mastermind", "tellDoorChange", "notifyDoorAccess", "told"],
-            ["murder.mjs", "incidentCast", "tellCastChange", "pushCastToParticipants", "castTold"]]) {
+            ["incident-store.mjs", "incidentCast", "tellCastChange", "pushCastToParticipants", "castTold"]]) {
             const text = src(file);
             // The watch: `if (key !== \`${MODULE_ID}.${SETTINGS.<key>}\` || ... || gmStoresQuiet()) return;` and then the comparison.
             const watch = new RegExp(`key !== \`\\$\\{MODULE_ID\\}\\.\\$\\{SETTINGS\\.${key}\\}\`[^\\n]*\\|\\| gmStoresQuiet\\(\\)\\) return;\\s*${compare}\\(\\);`);
@@ -4523,8 +4526,8 @@ const INVARIANTS = [
             else if (!store.spec.backup || typeof store.spec.afterRestore !== "function") wrong.push(`${name}: its store ${from} does not send it again after a restore`);
         }
         ok(!wrong.length, `a player's copy is not sent again after a restore: ${wrong.join("; ")}`);
-        const RETELLS = [["mastermind.mjs", "retellDoor"], ["murder.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
-            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["murder.mjs", "retellDeaths"],
+        const RETELLS = [["mastermind.mjs", "retellDoor"], ["incident-store.mjs", "retellCast"], ["level-up.mjs", "retellOffers"], ["fog.mjs", "retellFog"],
+            ["eclipse.mjs", "retellMoves"], ["pre-session-note.mjs", "retellNotes"], ["incident-store.mjs", "retellDeaths"],
             // E05 C13: the bullets' store, which each player's copy of their bullets' traces is made of.
             ["truth-bullets.mjs", "retellBulletRefs"],
             // E06 fix r2-G4: the Confusions' store, which each owner's copy of their characters' armed Confusions is made of.
@@ -5018,7 +5021,7 @@ const INVARIANTS = [
          * E05 fix r2-G1, 27.09.2026; review F1, the owner's Q3. The register takes a killer when the
          * incident closes, which is usually before anybody finds the body, and the trial read the
          * register whole: a death nobody had found was counted by the ballot and the verdict.
-         * murder.mjs `countsAtTrial`, the rule under `trialBlackenedIds`, pure, driven over rows
+         * incident-store.mjs `countsAtTrial`, the rule under `trialBlackenedIds`, pure, driven over rows
          * shaped as `recordBlackened` writes them: a row counts unless every victim it names is a
          * death nobody has published, and a row that names none - every row written before 1.2.64,
          * when a death was the table's at the kill - counts as it always did. Then read from the
@@ -5287,11 +5290,12 @@ const INVARIANTS = [
          * E32 C5a, 28.09.2026; audit S04-03. `openMurder` wrote a patch that named a new
          * incident's fields one by one, and a field it left out crossed from the last incident
          * into the next - `thirdActed` into a betrayal's until E32 C2. It writes
-         * `freshIncidentState` whole now (murder.mjs), so that list is the one to hold: every
-         * field of `PUBLIC_INCIDENT` and of `CAST_FIELDS` but `betrayal`, which a close keeps
-         * (D18), and nothing else. Then what it opens with - the stage, the killers' turn, the
-         * kind, the clock's reading it was handed - and that it is pure: two calls with the same
-         * answers are equal and share nothing, so a caller that changes one does not change the next.
+         * `freshIncidentState` whole now (murder-rules.mjs, re-exported by murder.mjs), so that
+         * list is the one to hold: every field of `PUBLIC_INCIDENT` and of `CAST_FIELDS` but
+         * `betrayal`, which a close keeps (D18), and nothing else. Then what it opens with -
+         * the stage, the killers' turn, the kind, the clock's reading it was handed - and that
+         * it is pure: two calls with the same answers are equal and share nothing, so a caller
+         * that changes one does not change the next.
          */
         const M = await import("./murder.mjs");
         const S = await import("./gm-stores.mjs");
@@ -5314,7 +5318,7 @@ const INVARIANTS = [
 
     ["R207 - a closed incident left a body by the ending that kills or by its victim dead, and Escape together's trace is an incident's", async () => {
         /*
-         * E32 C6, 28.09.2026; audit S04-11, S02-43. murder.mjs `leftABody` is the one question
+         * E32 C6, 28.09.2026; audit S04-11, S02-43. incident-store.mjs `leftABody` is the one question
          * the Blackened, the betrayal's offer, the GM's checklist and the participants' notice
          * ask at a close. Every ending the module writes (and none), each with the victim alive
          * and dead, on made-up states and a made-up reader of a death: a Finishing blow, running
@@ -5425,7 +5429,7 @@ const INVARIANTS = [
         /*
          * E32+E07 fix r1-G1, 29.09.2026; the security review's M1. The offer outlives its
          * incident (D18), and while another runs its third is sent the offer alone with the
-         * seats' stamps (murder.mjs `castPacket`): the rest of the record's stamps time that
+         * seats' stamps (incident-store.mjs `castPacket`): the rest of the record's stamps time that
          * other fight. Weighed on every part, the copy they held of the fight they fought
          * refused it - 0 against its turn's stamp. Pure (`castCombine`), on fixture stamps.
          */

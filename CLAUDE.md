@@ -37,7 +37,8 @@ If a claim cannot be measured, say that instead of rounding it up.
 | The suite, headless | `npm run suite`, or `node cluster.mjs scenarios/01-runtests.mjs` |
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
 | Every scenario | `npm run scenarios`: the rows with layers `ci` in `audit/harness/README.md` |
-| One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, contract, registry, stages, tree, gatecode |
+| One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode |
+| Whether a commit only moved code | `node tools/moved-only.mjs HEAD~1` - every line moved, promoted, an import or a header; every top-level statement of the files it touches the same tokens at both ends, comments aside; every name read means what it meant (an alias by what it reads, not by its name), and none written became an import; a facade's exports unchanged, each the same declaration, and no name a file stops exporting still imported by a file of scripts/ or audit/harness (statically, or through the import() forms its header names); no import of a module the family did not load, and none for side effects alone; a cut a tier file reads by name, as a table's key, through the bridge crawls or through R290's crawl unchanged, and every function those crawls cut still cut by them. It reads text and scope, not what the code does when it runs. Its planted pairs alone: `node tools/check.mjs moves` |
 | The Polish file | `node tools/check.mjs prose` - must read N/N, 497/497 on 24.09 |
 | The local gate | on a machine with a Foundry v14 sandbox at :30099, `npm run gate:local` (`audit/gate/README.md`) |
 | What a player's roll may do, and what a console's forgery may not | `node cluster.mjs scenarios/83-roll-integrity.mjs` - every legal road clean, each forgery traced; in `npm test` and the local gate since E33 |
@@ -64,6 +65,51 @@ could not measure headless - a real Reroll through the table, a request's
 timing on a real server, a GM leaving mid-request, a late
 planted item, a window closing under reduced motion, a Polish player's refusal -
 is LIVE-E31-01..06 (audit/AUDIT-1.2.42.md 9.2).
+
+## Where the code lives
+
+From 1.2.70 the largest files are split by pure moves (D23 option 1: E34, then E41 and
+E54), and each old file stays as a **facade**: it keeps its name and every name it
+exported, through `export { ... } from "./new.mjs"`, and exports nothing new.
+
+- Importers outside a family keep importing the facade.
+- A new file never imports its facade; a name one new file needs from another is
+  exported there and imported directly.
+- The facade keeps only the code no new file calls.
+- New code goes into the family file of its role, never into a facade that holds none.
+
+A move commit runs `node tools/moved-only.mjs HEAD~1`, green on every part (what each
+checks is in its header; a shrunk cut is listed only where SHRINK_LISTED names its file,
+its function and both lengths, as read by hand - C7a's retireOpeningNotices, 279 -> 252 -
+and red otherwise), and adds its new files' rows here. Tier 0's read of every function of
+character.mjs is a cut route the tool does not count: a wave that moves one counts it first.
+
+| File | What lives there | Its facade |
+| --- | --- | --- |
+| `scripts/murder.mjs` | no code: three `export { ... } from` lines, the 67 names it exported at 1.2.69 (33 from the store, 31 from the rules, 3 from the window). New incident code goes into the file of its role below, never here | itself (the family's top) |
+| `scripts/incident-store.mjs` | the incident's record: the world half and the cast, each participant's stamped copy and the socket that keeps it in step, the queue and the one write of both halves, who is in it, the betrayal window that write arms, the opening's notices, the deaths a player may know and their socket, the Blackened register, and the cast put back by hand or lifted out of world data | `murder.mjs` |
+| `scripts/murder-rules.mjs` | the rules of a murder: the crisis table and the turn, the opening rolls and their invitation, a crisis action judged, resolved and undone, the weapon it swings, running out, a third party, the close and the betrayal | `murder.mjs` |
+| `scripts/murder-ui.mjs` | the murder window a GM opens an incident from, and the GM's tracker: its body, its footer and the rate-limited "ask again" for the opening roll | `murder.mjs` |
+| `scripts/fog.mjs` | what reads the layer's state: registration and Foundry's vision standing down, the discovery ledger and its socket, the layer, the dissolve, the raster and its drift, the animation switch (`fogAnimations`) and every reader of it, the moment of discovery, and the reports on the live layer (`diagnoseFog`, `whyBlack`, `fogPeek`, `doorwayReport`); 24 names of its own, 5 re-exported | itself (the family's top) |
+| `scripts/fog-geometry.mjs` | the fog's pure shape math: a region's shape in the layer's space, polylines, distances, inside-polygon tests, areas; no imports, no state | `fog.mjs` |
+| `scripts/fog-doorways.mjs` | the doorways: the wall test, the openings, the glow and its falloff, the outline with its gaps, the seam colour and `MAX_FOG_TEXTURE` | `fog.mjs` |
+| `scripts/fog-reveal.mjs` | the reveal's timing and drawing, and the room's outline and name: drawn, faded, held at one weight through a zoom, recoloured with the hour; `clearTransient` with the layer's finder | `fog.mjs` |
+| `scripts/fog-diagnostics.mjs` | the map's checks (`checkRegions`), `whatIsHere` with its probes, and how much of a scene belongs to no room (`sceneUncoveredPercent`); no state | `fog.mjs` |
+| `scripts/projects.mjs` | the project actions: the queries over `allProjects`, progress, creation, sabotage and its undo, the announcements, editing, `sealOldRepairs`, and `resealSecretProjects` and `knowsProject` (they read `allProjects` and `roomOf`); 27 names of its own, 17 re-exported | itself (the family's top) |
+| `scripts/projects-secrecy.mjs` | a project's secret fields, who may see it and its ownership map, and the reads and writes of the project meta and the countdowns | `projects.mjs` |
+| `scripts/projects-ui.mjs` | the countdown tray's render hook (`onRenderCountdowns`, which opens the manager), the project manager, the project dialog and sharing; 6 names of its own, 2 re-exported | itself (the family's top) |
+| `scripts/projects-tray.mjs` | what the countdown tray draws on every render (Icon Only left, raw keys, undiscovered rows, progress, the fold) and its redraw | `projects-ui.mjs` |
+| `scripts/call-effects.mjs` | the Calls' core: the shield and the situational dice, the armed Calls, the Confusions' store, copy and socket, the effects and `applyCall`; 32 names of its own, 12 re-exported | itself (the family's top) |
+| `scripts/call-pickers.mjs` | the windows a Call opens to ask what it is pointed at (`pickTarget` and its pickers) | `call-effects.mjs` |
+| `scripts/call-world.mjs` | sealed rooms, the silence and the chain, and the called assembly: their readers and writers | `call-effects.mjs` |
+
+That is wave 1 (E34, 1.2.70) whole: five families, eleven new files, 133 module
+files in `scripts/` where 1.2.69 had 122. A stage that changes the incident, the
+fog, a project or a Call finds the file of its role in this table, not by the
+facade's name. Two things sit where a pure move had to leave them (plan E34 4.3):
+`applyCrisisAction` in murder-rules.mjs still patches the cast's `swung` in the
+store, and the betrayal window lives in incident-store.mjs because `writeState`
+arms it.
 
 ## What the suite's four numbers mean
 

@@ -247,7 +247,7 @@ export const REASON_PATTERNS = Object.freeze([
     ["actionLocked", /^that action is locked$/],
     ["actionSpent", /^that action is spent$/],
     ["actionBlocked", /^that action is blocked$/],
-    // E32+E07 C11a: an action the incident took away, or never gave that side (murder.mjs `crisisRefusal`).
+    // E32+E07 C11a: an action the incident took away, or never gave that side (murder-rules.mjs `crisisRefusal`).
     ["actionDenied", /^that action is not open to that character now$/],
     ["nothingLeft", /^nothing left to spend on a resolution$/],
     // E05: the GM's count of the Eclipse's crossings (eclipse.mjs applyRecordedMove).
@@ -579,7 +579,7 @@ export function guardShareGuest(sender, payload, ctx) {
  * Call is named now (call-effects.mjs `progressEffect`) and must be a Hope Call that adds progress -
  * a Despair Call is a Monokuma's and bought on a GM's client (calls.mjs `spendDespairCallFor`) - the
  * amount is that Call's, the character stands in the project's room as Contribution says and its
- * picker lists (call-effects.mjs `pickProject`), and the Call's price is a payment this GM saw the
+ * picker lists (call-pickers.mjs `pickProject`), and the Call's price is a payment this GM saw the
  * player make and takes once (roll-draw.mjs `takeCallPayment`). Asked last of the packet's guards,
  * so that no other refusal spends the payment.
  */
@@ -784,9 +784,10 @@ function armedOnBuyer(payload) {
 
 /*
  * RULE D (E05 C10, 26.09.2026; audit S06-11). A player's Call armed on a student the GMs know
- * is dead is refused: the buyer's browser offers the living it knows of (call-effects.mjs
- * `pickPlayer`), and a body nobody has found is one of those. Told as "cannot now", which
- * names nobody; why is in this GM's log. A Monocub is dead and still a target.
+ * is dead is refused: the buyer's browser offers the living it knows of
+ * (call-pickers.mjs `pickPlayer`), and a body nobody has found is one of those. Told as
+ * "cannot now", which names nobody; why is in this GM's log. A Monocub is dead and still a
+ * target.
  * ASKED LAST (E05 fix r2-G3, 27.09.2026; review S2-m1). It stood among the declaration's
  * guards, before the price: measured by the review, a player with no Hope who sent one
  * Support for a body nobody had found and one for a living student was told "cannot now"
@@ -1195,7 +1196,7 @@ export function playersOnly(why) {
     return made((sender, payload, ctx) => sender?.isGM ? why : null, "playersOnly", [], why);
 }
 
-/** The sender may see the project the packet names in `field` (`canSee`, projects.mjs). */
+/** The sender may see the project the packet names in `field` (projects-secrecy.mjs `canSee`). */
 export function canSeeProject(field, why) {
     return made(async (sender, payload, ctx) => {
         const { canSee } = await import("./projects.mjs");

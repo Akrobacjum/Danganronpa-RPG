@@ -358,8 +358,9 @@ async function claimedOn(actor, bookmark) {
  * Why the action a row names cannot be taken back now, asked before the payment
  * (the plan's 2.5), or null. Each undo checks again as it writes. A crisis action is
  * asked what its undo's packet was asked by the bridge until C4a (`crisisUndoRefusal`,
- * murder.mjs); an Observe, a clean-up and an Analyze what their own undo asks first.
- * An action with no check here answers null and is replayed.
+ * murder-rules.mjs, re-exported by murder.mjs); an Observe, a clean-up and an Analyze
+ * what their own undo asks first. An action with no check here answers null and is
+ * replayed.
  *
  * A CLEAN-UP AND AN ANALYZE ARE ASKED TOO (E08+E28 fix r1-G3, 04.10.2026; the round-1
  * review's M1). Since C4a their replays run on this client, the bridge settles a local
@@ -1502,13 +1503,13 @@ async function settleObserve(actor, bookmark, after, done) {
  * Everything is done on the GM's client, because everything a crisis action
  * touches is: the other participant's sheet, the map, the shared incident
  * state. This side sends which action, the new number, and "take the old one
- * back first" - see `undoLastCrisis` in murder.mjs for what that involves.
+ * back first" - see `undoLastCrisis` in murder-rules.mjs for what that involves.
  *
  * The turn is NOT spent twice. Rewinding restores whose turn it was, and the
  * replay passes it again, so the action costs one turn in total however many
  * times it is rerolled.
  *
- * `bookmark.crisis` is the GMs' fact of the action (murder.mjs `noteCrisisFact`),
+ * `bookmark.crisis` is the GMs' fact of the action (murder-rules.mjs `noteCrisisFact`),
  * written by the GM that resolved it.
  *
  * WITH THE FIRST THROW'S FACTS, ON THIS GM (E08+E28 C6b, 03.10.2026; audit S04-18). The

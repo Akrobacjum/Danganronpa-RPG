@@ -402,7 +402,7 @@ function markFrame(element) {
        THE SETTING, NOT THE CLASS - and the first go used the class and left seven rounded
        cards on screen. `applyTheme()` puts `drpg-theme-stained-glass` on `<body>` at ready and
        the chat log renders at ready too, so which of the two lands first is a race. It is the
-       same trap `flashOutline` in fog.mjs has written out at length. */
+       same trap `flashOutline` in fog-reveal.mjs has written out at length. */
     element.style.setProperty("border-radius", styleNow().square ? "0px" : "4px", "important");
     return true;
 }
@@ -1497,7 +1497,7 @@ function subjectReported(messageId, ms) {
  * opening the seats are the roller's own side, so the relay adds only an accomplice
  * seated with a killer - and never a direct murder's victim (D6). Stage 6 is the
  * clean-up, whose rolls are the killer's alone. What each roll came to and which roll
- * it was reach the same people on the crisis card (murder.mjs `announceCrisis`, veiled,
+ * it was reach the same people on the crisis card (murder-rules.mjs `announceCrisis`, veiled,
  * E06 C4) and on the opening's (`announceOpening`, E06 fix r1-G3) - with or without Dice
  * So Nice. What a relayed roll looks like on a real table, and whether Dice So Nice
  * queues it behind the roller's own, has not been measured (LIVE-E06-03).

@@ -187,7 +187,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        dropped the clean-up's `rollId` passed every one. Chie's player (p3) has their module socket
        handed back here - the opening's race this scenario puts it aside for is over - and asks for
        its copy of the cast, which it missed meanwhile, as a browser asks when the primary GM's world
-       has loaded (`drpgPrimaryReady`, murder.mjs `askForCast`); then Chie erases a
+       has loaded (`drpgPrimaryReady`, incident-store.mjs `askForCast`); then Chie erases a
        trace laid at Chie's feet, thrown on p3's browser on an 11 and a 2 and drawn by the GM; then
        asks its Reroll from p3's browser, which the GM makes. The harness's roll message has no
        `Roll#reroll`, so on the GM it reads as one of the scenario's, thrown again on a 9 and a 4.

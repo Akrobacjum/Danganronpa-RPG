@@ -370,7 +370,7 @@ const REGRESSIONS = [
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
             "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
-            "murder.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part",
+            "incident-store.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part; a player's ask for the deaths is answered by the primary GM alone, about Foundry's sender, and a copy of them or a finder's notice is taken only from a GM, addressed to this user",
             "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
             "fog.mjs": "fog.request answers the sender's own rows; fog.shared is taken only while the primary's question is open, cut to the characters the sender owns, weak and fill-only",
@@ -1593,11 +1593,11 @@ const REGRESSIONS = [
          * marker cannot arrive and be quietly left out the same way.
          */
         const sources = new Map(await otherSources());
-        const murder = stripComments(sources.get("murder.mjs") ?? "");
-        ok(murder.length > 1000, "murder.mjs did not load");
+        const murder = stripComments(sources.get("murder-rules.mjs") ?? "");
+        ok(murder.length > 1000, "murder-rules.mjs did not load");
 
         const capture = murder.match(/const\s+swung\s*=([^;]*);/);
-        ok(capture, "murder.mjs no longer captures a swung weapon at all");
+        ok(capture, "murder-rules.mjs no longer captures a swung weapon at all");
 
         // Everything the condition can see: the line itself, and whatever it
         // reads from - `const swings = ...` above it.
@@ -1801,7 +1801,7 @@ const REGRESSIONS = [
          */
         const sources = new Map(await otherSources());
         const chapter = stripComments(sources.get("chapter.mjs") ?? "");
-        const effects = stripComments(sources.get("call-effects.mjs") ?? "");
+        const world = stripComments(sources.get("call-world.mjs") ?? "");
         const check = bodyOf(chapter, "async function checkBodyFound", { until: "export async function openBodyDiscoveryDialog" });
         ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
         ok(/FLAGS\.monocub/.test(check), "a Monocub counts as a body again");
@@ -1810,7 +1810,7 @@ const REGRESSIONS = [
             "the GM's own announcement no longer waits in the discovery queue");
         ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
             "the automatic discovery check no longer waits in the discovery queue");
-        const gather = bodyOf(effects, "export async function gatherEveryone", { until: "async function fallbackGather" });
+        const gather = fnSource(world, "gatherEveryone");
         ok(/(?:isDeceased|isDeadForGm)\(/.test(gather), "gatherEveryone moves the dead again");
     }],
 
@@ -2902,9 +2902,16 @@ const REGRESSIONS = [
          * this window answered falsy even when a murder DID open, so a fired trap's
          * ruling card was never settled.
          */
-        const murderSrc = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
-        const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "async function rollOpening" });
-        ok(dialog.length > 500, "openMurderDialog is gone or has moved past rollOpening");
+        const murderSrc = stripComments(new Map(await otherSources()).get("murder-ui.mjs") ?? "");
+        /* E34 C8 (1.2.70): this read ran on to `rollOpening`, which moved to murder-rules.mjs; it ends at the
+           window's own closing brace now - the window alone, which is all R59 asserts on. Not fnSource: its cut runs on
+           into the tracker's `lastReask` and `REASK_COOLDOWN_MS` lines, and a cut a test reads by name is one
+           moved-only's cuts part holds to the base. C9 made the read fnSource's, each of C8 and C9 green on its own,
+           and over the family's whole range (e12ca46 to a5e5fed) moved-only read that cut 5611 -> 5680 characters, red
+           (the round-2 review's m5). Fix r2-G2 (08.10.2026) put C8's read back: 14783 characters with comments
+           stripped, in murder.mjs at C8 and in murder-ui.mjs since C9. */
+        const dialog = bodyOf(murderSrc, "export async function openMurderDialog", { until: "\n}\n" });
+        ok(dialog.length > 500, "openMurderDialog is gone from murder-ui.mjs, or its read ends too soon to be the window");
 
         ok(dialog.includes("isEclipse("),
             "the murder window opens during an Eclipse and only refuses at Confirm");
@@ -3586,7 +3593,7 @@ const REGRESSIONS = [
          * from here: a test that reads the runner it is running inside proves nothing
          * about the run that is happening.
          */
-        const murder = stripComments(new Map(await otherSources()).get("murder.mjs") ?? "");
+        const murder = stripComments(new Map(await otherSources()).get("murder-ui.mjs") ?? "");
         const body = bodyOf(murder, "function incidentTrackerHtml(", { until: "function incidentSignature(" });
         ok(body.length > 400, "the tracker's body builder has moved or gone");
         ok(/const lost = \[/.test(body), "nothing notices that the cast cannot be found");
@@ -3888,13 +3895,13 @@ const REGRESSIONS = [
          * already gone: six Despair for an assembly that never happened, and there is
          * no repair anywhere in the module - `gatherEveryone` is not on `game.drpg`.
          */
-        const effects = stripComments(new Map(await otherSources()).get("call-effects.mjs") ?? "");
+        const world = stripComments(new Map(await otherSources()).get("call-world.mjs") ?? "");
 
-        const schedule = bodyOf(effects, "export async function scheduleGather", { until: "export async function runPendingGather" });
+        const schedule = bodyOf(world, "export async function scheduleGather", { until: "export async function runPendingGather" });
         ok(/sceneId: scene\.id/.test(schedule),
             "the order does not remember which scene its room is on");
 
-        const run = bodyOf(effects, "export async function runPendingGather", { until: "export async function gatherEveryone" });
+        const run = fnSource(world, "runPendingGather");
         ok(/game\.scenes\.get\(order\.sceneId\)/.test(run),
             "the order is carried out on whichever scene this GM is looking at");
         // `lastIndexOf`: the refusal branch does its own clear, and the one that
@@ -3907,12 +3914,20 @@ const REGRESSIONS = [
         ok(/gatherEveryone\(order\.room, scene\)/.test(run),
             "the scene is worked out and then not passed on");
 
-        const gather = bodyOf(effects, "export async function gatherEveryone");
+        const gather = fnSource(world, "gatherEveryone");
         ok(/gatherEveryone\(room, onScene = null\)/.test(gather),
             "the scene cannot be handed to it, so a deferred assembly has no way to say where");
         ok(/\[\.\.\.scene\.tokens\]/.test(gather),
             "the cast is read off the canvas, which only holds the scene somebody is looking at");
-        ok(!/canvas\.tokens\.placeables/.test(gather),
+        /* BOTH FUNCTIONS, BY NAME (E34 fix r1-G2, 07.10.2026; review r1 m4). Until E34 C2 this
+           read was `bodyOf` from gatherEveryone to the end of call-effects.mjs, so it took in
+           `fallbackGather`, which gatherEveryone hands the cast to when the region's teleport
+           throws. C2's `fnSource` stopped at gatherEveryone's own end: measured on 63b1908, a
+           `canvas.tokens.placeables` read planted in fallbackGather left this test green.
+           `bodyOf` to the end of call-world.mjs would cover it only while fallbackGather stays
+           the file's last function; read by name, either one leaving the file stops the test
+           instead. */
+        ok(!/canvas\.tokens\.placeables/.test(gather + fnSource(world, "fallbackGather")),
             "the canvas reading is back");
     }],
 
@@ -4463,8 +4478,8 @@ const REGRESSIONS = [
          * the region cannot place the tokens itself, still wrote to `canvas.scene` -
          * the map on the primary GM's screen, not the assembly's. Review of stage D.
          */
-        const src = stripComments(new Map(await otherSources()).get("call-effects.mjs") ?? "");
-        const body = bodyOf(src, "async function fallbackGather(", { until: "\n}" });
+        const src = stripComments(new Map(await otherSources()).get("call-world.mjs") ?? "");
+        const body = fnSource(src, "fallbackGather");
         ok(/async function fallbackGather\(scene,/.test(body), "the fallback is not handed a scene");
         ok(!/canvas\.scene|canvas\.grid/.test(body),
             "the fallback reads the scene on this GM's screen instead of the assembly's");
@@ -4820,7 +4835,10 @@ const REGRESSIONS = [
          * client and by the GM's bridge; this holds both callers to it.
          */
         const sources = new Map(await otherSources());
-        const murder = stripComments(sources.get("murder.mjs") ?? "");
+        const murder = stripComments(sources.get("murder-rules.mjs") ?? "");
+        /* The first 1200 characters, as the read was before E34 C8 made it the whole function (11245 characters with
+           comments stripped, crisisRefusal( at 200 - measured at 55d851e and a5e5fed): fix r2-G2 (08.10.2026; the
+           round-2 review's m6) put the bound back: a call moved further into the function is no longer read as asked. */
         ok(bodyOf(murder, "export async function takeCrisisAction(", { length: 1200 }).includes("crisisRefusal("),
             "the player's own client no longer asks crisisRefusal");
         /*
@@ -4903,8 +4921,8 @@ const REGRESSIONS = [
         ok(/if \(!game\.user\.isGM\)/.test(spend), "spendDespairCall runs on a player's client");
         ok(/const paid = await adjustDespair\(/.test(spend) && /paid === null/.test(spend),
             "a Despair Call goes on when its pool did not move");
-        const effects = stripComments(sources.get("call-effects.mjs") ?? "");
-        ok(/return Boolean\(await writeWorld\(/.test(bodyOf(effects, "async function sealRoom(", { length: 300 })),
+        const world = stripComments(sources.get("call-world.mjs") ?? "");
+        ok(/return Boolean\(await writeWorld\(/.test(fnSource(world, "sealRoom")),
             "sealRoom says it sealed whether or not it wrote");
         const handover = stripComments(sources.get("handover.mjs") ?? "");
         ok(/isEclipse\(\)/.test(bodyOf(handover, "async function verify(", { until: "\n}\n" })), "a handover is not refused during an Eclipse on the GM's side");
@@ -5673,13 +5691,13 @@ const REGRESSIONS = [
             ["remnants.mjs", "promoteAtMark", ["ifLive"], false],
             ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false],
             // The cast's lift out of world data (C6; its row came with C9).
-            ["murder.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
+            ["incident-store.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
             // The fog (C9): a character standing in a room, a player's rows in the rebuild, the world's old ledger.
             ["fog.mjs", "seedDiscovery", ["weak", "fillOnly"], false],
             ["fog.mjs", "registerLedgerRoad", ["weak", "fillOnly"], false],
             ["fog.mjs", "liftDiscoveryLedger", ["weak", "fillOnly"], true],
             // An indirect murder's killer, builder, condition and trigger out of projectMeta (E05 C1).
-            ["projects.mjs", "liftProjectSecrets", ["weak", "fillOnly"], true],
+            ["projects-secrecy.mjs", "liftProjectSecrets", ["weak", "fillOnly"], true],
             // The declarations made in the dark out of the world's pendingMurders (E05 C3).
             ["eclipse.mjs", "liftPendingMurders", ["weak", "fillOnly"], true],
             // The Eclipse's crossings out of the world's eclipseMoves (E05 C4).
@@ -5690,7 +5708,7 @@ const REGRESSIONS = [
             ["pre-session-note.mjs", "liftNotes", ["weak", "fillOnly"], true],
             // The incident's method (E05 C8) and its fight (E32 C3) out of the world half of murderState:
             // both lifts run one body, `liftIntoCast`.
-            ["murder.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
+            ["incident-store.mjs", "liftIntoCast", ["weak", "fillOnly"], true],
             // Which trace each bullet came from, out of its `remnantRef` flag into its row (E05 C13).
             ["truth-bullets.mjs", "liftBulletRefs", ["weak", "fillOnly"], true]
         ];
@@ -5858,7 +5876,7 @@ const REGRESSIONS = [
          * E05 C8, 26.09.2026; audit S04-08. The world half of `murderState` is on every
          * browser, and until 1.2.64 it held whatever an incident's write named that was not
          * a cast field: a trap, a death by the victim's own hand, a reversal, when it opened,
-         * how it ended. It is turned round now: murder.mjs lists what it may hold
+         * how it ended. It is turned round now: incident-store.mjs lists what it may hold
          * (`PUBLIC_INCIDENT`, a reason each), `splitIncident` sends everything else to the
          * cast or nowhere, and the world-secrets rule is the same list written out. Read here:
          * the list has its reasons, shares no field with the cast and equals the rule; the
@@ -5866,7 +5884,7 @@ const REGRESSIONS = [
          * `restoreState` (both through the split) and the lifts (which only take fields
          * out; their tier-2 pairs measure that - the method's and, since E32 C3, the fight's
          * run one body, `liftIntoCast`) write the key; and every field a write in
-         * murder.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
+         * murder-rules.mjs names - a `writeState({ ... })` literal, a `patch` built for one - is
          * listed on one side. A computed key (`[store]`, "hindered" or "blocked") is not read.
          * The season reset writes `{}` through its table (season-setup.mjs). The reader is
          * shown a planted write of each kind first. E32 C2 (28.09.2026) shrank the list to
@@ -5894,7 +5912,7 @@ const REGRESSIONS = [
 
         const SET = /(?:\.set\(\s*[\w.]+\s*,\s*(?:SETTINGS\.murderState\b|"murderState")|\bsetSetting\(\s*SETTINGS\.murderState\b)/g;
         const DECL = /^(?:export )?(?:async )?function\s+(\w+)/gm;
-        const ALLOWED = ["murder.mjs writeState", "murder.mjs restoreState", "murder.mjs liftIncidentSecrets", "murder.mjs liftIntoCast"];
+        const ALLOWED = ["incident-store.mjs writeState", "incident-store.mjs restoreState", "incident-store.mjs liftIncidentSecrets", "incident-store.mjs liftIntoCast"];
         const writers = files => {
             const out = [];
             for (const [file, text] of files) {
@@ -5927,7 +5945,7 @@ const REGRESSIONS = [
             const src = stripStrings(stripComments(text));
             const keys = [];
             for (const m of src.matchAll(/\bwriteState\(\s*\{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
-            // `const fresh` is a new incident's whole state (murder.mjs `freshIncidentState`, E32 C5a), which `openMurder` writes.
+            // `const fresh` is a new incident's whole state (murder-rules.mjs `freshIncidentState`, E32 C5a), which `openMurder` writes.
             for (const m of src.matchAll(/\bconst (?:patch|fresh) = \{/g)) keys.push(...topKeys(src, m.index + m[0].length - 1));
             for (const m of src.matchAll(/\bpatch\.(\w+)\s*=(?!=)/g)) keys.push(m[1]);
             return keys;
@@ -5944,12 +5962,19 @@ const REGRESSIONS = [
         const sources = await otherSources();
         const stray = writers(sources).filter(w => !ALLOWED.includes(w));
         ok(!stray.length, `the world half of an incident is written outside writeState, restoreState and the lifts: ${stray.join(", ")}`);
-        const murderSrc = stripComments(new Map(sources).get("murder.mjs") ?? "");
-        for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(murderSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
-        const keys = named(new Map(sources).get("murder.mjs") ?? "");
-        // Not a reading of nothing: murder.mjs's writes name the stage, the turn and the method (measured 26.09: 74 names, 26 of them distinct).
-        ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in murder.mjs's writes - too few to trust`);
-        log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in murder.mjs's writes`);
+        const storeSrc = stripComments(new Map(sources).get("incident-store.mjs") ?? "");
+        for (const fn of ["writeState", "restoreState"]) ok(/\bsplitIncident\(/.test(fnSource(storeSrc, fn)), `${fn} writes the world half without splitting it by the public list`);
+        // E34 fix r2-G2 (08.10.2026; the round-2 review's m7): the census reads every file murder.mjs was split into and
+        // the facade, as the one read of murder.mjs did before E34 - a write moved to any of them is still read.
+        const family = ["incident-store.mjs", "murder-rules.mjs", "murder-ui.mjs", "murder.mjs"];
+        const familySources = new Map(sources);
+        const byFile = family.map(file => [file, named(familySources.get(file) ?? "")]);
+        ok(family.every(file => familySources.has(file)), `the census reads a file of the incident that is not among the module's sources: ${family.join(", ")}`);
+        const keys = byFile.flatMap(([, fileKeys]) => fileKeys);
+        // Not a reading of nothing: the incident's writes name the stage, the turn and the method (measured in murder.mjs 26.09: 74 names, 26 of them distinct).
+        // E34 C8 (1.2.70): the writes moved to murder-rules.mjs with the rules - 88 names read there on 07.10.2026, 0 in murder.mjs.
+        ok(keys.length > 50 && ["stage", "turn", "indirect", "endedBy", "keyRemnantsStale"].every(key => keys.includes(key)), `the census read ${keys.length} field names in the incident's writes - too few to trust`);
+        log(`R191: ${listed.length} public fields, ${S.INCIDENT_METHOD.length} of the method in the cast, ${keys.length} field names read in the incident's writes (${byFile.map(([file, fileKeys]) => `${file} ${fileKeys.length}`).join(", ")})`);
         const bad = unlisted(keys);
         ok(!bad.length, `a write of an incident names a field neither the public list nor the cast holds: ${bad.join(", ")}`);
     }],
@@ -6023,7 +6048,7 @@ const REGRESSIONS = [
     ["R194 - whether an incident is a trap is asked of one rule, the cast's and the world half's where the cast has none", async () => {
         /*
          * E05 fix r1-G1, 27.09.2026; the correctness review's M2. Three places ask whether the
-         * running incident is a trap - `castOwners` (murder.mjs: who is sent the cast), the
+         * running incident is a trap - `castOwners` (incident-store.mjs: who is sent the cast), the
          * leaf's `incidentWitness` (the card's gate, the HUD's turn row, the edges, the music)
          * and the opening Event card (events.mjs `openingCard`) - and the review found them
          * answering two ways while a world half the lift has not reached still holds
@@ -6038,7 +6063,7 @@ const REGRESSIONS = [
            asking the table counts as asking the rule - and the table itself, read here as a
            fourth reader, must ask the rule by name. */
         const ASKS = /\bincident(?:Indirect|Seats)\(/, RULE = /\bincidentIndirect\(/;
-        const READERS = [["murder.mjs", "castOwners", ASKS], ["settings.mjs", "incidentWitness", ASKS], ["events.mjs", "openingCard", ASKS],
+        const READERS = [["incident-store.mjs", "castOwners", ASKS], ["settings.mjs", "incidentWitness", ASKS], ["events.mjs", "openingCard", ASKS],
             ["settings.mjs", "incidentSeats", RULE]];
         const problems = (label, body, asks = ASKS) => {
             if (!body) return [`${label} was not found - this test reads nothing until it is pointed at it again`];
@@ -6199,7 +6224,7 @@ const REGRESSIONS = [
         /*
          * E32 C4, 28.09.2026; audit S04-26. Two writers of one incident read it, awaited and
          * wrote what they had read: the victim ran out twice (the grid's DM14), two closes of
-         * one incident closed it twice. murder.mjs runs every write of the incident through
+         * one incident closed it twice. Every write of the incident runs through
          * one promise chain now (`incidentWrite`), and a transition says what it read
          * (`expect`) and stops when the state no longer shows it. Read here, on the source
          * with comments and string contents blanked: every write of either half - a
@@ -6263,19 +6288,33 @@ const REGRESSIONS = [
             JSON.stringify([3, 5, ["planted.mjs stray", "planted.mjs loose"], ["planted.mjs nested"]]),
             "the reader does not find exactly the two writes and the one queue inside the queue planted for it");
 
-        const src = new Map(await otherSources()).get("murder.mjs") ?? "";
-        const found = read("murder.mjs", src);
+        /* E34 C7a (1.2.70): the queue, the two writers and the three leaves moved to
+           incident-store.mjs, and most transitions that queue a write stayed in murder.mjs, so each
+           file is read on its own - `fnAt` names a function of the file it reads - and the two are
+           summed (07.10.2026: 15 writes and 4 queued spans in the store, 9 and 7 in murder.mjs; the
+           24 and 11 murder.mjs held alone before the move). E34 C8 moved the transitions on to murder-rules.mjs,
+           which the reader and the transitions below follow: the two summed read 24 and 11 again, and murder.mjs
+           alone 0 and 0 (07.10.2026). E34 fix r2-G2 (08.10.2026; the round-2 review's m7) reads murder-ui.mjs and the
+           facade too - every file murder.mjs was split into, as the one read of murder.mjs covered all of it - so a
+           write that moves to the window is still read. */
+        const sources = new Map(await otherSources());
+        const family = ["incident-store.mjs", "murder-rules.mjs", "murder-ui.mjs", "murder.mjs"];
+        ok(family.every(file => sources.has(file)), `the reader reads a file of the incident that is not among the module's sources: ${family.join(", ")}`);
+        const perFile = family.map(file => read(file, sources.get(file) ?? ""));
+        const found = perFile
+            .reduce((a, b) => ({ spans: a.spans + b.spans, writes: a.writes + b.writes, stray: [...a.stray, ...b.stray], again: [...a.again, ...b.again] }));
         // Not a reading of nothing: measured on 28.09, 17 writes and 8 queued spans.
-        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in murder.mjs - too few to trust`);
-        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in murder.mjs`);
+        ok(found.writes >= 15 && found.spans >= 6, `the reader found ${found.writes} writes and ${found.spans} queued spans in the incident's files - too few to trust`);
+        log(`R205: ${found.writes} writes of the incident and ${found.spans} queued spans read in ${family.map((file, i) => `${file} ${perFile[i].writes}/${perFile[i].spans}`).join(", ")}`);
         ok(!found.stray.length, `an incident's write runs outside its queue: ${found.stray.join(", ")}`);
         ok(!found.again.length, `a write in the incident's queue queues another, and the chain would wait on itself: ${found.again.join(", ")}`);
 
-        const bare = stripComments(src);
-        const memo = fnSource(bare, MEMO);
+        const bare = stripComments(sources.get("murder-rules.mjs") ?? "");
+        const store = stripComments(sources.get("incident-store.mjs") ?? "");
+        const memo = fnSource(store, MEMO);
         ok(/\bcastStore\.patch\(RECORD, \{ sent: \{ \[userId\]: memo \} \}\)/.test(memo) && [...stripStrings(memo).matchAll(WRITE)].length === 1,
             `the memo's writer (${MEMO}) is gone, or writes more than what a player was sent`);
-        const notices = fnSource(bare, NOTICES);
+        const notices = fnSource(store, NOTICES);
         ok(/\bcastStore\.patch\(RECORD, \{ openingNotices: notices \}\)/.test(notices) && [...stripStrings(notices).matchAll(WRITE)].length === 1,
             `the request cards' writer (${NOTICES}) is gone, or writes more than the cards' ids`);
         const TRANSITIONS = ["checkVictimSpent", "finishIncident", "beginResolution", "passTurn", "thirdPartyEnters",
@@ -6953,21 +6992,21 @@ const REGRESSIONS = [
             return out;
         };
         const NOT_A_STUDENT = [
-            ["call-effects.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
+            ["call-world.mjs", "fallbackGather", "scene", "the room's tokens, drawn round the assembly point (Token documents)"],
             ["cleanup.mjs", "undoLastCleanup", "scene.tokens.get()", "the trace token a clean-up left behind"],
             ["gm-bridge.mjs", "handleSendback", "token", "a token sent back out of a locked room"],
+            ["incident-store.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
             ["migrate.mjs", "CLAUSES", "table", "a pool table's results, given their roles"],
             ["monocub.mjs", "postCubRoll", "ChatMessage", "the Monocub ability roll's chat card (E33 C10; postMeddleRoll until 1.2.68)"],
             ["movement.mjs", "sendBack", "tokenDoc", "a token put back where it stood before a refused move"],
-            ["murder.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
-            ["murder.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
-            ["murder.mjs", "retireOpeningNotices", "game.messages.get()", "the GMs' opening notices"],
+            ["murder-rules.mjs", "undoLastCrisis", "scene.tokens.get()", "the trace token the crisis action left"],
+            ["murder-rules.mjs", "undoLastCrisis", "game.messages.get()", "the crisis action's card"],
             ["music.mjs", "pausePlaylist", "playlist", "a playlist paused"],
             ["music.mjs", "clearHeld", "playlist", "a playlist let go"],
             ["music.mjs", "rewindTo", "playlist", "a playlist moved to a track"],
             ["music.mjs", "stopPlaylistDead", "playlist", "a playlist stopped"],
             ["music.mjs", "wireSoundPlay", "Playlist", "the situational playlist, made from the sound window"],
-            ["projects-ui.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
+            ["projects-tray.mjs", "leaveIconOnly", "game.user", "the user's own view of the projects tray"],
             ["remnants.mjs", "placeRemnant", "target", "a Remnant's token, placed on a scene"],
             ["remnants.mjs", "propagatePublic", "tokenDoc", "a Remnant token's public half"],
             ["remnants.mjs", "retuneRemnant", "token", "a Remnant's token, replaced by its retuned one"],
@@ -6998,7 +7037,7 @@ const REGRESSIONS = [
             ["character.mjs", "stampStartingSheet", "initCharacter"],
             ["gm-items.mjs", "takeItemDialog", "openItemManager"],
             ["migrate.mjs", "CLAUSES", "migrate1_2_0"],
-            ["murder.mjs", "undoLastCrisis", "applyCrisisAction"],
+            ["murder-rules.mjs", "undoLastCrisis", "applyCrisisAction"],
             ["observe.mjs", "undoPrevious", "scoreObserve"],
             ["observe.mjs", "scoreObserve", "resolveObserve"],
             ["season-setup.mjs", "wipeSeason", "resetSeason"],
@@ -7154,7 +7193,7 @@ const REGRESSIONS = [
         /*
          * E33 C9 (D39; audit S09-48, S03-46). Two rules carried the name `isSilenced`
          * until 1.2.69: the crime-witness marker on a Monocub (monocub.mjs; information
-         * only) and the Despair Call "Silence" on a living student (call-effects.mjs;
+         * only) and the Despair Call "Silence" on a living student (call-effects.mjs, call-world.mjs since E34;
          * no Hope Calls until the time of day ends), and sheet.mjs renamed them at its
          * door - which is how a reader took one for the other. Each has its own name
          * now, and `game.drpg.isSilenced` is kept as the crime's alias, the question it
@@ -7191,7 +7230,7 @@ const REGRESSIONS = [
         const takes = (name, from) => new RegExp(`import\\s*\\{[^}]*\\b${name}\\b[^}]*\\}\\s*from\\s*"\\./${from}\\.mjs"`).test(sheet);
         equal(JSON.stringify([declaring("isCrimeSilenced"), declaring("isCallSilenced"), bare, aliased,
             [takes("isCrimeSilenced", "monocub"), takes("isCallSilenced", "call-effects"), takes("isCrimeSilenced", "call-effects"), takes("isCallSilenced", "monocub")]]),
-            JSON.stringify([["monocub.mjs x1"], ["call-effects.mjs x1"], [], [], [true, true, false, false]]),
+            JSON.stringify([["monocub.mjs x1"], ["call-world.mjs x1"], [], [], [true, true, false, false]]),
             "a silence's reader is declared elsewhere or more than once, the old name `isSilenced` is used outside api.mjs's alias, a new name is imported under another, "
             + "or sheet.mjs does not take each reader from its own module (isCrimeSilenced declared; isCallSilenced declared; isSilenced at; renamed at; sheet.mjs takes crime/monocub, call/call-effects, crime/call-effects, call/monocub)");
     }]

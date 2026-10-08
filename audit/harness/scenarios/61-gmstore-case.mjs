@@ -658,7 +658,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     // Field by field, in one order on both sides: the record answers in INCIDENT_FIGHT's.
     const sortL = pairs => J([...(pairs ?? [])].sort(([a], [b]) => a.localeCompare(b)));
     const heldL = sortL(Object.entries(FIGHT_L));
-    // The Key Remnants' count stays the GMs': no player's copy holds it (murder.mjs `castFor`, E32+E07 fix r1-G1).
+    // The Key Remnants' count stays the GMs': no player's copy holds it (incident-store.mjs `castFor`, E32+E07 fix
+    // r1-G1).
     const copyL = sortL(Object.entries({ ...FIGHT_L, keyRemnants: null }));
     const liftedL = { gm: await fightL(gm), p3: await fightL(p3), p1: await fightL(p1) };
     check("L1: the clause lifts a running incident's fight out of the world half on the primary: its record and the killer's player's copy hold it, and every browser's world half holds the stage alone",
@@ -781,8 +782,8 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     const answeredF = { p3: await castsSince(p3, askedF.p3), p1: await castsSince(p1, askedF.p1) }, stampsF = await castStampsOn(gm);
     const seatsF = { killerId: stampsF.killerId, victimId: stampsF.victimId, thirdId: stampsF.thirdId, betrayal: stampsF.betrayal };
     /* The opening's statistic is the GMs' (E32+E07 C11c): the killer's copy holds it null, and its stamp reads as the
-       newest of the parts the copy shows (murder.mjs `castPacket`), as the Key Remnants' count's does - which the
-       opening's result wrote last, so its stamp is that newest already. Who struck a critical Finishing blow
+       newest of the parts the copy shows (incident-store.mjs `castPacket`), as the Key Remnants' count's does - which
+       the opening's result wrote last, so its stamp is that newest already. Who struck a critical Finishing blow
        (`freeCleanup`, E32+E07 C13) was withheld the same way until fix r2-G3 (03.10.2026; the round-2 review's
        C2-m1), and is the killers' to read now - p3's copy holds it with the record's stamp. The fight's last turns (`recent`, E32+E07 C17) are the
        GMs' as well, and withheld the same way; so, since fix r2-G2 (03.10.2026), are the Reroll receipt and who
@@ -796,7 +797,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
         && !("swung" in (answeredF.p3[0].cast ?? {})) && J(answeredF.p3[0].stamps) === J(heldStampsF)
         && J(answeredF.p1.map(a => [a.from, a.cast])) === J([[IDS.gm, {}]]) && J(Object.keys(answeredF.p1[0].stamps ?? {}).sort()) === J(Object.keys(seatsF).sort())
         && Object.keys(seatsF).every(k => answeredF.p1[0].stamps[k] <= seatsF[k]), J({ answeredF, stampsF, p3AfterGm, onGmF, onGm2F }));
-    /* The bystander's "not in it" is the one they were last sent, repeated (murder.mjs `sendCast`, E32+E07 fix
+    /* The bystander's "not in it" is the one they were last sent, repeated (incident-store.mjs `sendCast`, E32+E07 fix
        r1-G1, 29.09.2026, and r2-G2): the seats' stamps it carries are no newer than the record's and need not be the record's -
        an answer that moved with them timed a Role reversal or a third's arrival for a browser outside the incident. */
 
@@ -863,7 +864,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        second GM's record holds the turn, and its tracker lists it. The killer's player holds none of it in
        the packet that carried the write: their copy is read once its receipt's stamp (`lastCrisis`, written
        with the turns and held null in it as well) is the one the primary sends them - since fix r2-G2 the
-       newest of what their copy shows, not the record's (murder.mjs `castPacket`). Aiko's player leaves with
+       newest of what their copy shows, not the record's (incident-store.mjs `castPacket`). Aiko's player leaves with
        her. Until C17 the tracker kept no history at all. */
     await gm.eval(`${CAST} await M.resolveCrisisAction({ actorId: "${IDS.aiko}", key: "avertedEyes", total: 0, isCritical: false, withHope: true });
         return true;`, { timeout: 60000 });
@@ -917,7 +918,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        with no statistic picked: the primary's window picks it (answered Hand - not the first
        listed) and keeps it in the cast, and the invitation carries it to p3, whose roll is held
        and notes the statistic and whether it is shown as the GM's. gm2, joined with an empty
-       browser, re-asks as its tracker does (murder.mjs `rollOpening`, which the tracker's button
+       browser, re-asks as its tracker does (murder-rules.mjs `rollOpening`, which the tracker's button
        calls behind a cooldown): it reads the pick from its record and opens no window, and p3 is
        sent the same statistic again. */
     phase("F9: the opening's statistic, picked on the primary, is the one a second GM's re-ask sends", { flow: "trait-ruling" });
@@ -1928,7 +1929,7 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     await settle(300);
     await gmb.eval(`${CH} await C.reviveCharacter(d, { quiet: true }); return true;`);
     // Heard connecting before its world has loaded, as a browser's socket is: an ask from a user
-    // the GM does not yet see active is not answered (murder.mjs `onDeathsSocket`).
+    // the GM does not yet see active is not answered (incident-store.mjs `onDeathsSocket`).
     await connect("p4", { storage: await storageOf("p4"), announceFirst: true });
     await settle(1500);
     const r2p = await p4.eval(`${untilP} const d = game.actors.get("${IDS.daichi}"); await until(() => !game.drpg.isDeadForGm(d));

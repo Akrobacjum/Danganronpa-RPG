@@ -1869,7 +1869,7 @@ function paintResourceBars(app, element) {
  * them there - and "Equipped" showing everything except the two things the
  * module calls equipped is worse than not renaming the heading at all. It also
  * made the one mechanic that now depends on readying something (see
- * `equippedWeapon` in murder.mjs) invisible in the place a player looks to
+ * `equippedWeapon` in murder-rules.mjs) invisible in the place a player looks to
  * check it.
  *
  * Rows are built to match `daggerheart.inventory-item-compact` - same classes,

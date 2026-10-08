@@ -484,7 +484,7 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, repoUrl 
 
     /* The GM opens a murder with Chie the killer and Daichi the victim, the opening's statistic the GM's pick (Body);
        p3's page throws the opening (its window answered as `__dialogAuto` answers it). On the killer's turn p3 takes
-       a Finishing Blow from the crisis menu's road (murder.mjs `takeCrisisAction`; the GM presses the statistic
+       a Finishing Blow from the crisis menu's road (murder-rules.mjs `takeCrisisAction`; the GM presses the statistic
        card's first trait). Then, in Stage 6, p3 cleans up a trace the GM leaves in Dorm B (cleanup.mjs
        `attemptCleanup`). Every one of the three is drawn on the GM at the turn its ticket names (fix r2-H1). Her Body
        (Daggerheart's Strength, config.mjs TRAITS) is raised to 10 for the road and put back after: the opening fails under

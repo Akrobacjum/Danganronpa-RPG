@@ -4571,13 +4571,14 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
 
     /*
      * A CRISIS SWING AND A WORK'S RELIEF ON A WRITE OF A PLAYER'S CONSOLE (E29 fix r2-H22, 06.10.2026; fix r2-H21's seam
-     * (a)). Fixes r2-H18 and r2-H20 read the killer's weapon and the worker's tools as the GMs hold them (murder.mjs
-     * `applyCrisisAction`'s `held`, `carriesWeapon`, `swungWeapon`; action-rolls.mjs `reliefHeld`), and tier 2 measures
-     * each on a GM's write the GMs' mark does not see. These drive them from a player's console, through the bridge, on
-     * the GMs' record of a roll the GM drew. A write the audit puts back stands on the document until its put-back lands,
-     * and for good where the put-back fails; so that every run reads the second state, the put-back of the case's item is
-     * refused here by a hook of the GM's (`preUpdateItem` answering false to an `auditPutBack` write). In an incident the
-     * GM opens, Botan's other Crime Tools stowed by the GM, Botan swings at Chie at his turn with
+     * (a)). Fixes r2-H18 and r2-H20 read the killer's weapon and the worker's tools as the GMs hold them
+     * (murder-rules.mjs `applyCrisisAction`'s `held`, `carriesWeapon`, `swungWeapon`; action-rolls.mjs `reliefHeld`),
+     * and tier 2 measures each on a GM's write the GMs' mark does not see. These drive them from a player's console,
+     * through the bridge, on the GMs' record of a roll the GM drew. A write the audit puts back stands on the document
+     * until its put-back lands, and for good where the put-back fails; so that every run reads the second state, the
+     * put-back of the case's item is refused here by a hook of the GM's (`preUpdateItem` answering false to an
+     * `auditPutBack` write). In an incident the GM opens, Botan's other Crime Tools stowed by the GM, Botan swings at
+     * Chie at his turn with
      *   - a Tier 1 knife the GM broke, which p2's console readies again (`equipped`, no judged field: nothing put back);
      *   - a Tier 1 knife the GM put in a stash, which p2's console takes out and readies (the place put back, refused);
      * each named in the packet as the weapon swung, on a hit with Hope. Read: Chie's Health marks (a Tier 1 weapon
@@ -4589,11 +4590,11 @@ export async function run({ gm, p1, p2, p3, check, note, phase, settle, permissi
      * the GMs hold it, 1; eased by a Tier 3 tool's relief, 2. Measured 06.10.2026 (e29run/r2h22): each swing
      * [1,"weaponAttack",false,1] (Chie's Health marks, the receipt's action, the knife on it, the things Botan was
      * handed), the bar 1. Fixes r2-H18 and r2-H20 were in already, so red is the mutants' (e29run/r2h22m), each leaving
-     * the other cases as they read here: with murder.mjs `applyCrisisAction` reading the killer's document (m9) the
-     * stashed knife swung, [2,"weaponAttack",true,0]; with `carriesWeapon` reading it (m10) the knife the console took
-     * out counted as one carried and none was improvised, [1,"weaponAttack",false,0]; with `swungWeapon` swinging a
-     * broken weapon (m12) the broken knife swung, [2,"weaponAttack",true,0]; with action-rolls.mjs `reliefHeld` reading
-     * the worker's document (m11) the bar moved 2.
+     * the other cases as they read here: with murder-rules.mjs `applyCrisisAction` reading the killer's document (m9)
+     * the stashed knife swung, [2,"weaponAttack",true,0]; with `carriesWeapon` reading it (m10) the knife the console
+     * took out counted as one carried and none was improvised, [1,"weaponAttack",false,0]; with `swungWeapon` swinging
+     * a broken weapon (m12) the broken knife swung, [2,"weaponAttack",true,0]; with action-rolls.mjs `reliefHeld`
+     * reading the worker's document (m11) the bar moved 2.
      */
     const h22Was = await gm.eval(`const INV = await import("${repoUrl}/scripts/inventory.mjs");
         const botan = game.actors.get("${ids.botan}"), chie = game.actors.get("${ids.chie}"), aiko = game.actors.get("${ids.aiko}");

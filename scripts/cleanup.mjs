@@ -1772,7 +1772,7 @@ export function tamperPriceSkip(actor) {
  * it: the striker's own browser quoted the Sanity step, so a striker whose bar the blow had
  * filled was refused before any GM was asked - measured by the review on d9ee6e9 at 6/6
  * ("No action left, and no Sanity to give instead."), the grant left unspent. The killers' copy
- * of the cast carries the grant now (murder.mjs `castCopyFor`), so the quote reads it here and
+ * of the cast carries the grant now (incident-store.mjs `castCopyFor`), so the quote reads it here and
  * says the attempt is free. A character the chain cannot charge at all (`noPrice`: dead, a
  * Monocub) stays refused - a grant is no reason to clean.
  *
@@ -2560,7 +2560,7 @@ async function undoLastCleanup(actor, tokenId) {
                put-back refused: its Reroll left 1 mark on the sheet and in the GMs'
                mark, not the 3 before it. Now the ceiling is the GMs' (sheet-audit.mjs
                `meansMaxHeld`), read and written in one job of the student's queue
-               (`gmMeansWrite`), as murder.mjs `undoLastCrisis` reads the end of its
+               (`gmMeansWrite`), as murder-rules.mjs `undoLastCrisis` reads the end of its
                marks. The marks themselves are read off the sheet as before: a
                player's write of them stands - a mark taken as a price, one cleared
                flagged or listed (`gainVerdict`) - and the mark moves with it. The

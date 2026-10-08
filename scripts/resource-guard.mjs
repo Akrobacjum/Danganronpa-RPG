@@ -285,7 +285,7 @@ const AUDIT_OWN = new Set(["auditPutBack", "auditUndo"]);
  * cor M3). Since fix r1-G7 a GM's write leaves with no reason, so the GMs' audit could tell a
  * refund only by `HOPE_REFUND`, which only `refund` sets: the three take-backs of a Reroll named
  * `reroll` - an Observe's Sanity (observe.mjs `undoPrevious`), a clean-up's (cleanup.mjs
- * `undoLastCleanup`), a crisis action's Sanity and Health (murder.mjs `restoreResource`) - took no
+ * `undoLastCleanup`), a crisis action's Sanity and Health (murder-rules.mjs `restoreResource`) - took no
  * credit, and a console's refund of the same payment stood on it: the review's probe 97 G on
  * 070b72b, with a GM's Hope given back under that name, and at 25e0e5c (05.10.2026,
  * e29run/r2h6red) tier 2 on each of the three roads - the 1 its payment left still in the

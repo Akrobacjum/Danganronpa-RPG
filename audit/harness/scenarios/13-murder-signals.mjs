@@ -109,14 +109,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
 
     /* ---- 0. a DIRECT murder's opening: its victim is not in it yet --------------
        E06 C2, 27.09.2026; the owner's D6. Until 1.2.65 the victim's player was sent the cast
-       as the murder opened (murder.mjs `castOwners`), and with it the red edges, the murder
+       as the murder opened (incident-store.mjs `castOwners`), and with it the red edges, the murder
        music and the killer's name, before the killer's roll had decided whether there was an
        incident at all. Now their browser reads as a bystander's until the roll succeeds, and
        a roll that fails sends them nothing - not even the empty cast a participant who leaves
        is sent. Counted on p1 as it arrives: every `incident.myCast` packet (the cast's one
-       socket action, murder.mjs `CAST_MINE`).
+       socket action, incident-store.mjs `CAST_MINE`).
        p3's opening roll is held while the checks read: the killer's own client throws it
-       as the murder opens (murder.mjs `rollOpening`), and a result ends the opening - so p3's
+       as the murder opens (murder-rules.mjs `rollOpening`), and a result ends the opening - so p3's
        `rollTrait` answers a promise that is let go, with no roll, once the GM has ruled; the
        engine then drops the roll it no longer wants (`throwOpeningRoll`). The GM rules instead:
        a failure for the first murder, a success for the second, which part 1 plays.
@@ -322,7 +322,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("direct: the victim is in it", direct.victim?.witness === true && direct.victim?.seat === true,
         JSON.stringify(direct.victim));
     /* A direct murder is fought face to face, so the victim's copy names the killer (the owner's D6);
-       only a trap's copy holds the builder null (E06 C3, murder.mjs `castFor`, and part 2 below). */
+       only a trap's copy holds the builder null (E06 C3, incident-store.mjs `castFor`, and part 2 below). */
     const directCopy = await p1.eval(`const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs"); const c = incidentCast();
         return { killer: c.killerId ?? null, turn: c.killerTurnId ?? null };`);
     check("direct: the victim's copy names the killer, face to face",
@@ -951,7 +951,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        took off Aiko before the pass drained her - the 2 Health the card says, not the Health the pass added.
        Neither participant's copy holds the turns, read once their copy holds the action's receipt stamp
        (`lastCrisis`, written with them) as the GM sends it to them - since fix r2-G2 (03.10.2026) the newest
-       of what their copy shows, not the record's (murder.mjs `castPacket`). */
+       of what their copy shows, not the record's (incident-store.mjs `castPacket`). */
     const trackerAfterHit = await gm.eval(`const { plural } = await import("${repoUrl}/scripts/utils.mjs");
         const { CRISIS_ACTIONS } = await import("${repoUrl}/scripts/config.mjs");
         const M = await import("${repoUrl}/scripts/murder.mjs");
@@ -981,7 +981,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        E32+E07 C8, 28.09.2026; audit S04-04, and E06 fix r1-G3's routing (the stage's A1). Chie
        swings a Tier 2 knife from p3's browser and misses with a Despair. Until C8 p3's browser
        wore the knife before it told the GM, so a knife that broke on a hit was out of the hand
-       the damage was read from; the GM wears it now, after the damage (murder.mjs `wearSwing`),
+       the damage was read from; the GM wears it now, after the damage (murder-rules.mjs `wearSwing`),
        and posts the notice itself: veiled while the incident runs (secret.mjs `incidentVeils`),
        its words sent to Chie's player alone. Read: the knife's wear on the GM, who wrote the
        notice, and on each player's browser the words it was sent and its copy of the card.
@@ -1053,7 +1053,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     /* And walks out, and back in (E32+E07 C10, 02.10.2026; audit S04-21). Botan averts their
        eyes: the seat is emptied, they go on `departed`, and their browser lets the cast go. Their
        token is then teleported into the room Aiko stands in, which the primary GM's `updateToken`
-       hook reads as a walk-in (murder.mjs `maybeThirdParty`): it seats nobody. Daichi's token
+       hook reads as a walk-in (murder-rules.mjs `maybeThirdParty`): it seats nobody. Daichi's token
        after it takes the seat - the hook reads that room, and the seat is open - and the
        incident runs on: had the third who left still counted, the second walk-in would have
        crowded it out. At ac5ae66 Botan's move seated them again (the grid's TP08). The two
@@ -1231,7 +1231,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        `murderState`'s `only`), and the victim reads the trap from their own copy of the cast.
        Red on the C7 tree: p1, p2 and p3 each read indirect, selfInflicted and openedAt there.
        AND THAT COPY DOES NOT NAME THE BUILDER (E06 C3, 27.09.2026; audit S04-01): the victim's
-       copy holds `killerId` and `killerTurnId` null (murder.mjs `castFor`), so no field of it
+       copy holds `killerId` and `killerTurnId` null (incident-store.mjs `castFor`), so no field of it
        holds Chie's id - read as the copy's whole text. */
     const METHOD = `const W = await import("${repoUrl}/scripts/world-secrets.mjs");
         const { incidentCast } = await import("${repoUrl}/scripts/settings.mjs");
@@ -1245,7 +1245,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
         method.victim.copy === true && method.victim.builder === false && method.bystander.copy === null && method.killer.copy === null,
         JSON.stringify(method));
 
-    /* AND THE KILLER IS LET BACK IN AT STAGE 6 (`castOwners`, murder.mjs), the trap in their
+    /* AND THE KILLER IS LET BACK IN AT STAGE 6 (`castOwners`, incident-store.mjs), the trap in their
        copy. The GM rules the victim's roll a failure - the trap closes - and moves the incident
        on. Red on the C7 tree: the killer was sent the cast, without `indirect`, which was the
        world half's. The gate compares both halves since E05 C8; a mutant comparing the world
@@ -1253,7 +1253,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        a cast field now, and a write of the cast is pushed anyway - this guards the outcome,
        not that line.
        THAT MUTANT WAS EQUIVALENT UNTIL E06 (E05's fix round, 27.09.2026). The gate
-       (`trapMoved` in murder.mjs `writeState`) only decided anything on a write that names no
+       (`trapMoved` in incident-store.mjs `writeState`) only decided anything on a write that names no
        cast field, and read on 27.09 no such write moved `trapRunning`: the incident opens with
        the cast (`openMurder`), openingRoll -> incident kept it running, every road into
        Stage 6 writes `endedBy`, and an incident ends through `restoreState`, not `writeState`.
@@ -1382,7 +1382,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     phase("after", { flow: "murder-incident" });
     /* WHO IS TOLD IT IS OVER (E32 C6, 28.09.2026; audit S13-03). The close told the GMs alone;
        each seat's player at the stage it closed on is told now, in one veiled card whose words
-       name nobody (murder.mjs `tellIncidentClosed`). The trap closes at Stage 6 with its victim
+       name nobody (murder-rules.mjs `tellIncidentClosed`). The trap closes at Stage 6 with its victim
        alive - `beginResolution` above killed nobody - so Aiko's player is told she can act
        again, Chie's, the builder seated at Stage 6, that it is over, and Botan's, a bystander,
        nothing: counted as each browser receives the words, the `secret.card` packets. What
@@ -1595,7 +1595,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
        situation it read and the flags it raised. One roll is flagged, and for two reasons this file
        gives it: the trap victim's roll of the fight above is thrown straight at `rollTrait`, past the
        crisis menu, so no GM was asked its statistic (`pick`, fix r2-H8's), and it lacks the die a trap's
-       victim is owed (murder.mjs `crisisSituational`), which the GM counts since C9 and no roll thrown
+       victim is owed (murder-rules.mjs `crisisSituational`), which the GM counts since C9 and no roll thrown
        past the menu carries: the menu arms it (`takeCrisisAction`) and the roll window applies what is
        armed (roll-dialog.mjs `advantageSources`) (`advantage`, +1 against 0, from the situation). Until
        E33 C2b this said the harness's roll, with no roll window, could not carry it; since C2b the window

@@ -1,6 +1,6 @@
 # Danganronpa RPG - GM Handbook
 
-*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.69, built on the Daggerheart system.*
+*For the Foundry VTT v14 module "Danganronpa RPG", version 1.2.70, built on the Daggerheart system.*
 
 This is the handbook for the people running the killing game. It follows the order a season is actually built and played: install, set up, run a day, run a murder, run an investigation, run a trial, end the chapter, start again. Where a decision is the GM's to make rather than the module's, the text says so.
 
@@ -396,7 +396,7 @@ Search tokens: **3 per room per time of day** (`ROOMS.searchTokensPerRoom`, edit
 
 ### 9.2 Fog and discovery
 
-`scripts/fog.mjs`, the *Rooms decide what players can see* setting. One layer over the whole scene, three states: the room you stand in is clear; a room you have visited shows through a veil; everything else, including any patch of map outside every region, is full fog. During an Eclipse even the room you stand in is only veiled. Discovery is **per character**, written by the primary GM when a token crosses into a room for the first time (with a sound for the student who walked in), and survives sessions; the full record stays in the GMs' browsers (section 14), and each player's browser holds only its own characters' rows. A GM sees a lighter fog: every room the class has discovered is clear, and rooms nobody has found yet, with any space outside every room, sit under the veil. The Mastermind sees every room as visited.
+`scripts/fog.mjs`, `fog-geometry.mjs`, `fog-doorways.mjs`, `fog-reveal.mjs`, `fog-diagnostics.mjs`, the *Rooms decide what players can see* setting. One layer over the whole scene, three states: the room you stand in is clear; a room you have visited shows through a veil; everything else, including any patch of map outside every region, is full fog. During an Eclipse even the room you stand in is only veiled. Discovery is **per character**, written by the primary GM when a token crosses into a room for the first time (with a sound for the student who walked in), and survives sessions; the full record stays in the GMs' browsers (section 14), and each player's browser holds only its own characters' rows. A GM sees a lighter fog: every room the class has discovered is clear, and rooms nobody has found yet, with any space outside every room, sit under the veil. The Mastermind sees every room as visited.
 
 For the fog to work a scene needs Foundry's own vision off:
 
@@ -488,7 +488,7 @@ A Murder Weapon's tier is its damage in an incident; a Cleaning Tool's tier come
 
 ## 11. Projects and traps
 
-`scripts/projects.mjs`, `projects-ui.mjs`, `traps.mjs`, `config.mjs PROJECT_SCALE`, `TRAP_TRIGGERS`, `TRAP_MODIFIERS`, `INDIRECT_MURDER`.
+`scripts/projects.mjs`, `projects-secrecy.mjs`, `projects-ui.mjs`, `projects-tray.mjs`, `traps.mjs`, `config.mjs PROJECT_SCALE`, `TRAP_TRIGGERS`, `TRAP_MODIFIERS`, `INDIRECT_MURDER`.
 
 Projects are Daggerheart Countdowns that count *up*. Scales:
 
@@ -560,7 +560,7 @@ The planted-item trigger works through **Plant an item** on the finished project
 
 ## 13. The murder engine, end to end
 
-`scripts/murder.mjs`, `cleanup.mjs`, `chapter.mjs`; `config.mjs MURDER_OPENING`, `INCIDENT`, `CRISIS_ACTIONS`, `CLEANUP`, `INDIRECT_MURDER`. The module owns the numbers - thresholds, the drain, turn order, damage, which Remnants each outcome leaves. It does not own the prose: every outcome's sentence is shown to you and the participants to finish at the table. Whether the killer is in the right room and whether a stage has gone on long enough are yours.
+`scripts/murder.mjs`, `incident-store.mjs`, `murder-rules.mjs`, `murder-ui.mjs`, `cleanup.mjs`, `chapter.mjs`; `config.mjs MURDER_OPENING`, `INCIDENT`, `CRISIS_ACTIONS`, `CLEANUP`, `INDIRECT_MURDER`. The module owns the numbers - thresholds, the drain, turn order, damage, which Remnants each outcome leaves. It does not own the prose: every outcome's sentence is shown to you and the participants to finish at the table. Whether the killer is in the right room and whether a stage has gone on long enough are yours.
 
 ### 13.1 Opening
 

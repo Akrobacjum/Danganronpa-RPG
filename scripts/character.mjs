@@ -285,7 +285,7 @@ export function reserveOf(actor, key) {
  */
 export function reserveChange(actor, key, delta, held = null) {
     const want = Math.trunc(Number(delta) || 0);
-    // `held`, `{ marks, max }`: the reserve as a caller read it in the GMs' job (murder.mjs `takeReserves`, E29 fix r2-H24).
+    // `held`, `{ marks, max }`: the reserve as a caller read it in the GMs' job (murder-rules.mjs `takeReserves`, E29 fix r2-H24).
     const { max, left } = held ? reserveFrom(held.marks, held.max) : reserveOf(actor, key);
     const landed = want < 0 ? Math.min(left, -want) : Math.min(max - left, want);
     const after = want < 0 ? left - landed : left + landed;
