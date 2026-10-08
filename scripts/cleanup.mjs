@@ -69,7 +69,7 @@ import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
 import { usedToolStore, blackenedStore, cleanupAttemptStore } from "./gm-stores.mjs";
 import {
-    remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic
+    remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState
 } from "./remnants.mjs";
 import { locateActor } from "./movement.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
@@ -844,8 +844,10 @@ async function reshapeTrace(token, data, {
             id: token.id,
             sceneId: token.parent?.id ?? null,
             // The tie with the type (E08+E28 C3; audit S05-44): a killer's reshape ties an
-            // untied trace (above), and a Reroll that took the reshape back left it tied.
-            from: { type: data.type, visibility: data.visibility, tiedToCrime: Boolean(data.tiedToCrime) },
+            // untied trace (above), and a Reroll that took the reshape back left it tied. As one
+            // of its three states since E09 C4 (remnants.mjs `tieState`): undecided goes back
+            // undecided, where `Boolean()` put it back as a GM's "not tied".
+            from: { type: data.type, visibility: data.visibility, tiedToCrime: tieState(data.tiedToCrime) },
             publicFrom: remnantData(token)?.public ?? null
         };
     }
@@ -2248,7 +2250,14 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
         type: def.remnantType ?? "prep",
         visibility,
         faint: success ? false : Boolean(def.failureFaint),
-        tiedToCrime: true,
+        /* THE KILLER'S TRAIL IS THE CRIME'S; ANYBODY ELSE'S IS NOBODY'S YET (E09 C4, 08.10.2026;
+           audit S05-25). This was `true` for everybody, and a Tamper's frame is anybody's: an
+           innocent's trail on a plain day was filed as evidence of a murder, ranked first in the
+           dashboard and Observe, and spared by the chapter's sweep (tier 2 "an innocent's
+           misleading trail is not tied to the crime"). The killer in
+           Stage 6 ties it, as `leaveTamperTrace` does; anybody else leaves it undecided, so
+           `placeRemnant`'s incident rule decides it and a GM can answer it. */
+        tiedToCrime: isCleaner(actor) ? true : null,
         action: "resolution",
         pointsAt: framed?.id ?? null,
         subject: framed?.name ?? "",
@@ -2433,7 +2442,8 @@ function recreationDataFor(token) {
         visibility: d.visibility,
         faint: Boolean(d.faint),
         reinforced: Boolean(d.reinforced),
-        tiedToCrime: Boolean(d.tiedToCrime),
+        // Three states (E09 C4): put back as it stood, undecided included (`placeRemnant`'s `keepId`).
+        tiedToCrime: tieState(d.tiedToCrime),
         note: d.note ?? "",
         action: d.action ?? "manual",
         subject: d.subject ?? "",

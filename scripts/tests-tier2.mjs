@@ -12991,7 +12991,8 @@ const SCENARIOS = [
         const change = { name: "SUITE E08 C3 a kettle", text: "SUITE E08 C3 it was always there" };
         try {
             must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
-            must(remnantData(F.trace)?.tiedToCrime === false, "the fixture's trace is tied before the reshape - this would measure nothing");
+            // Undecided (`null`) since E09 C4, which keeps the tie's third state: the fixture names no tie.
+            must(remnantData(F.trace)?.tiedToCrime === null, "the fixture's trace is decided before the reshape - this would measure nothing");
             await F.scrub(30, { mode: "transform", change });
             await settle();
             const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, ...change, tie: true });
@@ -13003,7 +13004,7 @@ const SCENARIOS = [
             await settle();
             const undone = remnantData(F.trace);
             equal(stableJson([approved?.tiedToCrime, approved?.type, from?.tiedToCrime ?? null, undone?.tiedToCrime, undone?.type]),
-                stableJson([true, "resolution", false, false, "prep"]),
+                stableJson([true, "resolution", null, null, "prep"]),
                 "the Reroll of an approved reshape did not untie the trace it had tied "
                 + "(tied and type after the approval, the tie the snapshot kept, tied and type after the Reroll)");
         } finally {
@@ -16705,7 +16706,9 @@ const SCENARIOS = [
             const type = win.field(`type.${key}`);
             equal(name?.value, "SUITE A's name", "B's untouched name did not take A's");
             equal(name?.defaultValue, "SUITE A's name", "B's untouched name took A's value but not as drawn, so B's Save would refuse it");
-            ok(tie?.checked === true && tie?.defaultChecked === true, "B's untouched tie did not take A's, as drawn");
+            // A select since E09 C4 ("-", Tied, Not tied): the value and the option drawn as selected.
+            ok(tie?.value === "tied" && [...(tie?.options ?? [])].find(o => o.defaultSelected)?.value === "tied",
+                "B's untouched tie did not take A's, as drawn");
             equal(type?.value, "neutral", "B's untouched kind did not take A's");
             ok(![name, tie, type].some(n => n?.classList.contains("drpg-moved-under")), "a field B never touched is marked");
             equal(win.field(`analysis.${key}`)?.value, "SUITE B's reading", "the redraw threw away B's reading");
@@ -28360,7 +28363,7 @@ const SCENARIOS = [
         try {
             for (let i = 0; i < 20; i++) {
                 const token = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
-                    chapter, day: 1, timeOfDay: "morning", tiedToCrime: false, note: `test fixture - tied with the chapter ${i}` });
+                    chapter, day: 1, timeOfDay: "morning", note: `test fixture - tied with the chapter ${i}` });
                 ok(token, "could not place a fixture trace");
                 placed.push(token);
             }
@@ -28377,6 +28380,260 @@ const SCENARIOS = [
             for (const token of placed) await remnants.dropRemnantSecret(token);
             const ids = placed.map(token => token.id).filter(id => scene.tokens.has(id));
             if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+        }
+    }],
+
+    /*
+     * THE TIE'S THREE STATES (E09 C4, 08.10.2026; audit S05-37, S05-25, the owner's D14). A trace's
+     * tie is `true`, `false` (a GM's "not tied") or `null` (nobody has said); the five below read it
+     * where the harm was: a death that tied a red herring, a suicide that tied nothing, an innocent's
+     * frame filed as evidence, a death told to the copies before the body was found, and the one load
+     * that reads the old `false` as undecided. Each kills or plays on the GM and reads the ledger
+     * (remnants.mjs `remnantData`), the answer keys (`secretOf`) and the items' flags.
+     */
+    ["a victim's death ties the chapter's undecided traces and never one a GM marked not tied", async () => {
+        /*
+         * Three traces of this chapter, placed before the fight: one a GM marks "not tied" through
+         * `setRemnantFlags` (the verdict's own writer), one through the Investigation Dashboard's
+         * Save (the select's "Not tied", `applyDashboardSave` as the Save calls it), one left as
+         * placed. Then the incident's victim dies as the GM's "A character dies" kills them. Read:
+         * the three ties before the death and after it. Red at 8003b86 (A1, 08.10.2026): each read
+         * `false` before and `true` after.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const [killer, victim] = cast(2);
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const scene = canvas.scene;
+        const chapter = getClock().chapter;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const placed = [];
+        try {
+            for (const name of ["flags", "dashboard", "open"]) {
+                const token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter,
+                    note: `SUITE E09 C4 the ${name} trace` });
+                must(token, `the ${name} trace was not placed - this would measure nothing`);
+                placed.push(token);
+            }
+            const [flags, dashboard] = placed;
+            await R.setRemnantFlags(flags, { tiedToCrime: false });
+            await I.applyDashboardSave({ keyRows: [], traces: [{ key: `${scene.id}__${dashboard.id}`, fields: { crime: { value: "untied", drawn: "" } } }] },
+                { traces: [{ token: dashboard, data: R.remnantData(dashboard), scene }], plan: I.keyPlan() });
+            await settle();
+            // `null` is a reading here, so a trace with no row reads "absent" rather than through `??`.
+            const tieOf = t => { const data = R.remnantData(t); return data ? data.tiedToCrime : "absent"; };
+            const before = placed.map(tieOf);
+            await fightOpen(M, killer, victim);
+            D.confirm = async () => false;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await settle();
+            const after = placed.map(tieOf);
+            equal(stableJson([before, after]), stableJson([[false, false, null], [false, false, true]]),
+                "the death tied a trace a GM had marked not tied, or left an undecided one untied "
+                + "(before the death, after it; each: marked by its writer, marked on the dashboard, undecided)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const token of placed) {
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+        }
+    }],
+
+    ["a suicide ties the chapter's traces", async () => {
+        /*
+         * A student who takes their own life holds both seats of the incident, and the gate on the
+         * tie asked their side (`sideOf`), which answers "killer". One student opens an incident on
+         * themselves, the opening goes through (Stage 4 straight to Stage 6, murder-rules.mjs
+         * `resolveKillerOpening`), and the GM closes it, which is where that death is recorded
+         * (`endMurder`). Read: the student dead for the GMs, and the tie of an undecided trace of this
+         * chapter placed before. Red at 8003b86 (A1, 08.10.2026): dead, and the trace untied.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        let token = null;
+        try {
+            token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: getClock().chapter,
+                note: "SUITE E09 C4 a trace before a suicide" });
+            must(token && R.remnantData(token)?.tiedToCrime !== true, "the fixture trace was placed tied - this would measure nothing");
+            await M.openMurder({ killerId: who.id, victimId: who.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            const stage = M.murderState()?.stage ?? null;
+            must(stage === "resolution", `the fixture's suicide did not reach Stage 6: ${stableJson(M.murderState())}`);
+            D.confirm = async () => false;
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            equal(stableJson([isDeadForGm(who), R.remnantData(token)?.tiedToCrime ?? "absent"]), stableJson([true, true]),
+                "a suicide's death did not tie the chapter's undecided trace (dead for the GMs, the trace's tie)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(who)) await reviveCharacter(who, { quiet: true });
+            if (token) {
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+        }
+    }],
+
+    ["an innocent's misleading trail is not tied to the crime", async () => {
+        /*
+         * A Tamper's misleading trail is anybody's to lay (cleanup.mjs `resolveStageSix` with
+         * `viaAction`), and it was tied to the crime whoever laid it: on a plain day, with no
+         * incident, it was filed as a murder's evidence, ranked first, spared by the sweep. A
+         * student who killed nobody frames another, as the bridge scores a Tamper. Read: the trail
+         * laid (a Resolution trace pointing at the framed) and its tie. Red at 8003b86 (A1,
+         * 08.10.2026): tied.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trail is laid where the student stands, on the scene on screen");
+        const [who] = cast(1);
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const R = await import("./remnants.mjs");
+        must(!M.murderState()?.active, "an incident is running - this would not be a plain day");
+        const framed = (await CL.framingCandidates(who))[0];
+        must(framed, "nobody can be framed - this would measure nothing");
+        const made = [];
+        const hook = Hooks.on("createToken", doc => { made.push(doc); });
+        try {
+            await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: framed.id, total: 30, isCritical: false, withHope: true, viaAction: true });
+            await settle();
+            const trails = made.map(doc => R.remnantData(doc)).filter(d => d?.action === "resolution" && d.pointsAt === framed.id);
+            must(trails.length === 1, `the trail was not laid once: ${trails.length}`);
+            equal(stableJson(trails[0].tiedToCrime), stableJson(null), "an innocent's misleading trail on a plain day was decided as the crime's (its tie)");
+        } finally {
+            Hooks.off("createToken", hook);
+            for (const doc of made) {
+                const live = doc.parent?.tokens?.get(doc.id);
+                if (!live) continue;
+                await R.dropRemnantSecret(live).catch(() => {});
+                await live.delete().catch(() => {});
+            }
+        }
+    }],
+
+    ["a death reaches the copies' tie only at the body's discovery", async () => {
+        /*
+         * The death's tie went on, at the death, to every copy already identified: the copy climbed
+         * to the top of its holder's pack (the murder-first sort reads the item's flag) before
+         * anybody had found the body. An undecided trace of this chapter and an identified copy of
+         * it on a third student; the victim dies as the GM's "A character dies" kills them; then the
+         * discovery's half (remnants.mjs `publishChapterTies`, which `runDiscovery` calls - scenario
+         * 10 runs the discovery itself); then a GM's "-" on the trace (`setRemnantFlags` with `null`,
+         * the dashboard's Save), which has to reach the copy as undecided too (`propagateVerdicts`).
+         * Read: the ledger's tie, the copy's answer key and its flag at the death, the key and the
+         * flag after the discovery, and both after the "-". Red at 8003b86 (A1, 08.10.2026): the key
+         * and the flag tied at the death.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [killer, victim, holder] = cast(3);
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const scene = canvas.scene;
+        const chapter = getClock().chapter;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        let token = null, copy = null;
+        const flagOf = () => holder.items.get(copy.id)?.getFlag(MODULE_ID, T.TRUTH_BULLET_FLAGS.tiedToCrime) ?? null;
+        try {
+            token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, chapter, note: "SUITE E09 C4 a trace with a copy" });
+            must(token, "the fixture trace was not placed - this would measure nothing");
+            copy = await T.createTruthBullet(holder, { name: "SUITE E09 C4 an identified copy", realType: "prep", visibility: "evident",
+                playerText: "SUITE E09 C4", remnantId: token.id, sceneId: scene.id, analyzed: true });
+            await settle();
+            must(copy && T.isIdentified(T.bulletAsHeld(copy)) && flagOf() !== true && T.secretOf(copy.uuid).tiedToCrime !== true,
+                "the copy is not identified and untied before the death - this would measure nothing");
+            await fightOpen(M, killer, victim);
+            D.confirm = async () => false;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await settle();
+            const atDeath = [R.remnantData(token)?.tiedToCrime ?? "absent", T.secretOf(copy.uuid).tiedToCrime === true, flagOf() === true];
+            await R.publishChapterTies?.(chapter);
+            await settle();
+            const atDiscovery = [T.secretOf(copy.uuid).tiedToCrime === true, flagOf() === true];
+            await R.setRemnantFlags(token, { tiedToCrime: null });
+            await settle();
+            // `null` is the reading here, so a key without the field reads "absent" rather than through `??`.
+            const held = T.secretOf(copy.uuid) ?? {};
+            const takenBack = ["tiedToCrime" in held ? held.tiedToCrime : "absent", flagOf()];
+            equal(stableJson([atDeath, atDiscovery, takenBack]), stableJson([[true, false, false], [true, true], [null, null]]),
+                "the death's tie reached the copy before the body was found, or never after, or a GM's \"-\" did not reach it "
+                + "(at the death: the ledger, the copy's key tied, its flag tied; at the discovery: the key, the flag; after the \"-\": the key, the flag)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (copy) {
+                if (holder.items.has(copy.id)) await holder.items.get(copy.id).delete().catch(() => {});
+                await T.dropSecret(copy.uuid).catch(() => {});
+            }
+            if (token) {
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+        }
+    }],
+
+    ["the tie settle step runs once", async () => {
+        /*
+         * Until C4 a stored `false` was as often "nobody said" as a GM's "not tied", and a death
+         * leaves a "not tied" alone now; gm-stores.mjs `settleTieStates` reads the world's old
+         * `false` as undecided once, on the primary, and marks the case (`tiesSettledAt`) - only a
+         * `false` stamped before the load (`before`, the module's load time at a table), so a GM's
+         * "not tied" of today is never taken back. The mark taken out of `caseMark`; two traces'
+         * rows written `false`, the second after the step's `before`; the step; then the first
+         * written `false` again and the step again. Read: what each run moved, the rows after it,
+         * and the mark. Red at 8003b86 (A1, 08.10.2026), which has no step.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, which settles - this would measure nothing");
+        const R = await import("./remnants.mjs");
+        const S = await import("./gm-stores.mjs");
+        const mark = S.caseMark();
+        const placed = [];
+        try {
+            for (const name of ["old", "today's"]) {
+                const token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, note: `SUITE E09 C4 an ${name} not tied` });
+                must(token, "a fixture trace was not placed - this would measure nothing");
+                placed.push(token);
+            }
+            const [old, today] = placed.map(token => R.keyOf(token));
+            const { tiesSettledAt, ...unmarked } = mark;
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, unmarked);
+            await S.remnantStore.patch(old, { tiedToCrime: false }, { ifLive: true });
+            const before = S.remnantStore.stampOf(old, "tiedToCrime") + 1;
+            await S.remnantStore.patch(today, { tiedToCrime: false }, { ifLive: true });
+            // `null` is a reading here, so a missing row reads "absent" rather than through `??`.
+            const rowTie = key => { const row = S.remnantStore.get(key); return row ? row.tiedToCrime : "absent"; };
+            must(rowTie(old) === false && rowTie(today) === false && S.remnantStore.stampOf(today, "tiedToCrime") >= before && !S.caseMark().tiesSettledAt,
+                "the two `false`s, the second after `before`, or the unmarked case were not set - this would measure nothing");
+            const first = await S.settleTieStates?.({ before });
+            const settled = [first >= 1, rowTie(old), rowTie(today), Number.isFinite(S.caseMark().tiesSettledAt)];
+            await S.remnantStore.patch(old, { tiedToCrime: false }, { ifLive: true });
+            const second = await S.settleTieStates?.({ before: Infinity });
+            equal(stableJson([settled, [second, rowTie(old)]]), stableJson([[true, null, false, true], [0, false]]),
+                "the settle step did not read the old `false` as undecided and mark the case, took back a `false` written after the load, "
+                + "or ran again (first run: moved, the old row, today's row, marked; second run: moved, the old row)");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, mark);
+            for (const token of placed) {
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
         }
     }],
 

@@ -787,8 +787,9 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                 <input type="text" name="note" value=""
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.keyNotePlaceholder"))}" /></label>
-            <label class="drpg-checkbox"><input type="checkbox" name="tied" />
-                ${game.i18n.localize("DRPG.Investigation.newTraceTied")}</label>
+            <label>${game.i18n.localize("DRPG.Investigation.newTraceTied")}
+                <select name="tied">${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+                    `<option value="${value}">${esc(game.i18n.localize(label))}</option>`).join("")}</select></label>
             <label class="drpg-checkbox"><input type="checkbox" name="reinforced" />
                 ${game.i18n.localize("DRPG.Investigation.newTraceReinforced")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceNote")}</p>
@@ -807,7 +808,7 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
                         text: f.ttext.value.trim(),
                         analysis: f.tanalysis.value.trim(),
                         note: f.note.value.trim(),
-                        tied: f.tied.checked,
+                        tied: f.tied.value,
                         reinforced: f.reinforced.checked
                     };
                 }
@@ -844,7 +845,10 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
         type: result.type,
         visibility: result.visibility,
         faint: result.type === "faint",
-        tiedToCrime: result.tied,
+        // The tie's three states, as the Traces tab's (E09 C4): an unticked box was `false`, a GM's
+        // "not tied", for a trace the GM had said nothing about; "-" is `null`, which an incident
+        // running or a victim's death decides.
+        tiedToCrime: tieTaken(result.tied),
         // A Key Remnant is reinforced by its own definition whatever this says -
         // `placeRemnant` reads the type - so the box only ever ADDS the mark.
         reinforced: result.reinforced,
@@ -1125,7 +1129,9 @@ function allTraces() {
         }
     }
     return out.sort((a, b) => {
-        if (a.data.tiedToCrime !== b.data.tiedToCrime) return a.data.tiedToCrime ? -1 : 1;
+        // Tied first, by `=== true`: "not tied" and undecided sort alike (E09 C4's third state).
+        const aTied = a.data.tiedToCrime === true, bTied = b.data.tiedToCrime === true;
+        if (aTied !== bTied) return aTied ? -1 : 1;
         return (a.data.room ?? "").localeCompare(b.data.room ?? "");
     });
 }
@@ -1325,10 +1331,22 @@ function traceShows(data) {
         analysis: data.public?.analyzedText || "",
         type: REMNANT_TYPES[data.type] ? data.type : Object.keys(REMNANT_TYPES)[0],
         faint: Boolean(data.faint),
-        crime: Boolean(data.tiedToCrime),
+        crime: tieShown(data.tiedToCrime),
         reinf: Boolean(data.reinforced)
     };
 }
+
+/*
+ * THE TIE'S THREE STATES, AS THE TRACES TAB DRAWS THEM (E09 C4, 08.10.2026; audit S05-37, the
+ * owner's D14). The column was a checkbox, so it could say "tied" and "not" and nothing else, and
+ * an unticked box saved as `false` - a GM's "not tied" - for a trace nobody had decided about.
+ * A select now: "-" nobody has said (the ledger's `null`, which a victim's death ties), "Tied",
+ * and "Not tied", which nothing but a GM moves (remnants.mjs `tieState`). The values are the
+ * option values; `tieTaken` turns one back into the ledger's.
+ */
+const TIE_OPTIONS = Object.freeze({ "": "DRPG.Remnant.tieOpen", tied: "DRPG.Remnant.tieTied", untied: "DRPG.Remnant.tieUntied" });
+const tieShown = tie => tie === true ? "tied" : tie === false ? "untied" : "";
+const tieTaken = shown => shown === "tied" ? true : shown === "untied" ? false : null;
 
 /** The Traces tab's fields, by the prefix of their names in the form. */
 const TRACE_FIELDS = ["img", "name", "text", "analysis", "type", "faint", "crime", "reinf"];
@@ -1346,6 +1364,7 @@ const FIELD_LABELS = {
 function refusedAs(field, value, traces) {
     if (typeof value === "boolean") return game.i18n.localize(value ? "DRPG.Live.ticked" : "DRPG.Live.unticked");
     if (field === "type") return REMNANT_TYPES[value]?.label ?? value;
+    if (field === "crime") return game.i18n.localize(TIE_OPTIONS[value] ?? TIE_OPTIONS[""]);
     if (field === "token") {
         const trace = traces.find(t => `${t.token.id}|${t.scene.id}` === value);
         return trace ? trace.data.public?.name || traceContextLine(trace.data) || value
@@ -1398,7 +1417,8 @@ function caseTraceRows(shown, finders) {
                 `<option value="${esc(value)}"${value === shows.type ? " selected" : ""}>${
                     esc(def.label)}</option>`).join("")}</select></td>
             <td style="text-align:center"><input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")} ${shows.crime ? "checked" : ""} /></td>
+            <td><select name="crime.${key}"${aria("DRPG.Remnant.crimeColumn")}>${Object.entries(TIE_OPTIONS).map(([value, label]) =>
+                `<option value="${value}"${value === shows.crime ? " selected" : ""}>${esc(game.i18n.localize(label))}</option>`).join("")}</select></td>
             <td style="text-align:center"><input type="checkbox" name="reinf.${key}"${aria("DRPG.Remnant.reinforcedColumn")} ${shows.reinf ? "checked" : ""} /></td>
             <td>${found}</td>
         </tr>`;
@@ -2176,12 +2196,13 @@ export async function applyDashboardSave(result, { traces, plan }) {
         /* THE FOUR VERDICTS, WRITTEN ONE AT A TIME (S1-m7's second half). They used to ride
            together: any one of them changing sent all three booleans as the form showed them,
            so ticking Faint on a stale form wrote Tied-to-crime and Reinforced back over another
-           GM's verdict of either. `setRemnantFlags` treats a field left at its default (`null`)
-           as untouched (see there), so a patch of only what was taken leaves the rest alone. */
+           GM's verdict of either. `setRemnantFlags` treats a field left out as untouched (see
+           there), so a patch of only what was taken leaves the rest alone - the tie's "-" is
+           written, as `null` (E09 C4). */
         const flagPatch = {};
         if (take.type) flagPatch.type = take.type;
         if ("faint" in take) flagPatch.faint = take.faint;
-        if ("crime" in take) flagPatch.tiedToCrime = take.crime;
+        if ("crime" in take) flagPatch.tiedToCrime = tieTaken(take.crime);
         if ("reinf" in take) flagPatch.reinforced = take.reinf;
         if (Object.keys(flagPatch).length) {
             await setRemnantFlags(token, flagPatch);

@@ -243,7 +243,9 @@ export const SETTINGS = {
      * GM's browser needs the same answer - a browser that opens a world whose case
      * began before it, holding nothing, is not looking at a new case - and it says
      * nothing about the case itself: no pick, no offer, no count (gm-stores.mjs,
-     * `markCaseSince`).
+     * `markCaseSince`). `upgradedAt` and, since E09 C4, `tiesSettledAt` (the one
+     * load that read the traces' old "not tied" as undecided, `settleTieStates`)
+     * are timestamps beside them.
      */
     caseMark: "caseMark",
     /**

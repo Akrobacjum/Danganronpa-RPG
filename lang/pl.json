@@ -2011,15 +2011,18 @@
       "reinforcedShort": "Reinforced",
       "faintColumn": "Faint",
       "crimeColumn": "Powiązany ze zbrodnią",
+      "tieOpen": "-",
+      "tieTied": "Powiązany",
+      "tieUntied": "Niepowiązany",
       "reinforcedColumn": "Reinforced",
       "cardFacts": "Ślad",
       "cardPlayerHalf": "Co czyta gracz",
       "cardAction": "Akcja",
       "deathTied": {
-        "one": "Ofiara nie żyje: {n} ślad z tego rozdziału jest teraz oznaczony jako powiązany z morderstwem. Odznacz przypadkowe w panelu Investigation.",
-        "few": "Ofiara nie żyje: {n} ślady z tego rozdziału są teraz oznaczone jako powiązane z morderstwem. Odznacz przypadkowe w panelu Investigation.",
-        "many": "Ofiara nie żyje: {n} śladów z tego rozdziału jest teraz oznaczonych jako powiązane z morderstwem. Odznacz przypadkowe w panelu Investigation.",
-        "other": "Ofiara nie żyje: {n} śladów z tego rozdziału jest teraz oznaczonych jako powiązane z morderstwem. Odznacz przypadkowe w panelu Investigation."
+        "one": "Ofiara nie żyje: {n} ślad z tego rozdziału, o którym nikt nie zdecydował, jest teraz oznaczony jako powiązany z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+        "few": "Ofiara nie żyje: {n} ślady z tego rozdziału, o których nikt nie zdecydował, są teraz oznaczone jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+        "many": "Ofiara nie żyje: {n} śladów z tego rozdziału, o których nikt nie zdecydował, jest teraz oznaczonych jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione.",
+        "other": "Ofiara nie żyje: {n} śladów z tego rozdziału, o których nikt nie zdecydował, jest teraz oznaczonych jako powiązane z morderstwem. Przypadkowym ustaw „Niepowiązany” w panelu Investigation. Kopie uczniów dowiedzą się o powiązaniu, gdy ciało zostanie znalezione."
       },
       "noToken": "{actor} nie ma tokenu na żadnej scenie, więc nie dało się zostawić śladu. Powiedz GM-owi.",
       "noTokenGm": "{actor} - akcja „{action}” bez tokenu gdziekolwiek, więc nie postawiono Remnantu. Postaw go ręcznie, jeśli to ważne.",

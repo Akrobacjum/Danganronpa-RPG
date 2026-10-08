@@ -4224,7 +4224,8 @@ const REGRESSIONS = [
             + "new kind will be missing from the one window that can place any of them");
         ok(/name="tied"/.test(body) && /name="reinforced"/.test(body),
             "the window does not ask for the two flags");
-        ok(/tiedToCrime: result\.tied/.test(body) && /reinforced: result\.reinforced/.test(body),
+        // The tie is a three-way select since E09 C4 ("-", Tied, Not tied), read back through `tieTaken`.
+        ok(/tiedToCrime: tieTaken\(result\.tied\)/.test(body) && /reinforced: result\.reinforced/.test(body),
             "the flags are asked for and then not carried, so every hand-placed trace "
             + "is an ordinary one whatever the GM ticked");
         ok(/if \(!REMNANT_TYPES\[result\.type\]\)/.test(body),
@@ -5690,6 +5691,9 @@ const REGRESSIONS = [
             // The moved path's promotion, at the world's upgrade mark (E04's fix round): it amends the moved row.
             ["remnants.mjs", "promoteAtMark", ["ifLive"], false],
             ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false],
+            // The traces' old "not tied" read as undecided, once per world (E09 C4): it amends rows,
+            // and runs from the stores' hydration and asks `isHydrated` itself.
+            ["gm-stores.mjs", "settleTieStates", ["ifLive"], false],
             // The cast's lift out of world data (C6; its row came with C9).
             ["incident-store.mjs", "liftIncidentSecrets", ["weak", "fillOnly"], true],
             // The fog (C9): a character standing in a room, a player's rows in the rebuild, the world's old ledger.
@@ -7409,6 +7413,36 @@ const REGRESSIONS = [
             JSON.stringify([["monocub.mjs x1"], ["call-world.mjs x1"], [], [], [true, true, false, false]]),
             "a silence's reader is declared elsewhere or more than once, the old name `isSilenced` is used outside api.mjs's alias, a new name is imported under another, "
             + "or sheet.mjs does not take each reader from its own module (isCrimeSilenced declared; isCallSilenced declared; isSilenced at; renamed at; sheet.mjs takes crime/monocub, call/call-effects, crime/call-effects, call/monocub)");
+    }],
+
+    ["R305 - a trace's tie keeps its three states through every writer and reader of the ledger", async () => {
+        /*
+         * E09 C4, 08.10.2026; audit S05-37, S05-25, the owner's D14. The tie is `true` (tied to the
+         * crime), `false` (a GM's "not tied", a red herring) or `null` (nobody has said). Five places
+         * in remnants.mjs - the place, the read, the two flag writers, the retune - and the cleanup's
+         * receipt and recreation each ran it through `Boolean()`, so "nobody has said" was stored and
+         * read as "not tied", and a victim's death could not tell a red herring from the laundry; it
+         * tied both. The behaviour is tier 2's ("a victim's death ties the chapter's undecided traces
+         * and never one a GM marked not tied"); this holds the shape that cost it: no `Boolean()` on
+         * the tie in any of the seven, each source found. All seven flattened it at 8003b86 (A1, 08.10.2026).
+         */
+        const sources = new Map(await otherSources());
+        const READS = [
+            ["remnants.mjs", "placeRemnant"], ["remnants.mjs", "remnantData"], ["remnants.mjs", "setRemnantFlags"],
+            ["remnants.mjs", "setRemnantFlagsMany"], ["remnants.mjs", "retuneRemnant"],
+            ["cleanup.mjs", "reshapeTrace"], ["cleanup.mjs", "recreationDataFor"]
+        ];
+        const FLAT = /\bBoolean\(\s*[\w.?]*tiedToCrime\s*\)/;
+        const empty = [], flat = [];
+        for (const [file, fn] of READS) {
+            const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
+            if (body.length < 40) empty.push(`${file} ${fn}`);
+            if (FLAT.test(body)) flat.push(`${file} ${fn}`);
+        }
+        ok(FLAT.test("tiedToCrime: Boolean(entry.tiedToCrime),") && !FLAT.test("tiedToCrime: tieState(entry.tiedToCrime),"),
+            "the reader does not tell the flattened tie from the kept one");
+        equal(JSON.stringify([empty, flat]), JSON.stringify([[], []]),
+            "a writer or reader of the tie was not found, or flattens it to two states with Boolean() (not found; flattens)");
     }]
 ];
 

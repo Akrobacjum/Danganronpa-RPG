@@ -35,7 +35,7 @@ import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath
 } from "./settings.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf, bulletAsHeld } from "./truth-bullets.mjs";
-import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
+import { remnantsOn, remnantData, setRemnantFlagsMany, publishChapterTies } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
     from "./utils.mjs";
@@ -286,15 +286,24 @@ export async function incidentVictimDied(actor, chapter) {
 
     // The VICTIM of the running incident died - and only then (Dawid, 26.08):
     // the chapter's traces are the case now, so they arrive in the
-    // Investigation Dashboard with "Tied to crime" already checked. Gated on
-    // `sideOf` so an execution after the trial, the mastermind's end or a
-    // GM's story ruling ties nothing. Checked BEFORE `offerStageSix` below,
-    // which can close the incident and take the answer with it.
+    // Investigation Dashboard as "Tied" where nobody had said otherwise. Gated
+    // on the incident's victim so an execution after the trial, the
+    // mastermind's end or a GM's story ruling ties nothing. Checked BEFORE
+    // `offerStageSix` below, which can close the incident and take the answer
+    // with it.
+    //
+    // THE VICTIM, NOT THE VICTIM'S SIDE, AND THE LEDGER ONLY (E09 C4, 08.10.2026; audit
+    // S05-37). The gate was `sideOf(actor) === "victim"`, and a student who takes their
+    // own life holds both seats, where `sideOf` answers "killer": a suicide tied nothing
+    // (tier 2 "a suicide ties the chapter's traces"). And the tie went on to every copy
+    // already identified, which climbed to the top of its holder's pack at the death -
+    // before anybody had found the body (tier 2 "a death reaches the copies' tie only at
+    // the body's discovery", scenario 10's two "the death's tie" checks). The copies
+    // learn it at the discovery now (`runDiscovery`, remnants.mjs `publishChapterTies`).
     try {
-        const { sideOf } = await import("./murder.mjs");
-        if (sideOf(actor) === "victim") {
+        if (await isIncidentVictim(actor)) {
             const { tieChapterTraces } = await import("./remnants.mjs");
-            await tieChapterTraces(chapter);
+            await tieChapterTraces(chapter, { propagate: false });
         }
     } catch (err) {
         error("Could not mark the chapter's traces as tied to the murder", err);
@@ -780,6 +789,14 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
        gather moves the cast in, before the card names them - so every screen reads them dead
        by the time it is told a body was found. */
     const found = await publishFoundBodies(room, victim, where);
+
+    /* AND OF WHAT THE DEATH TIED (E09 C4; audit S05-37). A victim's death ties the chapter's
+       traces in the ledger and no further (`incidentVictimDied`); the copies students hold
+       take those ties here, once the death is the table's. Every discovery sends them - the
+       incident that made them may be closed by now, and a tie the copies already hold changes
+       nothing (the chapter's, as the clock has it). */
+    await publishChapterTies(getClock()?.chapter)
+        .catch(err => error("Could not send the chapter's ties to the copied bullets", err));
 
     const promoted = await promoteFaintPrep();
 

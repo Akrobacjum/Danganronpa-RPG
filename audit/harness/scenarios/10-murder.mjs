@@ -32,6 +32,34 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
             ["deleteItem", Hooks.on("deleteItem", (d, o, u) => { if (watched.has(d.parent?.id)) seen.push(row("deleteItem", d.parent, o, u)); })]];
         return true;`);
 
+    /* THE DEATH'S TIE AND THE COPIES (E09 C4, 08.10.2026; audit S05-37, the owner's D14). Daichi's
+       death ties the chapter's undecided traces, never one a GM marked "not tied", and in the
+       GMs' ledger only: a student's identified copy learns the tie when the body is found, or it
+       climbs to the top of their pack at the death, a death nobody has found. Two traces of the
+       chapter, placed before the incident in a corner no room holds - one undecided, one marked
+       "not tied" - and an identified copy of the first on Aiko (p1), who is in no part of the
+       incident. Read after the blow (the ledger on the GM, the copy's flag on p1) and after the
+       discovery (the flag on p1); taken away after that.
+       The harness's world is a fresh copy whose case has no `tiesSettledAt`, so the primary's
+       load reads the stored "not tied" as undecided (gm-stores.mjs `settleTieStates`), and it
+       ran after this write: until the step asked the tie's stamp, the laundry read back `null`
+       here (08.10.2026). `settledAtStart` says which came first on the run. */
+    const tieSet = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const T = await import("${repoUrl}/scripts/truth-bullets.mjs"); const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const settledAtStart = Boolean(S.caseMark().tiesSettledAt);
+        const floor = canvas.scene, chapter = getClock()?.chapter ?? null;
+        const place = note => R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: floor, chapter, note });
+        const open = await place("E09 C4 10 an undecided trace"), laundry = await place("E09 C4 10 the laundry");
+        if (laundry) await R.setRemnantFlags(laundry, { tiedToCrime: false });
+        const copy = open ? await T.createTruthBullet(game.actors.get("${ids.aiko}"), { name: "E09 C4 10 a copy", realType: "prep",
+            visibility: "evident", playerText: "E09 C4 10", remnantId: open.id, sceneId: floor.id, analyzed: true }) : null;
+        return { settledAtStart, scene: floor.id, open: open?.id ?? null, laundry: laundry?.id ?? null, copy: copy?.id ?? null,
+            ties: [open, laundry].map(t => { const data = t ? R.remnantData(t) : null; return data ? data.tiedToCrime : "absent"; }) };`, { timeout: 60000 });
+    const tieFlagOnP1 = () => p1.eval(`const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const item = game.actors.get("${ids.aiko}")?.items.get(${JSON.stringify(tieSet.copy ?? "none")});
+        return item ? item.getFlag("${MOD}", T.TRUTH_BULLET_FLAGS.tiedToCrime) ?? null : "absent";`);
+
     // -- 1. opening the murder ------------------------------------------------
     phase("opening", { flow: "murder-incident" });
     const open = await gm.eval(`
@@ -82,6 +110,14 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     await settle(400);
     const deadOnP1 = await p1.eval(`const a = game.actors.get("${ids.daichi}"); return { flag: game.drpg.isDeceased(a), known: game.drpg.isDeadForGm(a) };`);
     check("p1: the death is not on p1's client before the body is found", deadOnP1.flag === false && deadOnP1.known === false, JSON.stringify(deadOnP1));
+    const tieAtDeath = await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs"); const floor = game.scenes.get("${tieSet.scene}");
+        return [${JSON.stringify(tieSet.open)}, ${JSON.stringify(tieSet.laundry)}].map(id => { const t = id ? floor?.tokens.get(id) : null;
+            const data = t ? R.remnantData(t) : null; return data ? data.tiedToCrime : "absent"; });`);
+    const tieFlagAtDeath = await tieFlagOnP1();
+    check("gm, p1: the death's tie - the undecided trace tied and the \"not tied\" one left, in the GMs' ledger only: p1's identified copy is not tied before the body is found",
+        Boolean(tieSet.copy) && JSON.stringify(tieSet.ties) === JSON.stringify([null, false]) && JSON.stringify(tieAtDeath) === JSON.stringify([true, false])
+            && tieFlagAtDeath !== true && tieFlagAtDeath !== "absent",
+        JSON.stringify({ tieSet, tieAtDeath, tieFlagAtDeath }), { flow: "murder-incident" });
 
     // -- 4. resolution & body discovery --------------------------------------
     phase("discovery", { flow: "body-discovery" });
@@ -280,6 +316,18 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     const deadOnP1After = await p1.eval(`return game.drpg.isDeceased(game.actors.get("${ids.daichi}"));`);
     check("p1: the body's discovery makes the death the table's, on p1's client too - both bodies in the room, on the body's scene while the GM looks at another",
         found.found === found.room && found.flag === true && found.botan === true && deadOnP1After === true, JSON.stringify({ found, deadOnP1After }));
+    const tieFlagAfter = await tieFlagOnP1();
+    check("p1: the death's tie reaches p1's identified copy when the body is found", tieFlagAfter === true,
+        JSON.stringify({ tieSet, tieFlagAfter }), { flow: "body-discovery" });
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs"); const T = await import("${repoUrl}/scripts/truth-bullets.mjs");
+        const aiko = game.actors.get("${ids.aiko}"), item = aiko?.items.get(${JSON.stringify(tieSet.copy ?? "none")});
+        if (item) { const uuid = item.uuid; await item.delete(); await T.dropSecret(uuid); }
+        const floor = game.scenes.get("${tieSet.scene}");
+        for (const id of [${JSON.stringify(tieSet.open)}, ${JSON.stringify(tieSet.laundry)}]) {
+            const t = id ? floor?.tokens.get(id) : null;
+            if (t) { try { await R.dropRemnantSecret(t); } catch {} await t.delete(); }
+        }
+        return true;`, { timeout: 60000 });
     const glovesAfter = await gm.eval(`const S = await import("${repoUrl}/scripts/gm-stores.mjs");
         const { isBroken } = await import("${repoUrl}/scripts/inventory.mjs");
         const chie = game.actors.get("${ids.chie}"), item = chie.items.get("${gloves.id}");

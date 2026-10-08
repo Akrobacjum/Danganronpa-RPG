@@ -827,18 +827,23 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
  * H17: the copy is this browser's memory, nothing to wait for), the keys in one store write.
  *
  * @param {string[]} remnantTokenIds  the traces' token ids, as a copy's answer key names them
+ * THE TIE HAS THREE STATES (E09 C4, 08.10.2026; S05-37, D14). A GM's "-" on the
+ * Investigation Dashboard is a verdict too - "nobody has decided" - and has to reach the copies
+ * as null, or a copy keeps the "Not tied" the GM took back. So for the tie, and only the tie,
+ * absent (undefined) leaves it and null writes null; Faint and the kind keep null as "leave".
+ *
  * @param {{faint?: boolean|null, tiedToCrime?: boolean|null, type?: string|null}} verdicts
- *   null (or absent) leaves that verdict as it is
+ *   null (or absent) leaves Faint and the kind as they are; the tie is left only when absent
  * @returns {Promise<number>} how many copies' answer keys moved
  */
-export async function propagateVerdicts(remnantTokenIds, { faint = null, tiedToCrime = null, type = null } = {}) {
+export async function propagateVerdicts(remnantTokenIds, { faint = null, tiedToCrime, type = null } = {}) {
     const ids = new Set((remnantTokenIds ?? []).filter(Boolean));
     const secret = {}, shown = {};
     if (typeof faint === "boolean") {
         secret.faint = faint;
         shown[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`] = faint;
     }
-    if (typeof tiedToCrime === "boolean") {
+    if (tiedToCrime === true || tiedToCrime === false || tiedToCrime === null) {
         secret.tiedToCrime = tiedToCrime;
         shown[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`] = tiedToCrime;
     }

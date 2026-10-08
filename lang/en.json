@@ -1945,13 +1945,16 @@
       "reinforcedShort": "reinforced",
       "faintColumn": "Faint",
       "crimeColumn": "Tied to crime",
+      "tieOpen": "-",
+      "tieTied": "Tied",
+      "tieUntied": "Not tied",
       "reinforcedColumn": "Reinforced",
       "cardFacts": "The trace",
       "cardPlayerHalf": "What the player reads",
       "cardAction": "Action",
       "deathTied": {
-        "one": "The victim is dead: {n} trace from this chapter is now marked as tied to the murder. Untick the laundry in the Investigation Dashboard.",
-        "other": "The victim is dead: {n} traces from this chapter are now marked as tied to the murder. Untick the laundry in the Investigation Dashboard."
+        "one": "The victim is dead: {n} trace from this chapter nobody had decided about is now marked as tied to the murder. Set the laundry to “Not tied” in the Investigation Dashboard. The students' copies learn the tie when the body is found.",
+        "other": "The victim is dead: {n} traces from this chapter nobody had decided about are now marked as tied to the murder. Set the laundry to “Not tied” in the Investigation Dashboard. The students' copies learn the tie when the body is found."
       },
       "noToken": "{actor} has no token on any scene, so the trace could not be left. Tell the GM.",
       "noTokenGm": "{actor} performed “{action}” with no token anywhere, so no Remnant was placed. Place one by hand if it matters.",

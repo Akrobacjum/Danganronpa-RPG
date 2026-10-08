@@ -319,8 +319,13 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
      *
      * An explicit `false` still wins: the GM planting a red herring mid-incident
      * is making a decision, and this is a default rather than an override.
+     *
+     * Not for a trace put back under its id (`keepId`, E09 C4): that is a trace
+     * the world already had, its tie as it stood - undecided included, which
+     * since C4 travels as `null` rather than as a `false` - and not a new one
+     * left now.
      */
-    if (data.tiedToCrime === undefined || data.tiedToCrime === null) {
+    if (!keepId && (data.tiedToCrime === undefined || data.tiedToCrime === null)) {
         try {
             const { murderState } = await import("./murder.mjs");
             const state = murderState();
@@ -353,7 +358,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
     const {
         x, y, scene = null, sceneId = null, type = "prep", visibility = "evident",
         faint = false, reinforced = false, note = "", action = "manual",
-        subject = "", pointsAt = null, tiedToCrime = false,
+        subject = "", pointsAt = null, tiedToCrime = null,
         sourceActor = null, sourceName = "",
         room = null, chapter = null, day = null, timeOfDay = null,
         // The opaque identity of the object this trace handed over, when it
@@ -510,7 +515,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
                 type, visibility, faint,
                 reinforced: reinforced || Boolean(REMNANT_TYPES[type]?.reinforced),
                 note, action, subject, pointsAt,
-                tiedToCrime: Boolean(tiedToCrime),
+                tiedToCrime: tieState(tiedToCrime),
                 // Which object this trace handed over, if it handed one over.
                 // Read by `tieTraceForItem` when that object turns out to have
                 // been the murder weapon.
@@ -1437,6 +1442,19 @@ export function registerRemnantLedger() {
     Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
 }
 
+/**
+ * A TRACE'S TIE HAS THREE STATES (E09 C4, 08.10.2026; audit S05-37, the owner's D14): `true` tied
+ * to the crime, `false` a GM's "not tied" - a red herring, a decision - and `null`, nobody has
+ * said. The ledger's write and its read each ran the tie through `Boolean()`, so the third state
+ * came back as the second, and a victim's death (`tieChapterTraces`) tied a trace a GM had marked
+ * not tied because the two read alike (tier 2 "a victim's death ties the chapter's undecided
+ * traces and never one a GM marked not tied"). Every write and read of the tie in this file
+ * goes through this; tier 0 R305 holds the five that used `Boolean()`.
+ */
+export function tieState(value) {
+    return value === true || value === false ? value : null;
+}
+
 export function remnantData(tokenDoc) {
     if (!tokenDoc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
 
@@ -1462,7 +1480,7 @@ export function remnantData(tokenDoc) {
         visibilityLabel: REMNANT_VISIBILITY_LABELS[entry.visibility] ?? entry.visibility,
         faint: Boolean(entry.faint),
         reinforced: Boolean(entry.reinforced),
-        tiedToCrime: Boolean(entry.tiedToCrime),
+        tiedToCrime: tieState(entry.tiedToCrime),
         action: entry.action,
         subject: entry.subject,
         note: entry.note,
@@ -1645,13 +1663,18 @@ export async function tieTraceForItem(identity) {
     return tied;
 }
 
+/*
+ * The tie is left alone when it is left OUT (`undefined`), and written as given otherwise - `null`
+ * included, which is the Investigation Dashboard's "-": a GM taking a verdict back (E09 C4). The
+ * other three keep `null` for "leave alone"; none of them has a third state.
+ */
 export async function setRemnantFlags(tokenDoc,
-    { faint = null, tiedToCrime = null, reinforced = null, type = null } = {}) {
+    { faint = null, tiedToCrime, reinforced = null, type = null } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
 
     const patch = {};
     if (faint !== null) patch.faint = Boolean(faint);
-    if (tiedToCrime !== null) patch.tiedToCrime = Boolean(tiedToCrime);
+    if (tiedToCrime !== undefined) patch.tiedToCrime = tieState(tiedToCrime);
     if (reinforced !== null) patch.reinforced = Boolean(reinforced);
     /* WHAT THE TRACE REALLY IS, CORRECTED BY HAND (Dawid, 16.09).
        A type is decided by whatever action left the trace, and the module gets
@@ -1682,7 +1705,7 @@ export async function setRemnantFlags(tokenDoc,
     if (patch.faint !== undefined || patch.tiedToCrime !== undefined || patch.type !== undefined) {
         try {
             const { propagateVerdicts } = await import("./truth-bullets.mjs");
-            await propagateVerdicts([tokenDoc.id], { faint: patch.faint ?? null, tiedToCrime: patch.tiedToCrime ?? null, type: patch.type ?? null });
+            await propagateVerdicts([tokenDoc.id], { faint: patch.faint ?? null, tiedToCrime: patch.tiedToCrime, type: patch.type ?? null });
         } catch (err) {
             error("Could not propagate the trace's verdicts to the copied bullets", err);
         }
@@ -1702,26 +1725,31 @@ export async function setRemnantFlags(tokenDoc,
  * third. Like `setRemnantFlags`, it amends rows and never starts one (`ifLive`);
  * a token this GM holds no row for is not counted.
  *
+ * `propagate: false` writes the ledger and leaves the copies as they are: a victim's death,
+ * whose ties the copies learn when the body is found (`publishChapterTies`, E09 C4).
+ *
  * @param {TokenDocument[]} tokens
- * @param {{faint?: boolean|null, tiedToCrime?: boolean|null}} flags
+ * @param {{faint?: boolean|null, tiedToCrime?: boolean|null}} flags  the tie as `setRemnantFlags` takes it
+ * @param {{propagate?: boolean}} [options]
  * @returns {Promise<number>} how many traces were written.
  */
-export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime = null } = {}) {
+export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime } = {}, { propagate = true } = {}) {
     if (!game.user.isGM) return 0;
     const patch = {};
     if (faint !== null) patch.faint = Boolean(faint);
-    if (tiedToCrime !== null) patch.tiedToCrime = Boolean(tiedToCrime);
+    if (tiedToCrime !== undefined) patch.tiedToCrime = tieState(tiedToCrime);
     if (!Object.keys(patch).length) return 0;
     const live = (tokens ?? []).filter(token => remnantStore.has(keyOf(token)));
     if (!live.length) return 0;
     // The repaint follows from the store's own write (`registerRemnantLedger`).
     await remnantStore.patchMany(Object.fromEntries(live.map(token => [keyOf(token), patch])), { ifLive: true });
+    if (!propagate) return live.length;
     // Faint as well as the tie since E09 C2 (S05-19): a body discovery's promoted
     // Faint Prep left every copy's answer key Faint, so the sweep spared copies of a
     // trace the GM had made evidence.
     try {
         const { propagateVerdicts } = await import("./truth-bullets.mjs");
-        await propagateVerdicts(live.map(token => token.id), { faint: patch.faint ?? null, tiedToCrime: patch.tiedToCrime ?? null });
+        await propagateVerdicts(live.map(token => token.id), { faint: patch.faint ?? null, tiedToCrime: patch.tiedToCrime });
     } catch (err) {
         error("Could not propagate the trace's verdicts to the copied bullets", err);
     }
@@ -1739,27 +1767,32 @@ export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime = 
  * victim: an execution after the trial, a mastermind's end or a GM's story
  * ruling changes nothing.
  *
- * Only traces that are NOT yet tied move, so nothing is re-announced for the
- * incident's own drops (already tied at placement), and running twice - two
- * bodies in a betrayal chapter - only picks up what appeared in between.
- * `setRemnantFlagsMany` is the write, so the verdict propagates onto copied
- * bullets exactly as a hand-ticked box would - in one write for the chapter
- * rather than one per trace (E04).
+ * Only traces nobody has decided about move (E09 C4; audit S05-37, the owner's
+ * D14): a GM's "not tied" is a red herring planted on purpose and stays one, and
+ * the incident's own drops are tied already, so nothing is re-announced for them;
+ * running twice - two bodies in a betrayal chapter - picks up only what appeared
+ * in between. Until C4 the skip asked "tied?" of a tie the ledger had flattened to
+ * true/false, so a "not tied" was tied at the death like any other.
+ * `setRemnantFlagsMany` is the write, in one write for the chapter rather than one
+ * per trace (E04). The death's call passes `propagate: false` (chapter.mjs
+ * `incidentVictimDied`): a copy a student holds learns the tie when the body is
+ * found (`publishChapterTies`), or an identified copy climbing to the top of their
+ * pack would tell them of a death nobody had found.
  *
  * @returns {Promise<number>} how many traces were tied.
  */
-export async function tieChapterTraces(chapter) {
+export async function tieChapterTraces(chapter, { propagate = true } = {}) {
     if (!game.user.isGM || !chapter) return 0;
 
     const tokens = [];
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
             const data = remnantData(token);
-            if (!data || data.tiedToCrime || data.chapter !== chapter) continue;
+            if (!data || data.tiedToCrime !== null || data.chapter !== chapter) continue;
             tokens.push(token);
         }
     }
-    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true });
+    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true }, { propagate });
 
     if (tied) {
         const { whisperToGms } = await import("./utils.mjs");
@@ -1767,6 +1800,30 @@ export async function tieChapterTraces(chapter) {
         log(`Victim death: ${tied} trace(s) from chapter ${chapter} marked as tied to the murder.`);
     }
     return tied;
+}
+
+/**
+ * THE DEATH'S TIES REACH THE COPIES WHEN THE BODY IS FOUND (E09 C4, 08.10.2026; audit S05-37).
+ * `tieChapterTraces` ties the chapter in the ledger at the death and no further; this is the
+ * other half, run by the body's discovery (chapter.mjs `runDiscovery`) once the death is the
+ * table's: every trace of the chapter tied now sends its tie to the copies copied from it -
+ * the answer key always, the item where the GMs hold it identified (`propagateVerdicts`). A
+ * trace tied before the death sends what its copies already hold. GM-side.
+ *
+ * @returns {Promise<number>} how many copies' answer keys moved
+ */
+export async function publishChapterTies(chapter) {
+    if (!game.user.isGM || !chapter) return 0;
+    const ids = [];
+    for (const scene of game.scenes) {
+        for (const token of remnantsOn(scene)) {
+            const data = remnantData(token);
+            if (data?.tiedToCrime === true && data.chapter === chapter) ids.push(token.id);
+        }
+    }
+    if (!ids.length) return 0;
+    const { propagateVerdicts } = await import("./truth-bullets.mjs");
+    return propagateVerdicts(ids, { tiedToCrime: true });
 }
 
 /**
@@ -1837,7 +1894,7 @@ export async function confirmClearFaint() {
  * @returns {Promise<boolean|object|null>}
  */
 export async function retuneRemnant(sceneId, tokenId,
-    { visibility = null, type = null, remove = false, tiedToCrime = null, describes = null } = {}) {
+    { visibility = null, type = null, remove = false, tiedToCrime, describes = null } = {}) {
     if (!tokenId) return null;
 
     if (!game.user.isGM) {
@@ -1859,7 +1916,7 @@ export async function retuneRemnant(sceneId, tokenId,
         return true;
     }
 
-    if (!visibility && !type && tiedToCrime === null && !describes) return null;
+    if (!visibility && !type && tiedToCrime === undefined && !describes) return null;
 
     /*
      * THE LEDGER, AND NOTHING ELSE (audit A8, Dawid Q13).
@@ -1890,11 +1947,13 @@ export async function retuneRemnant(sceneId, tokenId,
      * in its original form, and the answer is that this door only opens from
      * inside.
      *
-     * `=== null` rather than falsy: the caller must be able to say "leave it
-     * alone", and the undo of an approved reshape says "untie" when the trace
-     * was untied before it (cleanup.mjs `undoLastCleanup`, E08+E28 C3).
+     * Left out (`undefined`) rather than falsy: the caller must be able to say
+     * "leave it alone", and the undo of an approved reshape says what the tie was
+     * before it (cleanup.mjs `undoLastCleanup`, E08+E28 C3) - since E09 C4 one of
+     * three states, so an undecided trace goes back undecided (`null`) rather than
+     * "not tied", which a death would then have had to leave alone.
      */
-    if (tiedToCrime !== null) secret.tiedToCrime = Boolean(tiedToCrime);
+    if (tiedToCrime !== undefined) secret.tiedToCrime = tieState(tiedToCrime);
     /*
      * WHAT THE TRACE IS OF, when a Reroll changed it (review of ACT-11, 17.09).
      * A rerolled Search that found a different object kept the first object's
@@ -1955,7 +2014,9 @@ export function rankForObserve(room, scene = workingScene(), { preferSource = nu
             const bMine = b.data.sourceActor === preferSource;
             if (aMine !== bMine) return aMine ? -1 : 1;
         }
-        if (a.data.tiedToCrime !== b.data.tiedToCrime) return a.data.tiedToCrime ? -1 : 1;
+        // Tied or not, by `=== true`: "not tied" and undecided rank alike (E09 C4's third state).
+        const aTied = a.data.tiedToCrime === true, bTied = b.data.tiedToCrime === true;
+        if (aTied !== bTied) return aTied ? -1 : 1;
         return a.dc - b.dc;
     });
 }
