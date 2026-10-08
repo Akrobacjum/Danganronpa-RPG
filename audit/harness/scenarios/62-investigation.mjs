@@ -41,6 +41,10 @@
  *      gm2 writes on the attempt's row first): the GM's window redraws
  *      (the words show the reshape, the typed name stays and is marked with the reshaped
  *      one), and the GM's Save refuses the name and says so once - both GMs keep the reshape.
+ *      (E09 fix r2-G2) gm2 rules from the console (`game.drpg.declineReshape`, then
+ *      `approveReshape` at the same moment as the GM's own): each is ruled once, on the primary
+ *      GM, and the second Approve is told it was ruled. On the code before the fix (08.10.2026)
+ *      gm2's Decline was ruled on gm2, both Approves answered true and p2 was told twice.
  *   K  (E09 C7) a chapter-2 trial after a chapter-1 plan: a case of three closed in chapter 2
  *      (its row), two of its Keys found by the living, and the trial entered through the clock
  *      twice - without a Save of the planner for chapter 2, then after one - moves both GMs'
@@ -100,6 +104,7 @@
  * 20 s for a card that never comes; with E09 C14's phase L, 43 in 22.7 s (28.3 s with the cluster's
  * start, one run, 08.10.2026); with E09 C17's L2, 44 in 29.3 s with the cluster's start (one run,
  * 08.10.2026); with E09 fix r2-G1's V3, 45 in 30.5 s (the fast set's `[cluster]` line, beside two
+ * other lanes, one run, 08.10.2026); with E09 fix r2-G2's D2 and D3, 47 in 30.3 s (the same line, beside two
  * other lanes, one run, 08.10.2026).
  */
 export const layers = ["ci"];
@@ -478,7 +483,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
 
     /* ------------------------------ D. the dashboard under a ruling ------------------------------ */
 
-    begin("D", "gm2 approves a reshape while the GM's dashboard stands open with a name typed in its row", "trace-remnant");
+    begin("D", "gm2 rules on reshapes from the console, once each and on the primary, while the GM's dashboard stands open with a name typed in its row", "trace-remnant");
     const publicOn = client => client.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
         const scene = game.scenes.get("${IDS.scene}");
         return Object.fromEntries(${J(Object.entries(ids))}.map(([k, id]) => {
@@ -503,16 +508,53 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         const drawn = name?.value ?? null;
         if (name) name.value = ${J(MARK.typed)};
         return { open: Boolean(d.app), listed: Boolean(name), drawn };`, { timeout: 30000 });
-    // A ruling reads its proposal off the attempt's row since E09 C10, so gm2 writes one first, then rules on its own
-    // browser (the console road, cleanup.mjs `applyReshapeRuling`): the write still comes from the other GM's browser.
-    const ruled = await gm2.eval(`const Cl = await import("${repoUrl}/scripts/cleanup.mjs");
-        const { cleanupAttemptStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+    verdict("the dashboard is open on the GM with a name typed in the Faint trace's row", typed.open && typed.listed, J(typed));
+    /*
+     * A ruling reads its proposal off the attempt's row since E09 C10, so gm2 writes one first, and the GM waits until
+     * it holds it. Then the rulings come from the console (`game.drpg.approveReshape` / `declineReshape`), which since
+     * E09 fix r2-G2 take the card's road to the primary GM: first gm2's Decline of one proposal, then gm2's Approve of a
+     * second and the GM's own Approve of it, made at once. On the code before the fix (08.10.2026) a console ruling ran
+     * on the calling GM's browser - gm2's Decline was ruled on gm2 - so gm2's and the GM's ran side by side.
+     */
+    const propose = attempt => gm2.eval(`const { cleanupAttemptStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
         await cleanupAttemptStore.whenHydrated();
-        await cleanupAttemptStore.patch("${IDS.botan}", { actorId: "${IDS.botan}", tokenId: "${ids.faint}", attempt: "S62DRESHAPE00001",
+        await cleanupAttemptStore.patch("${IDS.botan}", { actorId: "${IDS.botan}", tokenId: "${ids.faint}", attempt: "${attempt}",
             ruled: null, proposal: { name: ${J(MARK.dName)}, text: ${J(MARK.dText)}, softer: null, tie: false, erases: false } });
-        return await Cl.applyReshapeRuling({ actorId: "${IDS.botan}", tokenId: "${ids.faint}", attempt: "S62DRESHAPE00001" });`, { timeout: 30000 });
-    verdict("the dashboard is open on the GM with a name typed in the Faint trace's row, and gm2's ruling is honoured",
-        typed.open && typed.listed && ruled === true, J({ typed, ruled }));
+        return true;`, { timeout: 30000 }).then(() => gm.eval(`${until} const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return Boolean(await until(() => { const r = S.cleanupAttemptStore.get("${IDS.botan}"); return r?.attempt === "${attempt}" && !r.ruled; }, 10000));`,
+    { timeout: 30000 }));
+    // What the console call answered and the warnings it raised there; the GM's are taken back out of the window's count.
+    const fromConsole = (client, how, attempt) => client.eval(`const d = globalThis.__s62d; const kept = d ? d.warned.length : 0;
+        const had = globalThis.__notifications.length;
+        const value = await game.drpg.${how}({ actorId: "${IDS.botan}", tokenId: "${ids.faint}", attempt: "${attempt}" });
+        if (d) d.warned.splice(kept);
+        return { value: value ?? null, warned: globalThis.__notifications.slice(had).filter(n => n.level === "warn").map(n => n.msg) };`,
+    { timeout: 30000 });
+    const ruledRow = () => gm.eval(`${until} const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const ruled = await until(() => S.cleanupAttemptStore.get("${IDS.botan}")?.ruled ?? null, 10000);
+        return ruled ? { by: ruled.by ?? null, on: ruled.on ?? null, verdict: ruled.verdict ?? null } : null;`, { timeout: 30000 });
+    const heldFirst = await propose("S62DRESHAPE00000");
+    const declined = await fromConsole(gm2, "declineReshape", "S62DRESHAPE00000");
+    const declinedRow = await ruledRow();
+    verdict("gm2's Decline from the console is ruled on the primary GM, as gm2's",
+        heldFirst && declined.value === true && J(declinedRow) === J({ by: "USERGM2000000000", on: IDS.gm, verdict: "decline" }),
+        J({ heldFirst, declined, declinedRow }));
+    const heldSecond = await propose("S62DRESHAPE00001");
+    const toldP2 = () => p2.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        return game.messages.contents.filter(m => String(contentOf(m) ?? "").includes(${J(MARK.dName)})).length;`);
+    const [byGm2, byGm] = await Promise.all([fromConsole(gm2, "approveReshape", "S62DRESHAPE00001"),
+        fromConsole(gm, "approveReshape", "S62DRESHAPE00001")]);
+    const approvedRow = await ruledRow();
+    await settle(800);
+    const toldD = await toldP2();
+    const winner = byGm2.value === true ? "USERGM2000000000" : IDS.gm;
+    const loser = winner === IDS.gm ? byGm2 : byGm;
+    const alreadyRuled = await gm.eval(`return game.i18n.format("DRPG.Cleanup.alreadyRuled", { name: game.users.get("${winner}")?.name ?? "" });`);
+    verdict("gm2's Approve from the console and the GM's own, made at once, rule once on the primary GM: the other is told it was ruled, and p2 is told once",
+        heldSecond && [byGm2.value, byGm.value].filter(v => v === true).length === 1 && loser.value === null
+            && loser.warned.filter(msg => msg === alreadyRuled).length === 1
+            && J(approvedRow) === J({ by: winner, on: IDS.gm, verdict: "approve" }) && toldD === 1,
+        J({ heldSecond, byGm2, byGm, approvedRow, toldD }));
     const redrawn = await gm.eval(`${until} const d = globalThis.__s62d;
         const field = name => d.app?.element?.querySelector('[name="' + name + '"]');
         await until(() => field("text.${row}")?.value === ${J(MARK.dText)}, 15000);

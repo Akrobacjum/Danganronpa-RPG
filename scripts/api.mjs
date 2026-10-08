@@ -94,7 +94,7 @@ import {
     makeSecret, shareWith, unshareWith, revealProject, isSecret, viewersOf
 } from "./projects.mjs";
 import { openProjectManager, openShareDialog } from "./projects-ui.mjs";
-import { callGm } from "./gm-bridge.mjs";
+import { callGm, askReshapeRuling } from "./gm-bridge.mjs";
 import { takeRest, roomAllows, restRooms, setRestRoom } from "./rest.mjs";
 import {
     dropRemnant, placeRemnant, remnantsOn, remnantsInRoom, rankForObserve,
@@ -131,7 +131,6 @@ import {
 } from "./murder.mjs";
 import {
     cleanableRemnants, attemptCleanup, resolveCleanup, openCleanupDialog, isCleaner,
-    applyReshapeRuling, declineReshapeRuling,
     openMoveBodyDialog,
     attemptStageSix, resolveStageSix
 } from "./cleanup.mjs";
@@ -860,9 +859,28 @@ export const DrpgApi = {
 
     /** The two halves of a reshape ruling (N-3), for a GM whose card has gone.
      *  The buttons on the card are the ordinary road; these are the road back
-     *  when a thread has been cleared and a lie is left waiting on nobody. */
-    approveReshape: applyReshapeRuling,
-    declineReshape: declineReshapeRuling,
+     *  when a thread has been cleared and a lie is left waiting on nobody.
+     *
+     *  THE CARD'S ROAD (E09 fix r2-G2, 08.10.2026). These were the ruling itself
+     *  (cleanup.mjs `applyReshapeRuling`, `declineReshapeRuling`), run on whichever
+     *  GM typed them, so an assistant GM's console claimed the proposal on its own
+     *  browser beside the primary's: in scenario 62 before the fix, gm2's console
+     *  Approve and the GM's own, made at once, both answered true and the player was
+     *  told twice (D3), and gm2's Decline was ruled on gm2 (D2). Now they ask the
+     *  primary GM as the card's buttons do (gm-bridge.mjs `askReshapeRuling`): one
+     *  claim, kept as the caller's ruling, a second one refused and told who ruled;
+     *  on the primary itself the call claims locally. A console caller passes what
+     *  the card's buttons carry, `{ actorId, tokenId, attempt }`: the character who
+     *  reshaped, the trace's token id, and the attempt tag - the buttons'
+     *  `data-attempt`, which is also the attempt on the GMs' row of that character's
+     *  last clean-up (gm-stores.mjs `cleanupAttemptStore.get(actorId).attempt`).
+     *  Answers true, false for an attempt the GMs no longer hold, null for nothing
+     *  ruled or a primary that could not be asked; null on a player's browser,
+     *  which asks nothing. */
+    approveReshape: ({ actorId, tokenId, attempt = "" } = {}) => game.user.isGM
+        ? askReshapeRuling("approve", { by: actorId, trace: tokenId, attempt }) : Promise.resolve(null),
+    declineReshape: ({ actorId, tokenId, attempt = "" } = {}) => game.user.isGM
+        ? askReshapeRuling("decline", { by: actorId, trace: tokenId, attempt }) : Promise.resolve(null),
 
     /** Is this actor the one cleaning up right now? */
     isCleaner,
