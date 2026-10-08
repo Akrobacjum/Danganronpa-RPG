@@ -5674,9 +5674,8 @@ const REGRESSIONS = [
             ["truth-bullets.mjs", "migrateFaintIntoSecrets", ["ifLive", "weak"], true],
             ["truth-bullets.mjs", "migrateTruthBullets", ["weak", "fillOnly"], true],
             ["truth-bullets.mjs", "propagateRemnantPublic", ["ifLive"], false],
-            ["truth-bullets.mjs", "propagateCrimeTie", ["ifLive"], false],
-            ["truth-bullets.mjs", "propagateCrimeTieMany", ["ifLive"], false],
-            ["truth-bullets.mjs", "propagateRealType", ["ifLive"], false],
+            // The tie's two and the kind's, one since E09 C2 (Faint joined them there).
+            ["truth-bullets.mjs", "propagateVerdicts", ["ifLive"], false],
             ["analyze.mjs", "resolveAnalyze", ["ifLive"], false],
             // The traces (C4): what amends a row a GM holds, and the migration's weak fill.
             ["remnants.mjs", "markRemnantEdited", ["ifLive"], false],
@@ -7129,7 +7128,9 @@ const REGRESSIONS = [
          * PLANNED rows (places E09's commits will add) are left to the commits that add them. E09 C1 struck
          * `sweepTruthBullets` and `confirmSweepBullets` (both read through chapter.mjs `sweepPlan` now, which
          * names no field) and added `sparedBySweep`, where the planned `sweepPlan` row's field read is: 78
-         * rows, 21 ITEM (read live 08.10.2026, none without a row). The
+         * rows, 21 ITEM (read live 08.10.2026, none without a row). E09 C2 struck `propagateCrimeTie`,
+         * `propagateCrimeTieMany` and `propagateRealType` (folded into `propagateVerdicts`, the planned row it
+         * judges now): 76 rows, 19 ITEM (read live 08.10.2026, none without a row). The
          * reader is run first on a fixture with a judged reader, a reader whose field is only in a
          * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
          */
@@ -7194,12 +7195,10 @@ const REGRESSIONS = [
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
-            ["ITEM truth-bullets.mjs#publishLootSource", "judged from C2 (census-found, not in plan.md): isIdentified(item) on the document decides a GM's write of sourceAction 'loot' - a forged analyzed earns it; C2 reads bulletAsHeld as for the propagate* rows"],
+            ["ITEM truth-bullets.mjs#publishLootSource", "judged (C2; census-found, not in plan.md): isIdentified and the source already shown read off bulletAsHeld"],
             ["ITEM truth-bullets.mjs#truthBulletData", "not a sink: the accessor; each caller is its own row"],
-            ["ITEM truth-bullets.mjs#propagateRemnantPublic", "judged from C2: hasReading, name and img off bulletAsHeld; at base a forged analyzed earns analyzedText (plan 2.3)"],
-            ["ITEM truth-bullets.mjs#propagateCrimeTie", "judged from C2: folded into propagateVerdicts, the flag only where isIdentified(bulletAsHeld(item))"],
-            ["ITEM truth-bullets.mjs#propagateCrimeTieMany", "judged from C2: as propagateCrimeTie"],
-            ["ITEM truth-bullets.mjs#propagateRealType", "judged from C2: as propagateCrimeTie; C13 sends type and Faint together through it"],
+            ["ITEM truth-bullets.mjs#propagateRemnantPublic", "judged (C2): hasReading off bulletAsHeld, and the name and img it falls back to (unreached: publicOf names every row); the answer key always"],
+            ["ITEM truth-bullets.mjs#propagateVerdicts", "judged (C2): the flags (faint, tiedToCrime, shownType) only where isIdentified(bulletAsHeld(item)), every copy decided in one synchronous pass (H3, H17); the answer key always; C13 sends the kind and Faint together through it"],
             ["ITEM truth-bullets.mjs#migrateTruthBullets", "out of scope: a one-time shape migration on a GM, writes the legacy fields back to their new names and decides no verdict"],
             ["ITEM truth-bullets.mjs#onBulletWrite", "put back: E29's put-back on the primary (judgedFor)"],
             ["CARD messenger-app.mjs#approveReshape", "refused and told from C10: the card carries only the tag, the proposal is read off the attempt row, `ruled` set before the first await, a second ruling refused; the card is the GM's (posted from the GM's client - a player cannot update a message they did not author: Foundry's permission, read not measured)"],

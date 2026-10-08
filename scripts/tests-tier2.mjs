@@ -760,6 +760,48 @@ async function sweepCountsShown() {
 }
 
 /**
+ * A TRACE AND THREE COPIES OF IT ON ONE STUDENT (E09 C2), for the verdicts' tests: a Prep placed on the scene on
+ * screen (Faint where `faint` says), and copies made by the GM as an Observe makes them - one analysed, one not,
+ * and one not analysed given `analyzed` on this browser alone (`updateSource`: the document holds it and no GM's
+ * write moved the GMs' copy, the state a player's write waiting for its put-back leaves). `back()` deletes the
+ * copies, their answer keys and the trace. The caller asks `needs(world.atLeast("sceneOnScreen"), ...)` first.
+ */
+async function traceCopies(student, { faint = false } = {}) {
+    const T = await import("./truth-bullets.mjs");
+    const { placeRemnant } = await import("./remnants.mjs");
+    const scene = canvas.scene;
+    const token = await placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, faint, note: "SUITE E09 C2 trace" });
+    must(token, "the fixture trace was not placed - this would measure nothing");
+    const copies = [];
+    const back = async () => {
+        for (const b of copies) {
+            if (student.items.has(b.id)) await student.items.get(b.id).delete();
+            await T.dropSecret(b.uuid);
+        }
+        await token.delete().catch(() => {});
+        await settle();
+    };
+    try {
+        for (const [name, analyzed] of [["analysed", true], ["unanalysed", null], ["given analyzed", null]]) {
+            const b = await T.createTruthBullet(student, { name: `SUITE E09 C2 ${name}`, realType: "prep", visibility: "evident",
+                faint, playerText: "SUITE E09 C2", remnantId: token.id, sceneId: scene.id, analyzed });
+            must(b, `the copy "${name}" was not made - this would measure nothing`);
+            copies.push(b);
+        }
+        await settle();
+        const forged = copies[2];
+        forged.updateSource({ flags: { [MODULE_ID]: { [T.TRUTH_BULLET_FLAGS.analyzed]: true } } });
+        must(copies.every(b => T.bulletGuardStatus(b.uuid).copy) && T.isIdentified(copies[0]) && !T.isIdentified(copies[1])
+            && T.isIdentified(forged) && !T.isIdentified(T.bulletAsHeld(forged)),
+            "the copies are not one analysed, one not and one analysed on the document alone, outside the GMs' copy - this would measure nothing");
+    } catch (err) {
+        await back();
+        throw err;
+    }
+    return { token, copies, back };
+}
+
+/**
  * The words of every private card this client sent while `run` ran (E06 C4): each
  * `secret.card` packet (secret.mjs `postSecret`) as { id, to, html } - the card's id, the
  * users it was addressed to and its words - and every packet let through. A card's
@@ -18088,10 +18130,12 @@ const SCENARIOS = [
          * a copy nobody has analysed, or the correction hands the answer to
          * everybody holding one.
          *
-         * `propagateRealType` is called through `setRemnantFlags`, which is how
+         * `propagateVerdicts` is called through `setRemnantFlags`, which is how
          * the dashboard reaches it; this exercises the function directly because
          * placing a token and opening the dashboard is a scenario's job, not a
-         * unit test's.
+         * unit test's. (`propagateRealType` until E09 C2 folded it into
+         * `propagateVerdicts` with the tie and Faint; the three tests below this
+         * one place a trace and go through `setRemnantFlags`.)
          */
         const bullets = await import("./truth-bullets.mjs");
         const actor = game.actors.find(a => a.type === "character");
@@ -18116,7 +18160,7 @@ const SCENARIOS = [
             ok(bullets.truthBulletData(read).identified === true,
                 "the analysed fixture copy was not born identified");
 
-            const moved = await bullets.propagateRealType(fakeRemnantId, "resolution");
+            const moved = await bullets.propagateVerdicts([fakeRemnantId], { type: "resolution" });
             ok(moved === 2, `the correction reached ${moved} copies instead of both`);
 
             /* Both answer keys moved... */
@@ -18137,6 +18181,141 @@ const SCENARIOS = [
                 if (live) await live.delete();
             }
         }
+    }],
+
+    ["a Faint verdict reaches the copy's answer key and its flag if identified", async () => {
+        /*
+         * E09 C2, 08.10.2026; S05-19. A GM's Faint on a trace (the Investigation Dashboard's Save, remnants.mjs
+         * `setRemnantFlags`) and a body discovery's promotion of a Faint Prep (chapter.mjs `promoteFaintPrep`,
+         * `setRemnantFlagsMany`) move into every copy's answer key, which the chapter's sweep reads (chapter.mjs
+         * `sparedBySweep`), and onto the item only where the GMs hold the copy identified (truth-bullets.mjs
+         * `propagateVerdicts`, `bulletAsHeld`). A Faint trace and its three copies (`traceCopies`: analysed, not,
+         * and not but given `analyzed` on the document alone); read for each copy, as made, after the promotion
+         * (Faint off, tied on) and after the GM's Faint again: the key's Faint, the item's. Before E09 C2
+         * (the code before it, e09run/scratch/c2/mt, 08.10.2026) neither road sent Faint: every key, and the
+         * analysed copy's item, stayed Faint through the promotion.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const [student] = cast(1);
+        const fx = await traceCopies(student, { faint: true });
+        const faintOf = () => fx.copies.map(b => [T.secretOf(b.uuid).faint === true, b.getFlag(MODULE_ID, T.TRUTH_BULLET_FLAGS.faint) === true]);
+        let read = null;
+        try {
+            const born = faintOf();
+            await R.setRemnantFlagsMany([fx.token], { faint: false, tiedToCrime: true });
+            await settle();
+            const promoted = faintOf();
+            await R.setRemnantFlags(fx.token, { faint: true });
+            await settle();
+            read = [born, promoted, faintOf()];
+        } finally {
+            await fx.back();
+        }
+        const shown = [[true, true], [true, false], [true, false]];
+        equal(stableJson(read), stableJson([shown, [[false, false], [false, false], [false, false]], shown]),
+            "a Faint verdict missed a copy's answer key, missed an identified copy's item, or reached the item of a copy the GMs hold unanalysed "
+                + "(for the analysed copy, the one not, and the one given `analyzed` on the document alone: the key's Faint and the item's - as made, "
+                + "after a body discovery's promotion, after the GM's Faint)");
+    }],
+
+    ["a tie verdict or a kind reaches the copy's answer key and its flag if identified", async () => {
+        /*
+         * E09 C2, 08.10.2026; S05-19. The tie and the kind took the same road before (`propagateCrimeTie`,
+         * `propagateCrimeTieMany`, `propagateRealType`), and asked "identified" of the document, where a player's
+         * write of their own bullet stands until its put-back lands - so a copy given `analyzed` from the console in
+         * that window was written the verdict, and kept it once `analyzed` was put back. One road now, asked of the
+         * GMs' copy (`propagateVerdicts`, `bulletAsHeld`). The fixture as the test above's, not Faint; read for each
+         * copy after the GM ties the trace (`setRemnantFlags`), unties it with a weapon's or a death's road
+         * (`setRemnantFlagsMany`) and corrects its kind to Resolution: the key's tie and the item's, then the key's
+         * kind and the kind the item shows. Before E09 C2 (the code before it, 08.10.2026) the copy given
+         * `analyzed` took the tie and the kind.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        const [student] = cast(1);
+        const fx = await traceCopies(student);
+        const tieOf = () => fx.copies.map(b => [T.secretOf(b.uuid).tiedToCrime === true, b.getFlag(MODULE_ID, F.tiedToCrime) === true]);
+        let read = null;
+        try {
+            await R.setRemnantFlags(fx.token, { tiedToCrime: true });
+            await settle();
+            const tied = tieOf();
+            await R.setRemnantFlagsMany([fx.token], { tiedToCrime: false });
+            await settle();
+            const untied = tieOf();
+            await R.setRemnantFlags(fx.token, { type: "resolution" });
+            await settle();
+            read = [tied, untied, fx.copies.map(b => [T.secretOf(b.uuid).realType ?? null, b.getFlag(MODULE_ID, F.shownType) ?? null])];
+        } finally {
+            await fx.back();
+        }
+        equal(stableJson(read), stableJson([[[true, true], [true, false], [true, false]], [[false, false], [false, false], [false, false]],
+            [["resolution", "resolution"], ["resolution", "neutral"], ["resolution", "neutral"]]]),
+            "a tie or a kind missed a copy's answer key, missed an identified copy's item, or reached the item of a copy the GMs hold unanalysed "
+                + "(for the analysed copy, the one not, and the one given `analyzed` on the document alone: the key's tie and the item's after the "
+                + "GM's tie and after the untie; the key's kind and the item's after the correction)");
+    }],
+
+    ["a forged analyzed earns no reading", async () => {
+        /*
+         * E09 C2, 08.10.2026; S05-19, the plan's 2.3 (class 7: a GM's write on a player's behalf). A GM's edit of a
+         * trace's reading goes into every copy's answer key and onto the item only where the holder has the reading
+         * (truth-bullets.mjs `propagateRemnantPublic`), and a death made the table's puts "loot" on the identified
+         * copies of the body's loot trace (`publishLootSource`). Both asked the document, where a player's write of
+         * their own bullet stands until its put-back lands, and the edit's write is a GM's: the GMs' copy takes what
+         * it carries. The fixture as the tests above' (not Faint). Read after the GM writes the reading: for each
+         * copy the item's reading, the description's, the key's. Then two loot copies of a trace the GMs' rows do
+         * not hold, one analysed (its source taken off by a GM's write), one not but given `analyzed` alone: how
+         * many the publication wrote, and the source each item shows. Before E09 C2 (the code before it,
+         * 08.10.2026) the copy given `analyzed` took the reading and was handed "loot". The name and the image the
+         * edit falls back to are not measured: the row's own always stand in front of them (truth-bullets.mjs
+         * `propagateRemnantPublic`).
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace stands on the scene on screen");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const F = T.TRUTH_BULLET_FLAGS;
+        // Escape-safe: the description is markup, and these are looked for in it.
+        const READING = "SUITE E09 C2 the reading";
+        const LOOT = { tokenId: "suiteC2LootTrace", sceneId: "suiteC2Scene" };
+        const [student] = cast(1);
+        const fx = await traceCopies(student);
+        const loot = [];
+        let read = null;
+        try {
+            await R.setRemnantPublic(fx.token, { analyzedText: READING });
+            await settle();
+            const reading = fx.copies.map(b => [b.getFlag(MODULE_ID, F.analyzedText) === READING,
+                String(b.system?.description ?? "").includes(READING), T.secretOf(b.uuid).analyzedText === READING]);
+            for (const [label, analyzed] of [["analysed", true], ["given analyzed", null]]) {
+                const b = await T.createTruthBullet(student, { name: `SUITE E09 C2 loot ${label}`, realType: "resolution", playerText: "SUITE E09 C2",
+                    remnantId: LOOT.tokenId, sceneId: LOOT.sceneId, sourceAction: "loot", analyzed });
+                must(b, `the loot copy "${label}" was not made - this would measure nothing`);
+                loot.push(b);
+            }
+            await loot[0].update({ [`flags.${MODULE_ID}.${F.sourceAction}`]: null });
+            loot[1].updateSource({ flags: { [MODULE_ID]: { [F.analyzed]: true } } });
+            await settle();
+            must(loot.every(b => !b.getFlag(MODULE_ID, F.sourceAction)) && T.isIdentified(loot[1]) && !T.isIdentified(T.bulletAsHeld(loot[1])),
+                "the loot copies show a source already, or the second is not analysed on the document alone - this would measure nothing");
+            const wrote = await T.publishLootSource(LOOT);
+            await settle();
+            read = [reading, wrote, loot.map(b => b.getFlag(MODULE_ID, F.sourceAction) ?? null)];
+        } finally {
+            for (const b of loot) {
+                if (student.items.has(b.id)) await student.items.get(b.id).delete();
+                await T.dropSecret(b.uuid);
+            }
+            await fx.back();
+        }
+        equal(stableJson(read), stableJson([[[true, true, true], [false, false, true], [false, false, true]], 1, ["loot", null]]),
+            "a copy the GMs hold unanalysed earned a reading or a loot source from a GM's write (for the analysed copy, the one not, and the one "
+                + "given `analyzed` on the document alone: the item's reading, the description's, the key's; how many loot copies the publication "
+                + "wrote, and the source each shows)");
     }],
 
     ["throwing a broken thing away leaves a Prep trace before a murder and a Tamper one after", async () => {

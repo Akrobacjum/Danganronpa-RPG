@@ -18,6 +18,13 @@
  *   T  p2 finds the same trace (a general Observe) and reshapes it (Tamper, "transform");
  *      the GM approves the card, and p1's copy is renamed with it - today's behaviour, the
  *      line E09 C9 flips (a reshape leaves the copies already held).
+ *   V  (E09 C2) the GM's verdicts on the tied trace reach the copies: a Faint reaches both
+ *      copies' answer keys on both GMs and the item of p1's analysed copy, not p2's; and p2's
+ *      console gives its unanalysed copy `analyzed`, the GM rewrites the trace's reading as
+ *      it hears that, and the primary's put-back is held until the edit has run - p2 reads no
+ *      reading, both GMs' copies hold none, the answer key and p1's copy hold it. On the code
+ *      before C2 (08.10.2026) both failed: the Faint reached no key, and p2's copy read the
+ *      new reading, put back to unanalysed, with both GMs' copies holding it.
  *   E  (E09 C1) the chapter ends: the GM gives p1's student an unanalysed Faint, a Neutral and
  *      a Final; the Investigation Dashboard's "Sweep Truth Bullets" confirm (answered no) and
  *      the End of chapter panel (its sweep alone ticked) each give the number the sweep then
@@ -39,6 +46,7 @@
  *
  * No `timeoutMs`: measured 08.10.2026 alone, its 17 checks took 7.6 s (13 s with the
  * cluster's start), far inside run-all's shared five minutes and the plan's 150 s budget.
+ * With E09 C2's phase V, 23 checks in 6.6 s (the cluster's own count, 08.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -50,7 +58,8 @@ const J = value => JSON.stringify(value);
 const MARK = {
     tiedSubject: "S62 tied subject", tiedNote: "S62 tied note", faintNote: "S62 faint note", keyNote: "S62 key note",
     name: "S62 found name", playerText: "S62 seen words", analyzed: "S62 reading",
-    request: "S62 the cup on the desk", reshapedName: "S62 reshaped name", reshapedText: "S62 reshaped words"
+    request: "S62 the cup on the desk", reshapedName: "S62 reshaped name", reshapedText: "S62 reshaped words",
+    rewritten: "S62 rewritten reading"
 };
 const NOT_CRITICAL = { hope: 11, fear: 9 };
 
@@ -241,6 +250,85 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         await move({ x: 300, y: 300 }, { x: 1300, y: 300 });
     }
 
+    /* ------------------------------ V. the verdicts ------------------------------ */
+
+    begin("V", "the GM's verdicts on the tied trace reach the copies p1 and p2 hold, as the GMs hold them", "truth-bullets");
+    // The tied trace's two copies on the GM: Aiko's, analysed in N, and Botan's, found in T and not analysed.
+    const copyOf = actor => `${TB} const copy = TB.bulletsOf(game.actors.get("${actor}")).find(i => TB.secretOf(i.uuid)?.remnantId === "${ids.tied}") ?? null;`;
+    const copies = await gm.eval(`const out = {};
+        { ${copyOf(IDS.aiko)} out.aiko = copy?.id ?? null; }
+        { ${copyOf(IDS.botan)} out.botan = copy?.id ?? null; }
+        return out;`);
+    const flagOn = (client, actor, key, want) => client.eval(`${until} const b = game.actors.get("${actor}")?.items.get("${copies[actor === IDS.aiko ? "aiko" : "botan"]}");
+        await until(() => J(b?.getFlag("danganronpa-rpg", "${key}") ?? null) === J(${J(want)}), 6000);
+        function J(v) { return JSON.stringify(v); }
+        return b?.getFlag("danganronpa-rpg", "${key}") ?? null;`, { timeout: 20000 });
+    const keysOn = (client, field, want) => client.eval(`${until} ${TB}
+        const read = () => ${J([IDS.aiko, IDS.botan])}.map(a => TB.secretOf(game.actors.get(a)?.items.get(${J(copies)}[a === "${IDS.aiko}" ? "aiko" : "botan"])?.uuid ?? "")?.${field} ?? null);
+        await until(() => JSON.stringify(read()) === ${J(J(want))}, 6000);
+        return read();`, { timeout: 20000 });
+
+    // V1: the GM ticks Faint on the tied trace (the dashboard's Save, `setRemnantFlags`), then takes it off again.
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.setRemnantFlags(game.scenes.get("${IDS.scene}").tokens.get("${ids.tied}"), { faint: true }); return true;`, { timeout: 30000 });
+    const faint = { gm: await keysOn(gm, "faint", [true, true]), gm2: await keysOn(gm2, "faint", [true, true]),
+        p1: await flagOn(p1, IDS.aiko, "faint", true), p2: await flagOn(p2, IDS.botan, "faint", false) };
+    await gm.eval(`const R = await import("${repoUrl}/scripts/remnants.mjs");
+        await R.setRemnantFlags(game.scenes.get("${IDS.scene}").tokens.get("${ids.tied}"), { faint: false }); return true;`, { timeout: 30000 });
+    verdict("a GM's Faint reaches both copies' answer keys on both GMs, and the item of the copy p1 analysed, not p2's",
+        Boolean(copies.aiko && copies.botan) && J(faint.gm) === J([true, true]) && J(faint.gm2) === J([true, true]) && faint.p1 === true
+            && faint.p2 !== true, J({ copies, faint }));
+
+    // V2: p2's console gives Botan's copy `analyzed`; the GM, hearing it, rewrites the trace's reading, and the
+    // primary's put-back of `analyzed` is held on its way out until that edit has run - the window a put-back
+    // slower than a GM's edit leaves (as 30's `alone` holds one).
+    const ANALYZED = "flags.danganronpa-rpg.analyzed";
+    const armed = await gm.eval(`${TB} const R = await import("${repoUrl}/scripts/remnants.mjs");
+        const { isPrimaryGm } = await import("${repoUrl}/scripts/utils.mjs");
+        const b = game.actors.get("${IDS.botan}").items.get("${copies.botan}"), update = b.update;
+        globalThis.__s62v = { edit: null, held: false, edited: false };
+        b.update = function (data, options) {
+            if (!options?.[TB.NOT_AN_EDIT] || !("${ANALYZED}" in (data ?? {}))) return update.call(this, data, options);
+            delete b.update;
+            globalThis.__s62v.held = true;
+            return (async () => { await globalThis.__s62v.edit; return update.call(b, data, options); })();
+        };
+        globalThis.__s62vHook = Hooks.on("updateItem", (doc, changes, options, userId) => {
+            if (doc.id !== "${copies.botan}" || game.users.get(userId)?.isGM || !("${ANALYZED}" in foundry.utils.flattenObject(changes ?? {}))) return;
+            Hooks.off("updateItem", globalThis.__s62vHook);
+            globalThis.__s62v.edit = R.setRemnantPublic(game.scenes.get("${IDS.scene}").tokens.get("${ids.tied}"), { analyzedText: ${J(MARK.rewritten)} })
+                .then(() => { globalThis.__s62v.edited = true; });
+        });
+        return { primary: isPrimaryGm(), analyzed: b.getFlag("danganronpa-rpg", "analyzed") ?? null };`);
+    let forged = null;
+    try {
+        await p2.eval(`await game.actors.get("${IDS.botan}").items.get("${copies.botan}").update({ "${ANALYZED}": true }, { drpgAutomated: true }); return true;`);
+        const done = await gm.eval(`${until} const A = await import("${repoUrl}/scripts/sheet-audit.mjs");
+            const b = game.actors.get("${IDS.botan}").items.get("${copies.botan}");
+            await until(() => globalThis.__s62v.edited && globalThis.__s62v.held && b.getFlag("danganronpa-rpg", "analyzed") !== true, 10000);
+            await A.sheetAuditIdle();
+            return { held: globalThis.__s62v.held, edited: globalThis.__s62v.edited };`, { timeout: 30000 });
+        const copyOn = client => client.eval(`${until} ${TB} const b = game.actors.get("${IDS.botan}").items.get("${copies.botan}");
+            const read = () => { const c = TB.bulletGuardStatus(b.uuid).copy ?? {};
+                return [c["${ANALYZED}"] ?? null, c["flags.danganronpa-rpg.analyzedText"] ?? null, TB.secretOf(b.uuid)?.analyzedText ?? null]; };
+            await until(() => read()[2] === ${J(MARK.rewritten)} && read()[0] === false, 6000);
+            return read();`, { timeout: 20000 });
+        const sheetOn = client => client.eval(`${until} const b = game.actors.get("${IDS.botan}").items.get("${copies.botan}");
+            await until(() => b.getFlag("danganronpa-rpg", "analyzed") === false, 6000);
+            return [b.getFlag("danganronpa-rpg", "analyzed") ?? null, b.getFlag("danganronpa-rpg", "analyzedText") ?? null,
+                String(b.system?.description ?? "").includes(${J(MARK.rewritten)})];`, { timeout: 20000 });
+        forged = { armed, done, p2: await sheetOn(p2), gm: await copyOn(gm), gm2: await copyOn(gm2),
+            p1: await flagOn(p1, IDS.aiko, "analyzedText", MARK.rewritten) };
+    } finally {
+        await gm.eval(`Hooks.off("updateItem", globalThis.__s62vHook); const b = game.actors.get("${IDS.botan}").items.get("${copies.botan}");
+            if (Object.hasOwn(b, "update")) delete b.update; return true;`);
+    }
+    verdict("p2's console `analyzed` on its unanalysed copy earns no reading from the GM's edit in the window: p2 reads none, "
+        + "both GMs' copies hold none and the answer key holds it, p1's analysed copy reads it",
+        armed.primary === true && armed.analyzed !== true && forged.done.held && forged.done.edited
+            && J(forged.p2) === J([false, "", false]) && J(forged.gm) === J([false, "", MARK.rewritten]) && J(forged.gm2) === J([false, "", MARK.rewritten])
+            && forged.p1 === MARK.rewritten, J(forged));
+
     /* ------------------------------ E. the chapter's end ------------------------------ */
 
     begin("E", "the chapter ends with an unanalysed Faint, a Neutral and a Final on p1's student", "truth-bullets");
@@ -271,7 +359,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
 
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "E"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "E"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

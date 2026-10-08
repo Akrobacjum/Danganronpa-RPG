@@ -1270,7 +1270,7 @@ function caseTraceRows(shown, finders) {
                   judgements only the GM can make - the killer moved the body
                   after the Search, the "cleaning" was actually preparation. The
                   value written here reaches the answer key of every copy already
-                  in a player's pack (`propagateRealType`), and changes what they
+                  in a player's pack (`propagateVerdicts`), and changes what they
                   are SHOWN only where they have already analysed it. */ ""}
             <td><select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES).map(([value, def]) =>
                 `<option value="${esc(value)}"${value === data.type ? " selected" : ""}>${

@@ -286,6 +286,11 @@ export async function shownSourceAction({ sourceAction = null, sceneId = null, r
  * The published half of `shownSourceAction`, at `publishDeath` (chapter.mjs): every copy of
  * the body's loot trace that is identified and says no source is given "loot". `trace` is the
  * body's `lootTraces` row. Answers how many items were written.
+ *
+ * Identified AS THE GMS HOLD THE COPY (E09 C2, 08.10.2026; the census row E09's prep found beside S05-19): a
+ * player's write of their own bullet stands on the document until its put-back lands (`bulletAsHeld`), and this
+ * asked the document - an unanalysed copy given `analyzed` from the console was handed "loot" by the publication
+ * that came in that window (tier 2 "a forged analyzed earns no reading", red on the code before it, 08.10.2026).
  */
 export async function publishLootSource(trace) {
     if (!game.user.isGM || !trace?.tokenId) return 0;
@@ -295,7 +300,8 @@ export async function publishLootSource(trace) {
         for (const item of bulletsOf(actor)) {
             const secret = secretOf(item.uuid);
             if (secret.sourceAction !== "loot" || secret.remnantId !== trace.tokenId || secret.sceneId !== trace.sceneId) continue;
-            if (!isIdentified(item) || item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.sourceAction) === "loot") continue;
+            const held = bulletAsHeld(item);
+            if (!isIdentified(held) || held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.sourceAction) === "loot") continue;
             await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: "loot" });
             n++;
         }
@@ -737,6 +743,17 @@ export function faintOf(item) {
  * the text the trace was created with; writing only the second would leave
  * every analysed copy stale. So: secret always, item where `hasReading`.
  *
+ * `hasReading` AS THE GMS HOLD THE COPY (E09 C2, 08.10.2026; S05-19, the plan's 2.3). A player's write of their own
+ * bullet stands on the document until its put-back lands (`bulletAsHeld`), and the write below is a GM's: what it
+ * carries, the GMs' copy takes (`refreshGuard`), and the put-back then undoes only the fields the player touched.
+ * Read off the document, an unanalysed copy given `analyzed` from the console in that window was written the trace's
+ * reading, which stayed once `analyzed` was put back (tier 2 "a forged analyzed earns no reading", and scenario 62's
+ * V2 with the copy on both GMs, both red on the code before it, 08.10.2026). Read without a wait (H17): the copy is
+ * this browser's memory, and the loop runs inside a GM's write. The name and the image the write falls back to are
+ * read off the same copy, and are not reached today: `setRemnantPublic`, the one caller, hands over the row over its
+ * defaults (remnants.mjs `publicOf`), which name every trace and give it the question mark - the fix's first tier-2
+ * run found its fixture trace already named, 08.10.2026.
+ *
  * @returns {Promise<number>} how many bullets were updated.
  */
 export async function propagateRemnantPublic(remnantTokenId, pub) {
@@ -759,15 +776,16 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
                 // bullet still showing Neutral - or a Key or a Final nobody has
                 // analysed yet - gets the Observe text and an empty second tier,
                 // which is what its flags already said.
-                const earned = hasReading(item) ? analyzedText : "";
+                const held = bulletAsHeld(item);
+                const earned = hasReading(held) ? analyzedText : "";
 
                 // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
                 // where this write came from, not about the bullet. `watchBulletEdits`
                 // below reads it to know this is the trace talking and not a GM,
                 // which is the whole of the loop guard.
                 await item.update({
-                    name: pub.name || item.name,
-                    img: pub.img || item.img,
+                    name: pub.name || held.name,
+                    img: pub.img || held.img,
                     "system.description": bulletDescription(pub.playerText ?? "", earned),
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned
@@ -782,111 +800,75 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
 }
 
 /**
- * A GM changed their mind about whether a trace belongs to the murder - see
- * `setRemnantFlags` in remnants.mjs, the only caller. The verdict moves into
- * every bullet copied from that trace: into the secret always, and onto the
- * item only where the holder has already earned the truth. Anything less and
- * the murder-first sort keeps ordering the pack by a retracted ruling.
+ * A GM's verdict on a trace - Faint, tied to the crime, what it really is - moved into every
+ * bullet copied from the traces named: into the answer key always, and onto the item only
+ * where the holder has already earned the truth. Anything less and the murder-first sort
+ * keeps ordering the pack by a retracted ruling, a Faint the GM struck spares a copy from the
+ * chapter's sweep (chapter.mjs `sparedBySweep` reads the key), and a corrected kind pays out
+ * the old category the next time somebody analyses a copy. The item's flags are `faint`,
+ * `tiedToCrime` and, for the kind, `shownType` - what the row and the card read; an
+ * unanalysed copy is showing "Neutral" and must go on showing it, or a GM's correction would
+ * hand the answer to everybody holding one. `remnants.mjs` `setRemnantFlags` and
+ * `setRemnantFlagsMany` are the callers: the Investigation Dashboard's Save, a weapon's and a
+ * death's ties, the Faint Prep a body discovery promotes.
  *
- * @returns {Promise<number>} how many bullets were touched.
- */
-export async function propagateCrimeTie(remnantTokenId, tied) {
-    if (!game.user.isGM || !remnantTokenId) return 0;
-
-    let touched = 0;
-    for (const actor of game.actors) {
-        if (actor.type !== "character") continue;
-        for (const item of bulletsOf(actor)) {
-            if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
-            try {
-                await setSecret(item.uuid, { tiedToCrime: Boolean(tied) }, { ifLive: true });
-                if (isIdentified(item)) {
-                    await item.update({
-                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: Boolean(tied)
-                    });
-                }
-                touched++;
-            } catch (err) {
-                error(`Could not move the crime tie onto "${item.name}"`, err);
-            }
-        }
-    }
-    return touched;
-}
-
-/**
- * `propagateCrimeTie` for many traces in one pass (E04, 1.2.63): the copies'
- * answer keys in one store write, and each identified copy's item as before.
- * `setRemnantFlagsMany` (remnants.mjs) calls it for a chapter's traces at a
- * victim's death and a weapon's at its use; one call per trace was one pass over
- * every bullet in the world and one write of the store per trace.
+ * ONE ROAD FOR THE THREE, AND FAINT ON IT (E09 C2, 08.10.2026; S05-19). Until this commit
+ * the tie had two functions of its own (one trace, many) and the kind a third, each saying
+ * it was the only caller's, and neither caller sent Faint at all: a GM's Faint left every
+ * copy's answer key as the trace was found (scenario 62's V1), and a body discovery's
+ * promotion left every key Faint (tier 2 "a Faint verdict reaches the copy's answer key and
+ * its flag if identified"). And "identified" was asked of the document, where a player's
+ * write of their own bullet stands until its put-back lands: an unanalysed copy given
+ * `analyzed` from the console in that window was written the tie and the kind (tier 2 "a tie
+ * verdict or a kind reaches the copy's answer key and its flag if identified"; the three red
+ * on the code before it, 08.10.2026), and the put-back undoes only the field the player
+ * wrote (scenario 62's V2 measures that for the reading). It is asked of the GMs' copy now
+ * (`bulletAsHeld`), every copy decided in one synchronous pass before the first write (H3,
+ * H17: the copy is this browser's memory, nothing to wait for), the keys in one store write.
  *
- * @returns {Promise<number>} how many copies moved
+ * @param {string[]} remnantTokenIds  the traces' token ids, as a copy's answer key names them
+ * @param {{faint?: boolean|null, tiedToCrime?: boolean|null, type?: string|null}} verdicts
+ *   null (or absent) leaves that verdict as it is
+ * @returns {Promise<number>} how many copies' answer keys moved
  */
-export async function propagateCrimeTieMany(remnantTokenIds, tied) {
+export async function propagateVerdicts(remnantTokenIds, { faint = null, tiedToCrime = null, type = null } = {}) {
     const ids = new Set((remnantTokenIds ?? []).filter(Boolean));
-    if (!game.user.isGM || !ids.size) return 0;
+    const secret = {}, shown = {};
+    if (typeof faint === "boolean") {
+        secret.faint = faint;
+        shown[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`] = faint;
+    }
+    if (typeof tiedToCrime === "boolean") {
+        secret.tiedToCrime = tiedToCrime;
+        shown[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`] = tiedToCrime;
+    }
+    if (type) {
+        secret.realType = type;
+        shown[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`] = type;
+    }
+    if (!game.user.isGM || !ids.size || !Object.keys(secret).length) return 0;
 
-    const secrets = {}, shown = [];
+    const secrets = {}, identified = [];
     for (const actor of game.actors) {
         if (actor.type !== "character") continue;
         for (const item of bulletsOf(actor)) {
             if (!ids.has(secretOf(item.uuid).remnantId)) continue;
-            secrets[item.uuid] = { tiedToCrime: Boolean(tied) };
-            if (isIdentified(item)) shown.push(item);
+            secrets[item.uuid] = { ...secret };
+            if (isIdentified(bulletAsHeld(item))) identified.push(item);
         }
     }
     if (!Object.keys(secrets).length) return 0;
+    // `ifLive`: it amends rows this GM holds (the pass above found them), and never starts one.
     await bulletStore.patchMany(secrets, { ifLive: true });
-    for (const item of shown) {
+    for (const item of identified) {
         try {
-            await item.update({ [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: Boolean(tied) });
+            // `FROM_REMNANT`, as `propagateRemnantPublic`'s: the trace talking, not a GM editing the bullet.
+            await item.update(shown, { [FROM_REMNANT]: true });
         } catch (err) {
-            error(`Could not move the crime tie onto "${item.name}"`, err);
+            error(`Could not move the trace's verdicts onto "${item.name}"`, err);
         }
     }
     return Object.keys(secrets).length;
-}
-
-/**
- * A GM corrected what a trace really is: move it onto every copy of it.
- *
- * The twin of `propagateCrimeTie` above, and the same two halves for the same
- * reason. The SECRET always: that is the answer key, and a copy whose key
- * disagrees with the trace it came from would pay out the old category the next
- * time somebody analysed it. The player's ITEM only where the copy is already
- * identified: an unanalysed one is showing "Neutral" and must go on showing it,
- * or a GM's correction would hand the answer to everybody holding a copy.
- *
- * `shownType` as well as the secret on an identified copy, because that is what
- * the row and the card read - without it the dashboard would say Tamper and the
- * player's pack would still say Prep, and the trial would be spent working out
- * which of the two is lying.
- *
- * @returns {Promise<number>} how many copies moved
- */
-export async function propagateRealType(remnantTokenId, realType) {
-    if (!game.user.isGM || !remnantTokenId || !realType) return 0;
-
-    let touched = 0;
-    for (const actor of game.actors) {
-        if (actor.type !== "character") continue;
-        for (const item of bulletsOf(actor)) {
-            if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
-            try {
-                await setSecret(item.uuid, { realType }, { ifLive: true });
-                if (isIdentified(item)) {
-                    await item.update({
-                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType
-                    });
-                }
-                touched++;
-            } catch (err) {
-                error(`Could not move the corrected type onto "${item.name}"`, err);
-            }
-        }
-    }
-    return touched;
 }
 
 /**

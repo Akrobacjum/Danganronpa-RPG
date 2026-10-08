@@ -1673,26 +1673,18 @@ export async function setRemnantFlags(tokenDoc,
     await setRemnantSecret(tokenDoc, patch, { ifLive: true });
 
     // A changed verdict follows the copies already in players' packs - the
-    // murder-first sort reads it off the bullets, and only identified ones
-    // learn it. See `propagateCrimeTie` for the two halves of that rule.
-    if (patch.tiedToCrime !== undefined) {
+    // murder-first sort reads the tie off the bullets, the chapter's sweep reads
+    // Faint off their answer keys, and a copy whose key disagrees with the trace
+    // pays out the old category the next time anybody analyses it. Only
+    // identified copies show it: see `propagateVerdicts` for the two halves of
+    // that rule. Faint joined the tie and the kind here in E09 C2 (S05-19): this
+    // sent the two, and a GM's Faint reached no copy at all.
+    if (patch.faint !== undefined || patch.tiedToCrime !== undefined || patch.type !== undefined) {
         try {
-            const { propagateCrimeTie } = await import("./truth-bullets.mjs");
-            await propagateCrimeTie(tokenDoc.id, patch.tiedToCrime);
+            const { propagateVerdicts } = await import("./truth-bullets.mjs");
+            await propagateVerdicts([tokenDoc.id], { faint: patch.faint ?? null, tiedToCrime: patch.tiedToCrime ?? null, type: patch.type ?? null });
         } catch (err) {
-            error("Could not propagate the crime tie to the copied bullets", err);
-        }
-    }
-    /* The same road, for the same reason: a copy whose answer key disagrees with
-       the trace it came from pays out the old category the next time anybody
-       analyses it. `propagateRealType` decides which copies also change what the
-       player is SHOWN - only the ones already identified. */
-    if (patch.type !== undefined) {
-        try {
-            const { propagateRealType } = await import("./truth-bullets.mjs");
-            await propagateRealType(tokenDoc.id, patch.type);
-        } catch (err) {
-            error("Could not propagate the corrected type to the copied bullets", err);
+            error("Could not propagate the trace's verdicts to the copied bullets", err);
         }
     }
     return tokenDoc;
@@ -1724,13 +1716,14 @@ export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime = 
     if (!live.length) return 0;
     // The repaint follows from the store's own write (`registerRemnantLedger`).
     await remnantStore.patchMany(Object.fromEntries(live.map(token => [keyOf(token), patch])), { ifLive: true });
-    if (patch.tiedToCrime !== undefined) {
-        try {
-            const { propagateCrimeTieMany } = await import("./truth-bullets.mjs");
-            await propagateCrimeTieMany(live.map(token => token.id), patch.tiedToCrime);
-        } catch (err) {
-            error("Could not propagate the crime tie to the copied bullets", err);
-        }
+    // Faint as well as the tie since E09 C2 (S05-19): a body discovery's promoted
+    // Faint Prep left every copy's answer key Faint, so the sweep spared copies of a
+    // trace the GM had made evidence.
+    try {
+        const { propagateVerdicts } = await import("./truth-bullets.mjs");
+        await propagateVerdicts(live.map(token => token.id), { faint: patch.faint ?? null, tiedToCrime: patch.tiedToCrime ?? null });
+    } catch (err) {
+        error("Could not propagate the trace's verdicts to the copied bullets", err);
     }
     return live.length;
 }
