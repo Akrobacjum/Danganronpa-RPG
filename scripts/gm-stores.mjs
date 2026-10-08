@@ -1269,7 +1269,7 @@ export const CASE_FORMAT = "drpg-case";
 export const CASE_VERSION = 1;
 const { DialogV2 } = foundry.applications.api;
 
-/** `{ since, lastBackupAt, lastBackupBy, upgradedAt, tiesSettledAt }`: when this world's case was first recorded, its last backup, and two load marks. */
+/** `{ since, lastBackupAt, lastBackupBy, upgradedAt, tiesSettledAt, tiesSettledBefore }`: when this world's case was first recorded, its last backup, two load marks and the tie settle's cut. */
 export function caseMark() {
     try { return getSetting(SETTINGS.caseMark) ?? {}; } catch { return {}; }
 }
@@ -1326,8 +1326,8 @@ async function markCaseSince() {
     if (caseHasRows(gmStoreHandles())) await markCase({ since: Date.now() });
 }
 
-/** When this browser loaded the module: `settleTieStates` reads only a tie stamped before it. */
-const TIES_LOADED_AT = Date.now();
+/** When this browser registered its case health (ready), on the stores' clock: the world's first `settleTieStates` reads only a tie stamped before it. */
+let tiesLoadedAt = null;
 
 /**
  * A TRACE'S "NOT TIED" FROM BEFORE THE THIRD STATE, READ AS UNDECIDED (E09 C4, 08.10.2026; audit
@@ -1336,7 +1336,8 @@ const TIES_LOADED_AT = Date.now();
  * anyway. From C4 a death leaves `false` alone
  * (remnants.mjs `tieChapterTraces`), which would turn every old undecided trace into a red
  * herring nobody planted; this turns them back into `null`, once per world, on the primary,
- * after its stores hold the other GMs' copies, and writes `caseMark.tiesSettledAt` so a "not
+ * after its stores hold the other GMs' copies (and, since fix r2-G4, the rows that arrive after
+ * that at every GM's load, below), and writes `caseMark.tiesSettledAt` so a "not
  * tied" a GM chooses after it is never touched (tier 2 "the tie settle step runs once"). The
  * mark is written whether or not a row moved - a timestamp, and nothing about the case; a
  * browser whose traces' store never hydrated settles nothing and marks nothing, and the next
@@ -1346,8 +1347,23 @@ const TIES_LOADED_AT = Date.now();
  * ONLY A `false` FROM BEFORE THIS LOAD. The step runs once the stores have hydrated, after the
  * load's other marks, and a "not tied" written in between is a GM's of today: scenario 10 set one
  * in its first second and read it back `null` (08.10.2026, the step having run after the write).
- * So the tie's own stamp is asked (`stampOf`, per field in the ledger) against the moment this
- * module was loaded (`TIES_LOADED_AT`); `before` is the suite's.
+ * So the tie's own stamp is asked (`stampOf`, per field in the ledger) against this load's
+ * moment (`tiesLoadedAt`, taken at ready since fix r2-G4, below); `before` is the suite's.
+ *
+ * AND A ROW THAT ARRIVES AFTER IT (E09 fix r2-G4, 08.10.2026; the round-2 correctness review's
+ * item 3). A row only an absent GM held - a trace placed while the primary was away - merged in
+ * after the step had marked the case, and kept its old "not tied" for good: scenario 61's D6, a
+ * second GM back with such a row in its browser, read `false` on both GMs at the parent. So the
+ * first settle writes its cut beside the mark (`tiesSettledBefore`), and every GM's load after
+ * it - the primary's or not, once its stores hold the others' rows - reads the rows against that
+ * cut again: the arrived row was stamped before it and goes undecided; a "not tied" written since
+ * is stamped after it and stays, whoever holds it. A mark written before this fix has no cut, and
+ * nothing is read again in that world. The cut is the stores' clock (`gmStoreStamp`, the server's,
+ * as the rows' stamps are) when this browser registered its case health at ready, not the
+ * machine's when the module was imported: a machine five minutes fast moves `Date.now` alone
+ * (scenario 61's A7), and its cut, read again at every load now, would take back five minutes of
+ * GMs' "not tied" for good - read in the code; no check loads a fast primary into a world whose
+ * case is not marked.
  *
  * THE SUITE'S RUN READS ITS OWN ROWS (E09 fix r1-G2, 08.10.2026; the round-1 security review's F3).
  * The tier-2 test took the mark out and ran the step over the whole ledger, so a GM who ran the
@@ -1357,20 +1373,24 @@ const TIES_LOADED_AT = Date.now();
  * The mark is a store stamp (`gmStoreStamp`, the server's clock as the rows' stamps are), since
  * fix r1-G2: cleanup.mjs `receiptTie` holds a receipt's stamp against it.
  *
- * @param {{before?: number, keys?: string[]|null}} [options]
+ * @param {{before?: number, keys?: string[]|null}} [options]  `before` is the first settle's cut
+ *   (this load's, or the suite's); a world settled before reads its own
  * @returns {Promise<number>} how many rows moved
  */
-export async function settleTieStates({ before = TIES_LOADED_AT, keys = null } = {}) {
-    if (!isPrimaryGm() || caseMark().tiesSettledAt || !remnantStore.isHydrated()) return 0;
+export async function settleTieStates({ before = tiesLoadedAt, keys = null } = {}) {
+    if (!remnantStore.isHydrated()) return 0;
+    const mark = caseMark();
+    const cut = mark.tiesSettledAt ? mark.tiesSettledBefore : isPrimaryGm() ? before : null;
+    if (!Number.isFinite(cut)) return 0;
     const only = keys ? new Set(keys) : null;
     const undecided = {};
     for (const [key, row] of Object.entries(remnantStore.entries())) {
         if (only && !only.has(key)) continue;
-        if (row?.tiedToCrime === false && remnantStore.stampOf(key, "tiedToCrime") < before) undecided[key] = { tiedToCrime: null };
+        if (row?.tiedToCrime === false && remnantStore.stampOf(key, "tiedToCrime") < cut) undecided[key] = { tiedToCrime: null };
     }
     const moved = Object.keys(undecided).length;
     if (moved) await remnantStore.patchMany(undecided, { ifLive: true });
-    await markCase({ tiesSettledAt: gmStoreStamp() });
+    if (!mark.tiesSettledAt) await markCase({ tiesSettledAt: gmStoreStamp(), tiesSettledBefore: cut });
     return moved;
 }
 
@@ -2031,6 +2051,7 @@ export async function openRestoreDialog(text = null) {
 
 /** Registered at ready (module.mjs): the check runs once this client's stores hold the other GMs' copies. */
 export function registerCaseHealth() {
+    tiesLoadedAt = gmStoreStamp();
     onGmStoresHydrated(() => {
         const marked = markUpgrade().then(() => markCaseSince()).then(() => settleTieStates());
         // The marks are the load's writes; the check's window waits for a GM, and the suite does not wait for it.

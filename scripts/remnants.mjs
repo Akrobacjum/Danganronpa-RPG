@@ -233,7 +233,14 @@ export async function dropRemnant(actor, {
      * `handleRemnant`, E08+E28 fix r1-G1). Null for a trace no roll's replay owns (a discarded
      * item's, an indirect murder's covering, a GM's own). Travels beside the packet's data.
      */
-    rollId = null
+    rollId = null,
+    /*
+     * The body this trace's tie to the crime tells of - a loot's (handover.mjs
+     * `markBodyDisturbed`) - so the tie waits for that death while the GMs keep it
+     * (`tieWaitNow`, E09 fix r2-G4). GM-side, like `placeRemnant`'s `keepId`: never put in the
+     * data, so it never travels.
+     */
+    deathOf = null
 } = {}) {
     const token = tokenFor(actor);
     if (!token) {
@@ -271,7 +278,7 @@ export async function dropRemnant(actor, {
         chapter: clock.chapter,
         day: clock.day,
         timeOfDay: clock.timeOfDay
-    }, { rollId });
+    }, { rollId, deathOf });
 }
 
 /**
@@ -281,9 +288,10 @@ export async function dropRemnant(actor, {
  * `keepId` (GM-side only, never read off a packet): the trace is made under the
  * `_id` in `data` - a clean-up's Reroll putting back the trace it erased
  * (cleanup.mjs `undoLastCleanup`). `rollId` (a player's only): the roll this
- * trace is that roll's own, sent beside `data` (`dropRemnant`).
+ * trace is that roll's own, sent beside `data` (`dropRemnant`). `deathOf` (GM-side
+ * only, like `keepId`): the body the trace's tie tells of (`dropRemnant`, `tieWaitNow`).
  */
-export async function placeRemnant(data = {}, { keepId = false, rollId = null } = {}) {
+export async function placeRemnant(data = {}, { keepId = false, rollId = null, deathOf = null } = {}) {
     if (!game.user.isGM) {
         // Answered once placed (E31), and refused as failed when the GM's client
         // could not place it (E31 review), so "placed" means placed at every caller.
@@ -510,7 +518,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
                 tiedToCrime: tieState(tiedToCrime),
                 // A tie to a crime nobody has found yet waits to reach the copies
                 // (`tieWaitNow`, E09 fix r1-G1): a copy made in the meantime is undecided.
-                tieWaitsFor: tieState(tiedToCrime) === true ? await tieWaitNow() : null,
+                tieWaitsFor: tieState(tiedToCrime) === true ? await tieWaitNow(deathOf) : null,
                 // Which object this trace handed over, if it handed one over.
                 // Read by `tieTraceForItem` when that object turns out to have
                 // been the murder weapon.
@@ -1986,14 +1994,32 @@ export async function tieChapterTraces(chapter, { waitFor = null } = {}) {
  * them (`publishDeath`, `publishTiesFor`); a death made public at once sends the fight's; the close
  * sends what a fight left with no death (murder-rules.mjs `closeIncident`; 1.2.70 sent it sooner,
  * at the swing), and a revival hands a kept death's back to the fight still running, or sends
- * them. A GM's own verdict is sent at once and clears the wait (`setRemnantFlags`).
+ * them. A GM's own verdict is sent at once and clears the wait (`setRemnantFlags`). A tie about a
+ * body - the loot's trace - waits for that body's death while the GMs keep it, fight or none
+ * (`tieWaitNow`'s `about`, E09 fix r2-G4).
  */
 export function fightKey(state) {
     return state?.active && state.openedAt ? `incident.${state.openedAt}` : null;
 }
 
-/** What a tie to the crime written now waits for: nothing once the death is the table's, or with no fight running. GM-side. */
-export async function tieWaitNow() {
+/**
+ * What a tie to the crime written now waits for: nothing once the death is the table's, or with no
+ * fight running. GM-side.
+ *
+ * A TIE ABOUT A BODY (E09 fix r2-G4, 08.10.2026; the round-2 correctness review's N1, the owner's
+ * rule that a student learns of a death only at the body's discovery). `about` is the body a
+ * trace's tie tells of (handover.mjs `markBodyDisturbed`, the loot's trace): its tie waits for that
+ * death while the GMs keep it, and for nothing once the death is the table's, whether a fight runs
+ * or not. Asked of the fight alone, a loot after the incident's close found no fight - the close
+ * wipes the state and its victim's id with it (incident-store.mjs `restoreState`) - and a copy of
+ * the loot's trace made before the discovery came out tied to the crime (tier 2 "a loot after the
+ * close holds its trace's tie back until the death is the table's"). A death the GMs keep with no
+ * fight at all takes the same branch; that one is read in the code, not measured.
+ *
+ * @param {Actor|null} [about]  the body the tie tells of, if the caller knows it
+ */
+export async function tieWaitNow(about = null) {
+    if (about && isDeadForGm(about)) return isDeceased(about) ? null : about.id;
     const { murderState } = await import("./murder.mjs");
     const state = murderState();
     if (!state?.active) return null;

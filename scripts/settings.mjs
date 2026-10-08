@@ -245,7 +245,8 @@ export const SETTINGS = {
      * nothing about the case itself: no pick, no offer, no count (gm-stores.mjs,
      * `markCaseSince`). `upgradedAt` and, since E09 C4, `tiesSettledAt` (the one
      * load that read the traces' old "not tied" as undecided, `settleTieStates`)
-     * are timestamps beside them.
+     * are timestamps beside them, and since E09 fix r2-G4 `tiesSettledBefore`, the
+     * store stamp that load read against, which every later load reads again.
      */
     caseMark: "caseMark",
     /**

@@ -29,7 +29,8 @@
  *      a second world on the same server - its hello is refused there as another
  *      world's, it claims the same old rows (a duplicated world), its clear drops
  *      world B's rows only, and back in world A the same browser reads its traces
- *      intact without a GM having to send them.
+ *      intact without a GM having to send them; and a row only an absent GM held, back
+ *      after the world's ties were settled, is read against the settle's cut (E09 fix r2-G4).
  *   E  the Mastermind's door (S06-19): the pick reaches its player's copy with the
  *      record's stamps, and what each player is sent is read off the packets; a
  *      second GM whose browser holds no pick is asked and does not answer (the
@@ -444,6 +445,45 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
     check("D5: the same browser back in world A reads its traces intact, and no GM had to send it a section",
         J(tracesOnA) === J(expectD.slice(0, 2)) && !statesForA.length, J({ tracesOnA, statesForA: statesForA.slice(0, 4) }));
     await disconnect("gma");
+    await disconnect("gm2");
+    await settle(300);
+
+    /* D6 (E09 fix r2-G4, 08.10.2026; the round-2 correctness review's item 3): a trace row only an
+       absent GM held, merged in after the primary's load had read the world's old "not tied" as
+       undecided and marked the case (gm-stores.mjs `settleTieStates`). gm2's browser as it left in
+       D5, and two rows written into it that no other GM holds: a "not tied" stamped an hour before
+       the mark (an old one, from before the third state) and one stamped now, after it (a GM's of
+       today). gm2 back, and waited for until its load's own writes are done (as A5 waits). Read:
+       both rows' tie on both GMs. Then the two rows dropped and gm2 gone again, as D5 left it. */
+    const plantedD6 = [`${IDS.scene}.R2G4OLDNOTTIED00`, `${IDS.scene}.R2G4TODAYNOTTIED`];
+    const atD6 = await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        return { now: E.gmStoreStamp(), mark: S.caseMark() };`);
+    const leftD5 = await storageOf("gm2");
+    const remnantsD6 = JSON.parse(leftD5?.[KEY] ?? "null");
+    const sectionD6 = remnantsD6?.worlds?.[worldA] ?? null;
+    const oldD6 = atD6.mark?.tiesSettledAt - 60 * 60 * 1000;
+    if (sectionD6) {
+        const row = note => ({ type: "prep", visibility: "evident", note, tiedToCrime: false });
+        Object.assign(sectionD6.e ??= {}, { [plantedD6[0]]: row("E09 r2-G4 an absent GM's old not tied"),
+            [plantedD6[1]]: row("E09 r2-G4 an absent GM's not tied of today") });
+        Object.assign(sectionD6.t ??= {}, { [plantedD6[0]]: oldD6, [plantedD6[1]]: atD6.now });
+    }
+    await connect("gm2", { storage: { ...leftD5, [KEY]: JSON.stringify(remnantsD6) } });
+    await gm2.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const end = Date.now() + 10000;
+        while (!E.gmStoresHydrated() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        if (E.gmStoresHydrated()) await S.whenGmStoresLoaded();
+        await E.gmStoresIdle(); return E.gmStoresHydrated();`);
+    await settle(800);
+    const tiesD6 = client => client.eval(`${REM}
+        return ${J(plantedD6)}.map(key => { const row = remnantStore.get(key); return row ? row.tiedToCrime : "absent"; });`);
+    const lateOnGm = await tiesD6(gm), lateOnGm2 = await tiesD6(gm2);
+    check("D6: a trace row only an absent GM held, back after the world's ties were settled, is read against the settle's cut on both GMs: its old not tied undecided, a not tied written since kept",
+        Boolean(sectionD6) && Number.isFinite(oldD6) && oldD6 > (sectionD6.cleared ?? 0)
+        && J(lateOnGm) === J([null, false]) && J(lateOnGm2) === J([null, false]),
+        J({ lateOnGm, lateOnGm2, oldD6, now: atD6.now, cleared: sectionD6?.cleared ?? null, mark: atD6.mark }));
+    await gm.eval(`${REM} await remnantStore.dropMany(${J(plantedD6)}); await E.gmStoresIdle(); return true;`);
+    await settle(300);
     await disconnect("gm2");
     await settle(300);
 

@@ -595,7 +595,12 @@ async function markBodyDisturbed(body, itemName) {
         action: "loot",
         subject: body.name,
         // About the body, so it survives the chapter-end sweep.
-        tiedToCrime: true
+        tiedToCrime: true,
+        // And so the tie waits for the body's death while the GMs keep it (remnants.mjs
+        // `tieWaitNow`): after the incident's close nothing held it back, and a copy of the
+        // trace made before the discovery came out tied (E09 fix r2-G4, the round-2
+        // correctness review's N1).
+        deathOf: body
     }).catch(() => null);
 
     if (!token) return null;

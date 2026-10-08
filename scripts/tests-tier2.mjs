@@ -18415,6 +18415,59 @@ const SCENARIOS = [
             "a case the clock left counted for the next chapter while it ran or after its close, or the next chapter's trial was charged for it (its chapter's count and the next's while it ran, after the close; Despair to each pool)");
     }],
 
+    ["a case closed after the clock left its chapter keeps its Blackened under its own chapter", async () => {
+        /*
+         * E09 fix r2-G4, 08.10.2026; the round-2 correctness review's item 2. Fix r1-G3 kept the case's Key
+         * count under the chapter the incident opened in; the register of the Blackened (incident-store.mjs
+         * `recordBlackened`) stayed under the clock's, and added to the clock's chapter's rows. Two direct
+         * murders by one killer, each opened on a chapter nobody has planned, the clock moved to the next
+         * while it runs, its victim killed into Stage 6, the GM's close, the death made known (chapter.mjs
+         * `publishDeath`) - the second asks which row the first left, the first which chapter it wrote.
+         * Read: the killer's row's chapter (less the case's) and its victims, and whether the trial asks for
+         * the killer with the clock on the next chapter and on the case's. Put back after: the clock, both
+         * bodies alive, the killer's row as it was.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer and two victims, each with a player");
+        const M = await import("./murder.mjs");
+        const { blackenedStore } = await import("./gm-stores.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter, publishDeath } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, ...victims] = livingStudents().filter(player).slice(0, 3);
+        const clock = getClock();
+        const chapter = await freshKeyChapter();
+        const held = blackenedStore.get(killer.id) ?? null;
+        let row = null, asked = null;
+        try {
+            for (const victim of victims) {
+                await setClock({ chapter });
+                await fightOpen(M, killer, victim);
+                await setClock({ chapter: chapter + 1 });
+                const unanswered = await killedIntoStageSix(victim);
+                must(M.murderState()?.stage === "resolution" && !unanswered.length,
+                    `the body did not take the fight to Stage 6: ${stableJson({ stage: M.murderState()?.stage ?? null, unanswered })}`);
+                await M.endMurder({ reason: "closed", followUp: false });
+                await settle();
+                must(!M.murderState(), `the incident is still running after the close: ${stableJson(M.murderState())}`);
+                await publishDeath(victim);
+                await settle();
+            }
+            const kept = blackenedStore.get(killer.id);
+            row = [Number.isFinite(kept?.chapter) ? kept.chapter - chapter : null, kept?.victims ?? null];
+            const inNext = M.trialBlackenedIds().includes(killer.id);
+            await setClock({ chapter });
+            asked = [inNext, M.trialBlackenedIds().includes(killer.id)];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const victim of victims) if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock(clock);
+            if (blackenedStore.has(killer.id)) await blackenedStore.drop(killer.id);
+            if (held) await blackenedStore.patch(killer.id, held);
+        }
+        equal(stableJson([row, asked]), stableJson([[0, victims.map(v => v.id)], [false, true]]),
+            "a case the clock left named its killer the next chapter's Blackened, or its second death wrote over its first "
+            + "(the row's chapter less the case's and its victims; the trial asks for the killer on the next chapter, on the case's)");
+    }],
+
     ["the Key fee is the same with Save and without", async () => {
         /*
          * E09 C7, 08.10.2026; audit S05-16, the plan's V2. A Class Trial's opening charges every Monokuma for the Key
@@ -31884,6 +31937,86 @@ const SCENARIOS = [
         }
     }],
 
+    ["a loot after the close holds its trace's tie back until the death is the table's", async () => {
+        /*
+         * E09 fix r2-G4, 08.10.2026; the round-2 correctness review's N1 (the owner's rule that a student
+         * learns of a death only at the body's discovery). A loot leaves a trace tied to the crime
+         * (handover.mjs `markBodyDisturbed`), and its tie asked the fight what to wait for (remnants.mjs
+         * `tieWaitNow`): after the incident's close there is no fight, so it waited for nothing, and a copy
+         * of the loot's trace made before anybody found the body came out tied to the crime. A fight; its
+         * victim killed and kept by the GMs; the GM's close; the killer loots the body; the GM hands a copy
+         * of the loot's trace to a third student, as its real type, from the item hub (gm-items.mjs
+         * `openItemManager`, its windows answered as the GM would); then the death is made known
+         * (chapter.mjs `publishDeath`, which the discovery calls). Read: the copy's answer key and flag
+         * before the publication, and after it.
+         */
+        needs(world.atLeast("livingStudents", 3), "a killer, a victim and the student handed the copy");
+        needs(world.atLeast("studentTokensOnScreen"), "a body with no token leaves no trace (trap 142), and the hub hands over the traces of the scene on screen");
+        const M = await import("./murder.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        const { openItemManager } = await import("./gm-items.mjs");
+        const { killCharacter, publishDeath, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { lootBody } = await import("./handover.mjs");
+        const { lootTraceStore } = await import("./gm-stores.mjs");
+        const { grantItem } = await import("./inventory.mjs");
+        const [killer, victim, holder] = cast(3);
+        const had = new Map([killer, holder].map(a => [a.id, new Set(a.items.map(i => i.id))]));
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const answers = [];
+        const lootTrace = () => {
+            const row = lootTraceStore.get(victim.id);
+            return row?.tokenId ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null : null;
+        };
+        try {
+            await fightOpen(M, killer, victim);
+            D.confirm = async () => false;
+            D.wait = async () => answers.shift() ?? null;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(!M.murderState() && isDeadForGm(victim), "the fight did not close over a death the GMs keep - this would measure nothing");
+            const put = await grantItem(victim, { name: "SUITE E09 r2-G4 a lighter", category: "tool", tier: 1, override: true, quiet: true });
+            must(put && await lootBody({ takerId: killer.id, bodyId: victim.id, itemId: put.id }), "the loot after the close took nothing - this would measure nothing");
+            await settle();
+            const trace = lootTrace();
+            must(trace && R.remnantData(trace)?.tiedToCrime === true, "the loot left no trace tied to the crime - this would measure nothing");
+            answers.push({ who: holder.id, go: "bullet" }, { recipient: holder.id, tell: false, mode: "existing", remnantId: trace.id,
+                name: "SUITE E09 r2-G4 a loot's trace", shown: "real" });
+            await openItemManager(holder);
+            await settle();
+            const item = holder.items.find(i => !had.get(holder.id).has(i.id) && T.secretOf(i.uuid).remnantId === trace.id);
+            const copy = item ? await heldCopy(holder, item) : null;
+            must(copy?.identified(), "the GM's hand made no identified copy of the loot's trace - this would measure nothing");
+            const unpublished = copy.tie();
+            await publishDeath(victim);
+            await settle();
+            equal(stableJson([unpublished, copy.tie()]), stableJson([[false, false], [true, true]]),
+                "a copy of a loot's trace made after the close, before the death was known, came out tied, or did not take the tie once the death was known "
+                + "(before the publication: the copy's key and flag; after it)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const actor of [killer, holder]) {
+                for (const item of [...actor.items]) {
+                    if (had.get(actor.id).has(item.id)) continue;
+                    const uuid = item.uuid;
+                    await item.delete().catch(() => {});
+                    await T.dropSecret(uuid).catch(() => {});
+                }
+            }
+            const trace = lootTrace();
+            if (trace) await dropTrace(trace);
+            if (lootTraceStore.has(victim.id)) await lootTraceStore.drop(victim.id);
+            for (const item of victim.items.filter(i => i.name.startsWith("SUITE E09 r2-G4"))) await item.delete().catch(() => {});
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await settle();
+        }
+    }],
+
     ["a death the GMs make known from the Students list sends its ties to the copies", async () => {
         /*
          * E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F3. C4 left the copies' tie to the
@@ -32165,6 +32298,13 @@ const SCENARIOS = [
          * every "not tied" a GM had given before the run undecided, and a death in that chapter then
          * tied them. A third trace stands for them: "not tied" before the run, outside the step's
          * `keys`, read after both runs; the first run moves exactly the one old fixture row.
+         *
+         * AND A SETTLED WORLD READS ITS OWN CUT (E09 fix r2-G4, 08.10.2026; the round-2 correctness
+         * review's item 3). The step runs again at every GM's load now, against the cut the first
+         * settle wrote beside the mark (`tiesSettledBefore`), whatever the caller passes: the
+         * second run is asked with a cut after the re-write, which would take it back. It was asked
+         * with `Infinity`, which the step reads as no cut and returns from, so a step that took the
+         * caller's cut passed this test too (r2-G4's mutant run, 08.10.2026).
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -32180,7 +32320,7 @@ const SCENARIOS = [
                 placed.push(token);
             }
             const [old, today, worlds] = placed.map(token => R.keyOf(token));
-            const { tiesSettledAt, ...unmarked } = mark;
+            const { tiesSettledAt, tiesSettledBefore, ...unmarked } = mark;
             await game.settings.set(MODULE_ID, SETTINGS.caseMark, unmarked);
             await S.remnantStore.patch(worlds, { tiedToCrime: false }, { ifLive: true });
             await S.remnantStore.patch(old, { tiedToCrime: false }, { ifLive: true });
@@ -32196,7 +32336,8 @@ const SCENARIOS = [
             const first = await S.settleTieStates?.({ before, keys });
             const settled = [first, rowTie(old), rowTie(today), Number.isFinite(S.caseMark().tiesSettledAt)];
             await S.remnantStore.patch(old, { tiedToCrime: false }, { ifLive: true });
-            const second = await S.settleTieStates?.({ before: Infinity, keys });
+            const later = S.remnantStore.stampOf(old, "tiedToCrime") + 1;
+            const second = await S.settleTieStates?.({ before: later, keys });
             equal(stableJson([settled, [second, rowTie(old)], rowTie(worlds)]), stableJson([[1, null, false, true], [0, false], false]),
                 "the settle step did not read the old `false` as undecided and mark the case, took back a `false` written after the load, "
                 + "ran again, or the suite's run moved a row of the world it was not given "
