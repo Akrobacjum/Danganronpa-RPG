@@ -1869,8 +1869,9 @@ const REGRESSIONS = [
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
         ok(/traces\.filter\([^)]*\)\s*=>\s*q\(`name\./.test(inv),
             "the dashboard's Save reads a row the filter is hiding as blanks again");
-        const plan = bodyOf(inv, "async function saveKeyPlan", { until: "function stripDraft" });
-        ok(plan.length > 200, "saveKeyPlan is gone or has moved past stripDraft");
+        // Cut at `keyRowShows` since E09 C16, which took `stripDraft` out with Save's placing.
+        const plan = bodyOf(inv, "async function saveKeyPlan", { until: "function keyRowShows" });
+        ok(plan.length > 200, "saveKeyPlan is gone or has moved past keyRowShows");
         ok(/repointed/.test(plan) && /stored\.name/.test(plan),
             "a Key plan row is pushed onto its trace whether or not anybody edited it");
     }],
@@ -7571,6 +7572,37 @@ const REGRESSIONS = [
             bodies.some(b => /\bcolor\s*:\s*var\(--drpg-dim\)/.test(b))]),
         JSON.stringify([true, false, true]),
         "the trace's context line (a rule naming .drpg-trace-context; one setting an opacity; one in var(--drpg-dim))");
+    }],
+
+    ["R309 - the dashboard's tables keep their counts narrow, their hints dim, their Key boxes one line, and the body's button apart", async () => {
+        /*
+         * E09 C16, 08.10.2026; audit S05-28, S05-29, S12-52. What the stylesheet has to say for the
+         * dashboard to read at a glance, read off every stylesheet the manifest loads (comments
+         * stripped): the count cells (`.drpg-num`) given a width and centred; the window's hints in
+         * `--drpg-dim`; the filters' labels to the left and the count no longer pushed to the far
+         * edge (`margin-left: auto`); the Key tab's description boxes one line until focused; a rule
+         * for `.drpg-state-change` in each theme, with the dashboard's "A body is discovered" carrying
+         * the class (investigation.mjs); and a trace's context line at Stained Glass's floor, where
+         * `.notes` sets it in VT323 at Legacy's 11 px (S12-52). No browser lays the window out in the
+         * harness, so how it looks is the live check LIVE-E09-04, not this.
+         */
+        const css = await moduleStyles();
+        const rules = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
+        const bodies = re => rules.filter(([selector]) => re.test(selector)).map(([, body]) => body);
+        const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
+        equal(JSON.stringify([
+            bodies(/\.drpg-num\b/).some(b => /\bwidth\s*:/.test(b) && /text-align\s*:\s*center/.test(b)),
+            bodies(/drpg-window-case .*::placeholder$/).some(b => /\bcolor\s*:\s*var\(--drpg-dim\)/.test(b)),
+            bodies(/^\.drpg-trace-filters label$/).some(b => /align-items\s*:\s*flex-start/.test(b)),
+            bodies(/^\.drpg-trace-filters \.notes$/).some(b => /margin-left\s*:\s*auto/.test(b)),
+            bodies(/^\.drpg-key-table textarea$/).some(b => /min-height\s*:\s*0\b/.test(b))
+                && bodies(/^\.drpg-key-table textarea:focus$/).some(b => /min-height\s*:/.test(b)),
+            bodies(/drpg-theme-stained-glass[^,]*\.drpg-state-change/).length > 0
+                && bodies(/^\.application\.dialog[^,]*\.drpg-state-change/).length > 0,
+            /action:\s*"bodyFound"[^}]*class:\s*"drpg-state-change"/.test(inv),
+            bodies(/drpg-theme-stained-glass \.drpg-trace-context$/).some(b => /font-size\s*:\s*var\(--drpg-sg-floor\)/.test(b))
+        ]), JSON.stringify([true, true, true, false, true, true, true, true]),
+        "the dashboard's stylesheet (counts sized and centred; hints in var(--drpg-dim); filter labels left; the count pushed to the far edge; Key boxes one line until focused; a state-change rule in each theme; the body button's class; the context line at the glass's floor)");
     }]
 ];
 

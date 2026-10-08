@@ -15923,10 +15923,45 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
 .drpg-trace-filters label {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
     gap: 0.15rem;
 }
 .drpg-trace-filters select { min-width: 9rem; }
-.drpg-trace-filters .notes { margin-left: auto; align-self: center; }
+/* The count sits on the selects' line, after them (E09 C16, audit S05-29): pushed to the far
+   edge and centred between label and select, it read as a caption of nothing. */
+.drpg-trace-filters .notes { align-self: flex-end; padding-bottom: 0.3rem; }
+
+/* THE DASHBOARD'S TABLES, READ AT A GLANCE (E09 C16, 08.10.2026; audit S05-28, S05-29, S12-52).
+   What the audit saw at 1400 px: count columns 150-420 px wide with one digit each, hints in
+   the ink of a typed sentence and cut mid-word, the Key tab's descriptions three lines tall and
+   its headings broken in two. None of this is measured here - the harness draws no CSS - so
+   the widths below are the audit's proposal, not a reading (the live check LIVE-E09-04 is a
+   screenshot at 1400 px and narrow). `drpg-num` is set by `caseStudentRows` and its header. */
+.drpg-vault-table :is(th, td).drpg-num {
+    width: calc(90px * var(--drpg-legacy-scale, 1));
+    text-align: center;
+}
+/* A hint is not an answer: dim, and slanted, so an empty box never reads as filled in. */
+.drpg-window-case :is(input, textarea)::placeholder {
+    color: var(--drpg-dim);
+    font-style: italic;
+    opacity: 1;
+}
+/* One line until the GM is in it: the Key tab's two description boxes take `rows="1"`, and
+   `.drpg-vault-table textarea`'s 5.5rem (Room setup's prose) comes back on focus. */
+.drpg-key-table thead th { white-space: nowrap; }
+.drpg-key-table textarea { min-height: 0; }
+.drpg-key-table textarea:focus { min-height: 5.5rem; }
+.drpg-key-status { min-width: 12rem; }
+.drpg-key-status > * + * { margin-top: 0.25rem; }
+.drpg-key-place { width: auto; }
+/* "A body is discovered" starts a case; the six beside it open a window or tidy one. Despair's
+   pink is the module's blood, and the border carries it, as the GM-route border carries red. */
+.application.dialog.drpg-window-case footer.form-footer button.drpg-state-change:not(.drpg-gm-route) {
+    border-color: var(--drpg-blood) !important;
+    color: var(--drpg-blood) !important;
+}
 
 /* A SWITCH THAT CANNOT CHANGE ANYTHING IS NOT SHOWN.
    The glass pulse, the ticker and the blur exist only under Stained Glass; the pixel face

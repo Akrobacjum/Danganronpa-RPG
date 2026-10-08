@@ -1429,10 +1429,9 @@ const INVARIANTS = [
 
         const build = () => `<div class="drpg-t-keys">
             <label><input type="checkbox" name="keyOverride"> more</label>
-            <select name="room:4" class="drpg-key-limited" disabled>
-                <option value="">-</option><option value="Kitchen">Kitchen</option></select>
-            <select name="vis:4" class="drpg-key-limited" disabled>
-                <option value="evident">evident</option></select>
+            <button type="button" name="place:4" class="drpg-key-place drpg-key-limited" disabled>Place</button>
+            <select name="token:4"><option value="">-</option></select>
+            <button type="button" name="place:5" class="drpg-key-place drpg-key-limited" disabled>Place</button>
         </div>`;
         const host = document.createElement("div");
         host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px";

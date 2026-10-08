@@ -376,6 +376,14 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) h2 {
 body.drpg-theme-stained-glass :where(pre, code, kbd, samp, time, .count, small) {
     font-size: var(--drpg-sg-floor) !important;
 }
+/* and a trace's context line (E09 C16, audit S12-52: "metadata 9 px"). The base sheet sets it at
+   `--drpg-text-xs`, Legacy's floor of 11 px, and here `.notes` puts it in VT323, whose capital
+   is 0.56 em - a caption far under this theme's floor. It is a caption, so it takes the chrome
+   floor, as `.notes` and `small` do. Read in the two sheets, not measured: no CSS in the
+   harness; LIVE-E09-04 is the screenshot. */
+body.drpg-theme-stained-glass .drpg-trace-context {
+    font-size: var(--drpg-sg-floor);
+}
 
 /* ---- the curtain layer ----------------------------------------------------
    glass.mjs mounts `#drpg-curtain` in the BODY, right before #interface, and writes its box and
@@ -1830,6 +1838,12 @@ body.drpg-theme-stained-glass .application.dialog :is(button, footer.form-footer
     color: var(--drpg-sg-bone) !important;
     border-color: var(--drpg-sg-gm-light) !important;
     box-shadow: 0 0 10px color-mix(in srgb, var(--drpg-sg-gm) 55%, transparent);
+}
+/* a state change (E09 C16): the dashboard's "A body is discovered", in Despair's pink - the brush
+   the footer rule above reads its edge and ink from */
+body.drpg-theme-stained-glass .application.dialog footer.form-footer button.drpg-state-change {
+    --brush-edge: var(--drpg-sg-despair);
+    --brush-ink: var(--drpg-sg-despair);
 }
 /* destructive: the raster the audit gives every spent thing, in GM red. Foundry's own `.danger`
    and the module's `drpg-destructive` both mean it. */

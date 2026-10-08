@@ -645,21 +645,16 @@ export async function askToChargeForUnfoundKeys() {
  * what it was drawn from; a field another GM changed since is refused (`writable`), and the
  * slots nobody touched are holes `setKeyPlan` leaves alone - so they take no scale either.
  *
- * @returns {Promise<{entries: Array, created: number, refused: Array}>}
+ * NOTHING IS PLACED HERE (E09 C16, audit S05-28). A row with a room picked and no trace used to
+ * mean "make this one" on Save, and nothing on screen said a Save would put a token on the map;
+ * a row's Place button does that now, at once (`placeKeyRow`). A Save writes words and pointers.
+ *
+ * @returns {Promise<{entries: Array, refused: Array}>}
  */
 async function saveKeyPlan(plan, rows) {
-    // A row with a room chosen and no existing token means "make this one".
-    //
-    // The planner used to be able to do exactly one thing: point an entry at a
-    // Key Remnant somebody had already placed by hand. That is backwards - the
-    // plan IS the five clues, written before the murder, and the whole reason a
-    // GM opens this screen is to turn them into traces on the map. Marking an
-    // existing Prep Remnant as Key also silently rewrote evidence that had
-    // already been found.
     const placed = placedKeyRemnants();
     const entries = [];
     const refused = [];
-    let created = 0;
     for (const row of rows) {
         const stored = plan.entries?.[row.slot] ?? {};
         const now = keyRowShows(stored, placed);
@@ -672,72 +667,45 @@ async function saveKeyPlan(plan, rows) {
         const entry = { scale: row.scale };
         for (const field of ["name", "text", "analysis", "note"]) if (field in take) entry[field] = take[field];
         if ("token" in take) Object.assign(entry, { tokenId: tokenId || null, sceneId: sceneId || null });
-        if (tokenId || !take.room) {
-            /* AN EDIT ON A PLACED ROW IS AN EDIT ON THE TRACE. The two public fields are the
-               Remnant's, not the plan's - `setRemnantPublic` writes them to the ledger and
-               pushes them down onto every Truth Bullet already copied from it, which is what
-               the Traces tab has always done and what this tab never did. Only when there is
-               something to say: a blank row must not wipe a name typed on the other tab.
+        /* AN EDIT ON A PLACED ROW IS AN EDIT ON THE TRACE. The two public fields are the
+           Remnant's, not the plan's - `setRemnantPublic` writes them to the ledger and
+           pushes them down onto every Truth Bullet already copied from it, which is what
+           the Traces tab has always done and what this tab never did. Only when there is
+           something to say: a blank row must not wipe a name typed on the other tab.
 
-               ONLY WHEN IT IS AN EDIT, EITHER (F6, 17.09). This runs after the Traces tab has
-               been written, and the row still carried the plan's old name - so renaming a Key
-               Remnant on the Traces tab lasted until the next line, and every later Save put
-               the plan's version back onto the trace and every bullet copied from it. A field
-               is pushed now only when the GM changed it on this tab (E09 C3: measured against
-               what the tab drew, where F6 compared with the stored plan), or the row was
-               pointed at a different trace, which takes the plan's words; and the stored plan
-               then takes the trace's words for what was pushed. */
-            const token = tokenId ? game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null : null;
-            if (token) {
-                const repointed = "token" in take;
-                const words = {
-                    name: take.name ?? (repointed ? stored.name : ""),
-                    text: take.text ?? (repointed ? stored.text : ""),
-                    analysis: take.analysis ?? (repointed ? stored.analysis : "")
-                };
-                const patch = {};
-                if (words.name) patch.name = words.name;
-                if (words.text) patch.playerText = words.text;
-                if (words.analysis) patch.analyzedText = words.analysis;
-                if (Object.keys(patch).length) {
-                    await setRemnantPublic(token, patch);
-                    const said = remnantData(token)?.public ?? {};
-                    if (patch.name) entry.name = said.name || words.name;
-                    if (patch.playerText) entry.text = said.playerText || words.text;
-                    if (patch.analyzedText) entry.analysis = said.analyzedText || words.analysis;
-                }
-            }
-            entries[row.slot] = entry;
-            continue;
-        }
-
-        const words = field => take[field] ?? now[field];
-        const token = await createKeyRemnant({
-            scale: row.scale, name: words("name"), text: words("text"), analysis: words("analysis"),
-            note: words("note"), createIn: take.room, visibility: row.visibility
-        });
+           ONLY WHEN IT IS AN EDIT, EITHER (F6, 17.09). This runs after the Traces tab has
+           been written, and the row still carried the plan's old name - so renaming a Key
+           Remnant on the Traces tab lasted until the next line, and every later Save put
+           the plan's version back onto the trace and every bullet copied from it. A field
+           is pushed now only when the GM changed it on this tab (E09 C3: measured against
+           what the tab drew, where F6 compared with the stored plan), or the row was
+           pointed at a different trace, which takes the plan's words; and the stored plan
+           then takes the trace's words for what was pushed. */
+        const token = tokenId ? game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null : null;
         if (token) {
-            created += 1;
-            entries[row.slot] = stripDraft({
-                scale: row.scale, name: words("name"), text: words("text"), analysis: words("analysis"),
-                note: words("note"), tokenId: token.id, sceneId: token.parent?.id ?? canvas?.scene?.id ?? null
-            });
-        } else {
-            entries[row.slot] = entry;
+            const repointed = "token" in take;
+            const words = {
+                name: take.name ?? (repointed ? stored.name : ""),
+                text: take.text ?? (repointed ? stored.text : ""),
+                analysis: take.analysis ?? (repointed ? stored.analysis : "")
+            };
+            const patch = {};
+            if (words.name) patch.name = words.name;
+            if (words.text) patch.playerText = words.text;
+            if (words.analysis) patch.analyzedText = words.analysis;
+            if (Object.keys(patch).length) {
+                await setRemnantPublic(token, patch);
+                const said = remnantData(token)?.public ?? {};
+                if (patch.name) entry.name = said.name || words.name;
+                if (patch.playerText) entry.text = said.playerText || words.text;
+                if (patch.analyzedText) entry.analysis = said.analyzedText || words.analysis;
+            }
         }
+        entries[row.slot] = entry;
     }
 
     await setKeyPlan({ chapter: plan.chapter, entries });
-    return { entries, created, refused };
-}
-
-/** The stored shape - the room/visibility pickers are input, not plan data. */
-function stripDraft(row) {
-    return {
-        scale: row.scale, name: row.name ?? "", text: row.text ?? "",
-        analysis: row.analysis ?? "", note: row.note ?? "",
-        tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null
-    };
+    return { entries, refused };
 }
 
 /**
@@ -1252,6 +1220,15 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
 
     if (!result || result === "cancel" || !result.room) return null;
 
+    return placeInSlot(plan, scene, result);
+}
+
+/**
+ * Put a Key Remnant on the map in `result.room` and hang it on `result.slot` of `plan` (null:
+ * on none) - the end of `openKeyRemnantHere` and of a Key row's Place button (`placeKeyRow`).
+ * `result` holds the room, the visibility and the words; answers the token, or null.
+ */
+async function placeInSlot(plan, scene, result) {
     const scale = result.slot === null
         ? "standard"
         : plan.entries[result.slot]?.scale ?? "standard";
@@ -1280,6 +1257,67 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
 
     ui.notifications.info(game.i18n.format("DRPG.Investigation.createdHere", { room: result.room }));
     return token;
+}
+
+/**
+ * A KEY ROW'S PLACE BUTTON (E09 C16, 08.10.2026; audit S05-28). Asks what the row cannot say -
+ * the room, and how hard the clue is to spot - in a small window of its own, and places the clue
+ * then, in this row's slot, with the words typed on the row (read when the window closes, so a
+ * redraw under it loses nothing). It replaced the row's "- create in -" select, which placed on
+ * Save and said so nowhere on the row. A row another GM placed while the window was open is
+ * refused and told: a second token would leave the first off the plan.
+ *
+ * @param {HTMLElement} root  The dashboard's element.
+ * @param {number} slot       The plan row.
+ * @returns {Promise<TokenDocument|null>}
+ */
+export async function placeKeyRow(root, slot) {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+    const { allRooms } = await import("./movement.mjs");
+    const scene = workingScene();
+    const rooms = allRooms(scene);
+    if (!rooms.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Investigation.noRooms"));
+        return null;
+    }
+    const drawn = keyPlan().entries[slot] ?? {};
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Investigation.placeTitle") },
+        classes: ["drpg-panel", "drpg-window-keyplace"],
+        content: dialogContent(`<form>
+            <p class="notes">${esc(SCALE_LABELS[drawn.scale] ?? drawn.scale ?? "")}</p>
+            <label>${game.i18n.localize("DRPG.Investigation.room")}
+                <select name="room">${rooms.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("")}</select></label>
+            <label>${game.i18n.localize("DRPG.Investigation.visibility")}
+                <select name="vis">${REMNANT_VISIBILITY.map(v => `<option value="${v}"${v === "evident" ? " selected" : ""}>${
+                    esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("")}</select></label>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Investigation.place"), default: true,
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    return { room: f.room.value, visibility: f.vis.value };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+    if (!result || result === "cancel" || !result.room) return null;
+
+    const plan = keyPlan();
+    const pointed = plan.entries[slot]?.tokenId ?? null;
+    if (pointed && placedKeyRemnants().some(r => r.token.id === pointed)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Investigation.placedMeanwhile"));
+        return null;
+    }
+    const typed = field => root?.querySelector(`[name="${CSS.escape(`${field}:${slot}`)}"]`)?.value.trim() ?? "";
+    return placeInSlot(plan, scene, { ...result, slot,
+        name: typed("keyname"), text: typed("keytext"), analysis: typed("keyanalysis"), note: typed("note") });
 }
 
 /* ==========================================================================
@@ -1472,17 +1510,25 @@ function readTracesAs(list, reading) {
         });
 }
 
-/** Who has what: one row per student, shown whichever tab is open. */
-function caseStudentRows(students) {
+/**
+ * Who has what: one row per student, shown whichever tab is open. Exported for the suite, which
+ * hands it a synthetic student: every input is the argument.
+ *
+ * READ AT A GLANCE (E09 C16, 08.10.2026; audit S05-29, S12-52). The three counts are `drpg-num`
+ * cells - narrow and centred by the stylesheet, where they were columns of 150-420 px with a
+ * digit lost in each - and a kind's count is "(2)", because "×2" in the theme's pixel face read
+ * as part of the kind's name ("Neutral Truth Bullet X2").
+ */
+export function caseStudentRows(students) {
     return students.map(s => {
         const breakdown = Object.entries(s.types)
-            .map(([type, n]) => `${esc(TRUTH_BULLET_TYPES[type]?.label ?? type)} ×${n}`)
+            .map(([type, n]) => `${esc(TRUTH_BULLET_TYPES[type]?.label ?? type)} (${n})`)
             .join(", ");
         return `<tr>
             <td>${esc(s.actor.name)}</td>
-            <td>${s.total}</td>
-            <td>${s.keys}</td>
-            <td>${s.unidentified}</td>
+            <td class="drpg-num">${s.total}</td>
+            <td class="drpg-num">${s.keys}</td>
+            <td class="drpg-num">${s.unidentified}</td>
             <td class="notes">${breakdown || "-"}</td>
         </tr>`;
     }).join("");
@@ -1552,8 +1598,15 @@ function refusedAs(field, value, traces) {
     return value;
 }
 
-/** One editable row per trace the reader is shown. */
-function caseTraceRows(shown, finders) {
+/**
+ * One editable row per trace the reader is shown. Exported for the suite, which hands it a
+ * synthetic trace (`{ token, data, scene }`) and an empty `finders` map.
+ *
+ * The Player description carries the hint the Key tab's has (E09 C16, audit S12-52: it had
+ * none), and both hints are short and dim - a full-colour sentence in an empty box read as a
+ * description already written, and the analysis one was cut mid-sentence (S05-29).
+ */
+export function caseTraceRows(shown, finders) {
     return shown.map(({ token, data, scene }) => {
         const key = rowKey(scene.id, token.id);
         const shows = traceShows(data);
@@ -1575,14 +1628,15 @@ function caseTraceRows(shown, finders) {
                 <input type="text" name="name.${key}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}" />
                 <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>
             </td>
-            <td><textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}>${esc(shows.text)}</textarea></td>
+            <td><textarea name="text.${key}" rows="2"${aria("DRPG.Investigation.traceText")}
+                placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${esc(shows.text)}</textarea></td>
             ${/* The second tier, edited in the same row as the first. Side by
                   side on purpose: the two sentences describe one object and a
                   GM writing the lab reading wants the observation in view, not
                   on another tab. See TRUTH_BULLET_FLAGS.analyzedText for who
                   ever gets to read this one. */ ""}
             <td><textarea name="analysis.${key}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
-                placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
+                placeholder="${game.i18n.localize("DRPG.Investigation.analysisPlaceholder")}"
                 >${esc(shows.analysis)}</textarea></td>
             ${/* WHAT IT REALLY IS, CORRECTED BY HAND. The column that used to be
                   free-text tags. The module decides the type from whatever action
@@ -1698,8 +1752,19 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
  * placed trace: every input it reads is an argument, so the one thing worth
  * testing about it - that a placed row's pickers say what is on the map - can
  * be measured without writing anything to the world.
+ *
+ * ONE STATUS, AND A BUTTON THAT PLACES (E09 C16, 08.10.2026; audit S05-28). The row had eight
+ * columns at 1400 px: "Which Remnant" and "Found by" each said "Not placed yet" on every row
+ * nobody had placed, and "Create on the map" was two selects - "- create in -" and "Evident" -
+ * with no button, so a GM who had not built the planner could not see that picking a room and
+ * pressing Save put a token on the map. One Status column now says where the row stands (not
+ * placed, its Remnant gone or retyped, who found it, nobody yet), holds the picker of placed
+ * traces (its empty option "-": the status line says the rest) and, on a row with nothing on the
+ * map, a Place button that asks the room and the visibility in a small window and places the
+ * clue then (`placeKeyRow`). Save places nothing any more. A row past the opening roll's limit
+ * draws the button `drpg-key-limited` and disabled, as it drew the two selects.
  */
-export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOptionsFor }) {
+export function caseKeyRows({ plan, status, placed, limit }) {
     // The same six facts the trace rows carry, in the same order - see
     // `traceContextLine`. A GM picking which placed trace an entry means was
     // choosing between "Evident · Kitchen · note" lines that said nothing about
@@ -1730,7 +1795,7 @@ export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOp
             : !st.placed
                 ? `<strong>${game.i18n.localize(st.retyped ? "DRPG.Investigation.keyRetyped" : "DRPG.Investigation.tokenGone")}</strong>`
                 : st.found
-                    ? esc(st.finders.join(", "))
+                    ? `${game.i18n.localize("DRPG.Investigation.foundBy")}: ${esc(st.finders.join(", "))}`
                     : `<em>${game.i18n.localize("DRPG.Investigation.notFound")}</em>`;
 
         /* Named for a screen reader: the column, and which of the planned clues this
@@ -1741,42 +1806,35 @@ export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOp
             <td><strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong></td>
             <td><input type="text" name="keyname:${i}"${aria("DRPG.Investigation.traceName")} value="${esc(shows.name)}"
                 placeholder="${game.i18n.localize("DRPG.Remnant.tokenName")}" /></td>
-            <td><textarea name="keytext:${i}" rows="2"${aria("DRPG.Investigation.traceText")}
+            <td><textarea name="keytext:${i}" rows="1"${aria("DRPG.Investigation.traceText")}
                 placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${
                 esc(shows.text)}</textarea>
                 ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}</td>
             ${/* The second tier, as on the Traces tab (21.09). A placed row falls back
                   on the trace's own reading: a plan saved before this column existed
                   holds none, and an empty box would read as "nothing written". */ ""}
-            <td><textarea name="keyanalysis:${i}" rows="2"${aria("DRPG.Investigation.traceAnalysis")}
-                placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}">${
+            <td><textarea name="keyanalysis:${i}" rows="1"${aria("DRPG.Investigation.traceAnalysis")}
+                placeholder="${game.i18n.localize("DRPG.Investigation.analysisPlaceholder")}">${
                 esc(shows.analysis)}</textarea></td>
             <td><input type="text" name="note:${i}"${aria("DRPG.Investigation.keyNoteLabel")} value="${esc(shows.note)}"
                 placeholder="${game.i18n.localize("DRPG.Investigation.keyNotePlaceholder")}" /></td>
-            <td>
+            <td class="drpg-key-status">
+                <div class="drpg-key-state">${state}</div>
                 <select name="token:${i}"${aria("DRPG.Investigation.onMap")}>
-                    <option value=""${live ? "" : " selected"}>${
-                        game.i18n.localize("DRPG.Investigation.notPlaced")}</option>
+                    <option value=""${live ? "" : " selected"}>-</option>
                     ${picker}
                 </select>
+                ${here ? "" : `<button type="button" name="place:${i}" data-drpg-key-place="${i}"${
+                    aria("DRPG.Investigation.place")} class="drpg-key-place${overLimit ? " drpg-key-limited" : ""}"${
+                    overLimit ? " disabled" : ""}>${game.i18n.localize("DRPG.Investigation.place")}</button>`}
             </td>
-            <td>
-                <select name="room:${i}"${aria("DRPG.Investigation.createHere", "DRPG.Vault.room")} class="${overLimit ? "drpg-key-limited" : ""}"${
-                    here || overLimit ? " disabled" : ""}>
-                    ${here ? "" : `<option value="">${game.i18n.localize("DRPG.Investigation.pickRoom")}</option>`}
-                    ${roomOptionsFor(here?.room ?? null)}
-                </select>
-                <select name="vis:${i}"${aria("DRPG.Investigation.createHere", "DRPG.Investigation.difficulty")} class="${overLimit ? "drpg-key-limited" : ""}"${
-                    here || overLimit ? " disabled" : ""}>${visOptionsFor(here?.visibility ?? null)}</select>
-            </td>
-            <td>${state}</td>
         </tr>`;
     }).join("");
 }
 
 /** The Key Remnants tab: the planner and its warnings. */
-function caseKeyPanel({ plan, status, placed, limit, roomOptionsFor, visOptionsFor }) {
-    const keyRows = caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOptionsFor });
+function caseKeyPanel({ plan, status, placed, limit }) {
+    const keyRows = caseKeyRows({ plan, status, placed, limit });
     // The guide's floor is three Key Remnants; the plan's own warning threshold
     // is one above it, so a GM is told the trial is getting thin BEFORE it is
     // actually unsolvable rather than at the moment it already is.
@@ -1801,15 +1859,13 @@ function caseKeyPanel({ plan, status, placed, limit, roomOptionsFor, visOptionsF
         })}</p>
         <label><input type="checkbox" name="keyOverride" /> ${
             game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : ""}
-        <table class="drpg-vault-table"><thead><tr>
+        <table class="drpg-vault-table drpg-key-table"><thead><tr>
             <th>${game.i18n.localize("DRPG.Investigation.difficulty")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.onMap")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.createHere")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
+            <th>${game.i18n.localize("DRPG.Investigation.keyStatus")}</th>
         </tr></thead><tbody>${keyRows}</tbody></table>
         <p class="notes">${game.i18n.localize("DRPG.Investigation.createNote")}</p>
         <p class="notes">${game.i18n.format("DRPG.Investigation.keyDcNote", {
@@ -1905,23 +1961,12 @@ function caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapte
     // keeps it past the incident's close (E09 C6).
     const limit = caseKeyCount(plan.chapter);
 
-    /* THE TWO PICKERS SAY WHAT IS THERE, NOT WHAT THE LAST DEFAULT WAS.
-       -----------------------------------------------------------------------
-       Both used to be one string built here and stamped into every row, with
-       `selected` hardcoded on "evident" and no room chosen at all. On an EMPTY
-       row that is right: they are an input, "create this one here, this
-       visible", and Evident is the sensible default.
-
-       On a row whose Key Remnant is already ON THE MAP it was a lie, and the
-       one the GM reported (16.09): a clue placed as Subtle showed "Evident" in
-       its own row, and one placed in the Kitchen showed "Pick a room". The
-       picker is not even an input there - `applyDashboardSave` leaves rows that
-       already point at a token alone, which the note under the table says - so
-       it was a control that did nothing, reading out a value nobody had chosen.
-
-       So a placed row's pickers are the TRACE's own room and visibility,
-       selected and disabled: a fact rather than a control. An empty row keeps
-       the input it was. */
+    /* THE TWO PICKERS SAY WHAT IS THERE, NOT WHAT THE LAST DEFAULT WAS. They were stamped into
+       every Key row, and on a row already on the map (16.09) they read "Evident" and "Pick a room"
+       for a clue placed Subtle in the Kitchen, so a placed row's pickers became the trace's own,
+       selected and disabled. Since E09 C16 a Key row has no pickers: its Place button asks in a
+       window of its own (`placeKeyRow`), and a placed row's room and visibility read in its
+       picker of placed traces. The Final tab is what is left here, and it is always an input. */
     const roomOptionsFor = chosen => rooms.map(r =>
         `<option value="${esc(r)}"${r === chosen ? " selected" : ""}>${esc(r)}</option>`).join("");
     const visOptionsFor = chosen => REMNANT_VISIBILITY.map(v =>
@@ -1934,12 +1979,15 @@ function caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapte
 
     return `<div class="drpg-case-live"><form>
         <h4>${game.i18n.localize("DRPG.Investigation.whoHasWhat")}</h4>
-        <table class="drpg-vault-table"><thead><tr>
+        <table class="drpg-vault-table drpg-who-table"><thead><tr>
             <th>${game.i18n.localize("DRPG.Investigation.student")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.bullets")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.keysHeld")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.unidentified")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.breakdown")}</th>
+            <th class="drpg-num">${game.i18n.localize("DRPG.Investigation.bullets")}</th>
+            <th class="drpg-num">${game.i18n.localize("DRPG.Investigation.keysHeld")}</th>
+            <th class="drpg-num">${game.i18n.localize("DRPG.Investigation.unidentified")}</th>
+            ${/* "Really" read as nothing at a table (S12-52): the tooltip says it is what the
+                  bullets are by the GMs' answer key, whatever their holders were shown. */ ""}
+            <th data-tooltip="${esc(game.i18n.localize("DRPG.Investigation.breakdownTooltip"))}">${
+                game.i18n.localize("DRPG.Investigation.breakdown")}</th>
         </tr></thead><tbody>${studentRows}</tbody></table>
 
         <nav class="drpg-dashboard-tabs">
@@ -1953,7 +2001,7 @@ function caseHtml(reading, { allRooms, finalRemnants, finalTruthPlacedThisChapte
 
         ${caseTracesPanel({ traces, shown, finders, reading })}
 
-        ${caseKeyPanel({ plan, status, placed, limit, roomOptionsFor, visOptionsFor })}
+        ${caseKeyPanel({ plan, status, placed, limit })}
 
         ${caseFinalPanel({
             /* The Final Key Remnant is always an input - it is being placed, not
@@ -2029,10 +2077,10 @@ function readDashboardForm(d) {
         // Every slot, its `fields` empty where nothing changed: `saveKeyPlan` skips those, which
         // is what keeps a Save from filling in the chapter's scales by itself.
         keyRows: plan.entries.map((entry, i) => ({
-            slot: i, scale: entry.scale, visibility: q(`vis:${i}`)?.value || "evident",
+            slot: i, scale: entry.scale,
             fields: changed([
                 ["name", `keyname:${i}`], ["text", `keytext:${i}`], ["analysis", `keyanalysis:${i}`],
-                ["note", `note:${i}`], ["token", `token:${i}`], ["room", `room:${i}`]
+                ["note", `note:${i}`], ["token", `token:${i}`]
             ])
         }))
     };
@@ -2084,6 +2132,11 @@ function wireCase(dialog) {
     wirePortraitPickers(root, { defaultImg: ICON });
 
     wireDashboardTabs(root);
+
+    // A Key row's Place button (E09 C16). Bound on the nodes, which a redraw replaces.
+    for (const button of root.querySelectorAll("[data-drpg-key-place]")) {
+        button.addEventListener("click", () => placeKeyRow(root, Number(button.dataset.drpgKeyPlace)));
+    }
 
     // Rows past the opening roll's limit, and the GM's explicit override of it
     // - applied as well as wired, because a redraw restores the tick and not what
@@ -2255,7 +2308,11 @@ export async function openInvestigationDashboard() {
             // while deciding which screen to open.
             { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
             { action: "log", label: game.i18n.localize("DRPG.Trial.logTitle") },
-            { action: "bodyFound", label: game.i18n.localize("DRPG.Chapter.bodyTitle") },
+            // A STATE CHANGE, NOT ONE MORE VIEW (E09 C16, audit S05-29): the six buttons around it
+            // open a window or tidy something; this one starts a case. Its class and icon set it
+            // apart in both themes - one of seven equal buttons is what the audit saw.
+            { action: "bodyFound", label: game.i18n.localize("DRPG.Chapter.bodyTitle"),
+                icon: "fa-solid fa-skull", class: "drpg-state-change" },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         render: (event, dialog) => {
@@ -2356,7 +2413,7 @@ export async function openInvestigationDashboard() {
  * Exported for the suite, which hands it a synthetic result beside a trace changed as if by
  * another GM: every input it reads is an argument.
  *
- * @returns {Promise<{tracesChanged: number, created: number, refused: number}>}
+ * @returns {Promise<{tracesChanged: number, refused: number}>}
  */
 export async function applyDashboardSave(result, { traces, plan }) {
     let tracesChanged = 0;
@@ -2399,12 +2456,11 @@ export async function applyDashboardSave(result, { traces, plan }) {
         }
     }
 
-    const { created, refused: unplanned } = await saveKeyPlan(plan, result.keyRows);
+    const { refused: unplanned } = await saveKeyPlan(plan, result.keyRows);
     refused.push(...unplanned);
 
     const parts = [];
     if (tracesChanged) parts.push(plural("DRPG.Investigation.tracesSaved", { n: tracesChanged }));
-    if (created) parts.push(plural("DRPG.Investigation.plannerCreated", { n: created }));
     if (parts.length) ui.notifications.info(parts.join(" "));
 
     /* SAID, AND IT STAYS UP. The window reopens on the ledger after a Save, so a refused field
@@ -2416,5 +2472,5 @@ export async function applyDashboardSave(result, { traces, plan }) {
         })).join("; ");
         ui.notifications.warn(plural("DRPG.Investigation.savedOver", { n: refused.length, list }), { permanent: true });
     }
-    return { tracesChanged, created, refused: refused.length };
+    return { tracesChanged, refused: refused.length };
 }

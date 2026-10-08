@@ -952,7 +952,7 @@ async function drawnCaseWindow() {
 /**
  * THE KEY LIMIT AS THE PLANNER DRAWS IT (E09 C6): the Investigation Dashboard opened as a GM
  * opens it (`drawnCaseWindow`) and read - whether the limit's override is there, and which
- * plan rows' room pickers are drawn over the limit - then closed.
+ * plan rows' Place buttons are drawn over the limit (their room pickers until E09 C16) - then closed.
  */
 async function keyLimitDrawn() {
     const win = await drawnCaseWindow();
@@ -960,7 +960,7 @@ async function keyLimitDrawn() {
         must(win.app?.element, "the dashboard did not open");
         return {
             override: Boolean(win.field("keyOverride")),
-            over: [...win.app.element.querySelectorAll('select.drpg-key-limited[name^="room:"]')].map(el => el.name).sort()
+            over: [...win.app.element.querySelectorAll('button.drpg-key-limited[name^="place:"]')].map(el => el.name).sort()
         };
     } finally {
         await win.close();
@@ -17958,7 +17958,7 @@ const SCENARIOS = [
             const noBody = await keyLimitDrawn();
             await closedCriticalCase(M, killer, victim);
             const body = await keyLimitDrawn();
-            equal(stableJson([noBody, body]), stableJson([{ override: false, over: [] }, { override: true, over: ["room:3", "room:4"] }]),
+            equal(stableJson([noBody, body]), stableJson([{ override: false, over: [] }, { override: true, over: ["place:3", "place:4"] }]),
                 "the planner drawn after the close of a critical case with a body lost its limit of three, or one with no body set a limit (no body, body)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -18057,7 +18057,7 @@ const SCENARIOS = [
             await closedCriticalCase(M, killer, victim);
             const limit = await keyLimitDrawn();
             const { charged } = await keyFeeCharged({ stamp: true });
-            equal(stableJson([limit, charged]), stableJson([{ override: true, over: ["room:3", "room:4"] }, true]),
+            equal(stableJson([limit, charged]), stableJson([{ override: true, over: ["place:3", "place:4"] }, true]),
                 "the closed case's limit of three is lost, or the charge refused its chapter as another's (limit, charged)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
@@ -19037,6 +19037,164 @@ const SCENARIOS = [
                 if (scene.tokens.has(token.id)) await scene.deleteEmbeddedDocuments("Token", [token.id]);
             }
         }
+    }],
+
+    ["a Key row says once that it is not placed, under one Status heading", async () => {
+        /*
+         * E09 C16, 08.10.2026; audit S05-28. The Key Remnants tab drew eight columns at 1400 px,
+         * and on every row nobody had placed two of them - "Which Remnant" and "Found by" - each
+         * said "Not placed yet". On a chapter nobody has planned (every row empty) the dashboard is
+         * drawn as a GM opens it (`drawnCaseWindow`), and its Key tab read: how many headings, how
+         * many cells the first row has, how many times that row says "Not placed yet", and whether
+         * one heading is the Status. Red at the parent: [8,8,2,false].
+         */
+        needs(env.dialogs(), "the dashboard is read off its drawn window");
+        const S = await import("./gm-stores.mjs");
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        let read = null;
+        try {
+            await setClock({ chapter: fresh });
+            const win = await drawnCaseWindow();
+            try {
+                must(win.app?.element, "the dashboard did not open");
+                const panel = win.app.element.querySelector('[data-drpg-panel="key"]');
+                const heads = [...(panel?.querySelectorAll("thead th") ?? [])].map(th => th.textContent.trim());
+                const row = panel?.querySelector("tbody tr") ?? null;
+                must(row, "the Key tab drew no row - this would measure nothing");
+                const said = game.i18n.localize("DRPG.Investigation.notPlaced");
+                read = [heads.length, row.querySelectorAll(":scope > td").length, row.textContent.split(said).length - 1,
+                    heads.includes(game.i18n.localize("DRPG.Investigation.keyStatus"))];
+            } finally {
+                await win.close();
+            }
+        } finally {
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson([6, 6, 1, true]),
+            "the Key tab still draws a column per fact, or an unplaced row says it is not placed more than once (headings, cells, times said, a Status heading)");
+    }],
+
+    ["a Key row's Place button puts its clue where its window says, with the words typed on the row", async () => {
+        /*
+         * E09 C16, 08.10.2026; audit S05-28. A Key row was put on the map by two selects - "- create
+         * in -" and "Evident" - and a Save, with no button anywhere saying that a Save places a
+         * token: a GM who had not built the planner could not see what made the clue. On a chapter
+         * nobody has planned, the dashboard is drawn, a name and a description typed on the first
+         * row, and the row's Place button pressed; its window (drawn, as the harness draws a GM's
+         * DialogV2) is given the scene's last room and Subtle, and its Place pressed. Read: whether
+         * the row has the button, whether the Key tab still holds a room select, and the trace the
+         * plan's first row then points at - its kind, room, visibility, reinforced, tie, name and
+         * description - and the plan row's name. Red at the parent: no button, a select, nothing placed.
+         */
+        needs(env.dialogs(), "the dashboard and the Place window are read off their drawn windows");
+        needs(world.atLeast("sceneOnScreen"), "the clue is placed on the scene on screen");
+        const remnants = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { allRooms } = await import("./movement.mjs");
+        const scene = canvas.scene;
+        const rooms = allRooms(scene);
+        must(rooms.length >= 2, "the scene on screen has fewer than two rooms - the window's pick would measure nothing");
+        const room = rooms[rooms.length - 1];
+        const clock = getClock();
+        const chapters = Object.keys(S.keyPlanStore.entries()).map(k => Number(k.split(":")[0])).filter(Number.isFinite);
+        const fresh = Math.max(Number(clock.chapter) || 1, ...chapters) + 1;
+        const placeWindows = () => [...foundry.applications.instances.values()]
+            .filter(a => a.rendered && a.options?.classes?.includes("drpg-window-keyplace"));
+        let win = null;
+        let token = null;
+        let read = null;
+        let asked = false;
+        try {
+            await setClock({ chapter: fresh });
+            win = await drawnCaseWindow();
+            must(win.field("keyname:0") && win.field("keytext:0"), "the dashboard's Key tab has no first row - this would measure nothing");
+            win.field("keyname:0").value = "SUITE C16 placed by its button";
+            win.field("keytext:0").value = "SUITE C16 the row's words";
+            const button = win.app.element.querySelector('[data-drpg-key-place="0"]');
+            const select = Boolean(win.app.element.querySelector('[data-drpg-panel="key"] select[name^="room:"]'));
+            if (button) {
+                button.click();
+                await until(() => placeWindows().some(a => a.element?.querySelector("form")), 6000);
+                const shown = placeWindows()[0] ?? null;
+                const form = shown?.element?.querySelector("form") ?? null;
+                /* A WINDOW THAT NEVER CAME IS THE HARM, NOT A BROKEN SETUP (E09 C16's A2, 08.10.2026):
+                   a Place button drawn and not bound places nothing, and that is read below as
+                   `window: false`, beside no trace placed - a precondition here had turned the
+                   unbound button's mutant into an error instead of a red. */
+                asked = Boolean(form?.querySelector('[name="room"]') && form.querySelector('[name="vis"]'));
+                if (asked) {
+                    form.querySelector('[name="room"]').value = room;
+                    form.querySelector('[name="vis"]').value = "subtle";
+                    shown.element.querySelector('button[data-action="ok"]')?.click();
+                    await until(() => I.keyPlan().entries[0]?.tokenId, 6000);
+                    await gmStoresIdle();
+                }
+            }
+            const id = I.keyPlan().entries[0]?.tokenId ?? null;
+            token = id ? scene.tokens.get(id) ?? null : null;
+            const data = token ? remnants.remnantData(token) : null;
+            read = { button: Boolean(button), select, window: asked, plan: I.keyPlan().entries[0]?.name ?? null,
+                placed: data ? [data.type, data.room, data.visibility, data.reinforced, data.tiedToCrime,
+                    data.public?.name ?? null, data.public?.playerText ?? null] : null };
+        } finally {
+            for (const a of placeWindows()) await a.close().catch(() => {});
+            if (win) await win.close().catch(() => {});
+            if (token) {
+                await remnants.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            const rows = Object.keys(S.keyPlanStore.entries()).filter(k => k.startsWith(`${fresh}:`));
+            if (rows.length) await S.keyPlanStore.dropMany(rows);
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson({ button: true, select: false, window: true, plan: "SUITE C16 placed by its button",
+            placed: ["key", room, "subtle", true, true, "SUITE C16 placed by its button", "SUITE C16 the row's words"] }),
+            "a Key row is placed by a select and a Save again, or its Place button opened no window asking a room and a visibility, or did not put a reinforced, tied Key Remnant in the room and visibility its window was given, with the row's words, on the plan's row");
+    }],
+
+    ["the dashboard's tables read at a glance: counts in narrow columns, a kind's count in brackets, short hints, the Really heading explained", async () => {
+        /*
+         * E09 C16, 08.10.2026; audit S05-29, S12-52. Who has what drew its three counts in columns
+         * of 150-420 px, a kind's count as "×2" (in the pixel face, "Neutral Truth Bullet X2"), and
+         * a "Really" heading nobody could read; the Traces tab's Player description had no hint and
+         * its analysis hint was a sentence cut mid-word. A synthetic student through
+         * `caseStudentRows` and a synthetic trace through `caseTraceRows` (every input is the
+         * argument), and the dashboard's Who has what heading as a GM draws it. Read: the count
+         * cells marked `drpg-num`, the breakdown, the two hints, the headings marked `drpg-num`
+         * and the Really heading's tooltip. The widths themselves are the stylesheet's (R309) and
+         * not measured here: no layout in the harness (LIVE-E09-04). Red at the parent: neither
+         * builder exported, no mark, no tooltip.
+         */
+        needs(env.dialogs(), "the Who has what heading is read off the drawn dashboard");
+        const I = await import("./investigation.mjs");
+        const students = typeof I.caseStudentRows === "function"
+            ? I.caseStudentRows([{ actor: { name: "SUITE C16 student" }, total: 3, keys: 1, unidentified: 2, types: { neutral: 2, key: 1 } }])
+            : "";
+        const traces = typeof I.caseTraceRows === "function"
+            ? I.caseTraceRows([{ token: { id: "TOKC16TRACE00001" }, scene: { id: "SCN0000000000001" }, data: { type: "neutral", public: {} } }], new Map())
+            : "";
+        const host = document.createElement("table");
+        host.innerHTML = `<tbody>${students}${traces}</tbody>`;
+        const hint = name => host.querySelector(`textarea[name^="${name}."]`)?.getAttribute("placeholder") ?? "";
+        const win = await drawnCaseWindow();
+        let heads = null;
+        try {
+            must(win.app?.element, "the dashboard did not open");
+            const table = win.app.element.querySelector(".drpg-case-live table") ?? null;
+            const ths = [...(table?.querySelectorAll("thead th") ?? [])];
+            const really = ths.find(th => th.textContent.trim() === game.i18n.localize("DRPG.Investigation.breakdown"));
+            heads = [ths.filter(th => th.classList.contains("drpg-num")).length, Boolean(really?.dataset.tooltip)];
+        } finally {
+            await win.close();
+        }
+        const breakdown = host.querySelector("td.notes")?.textContent ?? "";
+        equal(stableJson([host.querySelectorAll("td.drpg-num").length, /\(2\)/.test(breakdown) && !/×/.test(breakdown),
+            hint("text").length > 0, hint("analysis").length > 0 && hint("analysis").length <= 30, heads]),
+        stableJson([3, true, true, true, [3, true]]),
+        "Who has what or the Traces tab still draws wide counts, a ×count, no description hint or a long analysis one, or a Really heading with no word on it (count cells, breakdown, description hint, analysis hint, [count headings, Really tooltip])");
     }],
 
     ["a reshape approved under an open dashboard survives Save", async () => {
@@ -24541,19 +24699,17 @@ const SCENARIOS = [
          * room", and the control did nothing either way, because the save
          * deliberately leaves rows that already point at a token alone.
          *
+         * Since E09 C16 (audit S05-28) a Key row has no room or visibility picker at all: an
+         * empty row has a Place button that asks for both in a window of its own, and a placed
+         * row says where and how visible its clue is in the picker of placed traces, whose
+         * selected option is the trace's own line.
+         *
          * Driven with a synthetic plan and a synthetic trace rather than by
          * placing one: every input this builder reads is an argument, so the
          * world is not touched and the test measures the builder rather than
          * the placement.
          */
         const { caseKeyRows } = await import("./investigation.mjs");
-        const { REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
-
-        const roomOptionsFor = chosen => ["Kitchen", "Gym"].map(r =>
-            `<option value="${r}"${r === chosen ? " selected" : ""}>${r}</option>`).join("");
-        const visOptionsFor = chosen => REMNANT_VISIBILITY.map(v =>
-            `<option value="${v}"${v === (chosen || "evident") ? " selected" : ""}>${
-                REMNANT_VISIBILITY_LABELS[v]}</option>`).join("");
 
         const placed = [{
             token: { id: "TOKKEY0000000001" },
@@ -24569,31 +24725,24 @@ const SCENARIOS = [
             { placed: false, found: false, finders: [] }
         ] };
 
-        const html = caseKeyRows({ plan, status, placed, limit: null, roomOptionsFor, visOptionsFor });
+        const html = caseKeyRows({ plan, status, placed, limit: null });
         const rows = html.split("<tr").slice(1);
         equal(rows.length, 2, "the planner did not draw one row per planned clue");
 
         /* ---- the placed row tells the truth and offers no control ---------- */
         const on = rows[0];
-        ok(/<select name="vis:0"[^>]*disabled/.test(on),
-            "the visibility picker on a placed Key Remnant is still a control, and pressing it does nothing");
-        ok(/<option value="subtle" selected>/.test(on),
-            "a Key Remnant placed as Subtle is shown as something else in its own row");
-        ok(!/<option value="evident" selected>/.test(on),
-            "the placed row is still defaulting to Evident over the trace's own visibility");
-        ok(/<option value="Kitchen" selected>/.test(on),
-            "a Key Remnant placed in the Kitchen does not say so in its own row");
-        ok(!on.includes(game.i18n.localize("DRPG.Investigation.pickRoom")),
-            "a placed row still offers to pick a room for a clue that is already on the map");
+        const chosen = /<option value="TOKKEY0000000001\|SCN0000000000001" selected>([^<]*)<\/option>/.exec(on)?.[1] ?? "";
+        ok(chosen.includes("Subtle") && chosen.includes("Kitchen"),
+            `a Key Remnant placed as Subtle in the Kitchen does not say so in its own row: "${chosen}"`);
+        ok(!/data-drpg-key-place/.test(on),
+            "a placed row still offers to place a clue that is already on the map");
 
-        /* ---- and the empty row is still the input it was ------------------- */
+        /* ---- and the empty row is still an input, by its button ------------ */
         const off = rows[1];
-        ok(!/<select name="vis:1"[^>]*disabled/.test(off),
-            "an unplaced row lost the picker it needs to be placed with");
-        ok(/<option value="evident" selected>/.test(off),
-            "an unplaced row stopped defaulting to Evident");
-        ok(off.includes(game.i18n.localize("DRPG.Investigation.pickRoom")),
-            "an unplaced row cannot be given a room");
+        ok(/<button type="button" name="place:1" data-drpg-key-place="1"/.test(off) && !/data-drpg-key-place="1"[^>]*disabled/.test(off),
+            "an unplaced row lost the button it is placed with");
+        ok(!/<select name="(room|vis):/.test(html),
+            "a row places through a select again");
     }],
 
     ["a project's token wears a frame, and it is the project's own colour", async () => {
