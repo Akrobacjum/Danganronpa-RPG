@@ -5836,6 +5836,82 @@ const INVARIANTS = [
             JSON.stringify([30000, true, true,
                 [{ ok: false, reason: "noGm" }, 0, ["roll.draw noGm"]], [[[30000], null], { ok: false, reason: "noAnswer" }, 1, ["roll.draw noAnswer"]]]),
             "a drawn roll's wait is not the draw's own 30 s, is not asked with it, plays an unanswered draw, or a gone or silent GM does not end it once as noGm or noAnswer at that clock (each: the clock, asked with it, returns before playBack; gone: answer, sent, said; silent: the clock still running after the got-it and the answer before it fires, the answer, sent, said)");
+    }],
+
+    ["R307 - the Tamper, Analyze and Observe words say what the rules do, in English and in Polish", async () => {
+        /*
+         * E09 C14, 08.10.2026; audit S13-15, S13-18, S05-31, S05-33, S05-35, S02-10, decision D14. Words the
+         * rules had moved away from: Analyze's briefing printed a Daily Life ladder `analyzeDc` never scores
+         * against; Polish Tamper spoke of a trace "left by you" when it reaches any trace you know of; the
+         * Polish Cleanup prompts charged an action the rule no longer takes and the Polish frame hint said a
+         * trace is planted "either way" when a miss with Despair plants none; the Prep and Resolution kinds
+         * named the killer as their author; a missed Observe named a Sanity mark it had not made; a missed
+         * Analyze of a Key called it Neutral; a reshape read "a Obvious" and claimed one band quieter whatever
+         * band it set. Read from both lang files and config.mjs, every reading a text that must be there or a
+         * phrase that must not, each named; then `reshapeCardParts` (pure) for a reshape one band quieter,
+         * two, the same and louder; and, read in the source, the New trace dialog's room field and the leftover
+         * Keys' sentence counted with `plural`. Not this test: R1 (twins and plural forms), the four tier-2 tests of
+         * E09 C14, which play the cards, and scenario 62 L, which reads a missed Final on a player.
+         */
+        const wrong = [];
+        const flats = {};
+        for (const lang of ["en", "pl"]) {
+            const text = await fetch(`/modules/${MODULE_ID}/lang/${lang}.json`).then(r => r.json());
+            flats[lang] = foundry.utils.flattenObject(foundry.utils.expandObject(text));
+        }
+        const said = (lang, key) => typeof flats[lang][key] === "string" ? flats[lang][key] : null;
+        const both = (key, test, why) => {
+            for (const lang of ["en", "pl"]) {
+                const words = said(lang, key);
+                if (words === null || !test(words)) wrong.push(`${lang} ${key}: ${why}`);
+            }
+        };
+        both("DRPG.Action.dcAnalyze", w => w.includes("{key}") && !w.includes("{daily}"), "still prints the Daily Life ladder");
+        for (const [band, row] of Object.entries(ANALYZE_DC)) if ("dailyLife" in row) wrong.push(`ANALYZE_DC.${band} has a dailyLife column`);
+        const sources = new Map(await otherSources());
+        const config = stripComments(sources.get("config.mjs") ?? ""), investigation = stripComments(sources.get("investigation.mjs") ?? "");
+        must(config.length > 1000 && investigation.length > 1000, "config.mjs or investigation.mjs did not load");
+        for (const phrase of ["Left by the killer", "a trace you left"]) if (config.includes(phrase)) wrong.push(`config.mjs says "${phrase}"`);
+        for (const kind of ["prep", "resolution"]) {
+            const words = said("pl", `DRPG.Config.TRUTH_BULLET_TYPES.${kind}.hint`);
+            if (words === null || /zabójc/i.test(words)) wrong.push(`pl ${kind}.hint names the killer, or is missing`);
+        }
+        const tamper = Object.keys(flats.pl).filter(k => k.startsWith("DRPG.Tamper.") || k.startsWith("DRPG.Config.ACTIONS.tamper."));
+        must(tamper.length > 10, `pl.json has ${tamper.length} Tamper keys`);
+        for (const key of tamper) if (/po tobie|Nie ma takiego śladu|własnym śladem/.test(flats.pl[key])) wrong.push(`pl ${key}: a trace left by you`);
+        for (const key of ["DRPG.Cleanup.intro", "DRPG.Cleanup.moveIntro"]) both(key, w => !/\baction|akcj/i.test(w), "charges an action");
+        both("DRPG.Tamper.frameHint", w => w.includes("Despair") && !w.includes("tak czy inaczej"), "does not say a miss with Despair plants nothing");
+        both("DRPG.Cleanup.reshapeRulingWas", w => /: \{now\}\.$/.test(w), "does not read the new trace after a colon");
+        if (/\ba \{(now|band)\}/.test(`${said("en", "DRPG.Cleanup.reshapeRulingWas")} ${said("en", "DRPG.Cleanup.reshaped")}`)) wrong.push("en reshape: an article before a label");
+        const forms = { en: ["one", "other"], pl: ["one", "few", "many", "other"] };
+        for (const lang of ["en", "pl"]) for (const form of forms[lang]) {
+            const words = said(lang, `DRPG.Investigation.leftoverKeys.${form}`);
+            if (words === null || words.includes("(s)")) wrong.push(`${lang} leftoverKeys.${form}: missing or "(s)"`);
+        }
+        both("DRPG.Observe.failed", w => !w.includes("{stress}"), "names Sanity on every miss");
+        both("DRPG.Observe.failedStress", w => w.includes("{stress}"), "does not name the mark");
+        both("DRPG.Analyze.failedShown", w => w.includes("{name}") && !/Neutral/i.test(w), "calls a Key or a Final Neutral");
+        both("DRPG.Analyze.critNothingMore", w => w.length > 0, "missing");
+        // Two words the source chooses, read there: the New trace dialog's room field and the leftover Keys' count.
+        if (!/<label>\$\{game\.i18n\.localize\("DRPG\.Investigation\.room"\)\}\s*<select name="room">/.test(fnSource(investigation, "openNewTrace")))
+            wrong.push("investigation.mjs openNewTrace: the room field is not labelled Room");
+        if (!/plural\("DRPG\.Investigation\.leftoverKeys", \{ n: old \}\)/.test(investigation)) wrong.push("investigation.mjs: leftoverKeys is not counted with plural()");
+        both("DRPG.Bridge.nothingMore", w => w.length > 0, "missing");
+        equal(JSON.stringify(wrong), JSON.stringify([]),
+            "a Tamper, Analyze, Observe or Cleanup text says what the rules do not (each: the language, the key or the table, what it says)");
+
+        const { reshapeCardParts } = await import("./cleanup.mjs");
+        const { REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+        const quieter = game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter");
+        const data = { visibility: "evident", visibilityLabel: REMNANT_VISIBILITY_LABELS.evident, typeLabel: "Incident Remnant" };
+        const lines = ["subtle", "hidden", "evident", "obvious"].map(softer => {
+            const { body } = reshapeCardParts(data, { name: "R307", softer });
+            const band = foundry.utils.escapeHTML(game.i18n.format("DRPG.Cleanup.reshapeRulingBand", { band: REMNANT_VISIBILITY_LABELS[softer] }));
+            return [body.includes(quieter), body.includes(band)];
+        });
+        equal(JSON.stringify(lines), JSON.stringify([[true, false], [false, true], [false, true], [false, true]]),
+            "a reshape's card says one band quieter when it is not, or does not name the band it set (each: the quieter "
+            + "sentence, the band named; an Evident trace made Subtle, Hidden, Evident, Obvious)");
     }]
 ];
 
@@ -5876,7 +5952,9 @@ const LITERAL_KEYS = [
     // Daggerheart's level-up selections (E29 fix r1-G2) and its scars (fix r2-H25).
     ...["traits", "experience", "max", "rules", "bonuses", "flag", "effect", "hope", "actions", "hitPoints", "stress", "grant",
         "itemFlag", "itemQuantity", "itemLocation", "itemDeleted", "itemCreated", "pendingCall", "levelData", "scars"]
-        .map(kind => `DRPG.Audit.field.${kind}`)
+        .map(kind => `DRPG.Audit.field.${kind}`),
+    // cleanup.mjs names a Stage 6 roll's band on the GMs' copy `DRPG.Action.duality.<band>` (E09 C14): the three bands.
+    ...["hope", "despair", "critical"].map(band => `DRPG.Action.duality.${band}`)
 ];
 
 export { INVARIANTS };

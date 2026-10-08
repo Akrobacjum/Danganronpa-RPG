@@ -1020,8 +1020,9 @@ async function ruleObserveMiss(action, data) {
  *                                     anything was paid, never for how much:
  *                                     "0" is a free action, and the hint card
  *                                     that answers an Analyze which has already
- *                                     resolved (COMM-07, analyze.mjs) writes
- *                                     exactly that. A forged "0" only costs the
+ *                                     resolved (COMM-07, analyze.mjs) wrote
+ *                                     exactly that until E09 C14, which gave it
+ *                                     `paid: "none"`. A forged "0" only costs the
  *                                     person who forged it.
  *
  * Returns the receipt `refundPrice` takes, or null for nothing to give back.
@@ -1049,16 +1050,27 @@ async function ruleDecline(action, data) {
     if (!actor) return null;
 
     const receipt = refundOnCard(data);
-    if (receipt) {
-        const { refundPrice } = await import("./price.mjs");
-        await refundPrice(actor, receipt);
-    } else {
-        // Said out loud because the silence used to be a refund.
-        debug("A refused ruling had nothing to refund: the card says nothing was paid.");
-    }
-
     const { postToThread } = await import("./messenger.mjs");
     const owner = ownerOf(actor);
+    if (!receipt) {
+        // Said out loud because the silence used to be a refund.
+        debug("A refused ruling had nothing to refund: the card says nothing was paid.");
+        /* NOTHING CAME BACK, SO NOTHING IS SAID TO HAVE (E09 C14, 08.10.2026; audit S05-35). A
+           card with nothing paid - a free Search's question, a free hint, and the Analyze
+           critical's hint card (analyze.mjs) - told the player the GM "turned the attempt down"
+           and that their action was back, while nothing was given back; on the critical it read
+           as a refused hint the critical had earned. It is the GM's ruling and is said as one,
+           the way `ruleObserveMiss` says its own, and the card settles as answered. */
+        if (owner) {
+            await postToThread(owner.id, `<p><strong>${foundry.utils.escapeHTML(
+                game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
+                foundry.utils.escapeHTML(game.i18n.localize("DRPG.Bridge.nothingMore"))}</p>`);
+        }
+        return settled("DRPG.Bridge.settledAnswered");
+    }
+    const { refundPrice } = await import("./price.mjs");
+    await refundPrice(actor, receipt);
+
     const note = `<p><em>${foundry.utils.escapeHTML(
         game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
     if (owner) await postToThread(owner.id, note);

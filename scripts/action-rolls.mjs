@@ -532,7 +532,8 @@ function thresholdFacts(actor, actionKey, def) {
         case "analyze": {
             const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, ANALYZE_DC[v]?.[key]]));
             f("DRPG.Action.dcAnalyze", {
-                rows: ladderRows(col("prep")), faint: ladderRows(col("faint")), daily: ladderRows(col("dailyLife")),
+                // No Daily Life ladder (E09 C14, D14): ANALYZE_DC has no such column - see its comment.
+                rows: ladderRows(col("prep")), faint: ladderRows(col("faint")),
                 // A Key and a Final are rolled for since 21.09 - their own column.
                 key: ladderRows(col("key"))
             });

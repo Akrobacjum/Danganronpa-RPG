@@ -63,6 +63,9 @@
  *      reading, and the Faint and the Final analysed and not analysable. (E09 fix r1-G5, the owner's
  *      Q1 (c)) The reveal shows the Final its kind and not its reading: on C8's code, which spared
  *      a Final like a Faint, p1's Final still showed Neutral (08.10.2026).
+ *   L  (E09 C14) the GM misses an Analyze of a Final that shows its kind on p1's student: p1's
+ *      card of the miss names it and does not call it Neutral. On the code before C14
+ *      (08.10.2026) it said the Final "stays with you, still Neutral".
  * Each phase counts its own checks, and a closing check per phase fails one that measured
  * nothing (CLAUDE.md: a test can pass by measuring nothing).
  *
@@ -89,7 +92,8 @@
  * it for a renaming of p1's and p2's copies that no longer comes; with E09 C10's T8 and T9,
  * 40 in 22.7 s (the same count, one run, 08.10.2026); with E09 C12's O5, 41 in 22.4 s (28.3 s with
  * the cluster's start, one run, 08.10.2026), and 42.8 s on the code before C12, where gm2 waits out
- * 20 s for a card that never comes.
+ * 20 s for a card that never comes; with E09 C14's phase L, 43 in 22.7 s (28.3 s with the cluster's
+ * start, one run, 08.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -748,9 +752,32 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         }
         return true;`);
 
+    /* ------------------------------ L. a missed Analyze of a Final ------------------------------ */
+
+    begin("L", "a missed Analyze of a Final that shows its kind, read on p1", "analyze");
+    // A Final shows its kind from the moment it is picked up; a miss on it is told without "still Neutral" (E09 C14).
+    const lSeen = await p1.eval(`return game.messages.contents.map(m => m.id);`);
+    const lMissed = await gm.eval(`${TB} const A = await import("${repoUrl}/scripts/analyze.mjs");
+        const actor = game.actors.get("${IDS.aiko}");
+        const final = await TB.createTruthBullet(actor, { name: "S62 L Final", realType: "final", playerText: ${J(MARK.playerText)} });
+        const verdict = final ? await A.resolveAnalyze({ actorId: actor.id, itemId: final.id, total: 1 }) : null;
+        return { id: final?.id ?? null, shown: final?.getFlag("danganronpa-rpg", "shownType") ?? null, verdict };`, { timeout: 30000 });
+    const lOnP1 = await p1.eval(`${until} const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
+        const seen = new Set(${J(lSeen)}), title = game.i18n.localize("DRPG.Analyze.failedTitle");
+        const card = () => game.messages.contents.filter(m => !seen.has(m.id)).map(m => String(contentOf(m) ?? "")).filter(w => w.includes(title)).at(-1);
+        const words = (await until(card, 8000)) ?? "";
+        return { card: Boolean(words), named: words.includes("S62 L Final"),
+            neutral: words.includes(game.i18n.format("DRPG.Analyze.failed", { name: "S62 L Final" })) };`, { timeout: 20000 });
+    verdict("p1's card of the miss names the Final and does not call it Neutral",
+        Boolean(lMissed.id) && lMissed.shown === "final" && lMissed.verdict?.success === false
+            && J(lOnP1) === J({ card: true, named: true, neutral: false }), J({ lMissed, lOnP1 }));
+    await gm.eval(`${TB} const b = game.actors.get("${IDS.aiko}")?.items.get(${J(lMissed.id)});
+        if (b) { const uuid = b.uuid; await b.delete(); await TB.dropSecret(uuid); }
+        return true;`);
+
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E", "L"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

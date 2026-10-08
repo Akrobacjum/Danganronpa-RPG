@@ -873,10 +873,15 @@ export async function chargeObserveMiss(actor, { total = null, dc = null } = {})
      * same way `identify` in analyze.mjs was: `resolveObserve` is GM-only, so every
      * failed Observe since E5 beeped at the GM and left the observer - the one
      * person the catalogue names - in silence.
+     *
+     * THE SANITY LINE ONLY WHEN SANITY WAS MARKED (E09 C14, 08.10.2026; audit S05-35). The
+     * card said "You take 1 Sanity" off the constant, and a character already at their
+     * maximum, who takes no mark (`marked` 0 above), read a price nobody took.
      */
+    const stressLine = marked > 0 ? ` ${game.i18n.format("DRPG.Observe.failedStress", { stress: marked })}` : "";
     await whisperToOwner(actor, `
         <p><strong>${game.i18n.localize("DRPG.Observe.failedTitle")}</strong></p>
-        <p>${game.i18n.format("DRPG.Observe.failed", { stress: OBSERVE_FAIL_STRESS })}</p>`,
+        <p>${game.i18n.localize("DRPG.Observe.failed")}${stressLine}</p>`,
         { flags: { [MODULE_ID]: { sfx: "observeFail" } } });
 
     log(total === null

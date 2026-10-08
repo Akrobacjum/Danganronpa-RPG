@@ -941,6 +941,13 @@ async function reshapeTrace(token, data, {
  * the GMs' part also counts the Truth Bullets already copied from the trace (`copies`,
  * truth-bullets.mjs `heldCopiesOf`), which an approval leaves as they were found: how many
  * others hold a copy is the answer key's, not the player's. Pure, for the suite.
+ *
+ * THE BAND AS IT IS (E09 C14, 08.10.2026; audit S05-33). `softer` is the band the reshape
+ * writes. On the Tamper road it is always one band quieter (`resolveTransformRoad`); on the
+ * erase road's critical it is the band the player picked (`resolveEraseRoad`), which may be
+ * the same band, a louder one or three quieter - and the card said "one band harder to spot"
+ * for all of them. The sentence is said only of exactly one band quieter; any other band is
+ * named ("Band: Hidden").
  */
 export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false, copies = 0 } = {}) {
     const esc = foundry.utils.escapeHTML;
@@ -948,10 +955,15 @@ export function reshapeCardParts(data, { name = "", text = "", softer = null, ti
     const was = `${data.visibilityLabel} ${data.typeLabel}`;
     const now = `${REMNANT_VISIBILITY_LABELS[softer ?? data.visibility]
         ?? data.visibilityLabel} ${REMNANT_TYPES[becomes]?.label ?? becomes}`;
+    const oneQuieter = Boolean(softer) && REMNANT_VISIBILITY.indexOf(data.visibility) >= 0
+        && REMNANT_VISIBILITY.indexOf(softer) === REMNANT_VISIBILITY.indexOf(data.visibility) + 1;
+    const band = !softer ? ""
+        : oneQuieter ? game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter")
+            : game.i18n.format("DRPG.Cleanup.reshapeRulingBand", { band: REMNANT_VISIBILITY_LABELS[softer] ?? softer });
     const body = [
         `<strong>${esc(name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed"))}</strong>`,
         text ? `<br><em>${esc(text)}</em>` : "",
-        softer ? `<br>${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter"))}` : ""
+        band ? `<br>${esc(band)}` : ""
     ].join("");
     const gmBody = `<p>${esc(game.i18n.format("DRPG.Cleanup.reshapeRulingWas", { was, now }))}${
         tie ? `<br><span class="drpg-warning">${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""}${
@@ -2358,7 +2370,11 @@ export async function resolveStageSix({
     await whisperToOwner(actor, `${cardHead({
         action: def.label, total, result: `${success ? "≥" : "<"} ${threshold}`
     })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`);
-    await whisperToGms(`${cardHead({ action: def.label, total, result: band })}<p>${
+    /* The GMs' copy gave the band alone - "despair" - and the threshold apart, so the GM compared
+       the numbers by hand (E09 C14, 08.10.2026; audit S05-33): it reads as the player's does,
+       "≥ 18", with the band beside it, named as the roll names it. */
+    await whisperToGms(`${cardHead({ action: def.label, total, result: `${success ? "≥" : "<"} ${threshold} · ${
+        game.i18n.localize(`DRPG.Action.duality.${band}`)}` })}<p>${
         foundry.utils.escapeHTML(actor.name)} vs ${threshold}</p>`);
 
     log(`Stage 6 ${key}: ${actor.name} rolled ${total} vs ${threshold} - ${band}.`);
@@ -2403,14 +2419,16 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
         // The ledger already stores `sourceActor`/`sourceName`, but the note is
         // the line the Remnant list prints under the action - so it says both
         // ends of the lie: who left it, and who it accuses.
+        // The band as the table names it, "Evident" and not "evident" (E09 C14, 08.10.2026; audit
+        // S05-33): both lines printed the ledger's key.
         note: game.i18n.format("DRPG.Cleanup.trailNote", {
-            name: framed?.name ?? "?", visibility, by: actor.name
+            name: framed?.name ?? "?", visibility: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility, by: actor.name
         })
     });
 
     done.push(game.i18n.format("DRPG.Cleanup.trailPlanted", {
         // A character's name is its owner's to write (S05-05, S04-10).
-        name: foundry.utils.escapeHTML(framed?.name ?? "?"), visibility
+        name: foundry.utils.escapeHTML(framed?.name ?? "?"), visibility: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility
     }));
 }
 

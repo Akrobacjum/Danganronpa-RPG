@@ -525,7 +525,7 @@
       "dcObserveKey": "Key Remnant: {rows}.",
       "dcObserveFaint": "Nikły ślad: {rows}.",
       "dcObserveDaily": "Coś bez śladu za sobą: {rows}.",
-      "dcAnalyze": "Identyfikacja Truth Bulleta, wg widoczności jego śladu - ze zbrodni: {rows}; nikły: {faint}; codzienność: {daily}; Key i Final: {key}.",
+      "dcAnalyze": "Identyfikacja Truth Bulleta, wg widoczności jego śladu - ze zbrodni: {rows}; nikły: {faint}; Key i Final: {key}.",
       "dcHint": "Wskazówka: {a}+ na subtelną, {b}+ na bezpośrednią.",
       "dcStash": "Znalezienie skrytki: {n}+.",
       "dcProject": "Praca: {a}+ za +1 postępu, {b}+ za +2{relief}.",
@@ -682,8 +682,10 @@
       "identified": "{name} to {type}.",
       "failedTitle": "Donikąd",
       "failed": "Nie umiesz tego rozgryźć. {name} zostaje przy tobie, wciąż Neutral, i nie spróbujesz ponownie aż do następnego rozdziału.",
+      "failedShown": "Nie umiesz tego rozgryźć. {name} zostaje przy tobie bez zmian i nie spróbujesz ponownie aż do następnego rozdziału.",
       "critTitle": "Krytyczne Analyze",
       "critPrompt": "{actor} rozpoznaje {name} jako {type} - i to na krytyku, więc należy się do tego solidna podpowiedź.",
+      "critNothingMore": "Nic więcej do dodania",
       "analyseBulletHint": {
         "one": "Ustal, czym naprawdę jest twój jedyny niezidentyfikowany Truth Bullet.",
         "few": "Ustal, czym naprawdę jest jeden z twoich {n} niezidentyfikowanych Truth Bulletów.",
@@ -1163,7 +1165,7 @@
     "Cleanup": {
       "title": "Sprzątanie",
       "action": "Usuń ślad",
-      "intro": "Wytarcie śladu kosztuje akcję i {n} Sanity.",
+      "intro": "Wytarcie śladu kosztuje {n} Sanity.",
       "which": "Który ślad?",
       "confirm": "Szoruj",
       "withTool": "{item} (Tier {tier}) w ręku - przewaga i tyle samo mniej na progu.",
@@ -1229,7 +1231,7 @@
       "bodyNote": "Ciało ({name}) wywleczono stąd w stronę: {room}.",
       "seenCleaning": "{actor} coś robi w: {room}, i słabo to ukrywa.",
       "moveTitle": "Przenieś ciało",
-      "moveIntro": "Ciało jest w: {room}. Wybierz, dokąd je wleczesz. Kosztuje akcję i {n} Sanity.",
+      "moveIntro": "Ciało jest w: {room}. Wybierz, dokąd je wleczesz. Kosztuje {n} Sanity.",
       "moveAlwaysTrace": "To zawsze zostawia Evident ślad, cokolwiek powiedzą kości. Zwłok nie da się wywlec po cichu. Sypialni nie ma na liście: ciało za czyimiś zamkniętymi drzwiami samo wskazuje podejrzanego.",
       "moveWhere": "Zanieś do",
       "moveConfirm": "Zanieś tam",
@@ -1263,8 +1265,9 @@
       },
       "keptSanity": "Cena próby nie wraca: przykrywka już została opowiedziana.",
       "reshapeRulingTitle": "Ślad, który ma czytać się inaczej",
-      "reshapeRulingWas": "{was} stanie się {now}.",
+      "reshapeRulingWas": "{was} - po zmianie będzie to: {now}.",
       "reshapeRulingQuieter": "Rzut był na tyle dobry, że ślad będzie też o jeden stopień trudniejszy do zauważenia.",
+      "reshapeRulingBand": "Widoczność: {band}.",
       "reshapeRulingTies": "Ta osoba to zabójca, więc zgoda oznaczy też ślad jako powiązany z morderstwem.",
       "reshapeRulingCopies": {
         "one": "Zgoda nie zmienia {n} Truth Bulleta skopiowanego już z tego śladu: czyta się tak, jak go znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa.",
@@ -1591,7 +1594,12 @@
       "keyNoteLabel": "Twoja notatka",
       "keyNotePlaceholder": "Czyta to tylko GM",
       "keyPublicNote": "Nazwa i Opis dla gracza trafiają do znalazcy od razu; Co ujawnia analiza czeka na jego Analyze. Te same trzy pola, które edytuje zakładka Ślady. Twoja notatka zostaje twoja.",
-      "leftoverKeys": "Na mapie wciąż jest {n} Key Remnant(s) z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
+      "leftoverKeys": {
+        "one": "Na mapie wciąż jest {n} Key Remnant z wcześniejszego rozdziału. Plan tego rozdziału go nie widzi; usuń go na końcu rozdziału albo podepnij tutaj.",
+        "few": "Na mapie wciąż są {n} Key Remnanty z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
+        "many": "Na mapie wciąż jest {n} Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
+        "other": "Na mapie wciąż jest {n} Key Remnantów z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj."
+      },
       "finalFoundBy": "Znalazł",
       "finalNobody": "Nikt go nie znalazł",
       "chargeTooLate": "Zegar przeszedł już do rozdziału {now}, a ostatnia sprawa należała do rozdziału {was}: ten rozdział nie ma własnej sprawy, wobec której można policzyć nieznalezione Key Remnants, więc nic nie policzono.",
@@ -1908,7 +1916,8 @@
       "requestSkipped": "Nic nie nazwano - liczy się jako zwykłe rozejrzenie.",
       "sent": "GM ocenia, co się znalazło.",
       "failedTitle": "Nic nie znajdujesz",
-      "failed": "Nic nie przykuwa twojej uwagi. Tracisz {stress} Sanity.",
+      "failed": "Nic nie przykuwa twojej uwagi.",
+      "failedStress": "Tracisz {stress} Sanity.",
       "projectFoundTitle": "Coś tu nie jest tym, na co wygląda",
       "projectFound": "Pod powierzchnią tego pokoju ktoś coś buduje: {name}. Już o tym wiesz i widzisz, jak daleko zaszło.",
       "critIdentified": "Masz to - i wiesz, jakiego rodzaju to ślad.",
@@ -2675,6 +2684,7 @@
       "reply": "Odpowiedz",
       "sendRuling": "Wyślij decyzję",
       "nothingThere": "Nic tam nie było.",
+      "nothingMore": "Nic więcej do dodania.",
       "createItem": "Utwórz przedmiot",
       "createItemStays": "„Utwórz przedmiot” zostawia tę kartę otwartą, więc pozostałe odpowiedzi są nadal dostępne.",
       "giveItem": "Daj istniejący przedmiot",
@@ -2992,20 +3002,20 @@
       "prompt": "Co robisz z dowodami?",
       "cover": "Zatrzyj ślady",
       "coverHint": {
-        "one": "Wymaż {n} ślad, który po tobie został w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
-        "few": "Wymaż jeden z {n} śladów, które po tobie zostały w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
-        "many": "Wymaż jeden z {n} śladów, które po tobie zostały w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
-        "other": "Wymaż jeden z {n} śladów, które po tobie zostały w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć."
+        "one": "Wymaż {n} ślad, o którym wiesz w tym pokoju. Im łatwiej go zobaczyć, tym trudniej usunąć.",
+        "few": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć.",
+        "many": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć.",
+        "other": "Wymaż jeden z {n} śladów, o których wiesz w tym pokoju. Im łatwiej któryś zobaczyć, tym trudniej go usunąć."
       },
-      "nothingOfYours": "Nic tu po tobie nie zostało.",
-      "onlyReinforced": "Wszystko, co tu po tobie zostało, siedzi za głęboko, by to usunąć.",
+      "nothingOfYours": "Nie znasz tu żadnego śladu.",
+      "onlyReinforced": "Każdy ślad, który tu znasz, siedzi za głęboko, by go usunąć.",
       "frame": "Mylny trop",
-      "frameHint": "Zostaw coś, co wskazuje na kogoś innego. Wymaga {n} lub więcej, a ślad podkłada tak czy inaczej.",
+      "frameHint": "Zostaw coś, co wskazuje na kogoś innego. Wymaga {n} lub więcej. Chybienie z Hope i tak podkłada ślad Faint i Hidden; chybienie z Despair nie zostawia nic.",
       "whichTrace": "Który ślad",
       "yourCopy": "{name} (twoja kopia)",
       "coverAction": "Zatrzyj ślady",
       "trailAction": "Mylny trop",
-      "notFound": "Nie ma takiego śladu.",
+      "notFound": "Tego śladu jeszcze nie znasz.",
       "watched": {
         "one": "{n} inna osoba jest w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
         "few": "{n} inne osoby są w tym pokoju. Najpierw musisz zamaskować, co robisz, a przyłapanie kosztuje Sanity.",
@@ -3883,11 +3893,11 @@
         },
         "faint": {
           "label": "Faint Truth Bullet",
-          "hint": "Wątpliwy związek ze sprawą. Zostaje, gdy GM czyści dowody stołu, i można go analizować ponownie."
+          "hint": "Wątpliwy związek ze sprawą. Znacznik Faint zachowuje go, gdy dowody rozdziału są sprzątane, i można go analizować ponownie."
         },
         "prep": {
           "label": "Prep Truth Bullet",
-          "hint": "Zostawiony przez zabójcę podczas przygotowań."
+          "hint": "Zostawiony, gdy ktoś zbierał narzędzia albo coś przygotowywał."
         },
         "incident": {
           "label": "Incident Truth Bullet",
@@ -3895,7 +3905,7 @@
         },
         "resolution": {
           "label": "Tamper Truth Bullet",
-          "hint": "Zostawiony przez błędy zabójcy przy sprzątaniu miejsca zbrodni."
+          "hint": "Zostawiony przez kogoś, kto sprzątał - zbyt czysta plama, rzecz odłożona odrobinę nie tak."
         },
         "autopsy": {
           "label": "Autopsy Truth Bullet",
@@ -3983,8 +3993,8 @@
         },
         "tamper": {
           "label": "Tamper",
-          "hint": "Wymaż ślad, który po tobie został, albo podłóż taki, który wskazuje na kogoś innego.",
-          "description": "Pracujesz nad własnym śladem, aż zniknie, albo zostawiasz taki, który wskazuje na kogoś innego. Bycie obserwowanym przy tym to osobny problem."
+          "hint": "Wymaż albo przekształć ślad, o którym wiesz, że tu jest - albo podłóż taki, który wskazuje na kogoś innego.",
+          "description": "Pracujesz nad śladem, o którym wiesz, że tu jest, aż zniknie albo zacznie wyglądać na coś innego, albo zostawiasz taki, który wskazuje na kogoś innego. Bycie obserwowanym przy tym to osobny problem."
         },
         "directMurder": {
           "label": "Direct Murder",

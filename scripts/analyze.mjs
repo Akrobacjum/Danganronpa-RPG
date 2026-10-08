@@ -188,6 +188,8 @@ export async function resolveAnalyze({
     await rolls.noteFactOn(roll, { bulletId: item.id });
 
     const visibility = held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.visibility) ?? "evident";
+    // What the player's bullet shows now, as the GMs hold it - for a miss's words (`lockOut`).
+    const shown = held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral";
     const realType = secret.realType ?? "neutral";
     const dc = analyzeDc(visibility, realType);
 
@@ -200,7 +202,7 @@ export async function resolveAnalyze({
     const success = isCritical || (dc !== null && total >= dc);
 
     if (!success) {
-        await lockOut(item, actor, chapter, total);
+        await lockOut(item, actor, chapter, total, shown);
         return { success: false, locked: true };
     }
 
@@ -213,7 +215,7 @@ export async function resolveAnalyze({
  * work on it. The stamp is on the item, so a copy handed to somebody else
  * (Stage 4) carries no lock: it is a different item.
  */
-async function lockOut(item, actor, chapter, total) {
+async function lockOut(item, actor, chapter, total, shown = "neutral") {
     try {
         await item.update({
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.lockedChapter}`]: chapter
@@ -225,9 +227,12 @@ async function lockOut(item, actor, chapter, total) {
     // ON THE CARD, NOT THROUGH `playSfx` - and the same correction applies to
     // `identify` below. See the note there: this function only ever runs on a
     // GM's browser.
+    // "Still Neutral" only of a bullet that shows Neutral (E09 C14, 08.10.2026; audit S05-35): a Key
+    // or a Final shows its kind from the moment it is picked up (READ_ON_ANALYZE, truth-bullets.mjs),
+    // and its miss said "still Neutral" beside a bullet that read Key.
     await whisperToOwner(actor, `
         <p><strong>${game.i18n.localize("DRPG.Analyze.failedTitle")}</strong></p>
-        <p>${game.i18n.format("DRPG.Analyze.failed", {
+        <p>${game.i18n.format(shown === "neutral" ? "DRPG.Analyze.failed" : "DRPG.Analyze.failedShown", {
             name: foundry.utils.escapeHTML(item.name)
         })}</p>`, { flags: { [MODULE_ID]: { sfx: "analyzeMiss" } } });
 
@@ -331,8 +336,15 @@ async function identify(item, actor, realType, isCritical, dc, total) {
                 // it; nothing to refund, the Analyze already resolved (COMM-07).
                 actions: [
                     { action: "reply", label: game.i18n.localize("DRPG.Bridge.reply"), data: { by: actor.id } },
-                    { action: "decline", label: game.i18n.localize("DRPG.Bridge.nothingThere"),
-                      data: { by: actor.id, cost: "0" } }
+                    /* "Nothing more to add", and the card says nothing was paid (E09 C14, 08.10.2026;
+                       audit S05-35). It read "Nothing was there" and carried the oldest shape,
+                       `cost: "0"`, so the player's thread was told the GM "turned the attempt
+                       down" and that their action was back - beside a critical that had just
+                       identified the bullet and owed a hint. `paid: "none"` is `declineAction`'s
+                       shape for a free card, and `ruleDecline` (messenger-app.mjs) answers a card
+                       with nothing to give back in the ruling's own words. */
+                    { action: "decline", label: game.i18n.localize("DRPG.Analyze.critNothingMore"),
+                      data: { by: actor.id, paid: "none" } }
                 ]
             });
         } catch (err) {

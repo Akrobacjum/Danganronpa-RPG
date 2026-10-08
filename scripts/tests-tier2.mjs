@@ -18766,6 +18766,192 @@ const SCENARIOS = [
             + "(while the incident ran: Prep made Incident, Incident made Prep, a copied Incident made Prep; after it: Prep made Incident; each [hidden, mark])");
     }],
 
+    ["a missed Observe names a Sanity mark only when it makes one", async () => {
+        /*
+         * E09 C14, 08.10.2026; audit S05-35. The card of a missed Observe (observe.mjs `chargeObserveMiss`)
+         * said "You take 1 Sanity" off OBSERVE_FAIL_STRESS whatever the miss marked, and a student already at
+         * the Sanity maximum takes no mark. One student, missed one mark below the maximum and then at it.
+         * Read each time: the marks the miss reports, the Sanity after, whether a card came, and whether it
+         * names a number of Sanity ("1 Sanity" in both languages the module ships, so the reading leans on no
+         * key this commit added).
+         */
+        const [student] = cast(1);
+        const { chargeObserveMiss } = await import("./observe.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const max = Number(student.system.resources.stress.max) || 0;
+        must(max >= 2, `${student.name}'s Sanity maximum is ${max}: a mark below it and one at it need two`);
+        const title = game.i18n.localize("DRPG.Observe.failedTitle");
+        const seen = new Set(game.messages.contents.map(m => m.id));
+        const card = () => {
+            const fresh = game.messages.contents.filter(m => !seen.has(m.id));
+            for (const m of fresh) seen.add(m.id);
+            return fresh.map(m => String(contentOf(m) ?? "")).filter(words => words.includes(title)).at(-1) ?? null;
+        };
+        const read = [];
+        for (const start of [max - 1, max]) {
+            await student.update({ "system.resources.stress.value": start });
+            const marked = await chargeObserveMiss(student);
+            await settle();
+            const words = card();
+            read.push([marked, student.system.resources.stress.value, words !== null, /\d+\s*Sanity/.test(words ?? "")]);
+        }
+        equal(stableJson(read), stableJson([[1, max, true, true], [0, max, true, false]]),
+            "a missed Observe's card named Sanity it did not take, or none it took (marks, Sanity after, a card, a number of "
+            + "Sanity named: one below the maximum, at it)");
+    }],
+
+    ["a missed Analyze of a bullet that shows its kind does not call it Neutral", async () => {
+        /*
+         * E09 C14, 08.10.2026; audit S05-35. A Key or a Final shows its kind from the moment it is picked up
+         * (truth-bullets.mjs READ_ON_ANALYZE), and a miss on one (analyze.mjs `lockOut`) told its holder it
+         * "stays with you, still Neutral" beside a bullet that read Key. A Key, a Neutral and a Final handed
+         * over as Neutral on one student, each missed with a 1 on the GM. The third is the other road: the
+         * sentence goes by what the bullet shows, never by what its answer key says it is, or the miss
+         * would tell its holder that the Neutral in their hand is not one. Read for each: the verdict,
+         * whether the card names the bullet, and whether it carries the Neutral sentence
+         * (`DRPG.Analyze.failed`, which stays the Neutral's).
+         */
+        const [student] = cast(1);
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const title = game.i18n.localize("DRPG.Analyze.failedTitle");
+        const seen = new Set(game.messages.contents.map(m => m.id));
+        const made = [];
+        try {
+            const read = [];
+            for (const [realType, shownType] of [["key", null], ["neutral", null], ["final", "neutral"]]) {
+                const item = await bullets.createTruthBullet(student, { name: `SUITE E09 C14 a ${realType} missed`, realType, shownType });
+                must(item, `the fixture's ${realType} bullet was not made`);
+                made.push(item);
+                const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total: 1 });
+                await settle();
+                const fresh = game.messages.contents.filter(m => !seen.has(m.id));
+                for (const m of fresh) seen.add(m.id);
+                const words = fresh.map(m => String(contentOf(m) ?? "")).filter(w => w.includes(title)).at(-1) ?? "";
+                const neutral = game.i18n.format("DRPG.Analyze.failed", { name: foundry.utils.escapeHTML(item.name) });
+                read.push([verdict?.success ?? null, words.includes(item.name), words.includes(neutral)]);
+            }
+            equal(stableJson(read), stableJson([[false, true, false], [false, true, true], [false, true, true]]),
+                "a missed Analyze called a Key Neutral, or a bullet showing Neutral not (verdict, the card names it, the Neutral "
+                + "sentence: a Key, a Neutral, a Final handed over as Neutral)");
+        } finally {
+            for (const item of made) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["the Analyze critical's hint card answers with nothing more to add, not a refusal and an action back", async () => {
+        /*
+         * E09 C14, 08.10.2026; audit S05-35. A critical Analyze identifies the bullet and puts the hint it
+         * earned to the GMs as a card in the player's thread (analyze.mjs `identify`, `callGm`). Its second
+         * button read "Nothing was there" and carried `cost: "0"`, and pressing it (messenger-app.mjs
+         * `ruleDecline`) told the thread "<GM> turned the attempt down. Your action is back." - a refused
+         * hint, and an action nobody gave back. One student with a player, a bullet whose answer key says
+         * Prep, analysed on a critical; the card's second button pressed as a GM presses it (`wireCallActions`).
+         * Read: the button's words and what it says was paid, the verdict, the refusal's sentence among the
+         * messages after the press, the student's actions moved by the press, and whether the card settled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "the critical's card goes to a player's thread");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { actionsLeft } = await import("./actions.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(player);
+        must(student, "no living student has a connected player");
+        const had = new Set(game.messages.contents.map(m => m.id));
+        let item = null;
+        try {
+            item = await bullets.createTruthBullet(student, { name: "SUITE E09 C14 a critical's bullet", realType: "prep" });
+            must(item, "the fixture's bullet was not made");
+            const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total: 40, isCritical: true });
+            const withDecline = () => game.messages.contents.find(m => !had.has(m.id)
+                && String(contentOf(m) ?? "").includes('data-drpg-call="decline"'));
+            await until(withDecline, 8000);
+            const card = withDecline();
+            must(card, "the critical put no card with a second button to the GMs");
+            const before = actionsLeft(student);
+            const since = new Set(game.messages.contents.map(m => m.id));
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            const button = body.querySelector('[data-drpg-call="decline"]');
+            must(button, "the card's second button was not drawn");
+            const drawn = [button.textContent.trim() === game.i18n.localize("DRPG.Analyze.critNothingMore"), button.dataset.paid ?? null];
+            button.click();
+            await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+            await settle();
+            const refusal = foundry.utils.escapeHTML(game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }));
+            const said = game.messages.contents.filter(m => !since.has(m.id)).map(m => String(contentOf(m) ?? ""));
+            equal(stableJson([drawn, verdict?.success ?? null, said.some(w => w.includes(refusal)), actionsLeft(student) - before,
+                Boolean(cardFlag(game.messages.get(card.id), "settled"))]), stableJson([[true, "none"], true, false, 0, true]),
+                "the critical's hint card offered something other than nothing more to add, told the player it was turned "
+                + "down, moved their actions, or did not settle (the button's words and what it says was paid, verdict, the "
+                + "refusal said, actions moved, settled)");
+        } finally {
+            if (item) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await settle();
+        }
+    }],
+
+    ["a misleading trail names its band as the table does, and the GMs' copy reads the roll against its threshold", async () => {
+        /*
+         * E09 C14, 08.10.2026; audit S05-33. A misleading trail (cleanup.mjs `applyMisleadingTrail`) told its
+         * player "Planted a Prep Remnant (evident)" and filed "evident." in the trace's note - the ledger's key,
+         * not the band's name - and the GMs' copy of the roll gave its band alone ("hope") with the threshold
+         * apart, so the GM compared the numbers by hand. A student in a room frames another through a Tamper
+         * (`viaAction`, no incident needed), a 30 with Hope. Read: the success, the player's line with the
+         * band's name, the note with it, and a GMs' copy whose head reads "≥ <its threshold>".
+         */
+        needs(world.atLeast("studentsInRooms", 2), "a framer standing in a room and somebody to frame");
+        const CL = await import("./cleanup.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { CLEANUP, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const who = livingStudents().find(a => locateActor(a)?.room && !CL.isCleaner(a));
+        must(who, "no living student outside Stage 6 stands in a room");
+        const framed = (await CL.framingCandidates(who))[0];
+        must(framed, `${who.name} can frame nobody`);
+        const label = REMNANT_VISIBILITY_LABELS[CLEANUP.actions.misleadingTrail.remnant.hope];
+        const traces = () => game.scenes.contents.flatMap(s => remnants.remnantsOn(s));
+        const before = new Set(traces().map(t => t.id));
+        const seen = new Set(game.messages.contents.map(m => m.id));
+        try {
+            const result = await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: framed.id, total: 30,
+                withHope: true, viaAction: true, price: "action" });
+            await settle();
+            const said = game.messages.contents.filter(m => !seen.has(m.id)).map(m => String(contentOf(m) ?? ""));
+            const planted = game.i18n.format("DRPG.Cleanup.trailPlanted", { name: foundry.utils.escapeHTML(framed.name), visibility: label });
+            const trace = traces().find(t => !before.has(t.id));
+            const gmCopy = said.find(w => w.includes(`${foundry.utils.escapeHTML(who.name)} vs `)) ?? "";
+            const threshold = /vs (\d+)/.exec(gmCopy)?.[1] ?? null;
+            equal(stableJson([result?.success ?? null, said.some(w => w.includes(planted)),
+                String(trace ? remnants.remnantData(trace)?.note ?? "" : "").includes(`${label}.`), threshold !== null && gmCopy.includes(`≥ ${threshold}`)]),
+                stableJson([true, true, true, true]),
+                "a misleading trail named its band by the ledger's key, or the GMs' copy did not read the roll against its threshold "
+                + "(success, the player's line, the note, the GMs' copy)");
+        } finally {
+            for (const trace of traces().filter(t => !before.has(t.id))) {
+                try { await remnants.dropRemnantSecret(trace); } catch { /* nothing filed */ }
+                try { await trace.delete(); } catch { /* already gone */ }
+            }
+            await settle();
+        }
+    }],
+
     ["a reshape approved under an open dashboard survives Save", async () => {
         /*
          * E09 C3, V1 (S05-26). The dashboard listened for actors, items and world settings,

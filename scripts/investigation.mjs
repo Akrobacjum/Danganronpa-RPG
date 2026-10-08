@@ -931,12 +931,14 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
         `<option value="${v}"${v === "evident" ? " selected" : ""}>${
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
 
+    // The room's field is labelled "Room" (E09 C14, 08.10.2026; audit S05-35): it borrowed
+    // `pickRoom`, the empty option of the Remnants tab's room select, and read "- create in -".
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Investigation.newTraceTitle") },
         classes: ["drpg-panel", "drpg-window-newtrace"],
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.newTraceIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
+            <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceType")}
                 <select name="type">${typeOptions}</select></label>
@@ -1825,11 +1827,12 @@ function caseKeyPanel({ plan, status, placed, limit, roomOptionsFor, visOptionsF
                Key Remnants do not - they are `reinforced`, so no sweep touches them - so
                "0 of 5 found" can be true of the plan and false of the map at the same
                time. Counted off the map rather than the plan, which is the only place
-               the answer is. */
+               the answer is. A counted sentence since E09 C14 (audit S05-35): "Key Remnant(s)"
+               read wrong in both languages, and Polish took the wrong case of the number. */
             const old = placed.filter(r => r.data.chapter != null
                 && r.data.chapter !== plan.chapter).length;
             return old ? `<p class="notes drpg-warning">${
-                game.i18n.format("DRPG.Investigation.leftoverKeys", { n: old })}</p>` : "";
+                plural("DRPG.Investigation.leftoverKeys", { n: old })}</p>` : "";
         })()}
     </div>`;
 }
