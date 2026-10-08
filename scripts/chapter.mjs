@@ -34,7 +34,7 @@ import { getClock } from "./clock.mjs";
 import {
     bodyDiscovery, setBodyDiscovery, clearBodyDiscovery, isDeceased, isDeadForGm, deathRecord, deathRecordFor, pendingDeath
 } from "./settings.mjs";
-import { TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
+import { TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf, bulletAsHeld } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
@@ -333,7 +333,8 @@ async function isIncidentVictim(actor) {
  * end, the dashboard's button). Measured with tier 2's "a death and a sweep take the Truth Bullets the GMs hold, ..."
  * (e29run/r2h22red, 06.10.2026): until this fix a bullet whose category a write took off where the mark does not see it
  * was left on the sheet by both; with either reading the documents again (e29run/r2h22m, m3, m4) it is left again.
- * The reveal (`allBullets`, each player's own bullets) and the chapter-end panel's count (a display) read the documents.
+ * The reveal (`allBullets`, each player's own bullets) reads the documents; the two counts a GM is shown before a sweep
+ * read what the sweep reads (`sweepPlan`, E09 C1).
  */
 async function bulletsHeldBy(actor) {
     const { itemsAsHeld } = await import("./sheet-audit.mjs");
@@ -1125,6 +1126,49 @@ export async function revealAllBulletTypes() {
 }
 
 /**
+ * Whether the sweep leaves this bullet: a Faint one, or a Final Truth (the two reasons are on `sweepTruthBullets`
+ * below). Faint as the GMs hold it - the answer key's, and where a row holds none (a bullet made before 1.2.47 that
+ * the migration has not moved) this browser's copy of the GMs' flag (`bulletAsHeld`), not the document's, which a
+ * player's write waiting for its put-back can hold. GM-side: both halves are a GM's to read.
+ */
+export function sparedBySweep(item) {
+    return faintOf(bulletAsHeld(item)) || secretOf(item.uuid).realType === "final";
+}
+
+/*
+ * WHAT A SWEEP WOULD TAKE, AND WHAT IT WOULD LEAVE (E09 C1, S05-21). Three places chose the bullets a sweep takes, each
+ * its own way: the sweep (the bullets the GMs hold, `bulletsHeldBy`, kept by `faintOf`), the Investigation Dashboard's
+ * confirm (investigation.mjs `confirmSweepBullets`: the documents, kept by the Faint flag on the item - false on every
+ * Faint bullet nobody has analysed, which is where Faint is published) and the chapter-end panel (the documents, kept by
+ * `faintOf`). So for a student holding an unanalysed Faint, a Neutral and a Final the confirm said 2 and the sweep took
+ * 1. All three read this now: the bullets as the GMs hold them, one wait per student, and then every decision in one
+ * synchronous pass (`sparedBySweep`), so nothing a write lands between two decisions changes one of them and not the
+ * other. Answers the items, `remove` and `keep`; the sweep deletes `remove`, and both counts are `remove.length`. The
+ * wait is `itemsAsHeld`'s (sheet-audit.mjs): a judgement of a write queued on a student first, which a GM's click and a
+ * chapter's end start and nothing it waits for does. Measured with tier 2's "the confirm count is the sweep's count"
+ * and "a forged faint flag in the window spares nothing" before this change (e09run/scratch/c1/mt, 08.10.2026): the
+ * confirm counted 2 of the three above and the sweep took 1; and of three Neutral bullets a player's write had left a
+ * Faint flag or a lost category on, the confirm counted none, the panel 1, and the sweep took 2, sparing the one whose
+ * answer key holds no Faint (`faintOf` read the document's flag there).
+ */
+export async function sweepPlan({ actors = null } = {}) {
+    if (!game.user.isGM) return { remove: [], keep: [] };
+    const held = [];
+    for (const actor of actors ?? game.actors) {
+        if (actor.type !== "character") continue;
+        held.push([actor, (await bulletsHeldBy(actor)).map(item => item.id)]);
+    }
+    const remove = [], keep = [];
+    for (const [actor, ids] of held) {
+        for (const id of ids) {
+            const item = actor.items.get(id);
+            if (item) (sparedBySweep(item) ? keep : remove).push(item);
+        }
+    }
+    return { remove, keep };
+}
+
+/**
  * Clear the evidence out, Faint and Final excepted.
  *
  * Guide, p. 29. Faint bullets are what survive, and Stage 3's lock is written
@@ -1147,37 +1191,23 @@ export async function sweepTruthBullets({ actors = null } = {}) {
     if (!game.user.isGM) return { removed: 0, kept: 0 };
 
     let removed = 0;
-    let kept = 0;
 
+    /* `faintOf`, NOT THE ITEM'S FLAG (`sparedBySweep`). Since 1.2.47 Faint is published onto
+       a player's item only once they have analysed the bullet, so the flag reads false for
+       every doubtful trace nobody has spent a Head roll on - and this sweep would have taken
+       exactly the evidence Faint exists to carry across. The ledger is the truth and this runs
+       GM-side, where the ledger is readable. And guide, p. 32: a Final Truth Bullet is
+       "wyłączony ze sweepu" - it points at the Mastermind across the whole season, not one
+       chapter's case, so the same reveal-and-clear cadence that resets everything else must
+       leave it alone. Which bullets is `sweepPlan`'s, the same answer both counts show. */
     // `actors`: the students to sweep, every one where unsaid - the suite's, which must not sweep a table's world.
+    const { remove, keep } = await sweepPlan({ actors });
+    const kept = keep.length;
     for (const actor of actors ?? game.actors) {
         if (actor.type !== "character") continue;
 
-        const doomed = [];
-        // As the GMs hold them (`bulletsHeldBy`, fix r2-H22).
-        for (const item of await bulletsHeldBy(actor)) {
-            /* `faintOf`, NOT THE ITEM'S FLAG. Since 1.2.47 Faint is published onto
-               a player's item only once they have analysed the bullet, so the flag
-               reads false for every doubtful trace nobody has spent a Head roll on -
-               and this sweep would have taken exactly the evidence Faint exists to
-               carry across. The ledger is the truth and this runs GM-side, where the
-               ledger is readable; `faintOf` falls back to the item for a world made
-               before the change. */
-            if (faintOf(item)) {
-                kept++;
-                continue;
-            }
-            // Guide, p. 32: a Final Truth Bullet is "wyłączony ze sweepu" - it
-            // points at the Mastermind across the whole season, not one chapter's
-            // case, so the same reveal-and-clear cadence that resets everything
-            // else must leave it alone.
-            if (secretOf(item.uuid).realType === "final") {
-                kept++;
-                continue;
-            }
-            doomed.push(item);
-        }
-        await keepBulletDeletions(actor, item => faintOf(item) || secretOf(item.uuid).realType === "final");
+        const doomed = remove.filter(item => item.parent?.id === actor.id);
+        await keepBulletDeletions(actor, sparedBySweep);
 
         if (!doomed.length) continue;
 
@@ -1272,18 +1302,13 @@ export async function openChapterEndDialog() {
        above already gives: a checkbox that promises work the action will not do is worse
        than no checkbox. `sweepTruthBullets` keeps Faint and Final; `clearFaintRemnants`
        keeps anything reinforced or tied to the crime; the Key sweep takes this chapter's
-       own planted clues and nothing older. The bullets counted are the documents'; the
-       sweep chooses off the ones the GMs hold since E29 fix r2-H22 (`bulletsHeldBy`), and
-       the two part only where a document's category is not the one the GMs hold, by
-       reading: one a player's write moved whose put-back has not landed, and an item a
-       player's write made that no GM has decided on, read without its category
-       (sheet-audit.mjs `ITEM_UNHELD`) and so left by the sweep for a GM to decide. */
+       own planted clues and nothing older. The sweep's count is the sweep's own answer
+       (`sweepPlan`, E09 C1), not the same rule over the documents: the documents and the
+       bullets the GMs hold part where a player's write waits for its put-back - a category
+       taken off, a Faint flag written - and an item a player's write made that no GM has
+       decided on, which the sweep leaves for a GM (sheet-audit.mjs `ITEM_UNHELD`). */
     const endingChapter = getClock().chapter;
-    const sweepable = bullets.filter(({ item }) =>
-        // the same reader the sweep itself uses, or the count would promise work
-        // the action will not do - which is the whole point of the note above
-        !faintOf(item)
-        && secretOf(item.uuid).realType !== "final").length;
+    const sweepable = (await sweepPlan()).remove.length;
     /* AND WHETHER THE TRIAL IS STILL SITTING. The clock is the authority, not the
        floor: a trial in session with nobody holding the floor has no floor record at
        all, and it is still a trial - see the note on the HUD's four states. */

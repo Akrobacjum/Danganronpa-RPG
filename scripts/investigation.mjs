@@ -35,7 +35,7 @@ import {
 } from "./remnants.mjs";
 import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { isDeadForGm, sweepTruthBullets } from "./chapter.mjs";
+import { isDeadForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, wireDashboardTabs } from "./utils.mjs";
@@ -1128,30 +1128,19 @@ function evidenceByStudent() {
  * Two permanent clean-ups sitting next to each other in one row must not behave
  * differently - a GM who has pressed one has learnt how the other works.
  *
- * The count applies `sweepTruthBullets`'s own rule rather than an approximation
- * of it, so the confirm cannot promise a number the sweep will not deliver. The
- * window this replaces had exactly that bug once, in its other checkbox, and it
- * took a measured run to notice. The rule, not the reader: the count reads the
- * documents (`bulletsOf`), the sweep the bullets as the GMs hold them since E29
- * fix r2-H22 (chapter.mjs `bulletsHeldBy`); the two part only where a
- * document's category is not the one the GMs hold (one a player's write moved
- * whose put-back has not landed, an item a player's write made that no GM has
- * decided on), by reading.
+ * The count is the sweep's own answer (chapter.mjs `sweepPlan`, E09 C1), so the
+ * confirm cannot promise a number the sweep will not deliver. It was the same
+ * rule written again, over the documents, keeping a bullet by the Faint flag on
+ * the item - which is false on every Faint bullet nobody has analysed, since
+ * Faint is published there at analysis - so an unanalysed Faint, a Neutral and
+ * a Final were offered as 2 and swept as 1 (S05-21).
  */
 export async function confirmSweepBullets() {
     if (!game.user.isGM) return 0;
 
-    let doomed = 0;
-    let kept = 0;
-    for (const actor of game.actors) {
-        if (actor.type !== "character") continue;
-        for (const item of bulletsOf(actor)) {
-            const survives = truthBulletData(item)?.faint
-                || secretOf(item.uuid).realType === "final";
-            if (survives) kept += 1;
-            else doomed += 1;
-        }
-    }
+    const { remove, keep } = await sweepPlan();
+    const doomed = remove.length;
+    const kept = keep.length;
 
     if (!doomed) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.sweepNone"));

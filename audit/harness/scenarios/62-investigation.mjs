@@ -18,6 +18,10 @@
  *   T  p2 finds the same trace (a general Observe) and reshapes it (Tamper, "transform");
  *      the GM approves the card, and p1's copy is renamed with it - today's behaviour, the
  *      line E09 C9 flips (a reshape leaves the copies already held).
+ *   E  (E09 C1) the chapter ends: the GM gives p1's student an unanalysed Faint, a Neutral and
+ *      a Final; the Investigation Dashboard's "Sweep Truth Bullets" confirm (answered no) and
+ *      the End of chapter panel (its sweep alone ticked) each give the number the sweep then
+ *      takes, counted over every student's bullets on the GM, and the Faint and the Final stay.
  * Each phase counts its own checks, and a closing check per phase fails one that measured
  * nothing (CLAUDE.md: a test can pass by measuring nothing).
  *
@@ -237,9 +241,37 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         await move({ x: 300, y: 300 }, { x: 1300, y: 300 });
     }
 
+    /* ------------------------------ E. the chapter's end ------------------------------ */
+
+    begin("E", "the chapter ends with an unanalysed Faint, a Neutral and a Final on p1's student", "truth-bullets");
+    // The dashboard's confirm is answered no, the End of chapter panel with its sweep alone; both read before.
+    const ended = await gm.eval(`${TB} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const I = await import("${repoUrl}/scripts/investigation.mjs"), { getClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const actor = game.actors.get("${IDS.aiko}"), made = [];
+        for (const [name, data] of [["Faint", { faint: true }], ["Neutral", {}], ["Final", { realType: "final" }]]) {
+            made.push((await TB.createTruthBullet(actor, { name: "S62 " + name, playerText: ${J(MARK.playerText)}, ...data }))?.id ?? null);
+        }
+        const held = () => game.actors.filter(a => a.type === "character").reduce((n, a) => n + TB.bulletsOf(a).length, 0);
+        const numberIn = node => Number(/\\d+/.exec(node?.textContent ?? "")?.[0] ?? NaN);
+        const shown = {};
+        globalThis.__dialogAnswers.push(cfg => { shown.confirm = numberIn(cfg?.content?.querySelector?.("p")); return false; });
+        await I.confirmSweepBullets();
+        globalThis.__dialogAnswers.push(cfg => {
+            shown.panel = numberIn(cfg?.content?.querySelector?.('input[name="sweep"]')?.closest?.("label"));
+            return { reveal: false, sweep: true, faint: false, keys: false, endTrial: false, nextChapter: false, nextSession: false,
+                nextMorning: false, endingChapter: getClock().chapter };
+        });
+        const before = held(), done = await C.openChapterEndDialog();
+        return { made, shown, before, after: held(), done, kept: made.map(id => actor.items.has(id)) };`, { timeout: 60000 });
+    verdict("the dashboard's confirm and the End of chapter panel give the number the sweep then takes",
+        ended.shown.confirm === ended.before - ended.after && ended.shown.panel === ended.before - ended.after && ended.before > ended.after,
+        J(ended));
+    verdict("the sweep leaves the Faint and the Final and takes the Neutral",
+        ended.made.every(Boolean) && J(ended.kept) === J([true, false, true]), J(ended));
+
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T"]) {
+    for (const letter of ["A", "O", "N", "T", "E"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

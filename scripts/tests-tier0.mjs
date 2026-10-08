@@ -7126,7 +7126,10 @@ const REGRESSIONS = [
          * the same 26 - 22 ITEM,
          * 4 CARD - and the census's 47 PACKET and 6 STORE rows are the rest of the 79 below (read
          * live in the headless harness the same day: 47, 22, 4 and 6, none without a row). Its 13
-         * PLANNED rows (places E09's commits will add) are left to the commits that add them. The
+         * PLANNED rows (places E09's commits will add) are left to the commits that add them. E09 C1 struck
+         * `sweepTruthBullets` and `confirmSweepBullets` (both read through chapter.mjs `sweepPlan` now, which
+         * names no field) and added `sparedBySweep`, where the planned `sweepPlan` row's field read is: 78
+         * rows, 21 ITEM (read live 08.10.2026, none without a row). The
          * reader is run first on a fixture with a judged reader, a reader whose field is only in a
          * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
          */
@@ -7181,15 +7184,14 @@ const REGRESSIONS = [
             ["ITEM analyze.mjs#resolveAnalyze", "judged: reads bulletAsHeld (E29); unchanged by E09"],
             ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld; C8 extracts its write into truth-bullets.mjs publishReading with the held copy passed in, and moves E33 C1a's GM_ROADS row"],
             ["ITEM chapter.mjs#revealAllBulletTypes", "judged from C8: each decision on bulletAsHeld, the set from allBullets by design (H22); at base it decides on the document"],
-            ["ITEM chapter.mjs#sweepTruthBullets", "judged: bulletsHeldBy at base; C1 routes it through sweepPlan (bulletsHeldBy + bulletAsHeld, one synchronous pass)"],
-            ["ITEM chapter.mjs#openChapterEndDialog", "judged from C1: the confirm count is sweepPlan's remove.length; at base it counts documents (a forged faint in the window changes the number)"],
+            ["ITEM chapter.mjs#openChapterEndDialog", "judged from C1: the sweep's count is sweepPlan's remove.length; the reveal's count reads the documents (allBullets), C8's"],
+            ["ITEM chapter.mjs#sparedBySweep", "judged (C1; the plan's sweepPlan row, whose field read is here): faintOf(bulletAsHeld) or the answer key's final, for each bullet sweepPlan reads through bulletsHeldBy in one synchronous pass (H3)"],
             ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
             ["ITEM handover.mjs#shareBullet", "judged: the copy is built from bulletAsHeld (E29); the answer key copied by copiedRemnants"],
             ["ITEM investigation.mjs#findersByRemnant", "judged from C7 for the fee: keyFeeOf counts with judgedFor + itemsHeldNow; the planner's display (keyPlanStatus) keeps this document read, a display"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
-            ["ITEM investigation.mjs#confirmSweepBullets", "judged from C1: uses sweepPlan; at base it reads documents"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
             ["ITEM truth-bullets.mjs#publishLootSource", "judged from C2 (census-found, not in plan.md): isIdentified(item) on the document decides a GM's write of sourceAction 'loot' - a forged analyzed earns it; C2 reads bulletAsHeld as for the propagate* rows"],

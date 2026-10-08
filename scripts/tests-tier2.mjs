@@ -726,6 +726,40 @@ async function withBetrayalWindows(note, run) {
 }
 
 /**
+ * THE TWO NUMBERS A GM IS SHOWN BEFORE A SWEEP (E09 C1), read off the windows that show them and both
+ * closed unanswered, so nothing is swept: the Investigation Dashboard's "Sweep Truth Bullets" confirm
+ * (investigation.mjs `confirmSweepBullets`; 0 where it says there is nothing to sweep and asks nothing)
+ * and the End of chapter panel's "Collect the Truth Bullets" line (chapter.mjs `openChapterEndDialog`).
+ * Both count every student of the world, so a test reads them before and after its fixture. The number
+ * is the first one in each line's text; the panel's is NaN where it was not drawn.
+ */
+async function sweepCountsShown() {
+    const { confirmSweepBullets } = await import("./investigation.mjs");
+    const { openChapterEndDialog } = await import("./chapter.mjs");
+    const D = foundry.applications.api.DialogV2;
+    const own = { wait: Object.getOwnPropertyDescriptor(D, "wait"), confirm: Object.getOwnPropertyDescriptor(D, "confirm") };
+    const numberIn = node => Number(/\d+/.exec(node?.textContent ?? "")?.[0] ?? NaN);
+    const shown = { confirm: 0, panel: NaN };
+    D.confirm = async cfg => {
+        shown.confirm = numberIn(cfg?.content?.querySelector?.("p"));
+        return false;
+    };
+    D.wait = async cfg => {
+        shown.panel = numberIn(cfg?.content?.querySelector?.('input[name="sweep"]')?.closest?.("label"));
+        return null;
+    };
+    try {
+        await confirmSweepBullets();
+        await openChapterEndDialog();
+    } finally {
+        for (const [name, desc] of Object.entries(own)) {
+            if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+        }
+    }
+    return shown;
+}
+
+/**
  * The words of every private card this client sent while `run` ran (E06 C4): each
  * `secret.card` packet (secret.mjs `postSecret`) as { id, to, html } - the card's id, the
  * users it was addressed to and its words - and every packet let through. A card's
@@ -15360,6 +15394,119 @@ const SCENARIOS = [
             "a sweep or a death passed over a bullet the GMs hold, or left a player's deletion of one for an Undo to make again, or took a Faint "
                 + "one's from the GMs (per student: the bullet off its category still held, the deletion's decision, its answer key kept, made again "
                 + "by the Undo, the plain one still held; the Faint one made again)");
+    }],
+
+    ["the confirm count is the sweep's count", async () => {
+        /*
+         * E09 C1, 08.10.2026; S05-21, the plan's V5. Before a sweep a GM is shown how many Truth Bullets it will delete -
+         * by the Investigation Dashboard's "Sweep Truth Bullets" (investigation.mjs `confirmSweepBullets`) and by the End
+         * of chapter panel (chapter.mjs `openChapterEndDialog`) - and decides on that number. A student is given an
+         * unanalysed Faint, a Neutral and a Final by the GM (`createTruthBullet`); both numbers are read before and after
+         * (`sweepCountsShown`), and the student is swept alone (`sweepTruthBullets`). Read: what the three added to each
+         * number, how many of the student's bullets the sweep took less those it held before, and which of the three are
+         * still held. Before E09 C1 (e09run/scratch/c1/mt/base.log, 08.10.2026) [2,1,1,[true,false,true]]: the confirm
+         * counted the unanalysed Faint, whose item carries no Faint until it is analysed; with the confirm's old count
+         * alone put back (scratch/c1.mut.py m1) the same.
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the sweep reads - this would measure nothing");
+        const C = await import("./chapter.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const [student] = cast(1);
+        const made = [];
+        let read = null;
+        try {
+            const before = await sweepCountsShown();
+            for (const [name, data] of [["an unanalysed Faint", { faint: true }], ["a Neutral", {}], ["a Final", { realType: "final" }]]) {
+                const bullet = await T.createTruthBullet(student, { name: `SUITE E09 C1 ${name}`, playerText: "SUITE E09 C1", ...data });
+                must(bullet, `the bullet "${name}" was not made - this would measure nothing`);
+                made.push(bullet);
+            }
+            await sheetAuditIdle();
+            must(!made[0].getFlag(MODULE_ID, T.TRUTH_BULLET_FLAGS.faint) && T.faintOf(made[0]),
+                "the unanalysed Faint carries Faint on the item, or not in the answer key - this would measure nothing");
+            const after = await sweepCountsShown();
+            must([before, after].every(shown => Number.isFinite(shown.panel)), "the End of chapter panel was not drawn - this would measure nothing");
+            const others = student.items.map(i => i.id).filter(id => !made.some(b => b.id === id));
+            const { removed } = await C.sweepTruthBullets({ actors: [student] });
+            await settle();
+            read = [after.confirm - before.confirm, after.panel - before.panel, removed - others.filter(id => !student.items.has(id)).length,
+                made.map(b => student.items.has(b.id))];
+        } finally {
+            for (const b of made) {
+                if (student.items.has(b.id)) await student.items.get(b.id).delete();
+                await T.dropSecret(b.uuid);
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([1, 1, 1, [true, false, true]]),
+            "the number a GM is shown before a sweep is not what the sweep takes (what an unanalysed Faint, a Neutral and a Final add to the "
+                + "dashboard's confirm and to the End of chapter panel, how many the sweep took; the three still held)");
+    }],
+
+    ["a forged faint flag in the window spares nothing", async () => {
+        /*
+         * E09 C1, 08.10.2026; S05-21. A player's write of their own bullet stands on the document until its put-back
+         * lands, and the GMs' copy of the bullet does not take it (truth-bullets.mjs `bulletAsHeld`). Three Neutral
+         * bullets the GM gives a student, each with a write of that kind left on it on this browser alone: Faint on the
+         * item (`updateSource`, the state a write waiting for its put-back leaves), on one whose answer key holds Faint
+         * and on one whose answer key holds none (a bullet made before 1.2.47 that the migration has not moved, where
+         * `faintOf` reads the flag); and the category taken off where the GMs' mark does not see it (sheet-audit.mjs
+         * `AUDIT_ASIDE`, a failed put-back's state). Read as the test above: what the three added to the two numbers, how
+         * many the student's sweep took, and which are still held - none should be. Before E09 C1 (e09run/scratch/c1/mt/
+         * base2.log, 08.10.2026) [0,1,2,[false,true,false]]: the confirm said there was nothing to sweep, the panel 1, and
+         * the sweep took 2, sparing the bullet whose key holds no Faint. Each part alone turns it red (scratch/c1.mut.py):
+         * the panel counting the documents (m2) [3,1,3,[false,false,false]]; Faint read off the document (m3)
+         * [2,2,2,[false,true,false]]; the sweep choosing again by its old rule (m4) [3,3,2,[false,true,false]]; and the
+         * plan reading the documents, not the bullets the GMs hold (m5, a road C1 leaves as it was) [2,2,2,[false,false,true]].
+         */
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark and copies the sweep reads - this would measure nothing");
+        const C = await import("./chapter.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const FAINT = `flags.${MODULE_ID}.${T.TRUTH_BULLET_FLAGS.faint}`;
+        const [student] = cast(1);
+        const made = [];
+        let read = null;
+        try {
+            const before = await sweepCountsShown();
+            for (const name of ["Faint written, the key's Faint", "Faint written, no Faint in the key", "category written off"]) {
+                const bullet = await T.createTruthBullet(student, { name: `SUITE E09 C1 ${name}`, playerText: "SUITE E09 C1" });
+                must(bullet, `the bullet "${name}" was not made - this would measure nothing`);
+                made.push(bullet);
+            }
+            await sheetAuditIdle();
+            const [keyed, keyless, aside] = made;
+            await T.setSecret(keyless.uuid, { faint: null });
+            await aside.update({ [`flags.${MODULE_ID}.category`]: null }, { [AUDIT_ASIDE]: true });
+            await sheetAuditIdle();
+            for (const b of [keyed, keyless]) b.updateSource({ flags: { [MODULE_ID]: { [T.TRUTH_BULLET_FLAGS.faint]: true } } });
+            must(typeof T.secretOf(keyed.uuid).faint === "boolean" && typeof T.secretOf(keyless.uuid).faint !== "boolean",
+                "the answer key holds Faint for neither bullet, or for both - this would measure nothing");
+            must([keyed, keyless].every(b => b.getFlag(MODULE_ID, T.TRUTH_BULLET_FLAGS.faint) === true && T.bulletGuardStatus(b.uuid).copy
+                && T.bulletGuardStatus(b.uuid).copy[FAINT] !== true), "Faint did not stand on the document alone, outside the GMs' copy - this would measure nothing");
+            must(!T.isTruthBullet(aside) && sheetMarkStore.get(student.id)?.items?.[aside.id]?.flags?.[MODULE_ID]?.category === "truthBullet",
+                "the category did not stand off the document alone, outside the GMs' mark - this would measure nothing");
+            const after = await sweepCountsShown();
+            must([before, after].every(shown => Number.isFinite(shown.panel)), "the End of chapter panel was not drawn - this would measure nothing");
+            const others = student.items.map(i => i.id).filter(id => !made.some(b => b.id === id));
+            const { removed } = await C.sweepTruthBullets({ actors: [student] });
+            await settle();
+            read = [after.confirm - before.confirm, after.panel - before.panel, removed - others.filter(id => !student.items.has(id)).length,
+                made.map(b => student.items.has(b.id))];
+        } finally {
+            for (const b of made) {
+                if (student.items.has(b.id)) await student.items.get(b.id).delete();
+                await T.dropSecret(b.uuid);
+            }
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([3, 3, 3, [false, false, false]]),
+            "a Faint flag or a category a player's write left on a bullet, waiting for its put-back, spared it from the sweep or moved a number a GM "
+                + "is shown (what the three added to the dashboard's confirm and to the End of chapter panel, how many the sweep took; the three still held)");
     }],
 
     ["a death nobody found stays the GMs' when the trial starts, and the GM's hand makes it known", async () => {
