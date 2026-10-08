@@ -38,7 +38,7 @@ If a claim cannot be measured, say that instead of rounding it up.
 | One scenario | `node cluster.mjs scenarios/40-flow.mjs` (add `--verbose` for per-test lines); `node run-all.mjs scenarios --only 40-flow` also holds it to a fresh results file |
 | Every scenario | `npm run scenarios`: the rows with layers `ci` in `audit/harness/README.md` |
 | One check | `node tools/check.mjs <part>`: stamps, notes, dashes, parity, prose, names, moves, contract, registry, stages, tree, gatecode |
-| Whether a commit only moved code | `node tools/moved-only.mjs HEAD~1` - every line moved, promoted, an import or a header; every top-level statement of the files it touches the same tokens at both ends, comments aside; every name read means what it meant, and none written became an import; a facade's exports unchanged, each the same declaration; no import of a module the family did not load, and none for side effects alone; a cut a tier file reads by name, as a table's key or through the bridge crawls unchanged. It reads text and scope, not what the code does when it runs. Its planted pairs alone: `node tools/check.mjs moves` |
+| Whether a commit only moved code | `node tools/moved-only.mjs HEAD~1` - every line moved, promoted, an import or a header; every top-level statement of the files it touches the same tokens at both ends, comments aside; every name read means what it meant (an alias by what it reads, not by its name), and none written became an import; a facade's exports unchanged, each the same declaration, and no name a file stops exporting still imported by a file of scripts/ or audit/harness (statically, or through the import() forms its header names); no import of a module the family did not load, and none for side effects alone; a cut a tier file reads by name, as a table's key, through the bridge crawls or through R290's crawl unchanged, and every function those crawls cut still cut by them. It reads text and scope, not what the code does when it runs. Its planted pairs alone: `node tools/check.mjs moves` |
 | The Polish file | `node tools/check.mjs prose` - must read N/N, 497/497 on 24.09 |
 | The local gate | on a machine with a Foundry v14 sandbox at :30099, `npm run gate:local` (`audit/gate/README.md`) |
 | What a player's roll may do, and what a console's forgery may not | `node cluster.mjs scenarios/83-roll-integrity.mjs` - every legal road clean, each forgery traced; in `npm test` and the local gate since E33 |
@@ -79,8 +79,10 @@ exported, through `export { ... } from "./new.mjs"`, and exports nothing new.
 - New code goes into the family file of its role, never into a facade that holds none.
 
 A move commit runs `node tools/moved-only.mjs HEAD~1`, green on every part (what each
-checks is in its header; a shrunk cut it lists by name in SHRINK_LISTED is read by hand),
-and adds its new files' rows here.
+checks is in its header; a shrunk cut is listed only where SHRINK_LISTED names its file,
+its function and both lengths, as read by hand - C7a's retireOpeningNotices, 279 -> 252 -
+and red otherwise), and adds its new files' rows here. Tier 0's read of every function of
+character.mjs is a cut route the tool does not count: a wave that moves one counts it first.
 
 | File | What lives there | Its facade |
 | --- | --- | --- |
