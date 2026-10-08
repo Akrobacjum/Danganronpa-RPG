@@ -61,7 +61,7 @@
 import { PRICE_CHAINS, ACTIONS } from "./config.mjs";
 // The chain, and the one payer (T-1). Tamper's price is an action, or a Sanity
 // mark when there is no action - never both, which is what this file used to do.
-import { quotePrice, payPrice, refundPrice, paidLine } from "./price.mjs";
+import { quotePrice, payPrice, refundPrice, paidLine, priceLabel } from "./price.mjs";
 import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, REMNANT_TYPES }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
@@ -676,79 +676,119 @@ export async function attemptCleanup(actor, tokenId, {
  * this is the killer's decision about the story they are telling, and the GM's
  * client has no way to guess it. The dice are still on screen when it opens.
  *
- * ERASE IS THE FIRST BUTTON, so it is what Enter presses (see the DialogV2
- * footer finding in E3) and what a player who does not want a second decision
- * gets by pressing on. It is also usually the stronger play - nothing at all
- * beats a decoy - so the default is not merely the safe answer, it is the
- * ordinary one.
+ * ERASE IS NO LONGER WHAT ENTER PRESSES (E09 C11, 08.10.2026; audit S05-50).
+ * It was the first button and the default, on the argument that a player who
+ * did not want a second decision got the ordinary answer by pressing on - and
+ * Enter in the name field, pressed by a player moving on to the description,
+ * erased the trace they were halfway through rewriting. Enter in a field moves
+ * to the next one now (`enterMovesOn`), "Leave something else" is the first
+ * button, so what a browser's own submission presses can never be the erase,
+ * and the player who wants no second decision closes the window, which has
+ * always meant the same erase.
+ *
+ * AN UNFINISHED FORM ASKS AGAIN. One field filled and "Leave something else"
+ * pressed used to warn and answer null - which is the erase, so the trace went
+ * while the toast asked for the second field. The window opens again holding
+ * what was typed; Erase and closing are the ways out.
  *
  * THE SAME RESHAPE AS THE TAMPER ROAD, ASKED LATER (Dawid, 29.08). It used to
  * offer a type menu, and it stopped for the reason argued in
  * `CLEANUP.transformAction`: the lie a killer tells is a sentence. What this
  * road keeps that the other does not is the BAND - a critical earned the right
  * to say how loudly the fake reads, which is a real choice and the reward for
- * rolling that well.
+ * rolling that well. Exported for the suite.
  *
  * @returns {Promise<object|null>} `{ name, text, visibility }`, or null for "erase it".
  */
-async function askTransform(actor) {
+export async function askTransform(actor) {
     const { REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
     const rules = CLEANUP.transform ?? {};
     const bands = rules.visibilities ?? [];
     const limits = CLEANUP.transformAction?.limits ?? {};
     if (!bands.length) return null;
 
-    const options = bands
-        .map(key => `<option value="${key}">${
-            foundry.utils.escapeHTML(REMNANT_VISIBILITY_LABELS[key] ?? key)}</option>`)
-        .join("");
+    let typed = { name: "", text: "", visibility: bands[0] };
+    for (;;) {
+        const options = bands
+            .map(key => `<option value="${key}"${key === typed.visibility ? " selected" : ""}>${
+                foundry.utils.escapeHTML(REMNANT_VISIBILITY_LABELS[key] ?? key)}</option>`)
+            .join("");
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Cleanup.transformTitle") },
-        classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Cleanup.transformIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
-                <input type="text" name="name" maxlength="${limits.name ?? 60}"
+        const picked = await DialogV2.wait({
+            window: { title: game.i18n.localize("DRPG.Cleanup.transformTitle") },
+            classes: ["drpg-panel", "drpg-narrow"],
+            content: dialogContent(`<form>
+                <p>${game.i18n.localize("DRPG.Cleanup.transformIntro")}</p>
+                ${reshapeFields(limits, typed)}
+                <label>${game.i18n.localize("DRPG.Cleanup.transformVisibility")}
+                    <select name="visibility">${options}</select></label>
+                <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformNote")}</p>
+            </form>`),
+            buttons: [
+                {
+                    action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"), default: true,
+                    callback: (e, b, d) => ({
+                        name: d.element.querySelector("[name=name]").value,
+                        text: d.element.querySelector("[name=text]").value,
+                        visibility: d.element.querySelector("[name=visibility]").value
+                    })
+                },
+                {
+                    action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"),
+                    callback: () => null
+                }
+            ],
+            render: (event, dialog) => enterMovesOn(dialog),
+            rejectClose: false
+        });
+
+        // "erase" comes back as null, and so does closing the window - which is the
+        // same answer and should be: backing out of a bonus question must not cost
+        // the critical that earned it.
+        if (!picked || picked === "erase") return null;
+
+        const name = plainText(picked.name, limits.name ?? 60);
+        const text = plainText(picked.text, limits.text ?? 400);
+        if (name && text) return { name, text, visibility: picked.visibility };
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeNeedsBoth"));
+        typed = { name: picked.name ?? "", text: picked.text ?? "", visibility: picked.visibility ?? bands[0] };
+    }
+}
+
+/** The two fields of a reshape, holding what was typed when the window opens again. */
+function reshapeFields(limits, typed = {}) {
+    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+    return `<label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
+                <input type="text" name="name" maxlength="${limits.name ?? 60}" value="${esc(typed.name)}" autofocus
                     placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}" /></label>
             <label>${game.i18n.localize("DRPG.Cleanup.reshapeText")}
                 <textarea name="text" rows="3" maxlength="${limits.text ?? 400}"
-                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}"></textarea></label>
-            <label>${game.i18n.localize("DRPG.Cleanup.transformVisibility")}
-                <select name="visibility">${options}</select></label>
-            <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"), default: true,
-                callback: () => null
-            },
-            {
-                action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"),
-                callback: (e, b, d) => ({
-                    name: d.element.querySelector("[name=name]").value,
-                    text: d.element.querySelector("[name=text]").value,
-                    visibility: d.element.querySelector("[name=visibility]").value
-                })
-            }
-        ],
-        rejectClose: false
+                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}">${esc(typed.text)}</textarea></label>`;
+}
+
+/**
+ * Enter in a reshape's one-line fields moves to the next field, and never answers the window.
+ *
+ * WHY THESE TWO WINDOWS DO IT THEMSELVES (E09 C11, 08.10.2026; audit S05-50). DialogV2 puts the content and the
+ * footer in one form and its footer buttons are submits, so Enter in the name field is the browser's implicit
+ * submission, which presses the first submit in tree order (read in the code and in `guardTextFields`'s note, not
+ * measured here: jsdom does not submit a form on a synthetic key). In the critical's window that was Erase, and in
+ * the Tamper's it sent the description empty. `guardTextFields` (utils.mjs) has no rule for "move on": its
+ * `data-drpg-enter` presses a button, which is the very thing this must not do. The description is a textarea, where
+ * Enter is a new line; the band's select moves on to the footer, whose focused button Enter then presses as a
+ * button, on purpose.
+ */
+function enterMovesOn(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+    root.addEventListener("keydown", event => {
+        if (event.key !== "Enter" || event.isComposing) return;
+        const field = event.target;
+        if (!field?.matches?.("input, select")) return;
+        event.preventDefault();
+        const order = [...root.querySelectorAll("input, textarea, select, footer button")].filter(el => !el.disabled);
+        order[order.indexOf(field) + 1]?.focus();
     });
-
-    // "erase" comes back as null, and so does closing the window - which is the
-    // same answer and should be: backing out of a bonus question must not cost
-    // the critical that earned it.
-    if (!picked || picked === "erase") return null;
-
-    // An unfillable bonus is not an erase - they pressed "leave something else"
-    // - so say why nothing happened rather than quietly wiping the trace.
-    const name = plainText(picked.name, limits.name ?? 60);
-    const text = plainText(picked.text, limits.text ?? 400);
-    if (!name || !text) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeNeedsBoth"));
-        return null;
-    }
-    return { name, text, visibility: picked.visibility };
 }
 
 /**
@@ -1221,52 +1261,54 @@ export async function ruleReshape({ actorId, tokenId, attempt, verdict } = {}, b
  * `CLEANUP.transformAction` - and there is no "just make it quieter" option,
  * because that was the other half of a choice the menu created.
  *
- * BOTH ARE REQUIRED, and an empty form cancels rather than submitting. A
- * reshape with nothing written in it is not a quiet reshape, it is a player who
- * pressed the wrong button: the action would charge Sanity and a turn to leave
- * the trace saying exactly what it said before. Cancelling here costs nothing,
- * which is the reason this is asked before the action is charged at all.
+ * BOTH ARE REQUIRED. A reshape with nothing written in it is not a quiet
+ * reshape, it is a player who pressed the wrong button: the action would charge
+ * Sanity and a turn to leave the trace saying exactly what it said before.
+ * Cancelling here costs nothing, which is the reason this is asked before the
+ * action is charged at all - and an unfinished form asks again rather than
+ * cancelling (E09 C11, 08.10.2026; audit S05-50): Enter in the name field
+ * pressed "Reshape it" with the description empty, and the warning that
+ * followed threw away the name that had been typed. Enter moves on now
+ * (`enterMovesOn`), and the window opens again holding what was written; the
+ * GM's side holds the same rule (`resolveTransformRoad`).
  *
  * @returns {Promise<{name: string, text: string}|null>} null when they backed out.
  */
 export async function askTransformChange(actor) {
     const limits = CLEANUP.transformAction?.limits ?? {};
 
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Cleanup.transformAction") },
-        classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Cleanup.transformActionIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
-                <input type="text" name="name" maxlength="${limits.name ?? 60}"
-                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}" /></label>
-            <label>${game.i18n.localize("DRPG.Cleanup.reshapeText")}
-                <textarea name="text" rows="3" maxlength="${limits.text ?? 400}"
-                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}"></textarea></label>
-            <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformActionNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"), default: true,
-                callback: (e, b, d) => ({
-                    name: d.element.querySelector("[name=name]").value,
-                    text: d.element.querySelector("[name=text]").value
-                })
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
+    let typed = { name: "", text: "" };
+    for (;;) {
+        const picked = await DialogV2.wait({
+            window: { title: game.i18n.localize("DRPG.Cleanup.transformAction") },
+            classes: ["drpg-panel", "drpg-narrow"],
+            content: dialogContent(`<form>
+                <p>${game.i18n.localize("DRPG.Cleanup.transformActionIntro")}</p>
+                ${reshapeFields(limits, typed)}
+                <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformActionNote")}</p>
+            </form>`),
+            buttons: [
+                {
+                    action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"), default: true,
+                    callback: (e, b, d) => ({
+                        name: d.element.querySelector("[name=name]").value,
+                        text: d.element.querySelector("[name=text]").value
+                    })
+                },
+                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ],
+            render: (event, dialog) => enterMovesOn(dialog),
+            rejectClose: false
+        });
 
-    if (!picked || picked === "cancel") return null;
+        if (!picked || picked === "cancel") return null;
 
-    const name = plainText(picked.name, limits.name ?? 60);
-    const text = plainText(picked.text, limits.text ?? 400);
-    if (!name || !text) {
+        const name = plainText(picked.name, limits.name ?? 60);
+        const text = plainText(picked.text, limits.text ?? 400);
+        if (name && text) return { name, text };
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeNeedsBoth"));
-        return null;
+        typed = { name: picked.name ?? "", text: picked.text ?? "" };
     }
-    return { name, text };
 }
 
 /* ==========================================================================
@@ -1274,11 +1316,12 @@ export async function askTransformChange(actor) {
  * ========================================================================== */
 
 /**
- * The refusals, checked after the trace has been found and before the Sanity
- * is spent. Answers the result object to hand back, or null when the attempt
- * may go ahead.
+ * The refusals, checked after the trace has been found and before the GM's side
+ * charges anything. Answers the result object to hand back, or null when the
+ * attempt may go ahead. `price` is the step the player's browser says it paid
+ * (T-1): a refusal gives it back and says so (`refundRefused`).
  */
-async function cleanupRefusal(actor, token, data, viaAction) {
+async function cleanupRefusal(actor, token, data, viaAction, price = null) {
     /*
      * NOT "ONLY YOUR OWN" ANY MORE (ACT-02, 17.09).
      *
@@ -1311,17 +1354,19 @@ async function cleanupRefusal(actor, token, data, viaAction) {
     const watchedItHappen = data.type === "incident" && incidentParticipant(actor);
     if (viaAction && !watchedItHappen && !copiedRemnants(actor).has(token.id)) {
         error(`Refused a Tamper by ${actor.name}: they have not found that trace.`);
-        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>`);
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>${
+            await refundRefused(actor, price)}`);
         return { removed: false, notFound: true };
     }
 
     // Reinforced traces refuse to be removed at all - remnants.mjs has said so
-    // since the flag was introduced. Checked here as well as there so the Sanity
-    // is not taken for an attempt that was never possible.
+    // since the flag was introduced. Checked here as well as there so the attempt
+    // is refused before the GM's side charges anything or the trace is touched;
+    // what the player's browser paid before the dice comes back with the refusal.
     if (data.reinforced) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.reinforced", {
             what: foundry.utils.escapeHTML(`${data.visibilityLabel} ${data.typeLabel}`)
-        })}</p>`);
+        })}</p>${await refundRefused(actor, price)}`);
         return { removed: false, reinforced: true };
     }
     return null;
@@ -1406,11 +1451,17 @@ async function resolveTransformRoad(actor, token, data, verdict, {
     const name = plainText(change?.name, limits.name ?? 60);
     const text = plainText(change?.text, limits.text ?? 400);
 
-    // A packet with nothing written in it cannot be honoured: there is no
-    // longer a second thing a reshape could mean. The roll is still spent,
+    // A packet without both a name and a description cannot be honoured: there
+    // is no longer a second thing a reshape could mean. The roll is still spent,
     // which is the same answer any action gets when its declaration is
     // unusable, and it is reported rather than silently succeeding.
-    if (!name && !text) {
+    // BOTH, NOT EITHER (E09 C11, 08.10.2026; audit S05-50). The windows have
+    // asked for both since they were written (`askTransformChange`) and this
+    // side took one: a packet with a name alone put a card carrying half a lie
+    // to the GMs that no window of the module could have sent. One rule now,
+    // the windows' - and the erase road's critical keeps it too
+    // (`resolveEraseRoad`).
+    if (!name || !text) {
         done.push(game.i18n.localize("DRPG.Cleanup.reshapeNothingSaid"));
     } else {
         // The critical's second half: one band quieter. A plain success
@@ -1463,13 +1514,15 @@ async function resolveEraseRoad(actor, token, data, { outcome, transforming, isC
      * decided here rather than asked for - so the only thing left to validate
      * from the packet is the band, and it is still checked against the table
      * rather than trusted. The words are capped by `plainText` inside
-     * `reshapeTrace`'s callers, and a packet with none is not a reshape.
+     * `reshapeTrace`'s callers, and a packet without both a name and a
+     * description is not a reshape (E09 C11, the windows' rule, as on the
+     * Tamper road in `resolveTransformRoad`): the critical erases instead.
      */
     const rules = CLEANUP.transform ?? {};
     const rewriteName = plainText(transform?.name, CLEANUP.transformAction?.limits?.name ?? 60);
     const rewriteText = plainText(transform?.text, CLEANUP.transformAction?.limits?.text ?? 400);
     const rewrite = isCritical && outcome.mayTransform && transform
-        && (rewriteName || rewriteText)
+        && rewriteName && rewriteText
         && rules.visibilities?.includes(transform.visibility)
         ? transform
         : null;
@@ -1632,7 +1685,8 @@ export async function resolveCleanup({
 
     const actor = game.actors.get(actorId);
     if (!actor) return null;
-    if (!viaAction && !isCleaner(actor)) return null;
+    // Said and paid back (`blockedOnGm`); a GM's Reroll of an attempt that stands is refused as before.
+    if (!viaAction && !isCleaner(actor)) return undo ? null : blockedOnGm(actor, price);
 
     // A Reroll: put the scene back the way it was before scoring the new number,
     // or the second attempt would be measured against a room the first one had
@@ -1677,7 +1731,7 @@ export async function resolveCleanup({
      * its Sanity - and scored the new number on top. With no row, the Reroll is not replayed
      * and the GMs are told (`undoLastCleanup`).
      */
-    const refused = await cleanupRefusal(actor, token, data, viaAction);
+    const refused = await cleanupRefusal(actor, token, data, viaAction, price);
     if (refused) {
         await forgetAttempt(actorId);
         return refused;
@@ -2231,7 +2285,7 @@ export async function resolveStageSix({
     const actor = game.actors.get(actorId);
     const def = CLEANUP.actions?.[key];
     if (!actor || !def) return null;
-    if (!viaAction && !isCleaner(actor)) return null;
+    if (!viaAction && !isCleaner(actor)) return blockedOnGm(actor, price);
 
     /*
      * ONE OF THE THREE IS STAGE 6 ONLY, AND IT IS THE OBVIOUS ONE.
@@ -2415,17 +2469,28 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
     const region = Array.from(here.scene?.regions ?? []).find(r => r.name === room);
     const tokenDoc = here.scene?.tokens?.find(t => t.actorId === victim.id) ?? null;
 
+    /*
+     * A BODY THAT DID NOT MOVE LEAVES NO DRAG MARKS (E09 C11, 08.10.2026; audit S05-47). A teleport that threw, or a
+     * room or a body token this scene does not hold, said "There is nowhere to take it" - `bodyNowhere`'s words for a
+     * different thing - and went on to drop the evident trace "dragged from here towards" the room, so the GMs held a
+     * trail of a move that never happened, beside a body still lying where it fell. It stops here now, as the other
+     * two answers above do; `bodyStuck` says the body would not move, and the critical's hand-back stands, as it does
+     * for those two.
+     */
+    let moved = false;
     if (region && tokenDoc) {
         try {
             await region.teleportTokens([tokenDoc], { placement: "random", snap: true, pan: false });
-            done.push(game.i18n.format("DRPG.Cleanup.bodyMoved", { room }));
+            moved = true;
         } catch (err) {
             error("Could not move the body", err);
-            done.push(game.i18n.localize("DRPG.Cleanup.bodyStuck"));
         }
-    } else {
-        done.push(game.i18n.localize("DRPG.Cleanup.bodyStuck"));
     }
+    if (!moved) {
+        done.push(game.i18n.localize("DRPG.Cleanup.bodyStuck"));
+        return;
+    }
+    done.push(game.i18n.format("DRPG.Cleanup.bodyMoved", { room }));
 
     const visibility = def.remnant?.[band] ?? "evident";
     await dropRemnant(actor, {
@@ -2745,6 +2810,41 @@ async function undoLastCleanup(actor, tokenId) {
  */
 function validPrice(price) {
     return PRICE_CHAINS.tamper.steps.find(step => step.pay === price) ?? null;
+}
+
+/**
+ * Give back what a refused attempt paid on the player's browser, and answer the line that says so ("" for none).
+ *
+ * A REFUSAL ON THE GM KEPT THE PRICE (E09 C11, 08.10.2026; audit S05-46). Since T-1 the price is paid on the player's
+ * browser before the dice (`chargeTamper`), so the GM's side has nothing of its own to hold back when it refuses: a
+ * trace the GM reinforced while the dice were in the air answered "it will not come off" and the action or the Sanity
+ * mark stayed spent, and the comment above the check said the Sanity was not taken. Given back here as the step
+ * `validPrice` names, read off the table, never off the packet; a Burst claimed comes back as an action, as the
+ * critical's does (`handBack`), since this side cannot tell a Burst from an action. Quiet, because the line goes
+ * into the refusal's own whisper rather than a second card.
+ */
+async function refundRefused(actor, price) {
+    const step = validPrice(price);
+    if (!step) return "";
+    const receipt = { pay: step.pay, amount: step.amount, grant: false };
+    const landed = await refundPrice(actor, receipt, { quiet: true });
+    return landed ? `<p>${game.i18n.format("DRPG.Price.refunded", { what: priceLabel(receipt) })}</p>` : "";
+}
+
+/**
+ * An attempt that reaches the GM after its Stage 6 has stopped being the asker's: said, and the price given back.
+ *
+ * A SILENT NULL UNTIL E09 C11 (08.10.2026; audit S05-46). A GM who closed the incident while the killer's dice were
+ * in the air left both resolvers answering null and telling nobody: the killer had paid on their own browser and
+ * heard nothing. The reason is `cleanupBlocker`'s, in the words the sheet uses before the dice (`refuseCleanup`).
+ * Not null, so the bridge does not add a refusal of its own to the whisper.
+ */
+async function blockedOnGm(actor, price) {
+    const why = cleanupBlocker(actor) ?? "notYours";
+    log(`Refused a clean-up by ${actor.name} on the GM: ${why}.`);
+    await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Cleanup.blocked.${why}`)}</p>${
+        await refundRefused(actor, price)}`);
+    return { removed: false, success: false, blocked: why };
 }
 
 /**

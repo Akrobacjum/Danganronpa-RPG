@@ -13967,6 +13967,280 @@ const SCENARIOS = [
         }
     }],
 
+    ["a clean-up the GM refuses gives back the price its player paid, and says so", async () => {
+        /*
+         * E09 C11, 08.10.2026; audit S05-46. Since T-1 a Tamper's price is paid on the player's browser
+         * before the dice (cleanup.mjs `chargeTamper`), and a refusal on the GM's side kept it: a trace
+         * the GM reinforced while the dice were in the air answered "it will not come off", and the
+         * action or the Sanity mark stayed spent with nothing said about it. `cleanupFixture`'s trace,
+         * reinforced, then two attempts as the bridge hands them over, each after its price was paid:
+         * one with an action (the character one short of their most), one with a Sanity mark; then the
+         * copy is deleted and a third, paid with an action, meets the other refusal - a trace they have
+         * not found. Read: what each answered, the actions and the marks each moved back, and whether the
+         * refusal's whisper names what came back. Until this commit: nothing moved and nothing said.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const { setRemnantSecret } = await import("./remnants.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { priceLabel } = await import("./price.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const step = pay => PRICE_CHAINS.tamper.steps.find(s => s.pay === pay);
+        const said = (since, pay) => [...game.messages].slice(since).some(m => contentOf(m).includes(
+            game.i18n.format("DRPG.Price.refunded", { what: priceLabel(step(pay)) })));
+        const F = await cleanupFixture(who, "SUITE E09 C11 a trace reinforced while the dice were in the air");
+        const hadActions = who.system.resources.actions.value;
+        try {
+            must(F.trace && F.copy && step("action") && step("stress"), "the fixture's trace, its copy or the price chain is missing - this would measure nothing");
+            await setRemnantSecret(F.trace, { reinforced: true });
+            const top = actionsMax(who);
+            must(top >= step("action").amount, `${who.name} has no action to have paid with - this would measure nothing`);
+            await who.update({ "system.resources.actions.value": top - step("action").amount });
+            let since = game.messages.size;
+            const byAction = await F.scrub(30, { price: "action" });
+            await settle();
+            const actionsBack = actionsLeft(who) - (top - step("action").amount);
+            const actionSaid = said(since, "action");
+            await who.update({ "system.resources.stress.value": step("stress").amount });
+            since = game.messages.size;
+            const byMark = await F.scrub(30, { price: "stress" });
+            await settle();
+            const markBack = step("stress").amount - who.system.resources.stress.value, markSaid = said(since, "stress");
+            await F.copy.delete();
+            await who.update({ "system.resources.actions.value": top - step("action").amount });
+            since = game.messages.size;
+            const unfound = await F.scrub(30, { price: "action" });
+            await settle();
+            equal(stableJson([byAction?.reinforced ?? null, byMark?.reinforced ?? null, unfound?.notFound ?? null, actionsBack, markBack,
+                actionsLeft(who) - (top - step("action").amount), actionSaid, markSaid, said(since, "action")]),
+            stableJson([true, true, true, step("action").amount, step("stress").amount, step("action").amount, true, true, true]),
+            "a clean-up the GM refused kept the price its player had paid, or did not say it came back (refused on the action, "
+                + "on the mark, as not found; actions given back, marks given back, actions given back on the third; each said)");
+        } finally {
+            await who.update({ "system.resources.actions.value": hadActions });
+            await F.putBack();
+        }
+    }],
+
+    ["a clean-up that reaches the GM once its Stage 6 is over tells its player why, and gives the price back", async () => {
+        /*
+         * E09 C11, 08.10.2026; audit S05-46. A GM who closed the incident while the killer's dice were in
+         * the air left both of Stage 6's resolvers answering null to an attempt that is no longer the
+         * killer's (`resolveCleanup`, `resolveStageSix`): the price paid on the killer's browser stayed
+         * spent and nobody was told. With no incident running - the state a close leaves - a student's
+         * erase paid with an action and a misleading trail paid with a Sanity mark arrive as the bridge
+         * hands them over, and then a GM's Reroll of the erase. Read: what each answered, what moved back,
+         * and whether the whispers say why ("no incident is running") and what came back. The Reroll
+         * moves nothing: the attempt it would replay stands, with its price. Until this commit: null,
+         * null, nothing moved and nothing said.
+         */
+        const [who] = cast(1);
+        const CL = await import("./cleanup.mjs");
+        const M = await import("./murder.mjs");
+        const { actionsLeft, actionsMax } = await import("./actions.mjs");
+        const { priceLabel } = await import("./price.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        must(!M.murderState()?.active, "an incident is running - this would measure a different refusal");
+        const step = pay => PRICE_CHAINS.tamper.steps.find(s => s.pay === pay);
+        const why = game.i18n.localize("DRPG.Cleanup.blocked.noIncident");
+        const said = since => {
+            const told = [...game.messages].slice(since).map(m => contentOf(m)).filter(words => words.includes(why));
+            return ["action", "stress"].map(pay => told.some(words => words.includes(
+                game.i18n.format("DRPG.Price.refunded", { what: priceLabel(step(pay)) }))));
+        };
+        const top = actionsMax(who);
+        must(top >= step("action").amount, `${who.name} has no action to have paid with - this would measure nothing`);
+        const had = { "system.resources.actions.value": who.system.resources.actions.value,
+            "system.resources.stress.value": who.system.resources.stress.value };
+        await who.update({ "system.resources.actions.value": top - step("action").amount, "system.resources.stress.value": step("stress").amount });
+        let read = null;
+        try {
+            const since = game.messages.size;
+            const erase = await CL.resolveCleanup({ actorId: who.id, tokenId: "SUITEC11NOTRACE0", total: 30, withHope: true, price: "action" });
+            const trail = await CL.resolveStageSix({ actorId: who.id, key: "misleadingTrail", targetId: null, total: 30, withHope: true, price: "stress" });
+            await settle();
+            const moved = [actionsLeft(who) - (top - step("action").amount), step("stress").amount - who.system.resources.stress.value];
+            const told = said(since);
+            const replay = await CL.resolveCleanup({ actorId: who.id, tokenId: "SUITEC11NOTRACE0", total: 30, withHope: true, price: "action", undo: true });
+            await settle();
+            read = [erase?.blocked ?? null, trail?.blocked ?? null, ...moved, ...told, replay ?? null, actionsLeft(who) - (top - step("action").amount)];
+        } finally {
+            await who.update(had);
+        }
+        equal(stableJson(read),
+            stableJson(["noIncident", "noIncident", step("action").amount, step("stress").amount, true, true, null, step("action").amount]),
+            "an attempt that reached the GM after Stage 6 was refused in silence or kept its price, or a GM's Reroll paid one back "
+                + "(the erase's answer, the trail's, actions back, marks back, whispers saying why and what came back, the Reroll's answer, actions after it)");
+    }],
+
+    ["a body that would not move leaves no trail of being dragged", async () => {
+        /*
+         * E09 C11, 08.10.2026; audit S05-47. Move the body's success teleports the victim's token into
+         * the room the killer chose (cleanup.mjs `applyMoveBody`); when the teleport threw - or the room
+         * or the body's token was not on the scene - the killer was told "There is nowhere to take it"
+         * and the GMs were left an evident trace "dragged from here towards" that room, beside a body
+         * still lying where it fell. Two students with players standing in named rooms: the killer
+         * kills, the body is laid at the killer's feet, and every region's teleport made to throw (a
+         * table's can: a version without it or a shape it cannot place into, call-world.mjs's note; the
+         * harness's regions have none of their own). The body is moved on a success. Read: whether it
+         * succeeded, how many traces it left, whether the killer was told the body would not move and
+         * whether they were told a trace was left. Until this commit: one trace, and both said.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("studentsInRooms", 2), "the body is carried off from the room the killer stands in");
+        const M = await import("./murder.mjs");
+        const CL = await import("./cleanup.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { dropRemnantSecret } = await import("./remnants.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const { locateActor, neighbouringRooms } = await import("./movement.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const scene = canvas?.scene;
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const tokenOf = a => scene?.tokens?.find(t => t.actorId === a.id) ?? null;
+        const [killer, victim] = livingStudents().filter(a => player(a) && tokenOf(a) && locateActor(a)?.room);
+        must(killer && victim, "no two students with players stand in named rooms on the scene on screen");
+        const room = locateActor(killer).room;
+        const regions = [...scene.regions];
+        const self = regions.find(r => r.name === room);
+        // The harness's six rooms are drawn apart, so none has a neighbour by its walls (read 08.10.2026); a room
+        // without one is given the next room by name - the GM's own declared list - and has it taken off afterwards.
+        const declared = neighbouringRooms(room).length ? null : regions.find(r => r.name && r.name !== room)?.name ?? null;
+        let read = null, target = null;
+        const body = tokenOf(victim), mine = tokenOf(killer), was = { x: body.x, y: body.y };
+        const tokens = new Set(scene.tokens.map(t => t.id));
+        try {
+            if (declared) await self.setFlag(MODULE_ID, "drpgNeighbours", declared);
+            target = neighbouringRooms(room).find(r => r !== room) ?? null;
+            must(target, `${room} connects to no room the body could be carried to - this would measure nothing`);
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution", `the fixture's Stage 6 did not come: ${stableJson(M.murderState())}`);
+            await body.update({ x: mine.x, y: mine.y });
+            must(CL.bodyIsHere(killer), "the body does not lie in the killer's room - this would measure nothing");
+            for (const region of regions) region.teleportTokens = async () => { throw new Error("SUITE E09 C11 the body would not move"); };
+            const move = await CL.resolveStageSix({ actorId: killer.id, key: "moveBody", targetId: target, total: 30, isCritical: false, withHope: true });
+            await settle();
+            const left = game.i18n.format("DRPG.Cleanup.leftTrace", { visibility: CLEANUP.actions?.moveBody?.remnant?.hope ?? "evident" });
+            read = [move?.success ?? null, scene.tokens.filter(t => !tokens.has(t.id)).length,
+                (move?.done ?? []).includes(game.i18n.localize("DRPG.Cleanup.bodyStuck")), (move?.done ?? []).includes(left)];
+        } finally {
+            for (const region of regions) delete region.teleportTokens;
+            if (declared) await self.unsetFlag(MODULE_ID, "drpgNeighbours");
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            if (scene.tokens.has(body.id)) await body.update({ x: was.x, y: was.y });
+            for (const token of scene.tokens.filter(t => !tokens.has(t.id))) {
+                try { await dropRemnantSecret(token); } catch { /* nothing filed */ }
+                await token.delete();
+            }
+        }
+        equal(stableJson(read), stableJson([true, 0, true, false]),
+            "a body that did not move still left a trail of being dragged, or was not said to have stayed "
+            + "(the move succeeded, traces left, told it would not move, told a trace was left)");
+    }],
+
+    ["Enter in a reshape's window moves to the next field and never erases, and an unfinished one asks again", async () => {
+        /*
+         * E09 C11, 08.10.2026; audit S05-50. The critical's window (cleanup.mjs `askTransform`) had Erase
+         * as its first button and its default, so Enter in the name field - a player moving on to the
+         * description - erased the trace; one field filled and "Leave something else" pressed warned and
+         * answered null, which is the same erase. The Tamper's window (`askTransformChange`) sent its
+         * description empty on Enter. Both are drawn here as a player's browser draws them and driven:
+         * Enter in the name, Enter in the band, the window's first submit (what a browser's own submission
+         * presses on an Enter nobody handles - jsdom does not submit a form on a synthetic key, so that
+         * press is read off the footer, not made), then the name alone and the go-ahead pressed. Read, for
+         * each window: whether each Enter was kept from the form and where it moved the caret, the first
+         * submit, whether the window opened again, and what the second one holds. Until this commit: Enter
+         * left to the form with the caret where it was, Erase first, and no second window.
+         */
+        needs(env.dialogs(), "the windows are drawn and their fields and buttons used");
+        const [who] = cast(1);
+        const CL = await import("./cleanup.mjs");
+        const NAME = "SUITE E09 C11 a coat stand";
+        const drawn = title => [...foundry.applications.instances.values()]
+            .filter(a => a.rendered && a.element && a.options?.window?.title === title);
+        const enterIn = (app, name) => {
+            const field = app.element.querySelector(`[name="${name}"]`);
+            field.focus();
+            const key = new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+            field.dispatchEvent(key);
+            const at = document.activeElement;
+            return [key.defaultPrevented, at?.getAttribute?.("name") ?? at?.dataset?.action ?? null];
+        };
+        const press = (app, action) => app.element.querySelector(`footer.form-footer button[data-action="${action}"]`)?.click();
+        const drive = async (ask, title, fields, go, out) => {
+            const answer = Promise.resolve().then(ask).catch(() => "threw");
+            const reading = [];
+            try {
+                // Not a precondition: the windows are drawn here (`env.dialogs()` above), so one that does not
+                // open is the answer - as it was before this commit for the critical's, which was not exported.
+                if (!await until(() => drawn(title).length === 1, 6000)) return ["no window"];
+                const first = drawn(title)[0];
+                first.element.querySelector("[name=name]").value = NAME;
+                for (const name of fields) reading.push(enterIn(first, name));
+                reading.push(first.element.querySelector("footer.form-footer button")?.dataset?.action ?? null);
+                press(first, go);
+                const again = await until(() => drawn(title).some(a => a !== first), 3000);
+                const second = drawn(title).find(a => a !== first) ?? null;
+                reading.push(again, second?.element?.querySelector("[name=name]")?.value ?? null);
+                if (second) press(second, out);
+                reading.push(await Promise.race([answer, wait(3000).then(() => "unanswered")]));
+            } finally {
+                for (const app of drawn(title)) await app.close();
+                await Promise.race([answer, wait(3000)]);
+            }
+            return reading;
+        };
+        const critical = await drive(() => CL.askTransform(who), game.i18n.localize("DRPG.Cleanup.transformTitle"),
+            ["name", "visibility"], "change", "erase");
+        const tamper = await drive(() => CL.askTransformChange(who), game.i18n.localize("DRPG.Cleanup.transformAction"),
+            ["name"], "go", "cancel");
+        equal(stableJson({ critical, tamper }), stableJson({
+            critical: [[true, "text"], [true, "change"], "change", true, NAME, null],
+            tamper: [[true, "text"], "go", true, NAME, null]
+        }), "Enter in a reshape's window was left to the form, Erase was what a browser's Enter presses, or an unfinished form "
+            + "answered instead of asking again (each Enter: kept from the form, the caret's place; the first submit; asked again; "
+            + "the name the second window holds; the answer after its way out)");
+    }],
+
+    ["the GM refuses a reshape that carries only one of its two fields", async () => {
+        /*
+         * E09 C11, 08.10.2026; audit S05-50. The windows ask for both a name and a description, and the
+         * GM's side took either: the Tamper's road put a reshape with a name alone to the GMs
+         * (`resolveTransformRoad`), and the erase road's critical a rewrite with a description alone
+         * (`resolveEraseRoad`) - which held the erase the dice had bought until a GM ruled on half a lie.
+         * `cleanupFixture`'s trace: a Tamper that reshapes with the name alone, then a critical erase that
+         * rewrites with the description alone, as the bridge hands them over. Read: the proposal the
+         * GMs' row holds after each, and whether the trace still stands. Until this commit: both
+         * proposals held, and the trace standing.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who] = cast(1);
+        const CL = await import("./cleanup.mjs");
+        const { CLEANUP } = await import("./config.mjs");
+        const band = CLEANUP.transform?.visibilities?.[0] ?? null;
+        must(band && CLEANUP.outcome?.critical?.mayTransform, "a critical may not rewrite a trace at this table - this would measure nothing");
+        const F = await cleanupFixture(who, "SUITE E09 C11 a trace reshaped with half a lie");
+        try {
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            await F.scrub(30, { mode: "transform", change: { name: "SUITE E09 C11 a coat stand", text: "" } });
+            await settle();
+            const named = (await CL.attemptOf(who.id))?.proposal ?? null;
+            await F.scrub(30, { isCritical: true, transform: { name: "", text: "SUITE E09 C11 nothing happened here", visibility: band } });
+            await settle();
+            const described = (await CL.attemptOf(who.id))?.proposal ?? null;
+            equal(stableJson([named, described, Boolean(F.scene.tokens.get(F.trace.id))]), stableJson([null, null, false]),
+                "a reshape with one of its two fields was put to the GMs, or held back the erase a critical bought "
+                + "(the Tamper's proposal, the critical's proposal, the trace standing)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
     ["a clean-up's receipt survives a GM reload", async () => {
         /*
          * E08+E28 C3, 03.10.2026; audit S05-44. The receipt was a Map on the browser that
