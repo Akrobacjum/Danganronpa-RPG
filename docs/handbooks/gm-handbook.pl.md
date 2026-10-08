@@ -632,7 +632,7 @@ Gdy incydent kończy się ciałem, zabójca wreszcie widzi na arkuszu zostawione
 
 | Usuwanie | Ślad |
 |---|---|
-| Krytyk | znika i wraca 1 (Sanity albo akcja, którą zapłacono), a zabójca dostaje propozycję, by zamiast tego przerobić ślad |
+| Krytyk | znika i wraca 1 (Sanity albo akcja, którą zapłacono), a rzucający dostaje propozycję, by zamiast tego przerobić ślad, wybierając, jak głośno się czyta; przeróbka, którą odrzucisz, zostawia go usuniętym |
 | Hope | znika |
 | Despair | znika, ale zostaje Evident Faint Tamper Remnant |
 | Porażka z Hope | zostaje, plus Subtle Faint Tamper Remnant |
@@ -640,7 +640,7 @@ Gdy incydent kończy się ciałem, zabójca wreszcie widzi na arkuszu zostawione
 
 Reinforced ślady nigdy nie schodzą.
 
-**Przerób ślad** to też osobna próba, o 3 łatwiejsza niż usunięcie: zabójca pisze nową nazwę (do 60 znaków) i opis (do 400), ślad zawsze staje się Tamper Remnant, a przeróbka trafia do ciebie jako karta do zatwierdzenia albo odrzucenia - nic nie jest zapisywane, dopóki nie zatwierdzisz; krytyk dodatkowo ścisza ślad o jedno pasmo i oddaje to, czym zapłacono (Sanity albo akcję).
+**Przerób ślad** to też osobna próba, o 3 łatwiejsza niż usunięcie: rzucający pisze nową nazwę (do 60 znaków) i opis (do 400), ślad zawsze staje się Tamper Remnant, a przeróbka trafia do ciebie jako karta do zatwierdzenia albo odrzucenia - nic nie jest zapisywane, dopóki nie zatwierdzisz; krytyk dodatkowo ścisza ślad o jedno pasmo i oddaje to, czym zapłacono (Sanity albo akcję). Karta mówi, ile kopii śladu ktoś już ma: zachowują one słowa, z jakimi je znaleziono, a kto znajdzie ślad później, czyta przeróbkę. Jedno orzeczenie na przeróbkę - drugiego GM-a albo twoje drugie kliknięcie moduł odrzuca i mówi, kto już orzekł, a orzeczenie asystenta GM-a zapada w przeglądarce głównego GM-a i jest zapisywane jako jego - a przeróbka, która niesie tylko jedno z dwóch pól, jest odrzucana. Próba, którą odrzuca przeglądarka GM-ów - ślad Reinforced, ślad, którego gracz nie znalazł, albo Stage 6, który już minął - oddaje to, co kosztowała, i mówi graczowi dlaczego.
 
 Dwie inne akcje Stage 6: **Mylny trop** (**15**) podkłada Prep Remnant wskazujący innego żyjącego ucznia (Evident / Subtle / Obvious; porażka z Hope zostawia Hidden Faint, porażka z Despair nic); **Przenieś ciało** (Body, **16**, o 1 mniej za każdy Tier Cleaning Tool w ręku) niesie je do połączonego pokoju, który zabójca wybiera przed rzutem, nigdy do sypialni; sukces zawsze zostawia ślad Evident Tamper, porażka zostawia ciało tam, gdzie było.
 
@@ -682,13 +682,13 @@ Przed odkryciem własny arkusz ofiary pokazuje panel śmierci z "Nikt jeszcze ni
 
 `scripts/remnants.mjs`, `investigation.mjs`, `truth-bullets.mjs`, `observe.mjs`, `analyze.mjs`; `config.mjs REMNANT_TYPES`, `KEY_REMNANTS`, `OBSERVE_DC`, `ANALYZE_DC`.
 
-**Remnants** to ukryte tokeny na mapie, kładzione tam, gdzie stała postać, gdy akcja go zostawiła, z typem, widocznością (Obvious, Evident, Subtle, Hidden), kto go zostawił, pokojem, rozdziałem, dniem i porą dnia, oraz tym, czy jest Reinforced (nie do sprzątnięcia) i czy jest powiązany ze zbrodnią. Typy:
+**Remnants** to ukryte tokeny na mapie - wszystkie poza śladami trwającego incydentu, które powstają nieukryte, by ekrany jego graczy mogły je narysować tylko im (ukrycie takiego ręcznie, gdy incydent trwa, zabiera go też z ich ekranów; gdy incydent się zamyka, moduł ukrywa te, których nikt nie skopiował) - kładzione tam, gdzie stała postać, gdy akcja go zostawiła, z typem, widocznością (Obvious, Evident, Subtle, Hidden), kto go zostawił, pokojem, rozdziałem, dniem i porą dnia, oraz tym, czy jest Reinforced (nie do sprzątnięcia) i czy jest powiązany ze zbrodnią. Typy:
 
 | Typ | Czym jest |
 |---|---|
 | **Key** | twoje, nieusuwalne, staje się Truth Bulletem bez analizy |
 | **Neutral** | nieokreślony; Analyze zamienia go w prawdziwą kategorię |
-| **Faint** | wątpliwy; czyszczony na końcu rozdziału, chyba że powiązany z morderstwem |
+| **Faint** | wątpliwy; także znacznik, który może nosić ślad Prep (narzędzie z Search, sabotaż, mylny trop); czyszczony na końcu rozdziału, chyba że powiązany z morderstwem, a Truth Bullet z nim przetrwa zbieranie |
 | **Prep** | - |
 | **Incident** | - |
 | **Tamper** | zostawiony przez sprzątanie |
@@ -697,21 +697,25 @@ Przed odkryciem własny arkusz ofiary pokazuje panel śmierci z "Nikt jeszcze ni
 
 Typy Truth Bullets są ich lustrem. Każdy Remnant to token z jedną neutralną nazwą i obrazkiem "?", znaleziony czy nie: od 1.2.64 nazwa i obrazek, które mu nadajesz, nigdy nie są zapisywane na tokenie, który ma każda przeglądarka. Ekrany, którym wolno wiedzieć więcej, rysują to na własnej kopii mapy - twój z danych sprawy, ekran znalazcy z jego własnego Truth Bulletu, jego nazwę i obrazek (rysuje to moduł na każdym ekranie; harness bez przeglądarki nie ma canvasu, więc przy stole jeszcze tego nie widziano). GM widzi ikonę akcji, która go zostawiła (Search, projekt, sabotaż, akcja dynamiczna, sprzątanie, incydent, wyrzucenie, postawienie przez GMa, zabranie z ciała), gracz dopiero, gdy jego własna kopia zostanie rozpoznana - a ikonę śladu zabrania z ciała, którego nikt nie znalazł, dopiero gdy stół wie o tej śmierci - a podwójne kliknięcie Remnantu otwiera jego kartę śladu. Ślady incydentu są pokazywane jego graczom w chwili powstania; gdy incydent się zamyka, te, których nikt nie skopiował, znów są ukrywane, więc gracze późniejszego incydentu nie widzą starego miejsca zbrodni. Świat zaktualizowany do 1.2.64 robi to samo raz, przy pierwszym wczytaniu, dla incydentów zamkniętych wcześniej; incydent, który wtedy trwa, zachowuje swoje.
 
+**Powiązanie ze zbrodnią** ma trzy stany, tak jak pokazuje je zakładka Ślady: nierozstrzygnięty (-), Powiązany i Niepowiązany. Gdy ofiara rozdziału umiera - z cudzej ręki albo z własnej - każdy nierozstrzygnięty ślad rozdziału zostaje powiązany, a ten, który oznaczyłeś jako Niepowiązany, takim zostaje; broń użyta w walce wiąże ślady, które ją wydały. Rozpoznane kopie graczy dowiadują się o powiązaniu, gdy śmierć staje się znana (odkrycie, okno Uczniowie, publiczne zabójstwo), albo przy zamknięciu walki, która nie zostawiła śmierci. Sabotaż morderstwa pośredniego zostawia ślad powiązany, gdy zrobił go zabójca albo pomysłodawca pułapki, a niepowiązany, gdy ktoś postronny; mylny trop podłożony przez niewinnego nie jest powiązany. Do 1.2.71 Niepowiązany i nierozstrzygnięty były jedną wartością, więc świat zaktualizowany do tej wersji czyta każde stare Niepowiązany raz jako nierozstrzygnięte - także z tokenu sprzed 1.2.63 i z tego, co oddaje Reroll starszego sprzątania: oznacz swoje fałszywe tropy jeszcze raz.
+
 **Pulpit Investigation** (Sprawa > Investigation) to żywa teczka sprawy:
 
 | Zakładka | Co robi |
 |---|---|
-| **Ślady** | wymienia każdy Remnant z filtrami (po graczu, pokoju i rozdziale), pozwala edytować nazwę, tekst dla gracza i tekst analizy, poprawić typ i oznaczyć go jako Faint, powiązany ze zbrodnią albo Reinforced |
+| **Ślady** | wymienia każdy Remnant z filtrami (po graczu, pokoju i rozdziale), pozwala edytować nazwę, tekst dla gracza i tekst analizy, poprawić typ (na rodzaj, który może znaleźć Observe, albo zostawić własny) i oznaczyć go jako Faint, powiązany ze zbrodnią albo Reinforced |
 | **Key Remnants** | planer |
 | **Final Truth Remnants** | stawia Final Truth Remnants |
 | **Kto co ma** | pokazuje Truth Bullets każdego ucznia, ile jeszcze nie przeanalizowano i czym są naprawdę |
 
 Stopka ma **Nowy ślad** (ślad dowolnego rodzaju, w dowolnym pokoju), **Wyczyść Faint Remnants**, **Zbierz Truth Bullets**, sekcję, dziennik dowodów Class Trial i ciało.
 
-**Key Remnants** (`KEY_REMNANTS`). Przygotowujesz **5** tropów na rozdział, w skali Trivial, Standard, Standard, Complex, Desperate; rzut otwarcia decyduje, ile sprawa zachowa (5, 4 albo 3; pułapka zachowuje wszystkie 5), nigdy poniżej **3**. Razem mają zawęzić podejrzanych do **2 do 4** osób - ostatni krok od kręgu do nazwiska należy do Class Trial. Każdy wiersz planera ma nazwę i tekst dla gracza (co dostaje znalazca), tekst analizy (co ujawnia Analyze), twoją prywatną notatkę, pokój i widoczność; **Utwórz na mapie** stawia go w losowym miejscu wewnątrz pokoju jako Reinforced i powiązany ze zbrodnią. Plan należy do GMów (sekcja 14) i jest trzymany rozdział po rozdziale: każdy rozdział ma swoich pięć wierszy, a nowy rozdział otwiera się z pustym planem. Karta z prośbą gracza ("patrzę na okno") ma **Utwórz tu Key Remnant**, który może wypełnić jeden z pięciu wierszy.
+**Zapisz** zapisuje tylko pola, które zmieniłeś. Pole, które zmieniło się gdzie indziej, gdy twoje okno było otwarte - zapis innego GM-a, przeróbka zatwierdzona w międzyczasie - jest oznaczane, nie jest zapisywane i dostajesz jego nazwę; okno pokazuje, co jest w nim teraz, a reszta twoich zmian jest zapisywana. Rodzaj zmieniony tutaj pociąga to, co od niego zależy: ślad zrobiony Faint Remnantem jest Faint także na kopiach graczy, zaplanowany Key Remnant, któremu dano inny rodzaj, jest opisany jako już nie Key Remnant, a ślad, którego nikt nie skopiował, przestawiony na Incident albo z niego, jest rysowany graczom incydentu tak, jakby go tak postawiono.
+
+**Key Remnants** (`KEY_REMNANTS`). Przygotowujesz **5** tropów na rozdział, w skali Trivial, Standard, Standard, Complex, Desperate; rzut otwarcia decyduje, ile sprawa zachowa (5, 4 albo 3; pułapka zachowuje wszystkie 5), nigdy poniżej **3**. Razem mają zawęzić podejrzanych do **2 do 4** osób - ostatni krok od kręgu do nazwiska należy do Class Trial. Każdy wiersz planera ma nazwę i tekst dla gracza (co dostaje znalazca), tekst analizy (co ujawnia Analyze), twoją prywatną notatkę i Stan - gdzie stoi na mapie albo że jeszcze go nie postawiono; **Postaw** pyta o pokój i widoczność i stawia go w losowym miejscu wewnątrz tego pokoju jako Reinforced i powiązany ze zbrodnią, ze słowami wpisanymi w wierszu. Postawiony wiersz pokazuje słowa swojego śladu, a zmiana wpisana na nazwę zmienioną w międzyczasie jest odrzucana i moduł o tym mówi. Wiersz ponad liczbę Key Remnants sprawy da się postawić tylko z zaznaczonym **Utwórz więcej, niż pozwala rzut otwarcia**, a liczba sprawy przetrwa zamknięcie incydentu. Plan należy do GMów (sekcja 14) i jest trzymany rozdział po rozdziale: każdy rozdział ma swoich pięć wierszy, a nowy rozdział otwiera się z pustym planem. Karta z prośbą gracza ("patrzę na okno") ma **Utwórz tu Key Remnant**, który może wypełnić jeden z pięciu wierszy.
 
 > [!WARNING]
-> Na starcie Class Trial moduł nalicza opłatę za nieudane śledztwo: każdy Key Remnant brakujący do **4 znalezionych** jest wart **3 Despair do puli każdego Monokumy** (`unfoundBar`, `unfoundDespair`) - całkiem nieudane śledztwo to **+12** do każdej puli. Naliczane raz na rozdział i tylko dopóki plan jest jeszcze planem tego rozdziału.
+> Na starcie Class Trial moduł nalicza opłatę za nieudane śledztwo: każdy Key Remnant brakujący do **4 znalezionych** - albo do liczby sprawy, gdy jej otwarcie dało ich mniej - jest wart **3 Despair do puli każdego Monokumy** (`unfoundBar`, `unfoundDespair`, `keyFeeOf`) - całkiem nieudane śledztwo to **+12** do każdej puli. Znaleziony to kopia, którą ma żyjący uczeń, tak jak trzymają ją GMowie; kopia, której ślad zniknął, liczy się w rozdziale, w którym ją znaleziono. Naliczane raz na rozdział, u głównego GM-a, którykolwiek GM otwiera Class Trial, tak samo z zapisanym planerem i bez, i wcale, gdy rozdział minął już sprawę.
 
 **Observe.** Gracz deklaruje, jak patrzy:
 
@@ -720,10 +724,10 @@ Stopka ma **Nowy ślad** (ślad dowolnego rodzaju, w dowolnym pokoju), **Wyczyś
 | **Rozejrzyj się za czymkolwiek** | najłatwiejszy ślad tutaj |
 | **Spójrz poza oczywiste** | najtrudniejszy, a także tajny projekt w pokoju przy DC **18** |
 | **Podążaj za własnymi śladami** | najpierw jego własne |
-| **Skup wzrok** | nazywa, czego chce, a karta pyta cię, na który ślad wskazują te słowa |
+| **Skup wzrok** | nazywa, czego chce, a karta, którą widzi każdy GM, pyta, na który ślad wskazują te słowa; wybiera dowolny GM, a główny GM sprawdza wybór w pokoju |
 | **Zbadaj punkt zainteresowania** | coś, co nie jest śladem, do twojego rozstrzygnięcia |
 
-Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok, Zbadaj punkt zainteresowania albo Observe w pokoju, w którym nie zostały żadne ślady, staje się kartą decyzji na tym rzucie z **Utwórz tu Key Remnant**, **Odpowiedz** i **Nic tam nie było**, co liczy się jak pudło. Rzut jest oceniany na twoim kliencie według prawdziwego typu i widoczności śladu; gracz słyszy wynik, nigdy to, jakie DC obowiązywało. Trafienie kopiuje Remnant do ekwipunku jako Neutral Truth Bullet i zostawia oryginał; pudło kosztuje **1 Sanity**. Jeden ślad daje jedną kopię na osobę. Ślady związane z morderstwem są pokazywane w pierwszej kolejności. Gdy ktoś po raz pierwszy skopiuje ślad, twoja przeglądarka prosi cię o jego opis (nazwa, tekst dla gracza, tekst analizy, wstępnie wypełnione); każdy, kto skopiuje go później, dostaje te same słowa, a krytyk pyta cię ponownie tylko o większą wskazówkę.
+Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok, Zbadaj punkt zainteresowania albo Observe w pokoju, w którym nie zostały żadne ślady, staje się kartą decyzji na tym rzucie z **Utwórz tu Key Remnant**, **Odpowiedz** i **Nic tam nie było**, co liczy się jak pudło. Rzut jest oceniany na twoim kliencie według prawdziwego typu i widoczności śladu; gracz słyszy wynik, nigdy to, jakie DC obowiązywało. Trafienie kopiuje Remnant do ekwipunku jako Neutral Truth Bullet i zostawia oryginał; pudło kosztuje **1 Sanity**. Jeden ślad daje jedną kopię na osobę. Ślady związane z morderstwem są pokazywane w pierwszej kolejności. Gdy ktoś po raz pierwszy skopiuje ślad, twoja przeglądarka prosi cię o jego opis (nazwa, tekst dla gracza, tekst analizy, wstępnie wypełnione); każdy, kto skopiuje go później, dostaje te same słowa, a krytyk pyta cię ponownie tylko o większą wskazówkę. Wybór przy Skup wzrok zrobiony, gdy gracz przestał już czekać, po wyborze innego GM-a albo po odmowie jest odrzucany i moduł mówi o tym GM-owi, który go zrobił.
 
 | Widoczność | Daily Life | Key | Faint | Prep / Incident / Tamper |
 |---|---|---|---|---|
@@ -738,12 +742,12 @@ Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok,
 
 | Widoczność | Daily Life | Faint | Prep / Incident / Tamper |
 |---|---|---|---|
-| Obvious | 8 | 8 | 12 |
-| Evident | 12 | 12 | 15 |
-| Subtle | 18 | 15 | 18 |
-| Hidden | 21 | 18 | 21 |
+| Obvious | - | 8 | 12 |
+| Evident | - | 12 | 15 |
+| Subtle | - | 15 | 18 |
+| Hidden | - | 18 | 21 |
 
-(DC Analyze, `ANALYZE_DC`. Key i Final Truth Bullets oraz Autopsy wydany jako Neutral czyta się w kolumnie Key: 6 / 9 / 12 / 15. W Class Trial Analyze kosztuje akcję, albo 1 Hope, gdy akcji nie ma, albo 1 Sanity, gdy nie ma ani jednego, ani drugiego.)
+(DC Analyze, `ANALYZE_DC`. Bez kolumny Daily Life: bullet czyta się w kolumnie tego, czym naprawdę jest. Key i Final Truth Bullets oraz Autopsy wydany jako Neutral czyta się w kolumnie Key: 6 / 9 / 12 / 15. W Class Trial Analyze kosztuje akcję, albo 1 Hope, gdy akcji nie ma, albo 1 Sanity, gdy nie ma ani jednego, ani drugiego.)
 
 > [!IMPORTANT]
 > **Krytyczne** Observe albo Analyze jest ci winne solidną wskazówkę dla gracza - karta mówi to na czerwono.
@@ -774,7 +778,7 @@ Podczas **Final Trial** działa ta sama debata i to samo głosowanie; tylko werd
 
 **Zakończ rozdział** (Między sesjami albo konsola Class Trial po zastosowaniu werdyktu) to jeden ekran z polami wyboru, każde policzone, zanim je zaproponuje:
 
-- ujawnij, czym naprawdę jest każdy Truth Bullet (bullety bez zapisanego prawdziwego typu są wymieniane jako luźny koniec);
+- ujawnij, czym naprawdę jest każdy Truth Bullet, razem z odczytem, tak jak zrobiłby to Analyze (bullety bez zapisanego prawdziwego typu są wymieniane jako luźny koniec); Faint zostaje nieodczytany, a Final pokazuje swój rodzaj bez odczytu, oba wciąż do przeanalizowania w następnym rozdziale;
 - zbierz Truth Bullets uczniów (Faint i Final zostają);
 - wyczyść Faint Remnants (Reinforced i powiązane ze zbrodnią zostają);
 - usuń Key Remnants postawione w tym rozdziale;

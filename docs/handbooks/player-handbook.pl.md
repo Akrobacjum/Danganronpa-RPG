@@ -291,7 +291,7 @@ Cztery wyniki, a ciekawe są te niedopasowane: przyłapany z niczym albo okradzi
 
 ### Tamper - Shadow, 1 akcja
 
-Dwie rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji, kosztuje zamiast niej **1 Sanity**.
+Trzy rzeczy za kafelkiem. Próba kosztuje **1 akcję**; gdy nie masz już akcji, kosztuje zamiast niej **1 Sanity**.
 
 **Zatrzyj ślady.** Wymaż jeden ślad w tym pokoju, o którym wiesz: taki, którego kopię masz jako Truth Bullet, albo ślad walki, w której bierzesz udział. Im łatwiej go zobaczyć, tym trudniej usunąć:
 
@@ -307,11 +307,13 @@ Każdy o 3 niżej, dopóki nie znaleziono ciała. Narzędzie do sprzątania w r�
 | Wynik | Co się dzieje |
 |---|---|
 | Czysty sukces | usuwa ślad |
-| Krytyk | usuwa go i dodatkowo oddaje to, co kosztowała próba |
+| Krytyk | usuwa go i dodatkowo oddaje to, co kosztowała próba. Potem dostajesz propozycję, by zamiast tego zostawić ślad na miejscu, czytający się jako coś innego - przeróbkę (niżej), której pasmo wybierasz; jeśli GM nie dopuści twojej wersji, ślad i tak znika |
 | Sukces z Despair | usuwa go, ale zostawia własny Tamper Remnant |
 | Porażka | zostawia ślad i dokłada obok Tamper Remnant (Subtle przy Hope, Evident przy Despair) |
 
 Reinforced ślady nie schodzą nigdy.
+
+**Przerób ślad.** Zostaw jeden z tych samych śladów na miejscu i spraw, by czytał się jako coś innego: piszesz, jak się nazywa i jak wygląda, jedno i drugie (do 60 i 400 znaków). Wymaga o 3 mniej niż jego wymazanie, a cokolwiek napiszesz, staje się Tamper Remnantem - przyznaje, że ktoś przy nim majstrował, i kłamie o całej reszcie. GM pozwala twojej wersji zostać albo jej nie dopuszcza; do tego czasu ślad czyta się tak jak przedtem, a niedopuszczona wersja i tak kosztuje to, co kosztowała próba. Krytyk dodatkowo sprawia, że ślad jest o jedno pasmo trudniejszy do zauważenia, i oddaje to, co kosztowała próba. Kopie, które inni już mają, zachowują słowa, z jakimi je znaleziono; kto znajdzie ślad później, czyta twoje.
 
 **Mylny trop.** Zostaw Prep Remnant wskazujący na kogoś innego. Wymaga **15**. Porażka z Hope i tak go podkłada, jako Hidden, Faint ślad, którego pewnie nikt nie znajdzie; porażka z Despair nie podkłada nic.
 
@@ -453,7 +455,7 @@ Przedmiot może służyć też jako inna kategoria (śrubokręt w narzędziach, 
 | Prep Remnant | Zostawiony przy przygotowaniu morderstwa albo zbieraniu narzędzi. |
 | Incident Remnant | Zostawiony podczas konfrontacji albo śmierci ofiary. |
 | Tamper Remnant | Zostawiony przez majstrowanie - zbyt czysta plama, rzecz odłożona odrobinę nie tak. |
-| Faint Remnant | Wątpliwy związek ze sprawą. Czyszczony przez GMa, chyba że powiązany z morderstwem. |
+| Faint Remnant | Wątpliwy związek ze sprawą. Faint to też znacznik, który może nosić ślad Prep - ten, który zostawia Search za narzędziem, sabotaż albo mylny trop. Ślad z nim GM czyści, chyba że jest powiązany z morderstwem; Truth Bullet z nim zostaje u ciebie po końcu rozdziału, nieodczytany, i wciąż można go przeanalizować. |
 | Autopsy Remnant | Stan ciała. Wydawany na początku Investigation, bez rzutu. |
 | Final Truth Remnant | Jeden na rozdział. Wskazuje Masterminda. Nieusuwalny. |
 
@@ -484,9 +486,9 @@ Przy rzucie nigdy nie widzisz trudności, ale kształt drabiny nie jest tajemnic
 | Key Remnant, Final Truth | 6 / 9 / 12 / 15 | 6 / 9 / 12 / 15 |
 | Prep, Incident, Tamper | 9 / 12 / 15 / 18 | 12 / 15 / 18 / 21 |
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
-| Coś z Daily Life | 8 / 12 / 18 / 21 | 8 / 12 / 18 / 21 |
+| Coś z Daily Life | 8 / 12 / 18 / 21 | - |
 
-Kolumny to Obvious / Evident / Subtle / Hidden. Wątpliwy ślad trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
+Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Life: Truth Bullet odczytuje się w wierszu tego, czym naprawdę jest. Wątpliwy ślad trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
 
 ---
 
@@ -632,7 +634,7 @@ Dopóki ktoś nie znajdzie ciała, śmierć trzymają GMowie: stół się nie do
 - Czego nie znajdziesz, tego nie będziesz mieć w Class Trialu.
 
 > [!WARNING]
-> Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy.
+> Każdy Key Remnant poniżej czterech, którego nie znajdziecie, jest wart **3 Despair** dla każdego Monokumy - poniżej liczby Key Remnants sprawy, gdy ma ich mniej niż cztery, więc sprawa trzech znalezionych w całości nie kosztuje nic. Za znaleziony liczy się tylko ten, który ma żyjący uczeń.
 
 ---
 

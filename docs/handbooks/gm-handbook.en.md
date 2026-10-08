@@ -632,7 +632,7 @@ When the incident ends with a body, the killer can finally see the Remnants they
 
 | Erasing | The trace |
 |---|---|
-| Critical | gone and 1 refunded (the Sanity or the action that paid), and the killer is offered to reshape the trace instead |
+| Critical | gone and 1 refunded (the Sanity or the action that paid), and the roller is offered to reshape the trace instead, choosing how loud it reads; a reshape you decline leaves it gone |
 | Hope | gone |
 | Despair | gone, but an Evident Faint Tamper Remnant is left |
 | Failure with Hope | still there, plus a Subtle Faint Tamper Remnant |
@@ -640,7 +640,7 @@ When the incident ends with a body, the killer can finally see the Remnants they
 
 Reinforced traces never come off.
 
-**Reshape a trace** is also an attempt of its own, 3 easier than erasing: the killer writes a new name (up to 60 characters) and description (up to 400), the trace always becomes a Tamper Remnant, and the rewrite reaches you as a card to approve or decline - nothing is written until you approve; a critical also makes it one band quieter and gives back what paid (the Sanity, or the action).
+**Reshape a trace** is also an attempt of its own, 3 easier than erasing: the roller writes a new name (up to 60 characters) and description (up to 400), the trace always becomes a Tamper Remnant, and the rewrite reaches you as a card to approve or decline - nothing is written until you approve; a critical also makes it one band quieter and gives back what paid (the Sanity, or the action). The card says how many copies of the trace are already held: those keep the words they were found with, and whoever finds the trace afterwards reads the reshape. One ruling per reshape - a second GM's, or a second click of yours, is refused and told who ruled, and an assistant GM's ruling is made on the primary GM's browser and recorded as theirs - and a reshape that carries only one of its two fields is refused. An attempt the GMs' browser refuses - a reinforced trace, one the player has not found, or a Stage 6 already over - gives back what it cost and tells the player why.
 
 Two more Stage 6 actions: **Misleading trail** (**15**) plants a Prep Remnant pointing at another living student (Evident / Subtle / Obvious; a Hope failure leaves a Hidden Faint one, a Despair failure nothing); **Move the body** (Body, **16**, 1 lower per tier of a readied Cleaning Tool) carries it into a connected room the killer picks before the roll, never a bedroom; a success always leaves an Evident Tamper trace, a failure leaves the body where it was.
 
@@ -682,13 +682,13 @@ Before the discovery, the victim's own sheet shows the dead panel with "Nobody h
 
 `scripts/remnants.mjs`, `investigation.mjs`, `truth-bullets.mjs`, `observe.mjs`, `analyze.mjs`; `config.mjs REMNANT_TYPES`, `KEY_REMNANTS`, `OBSERVE_DC`, `ANALYZE_DC`.
 
-**Remnants** are hidden tokens on the map, dropped where a character stood when an action left one, carrying type, visibility (Obvious, Evident, Subtle, Hidden), who left it, the room, the chapter, day and time of day, whether it is reinforced (cannot be cleaned) and whether it is tied to the crime. Types:
+**Remnants** are hidden tokens on the map - all but a running incident's own, which are made un-hidden so that its players' screens can draw them for them alone (hiding one by hand while the incident runs takes it off their screens too; when the incident closes, the module hides those nobody has copied) - dropped where a character stood when an action left one, carrying type, visibility (Obvious, Evident, Subtle, Hidden), who left it, the room, the chapter, day and time of day, whether it is reinforced (cannot be cleaned) and whether it is tied to the crime. Types:
 
 | Type | What it is |
 |---|---|
 | **Key** | yours, unremovable, becomes a Truth Bullet unanalysed |
 | **Neutral** | undetermined; Analyze turns it into a real category |
-| **Faint** | doubtful; cleared at chapter end unless tied to the murder |
+| **Faint** | doubtful; also a mark a Prep trace can carry (a Search's tool, a Sabotage, a misleading trail); cleared at chapter end unless tied to the murder, while a Truth Bullet with it survives the sweep |
 | **Prep** | - |
 | **Incident** | - |
 | **Tamper** | left by cleaning |
@@ -697,21 +697,25 @@ Before the discovery, the victim's own sheet shows the dead panel with "Nobody h
 
 Truth Bullet types mirror them. Every Remnant is a token with one neutral name and a "?" picture, found or not: since 1.2.64 the name and picture you give it are never written on the token, which every browser holds. The screens that may know more draw it on their own copy of the map - yours from the case, a finder's from their own Truth Bullet, its name and picture (drawn by the module on each screen; the headless harness has no canvas, so not yet seen at a table). A GM sees the icon of the action that left it (Search, project, sabotage, dynamic action, clean-up, incident, thrown away, placed by the GM, taken from a body), a player only once their own copy is identified - and the icon of a trace left by taking from a body nobody has found only once that death is known to the table - and double-clicking a Remnant opens its trace card. An incident's traces are shown to its players as they are made; when the incident closes, those nobody has copied are hidden again, so the players of a later incident are not shown an old crime scene. A world updated to 1.2.64 does the same once, at its first load, for the incidents closed before it; an incident still running then keeps its own.
 
+**Tied to the crime** has three states, as the Traces tab shows them: undecided (-), Tied and Not tied. When the chapter's victim dies - by another's hand or their own - every undecided trace of the chapter is tied, and one you marked Not tied stays so; a weapon swung in the fight ties the traces that handed it over. The players' identified copies learn a tie when the death is made known (the discovery, the Students window, a public kill), or at the fight's close for a fight that left no death. A Sabotage of an indirect murder leaves a tied trace when the trap's killer or proposer made it and an untied one when a bystander did; a misleading trail an innocent plants is not tied. Until 1.2.71 Not tied and undecided were one value, so a world updated to it reads each old Not tied once as undecided - a pre-1.2.63 token's too, and one a Reroll of an older clean-up gives back: mark your red herrings again.
+
 **The Investigation dashboard** (The case > Investigation) is the GM's case file, live:
 
 | Tab | What it does |
 |---|---|
-| **Traces** | lists every Remnant with filters (by player, room and chapter), lets you edit its name, player text and analysis text, correct its type, and mark it Faint, tied to the crime or reinforced |
+| **Traces** | lists every Remnant with filters (by player, room and chapter), lets you edit its name, player text and analysis text, correct its type (to a kind Observe can find, or keep its own), and mark it Faint, tied to the crime or reinforced |
 | **Key Remnants** | the planner |
 | **Final Truth Remnants** | places Final Truth Remnants |
 | **Who has what** | shows every student's Truth Bullets, how many are not analysed yet and what they really are |
 
 The footer carries **New trace** (a trace of any kind, in any room), **Clear Faint Remnants**, **Sweep Truth Bullets**, the autopsy, the trial evidence log and the body.
 
-**Key Remnants** (`KEY_REMNANTS`). You prepare **5** clues per chapter, scaled Trivial, Standard, Standard, Complex, Desperate; the opening roll decides how many the case keeps (5, 4 or 3; a trap keeps all 5), never below **3**. Together they should narrow the suspects to **2 to 4** people - the last step from the circle to a name belongs to the trial. Each planner row has a name and player text (what the finder receives), an analysis text (what Analyze reveals), your private note, a room and a visibility; **Create on the map** places it at a random spot inside the room as Reinforced and tied to the crime. The plan is the GMs' (section 14) and kept a chapter at a time: each chapter has its own five rows, and a new chapter opens on an empty plan. A player's request card ("I look at the window") carries **Create a Key Remnant here**, which can fill one of the five slots.
+**Save** writes only the fields you changed. A field that changed elsewhere while your window was open - another GM's Save, a reshape ruled meanwhile - is marked, is not saved and is named to you; the window shows what it holds now, and the rest of what you changed is saved. A kind changed here pulls what depends on it: a trace made a Faint Remnant is Faint on its players' copies too, a planned Key Remnant given another kind is said to be no longer a Key Remnant, and a trace nobody has copied that is retyped to or from Incident is drawn for the incident's players as if it had been placed so.
+
+**Key Remnants** (`KEY_REMNANTS`). You prepare **5** clues per chapter, scaled Trivial, Standard, Standard, Complex, Desperate; the opening roll decides how many the case keeps (5, 4 or 3; a trap keeps all 5), never below **3**. Together they should narrow the suspects to **2 to 4** people - the last step from the circle to a name belongs to the trial. Each planner row has a name and player text (what the finder receives), an analysis text (what Analyze reveals), your private note and a Status - where it stands on the map, or not placed yet; **Place** asks for a room and a visibility and puts it at a random spot inside that room as Reinforced and tied to the crime, with the words typed on the row. A placed row shows its trace's words, and an edit typed over a rename made meanwhile is refused and told. A row past the case's Key Remnant count is placed only with **Create more than the opening roll allows** ticked, and the case's count outlives the incident's close. The plan is the GMs' (section 14) and kept a chapter at a time: each chapter has its own five rows, and a new chapter opens on an empty plan. A player's request card ("I look at the window") carries **Create a Key Remnant here**, which can fill one of the five slots.
 
 > [!WARNING]
-> At the start of the Class Trial the module charges for a failed investigation: every Key Remnant short of **4 found** is worth **3 Despair to each Monokuma's pool** (`unfoundBar`, `unfoundDespair`) - a completely failed investigation is **+12** to every pool. It is charged once per chapter, and only while the plan is still this chapter's.
+> At the start of the Class Trial the module charges for a failed investigation: every Key Remnant short of **4 found** - or of the case's own count, where its opening gave it fewer - is worth **3 Despair to each Monokuma's pool** (`unfoundBar`, `unfoundDespair`, `keyFeeOf`) - a completely failed investigation is **+12** to every pool. Found means a copy a living student holds, as the GMs hold it; a copy whose trace is gone counts in the chapter it was found in. It is charged once per chapter, on the primary GM whichever GM opens the trial, the same whether or not the planner was saved, and not at all once the chapter has moved past the case.
 
 **Observe.** The player declares how they are looking:
 
@@ -720,10 +724,10 @@ The footer carries **New trace** (a trace of any kind, in any room), **Clear Fai
 | **Sweep the room** | the easiest trace here |
 | **Look past the obvious** | the hardest, and a secret project in the room at DC **18** |
 | **Follow my traces** | their own first |
-| **Focus your gaze** | they name what they want and a card asks you which trace the words point at |
+| **Focus your gaze** | they name what they want and a card every GM sees asks which trace the words point at; any GM picks, and the primary GM checks the pick against the room |
 | **Examine point of interest** | something that is not a trace, yours to rule on |
 
-Both of the last two have rolled before you see them: refusing the Focus pick, an Examine point of interest, or an Observe in a room with no traces left becomes a ruling card on that roll with **Create a Key Remnant here**, **Reply**, and **Nothing was there**, which counts as the miss. The roll is scored on your client against the trace's real type and visibility; the player is told the outcome, never which DC applied. A hit copies the Remnant into their inventory as a Neutral Truth Bullet and leaves the original; a miss costs **1 Sanity**. One trace yields one copy per person. Traces tied to the murder are shown first. The first time anyone copies a trace, your browser asks you to describe it (name, player text, analysis text, prefilled); everyone who copies it later gets the same words, and a critical asks you again only for the bigger hint.
+Both of the last two have rolled before you see them: refusing the Focus pick, an Examine point of interest, or an Observe in a room with no traces left becomes a ruling card on that roll with **Create a Key Remnant here**, **Reply**, and **Nothing was there**, which counts as the miss. The roll is scored on your client against the trace's real type and visibility; the player is told the outcome, never which DC applied. A hit copies the Remnant into their inventory as a Neutral Truth Bullet and leaves the original; a miss costs **1 Sanity**. One trace yields one copy per person. Traces tied to the murder are shown first. The first time anyone copies a trace, your browser asks you to describe it (name, player text, analysis text, prefilled); everyone who copies it later gets the same words, and a critical asks you again only for the bigger hint. A Focus pick made after the player stopped waiting, after another GM's pick or after a refusal is refused and told to the GM who made it.
 
 | Visibility | Daily Life | Key | Faint | Prep / Incident / Tamper |
 |---|---|---|---|---|
@@ -738,12 +742,12 @@ Both of the last two have rolled before you see them: refusing the Focus pick, a
 
 | Visibility | Daily Life | Faint | Prep / Incident / Tamper |
 |---|---|---|---|
-| Obvious | 8 | 8 | 12 |
-| Evident | 12 | 12 | 15 |
-| Subtle | 18 | 15 | 18 |
-| Hidden | 21 | 18 | 21 |
+| Obvious | - | 8 | 12 |
+| Evident | - | 12 | 15 |
+| Subtle | - | 15 | 18 |
+| Hidden | - | 18 | 21 |
 
-(Analyze DCs, `ANALYZE_DC`. Key and Final Truth Bullets, and an Autopsy handed out as Neutral, read on a Key column of 6 / 9 / 12 / 15. Inside a Class Trial an Analyze costs an action, or 1 Hope when none is left, or 1 Sanity when neither is.)
+(Analyze DCs, `ANALYZE_DC`. No Daily Life column: a bullet is read on the column of what it really is. Key and Final Truth Bullets, and an Autopsy handed out as Neutral, read on a Key column of 6 / 9 / 12 / 15. Inside a Class Trial an Analyze costs an action, or 1 Hope when none is left, or 1 Sanity when neither is.)
 
 > [!IMPORTANT]
 > A **critical** Observe or Analyze owes the player a substantial hint from you - the card says so in red.
@@ -774,7 +778,7 @@ During a **Final Trial** the same floor and vote run; only the verdict is the Ma
 
 **End the chapter** (Between sessions, or the trial console once the verdict is applied) is one screen with checkboxes, each counted before it is offered:
 
-- reveal what every Truth Bullet really is (bullets with no real type recorded are named as a loose end);
+- reveal what every Truth Bullet really is, with its reading, as an Analyze would (bullets with no real type recorded are named as a loose end); a Faint stays unread and a Final shows its kind without its reading, both still to be analysed in the next chapter;
 - sweep the students' Truth Bullets (Faint and Final stay);
 - clear the Faint Remnants (reinforced traces and anything tied to the crime stay);
 - clear this chapter's planted Key Remnants;

@@ -5,7 +5,7 @@
  * tests.mjs; the tools are in tests-kit.mjs.
  */
 
-import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING } from "./config.mjs";
+import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING, KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
@@ -7603,6 +7603,94 @@ const REGRESSIONS = [
             bodies(/drpg-theme-stained-glass \.drpg-trace-context$/).some(b => /font-size\s*:\s*var\(--drpg-sg-floor\)/.test(b))
         ]), JSON.stringify([true, true, true, false, true, true, true, true]),
         "the dashboard's stylesheet (counts sized and centred; hints in var(--drpg-dim); filter labels left; the count pushed to the far edge; Key boxes one line until focused; a state-change rule in each theme; the body button's class; the context line at the glass's floor)");
+    }],
+
+    ["R310 - the handbooks' Key fee, difficulty ladders, reshape and Tamper's three things are the code's, in English and in Polish", async () => {
+        /*
+         * E09 C17, 08.10.2026; audit S05-32, S02-10 (decision D14). The two handbooks state numbers the
+         * code owns, and nothing failed when the two parted: the player's Tamper said "Two things behind the
+         * tile" for as long as its menu offered three (cover, reshape, frame - Reshape had no paragraph), the
+         * Analyze ladders kept a Daily Life row after E09 C14 took that column out of ANALYZE_DC (no roll was
+         * ever scored on it), and the Key fee's bar read "four" with no word of the case's own count, which
+         * E09 C7 made the bar where it is fewer. Each line read here is first asserted to exist, so a
+         * rewritten handbook fails here instead of passing on nothing; the numbers are compared with
+         * KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC and CLEANUP.transformAction, and the count of Tamper's
+         * things with the options action-rolls.mjs `chooseTamper` offers before its Stage 6 row. The words
+         * a handbook gives the bar are a table below with four alone: another bar has no words here and
+         * fails until somebody writes them. Scenario 62's L2 reads the menus' labels against the same files.
+         */
+        const VIS = ["obvious", "evident", "subtle", "hidden"];
+        const ladder = (table, col) => VIS.map(v => table[v]?.[col] ?? "?").join(" / ");
+        const one = (table, v, cols) => {
+            const [first, ...rest] = cols.map(c => table[v]?.[c]);
+            return rest.every(n => n === first) ? String(first) : "mixed";
+        };
+        const WORDS = {
+            en: { three: { 2: "Two", 3: "Three", 4: "Four" }, bar: { 4: ["below four", "fewer than four"] },
+                tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a trace\.\*\*/, relief: n => `needs ${n} less`, found: "found" },
+            pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
+                tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Przerób ślad\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych" }
+        };
+        const rolls = stripComments(new Map(await otherSources()).get("action-rolls.mjs") ?? "");
+        const menu = bodyOf(fnSource(rolls, "chooseTamper"), "options: [", { until: "...(stageSix" });
+        const things = [...menu.matchAll(/\bvalue:\s*"\w+"/g)].length;
+        ok(things > 0, "chooseTamper's menu was read and offers nothing - this test measured nothing");
+        const { unfoundBar: bar, unfoundDespair: despair } = KEY_REMNANTS;
+        const { dcRelief, limits } = CLEANUP.transformAction;
+        for (const lang of ["en", "pl"]) {
+            const W = WORDS[lang], lines = {};
+            for (const book of ["player", "gm"]) {
+                const res = await fetch(`/modules/${MODULE_ID}/docs/handbooks/${book}-handbook.${lang}.md`);
+                ok(res.ok, `docs/handbooks/${book}-handbook.${lang}.md did not load`);
+                lines[book] = (await res.text()).split("\n");
+            }
+            const lineOf = (book, re) => {
+                const line = lines[book].find(l => re.test(l));
+                ok(line !== undefined, `${book}-handbook.${lang}.md has no line matching ${re}`);
+                return line ?? "";
+            };
+            const rowsAfter = (book, re) => {
+                const at = lines[book].findIndex(l => re.test(l));
+                ok(at >= 0, `${book}-handbook.${lang}.md has no table headed ${re}`);
+                return lines[book].filter((_, n) => at >= 0 && n > at + 1 && n <= at + 5)
+                    .map(l => l.split("|").map(c => c.trim()).filter(Boolean));
+            };
+            const cells = (book, re) => lineOf(book, re).split("|").map(c => c.trim()).filter(Boolean);
+            // Tamper: the number word, and one bold paragraph per thing, up to the next heading.
+            const tile = lineOf("player", W.tile);
+            const tamperAt = lines.player.findIndex(l => W.tile.test(l));
+            const paragraphs = lines.player.filter((l, n) => n > tamperAt && /^\*\*[^*]+\.\*\* /.test(l)
+                && !lines.player.some((h, k) => k > tamperAt && k < n && /^#/.test(h)));
+            const reshape = lineOf("player", W.reshape);
+            const fee = lineOf("player", /^> .*\*\*\d+ Despair\*\*/);
+            const gmFee = lineOf("gm", /\(`unfoundBar`, `unfoundDespair`/);
+            const number = (line, re) => Number(line.match(re)?.[1] ?? NaN);
+            const measured = {
+                tamper: [tile.split(" ")[0], paragraphs.length],
+                reshape: [reshape.includes(W.relief(dcRelief)), reshape.includes(`${limits.name} `), reshape.includes(`${limits.text} `)],
+                fee: [number(fee, /\*\*(\d+) Despair\*\*/), ...(W.bar[bar] ?? ["no words for this bar"]).map(w => fee.includes(w))],
+                gmFee: [number(gmFee, new RegExp(`\\*\\*(\\d+) ${W.found}\\*\\*`)), number(gmFee, /\*\*(\d+) Despair/),
+                    number(gmFee, /\*\*\+(\d+)\*\*/), /\b(fewer|mniej)\b/.test(gmFee)],
+                ladder: [/Key Remnant, Final Truth \|/, /^\| Prep, Incident, Tamper \|/, /^\| Faint \|/, /Daily Life \| \d/]
+                    .map(re => cells("player", re).slice(1)),
+                gmObserve: rowsAfter("gm", /^\| [^|]+ \| Daily Life \| Key \| Faint \|/),
+                gmAnalyze: rowsAfter("gm", /^\| [^|]+ \| Daily Life \| Faint \|/).map(row => row.slice(1))
+            };
+            const daily = VIS.some(v => "dailyLife" in (ANALYZE_DC[v] ?? {}));
+            const expected = {
+                tamper: [W.three[things] ?? `no word for ${things}`, things],
+                reshape: [true, true, true],
+                fee: [despair, true, true],
+                gmFee: [bar, despair, bar * despair, true],
+                ladder: [[ladder(OBSERVE_DC, "key"), ladder(ANALYZE_DC, "key")], [ladder(OBSERVE_DC, "prep"), ladder(ANALYZE_DC, "prep")],
+                    [ladder(OBSERVE_DC, "faint"), ladder(ANALYZE_DC, "faint")], [ladder(OBSERVE_DC, "dailyLife"), daily ? ladder(ANALYZE_DC, "dailyLife") : "-"]],
+                gmObserve: VIS.map((v, i) => [measured.gmObserve[i]?.[0] ?? v,
+                    ...["dailyLife", "key", "faint"].map(c => String(OBSERVE_DC[v][c])), one(OBSERVE_DC, v, ["prep", "incident", "resolution"])]),
+                gmAnalyze: VIS.map(v => [daily ? String(ANALYZE_DC[v].dailyLife) : "-", String(ANALYZE_DC[v].faint),
+                    one(ANALYZE_DC, v, ["prep", "incident", "resolution"])])
+            };
+            equal(JSON.stringify(measured), JSON.stringify(expected), `the ${lang} handbooks state numbers the code does not have`);
+        }
     }]
 ];
 

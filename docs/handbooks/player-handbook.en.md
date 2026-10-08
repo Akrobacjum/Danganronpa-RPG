@@ -291,7 +291,7 @@ Four outcomes, and the interesting ones are the mismatches: caught with nothing 
 
 ### Tamper - Shadow, 1 action
 
-Two things behind the tile. An attempt costs **1 action**; with no action left, it costs **1 Sanity** instead.
+Three things behind the tile. An attempt costs **1 action**; with no action left, it costs **1 Sanity** instead.
 
 **Cover your tracks.** Wipe out one trace in this room that you know is there: one you hold a Truth Bullet copy of, or a trace of the fight you are in. The easier it is to see, the harder it is to erase:
 
@@ -307,11 +307,13 @@ Each is 3 lower while no body has been found. A Cleaning Tool in hand gives adva
 | Result | What happens |
 |---|---|
 | Clean success | the trace is removed |
-| Critical | removed, and it also gives back what the attempt cost |
+| Critical | removed, and it also gives back what the attempt cost. You are then offered to leave the trace where it is, reading as something else, instead - a reshape (below) whose band you choose; if the GM keeps your story off it, the trace is gone all the same |
 | Success with Despair | removed, but it leaves a Tamper Remnant of its own |
 | Failure | the trace stays, and a Tamper Remnant is added beside it (Subtle on Hope, Evident on Despair) |
 
 Reinforced traces never come off.
+
+**Reshape a trace.** Leave one of the same traces where it is and make it read as something else: you write what it is called and what it looks like, both of them (up to 60 and 400 characters). It needs 3 less than erasing it would, and whatever you write, it becomes a Tamper Remnant - it admits that somebody handled it and lies about the rest. The GM lets your story stand or keeps it off; until then the trace reads as it did, and a story kept off still costs what the attempt cost. A critical also makes it one band harder to spot and gives back what the attempt cost. Copies others already hold keep the words they were found with; whoever finds the trace afterwards reads yours.
 
 **Misleading trail.** Leave a Prep Remnant pointing at somebody else. Needs **15**. A failure with Hope still plants one, a Hidden, Faint one that probably nobody finds; a failure with Despair plants nothing.
 
@@ -453,7 +455,7 @@ A trace appears on your map <ins>only once you hold a Truth Bullet copied from i
 | Prep Remnant | Left while preparing a murder or gathering tools. |
 | Incident Remnant | Left during the confrontation or the victim's death. |
 | Tamper Remnant | Left by tampering - the too-clean patch, the thing moved back slightly wrong. |
-| Faint Remnant | Doubtful connection to the case. Cleared by the GM unless tied to the murder. |
+| Faint Remnant | Doubtful connection to the case. Faint is also a mark a Prep trace can carry - the one a Search for a tool, a Sabotage or a misleading trail leaves. A trace with it is cleared by the GM unless tied to the murder; a Truth Bullet with it stays with you through the chapter's end, unread, and can still be analysed. |
 | Autopsy Remnant | The state of the body. Handed out at the start of an Investigation, no roll. |
 | Final Truth Remnant | One per chapter. Points at the Mastermind. Unremovable. |
 
@@ -484,9 +486,9 @@ You are never shown a difficulty at the roll, but the shape of the ladder is not
 | Key Remnant, Final Truth | 6 / 9 / 12 / 15 | 6 / 9 / 12 / 15 |
 | Prep, Incident, Tamper | 9 / 12 / 15 / 18 | 12 / 15 / 18 / 21 |
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
-| Something from Daily Life | 8 / 12 / 18 / 21 | 8 / 12 / 18 / 21 |
+| Something from Daily Life | 8 / 12 / 18 / 21 | - |
 
-Columns are Obvious / Evident / Subtle / Hidden. A faint trace is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
+Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladder: a Truth Bullet is read on the row of what it really is. A faint trace is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
 
 ---
 
@@ -632,7 +634,7 @@ Until somebody finds the body, the death is the GMs' to keep: the table is not t
 - What you fail to find, you will not have at the trial.
 
 > [!WARNING]
-> Every Key Remnant below four that you fail to find is worth **3 Despair** to every Monokuma.
+> Every Key Remnant below four that you fail to find is worth **3 Despair** to every Monokuma - below the case's own count when it has fewer than four, so a case of three found whole owes nothing. Only what a living student holds counts as found.
 
 ---
 

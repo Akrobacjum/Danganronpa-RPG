@@ -65,7 +65,10 @@
  *      a Final like a Faint, p1's Final still showed Neutral (08.10.2026).
  *   L  (E09 C14) the GM misses an Analyze of a Final that shows its kind on p1's student: p1's
  *      card of the miss names it and does not call it Neutral. On the code before C14
- *      (08.10.2026) it said the Final "stays with you, still Neutral".
+ *      (08.10.2026) it said the Final "stays with you, still Neutral". (E09 C17) The handbooks, in
+ *      English and in Polish, name the Tamper menu's three choices, Observe's five ways of looking
+ *      and Stage 6's actions by the labels the module draws. A guard, not a red first: the
+ *      handbooks before C17 already used every one of those 22 labels (read 08.10.2026).
  * Each phase counts its own checks, and a closing check per phase fails one that measured
  * nothing (CLAUDE.md: a test can pass by measuring nothing).
  *
@@ -93,7 +96,8 @@
  * 40 in 22.7 s (the same count, one run, 08.10.2026); with E09 C12's O5, 41 in 22.4 s (28.3 s with
  * the cluster's start, one run, 08.10.2026), and 42.8 s on the code before C12, where gm2 waits out
  * 20 s for a card that never comes; with E09 C14's phase L, 43 in 22.7 s (28.3 s with the cluster's
- * start, one run, 08.10.2026).
+ * start, one run, 08.10.2026); with E09 C17's L2, 44 in 29.3 s with the cluster's start (one run,
+ * 08.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -774,6 +778,28 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     await gm.eval(`${TB} const b = game.actors.get("${IDS.aiko}")?.items.get(${J(lMissed.id)});
         if (b) { const uuid = b.uuid; await b.delete(); await TB.dropSecret(uuid); }
         return true;`);
+    // E09 C17: the handbooks name each choice of the Tamper menu, Observe's ways of looking and Stage 6's actions
+    // by the label the module draws - in English as p1 reads it, in Polish as lang/pl.json has it.
+    const lBooks = await p1.eval(`const get = async file => { const res = await fetch("/modules/danganronpa-rpg/" + file); return res.ok ? res.text() : ""; };
+        const pl = JSON.parse((await get("lang/pl.json")) || "{}");
+        const KEYS = { player: ["DRPG.Tamper.cover", "DRPG.Cleanup.transformAction", "DRPG.Tamper.frame"],
+            gm: ["DRPG.Observe.general", "DRPG.Observe.nonObvious", "DRPG.Observe.followTraces", "DRPG.Observe.specific",
+                "DRPG.Observe.anything", "DRPG.Cleanup.transformAction", "DRPG.Cleanup.trailAction", "DRPG.Cleanup.moveAction"] };
+        const label = { en: key => game.i18n.has(key) ? game.i18n.localize(key) : null,
+            pl: key => key.split(".").reduce((o, k) => o?.[k], pl) ?? null };
+        let read = 0; const missing = [];
+        for (const lang of ["en", "pl"]) for (const [book, keys] of Object.entries(KEYS)) {
+            const text = await get("docs/handbooks/" + book + "-handbook." + lang + ".md");
+            if (!text) { missing.push(book + "." + lang + " not read"); continue; }
+            for (const key of keys) {
+                read++;
+                const words = label[lang](key);
+                if (typeof words !== "string" || !text.includes("**" + words)) missing.push(book + "." + lang + " " + key + ": " + words);
+            }
+        }
+        return { lang: game.i18n.lang, read, missing };`, { timeout: 30000 });
+    verdict("the handbooks name the Tamper menu's three choices, Observe's five ways of looking and Stage 6's actions by the labels the module draws, in English and in Polish",
+        lBooks.lang === "en" && lBooks.read === 22 && lBooks.missing.length === 0, J(lBooks));
 
     /* ------------------------------ every phase measured ------------------------------ */
 
