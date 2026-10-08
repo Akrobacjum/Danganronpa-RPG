@@ -1394,7 +1394,8 @@ async function incidentCastSees(type) {
  * copy of: a copied one was revealed by its first find (`revealRemnantToFinder`) and stays its
  * finders', and its mark comes off at the incident's close (`retireIncidentTraces`) - read off the
  * bullets' rows as that function reads it, and with those rows not yet heard from the other GMs,
- * left alone. A GM's own write: `setRemnantFlags` runs it for the dashboard and the console.
+ * left alone. A GM's own write: `writeKind` runs it for `setRemnantFlags` (the dashboard and the
+ * console) and `retuneRemnant` (a reshape, its Reroll's undo, a GM's edit over the bridge).
  */
 async function followIncidentKind(tokenDoc, type) {
     if (!game.user.isGM || !bulletStore.isHydrated()) return false;
@@ -1411,6 +1412,41 @@ async function followIncidentKind(tokenDoc, type) {
     if (deletion) update[`flags.${MODULE_ID}.${flag}`] = deletion;
     if (Object.keys(update).length) await tokenDoc.update(update);
     if (!castSees && marked && !deletion) await tokenDoc.unsetFlag(MODULE_ID, flag);
+    return true;
+}
+
+/*
+ * A KIND, BY WHICHEVER ROAD IT IS WRITTEN, KEEPS ITS TWO RULES (E09 fix r2-G6, 08.10.2026; the
+ * round-2 reviews' cor N5 and sec S2-4). C13 put the Faint box and `followIncidentKind` in
+ * `setRemnantFlags` alone, and `retuneRemnant` writes the kind too - a reshape (cleanup.mjs
+ * `reshapeTrace`), its Reroll's undo (`undoLastCleanup`) and a GM's edit over the bridge
+ * (gm-bridge.mjs `handleRemnantEdit`, which passes a GM sender every kind CLEANUP.transform lists,
+ * "faint" and "incident" among them). So a kind retuned to Faint Remnant was not Faint, and an
+ * uncopied Incident Remnant the killer reshaped stayed drawn for the cast as theirs (tier 2 "a
+ * trace retuned to Faint Remnant is Faint ..." and "an uncopied Incident Remnant reshaped and
+ * rerolled ...", both red at 55ed050). Both writers hand their patch here with the write itself,
+ * so the store write stays in each writer, where tier 0's table of store writers reads it.
+ *
+ * THE FAINT BOX (C13). A write that names the kind or the box, on a trace that is - or becomes -
+ * of the faint kind, writes the box ticked. Never the other way: a Prep keeps its box as the GM
+ * left it, Faint Prep being a trace of its own. A GM who unticked the box of a Faint Remnant was
+ * overridden in silence until this commit; the box comes back ticked with a word to that GM now.
+ *
+ * `box` is the Faint box as the caller was asked it (`null` for not asked); the patch is the
+ * ledger's, amended in place. Answers whether anything was written.
+ */
+async function writeKind(tokenDoc, patch, box, write) {
+    const before = remnantData(tokenDoc);
+    const faintKind = (patch.type ?? before?.type) === "faint";
+    if (faintKind && (box !== null || patch.type !== undefined)) patch.faint = true;
+    if (!Object.keys(patch).length) return false;
+    await write();
+    if (faintKind && box === false && before) ui.notifications.warn(game.i18n.localize("DRPG.Remnant.faintKept"));
+    // Only a row this GM holds was amended (`ifLive`), so only then is there a kind that moved.
+    if (before && patch.type !== undefined && patch.type !== before.type
+        && (patch.type === "incident" || before.type === "incident")) {
+        await followIncidentKind(tokenDoc, patch.type);
+    }
     return true;
 }
 
@@ -1841,26 +1877,18 @@ export async function setRemnantFlags(tokenDoc,
        "Faint Remnant" saved with the box unticked was a trace Clear Faint Remnants passed over
        (it asks the box, `clearFaintRemnants` - read in the code), and whose copies' answer keys
        took the kind without the box (tier 2 "a trace made Faint Remnant on the dashboard is Faint
-       on the trace and on its copies' answer keys", red at e55044f). So a write that names the
-       kind or the box, on a trace that is - or becomes - of the faint kind, writes the box
-       ticked, and `propagateVerdicts` below carries the two to the copies together. Never the
-       other way: a Prep keeps its box as the GM left it, Faint Prep being a trace of its own. */
-    const before = remnantData(tokenDoc);
-    if ((patch.type ?? before?.type) === "faint" && (faint !== null || patch.type !== undefined)) patch.faint = true;
-    if (!Object.keys(patch).length) return null;
+       on the trace and on its copies' answer keys", red at e55044f). `writeKind` ticks the box
+       and puts a trace retyped to or from Incident under `followIncidentKind`, for this writer
+       and `retuneRemnant` alike (E09 fix r2-G6), and `propagateVerdicts` below carries the kind
+       and the box to the copies together.
 
-    // Into the ledger, not onto the token. `tiedToCrime` in particular is the
-    // single most valuable bit in the game - it is the difference between a
-    // trace from the murder and a trace from somebody's laundry - and it used to
-    // be a flag every client could read. It amends a row and never starts one
-    // (`ifLive`, E04): a verdict on a trace this GM holds no row for would be a
-    // row of one field, which `remnantData` would read as the whole trace.
-    await setRemnantSecret(tokenDoc, patch, { ifLive: true });
-    // Only a row this GM holds was amended (`ifLive`), so only then is there a kind that moved.
-    if (before && patch.type !== undefined && patch.type !== before.type
-        && (patch.type === "incident" || before.type === "incident")) {
-        await followIncidentKind(tokenDoc, patch.type);
-    }
+       Into the ledger, not onto the token. `tiedToCrime` in particular is the
+       single most valuable bit in the game - it is the difference between a
+       trace from the murder and a trace from somebody's laundry - and it used to
+       be a flag every client could read. It amends a row and never starts one
+       (`ifLive`, E04): a verdict on a trace this GM holds no row for would be a
+       row of one field, which `remnantData` would read as the whole trace. */
+    if (!await writeKind(tokenDoc, patch, faint, () => setRemnantSecret(tokenDoc, patch, { ifLive: true }))) return null;
 
     // A changed verdict follows the copies already in players' packs - the
     // murder-first sort reads the tie off the bullets, the chapter's sweep reads
@@ -2224,7 +2252,8 @@ export async function retuneRemnant(sceneId, tokenId,
     }
     // It amends a trace and never starts one (`ifLive`, E04): a retune reaching a
     // GM who holds no row for the trace would otherwise write a row of one field.
-    await setRemnantSecret(token, secret, { ifLive: true });
+    // A kind it writes keeps C13's two rules, as the dashboard's does (`writeKind`, E09 fix r2-G6).
+    await writeKind(token, secret, null, () => setRemnantSecret(token, secret, { ifLive: true }));
     return true;
 }
 

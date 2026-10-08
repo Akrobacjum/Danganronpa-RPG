@@ -2033,6 +2033,7 @@
       "foundTitle": "Skopiowano ślad, a nikt nie powiedział, czym jest",
       "reinforcedShort": "Reinforced",
       "faintColumn": "Faint",
+      "faintKept": "Faint Remnant jest zawsze Faint, więc jego pole Faint zostało zaznaczone z powrotem. Żeby je odznaczyć, nadaj śladowi inny rodzaj.",
       "crimeColumn": "Powiązany ze zbrodnią",
       "tieOpen": "-",
       "tieTied": "Powiązany",

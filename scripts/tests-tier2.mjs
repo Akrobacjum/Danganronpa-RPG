@@ -19248,6 +19248,105 @@ const SCENARIOS = [
             + "(while the incident ran: Prep made Incident, Incident made Prep, a copied Incident made Prep; after it: Prep made Incident; each [hidden, mark])");
     }],
 
+    ["a trace retuned to Faint Remnant is Faint and a GM unticking a Faint Remnant's box is told it stays", async () => {
+        /*
+         * E09 fix r2-G6, 08.10.2026; the round-2 reviews' cor N5 and sec S2-4. C13 ticks the Faint box
+         * of a trace written Faint Remnant on the dashboard, and `retuneRemnant` - the write a GM's
+         * edit over the bridge hands a GM sender's kind to (gm-bridge.mjs `handleRemnantEdit`, read in
+         * the code), and a reshape's Reroll undo restores a kind through - wrote the kind without the
+         * box: a Faint Remnant Clear Faint Remnants passes over. And a GM who unticked the box of a
+         * Faint Remnant on the dashboard saw it ticked again with no word why. A Prep trace, retuned
+         * to Faint Remnant; then the dashboard's Save that unticks its box (`applyDashboardSave` as
+         * the form hands it on, the C13 test's way), with the GM's warnings caught. Read: the
+         * trace's kind and box after each, and whether the Save warned the GM in the words of
+         * DRPG.Remnant.faintKept.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const scene = canvas.scene;
+        const kept = game.i18n.localize("DRPG.Remnant.faintKept");
+        const warned = [];
+        const warn = ui.notifications.warn;
+        let token = null, reads = null;
+        try {
+            token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene, note: "SUITE E09 r2-G6 a Prep retuned Faint" });
+            must(token && R.remnantData(token)?.faint === false, "the Prep trace was not placed unticked - this would measure nothing");
+            const read = () => [R.remnantData(token)?.type ?? null, R.remnantData(token)?.faint ?? null];
+            await R.retuneRemnant(scene.id, token.id, { type: "faint" });
+            await settle();
+            const retuned = read();
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            await I.applyDashboardSave({ keyRows: [], traces: [{ key: `${scene.id}__${token.id}`, fields: { faint: { value: false, drawn: true } } }] },
+                { traces: [{ token, data: R.remnantData(token), scene }], plan: I.keyPlan() });
+            await settle();
+            reads = [retuned, [...read(), warned.includes(kept)]];
+        } finally {
+            ui.notifications.warn = warn;
+            if (token) {
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(reads), stableJson([["faint", true], ["faint", true, true]]),
+            "a kind retuned to Faint Remnant left the box unticked, or a GM's untick of a Faint Remnant was put back without a word "
+            + "(the kind and box after the retune; the kind, box and the warning after the Save that unticks it)");
+    }],
+
+    ["an uncopied Incident Remnant reshaped and rerolled is drawn for the cast as each kind is placed", async () => {
+        /*
+         * E09 fix r2-G6, 08.10.2026; the round-2 reviews' cor N5 and sec S2-4. C13 puts a trace
+         * retyped to or from Incident under the incident's drawing again (`followIncidentKind`) when
+         * a GM retypes it on the dashboard; a reshape writes its kind through `retuneRemnant`, which
+         * did not, nor did the Reroll undo that writes the kind back. While an incident runs, the
+         * killer's own Incident Remnant nobody holds a copy of (the Tamper road takes it because they
+         * watched it made, cleanup.mjs `cleanupRefusal`); the killer's reshape approved as the card's
+         * button runs it; then the Tamper rerolled to a miss (`undoLastCleanup`). Read: the token's
+         * `hidden` and its `fromIncident` mark after each, as the GM's copy of the token says them -
+         * drawing is not measured here (no canvas). A Tamper Remnant of the incident is placed hidden
+         * and unmarked (`placeRemnant`'s `castSees`), an Incident Remnant un-hidden and marked.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [killer, victim] = cast(2);
+        const M = await import("./murder.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const R = await import("./remnants.mjs");
+        equal(M.murderState(), null, "an incident was already running when this test started");
+        let F = null, reads = null;
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            must(M.murderState(), "no incident opened - this would measure nothing");
+            F = await reshapeCopiesFixture(killer, [], "SUITE E09 r2-G6 the killer's Incident Remnant", { type: "incident" });
+            must(F.trace, "the Incident Remnant was not placed - this would measure nothing");
+            const now = () => {
+                const d = F.scene.tokens.get(F.trace.id);
+                return [d?.hidden ?? null, d?.getFlag(MODULE_ID, "fromIncident") ?? null];
+            };
+            const uuid = F.copy?.uuid;
+            await F.copy?.delete();
+            if (uuid) await T.dropSecret(uuid);
+            await settle();
+            must(!T.ownBulletRefs().some(({ ref }) => ref === R.keyOf(F.trace)), "a copy of the trace is still held - this would measure nothing");
+            must(stableJson(now()) === stableJson([false, true]), `the Incident Remnant was not placed as placeRemnant places one - this would measure nothing: ${stableJson(now())}`);
+            const { applied } = await F.reshape();
+            must(applied === true && R.remnantData(F.trace)?.type === "resolution", "the reshape was not approved - this would measure nothing");
+            const reshaped = now();
+            await F.scrub(0, { mode: "transform", change: C9_STORY, undo: true });
+            await settle();
+            must(R.remnantData(F.trace)?.type === "incident", "the Reroll did not put the kind back - this would measure nothing");
+            reads = [reshaped, now()];
+        } finally {
+            await F?.putBack();
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+        }
+        equal(stableJson(reads), stableJson([[true, null], [false, true]]),
+            "a reshape or its Reroll left an uncopied trace drawn for the cast as its old kind "
+            + "([hidden, mark] after the reshape to a Tamper Remnant, and after the Reroll back to Incident)");
+    }],
+
     ["a missed Observe names a Sanity mark only when it makes one", async () => {
         /*
          * E09 C14, 08.10.2026; audit S05-35. The card of a missed Observe (observe.mjs `chargeObserveMiss`)

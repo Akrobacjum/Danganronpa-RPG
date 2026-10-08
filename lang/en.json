@@ -1965,6 +1965,7 @@
       "foundTitle": "A trace was copied, and nobody has said what it is",
       "reinforcedShort": "reinforced",
       "faintColumn": "Faint",
+      "faintKept": "A Faint Remnant is always Faint, so its Faint box was ticked again. To untick it, give the trace another kind.",
       "crimeColumn": "Tied to crime",
       "tieOpen": "-",
       "tieTied": "Tied",
