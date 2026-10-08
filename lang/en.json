@@ -1571,7 +1571,7 @@
       "leftoverKeys": "{n} Key Remnant(s) from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.",
       "finalFoundBy": "Found by",
       "finalNobody": "Nobody has found it",
-      "chargeTooLate": "The clock has already moved to chapter {now}; the plan for chapter {was} is no longer the live one, so nothing was charged for unfound Key Remnants. Charge it from the trial floor before ending the chapter.",
+      "chargeTooLate": "The clock has already moved to chapter {now}, and the last case was closed in chapter {was}: this chapter has no case of its own to count unfound Key Remnants against, so nothing was charged.",
       "traceAnalysis": "What analysis reveals"
     },
     "Live": {

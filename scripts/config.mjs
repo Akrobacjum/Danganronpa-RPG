@@ -1185,6 +1185,12 @@ export const KEY_REMNANTS = {
      * `found` is the bar, not `placed`: a clue nobody found did its job as
      * badly as one that was never put out.
      *
+     * FOUR, OR THE CASE'S OWN COUNT WHERE THAT IS FEWER (E09 C7, decision D14,
+     * option 1). `unfoundBar` is the guide's four; a case whose opening gave
+     * three Key Remnants (`MURDER_OPENING`, a critical) is charged below three,
+     * so a table that found all three owes nothing. The rule is
+     * investigation.mjs `keyFeeOf`, which also says what counts as found.
+     *
      * PER MONOKUMA, NOT SPLIT BETWEEN THEM (trap 116). The guide writes "obaj
      * Monokuma" with two GMs in mind, which reads either way at four. It is
      * compensation for having run an investigation the table could not finish -

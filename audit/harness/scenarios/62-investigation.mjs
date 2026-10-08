@@ -29,6 +29,11 @@
  *      Faint trace's row when gm2 approves a reshape of that trace: the GM's window redraws
  *      (the words show the reshape, the typed name stays and is marked with the reshaped
  *      one), and the GM's Save refuses the name and says so once - both GMs keep the reshape.
+ *   K  (E09 C7) a chapter-2 trial after a chapter-1 plan: a case of three closed in chapter 2
+ *      (its row), two of its Keys found by the living, and the trial entered through the clock
+ *      twice - without a Save of the planner for chapter 2, then after one - moves both GMs'
+ *      Monokuma pools by 3 each time. Before C7 the first charged nothing (the plan's rows were
+ *      another chapter's: too late) and the second 6 (a bar of four).
  *   E  (E09 C1) the chapter ends: the GM gives p1's student an unanalysed Faint, a Neutral and
  *      a Final; the Investigation Dashboard's "Sweep Truth Bullets" confirm (answered no) and
  *      the End of chapter panel (its sweep alone ticked) each give the number the sweep then
@@ -51,7 +56,8 @@
  * No `timeoutMs`: measured 08.10.2026 alone, its 17 checks took 7.6 s (13 s with the
  * cluster's start), far inside run-all's shared five minutes and the plan's 150 s budget.
  * With E09 C2's phase V, 23 checks in 6.6 s (the cluster's own count, 08.10.2026); with E09
- * C3's phase D, 28 in 8.9 s (the same count, one run, 08.10.2026).
+ * C3's phase D, 28 in 8.9 s (the same count, one run, 08.10.2026); with E09 C7's phase K, 31 in
+ * 11.8 s (17.6 s with the cluster's start, one run, 08.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -390,6 +396,60 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     verdict("both GMs hold the reshape after the Save, and the other two traces as they were",
         ["gm", "gm2"].every(side => J(after[side].faint) === J([MARK.dName, MARK.dText]) && others(side)), J({ before, after }));
 
+    /* ------------------------------ K. the Key fee ------------------------------ */
+
+    begin("K", "a chapter-2 trial after a chapter-1 plan pays the same Key fee without a Save of the planner and after one", "class-trial");
+    // Entered through the clock, as a trial opens (clock.mjs `reconcilePhase`); the stamp cleared before each entry.
+    const fee = await gm.eval(`${TB} const I = await import("${repoUrl}/scripts/investigation.mjs");
+        const R = await import("${repoUrl}/scripts/remnants.mjs"), V = await import("${repoUrl}/scripts/vote.mjs");
+        const D = await import("${repoUrl}/scripts/despair.mjs"), { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const { sheetAuditIdle } = await import("${repoUrl}/scripts/sheet-audit.mjs");
+        const clock = getClock(), scene = game.scenes.get("${IDS.scene}"), users = D.monokumas();
+        const pools = () => users.map(u => D.getDespair(u.id));
+        const start = pools(), tokens = [], copies = [], out = { pools: users.length, from: [clock.chapter, clock.phase] };
+        const trial = async () => {
+            await V.setTrialProgress({ keysCharged: false });
+            const before = pools();
+            await setClock({ phase: "classTrial" });
+            const moved = pools().map((n, i) => n - before[i]);
+            await setClock({ phase: clock.phase });
+            return moved;
+        };
+        try {
+            await I.setKeyPlan({ chapter: 1, entries: [{ name: "S62 chapter 1's clue" }] });
+            await setClock({ chapter: 2 });
+            await I.recordCaseKeys(2, 3);
+            for (const [i, actorId] of ${J([IDS.aiko, IDS.botan])}.entries()) {
+                const token = await R.placeRemnant({ type: "key", visibility: "evident", scene, chapter: 2, x: 700 + 100 * i, y: 500, sourceName: "S62" });
+                tokens.push(token);
+                copies.push(await TB.createTruthBullet(game.actors.get(actorId), { name: "S62 K Key " + (i + 1), realType: "key",
+                    playerText: ${J(MARK.playerText)}, remnantId: token?.id ?? null, sceneId: scene.id }));
+            }
+            await sheetAuditIdle();
+            out.found = [tokens, copies].map(list => list.filter(Boolean).length);
+            out.without = await trial();
+            await I.setKeyPlan({ chapter: 2, entries: [{ name: "S62 chapter 2's clue, saved" }] });
+            out.saved = await trial();
+        } finally {
+            for (const copy of copies) if (copy?.actor?.items.has(copy.id)) await copy.delete();
+            for (const token of tokens.filter(Boolean)) {
+                await R.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            }
+            for (const [i, u] of users.entries()) if (D.getDespair(u.id) !== start[i]) await D.setDespair(u.id, start[i]);
+            await V.setTrialProgress({ keysCharged: false });
+            await setClock({ chapter: clock.chapter, phase: clock.phase });
+            await sheetAuditIdle();
+        }
+        const now = getClock();
+        out.after = { pools: JSON.stringify(pools()) === JSON.stringify(start), clock: [now.chapter, now.phase],
+            left: copies.filter(c => c?.actor?.items.has(c.id)).length + tokens.filter(t => t && scene.tokens.has(t.id)).length };
+        return out;`, { timeout: 120000 });
+    verdict("both trials, without a Save and after one, move each of the two Monokumas' pools by 3 (a case of three, two found)",
+        fee.pools === 2 && J(fee.found) === J([2, 2]) && J(fee.without) === J([3, 3]) && J(fee.saved) === J([3, 3]), J(fee));
+    verdict("the pools, the clock and the scene are as they were before the two trials",
+        fee.after.pools && J(fee.after.clock) === J(fee.from) && fee.after.left === 0 && fee.from[1] !== "classTrial", J(fee));
+
     /* ------------------------------ E. the chapter's end ------------------------------ */
 
     begin("E", "the chapter ends with an unanalysed Faint, a Neutral and a Final on p1's student", "truth-bullets");
@@ -420,7 +480,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
 
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "V", "D", "E"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "E"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

@@ -961,6 +961,81 @@ async function closedCriticalCase(M, killer, victim, { body = true } = {}) {
 }
 
 /**
+ * THE KEY FEE, ASKED AND READ (E09 C7): the trial's "already charged" stamp cleared, the charge
+ * asked as a trial's opening asks it (investigation.mjs `chargeForUnfoundKeys`), and what it moved
+ * each Monokuma's pool by - one number when every pool moved alike, else each pool's, in
+ * `monokumas()` order. The pools are then put back by value and the stamp cleared again, so the
+ * next ask starts where this one did.
+ */
+async function keyFeeCharged() {
+    const V = await import("./vote.mjs");
+    const I = await import("./investigation.mjs");
+    const { monokumas, getDespair, setDespair } = await import("./despair.mjs");
+    const users = monokumas();
+    must(users.length > 0, "no Monokuma has a pool to charge - this would measure nothing");
+    await V.setTrialProgress({ keysCharged: false });
+    must(!V.trialProgress().keysCharged, "the trial's progress still reads charged - the charge would ask nothing");
+    const before = users.map(user => getDespair(user.id));
+    await I.chargeForUnfoundKeys();
+    const moved = users.map((user, i) => getDespair(user.id) - before[i]);
+    for (const [i, user] of users.entries()) if (getDespair(user.id) !== before[i]) await setDespair(user.id, before[i]);
+    await V.setTrialProgress({ keysCharged: false });
+    return moved.every(n => n === moved[0]) ? moved[0] : moved;
+}
+
+/**
+ * KEY REMNANTS OF A CHAPTER, FOUND (E09 C7): for each finder, one Key trace the GM places on the
+ * scene on screen, stamped with `chapter`, and a copy of it the GM gives the finder
+ * (`createTruthBullet`, whose answer key names the trace), each in the GMs' mark before this
+ * answers. Answers the copies in the finders' order and `remove()`, which takes the copies and
+ * the traces away again.
+ */
+async function foundKeyRemnants(finders, chapter) {
+    const remnants = await import("./remnants.mjs");
+    const { createTruthBullet } = await import("./truth-bullets.mjs");
+    const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+    const scene = canvas?.scene;
+    const tokens = [], copies = [];
+    const remove = async () => {
+        for (const copy of copies) if (copy.actor?.items?.has(copy.id)) await copy.actor.items.get(copy.id).delete();
+        for (const token of tokens) {
+            await remnants.dropRemnantSecret(token);
+            if (scene.tokens.has(token.id)) await scene.deleteEmbeddedDocuments("Token", [token.id]);
+        }
+        await settle();
+        await sheetAuditIdle();
+    };
+    try {
+        for (const [i, finder] of finders.entries()) {
+            const token = await remnants.placeRemnant({
+                type: "key", visibility: "evident", x: 100 + 100 * i, y: 100, scene, chapter, note: "SUITE C7 a Key Remnant"
+            });
+            must(token?.id, `the Key trace for ${finder.name} was not placed`);
+            tokens.push(token);
+            const copy = await createTruthBullet(finder, {
+                name: `SUITE C7 Key ${i + 1}`, realType: "key", visibility: "evident", playerText: "SUITE C7",
+                remnantId: token.id, sceneId: scene.id
+            });
+            must(copy, `${finder.name} was not given the copy of a Key`);
+            copies.push(copy);
+        }
+        await settle();
+        await sheetAuditIdle();
+    } catch (err) {
+        await remove();
+        throw err;
+    }
+    return { copies, remove };
+}
+
+/** A chapter after every chapter the Key Remnant plan holds a row of, and the clock's (E09 C6's and C7's fixtures). */
+async function freshKeyChapter() {
+    const { keyPlanStore } = await import("./gm-stores.mjs");
+    const chapters = Object.keys(keyPlanStore.entries()).map(key => Number(key.split(":")[0])).filter(Number.isFinite);
+    return Math.max(Number(getClock().chapter) || 1, ...chapters) + 1;
+}
+
+/**
  * The incident's dice this client relayed while `run` ran (E06 C6): each `dice.show`
  * packet (private-rolls.mjs `relayIncidentDice`) as { id, to } - the message's id and
  * the users it was addressed to. Shaped as `wordsSent`, above.
@@ -16733,7 +16808,9 @@ const SCENARIOS = [
          * chapter after it nobody planned, a direct murder opened on a critical is closed with
          * its victim dead, the dashboard is drawn, and the charge is asked for. Read: the
          * planner's limit, and whether the charge stamped itself as made. Red at the parent:
-         * <measured by A2> (its limit).
+         * <measured by A2> (its limit). Since E09 C7 the charge reads the closed cases, not the
+         * plan (`keyFeeOf`): the case's own chapter is the live one, so the charge is made -
+         * until C7 it was refused, the stamp left unset.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         needs(env.dialogs(), "the dashboard is read off its drawn window");
@@ -16755,13 +16832,186 @@ const SCENARIOS = [
             await closedCriticalCase(M, killer, victim);
             const limit = await keyLimitDrawn();
             await I.chargeForUnfoundKeys();
-            equal(stableJson([limit, Boolean(V.trialProgress().keysCharged)]), stableJson([{ override: true, over: ["room:3", "room:4"] }, false]),
-                "the closed case's limit of three is lost, or its count made its chapter a planned one and the charge billed it (limit, charged)");
+            equal(stableJson([limit, Boolean(V.trialProgress().keysCharged)]), stableJson([{ override: true, over: ["room:3", "room:4"] }, true]),
+                "the closed case's limit of three is lost, or the charge refused its chapter as another's (limit, charged)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             await setClock(clock);
         }
+    }],
+
+    ["the Key fee is the same with Save and without", async () => {
+        /*
+         * E09 C7, 08.10.2026; audit S05-16, the plan's V2. A Class Trial's opening charges every Monokuma for the Key
+         * Remnants the investigation did not turn up (investigation.mjs `chargeForUnfoundKeys`), and refused as too
+         * late where the planner's store held rows of other chapters and none of the clock's - but any Save of the
+         * planner writes the clock's chapter a row, so a trial after an earlier chapter's plan charged nothing
+         * without a Save and charged after one. A chapter is planned; on the chapter after it a case of three Key
+         * Remnants is closed (its row, `recordCaseKeys`) and two living students each find one of its Keys; the
+         * charge is asked, then the planner saved for the clock's chapter as the dashboard's Save writes it
+         * (`setKeyPlan`, one slot's name), and the charge asked again. Read: what each ask moved every Monokuma's
+         * pool by - one short of three, 3 Despair, both times. Red at the parent: [0, 6] (08.10.2026: too late
+         * without a Save, a bar of four after one).
+         */
+        needs(world.atLeast("sceneOnScreen"), "the Key traces stand on the scene on screen");
+        const I = await import("./investigation.mjs");
+        const finders = cast(2);
+        const clock = getClock();
+        const planned = await freshKeyChapter();
+        let keys = null;
+        try {
+            await I.setKeyPlan({ chapter: planned, entries: [{ name: "SUITE C7 an earlier chapter's clue" }] });
+            await setClock({ chapter: planned + 1 });
+            await I.recordCaseKeys(planned + 1, 3);
+            keys = await foundKeyRemnants(finders, planned + 1);
+            const without = await keyFeeCharged();
+            await I.setKeyPlan({ chapter: planned + 1, entries: [{ name: "SUITE C7 a clue saved on the dashboard" }] });
+            const saved = await keyFeeCharged();
+            equal(stableJson([without, saved]), stableJson([3, 3]),
+                "the fee for a case of three with two of its Keys found is not one short, or a Save of the planner changes it (Despair to each pool without a Save, after one)");
+        } finally {
+            await keys?.remove();
+            await setClock(clock);
+        }
+    }],
+
+    ["a case opened on a critical whose three Key Remnants were all found owes no Despair", async () => {
+        /*
+         * E09 C7, 08.10.2026; audit S05-36, decision D14 (option 1). A critical opening gives a case three Key
+         * Remnants (config.mjs `MURDER_OPENING`), and the charge's bar was four whatever the case, so a table that
+         * found all three paid Despair for a fourth that never existed. The bar is the case's own count where that is
+         * under four (`keyFeeOf`, through `caseKeyCount`). On a planned chapter nobody else has used, a direct murder
+         * opened on a critical is closed with its victim dead (E09 C6's fixture), and three living students each find
+         * one of the chapter's Keys; the charge is asked. Read: what it moved every Monokuma's pool by. The chapter is
+         * planned so that the charge before C7 asked rather than refused. Red at the parent: 3 (08.10.2026: a bar
+         * of four).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("livingStudents", 4), "a victim and three living finders");
+        needs(world.atLeast("sceneOnScreen"), "the Key traces stand on the scene on screen");
+        const M = await import("./murder.mjs");
+        const I = await import("./investigation.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const chapter = await freshKeyChapter();
+        let keys = null, fee = null;
+        try {
+            await setClock({ chapter });
+            await I.setKeyPlan({ chapter, entries: [{ name: "SUITE C7 this chapter's clue" }] });
+            await closedCriticalCase(M, killer, victim);
+            must(I.caseKeyCount(chapter) === 3, `the closed case does not count three Key Remnants: ${I.caseKeyCount(chapter)}`);
+            keys = await foundKeyRemnants(livingStudents().filter(a => a.id !== victim.id && !isDeadForGm(a)).slice(0, 3), chapter);
+            must(keys.copies.length === 3, "three living finders were not given a Key each");
+            fee = await keyFeeCharged();
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await keys?.remove();
+            await setClock(clock);
+        }
+        equal(fee, 0, "a case of three Key Remnants, all three found, was charged for a fourth (Despair to each pool)");
+    }],
+
+    ["a dead student's find does not count toward the Key fee", async () => {
+        /*
+         * E09 C7, 08.10.2026; the owner's Q2, answer (a) (the default taken on the record): the fee counts what
+         * reached the trial, as the Investigation Dashboard's "Who has what" does (`evidenceByStudent`, the students
+         * living for the GMs). The charge counted every student's finds, the dead's among them, so the two views
+         * disagreed. On a planned chapter nobody else has used, with a case of five Key Remnants closed in it, four
+         * students each find one of its Keys, and one of them dies in secret keeping their Truth Bullets
+         * (`killCharacter`, `keepBullets`); the charge is asked. Read: what it moved every Monokuma's pool by - three
+         * found, one short of four, 3 Despair. Red at the parent: 0 (08.10.2026: four counted, the dead's among them).
+         */
+        needs(world.atLeast("sceneOnScreen"), "the Key traces stand on the scene on screen");
+        const I = await import("./investigation.mjs");
+        const C = await import("./chapter.mjs");
+        const finders = cast(4);
+        const dead = finders[finders.length - 1];
+        const clock = getClock();
+        const chapter = await freshKeyChapter();
+        let keys = null, fee = null;
+        try {
+            await setClock({ chapter });
+            await I.setKeyPlan({ chapter, entries: [{ name: "SUITE C7 this chapter's clue" }] });
+            await I.recordCaseKeys(chapter, 5);
+            keys = await foundKeyRemnants(finders, chapter);
+            must(await C.killCharacter(dead, { secret: true, keepBullets: true }), `${dead.name}'s death was not recorded`);
+            must(C.isDeadForGm(dead) && dead.items.has(keys.copies[finders.length - 1].id),
+                "the dead student is not dead for the GMs, or their Key went with the death - this would measure nothing");
+            fee = await keyFeeCharged();
+        } finally {
+            if (C.isDeadForGm(dead)) await C.reviveCharacter(dead, { quiet: true });
+            await keys?.remove();
+            await setClock(clock);
+        }
+        equal(fee, 3, "a dead student's Key counted toward the fee, or the living students' did not (Despair to each pool)");
+    }],
+
+    ["a made Key bullet and a forged Key copy count nothing toward the Key fee and a deleted find stops counting", async () => {
+        /*
+         * E09 C7, 08.10.2026; the plan's 2.3 (class 3 and class 7 of 1b's roads). The charge counted the Key copies
+         * off the students' documents (`findersByRemnant`), where a player's write stands until the GMs' judgement of
+         * it lands; a bullet without an answer key anywhere in the world held the charge (`bulletsWithoutAnswer`).
+         * The fee counts the items the GMs hold (`keyFeeOf`: `judgedFor`, then `itemsHeldNow`). On a planned chapter
+         * nobody else has used, with a case of five closed in it, three students each find one of its Keys; then,
+         * one charge after each step: (1) the player of one of them makes a Truth Bullet of their own, a copy of
+         * their find's data under a new id, left where the audit has not judged it (`AUDIT_ASIDE`); (2) it is gone,
+         * and the player deletes their find (judged: flagged, the GMs' mark lets it go); (3) the player makes the
+         * find again under its own id, which still has its answer key, in the same window. Read: what each charge
+         * moved every Monokuma's pool by - three found, then two, then two: 3, 6 and 6. Red at the parent: [0, 6, 3]
+         * (08.10.2026: the made bullet held the charge, and the find made again counted).
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose writes are judged");
+        needs(world.atLeast("sceneOnScreen"), "the Key traces stand on the scene on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the fee reads - this would measure nothing");
+        const I = await import("./investigation.mjs");
+        const { secretOf } = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle, decideWrite, AUDIT_ASIDE } = await import("./sheet-audit.mjs");
+        const { sheetWriteStore } = await import("./gm-stores.mjs");
+        const { CAP_OVERRIDE } = await import("./inventory.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const finders = cast(3);
+        const owner = finders.find(playerOf);
+        must(owner, "none of the three finders has a player whose writes could be judged");
+        const clock = getClock();
+        const chapter = await freshKeyChapter();
+        const aside = { [AUDIT_ASIDE]: true, [CAP_OVERRIDE]: true };
+        const read = [];
+        let keys = null, made = null, forged = null, rowId = null;
+        try {
+            await setClock({ chapter });
+            await I.setKeyPlan({ chapter, entries: [{ name: "SUITE C7 this chapter's clue" }] });
+            await I.recordCaseKeys(chapter, 5);
+            keys = await foundKeyRemnants(finders, chapter);
+            const find = keys.copies[finders.indexOf(owner)];
+            const { _id, ...data } = find.toObject();
+            [made] = await owner.createEmbeddedDocuments("Item", [{ ...data, name: "SUITE C7 a made Key" }], aside);
+            must(made && !Object.keys(secretOf(made.uuid)).length, "the made bullet is missing or has an answer key - this would measure nothing");
+            read.push(await keyFeeCharged());
+            await made.delete({ [AUDIT_ASIDE]: true });
+            const from = Date.now();
+            const { verdict } = await asPlayerItemWrite("deleteItem", owner, find, playerOf(owner));
+            await sheetAuditIdle();
+            [rowId] = Object.entries(sheetWriteStore.entries() ?? {}).find(([, row]) => row?.itemId === find.id
+                && row.verdict === "flagged" && !row.decided && row.at >= from) ?? [];
+            must(verdict === "flagged" && rowId && !owner.items.has(find.id), `the deletion was not flagged and left to a GM (${verdict}) - this would measure nothing`);
+            read.push(await keyFeeCharged());
+            [forged] = await owner.createEmbeddedDocuments("Item", [{ _id, ...data }], { ...aside, keepId: true });
+            must(forged?.id === _id && secretOf(forged.uuid).realType === "key", "the find made again does not carry its answer key - this would measure nothing");
+            read.push(await keyFeeCharged());
+        } finally {
+            for (const item of [made, forged]) if (item && owner.items.has(item.id)) await owner.items.get(item.id).delete({ [AUDIT_ASIDE]: true });
+            if (rowId && !sheetWriteStore.get(rowId)?.decided) await decideWrite(rowId, true);
+            await sheetAuditIdle();
+            await keys?.remove();
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson([3, 6, 6]),
+            "a bullet a player's write made, or a deleted find made again, counted toward the fee or held it, or a deleted find still counted (Despair to each pool after each step)");
     }],
 
     ["the Traces tab saves against the trace it was drawn from and not the trace now", async () => {
@@ -25895,9 +26145,16 @@ const SCENARIOS = [
          * is also what the assertions read afterwards: the guard returns
          * BEFORE `setTrialProgress`, so a charge that got past it leaves the
          * stamp behind even when the pools happen not to move.
+         *
+         * SINCE E09 C7 THE GUARD READS THE CLOSED CASES, not the plan (audit
+         * S05-16): a plan row of another chapter no longer refuses, because
+         * any Save of the planner wrote the clock's chapter one and so the
+         * same trial charged or did not on a click. The fixture closes a case
+         * in the chapter it then leaves (`recordCaseKeys`, the row a closed
+         * case writes) beside the plan it always had.
          */
         const E = await import("./gm-store.mjs");
-        const { chargeForUnfoundKeys, setKeyPlan } = await import("./investigation.mjs");
+        const { chargeForUnfoundKeys, setKeyPlan, recordCaseKeys } = await import("./investigation.mjs");
         const { monokumas, getDespair } = await import("./despair.mjs");
         const { trialProgress, setTrialProgress } = await import("./vote.mjs");
         const charged = trialProgress().keysCharged ?? false;
@@ -25910,6 +26167,7 @@ const SCENARIOS = [
                 await setKeyPlan({ chapter: clock.chapter,
                     entries: [{ scale: "standard", name: "A muddy print", text: "",
                         note: "", tokenId: null, sceneId: null }] });
+                await recordCaseKeys(clock.chapter, 5);
                 await setClock({ ...clock, chapter: clock.chapter + 1 });
 
                 equal(await chargeForUnfoundKeys(), null,

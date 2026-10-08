@@ -1586,7 +1586,7 @@
       "leftoverKeys": "Na mapie wciąż jest {n} Key Remnant(s) z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
       "finalFoundBy": "Znalazł",
       "finalNobody": "Nikt go nie znalazł",
-      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}; plan rozdziału {was} nie jest już bieżący, więc nic nie policzono za nieznalezione Key Remnants. Policz to z konsoli Class Trial, zanim zakończysz rozdział.",
+      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}, a ostatnią sprawę zamknięto w rozdziale {was}: ten rozdział nie ma własnej sprawy, wobec której można policzyć nieznalezione Key Remnants, więc nic nie policzono.",
       "traceAnalysis": "Co ujawnia analiza",
       "keyOffPlan": {
         "one": "Jeszcze jeden znaleziony Key Remnant jest spoza planu i wlicza się do progu czterech znalezionych: {names}.",

@@ -957,8 +957,9 @@ export const sheetWriteStore = defineGmStore({
  * investigation.mjs's `keepOnlyKeyPlanChapter`, which `season-setup.mjs`'s `wipeSeason` calls
  * instead of `clearKeyPlan` when the group is kept, drops the rest - so the next season's
  * chapter of that same number opens with them, as 1.2.63's one stored plan did, and a row has
- * no season stamped on it, so any chapter left standing would otherwise read as planned
- * before this season ever opened the planner (`chargeForUnfoundKeys`). No old key: the first
+ * no season stamped on it, so any chapter left standing would otherwise have read as planned
+ * before this season ever opened the planner (`chargeForUnfoundKeys` read the slots' chapters
+ * until E09 C7, the case rows since). No old key: the first
  * rows come out of the world by `liftKeyPlan`. Beside a chapter's slots, one case row since
  * E09 C6, `${chapter}:case`: `{ keys }`, the closed case's Key Remnant count
  * (investigation.mjs `recordCaseKeys`), which no slot reader takes.

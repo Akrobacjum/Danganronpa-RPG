@@ -33,9 +33,9 @@ import {
     confirmClearFaint,
     traceContextLine
 } from "./remnants.mjs";
-import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
+import { bulletsOf, isTruthBullet, secretOf, truthBulletData, TRUTH_BULLET_FLAGS } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { isDeadForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
+import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log, isPrimaryGm,
     workingScene, esc, wireDashboardTabs } from "./utils.mjs";
@@ -77,19 +77,14 @@ function chapterRows(chapter) {
 }
 
 /**
- * Every chapter this GM's browser holds slot rows for, newest first. A case row (`recordCaseKeys`)
- * is the close's, not a GM's plan, so it plans no chapter (E09 C6): counted, it would make the
- * chapter of every closed case a planned one, and `chargeForUnfoundKeys` would bill its unfound
- * slots against a plan nobody wrote instead of telling the GMs the plan is another chapter's.
+ * Every chapter a case was closed in, as this GM's browser holds their case rows
+ * (`recordCaseKeys`), newest first. What `chargeForUnfoundKeys` asks whether the trial
+ * opening now is too late for (E09 C7): the slots' chapters, which it asked until then
+ * (`plannedChapters`, gone with C7), were written by any Save of the planner.
  */
-function plannedChapters() {
-    const chapters = new Set();
-    for (const key of Object.keys(keyPlanStore.entries())) {
-        if (isCaseKey(key)) continue;
-        const chapter = Number(String(key).split(":")[0]);
-        if (Number.isFinite(chapter)) chapters.add(chapter);
-    }
-    return [...chapters].sort((a, b) => b - a);
+function closedCaseChapters() {
+    return Object.keys(keyPlanStore.entries()).filter(isCaseKey)
+        .map(key => Number(String(key).split(":")[0])).filter(Number.isFinite).sort((a, b) => b - a);
 }
 
 /**
@@ -147,11 +142,12 @@ export function keyPlan() {
  * nothing is not written at all - a slot nobody has written here is not one this GM
  * emptied. A hole in `entries` is a slot left alone (`openKeyRemnantHere` writes one slot).
  * The one field written either way is a slot's scale where the row has none: it is the
- * slot's, never a GM's word, so every slot `entries` names is left a row - and a chapter with
- * rows is a planned one (`chargeForUnfoundKeys`). The dashboard's Save names only the slots
- * the GM changed (E09 C3, S05-16's planner half): until then it handed every slot over, so
- * pressing Save on a chapter nobody had planned left it with rows - a planned one, to
- * `chargeForUnfoundKeys` - whether or not anybody had planned anything.
+ * slot's, never a GM's word, so every slot `entries` names is left a row. Until E09 C7 a chapter
+ * with rows was a planned one to `chargeForUnfoundKeys`, which charged nothing for a chapter
+ * without them while another had some; the dashboard's Save names only the slots the GM
+ * changed (E09 C3, S05-16's planner half), and until then it handed every slot over, so
+ * pressing Save on a chapter nobody had planned made it a planned one. Since C7 the charge
+ * reads the closed cases instead (`keyFeeOf`), and a Save decides nothing there.
  *
  * Nothing is filed when the chapter changes, because nothing is replaced: until 1.2.64 a
  * plan saved for another chapter moved the one it replaced under `archive` first (the GM
@@ -209,8 +205,8 @@ export async function archiveKeyPlan(chapter) {
  * the archive's of the same number - a chapter filed at its end and planned again is the
  * newer one. A slot's fields go in weak and fill-only, so a field a GM has written since
  * the update keeps its value; a blank field carries nothing and is left out, and a slot
- * with nothing but its scale is still a row, because a chapter with rows is a planned one
- * (`chargeForUnfoundKeys`). The key is emptied only once every field reads back from
+ * with nothing but its scale is still a row, as a Save leaves one (a planned chapter, to
+ * `chargeForUnfoundKeys` until E09 C7). The key is emptied only once every field reads back from
  * storage; otherwise it is left whole, and the lift throws with the count of what did not
  * read back, so the world is not stamped and the next load tries again (E05 fix r1-G1;
  * migrate.mjs, above the lifts) - as it does when the emptied key does not read back
@@ -299,7 +295,7 @@ export async function keepOnlyKeyPlanChapter(chapter) {
  * limit any more and let the GM plan five. The close keeps the number here, a row of the Key
  * Remnant plan's store beside the chapter's slots, `${chapter}:case` - a GM store, on GM
  * browsers only, and written by the GM who closes. The slot readers do not take it
- * (`chapterRows` reads integer slots, `plannedChapters` skips it), a season reset that keeps
+ * (`chapterRows` reads integer slots; `plannedChapters`, until E09 C7, skipped it), a season reset that keeps
  * the plan keeps it with its chapter, and one that does not clears it with the rest.
  *
  * @param {number} chapter  The chapter the case was closed in.
@@ -422,12 +418,75 @@ export function keyPlanStatus() {
 }
 
 /**
+ * THE KEY FEE, ONE RULE (E09 C7, 08.10.2026; audit S05-16, S05-36; decision D14, option 1).
+ *
+ * What a chapter's investigation owes: the bar, the Key Remnants of the chapter that reached
+ * the trial, and how many short of the bar that is. Until C7 the charge counted through the
+ * planner (`keyPlanStatus`): the bar was always `KEY_REMNANTS.unfoundBar`, four, though a
+ * critical opening gives a case three (`MURDER_OPENING`), so a table that found all three
+ * paid for a fourth; a dead student's find counted, though "Who has what" (`evidenceByStudent`)
+ * lists only the living; and every find was read off the documents.
+ *
+ *   bar    min(`unfoundBar`, the case's own count - `caseKeyCount`, which outlives the close
+ *          since E09 C6); `unfoundBar` where the chapter has no case.
+ *   found  the chapter's distinct Key Remnants that a living student holds a copy of, living
+ *          for the GMs (`livingStudentsForGm`, decision Q2 (a): what reached the trial, as
+ *          "Who has what" counts). A copy is a Key by its answer key (`secretOf`: the real
+ *          type and the trace), and the chapter's by its trace's row (`remnantStore`, an
+ *          unstamped row is the clock's chapter, as the planner's off-plan count reads it) or,
+ *          where the trace is gone - wiped, or deleted by a GM after it was found - by the
+ *          chapter the copy was found in, its own stamp.
+ *   held   copies the GMs hold whose answer key this browser lacks: the count would come out
+ *          short, so the charge holds (E04, `bulletsWithoutAnswer`'s rule on the GMs' items).
+ *
+ * THE ITEMS AS THE GMS HOLD THEM: one wait for every student's queued writes to be judged
+ * (sheet-audit.mjs `judgedFor`), then each student's items read in one synchronous pass
+ * (`itemsHeldNow`), so a Key copy a player's write made, which the GMs do not hold, counts
+ * nothing and holds nothing while its judgement is on its way. The wait holds up nothing that
+ * holds it up: the charge starts from a phase change (clock.mjs `reconcilePhase`), and no
+ * judgement waits for one. The marks are the primary GM's: on another GM (an assistant who
+ * moved the phase, which `reconcilePhase` lets any GM do) `itemsHeldNow` reads the documents,
+ * as every road through it does there.
+ *
+ * @param {number} [chapter]  The clock's chapter by default.
+ * @returns {Promise<{chapter: number, bar: number, found: number, short: number, held: number}|null>}
+ */
+export async function keyFeeOf(chapter = getClock().chapter) {
+    if (!game.user.isGM) return null;
+    const now = Number(chapter);
+    const students = studentActors();
+    const { judgedFor, itemsHeldNow } = await import("./sheet-audit.mjs");
+    await judgedFor(...students.map(actor => actor.id));
+    const living = new Set(livingStudentsForGm().map(actor => actor.id));
+    const found = new Set();
+    let held = 0;
+    for (const actor of students) {
+        for (const item of itemsHeldNow(actor)) {
+            if (!isTruthBullet(item)) continue;
+            const secret = secretOf(actor.items.get(item.id)?.uuid);
+            if (!secret.realType) {
+                held++;
+                continue;
+            }
+            if (secret.realType !== "key" || !secret.remnantId || !living.has(actor.id)) continue;
+            const trace = remnantStore.get(`${secret.sceneId}.${secret.remnantId}`);
+            const stamp = trace ? trace.chapter : item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter);
+            if (Number(stamp ?? now) === now) found.add(secret.remnantId);
+        }
+    }
+    const count = caseKeyCount(now);
+    const bar = Math.min(KEY_REMNANTS.unfoundBar, Number.isFinite(count) ? count : KEY_REMNANTS.unfoundBar);
+    return { chapter: now, bar, found: found.size, short: Math.max(0, bar - found.size), held };
+}
+
+/**
  * G-32: what the investigation failed to turn up, paid for in Despair.
  *
  * Guide: every Key Remnant below four that nobody found is worth 3 Despair to
- * Monokuma. `found` is the bar rather than `placed` - a clue nobody found did
- * its job exactly as badly as one that was never put out, and the guide is
- * counting what reached the trial.
+ * Monokuma - below the case's own count where the opening gave fewer than four
+ * (`keyFeeOf`, E09 C7). `found` is the bar rather than `placed` - a clue nobody
+ * found did its job exactly as badly as one that was never put out, and the guide
+ * is counting what reached the trial.
  *
  * WHEN, AND ONLY ONCE (trap 117). "Fewer than four were found" is not true of
  * anything until the investigation is over, so this is charged as the Class
@@ -452,32 +511,26 @@ export async function chargeForUnfoundKeys() {
     const { trialProgress, setTrialProgress } = await import("./vote.mjs");
     if (trialProgress().keysCharged) return null;
 
-    /* THE PLAN HAS TO STILL BE THIS CHAPTER'S, OR THERE IS NOTHING HONEST TO CHARGE.
-       `keyPlanStatus` reads `keyPlan()`, which returns five blank rows once the clock has left
-       the chapter the plan was written for - so a charge asked for after the chapter moved
-       would read "0 found", conclude the whole bar was missed, and bill the maximum for a case
-       nobody can look at any more. It stamps `keysCharged` too, so the honest charge could
-       never be asked again afterwards.
+    /* THE CASE HAS TO STILL BE THIS CHAPTER'S, OR THERE IS NOTHING HONEST TO CHARGE.
+       A charge asked for after the chapter moved would find none of the old case's Keys in
+       the new chapter, conclude the whole bar was missed, and bill the maximum for a case
+       nobody can look at any more - and stamp `keysCharged`, so the honest charge could
+       never be asked again. Run against the real thing, the first guard (`keyPlan().chapter`
+       against the clock, which agree by construction) billed 12 Despair to two pools for a
+       case that had just been closed.
 
-       THE STORED ROWS, NOT `keyPlan()`. A first go at this compared `keyPlan().chapter` with
-       the clock and could never fire, because `keyPlan()` MANUFACTURES a plan for whatever
-       chapter the clock says - the two agree by construction. Run against the real thing it
-       billed 12 Despair to two pools for a case that had just been closed. What was actually
-       planned is only in what is stored: until 1.2.64 the setting's one `chapter`, and since
-       E05 C5 the chapters the GM store holds rows for - a Save of the planner writes the scale
-       of each slot it changes (of every slot, until E09 C3), so a chapter somebody planned has
-       rows. The clock's chapter with rows is
-       planned, whatever came after it (a clock wound back, a plan kept through a reset); one
-       without them, while another chapter has some, is the case the guard is for, and the GMs
-       are told the newest planned chapter.
-
-       A world with no stored plan at all is left alone: that is a GM who never opened the
-       planner, and what they owe is a rules question this guard has no business answering. */
-    const planned = plannedChapters();
-    const now = getClock().chapter;
-    if (planned.length && !planned.includes(Number(now))) {
-        await whisperToGms(`<p>${game.i18n.format("DRPG.Investigation.chargeTooLate",
-            { now, was: planned[0] })}</p>`);
+       THE CLOSED CASES, NOT THE PLAN (E09 C7, audit S05-16). From E05 C5 until C7 the guard
+       read the chapters the planner's store held rows for: the clock's chapter without rows,
+       while another had some, was too late. But any Save of the planner writes a row (of
+       every slot, until E09 C3), so a chapter-2 trial after a chapter-1 plan charged nothing
+       without a Save and charged after one. Too late is now what the case says: the newest
+       chapter a case was closed in (`recordCaseKeys`, E09 C6) is earlier than the clock's,
+       and the clock's chapter has no case of its own, closed or running (`caseKeyCount`).
+       A world where no case has been closed is charged against the bar, as it always was. */
+    const now = Number(getClock().chapter);
+    const [was] = closedCaseChapters();
+    if (was !== undefined && was < now && caseKeyCount(now) === null) {
+        await whisperToGms(`<p>${game.i18n.format("DRPG.Investigation.chargeTooLate", { now, was })}</p>`);
         return null;
     }
 
@@ -485,18 +538,15 @@ export async function chargeForUnfoundKeys() {
        each bullet's answer key; on a browser that lacks one, a Key somebody found
        reads as nothing, the count comes out short, the bill comes out high - and the
        stamp below makes it final. So it holds, says why, and stamps nothing: once
-       the case is restored the charge can be asked again. */
-    const { bulletsWithoutAnswer } = await import("./gm-stores.mjs");
-    const unknown = bulletsWithoutAnswer();
-    if (unknown) {
-        await whisperToGms(`<p class="drpg-warning">${plural("DRPG.Case.chargeHeld", { n: unknown })}</p>`);
+       the case is restored the charge can be asked again. Counted over the bullets
+       the GMs hold since E09 C7 (`keyFeeOf`), so a bullet a player's write made, with
+       no answer key anywhere, does not hold it. */
+    const fee = await keyFeeOf(now);
+    if (fee.held) {
+        await whisperToGms(`<p class="drpg-warning">${plural("DRPG.Case.chargeHeld", { n: fee.held })}</p>`);
         return null;
     }
-
-    const status = keyPlanStatus();
-    // `foundAny`: every Key Remnant of this chapter somebody found, on the plan
-    // or off it (F18). The bar is about what reached the trial.
-    const short = Math.max(0, KEY_REMNANTS.unfoundBar - status.foundAny);
+    const short = fee.short;
 
     // Stamped even at zero. "Nothing was owed" and "this has not been asked
     // yet" have to stay different states, or a second press would re-ask a
@@ -519,11 +569,11 @@ export async function chargeForUnfoundKeys() {
         // number they are actually being told about is how much of the case reached the
         // trial. `short` still drives the plural, because it is what the Despair is for.
         await whisperToGms(`<p>${plural("DRPG.Investigation.unfoundKeys", {
-            n: short, found: status.foundAny, despair: amount, bar: KEY_REMNANTS.unfoundBar,
+            n: short, found: fee.found, despair: amount, bar: fee.bar,
             who: foundry.utils.escapeHTML(paid.join(", "))
         })}</p>`);
     }
-    log(`G-32: ${short} Key Remnant(s) unfound - ${amount} Despair to each of ${paid.length} pool(s).`);
+    log(`G-32: ${short} Key Remnant(s) unfound of ${fee.bar} - ${amount} Despair to each of ${paid.length} pool(s).`);
     return { short, amount, pools: paid };
 }
 
@@ -1204,10 +1254,9 @@ function findersByAnyRemnant() {
     return map;
 }
 
-/** What each living student is holding, summarised. */
+/** What each living student is holding, summarised: the students the Key fee counts the finds of (`keyFeeOf`). */
 function evidenceByStudent() {
-    return studentActors()
-        .filter(a => !isDeadForGm(a))
+    return livingStudentsForGm()
         .map(actor => {
             const bullets = bulletsOf(actor).map(item => ({
                 item,

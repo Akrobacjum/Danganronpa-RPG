@@ -2020,15 +2020,27 @@ const REGRESSIONS = [
          * such a trace is a real Key clue - but the count that bills Despair read the
          * plan's rows only, so a table that found one off the plan was billed as though
          * it had never reached the trial.
+         *
+         * E09 C7 (08.10.2026; S05-16, S05-36) took the charge off the planner altogether:
+         * `keyFeeOf` counts every Key Remnant of the chapter a living student holds a copy
+         * of, off the items the GMs hold, against the case's own count where that is under
+         * four, and the charge's "too late" reads the closed cases - so a Save of the planner
+         * decides nothing (tier 2's "the Key fee is the same with Save and without"). The
+         * planner's own table still scores its rows (`keyPlanStatus`, a display).
          */
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
-        const status = bodyOf(inv, "export function keyPlanStatus", { until: "export async function chargeForUnfoundKeys" });
-        ok(status.length > 400, "keyPlanStatus is gone or has moved past the charge");
+        const status = bodyOf(inv, "export function keyPlanStatus", { until: "export async function keyFeeOf" });
+        ok(status.length > 400, "keyPlanStatus is gone or has moved past the fee");
         ok(/offPlan/.test(status) && /foundAny/.test(status),
             "keyPlanStatus counts the plan's rows only again");
-        const charge = bodyOf(inv, "export async function chargeForUnfoundKeys");
-        ok(/unfoundBar - status\.foundAny/.test(charge),
-            "the charge reads the plan's own rows instead of every Key Remnant found");
+        const fee = bodyOf(inv, "export async function keyFeeOf", { until: "export async function chargeForUnfoundKeys" });
+        ok(/judgedFor\(/.test(fee) && /itemsHeldNow\(/.test(fee) && !/\b(?:bulletsOf|keyPlan|keyPlanStatus|chapterRows|findersByRemnant)\(/.test(fee),
+            "the fee counts off the documents or the planner's rows again instead of the items the GMs hold");
+        ok(/Math\.min\(KEY_REMNANTS\.unfoundBar/.test(fee) && /caseKeyCount\(/.test(fee),
+            "the fee's bar is four again whatever the case's own count");
+        const charge = topLevelFunction(inv, "chargeForUnfoundKeys") ?? "";
+        ok(/keyFeeOf\(/.test(charge) && !/\b(?:keyPlanStatus|plannedChapters|chapterRows|keyPlan)\(/.test(charge),
+            "the charge reads the planner again, so a Save of it decides what is billed");
     }],
 
     ["R38 - the Loaded Die rides the roll it was bought for", async () => {
@@ -7135,7 +7147,9 @@ const REGRESSIONS = [
          * names no field) and added `sparedBySweep`, where the planned `sweepPlan` row's field read is: 78
          * rows, 21 ITEM (read live 08.10.2026, none without a row). E09 C2 struck `propagateCrimeTie`,
          * `propagateCrimeTieMany` and `propagateRealType` (folded into `propagateVerdicts`, the planned row it
-         * judges now): 76 rows, 19 ITEM (read live 08.10.2026, none without a row). The
+         * judges now): 76 rows, 19 ITEM (read live 08.10.2026, none without a row). E09 C7 added
+         * `keyFeeOf`, the fee's count, where its planned row said: 77 rows, 20 ITEM (read live
+         * 08.10.2026, none without a row). The
          * reader is run first on a fixture with a judged reader, a reader whose field is only in a
          * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
          */
@@ -7196,7 +7210,8 @@ const REGRESSIONS = [
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
             ["ITEM handover.mjs#shareBullet", "judged: the copy is built from bulletAsHeld (E29); the answer key copied by copiedRemnants"],
-            ["ITEM investigation.mjs#findersByRemnant", "judged from C7 for the fee: keyFeeOf counts with judgedFor + itemsHeldNow; the planner's display (keyPlanStatus) keeps this document read, a display"],
+            ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf"],
+            ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
