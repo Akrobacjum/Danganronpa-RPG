@@ -400,15 +400,7 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
      * is created hidden and unmarked now, like any trace nobody has found; the closing of
      * an incident does the same to the traces it leaves (`retireIncidentTraces`).
      */
-    let castSees = false;
-    if (type === "incident") {
-        try {
-            const { murderState } = await import("./murder.mjs");
-            castSees = Boolean(murderState());
-        } catch {
-            // No incident module, no incident: hidden, as the rest.
-        }
-    }
+    const castSees = await incidentCastSees(type);
 
     const actor = await ensureRemnantActor();
     if (!actor) return null;
@@ -1326,6 +1318,53 @@ export async function revealRemnantToFinderById(sceneId, tokenId) {
 }
 
 /**
+ * Whether the cast of the running incident is drawn a trace of this kind: one of the incident
+ * type while an incident runs (D11; E05 C14 for the "while"). `placeRemnant` creates a trace by
+ * it - un-hidden and marked `fromIncident`, or hidden and unmarked - and `followIncidentKind`
+ * puts a retyped one under it again.
+ */
+async function incidentCastSees(type) {
+    if (type !== "incident") return false;
+    try {
+        const { murderState } = await import("./murder.mjs");
+        return Boolean(murderState());
+    } catch {
+        // No incident module, no incident: hidden, as the rest.
+        return false;
+    }
+}
+
+/*
+ * A TRACE RETYPED TO OR FROM AN INCIDENT'S IS DRAWN AS ONE PLACED SO (E09 C13, 08.10.2026;
+ * audit S05-20). `placeRemnant` decides the token's `hidden` and its `fromIncident` mark from the
+ * type it is given, and nothing decided them again: a GM correcting a trace on the dashboard
+ * from Prep to Incident in the middle of a fight left it hidden from the cast that made it, and
+ * one corrected the other way stayed drawn for the cast as theirs (visibility.mjs
+ * `myIncidentTrace` reads the mark alone, not the ledger's type). Only on a trace nobody holds a
+ * copy of: a copied one was revealed by its first find (`revealRemnantToFinder`) and stays its
+ * finders', and its mark comes off at the incident's close (`retireIncidentTraces`) - read off the
+ * bullets' rows as that function reads it, and with those rows not yet heard from the other GMs,
+ * left alone. A GM's own write: `setRemnantFlags` runs it for the dashboard and the console.
+ */
+async function followIncidentKind(tokenDoc, type) {
+    if (!game.user.isGM || !bulletStore.isHydrated()) return false;
+    const { ownBulletRefs } = await import("./truth-bullets.mjs");
+    const key = keyOf(tokenDoc);
+    if (ownBulletRefs().some(({ ref }) => ref === key)) return false;
+    const castSees = await incidentCastSees(type);
+    const flag = REMNANT_FLAGS.fromIncident;
+    const marked = Boolean(tokenDoc.getFlag(MODULE_ID, flag));
+    const update = {};
+    if (tokenDoc.hidden !== !castSees) update.hidden = !castSees;
+    if (castSees && !marked) update[`flags.${MODULE_ID}.${flag}`] = true;
+    const deletion = !castSees && marked ? forcedDeletion() : null;
+    if (deletion) update[`flags.${MODULE_ID}.${flag}`] = deletion;
+    if (Object.keys(update).length) await tokenDoc.update(update);
+    if (!castSees && marked && !deletion) await tokenDoc.unsetFlag(MODULE_ID, flag);
+    return true;
+}
+
+/**
  * AN INCIDENT'S TRACES LEAVE THE NEXT ONE'S MAP (E05 C14, 27.09.2026; audit S05-42).
  * D11 creates an incident's traces un-hidden and marked `fromIncident`, so that its
  * participants' clients draw them (visibility.mjs `myIncidentTrace`) - and that client
@@ -1727,6 +1766,17 @@ export async function setRemnantFlags(tokenDoc,
        ledger and has to reach the copies. Refused if it is not one of the eight:
        a typo here would be a trace with no label anywhere. */
     if (type !== null && REMNANT_TYPES[type]) patch.type = type;
+    /* A FAINT REMNANT IS FAINT (E09 C13, 08.10.2026; audit S05-20). The kind and the box were
+       two fields of one fact, and only "New trace" wrote them together: the dashboard's kind
+       "Faint Remnant" saved with the box unticked was a trace Clear Faint Remnants passed over
+       (it asks the box, `clearFaintRemnants` - read in the code), and whose copies' answer keys
+       took the kind without the box (tier 2 "a trace made Faint Remnant on the dashboard is Faint
+       on the trace and on its copies' answer keys", red at e55044f). So a write that names the
+       kind or the box, on a trace that is - or becomes - of the faint kind, writes the box
+       ticked, and `propagateVerdicts` below carries the two to the copies together. Never the
+       other way: a Prep keeps its box as the GM left it, Faint Prep being a trace of its own. */
+    const before = remnantData(tokenDoc);
+    if ((patch.type ?? before?.type) === "faint" && (faint !== null || patch.type !== undefined)) patch.faint = true;
     if (!Object.keys(patch).length) return null;
 
     // Into the ledger, not onto the token. `tiedToCrime` in particular is the
@@ -1736,6 +1786,11 @@ export async function setRemnantFlags(tokenDoc,
     // (`ifLive`, E04): a verdict on a trace this GM holds no row for would be a
     // row of one field, which `remnantData` would read as the whole trace.
     await setRemnantSecret(tokenDoc, patch, { ifLive: true });
+    // Only a row this GM holds was amended (`ifLive`), so only then is there a kind that moved.
+    if (before && patch.type !== undefined && patch.type !== before.type
+        && (patch.type === "incident" || before.type === "incident")) {
+        await followIncidentKind(tokenDoc, patch.type);
+    }
 
     // A changed verdict follows the copies already in players' packs - the
     // murder-first sort reads the tie off the bullets, the chapter's sweep reads

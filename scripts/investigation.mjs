@@ -399,10 +399,16 @@ export function keyPlanStatus() {
     const placedKeys = placedKeyRemnants();
     const onMap = new Set(placedKeys.map(r => r.token.id));
 
+    /* A ROW'S TRACE STANDS, RETYPED (E09 C13, 08.10.2026; audit S05-20). A planned Key Remnant a
+       GM made another kind on the Traces tab is not one of `placedKeys`, and the planner said of it
+       what it says of a deleted one, "gone from the map", with the trace standing in its room.
+       `retyped` tells the two apart; neither counts as placed. */
+    const standing = id => [...game.scenes].some(scene => remnantsOn(scene).some(token => token.id === id));
     const entries = plan.entries.map(entry => {
         const placed = Boolean(entry.tokenId && onMap.has(entry.tokenId));
+        const retyped = Boolean(entry.tokenId && !placed && standing(entry.tokenId));
         const who = entry.tokenId ? Array.from(finders.get(entry.tokenId) ?? []) : [];
-        return { ...entry, placed, finders: who, found: who.length > 0 };
+        return { ...entry, placed, retyped, finders: who, found: who.length > 0 };
     });
 
     /*
@@ -918,7 +924,7 @@ export async function openNewTrace({ room = null, sceneId = null } = {}) {
        rolls against. Asked of the Observe table rather than named, so a kind that
        gains a column appears and one that loses it goes. */
     const typeOptions = Object.entries(REMNANT_TYPES)
-        .filter(([key]) => REMNANT_VISIBILITY.some(v => observeDc(v, key) !== null))
+        .filter(([key]) => findableKind(key))
         .map(([key, def]) => `<option value="${key}"${key === "prep" ? " selected" : ""}>${
             esc(def.label ?? key)}</option>`).join("");
     const visOptions = REMNANT_VISIBILITY.map(v =>
@@ -1481,6 +1487,14 @@ function caseStudentRows(students) {
 }
 
 /**
+ * A kind of trace Observe has a number for: what "New trace" offers, and what the Traces tab
+ * offers a trace to become (E09 C13, S05-20) - the reason is `openNewTrace`'s.
+ */
+function findableKind(key) {
+    return REMNANT_VISIBILITY.some(v => observeDc(v, key) !== null);
+}
+
+/**
  * What a Traces tab row draws for a trace, keyed as the form names its fields (`name.<row>`,
  * `crime.<row>`...) - E09 C3. `caseTraceRows` draws from it and a Save reads the ledger now
  * through it, so what was drawn and what is there now are compared in one shape. A type the
@@ -1492,7 +1506,7 @@ function traceShows(data) {
         name: data.public?.name || "",
         text: data.public?.playerText || "",
         analysis: data.public?.analyzedText || "",
-        type: REMNANT_TYPES[data.type] ? data.type : Object.keys(REMNANT_TYPES)[0],
+        type: REMNANT_TYPES[data.type] ? data.type : Object.keys(REMNANT_TYPES).find(findableKind),
         faint: Boolean(data.faint),
         crime: tieShown(data.tiedToCrime),
         reinf: Boolean(data.reinforced)
@@ -1575,8 +1589,17 @@ function caseTraceRows(shown, finders) {
                   after the Search, the "cleaning" was actually preparation. The
                   value written here reaches the answer key of every copy already
                   in a player's pack (`propagateVerdicts`), and changes what they
-                  are SHOWN only where they have already analysed it. */ ""}
-            <td><select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES).map(([value, def]) =>
+                  are SHOWN only where they have already analysed it.
+
+                  THE KINDS "NEW TRACE" OFFERS, AND THE ROW'S OWN (E09 C13, 08.10.2026;
+                  audit S05-20). Every kind was listed, Autopsy among them, which "New
+                  trace" refuses because Observe has no number for it: a trace retyped
+                  here sat in its room behind a difficulty nothing rolls against (read in
+                  the code: Observe's list drops a kind with no number). A row
+                  already of such a kind keeps it in its list, so the select says what the
+                  trace is and a Save leaves it alone. */ ""}
+            <td><select name="type.${key}"${aria("DRPG.Investigation.traceType")}>${Object.entries(REMNANT_TYPES)
+                .filter(([value]) => findableKind(value) || value === shows.type).map(([value, def]) =>
                 `<option value="${esc(value)}"${value === shows.type ? " selected" : ""}>${
                     esc(def.label)}</option>`).join("")}</select></td>
             <td style="text-align:center"><input type="checkbox" name="faint.${key}"${aria("DRPG.Remnant.faintColumn")} ${shows.faint ? "checked" : ""} /></td>
@@ -1703,7 +1726,7 @@ export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOp
         const state = !entry.tokenId
             ? `<em>${game.i18n.localize("DRPG.Investigation.notPlaced")}</em>`
             : !st.placed
-                ? `<strong>${game.i18n.localize("DRPG.Investigation.tokenGone")}</strong>`
+                ? `<strong>${game.i18n.localize(st.retyped ? "DRPG.Investigation.keyRetyped" : "DRPG.Investigation.tokenGone")}</strong>`
                 : st.found
                     ? esc(st.finders.join(", "))
                     : `<em>${game.i18n.localize("DRPG.Investigation.notFound")}</em>`;

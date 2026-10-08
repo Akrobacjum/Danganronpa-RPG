@@ -18556,6 +18556,216 @@ const SCENARIOS = [
         }
     }],
 
+    ["a trace made Faint Remnant on the dashboard is Faint on the trace and on its copies' answer keys", async () => {
+        /*
+         * E09 C13, 08.10.2026; audit S05-20. The Traces tab's kind and its Faint box were two fields
+         * of one fact, and only "New trace" wrote them together: "Faint Remnant" picked with the box
+         * left unticked was saved so - a trace Clear Faint Remnants passes over, whose copies' answer
+         * keys said Faint Remnant and not Faint. A Prep trace with three copies on one student
+         * (`traceCopies`); the GM's Save that picks the kind (`applyDashboardSave` as the form hands
+         * it on, the C4 test's way); then a Save that unticks the box with the kind left as it is;
+         * then a GM's retype back to Prep (`setRemnantFlags`), and the box unticked on that Prep.
+         * Read: the trace's kind and box, and each copy's answer key, after each.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [student] = cast(1);
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const scene = canvas.scene;
+        const fx = await traceCopies(student);
+        const key = `${scene.id}__${fx.token.id}`;
+        const save = fields => I.applyDashboardSave({ keyRows: [], traces: [{ key, fields }] },
+            { traces: [{ token: fx.token, data: R.remnantData(fx.token), scene }], plan: I.keyPlan() });
+        const read = () => {
+            const data = R.remnantData(fx.token);
+            return [data?.type ?? null, data?.faint ?? null, fx.copies.map(b => [T.secretOf(b.uuid).realType ?? null, T.secretOf(b.uuid).faint === true])];
+        };
+        const reads = [];
+        try {
+            await save({ type: { value: "faint", drawn: "prep" } });
+            await settle();
+            reads.push(read());
+            await save({ faint: { value: false, drawn: true } });
+            await settle();
+            reads.push(read());
+            await R.setRemnantFlags(fx.token, { type: "prep" });
+            await settle();
+            reads.push(read().slice(0, 2));
+            await R.setRemnantFlags(fx.token, { faint: false });
+            await settle();
+            reads.push(read().slice(0, 2));
+        } finally {
+            await fx.back();
+        }
+        const all = (type, faint) => [type, faint, fx.copies.map(() => [type, faint])];
+        equal(stableJson(reads), stableJson([all("faint", true), all("faint", true), ["prep", true], ["prep", false]]),
+            "the kind Faint Remnant was saved without Faint, a Save took Faint off a Faint Remnant, or a Prep's box was moved by its kind "
+            + "(each: the trace's kind and box, every copy's answer key; after the kind, the box unticked, the retype to Prep, the Prep's box unticked)");
+    }],
+
+    ["the Traces tab offers a trace the kinds New trace can make and a trace of another kind its own", async () => {
+        /*
+         * E09 C13, 08.10.2026; audit S05-20. The Traces tab's kind listed every kind, Autopsy among
+         * them, which "New trace" refuses because Observe has no number for it - a trace retyped so
+         * sits in its room behind a difficulty nothing rolls against. A Prep trace and an Autopsy
+         * trace of this chapter, and the Investigation Dashboard opened as a GM opens it. Read: which
+         * offered kinds of the Prep row have no Observe number, whether its list holds Prep, and the
+         * Autopsy row's chosen kind.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const { observeDc, REMNANT_VISIBILITY } = await import("./config.mjs");
+        const scene = canvas.scene;
+        const placed = [];
+        let win = null, read = null;
+        try {
+            for (const type of ["prep", "autopsy"]) {
+                const token = await R.placeRemnant({ type, visibility: "evident", x: 0, y: 0, scene, chapter: getClock().chapter,
+                    note: `SUITE E09 C13 the ${type} trace` });
+                must(token, `the ${type} trace was not placed - this would measure nothing`);
+                placed.push(token);
+            }
+            await gmStoresIdle();
+            win = await drawnCaseWindow();
+            const [prep, autopsy] = placed.map(token => win.field(`type.${scene.id}__${token.id}`));
+            must(prep && autopsy, "the dashboard does not draw both fixture traces - this would measure nothing");
+            const offered = [...prep.options].map(o => o.value);
+            read = [offered.filter(kind => REMNANT_VISIBILITY.every(v => observeDc(v, kind) === null)), offered.includes("prep"), autopsy.value];
+        } finally {
+            await win?.close();
+            for (const token of placed) {
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson(read), stableJson([[], true, "autopsy"]),
+            "the Traces tab offers a kind Observe cannot find, or does not say what a trace of such a kind is "
+            + "(the Prep row's kinds without an Observe number, whether it offers Prep, the Autopsy row's kind)");
+    }],
+
+    ["a planned Key Remnant retyped on the dashboard is said to be no longer a Key Remnant and not gone", async () => {
+        /*
+         * E09 C13, 08.10.2026; audit S05-20. A planned Key Remnant a GM retypes on the Traces tab
+         * left the planner's Key kinds, and the planner said of it "gone from the map" - what it says
+         * of a deleted one - with the trace standing in its room. On a chapter nobody else has used,
+         * a Key trace a planned slot names is retyped Prep (`setRemnantFlags`, the Save's writer) and
+         * the slot drawn (`caseKeyRows` with `keyPlanStatus`, as the dashboard draws it); then the
+         * trace is deleted and the slot drawn again. Read: whether the slot counts as placed, and
+         * which of the two words each drawing says.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the Key trace is placed on the scene on screen");
+        const R = await import("./remnants.mjs");
+        const I = await import("./investigation.mjs");
+        const scene = canvas.scene;
+        const clock = getClock();
+        const chapter = await freshKeyChapter();
+        const retypedWord = game.i18n.localize("DRPG.Investigation.keyRetyped");
+        const goneWord = game.i18n.localize("DRPG.Investigation.tokenGone");
+        const drawn = () => {
+            const status = I.keyPlanStatus();
+            const html = I.caseKeyRows({ plan: I.keyPlan(), status, placed: [], limit: null, roomOptionsFor: () => "", visOptionsFor: () => "" });
+            return [status.entries[0]?.placed ?? null, html.includes(retypedWord), html.includes(goneWord)];
+        };
+        let token = null, read = null;
+        try {
+            await setClock({ chapter });
+            token = await R.placeRemnant({ type: "key", visibility: "evident", x: 100, y: 100, scene, chapter, note: "SUITE E09 C13 a planned Key" });
+            must(token, "the Key trace was not placed - this would measure nothing");
+            await I.setKeyPlan({ chapter, entries: [{ name: "SUITE E09 C13 the planned clue", tokenId: token.id, sceneId: scene.id }] });
+            must(I.keyPlanStatus().entries[0]?.placed === true, "the planned slot does not count its Key as placed - this would measure nothing");
+            await R.setRemnantFlags(token, { type: "prep" });
+            await settle();
+            const retyped = drawn();
+            await R.dropRemnantSecret(token);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            await settle();
+            read = [retyped, drawn()];
+        } finally {
+            if (token && scene.tokens.has(token.id)) {
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson([[false, true, false], [false, false, true]]),
+            "the planner says a retyped Key Remnant is gone from the map, or says a deleted one is retyped "
+            + "(retyped, then deleted: the slot placed, the retyped word, the gone word)");
+    }],
+
+    ["a trace nobody copied retyped to or from Incident is hidden and marked as one placed so", async () => {
+        /*
+         * E09 C13, 08.10.2026; audit S05-20. `placeRemnant` makes an incident's trace un-hidden and
+         * marked `fromIncident` while an incident runs, and any other hidden and unmarked (D11, E05
+         * C14), and a GM's retype on the dashboard decided neither again: a trace corrected to
+         * Incident stayed hidden from the cast it was left by, one corrected away stayed drawn for
+         * them. While an incident runs, three traces: a Prep retyped Incident, an Incident retyped
+         * Prep, and an Incident a student holds a copy of retyped Prep (revealed by its find, it is
+         * its finder's and is left alone); after the close, a Prep retyped Incident. Each through
+         * `setRemnantFlags`, the Save's writer. Read: each token's `hidden` and its mark, as every
+         * browser's copy of the token says them - drawing is not measured here (no canvas).
+         */
+        needs(world.atLeast("sceneOnScreen"), "the traces are placed on the scene on screen");
+        const [killer, victim, finder] = cast(3);
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const scene = canvas.scene;
+        const now = t => {
+            const d = scene.tokens.get(t?.id);
+            return [d?.hidden ?? null, d?.getFlag(MODULE_ID, "fromIncident") ?? null];
+        };
+        equal(M.murderState(), null, "an incident was already running when this test started");
+        const placed = [], made = [];
+        const place = async (type, note) => {
+            const token = await R.placeRemnant({ type, visibility: "evident", x: 0, y: 0, scene, note: `SUITE E09 C13 ${note}` });
+            must(token, `the trace "${note}" was not placed - this would measure nothing`);
+            placed.push(token);
+            return token;
+        };
+        let during = null, after = null;
+        try {
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            await settle();
+            must(M.murderState(), "no incident opened - this would measure nothing");
+            const toIncident = await place("prep", "a Prep made Incident");
+            const fromIncident = await place("incident", "an Incident made Prep");
+            const copied = await place("incident", "a copied Incident made Prep");
+            made.push(await T.createTruthBullet(finder, { name: "SUITE E09 C13 a copy", realType: "incident", visibility: "evident",
+                remnantId: copied.id, sceneId: scene.id }));
+            must(made[0], "no copy was made of the copied trace - this would measure nothing");
+            await settle();
+            must(stableJson(placed.map(now)) === stableJson([[true, null], [false, true], [false, true]]),
+                `the traces were not placed as placeRemnant places them - this would measure nothing: ${stableJson(placed.map(now))}`);
+            await R.setRemnantFlags(toIncident, { type: "incident" });
+            await R.setRemnantFlags(fromIncident, { type: "prep" });
+            await R.setRemnantFlags(copied, { type: "prep" });
+            await settle();
+            during = placed.map(now);
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            const late = await place("prep", "a Prep made Incident with none running");
+            await R.setRemnantFlags(late, { type: "incident" });
+            await settle();
+            after = now(late);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const item of made.filter(Boolean)) {
+                if (item.actor?.items?.has(item.id)) await item.delete().catch(() => {});
+                await T.dropSecret(item.uuid).catch(() => {});
+            }
+            for (const token of placed) {
+                await R.dropRemnantSecret(token).catch(() => {});
+                await token.delete().catch(() => {});
+            }
+            await settle();
+        }
+        equal(stableJson([during, after]), stableJson([[[false, true], [true, null], [false, true]], [true, null]]),
+            "a retype to or from Incident left the token hidden or marked as its old kind, or moved a copied trace "
+            + "(while the incident ran: Prep made Incident, Incident made Prep, a copied Incident made Prep; after it: Prep made Incident; each [hidden, mark])");
+    }],
+
     ["a reshape approved under an open dashboard survives Save", async () => {
         /*
          * E09 C3, V1 (S05-26). The dashboard listened for actors, items and world settings,

@@ -1533,6 +1533,7 @@
       "onMap": "Który Remnant",
       "notPlaced": "Jeszcze nie postawiony",
       "tokenGone": "Jego Remnant zniknął z mapy",
+      "keyRetyped": "Jego Remnant nie jest już Key Remnantem",
       "notFound": "Nikt go nie znalazł",
       "dashboardTitle": "Investigation",
       "keySummary": "Znaleziono {found} z {total}, {placed} na mapie.",

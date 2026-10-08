@@ -1510,6 +1510,7 @@
       "onMap": "Which Remnant",
       "notPlaced": "Not placed yet",
       "tokenGone": "Its Remnant is gone from the map",
+      "keyRetyped": "Its Remnant is no longer a Key Remnant",
       "notFound": "Nobody has found it",
       "dashboardTitle": "Investigation",
       "keySummary": "{found} of {total} found, {placed} on the map.",

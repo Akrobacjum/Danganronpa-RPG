@@ -4261,7 +4261,10 @@ const REGRESSIONS = [
             + "is an ordinary one whatever the GM ticked");
         ok(/if \(!REMNANT_TYPES\[result\.type\]\)/.test(body),
             "the kind comes back off a form and is written without being checked");
-        ok(/observeDc\(v, key\) !== null/.test(body) && /observeDc\(result\.visibility, result\.type\) === null/.test(body),
+        // The list's rule has its own name since E09 C13, which the Traces tab's kind reads too (S05-20).
+        const findable = bodyOf(inv, "function findableKind(", { until: "\n}" });
+        ok(/\.filter\(\(\[key\]\) => findableKind\(key\)\)/.test(body) && /observeDc\(v, key\) !== null/.test(findable)
+            && /observeDc\(result\.visibility, result\.type\) === null/.test(body),
             "a kind Observe has no number for can be placed, and then nobody can ever find it");
         ok(/placeRemnant\(/.test(body),
             "the trace is built by hand instead of through the one writer that owns "
