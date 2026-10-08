@@ -18,7 +18,7 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
 // Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isDeceased, isDeadForGm } from "./settings.mjs";
 import { isPrimaryGm, log, warn, error, plural, workingScene, esc, forcedDeletion } from "./utils.mjs";
 // The ledger's store. gm-stores.mjs reaches this file only by a dynamic `import()`,
 // so a static import here is no cycle (R161).
@@ -516,6 +516,9 @@ export async function placeRemnant(data = {}, { keepId = false, rollId = null } 
                 reinforced: reinforced || Boolean(REMNANT_TYPES[type]?.reinforced),
                 note, action, subject, pointsAt,
                 tiedToCrime: tieState(tiedToCrime),
+                // A tie to a crime nobody has found yet waits to reach the copies
+                // (`tieWaitNow`, E09 fix r1-G1): a copy made in the meantime is undecided.
+                tieWaitsFor: tieState(tiedToCrime) === true ? await tieWaitNow() : null,
                 // Which object this trace handed over, if it handed one over.
                 // Read by `tieTraceForItem` when that object turns out to have
                 // been the murder weapon.
@@ -1481,6 +1484,7 @@ export function remnantData(tokenDoc) {
         faint: Boolean(entry.faint),
         reinforced: Boolean(entry.reinforced),
         tiedToCrime: tieState(entry.tiedToCrime),
+        tieWaitsFor: entry.tieWaitsFor ?? null,
         action: entry.action,
         subject: entry.subject,
         note: entry.note,
@@ -1657,8 +1661,14 @@ export async function tieTraceForItem(identity) {
        before, and the copies' pass was `propagateCrimeTie(null, true)` - which
        returns at once on a null id, so a weapon's traces were tied and the bullets
        copied from them never learned it. `setRemnantFlagsMany` is the dashboard's
-       own write for many traces: one flush, and one pass over the copies. */
-    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true });
+       own write for many traces: one flush, and one pass over the copies.
+       NOT WHILE THE FIGHT RUNS (E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F1 and sec
+       F1). The swing comes in the fight, and the pass sent the tie to every identified copy
+       there and then: the copy climbed to the top of its holder's pack while the fight ran,
+       and stayed there through a death nobody had found (tier 2 "a weapon swung in the fight
+       reaches the copies' tie only when the death is the table's"; scenario 10's "the
+       weapon's tie" checks). It waits now with the death's own ties (`tieWaitNow`). */
+    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true }, { waitFor: await tieWaitNow() });
     if (tied) log(`The murder weapon was found at ${tied} trace(s); those are evidence now.`);
     return tied;
 }
@@ -1674,7 +1684,8 @@ export async function setRemnantFlags(tokenDoc,
 
     const patch = {};
     if (faint !== null) patch.faint = Boolean(faint);
-    if (tiedToCrime !== undefined) patch.tiedToCrime = tieState(tiedToCrime);
+    // A GM's verdict is sent now, so it takes the trace off any wait (`tieWaitNow`, E09 fix r1-G1).
+    if (tiedToCrime !== undefined) Object.assign(patch, { tiedToCrime: tieState(tiedToCrime), tieWaitsFor: null });
     if (reinforced !== null) patch.reinforced = Boolean(reinforced);
     /* WHAT THE TRACE REALLY IS, CORRECTED BY HAND (Dawid, 16.09).
        A type is decided by whatever action left the trace, and the module gets
@@ -1725,31 +1736,38 @@ export async function setRemnantFlags(tokenDoc,
  * third. Like `setRemnantFlags`, it amends rows and never starts one (`ifLive`);
  * a token this GM holds no row for is not counted.
  *
- * `propagate: false` writes the ledger and leaves the copies as they are: a victim's death,
- * whose ties the copies learn when the body is found (`publishChapterTies`, E09 C4).
+ * `waitFor` (a `tieWaitNow` key) writes a tie to the crime into the ledger and leaves the
+ * copies as they are until that key is published (`publishTiesFor`, E09 fix r1-G1): a weapon
+ * swung in the fight, a victim's death nobody has found. A tie written without one, or a
+ * "not tied" or a "-", takes the trace off any wait and is sent now.
  *
  * @param {TokenDocument[]} tokens
  * @param {{faint?: boolean|null, tiedToCrime?: boolean|null}} flags  the tie as `setRemnantFlags` takes it
- * @param {{propagate?: boolean}} [options]
+ * @param {{waitFor?: string|null}} [options]
  * @returns {Promise<number>} how many traces were written.
  */
-export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime } = {}, { propagate = true } = {}) {
+export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime } = {}, { waitFor = null } = {}) {
     if (!game.user.isGM) return 0;
     const patch = {};
     if (faint !== null) patch.faint = Boolean(faint);
-    if (tiedToCrime !== undefined) patch.tiedToCrime = tieState(tiedToCrime);
+    if (tiedToCrime !== undefined) {
+        patch.tiedToCrime = tieState(tiedToCrime);
+        patch.tieWaitsFor = patch.tiedToCrime === true ? waitFor || null : null;
+    }
     if (!Object.keys(patch).length) return 0;
     const live = (tokens ?? []).filter(token => remnantStore.has(keyOf(token)));
     if (!live.length) return 0;
     // The repaint follows from the store's own write (`registerRemnantLedger`).
     await remnantStore.patchMany(Object.fromEntries(live.map(token => [keyOf(token), patch])), { ifLive: true });
-    if (!propagate) return live.length;
+    // A tie that waits is the ledger's alone until its key is published.
+    const tie = patch.tieWaitsFor ? undefined : patch.tiedToCrime;
+    if (patch.faint === undefined && tie === undefined) return live.length;
     // Faint as well as the tie since E09 C2 (S05-19): a body discovery's promoted
     // Faint Prep left every copy's answer key Faint, so the sweep spared copies of a
     // trace the GM had made evidence.
     try {
         const { propagateVerdicts } = await import("./truth-bullets.mjs");
-        await propagateVerdicts(live.map(token => token.id), { faint: patch.faint ?? null, tiedToCrime: patch.tiedToCrime });
+        await propagateVerdicts(live.map(token => token.id), { faint: patch.faint ?? null, tiedToCrime: tie });
     } catch (err) {
         error("Could not propagate the trace's verdicts to the copied bullets", err);
     }
@@ -1774,14 +1792,14 @@ export async function setRemnantFlagsMany(tokens, { faint = null, tiedToCrime } 
  * in between. Until C4 the skip asked "tied?" of a tie the ledger had flattened to
  * true/false, so a "not tied" was tied at the death like any other.
  * `setRemnantFlagsMany` is the write, in one write for the chapter rather than one
- * per trace (E04). The death's call passes `propagate: false` (chapter.mjs
- * `incidentVictimDied`): a copy a student holds learns the tie when the body is
- * found (`publishChapterTies`), or an identified copy climbing to the top of their
+ * per trace (E04). A death the GMs keep passes its victim as `waitFor` (chapter.mjs
+ * `incidentVictimDied`): a copy a student holds learns the tie when that death is
+ * made known (`publishTiesFor`), or an identified copy climbing to the top of their
  * pack would tell them of a death nobody had found.
  *
  * @returns {Promise<number>} how many traces were tied.
  */
-export async function tieChapterTraces(chapter, { propagate = true } = {}) {
+export async function tieChapterTraces(chapter, { waitFor = null } = {}) {
     if (!game.user.isGM || !chapter) return 0;
 
     const tokens = [];
@@ -1792,7 +1810,7 @@ export async function tieChapterTraces(chapter, { propagate = true } = {}) {
             tokens.push(token);
         }
     }
-    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true }, { propagate });
+    const tied = await setRemnantFlagsMany(tokens, { tiedToCrime: true }, { waitFor });
 
     if (tied) {
         const { whisperToGms } = await import("./utils.mjs");
@@ -1803,27 +1821,86 @@ export async function tieChapterTraces(chapter, { propagate = true } = {}) {
 }
 
 /**
- * THE DEATH'S TIES REACH THE COPIES WHEN THE BODY IS FOUND (E09 C4, 08.10.2026; audit S05-37).
- * `tieChapterTraces` ties the chapter in the ledger at the death and no further; this is the
- * other half, run by the body's discovery (chapter.mjs `runDiscovery`) once the death is the
- * table's: every trace of the chapter tied now sends its tie to the copies copied from it -
- * the answer key always, the item where the GMs hold it identified (`propagateVerdicts`). A
- * trace tied before the death sends what its copies already hold. GM-side.
+ * A TIE TO A CRIME NOBODY HAS FOUND WAITS FOR THE DEATH (E09 fix r1-G1, 08.10.2026; the round-1
+ * reviews' cor F1, F3, sec F1, F8 and goal G2a). C4 kept a victim's death's ties in the ledger and
+ * had every body's discovery send the chapter's ties to the copies (`publishChapterTies`). Read on
+ * f88133d, four roads went round it: a weapon swung in the fight sent its tie to every identified
+ * copy at the swing (`tieTraceForItem`); a copy made between the death and the discovery took the
+ * ledger's tie whole (observe.mjs `createFind`, gm-items.mjs `bulletFromRemnant`), shown at once on
+ * a critical Observe; a death made known without a discovery - the Students list's, a public kill -
+ * sent nothing; and a discovery sent every tie of the chapter, a death still kept included. The
+ * tier-2 tests named at each road below hold them.
+ *
+ * So a tie to the crime written while the death it tells of is not the table's says in its ledger
+ * row what it waits for (`tieWaitsFor`): the running fight (`fightKey`) or a death the GMs keep
+ * (the victim's id). A copy made meanwhile is undecided (`tieForCopy`). A kept death takes the
+ * fight's waits over (chapter.mjs `incidentVictimDied`, `handTiesOn`) and its publication sends
+ * them (`publishDeath`, `publishTiesFor`); a death made public at once sends the fight's; the close
+ * sends what a fight left with no death (murder-rules.mjs `closeIncident`; 1.2.70 sent it sooner,
+ * at the swing), and a revival hands a kept death's back to the fight still running, or sends
+ * them. A GM's own verdict is sent at once and clears the wait (`setRemnantFlags`).
+ */
+export function fightKey(state) {
+    return state?.active && state.openedAt ? `incident.${state.openedAt}` : null;
+}
+
+/** What a tie to the crime written now waits for: nothing once the death is the table's, or with no fight running. GM-side. */
+export async function tieWaitNow() {
+    const { murderState } = await import("./murder.mjs");
+    const state = murderState();
+    if (!state?.active) return null;
+    const victim = game.actors.get(state.victimId) ?? null;
+    if (victim && isDeceased(victim)) return null;
+    return victim && isDeadForGm(victim) ? victim.id : fightKey(state);
+}
+
+/**
+ * The tie a new copy of a trace takes: undecided while the trace's tie waits. Read off the trace's
+ * row as it stands when the copy is made (`sceneId`, `tokenId`), and off `data` - what the caller
+ * read when its Observe was aimed or its window opened - only when the trace is gone: a death made
+ * known while an Observe's roll or a GM's window stood open has sent its ties already, and the copy
+ * made afterwards would have stayed undecided (tier 2 "a copy made between the death and the
+ * discovery ...", its last two copies). GM-side.
+ */
+export function tieForCopy(data, { sceneId = null, tokenId = null } = {}) {
+    const token = tokenId ? tokenById(sceneId, tokenId) : null;
+    const row = (token && remnantData(token)) ?? data;
+    return row?.tieWaitsFor ? null : tieState(row?.tiedToCrime);
+}
+
+/**
+ * Every tie that waits for `key`, sent to the copies - the answer key always, the item where the
+ * GMs hold it identified (`propagateVerdicts`) - with the wait cleared first, so a copy made in
+ * between takes the tie itself. GM-side.
  *
  * @returns {Promise<number>} how many copies' answer keys moved
  */
-export async function publishChapterTies(chapter) {
-    if (!game.user.isGM || !chapter) return 0;
-    const ids = [];
-    for (const scene of game.scenes) {
-        for (const token of remnantsOn(scene)) {
-            const data = remnantData(token);
-            if (data?.tiedToCrime === true && data.chapter === chapter) ids.push(token.id);
-        }
+export async function publishTiesFor(key) {
+    if (!game.user.isGM || !key) return 0;
+    const waiting = Object.entries(readRemnantLedger()).filter(([, row]) => row?.tieWaitsFor === key);
+    if (!waiting.length) return 0;
+    const byTie = new Map();
+    for (const [rowKey, row] of waiting) {
+        const tie = tieState(row.tiedToCrime);
+        byTie.set(tie, [...(byTie.get(tie) ?? []), rowKey.split(".")[1]]);
     }
-    if (!ids.length) return 0;
-    const { propagateVerdicts } = await import("./truth-bullets.mjs");
-    return propagateVerdicts(ids, { tiedToCrime: true });
+    await remnantStore.patchMany(Object.fromEntries(waiting.map(([rowKey]) => [rowKey, { tieWaitsFor: null }])), { ifLive: true });
+    let moved = 0;
+    try {
+        const { propagateVerdicts } = await import("./truth-bullets.mjs");
+        for (const [tie, ids] of byTie) moved += await propagateVerdicts(ids, { tiedToCrime: tie });
+    } catch (err) {
+        error("Could not send the ties that waited to the copied bullets", err);
+    }
+    return moved;
+}
+
+/** The ties that wait for `from` wait for `to` instead; no copy is touched. GM-side. */
+export async function handTiesOn(from, to) {
+    if (!game.user.isGM || !from || !to || from === to) return 0;
+    const rows = Object.entries(readRemnantLedger()).filter(([, row]) => row?.tieWaitsFor === from);
+    if (rows.length) await remnantStore.patchMany(Object.fromEntries(rows.map(([key]) => [key, { tieWaitsFor: to }])), { ifLive: true });
+    return rows.length;
 }
 
 /**
@@ -1953,7 +2030,12 @@ export async function retuneRemnant(sceneId, tokenId,
      * three states, so an undecided trace goes back undecided (`null`) rather than
      * "not tied", which a death would then have had to leave alone.
      */
-    if (tiedToCrime !== undefined) secret.tiedToCrime = tieState(tiedToCrime);
+    if (tiedToCrime !== undefined) {
+        secret.tiedToCrime = tieState(tiedToCrime);
+        // A reshape's tie in the fight or over a kept death waits as the swing's does (E09 fix r1-G1):
+        // nothing is sent from here, but a copy made from the trace afterwards reads it.
+        secret.tieWaitsFor = secret.tiedToCrime === true ? await tieWaitNow() : null;
+    }
     /*
      * WHAT THE TRACE IS OF, when a Reroll changed it (review of ACT-11, 17.09).
      * A rerolled Search that found a different object kept the first object's

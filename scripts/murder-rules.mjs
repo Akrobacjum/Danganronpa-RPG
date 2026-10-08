@@ -77,7 +77,7 @@ import { youOrThem } from "./secret.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken, isStashed, servesAs, wearOf } from "./inventory.mjs";
 import { equippedFor, breakOnDespair, isEquipped, readiedItems, tierOf, EQUIPPED_FLAG } from "./use-items.mjs";
-import { dropRemnant, traceFeedback } from "./remnants.mjs";
+import { dropRemnant, traceFeedback, publishTiesFor, fightKey } from "./remnants.mjs";
 import { closeOpen } from "./live.mjs";
 import {
     announce as announcePlain, dialogContent, whisperToGms, whisperToOwner as whisperToOwnerPlain, ownerOf,
@@ -3237,6 +3237,21 @@ async function closeIncident(state, { reason, followUp }) {
         } catch (err) {
             error("Could not record a self-inflicted death when the incident closed", err);
         }
+    }
+
+    /* WHAT THE FIGHT TIED AND NO DEATH TOOK OVER (E09 fix r1-G1, 08.10.2026; the round-1 reviews'
+       cor F1). A weapon swung in the fight ties its traces in the ledger and the copies wait
+       (remnants.mjs `tieWaitNow`); a death the GMs keep takes the wait over (chapter.mjs
+       `incidentVictimDied`) and one made public sends it. What is still on the fight here - a
+       victim who lived, or one revived - goes to the copies at the close (tier 2 "a fight's tie
+       with no death reaches the copies at the fight's close"); 1.2.70 sent it sooner, at the
+       swing. The self-inflicted death above is kept, as any victim's is, and `killCharacter`
+       awaits `incidentVictimDied`, so its share is taken over before this line - read in the
+       code, not measured: no test reads a copy across the close of a self-inflicted incident. */
+    try {
+        await publishTiesFor(fightKey(state));
+    } catch (err) {
+        error("Could not send the fight's ties to the copied bullets", err);
     }
 
     // Before the state is wiped - it is the only place the killer's identity

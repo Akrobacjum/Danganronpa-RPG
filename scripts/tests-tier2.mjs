@@ -1722,6 +1722,46 @@ async function swingFixture(identity = null) {
 }
 
 /**
+ * A TRACE AND A COPY OF IT, FOR THE TIES THAT WAIT FOR A DEATH (E09 fix r1-G1, 08.10.2026). A
+ * trace of this chapter laid on the scene on screen in a corner no room holds (`extra` moves it
+ * or gives it an object's identity), and taken away with its row (`dropTrace`). An identified
+ * Truth Bullet of a trace on `holder`, with no tie, as a copy made before the fight is; `tie()`
+ * reads it twice - the GMs' answer key and the item's flag, which the murder-first sort reads -
+ * and `drop()` takes it away with its key.
+ */
+async function placedTrace(note, extra = {}) {
+    const { placeRemnant } = await import("./remnants.mjs");
+    return placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, chapter: getClock().chapter,
+        note: `SUITE E09 G1 ${note}`, ...extra });
+}
+
+async function dropTrace(token) {
+    const { dropRemnantSecret } = await import("./remnants.mjs");
+    await dropRemnantSecret(token).catch(() => {});
+    if (token.parent?.tokens?.has(token.id)) await token.delete().catch(() => {});
+}
+
+async function identifiedCopy(holder, trace, label) {
+    const T = await import("./truth-bullets.mjs");
+    const copy = await T.createTruthBullet(holder, { name: `SUITE E09 G1 ${label}`, realType: "prep", visibility: "evident",
+        playerText: "SUITE E09 G1", remnantId: trace.id, sceneId: trace.parent.id, analyzed: true });
+    return copy ? heldCopy(holder, copy) : null;
+}
+
+/** The two readings of a copy's tie, and its removal, for any copy already made (`identifiedCopy`, an Observe's find). */
+async function heldCopy(holder, copy) {
+    const T = await import("./truth-bullets.mjs");
+    return { copy,
+        identified: () => T.isIdentified(T.bulletAsHeld(holder.items.get(copy.id) ?? copy)),
+        tie: () => [T.secretOf(copy.uuid).tiedToCrime === true,
+            holder.items.get(copy.id)?.getFlag(MODULE_ID, T.TRUTH_BULLET_FLAGS.tiedToCrime) === true],
+        drop: async () => {
+            if (holder.items.has(copy.id)) await holder.items.get(copy.id).delete().catch(() => {});
+            await T.dropSecret(copy.uuid).catch(() => {});
+        } };
+}
+
+/**
  * A USE AN ITEM AND ITS REROLL, ON THE GM (E08+E28 C6b, 03.10.2026; audit S04-18). At the
  * killer's turn (`swingFixture`) the killer, with two Health marks, holds a Tier 1 healing pack
  * of two; their player's roll is bookmarked (`playerRollBookmark`), the pack used as their
@@ -29252,19 +29292,21 @@ const SCENARIOS = [
          * to the top of its holder's pack (the murder-first sort reads the item's flag) before
          * anybody had found the body. An undecided trace of this chapter and an identified copy of
          * it on a third student; the victim dies as the GM's "A character dies" kills them; then the
-         * discovery's half (remnants.mjs `publishChapterTies`, which `runDiscovery` calls - scenario
-         * 10 runs the discovery itself); then a GM's "-" on the trace (`setRemnantFlags` with `null`,
-         * the dashboard's Save), which has to reach the copy as undecided too (`propagateVerdicts`).
-         * Read: the ledger's tie, the copy's answer key and its flag at the death, the key and the
-         * flag after the discovery, and both after the "-". Red at 8003b86 (A1, 08.10.2026): the key
-         * and the flag tied at the death.
+         * discovery's half - since E09 fix r1-G1 the publication of the death (chapter.mjs
+         * `publishDeath`, which `runDiscovery` runs for each body it finds, scenario 10 the discovery
+         * itself; C4's `publishChapterTies` sent the whole chapter's); then a GM's "-" on the trace
+         * (`setRemnantFlags` with `null`, the dashboard's Save), which has to reach the copy as
+         * undecided too (`propagateVerdicts`). Read: the ledger's tie, the copy's answer key and its
+         * flag at the death, the key and the flag after the discovery, and both after the "-". Red at
+         * 8003b86 (A1, 08.10.2026): the key and the flag tied at the death; at f88133d (A1, fix
+         * r1-G1): the key and the flag untied once the death was made known.
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
         const [killer, victim, holder] = cast(3);
         const M = await import("./murder.mjs");
         const R = await import("./remnants.mjs");
         const T = await import("./truth-bullets.mjs");
-        const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { killCharacter, isDeadForGm, reviveCharacter, publishDeath } = await import("./chapter.mjs");
         const scene = canvas.scene;
         const chapter = getClock().chapter;
         const D = foundry.applications.api.DialogV2;
@@ -29284,7 +29326,7 @@ const SCENARIOS = [
             must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
             await settle();
             const atDeath = [R.remnantData(token)?.tiedToCrime ?? "absent", T.secretOf(copy.uuid).tiedToCrime === true, flagOf() === true];
-            await R.publishChapterTies?.(chapter);
+            await publishDeath(victim);
             await settle();
             const atDiscovery = [T.secretOf(copy.uuid).tiedToCrime === true, flagOf() === true];
             await R.setRemnantFlags(token, { tiedToCrime: null });
@@ -29307,6 +29349,428 @@ const SCENARIOS = [
                 await R.dropRemnantSecret(token).catch(() => {});
                 await token.delete().catch(() => {});
             }
+        }
+    }],
+
+    ["a weapon swung in the fight reaches the copies' tie only when the death is the table's", async () => {
+        /*
+         * E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F1 and sec F1. The swing ties the
+         * traces that handed the weapon over (remnants.mjs `tieTraceForItem`), and the tie went on
+         * there and then to every identified copy: the copy climbed to the top of its holder's
+         * pack in the fight and stayed there through a death the GMs kept. A Search's trace that
+         * handed the knife over, placed before the fight, and an identified copy of it on a third
+         * student; the killer swings the knife with the dice thrown (`swingFixture`); the victim
+         * dies as the GM's "A character dies" kills them, kept by the GMs; then the death is made
+         * known (chapter.mjs `publishDeath`, which the discovery runs for its bodies). Read: in the
+         * fight, the ledger's tie, the copy's answer key and its flag; the key and the flag at the
+         * death; both once the death is the table's. Red at f88133d (A1, 08.10.2026): the key and
+         * the flag tied in the fight.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("livingStudents", 3), "a third student holds the copy");
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const students = cast(3);
+        const R = await import("./remnants.mjs");
+        const { killCharacter, publishDeath, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const identity = `suite-g1-swing-${Date.now().toString(36)}`;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const hadForce = Object.hasOwn(globalThis, "__forceRoll"), force = globalThis.__forceRoll;
+        let trace = null, copy = null, fx = null;
+        try {
+            trace = await placedTrace("the Search that handed over the knife", { action: "search", itemIdentity: identity });
+            must(trace && R.remnantData(trace)?.tiedToCrime === null, "the knife's trace was not placed undecided - this would measure nothing");
+            fx = await swingFixture(identity);
+            const holder = students.find(a => a.id !== fx.killer.id && a.id !== fx.victim.id);
+            copy = await identifiedCopy(holder, trace, "a copy of the knife's trace");
+            must(copy?.identified() && !copy.tie().some(Boolean), "the copy is not identified and untied before the swing - this would measure nothing");
+            globalThis.__forceRoll = { hope: 12, fear: 3 };
+            await fx.M.takeCrisisAction(fx.killer, "weaponAttack");
+            await until(() => R.remnantData(trace)?.tiedToCrime === true);
+            await settle();
+            const inFight = [R.remnantData(trace)?.tiedToCrime === true, ...copy.tie()];
+            D.confirm = async () => false;
+            must(await killCharacter(fx.victim, { secret: true, keepBullets: true }), `${fx.victim.name}'s death was not kept by the GMs`);
+            await settle();
+            const atDeath = copy.tie();
+            await publishDeath(fx.victim);
+            await settle();
+            equal(stableJson([inFight, atDeath, copy.tie()]), stableJson([[true, false, false], [false, false], [true, true]]),
+                "the weapon's tie reached the copy in the fight or at a death nobody had found, or never once the death was the table's "
+                + "(in the fight: the ledger tied, the copy's key, its flag; at the death: the key, the flag; made known: the key, the flag)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (hadForce) globalThis.__forceRoll = force; else delete globalThis.__forceRoll;
+            if (fx?.M.murderState()) await fx.M.endMurder({ reason: "test", followUp: false });
+            if (fx && isDeadForGm(fx.victim)) await reviveCharacter(fx.victim, { quiet: true });
+            await copy?.drop();
+            if (trace) await dropTrace(trace);
+            await fx?.putBack();
+        }
+    }],
+
+    ["a copy made between the death and the discovery holds the death's tie back until the death is the table's", async () => {
+        /*
+         * E09 fix r1-G1, 08.10.2026; the round-1 goal review's G2a (audit S05-37). The two makers of
+         * a copy from a trace gave it the ledger's tie whole (`Boolean(data.tiedToCrime)`), so a
+         * copy made after a death the GMs kept and before anybody found the body was tied at birth -
+         * and a critical Observe's, identified at once, showed it. Four undecided traces of this
+         * chapter, placed before the fight: two where a player's character stands, two in a corner;
+         * the victim dies kept by the GMs and the fight is closed. In that window the character
+         * Observes one of the first two with a critical, as the bridge resolves it (observe.mjs
+         * `resolveObserve`, the GM's windows closed at once), and a GM hands the third over as its
+         * real type from the item hub (gm-items.mjs `openItemManager`, its windows answered as the GM
+         * would). Then two copies begun in the window and made once the death is known: an Observe
+         * aimed at the other trace, and the GM's window for the fourth, in which the death is made
+         * known (chapter.mjs `publishDeath`) before it is answered; the Observe is resolved after.
+         * Read: the first two copies' answer keys and flags in the window; all four's once the death
+         * is known. Red at f88133d (A1, 08.10.2026): both copies made in the window tied, key and
+         * flag.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the Observe finds its traces where the player's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the Observe is a connected player's, as Foundry names only those");
+        needs(world.atLeast("livingStudents", 3), "a killer and a victim besides the student who looks");
+        needs(world.atLeast("sceneOnScreen"), "the GM hands over traces of the scene on screen");
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const observe = await import("./observe.mjs");
+        const { openItemManager } = await import("./gm-items.mjs");
+        const { killCharacter, publishDeath, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { player, actor, where } = await playerInRoom();
+        const [killer, victim] = cast(3).filter(a => a.id !== actor.id);
+        const had = new Set(actor.items.map(i => i.id));
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        const answers = [], traces = [];
+        const copyOf = async trace => {
+            const item = actor.items.find(i => !had.has(i.id) && T.secretOf(i.uuid).remnantId === trace.id);
+            return item ? heldCopy(actor, item) : null;
+        };
+        const aim = async () => {
+            const target = await observe.chooseObserveTarget({ actorId: actor.id, declaration: "general", userId: player.id });
+            must(target?.ok, `the Observe found nothing to aim at where its traces lie: ${stableJson(target)}`);
+            return target.key;
+        };
+        const resolve = key => observe.resolveObserve({ key, total: 24, isCritical: true, actorId: actor.id });
+        // The hub's two windows: the character's "Truth Bullet", then the trace handed over, after `meanwhile`.
+        const hand = (trace, meanwhile = null) => {
+            answers.push({ who: actor.id, go: "bullet" }, async () => {
+                await meanwhile?.();
+                return { recipient: actor.id, tell: false, mode: "existing", remnantId: trace.id,
+                    name: R.remnantData(trace)?.public?.name || "SUITE E09 G1 a trace a GM hands over", shown: "real" };
+            });
+            return openItemManager(actor);
+        };
+        try {
+            const here = { scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y };
+            traces.push(await placedTrace("an Observe in the window", here), await placedTrace("an Observe across the publication", here),
+                await placedTrace("a GM's hand in the window"), await placedTrace("a GM's window across the publication"));
+            must(traces.every(Boolean), "the fixture traces were not placed - this would measure nothing");
+            await fightOpen(M, killer, victim);
+            D.confirm = async () => false;
+            D.wait = async () => {
+                const next = answers.shift();
+                return typeof next === "function" ? next() : next ?? null;
+            };
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(traces.every(t => R.remnantData(t)?.tiedToCrime === true) && isDeadForGm(victim),
+                "the death did not tie the fixture traces in the ledger, or was not kept - this would measure nothing");
+            await resolve(await aim());
+            const [seen, unseen] = (await copyOf(traces[0])) ? [traces[0], traces[1]] : [traces[1], traces[0]];
+            await hand(traces[2]);
+            const made = [await copyOf(seen), await copyOf(traces[2])];
+            must(made.every(c => c?.identified()), "the Observe or the GM's hand made no identified copy in the window - this would measure nothing");
+            const inWindow = made.flatMap(c => c.tie());
+            const later = await aim();
+            await hand(traces[3], () => publishDeath(victim));
+            await resolve(later);
+            await settle();
+            made.push(await copyOf(unseen), await copyOf(traces[3]));
+            must(made.every(c => c?.identified()), "the Observe or the GM's window begun in the window made no identified copy - this would measure nothing");
+            equal(stableJson([inWindow, made.flatMap(c => c.tie())]), stableJson([[false, false, false, false], [true, true, true, true, true, true, true, true]]),
+                "a copy made while the death was the GMs' alone came out tied, or a copy did not hold the tie once the death was known "
+                + "(in the window: the Observe's copy's key and flag, the GM's; once known: those two, then the Observe's and the GM's begun in the window)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const item of [...actor.items]) {
+                if (had.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete().catch(() => {});
+                await T.dropSecret(uuid).catch(() => {});
+            }
+            for (const trace of traces) if (trace) await dropTrace(trace);
+        }
+    }],
+
+    ["a death the GMs make known from the Students list sends its ties to the copies", async () => {
+        /*
+         * E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F3. C4 left the copies' tie to the
+         * body's discovery, and a death the GMs kept and then made known by hand - the Students
+         * list's "dead" (gm-panel.mjs `applyAliveStates`, `publishDeath`) - never sent it: no body
+         * was found, so the copies never learned what the ledger said. An undecided trace of this
+         * chapter and an identified copy of it on a third student; the victim dies kept by the GMs;
+         * then the list's "dead". Read: the copy's answer key and flag at the death and after the
+         * list. Red at f88133d (A1, 08.10.2026): the key and the flag untied after the list.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [killer, victim, holder] = cast(3);
+        const M = await import("./murder.mjs");
+        const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        let trace = null, copy = null;
+        try {
+            trace = await placedTrace("a trace whose death the list makes known");
+            copy = trace ? await identifiedCopy(holder, trace, "a copy of a trace the list's death ties") : null;
+            must(copy?.identified() && !copy.tie().some(Boolean), "the copy is not identified and untied before the death - this would measure nothing");
+            await fightOpen(M, killer, victim);
+            D.confirm = async () => false;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await settle();
+            const atDeath = copy.tie();
+            must(await applyAliveStates({ [victim.id]: { state: "dead" } }), `${victim.name}'s death from the list was not recorded`);
+            await settle();
+            equal(stableJson([atDeath, copy.tie()]), stableJson([[false, false], [true, true]]),
+                "the death's tie reached the copy before the death was known, or never once the Students list made it known "
+                + "(at the death, then after the list: the copy's key, its flag)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await copy?.drop();
+            if (trace) await dropTrace(trace);
+        }
+    }],
+
+    ["a death made known at once sends its ties and the fight's to the copies", async () => {
+        /*
+         * E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F3. Two roads make the running fight's
+         * victim the table's dead at once, with no body to find: the GM's "A character dies" with
+         * "kept until found" unticked (chapter.mjs `killCharacter`, `secret: false`), and the
+         * Students list's "dead" on a living victim (gm-panel.mjs `applyAliveStates`). Each ties the
+         * chapter's undecided traces (`incidentVictimDied`), and C4 sent the ties to nobody. For each
+         * road, a fight of its own over an undecided trace of the chapter and a Search's trace that
+         * handed the knife over, each with an identified copy on a third student; the knife's tie
+         * asked in the fight, as the killer's browser asks it at the swing (remnants.mjs
+         * `tieTraceForItem`); then the death. Read, per road: the knife copy's key and flag in the
+         * fight, then both copies' after the death. Red at f88133d (A1, 08.10.2026), on both roads:
+         * the knife's copy tied in the fight, the undecided trace's untied after the death.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const [killer, victim, holder] = cast(3);
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const { applyAliveStates } = await import("./gm-panel.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const ROADS = {
+            kill: () => killCharacter(victim, { secret: false, keepBullets: true }),
+            list: () => applyAliveStates({ [victim.id]: { state: "dead" } })
+        };
+        const read = {};
+        try {
+            D.confirm = async () => false;
+            for (const [road, die] of Object.entries(ROADS)) {
+                const identity = `suite-g1-${road}-${Date.now().toString(36)}`;
+                let open = null, knife = null;
+                const copies = [];
+                try {
+                    open = await placedTrace(`an undecided trace, a death by the ${road}`);
+                    knife = await placedTrace(`the knife's trace, a death by the ${road}`, { action: "search", itemIdentity: identity });
+                    for (const trace of [open, knife]) if (trace) copies.push(await identifiedCopy(holder, trace, `a copy, a death by the ${road}`));
+                    must(copies.length === 2 && copies.every(c => c?.identified() && !c.tie().some(Boolean)),
+                        `the copies of the ${road}'s traces are not identified and untied before the fight - this would measure nothing`);
+                    await fightOpen(M, killer, victim);
+                    must(await R.tieTraceForItem(identity) === 1, `the knife's trace was not tied in the ${road}'s fight - this would measure nothing`);
+                    await settle();
+                    const inFight = copies[1].tie();
+                    must(await die(), `${victim.name}'s death by the ${road} was not recorded`);
+                    await settle();
+                    read[road] = [inFight, ...copies.map(c => c.tie())];
+                } finally {
+                    if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+                    if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+                    for (const c of copies) await c?.drop();
+                    for (const trace of [open, knife]) if (trace) await dropTrace(trace);
+                }
+            }
+            const each = [[false, false], [true, true], [true, true]];
+            equal(stableJson(read), stableJson({ kill: each, list: each }),
+                "a death made known at once kept its ties or the fight's from the copies, or the fight's reached them before it "
+                + "(per road: the knife copy's key and flag in the fight; after the death the undecided trace's copy's, then the knife's)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+        }
+    }],
+
+    ["a body's discovery sends only the ties its own death made", async () => {
+        /*
+         * E09 fix r1-G1, 08.10.2026; the round-1 reviews' sec F8. C4's discovery sent every tie of
+         * the chapter to the copies (`publishChapterTies`), so a body found in one room told every
+         * holder what a second death, still kept by the GMs, had tied. An undecided trace of this
+         * chapter with an identified copy on a fourth student; the fight's victim dies kept by the
+         * GMs and the fight is closed; a second student dies kept, outside any fight; then that
+         * second body is found (chapter.mjs `discoverBody`, in a room nobody stands in, the GM's
+         * windows closed at once); then the first death is made known (`publishDeath`). Read: the
+         * second death known and the copy's answer key and flag after the discovery; the key and
+         * the flag after the first death is known. Red at f88133d (A1, 08.10.2026): the key and the
+         * flag tied by the second body's discovery.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [killer, victim, other, holder] = cast(4);
+        const M = await import("./murder.mjs");
+        const { killCharacter, publishDeath, discoverBody, isDeceased, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const ROOM = "SUITE E09 G1 a room nobody stands in";
+        const foundBefore = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        const D = foundry.applications.api.DialogV2;
+        const own = { confirm: Object.getOwnPropertyDescriptor(D, "confirm"), wait: Object.getOwnPropertyDescriptor(D, "wait") };
+        let trace = null, copy = null;
+        try {
+            trace = await placedTrace("a trace the first death ties");
+            copy = trace ? await identifiedCopy(holder, trace, "a copy of a trace the first death ties") : null;
+            must(copy?.identified() && !copy.tie().some(Boolean), "the copy is not identified and untied before the deaths - this would measure nothing");
+            await fightOpen(M, killer, victim);
+            D.confirm = async () => false;
+            D.wait = async () => null;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await M.endMurder({ reason: "test", followUp: false });
+            must(await killCharacter(other, { secret: true, keepBullets: true }), `${other.name}'s death was not kept by the GMs`);
+            await settle();
+            await discoverBody({ room: ROOM, victim: other, scene: canvas.scene });
+            await settle();
+            const found = [isDeceased(other), ...copy.tie()];
+            await publishDeath(victim);
+            await settle();
+            equal(stableJson([found, copy.tie()]), stableJson([[true, false, false], [true, true]]),
+                "a body's discovery sent the ties a death still kept had made, or that death's publication did not "
+                + "(after the discovery: the found body known, the copy's key, its flag; after the first death is known: the key, the flag)");
+        } finally {
+            for (const [name, desc] of Object.entries(own)) {
+                if (desc) Object.defineProperty(D, name, desc); else delete D[name];
+            }
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            for (const body of [victim, other]) if (isDeadForGm(body)) await reviveCharacter(body, { quiet: true });
+            if (stableJson(game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {}) !== stableJson(foundBefore)) {
+                await game.settings.set(MODULE_ID, SETTINGS.bodyFound, foundBefore);
+            }
+            await copy?.drop();
+            if (trace) await dropTrace(trace);
+        }
+    }],
+
+    ["a fight's tie with no death reaches the copies at the fight's close", async () => {
+        /*
+         * E09 fix r1-G1, 08.10.2026; the round-1 reviews' cor F1. A tie written in the fight waits
+         * for the fight's death (`a weapon swung in the fight ...`, above); a fight whose victim
+         * lives, or is killed and revived in it, has none to wait for, and its close sends what it
+         * tied - 1.2.70 sent a weapon's at the swing. Three ties the fight writes, each on a trace
+         * with an identified copy on a third student: a Search's trace that handed the knife over,
+         * its tie asked in the fight (remnants.mjs `tieTraceForItem`); an undecided trace reshaped
+         * in the fight with a tie, as the clean-up's reshape writes it (`retuneRemnant`); and a trace
+         * the killer left in the fight, tied as it is placed (`placeRemnant`). The victim dies kept
+         * by the GMs (the waits go to the death), is revived in the fight still running (they come
+         * back to the fight), and the fight is closed. Read: the three copies' answer keys and
+         * flags in the fight, at the death, after the revival and after the close. Red at f88133d
+         * (A1, 08.10.2026): the knife's copy tied in the fight, the other two untied after the close.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const [killer, victim, holder] = cast(3);
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const identity = `suite-g1-close-${Date.now().toString(36)}`;
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        const traces = [], copies = [];
+        const ties = () => copies.flatMap(c => c.tie());
+        try {
+            traces.push(await placedTrace("the knife's trace, a fight with no death", { action: "search", itemIdentity: identity }),
+                await placedTrace("a trace reshaped in a fight with no death"));
+            must(traces.every(Boolean), "the fixture traces were not placed - this would measure nothing");
+            await fightOpen(M, killer, victim);
+            traces.push(await placedTrace("a trace the killer left in a fight with no death", { sourceActor: killer.id }));
+            for (const trace of traces) if (trace) copies.push(await identifiedCopy(holder, trace, "a copy, a fight with no death"));
+            must(copies.length === 3 && copies.every(c => c?.identified() && !c.tie().some(Boolean)) && R.remnantData(traces[2])?.tiedToCrime === true,
+                "the copies are not identified and untied in the fight, or the trace left in it was not tied - this would measure nothing");
+            must(await R.tieTraceForItem(identity) === 1, "the knife's trace was not tied in the fight - this would measure nothing");
+            await R.retuneRemnant(traces[1].parent.id, traces[1].id, { type: "resolution", tiedToCrime: true });
+            await settle();
+            must(R.remnantData(traces[1])?.tiedToCrime === true, "the reshape did not tie its trace - this would measure nothing");
+            const inFight = ties();
+            D.confirm = async () => false;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await settle();
+            const atDeath = ties();
+            must(await reviveCharacter(victim, { quiet: true }) && M.murderState()?.active,
+                "the victim was not revived in a fight still running - this would measure nothing");
+            await settle();
+            const revived = ties();
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            const none = Array(6).fill(false), all = Array(6).fill(true);
+            equal(stableJson([inFight, atDeath, revived, ties()]), stableJson([none, none, none, all]),
+                "a tie the fight wrote reached its copy before the fight closed, or never at its close (in the fight, at the death, "
+                + "after the revival, after the close: the key and the flag of the knife's copy, the reshaped trace's, the trace left in the fight's)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            for (const c of copies) await c?.drop();
+            for (const trace of traces) if (trace) await dropTrace(trace);
+        }
+    }],
+
+    ["a kept death taken back sends the ties it made to the copies", async () => {
+        /*
+         * E09 fix r1-G1, 08.10.2026. A death the GMs keep ties the chapter's undecided traces in the
+         * ledger and the copies wait for its publication; C4 sent them at the chapter's next
+         * discovery, whoever's, which since this fix sends only its own bodies' ties. A death taken
+         * back once its fight is over (chapter.mjs `reviveCharacter`) will never be published, so it
+         * sends what it held, and the copies agree with the ledger. An undecided trace of this
+         * chapter with an identified copy on a third student; the victim dies kept by the GMs; the
+         * fight is closed; the death is taken back. Read: the copy's answer key and flag after the
+         * close and after the revival. Red at f88133d (A1, 08.10.2026): the key and the flag untied
+         * after the revival.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [killer, victim, holder] = cast(3);
+        const M = await import("./murder.mjs");
+        const R = await import("./remnants.mjs");
+        const { killCharacter, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "confirm");
+        let trace = null, copy = null;
+        try {
+            trace = await placedTrace("a trace a death taken back tied");
+            copy = trace ? await identifiedCopy(holder, trace, "a copy of a trace a death taken back tied") : null;
+            must(copy?.identified() && !copy.tie().some(Boolean), "the copy is not identified and untied before the death - this would measure nothing");
+            await fightOpen(M, killer, victim);
+            D.confirm = async () => false;
+            must(await killCharacter(victim, { secret: true, keepBullets: true }), `${victim.name}'s death was not kept by the GMs`);
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
+            must(R.remnantData(trace)?.tiedToCrime === true, "the death did not tie the fixture trace in the ledger - this would measure nothing");
+            const closed = copy.tie();
+            must(await reviveCharacter(victim, { quiet: true }), `${victim.name}'s death was not taken back`);
+            await settle();
+            equal(stableJson([closed, copy.tie()]), stableJson([[false, false], [true, true]]),
+                "the kept death's tie reached the copy before it was taken back, or never after "
+                + "(the copy's key and flag after the fight's close, then after the revival)");
+        } finally {
+            if (own) Object.defineProperty(D, "confirm", own); else delete D.confirm;
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await copy?.drop();
+            if (trace) await dropTrace(trace);
         }
     }],
 

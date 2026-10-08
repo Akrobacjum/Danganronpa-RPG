@@ -854,7 +854,8 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
  * unanalysed copy is showing "Neutral" and must go on showing it, or a GM's correction would
  * hand the answer to everybody holding one. `remnants.mjs` `setRemnantFlags` and
  * `setRemnantFlagsMany` are the callers: the Investigation Dashboard's Save, a weapon's and a
- * death's ties, the Faint Prep a body discovery promotes.
+ * death's ties, the Faint Prep a body discovery promotes; and `publishTiesFor`, which sends a
+ * weapon's and a death's ties once the death is the table's (E09 fix r1-G1).
  *
  * ONE ROAD FOR THE THREE, AND FAINT ON IT (E09 C2, 08.10.2026; S05-19). Until this commit
  * the tie had two functions of its own (one trace, many) and the kind a third, each saying

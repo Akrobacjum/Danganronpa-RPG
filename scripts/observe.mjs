@@ -25,7 +25,7 @@
  */
 
 import { MODULE_ID, OBSERVE_FAIL_STRESS, PROJECT_OBSERVE, TIMES_OF_DAY, TIMING } from "./config.mjs";
-import { rankForObserve } from "./remnants.mjs";
+import { rankForObserve, tieForCopy } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import { resourceValue } from "./character.mjs";
@@ -924,7 +924,12 @@ async function createFind(actor, entry, isCritical) {
         // Into the bullet's secret; public on the item only once identified -
         // immediately for this critical find, at Analyze for everyone else.
         sourceAction: data.action ?? null,
-        tiedToCrime: Boolean(data.tiedToCrime)
+        // In three states, and undecided while the trace's tie waits for a death nobody has
+        // found, read off the trace as it stands now and not as the Observe was aimed (E09 fix
+        // r1-G1; goal G2a): `Boolean()` gave this copy the ledger's tie whole, and this critical
+        // find shows it at once (tier 2 "a copy made between the death and the discovery holds
+        // the death's tie back until the death is the table's").
+        tiedToCrime: tieForCopy(data, { sceneId: entry.sceneId, tokenId: entry.tokenId })
     });
 
     if (!item) return null;

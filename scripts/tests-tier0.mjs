@@ -5704,6 +5704,10 @@ const REGRESSIONS = [
             // The moved path's promotion, at the world's upgrade mark (E04's fix round): it amends the moved row.
             ["remnants.mjs", "promoteAtMark", ["ifLive"], false],
             ["remnants.mjs", "seedPublicIfMissing", ["weak", "fillOnly"], false],
+            // A tie's wait for a death nobody has found, cleared at its publication and handed on
+            // to a death the GMs keep (E09 fix r1-G1): both amend rows.
+            ["remnants.mjs", "publishTiesFor", ["ifLive"], false],
+            ["remnants.mjs", "handTiesOn", ["ifLive"], false],
             // The traces' old "not tied" read as undecided, once per world (E09 C4): it amends rows,
             // and runs from the stores' hydration and asks `isHydrated` itself.
             ["gm-stores.mjs", "settleTieStates", ["ifLive"], false],
@@ -7196,7 +7200,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#murder.cleanup#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
             ["PACKET gm-bridge.mjs#remnant.place#data", "judged: narrowPlayerRemnant rebuilds a player's trace from a whitelist; C5 decides a Sabotage trace's tie by worksOwnMurder from the GMs' roll row, never the packet"],
             ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: the GMs' roll row (noteFactOfRoll) gives the band (traceBandOf) and, from C5, the sabotaged project and its actor"],
-            ["PACKET gm-bridge.mjs#remnant.tieForItem#identity", "judged: guardTieTraceHolder - only the holder, in the fight; remnants.mjs tieTraceForItem writes the tie, and C4's prep checks it keeps the three states (read in the code)"],
+            ["PACKET gm-bridge.mjs#remnant.tieForItem#identity", "judged: guardTieTraceHolder - only the holder, in the fight; remnants.mjs tieTraceForItem writes the tie, and C4's prep checks it keeps the three states (read in the code); since fix r1-G1 the copies learn it when the death is the table's, or at the fight's close (tieWaitNow)"],
             ["PACKET gm-bridge.mjs#remnant.edit#sceneId", "judged: remnant.edit's guards (E08+E28 C8: the GM re-rates on its own client); E09 adds no read"],
             ["PACKET gm-bridge.mjs#remnant.edit#tokenId", "judged: remnant.edit's guards; E09 adds no read"],
             ["PACKET gm-bridge.mjs#remnant.edit#patch", "judged: narrowed in the run - remove as a flag, a visibility from REMNANT_VISIBILITY_LABELS, a type from a GM only"],
@@ -7446,12 +7450,16 @@ const REGRESSIONS = [
          * tied both. The behaviour is tier 2's ("a victim's death ties the chapter's undecided traces
          * and never one a GM marked not tied"); this holds the shape that cost it: no `Boolean()` on
          * the tie in any of the seven, each source found. All seven flattened it at 8003b86 (A1, 08.10.2026).
+         * E09 fix r1-G1 adds the two copy makers, observe.mjs `createFind` and gm-items.mjs
+         * `bulletFromRemnant` (the round-1 goal review's G2a): both gave a new copy the ledger's tie
+         * through `Boolean()` at f88133d, a death's kept tie included; they read `tieForCopy` now.
          */
         const sources = new Map(await otherSources());
         const READS = [
             ["remnants.mjs", "placeRemnant"], ["remnants.mjs", "remnantData"], ["remnants.mjs", "setRemnantFlags"],
             ["remnants.mjs", "setRemnantFlagsMany"], ["remnants.mjs", "retuneRemnant"],
-            ["cleanup.mjs", "reshapeTrace"], ["cleanup.mjs", "recreationDataFor"]
+            ["cleanup.mjs", "reshapeTrace"], ["cleanup.mjs", "recreationDataFor"],
+            ["observe.mjs", "createFind"], ["gm-items.mjs", "bulletFromRemnant"]
         ];
         const FLAT = /\bBoolean\(\s*[\w.?]*tiedToCrime\s*\)/;
         const empty = [], flat = [];

@@ -37,7 +37,7 @@ import {
 import {
     TRUTH_BULLET_FLAGS, bulletsOf, isTruthBullet, secretOf, dropSecret, faintOf, bulletAsHeld, publishReading
 } from "./truth-bullets.mjs";
-import { remnantsOn, remnantData, setRemnantFlagsMany, publishChapterTies } from "./remnants.mjs";
+import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc }
     from "./utils.mjs";
@@ -300,12 +300,29 @@ export async function incidentVictimDied(actor, chapter) {
     // (tier 2 "a suicide ties the chapter's traces"). And the tie went on to every copy
     // already identified, which climbed to the top of its holder's pack at the death -
     // before anybody had found the body (tier 2 "a death reaches the copies' tie only at
-    // the body's discovery", scenario 10's two "the death's tie" checks). The copies
-    // learn it at the discovery now (`runDiscovery`, remnants.mjs `publishChapterTies`).
+    // the body's discovery", scenario 10's two "the death's tie" checks).
+    //
+    // WHEN THIS DEATH IS THE TABLE'S, WITH THE FIGHT'S (E09 fix r1-G1, 08.10.2026; the
+    // round-1 reviews' cor F3, sec F8). C4 left the sending to the body's discovery, for
+    // the whole chapter: a death made known any other way - the Students list, a kill made
+    // public at once - never reached the copies, and a discovery sent a second death's
+    // kept ties with its own. A death the GMs keep ties with its victim's id and takes
+    // over what the fight held back (a weapon's tie, remnants.mjs `tieWaitNow`), and its
+    // publication sends both (`publishDeath`); a death already public sends them now
+    // (tier 2 "a death the GMs make known from the Students list sends its ties to the
+    // copies", "a death made known at once sends its ties and the fight's to the copies").
     try {
         if (await isIncidentVictim(actor)) {
             const { tieChapterTraces } = await import("./remnants.mjs");
-            await tieChapterTraces(chapter, { propagate: false });
+            const { murderState } = await import("./murder.mjs");
+            const fight = fightKey(murderState());
+            if (isDeceased(actor)) {
+                await tieChapterTraces(chapter);
+                await publishTiesFor(fight);
+            } else {
+                await tieChapterTraces(chapter, { waitFor: actor.id });
+                await handTiesOn(fight, actor.id);
+            }
         }
     } catch (err) {
         error("Could not mark the chapter's traces as tied to the murder", err);
@@ -457,7 +474,9 @@ async function tellDeathKnowers(actor, known = [], { dropped = false } = {}) {
  * death on its own (the owner's Q3, 26.09.2026). Last, each loot of the body before this
  * is given its Truth Bullet, which names the body and so waited in the row (handover.mjs
  * `payOwedLoot`; E05 fix r2-F0b), and each identified copy of the body's loot trace found
- * before this the source it held back (truth-bullets.mjs `publishLootSource`; E05 fix r2-G4).
+ * before this the source it held back (truth-bullets.mjs `publishLootSource`; E05 fix r2-G4);
+ * and the ties to the crime that waited for this death (remnants.mjs `publishTiesFor`; E09 fix
+ * r1-G1), whichever road made it known - the discovery, or a GM's hand here.
  */
 export async function publishDeath(actor) {
     if (!game.user.isGM || !actor) return null;
@@ -476,6 +495,9 @@ export async function publishDeath(actor) {
     const paid = owed.length ? await payOwedLoot(actor, owed) : 0;
     const { publishLootSource } = await import("./truth-bullets.mjs");
     await publishLootSource(lootTraceStore.get(actor.id));
+    // And the ties to the crime that waited for this death, the fight's among them, to the
+    // copies (remnants.mjs `publishTiesFor`; E09 fix r1-G1).
+    await publishTiesFor(actor.id);
     log(`${actor.name}'s death is the table's now (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed, ${paid} owed for a loot given.`);
     return record;
 }
@@ -556,6 +578,16 @@ export async function reviveCharacter(actor, { quiet = false } = {}) {
     if (row) {
         await deathStore.drop(actor.id);
         await tellDeathKnowers(actor, row.known, { dropped: true });
+        // The ties that waited for this death (E09 fix r1-G1): back to the fight still running
+        // over this student, sent otherwise - nothing will make the death known now.
+        try {
+            const { murderState } = await import("./murder.mjs");
+            const state = murderState();
+            if (state?.active && state.victimId === actor.id) await handTiesOn(actor.id, fightKey(state));
+            else await publishTiesFor(actor.id);
+        } catch (err) {
+            error(`Could not settle the ties that waited for ${actor.name}'s death`, err);
+        }
     }
     if (!row || isDeceased(actor)) {
         try {
@@ -793,13 +825,10 @@ async function runDiscovery({ room, victim = null, scene = null } = {}) {
        by the time it is told a body was found. */
     const found = await publishFoundBodies(room, victim, where);
 
-    /* AND OF WHAT THE DEATH TIED (E09 C4; audit S05-37). A victim's death ties the chapter's
-       traces in the ledger and no further (`incidentVictimDied`); the copies students hold
-       take those ties here, once the death is the table's. Every discovery sends them - the
-       incident that made them may be closed by now, and a tie the copies already hold changes
-       nothing (the chapter's, as the clock has it). */
-    await publishChapterTies(getClock()?.chapter)
-        .catch(err => error("Could not send the chapter's ties to the copied bullets", err));
+    /* AND OF WHAT EACH OF THOSE DEATHS TIED, AND NOTHING ELSE (E09 fix r1-G1, 08.10.2026; the
+       round-1 reviews' sec F8). C4 sent every tie of the chapter here, so a discovery sent the
+       ties a second death, still kept, had made (tier 2 "a body's discovery sends only the ties
+       its own death made"). Each body published above sends its own (`publishDeath`). */
 
     const promoted = await promoteFaintPrep();
 

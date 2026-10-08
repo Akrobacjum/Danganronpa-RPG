@@ -969,7 +969,7 @@ function readBulletForm(d) {
  * first, so the next copy of it carries the same name. Answers null when the
  * trace is gone.
  */
-async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById }) {
+async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById, tieForCopy }) {
     const entry = traces.find(t => t.token.id === result.remnantId);
     if (!entry) {
         ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.remnantGone"));
@@ -1028,7 +1028,10 @@ async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, 
         // Both into the bullet's secret; public on the item only once it is
         // identified, like every other tie.
         sourceAction: data.action ?? null,
-        tiedToCrime: Boolean(data.tiedToCrime)
+        // Undecided while the trace's tie waits for a death nobody has found, read off the trace as
+        // it stands now and not as this window opened, as Observe's copy is (remnants.mjs
+        // `tieForCopy`; E09 fix r1-G1): `Boolean()` handed the ledger's tie over.
+        tiedToCrime: tieForCopy(data, { sceneId: scene?.id, tokenId: token.id })
     };
 }
 
@@ -1082,7 +1085,7 @@ async function giveTruthBulletDialog(actor) {
     const recipients = recipientOptions(students, initial.id);
 
     const { remnantsOn, remnantData, traceContextLine, setRemnantPublicById,
-        markRemnantEditedById } =
+        markRemnantEditedById, tieForCopy } =
         await import("./remnants.mjs");
 
     // The scene the GM is looking at. `remnantData` is GM-side by construction -
@@ -1131,7 +1134,7 @@ async function giveTruthBulletDialog(actor) {
     }
 
     const payload = result.mode === "existing"
-        ? await bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById })
+        ? await bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById, tieForCopy })
         : bulletFromForm(result);
     if (!payload) return false;
 
