@@ -2165,18 +2165,19 @@ async function safewordRun(S, player, act, read) {
  * `resolveCleanup` as the bridge calls it, on the erase road unless told otherwise, a price
  * paid on the client unless `price` says none; `since` lists the ids of the tokens made from a
  * mark on; `putBack` deletes every token made while the fixture stood - a trace a Reroll put
- * back, one a botched wipe left - with the bullet, and puts the Sanity back.
+ * back, one a botched wipe left - with the bullet, and puts the Sanity back. `place` (E09 C9)
+ * lays the trace elsewhere: `placeRemnant`'s own fields, over the anchor and the scene on screen.
  */
-async function cleanupFixture(who, note) {
+async function cleanupFixture(who, note, place = {}) {
     const cleanup = await import("./cleanup.mjs");
     const remnants = await import("./remnants.mjs");
     const bullets = await import("./truth-bullets.mjs");
-    const scene = game.scenes.active ?? canvas?.scene;
+    const scene = place.scene ?? game.scenes.active ?? canvas?.scene;
     const anchor = scene?.tokens?.find(t => t.x || t.y);
     const sanity = who.system.resources.stress.value;
     const made = [];
     const hook = Hooks.on("createToken", doc => { made.push(doc); });
-    const trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, note });
+    const trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene, note, ...place });
     const copy = trace ? await bullets.createTruthBullet(who, { name: `${note}, a copy`, realType: "neutral", visibility: "obvious",
         remnantId: trace.id, sceneId: scene.id }) : null;
     const scrub = (total, more = {}) => cleanup.resolveCleanup({ actorId: who.id, tokenId: trace?.id, total, isCritical: false,
@@ -2196,6 +2197,80 @@ async function cleanupFixture(who, note) {
             try { await copy?.delete(); } catch { /* already gone */ }
             await who.update({ "system.resources.stress.value": sanity });
             await settle();
+        }
+    };
+}
+
+/*
+ * A RESHAPE AND THE COPIES ALREADY HELD (E09 C9, 08.10.2026; audit S05-24). `cleanupFixture`'s
+ * trace, described by the GM (`C9_FOUND`) and copied by `who` - the fixture's copy, which the
+ * description reaches - and by each of `holders`. `reshape()` is `who`'s Tamper with
+ * `C9_STORY` and the GM's approval of the card it raises, as the card's button runs it, and
+ * answers the card's words as the GM's browser holds them; `find(player, finder)` is `finder`'s
+ * Observe of their own traces ("followTraces", so the pick is the fixture's: the trace names
+ * `finder` as its source through `place`), with any window of the GM's closed at once;
+ * `words(item)` is a copy as its holder's sheet reads it. `putBack` deletes the copies and the
+ * finds with their answer keys, then everything `cleanupFixture` puts back.
+ */
+const C9_FOUND = Object.freeze({ name: "SUITE C9 a cup on the desk", playerText: "SUITE C9 it was there all along" });
+const C9_STORY = Object.freeze({ name: "SUITE C9 a vase of flowers", text: "SUITE C9 nothing happened in here" });
+async function reshapeCopiesFixture(who, holders, note, place = {}) {
+    const cleanup = await import("./cleanup.mjs");
+    const remnants = await import("./remnants.mjs");
+    const bullets = await import("./truth-bullets.mjs");
+    const observe = await import("./observe.mjs");
+    const { wordsOf } = await import("./secret.mjs");
+    const F = await cleanupFixture(who, note, place);
+    const made = [];
+    if (F.trace) await remnants.setRemnantPublic(F.trace, C9_FOUND);
+    for (const holder of F.trace ? holders : []) {
+        made.push(await bullets.createTruthBullet(holder, { name: C9_FOUND.name, playerText: C9_FOUND.playerText,
+            realType: "neutral", visibility: "obvious", remnantId: F.trace.id, sceneId: F.scene.id }));
+    }
+    await settle();
+    const words = item => {
+        const live = item?.parent?.items?.get(item.id) ?? null;
+        const data = live ? bullets.truthBulletData(live) : null;
+        return data ? [data.name, data.playerText, String(live.system?.description ?? "").includes(C9_FOUND.playerText)] : null;
+    };
+    const copies = [F.copy, ...made];
+    return {
+        ...F, copies, words,
+        reshape: async () => {
+            const had = new Set(game.messages.map(m => m.id));
+            const tried = await F.scrub(30, { mode: "transform", change: C9_STORY });
+            await settle();
+            const said = await Promise.all(game.messages.filter(m => !had.has(m.id)).map(m => wordsOf(m, 2000)));
+            const card = said.find(html => html.includes('data-drpg-call="approveReshape"') && html.includes(`data-trace="${F.trace.id}"`)) ?? null;
+            const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, ...C9_STORY });
+            await settle();
+            return { tried, card, applied };
+        },
+        find: async (player, finder) => {
+            const had = new Set(finder.items.map(i => i.id));
+            const D = foundry.applications.api.DialogV2;
+            const own = Object.getOwnPropertyDescriptor(D, "wait");
+            D.wait = () => Promise.resolve(null);
+            try {
+                const target = await observe.chooseObserveTarget({ actorId: finder.id, declaration: "followTraces", userId: player.id });
+                must(target?.ok, `the Observe found nothing to aim at where the fixture's trace lies: ${stableJson(target)}`);
+                await observe.resolveObserve({ key: target.key, total: 30, isCritical: false });
+                await settle();
+            } finally {
+                if (own) Object.defineProperty(D, "wait", own);
+                else delete D.wait;
+            }
+            const found = finder.items.filter(i => !had.has(i.id));
+            made.push(...found);
+            return found.find(i => bullets.secretOf(i.uuid)?.remnantId === F.trace.id) ?? null;
+        },
+        putBack: async () => {
+            for (const item of made) {
+                const uuid = item?.uuid;
+                try { await item?.delete(); } catch { /* already gone */ }
+                if (uuid) await bullets.dropSecret?.(uuid);
+            }
+            await F.putBack();
         }
     };
 }
@@ -13519,6 +13594,146 @@ const SCENARIOS = [
                 stableJson([true, "resolution", null, null, "prep"]),
                 "the Reroll of an approved reshape did not untie the trace it had tied "
                 + "(tied and type after the approval, the tie the snapshot kept, tied and type after the Reroll)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a reshape leaves the copies already held", async () => {
+        /*
+         * E09 C9, 08.10.2026; audit S05-24, the plan's V4. A killer's reshape, once a GM approved
+         * it, went on from the trace's ledger to every Truth Bullet already copied from it
+         * (remnants.mjs `propagatePublic`): an investigator who had found "a cup on the desk" read
+         * the killer's story on their own bullet. A trace the GM described, copied by the reshaper
+         * and by a second student; the reshaper's Tamper, the card it raises, the GM's approval.
+         * Read: each copy's name, words and whether its description carries the found words; the
+         * ledger's name and words; whether the card the GMs hold counts the two copies, and
+         * whether the card's parts put that count in the GMs' part and not the player's.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who, holder] = cast(2);
+        const { remnantPublic, remnantData } = await import("./remnants.mjs");
+        const { reshapeCardParts } = await import("./cleanup.mjs");
+        const { plural } = await import("./utils.mjs");
+        const F = await reshapeCopiesFixture(who, [holder], "SUITE C9 a reshape and the copies held");
+        try {
+            const found = [C9_FOUND.name, C9_FOUND.playerText, true];
+            must(F.copies.length === 2 && F.copies.every(c => stableJson(F.words(c)) === stableJson(found)),
+                `the copies do not read the found words before the reshape - this would measure nothing: ${stableJson(F.copies.map(F.words))}`);
+            const { card, applied } = await F.reshape();
+            must(card && applied === true, "the Tamper raised no card or the approval was refused - this would measure nothing");
+            const pub = remnantPublic(F.trace);
+            const counted = foundry.utils.escapeHTML(plural("DRPG.Cleanup.reshapeRulingCopies", { n: 2 }));
+            const parts = reshapeCardParts(remnantData(F.trace), { ...C9_STORY, copies: 2 });
+            equal(stableJson([F.copies.map(F.words), [pub?.name, pub?.playerText], card.includes(counted),
+                parts.gmBody.includes(counted), parts.body.includes(counted)]),
+                stableJson([[found, found], [C9_STORY.name, C9_STORY.text], true, true, false]),
+                "an approved reshape rewrote a copy already held, left the ledger as it was, or the card does not count "
+                + "the copies for the GMs alone (each copy's name, words and found description; the ledger's name and words; "
+                + "the card's count; the count in the GMs' part; in the player's part)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["a copy made after it reads the reshaped words", async () => {
+        /*
+         * E09 C9, 08.10.2026; audit S05-24, the plan's V4. The other half of the same rule: what
+         * a reshape changes is what the NEXT finder finds. The trace lies where a player's
+         * character stands, and names that character as its source; the reshaper copies it, the
+         * GM approves the reshape, then that character Observes the room (observe.mjs `createFind`,
+         * which reads the ledger). Read: the reshaper's copy, found before, and the new copy.
+         * Red at the code before C9 by its first half: the copy held before read the story too.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const students = cast(3);
+        const { player, actor: finder, where } = await playerInRoom();
+        const [who] = students.filter(a => a.id !== finder.id);
+        const F = await reshapeCopiesFixture(who, [], "SUITE C9 a copy made after a reshape",
+            { scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, sourceActor: finder.id });
+        try {
+            const found = [C9_FOUND.name, C9_FOUND.playerText, true];
+            must(stableJson(F.words(F.copy)) === stableJson(found), "the copy does not read the found words before the reshape - this would measure nothing");
+            const { applied } = await F.reshape();
+            must(applied === true, "the approval was refused - this would measure nothing");
+            const after = await F.find(player, finder);
+            must(after, "the finder's Observe made no copy of the fixture's trace - this would measure nothing");
+            equal(stableJson([F.words(F.copy), F.words(after)?.slice(0, 2)]), stableJson([found, [C9_STORY.name, C9_STORY.text]]),
+                "the copy held before the reshape was rewritten, or the copy found after it does not read the reshaped words "
+                + "(the held copy's name, words and found description; the new copy's name and words)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["the Undo restores the trace and leaves the copies", async () => {
+        /*
+         * E09 C9, 08.10.2026; audit S05-24, the plan's V4. A Reroll that takes an approved reshape
+         * back puts the trace's words back (cleanup.mjs `undoLastCleanup`), and that write went on
+         * to every copy as well. The copies held before the reshape kept their words through it, so
+         * there is nothing on them to take back; a copy found between the reshape and the Reroll
+         * read the reshaped words, and keeps them - what its finder found (the plan's "Left").
+         * The trace where a player's character stands, copied by the reshaper; the reshape
+         * approved; that character's Observe; the Tamper rerolled to a miss. Read: the trace's
+         * kind and words after the Reroll, the copy held before, the copy found between.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const students = cast(3);
+        const { player, actor: finder, where } = await playerInRoom();
+        const [who] = students.filter(a => a.id !== finder.id);
+        const { remnantData, remnantPublic } = await import("./remnants.mjs");
+        const F = await reshapeCopiesFixture(who, [], "SUITE C9 a reshape taken back",
+            { scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, sourceActor: finder.id });
+        try {
+            const found = [C9_FOUND.name, C9_FOUND.playerText, true];
+            const { applied } = await F.reshape();
+            must(applied === true, "the approval was refused - this would measure nothing");
+            const between = await F.find(player, finder);
+            must(between, "the finder's Observe made no copy of the fixture's trace - this would measure nothing");
+            await F.scrub(0, { mode: "transform", change: C9_STORY, undo: true });
+            await settle();
+            const pub = remnantPublic(F.trace);
+            equal(stableJson([remnantData(F.trace)?.type, [pub?.name, pub?.playerText], F.words(F.copy), F.words(between)?.slice(0, 2)]),
+                stableJson(["prep", [C9_FOUND.name, C9_FOUND.playerText], found, [C9_STORY.name, C9_STORY.text]]),
+                "the Reroll of an approved reshape did not put the trace back, or wrote on a copy already held "
+                + "(the trace's kind and words; the copy held before; the copy found between)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
+    ["an erase's Reroll puts a reshaped trace back and leaves the copies", async () => {
+        /*
+         * E09 C9, 08.10.2026; audit S05-24. The other Undo: a Reroll that takes an erase back
+         * places the trace again under its id with the words it had (cleanup.mjs
+         * `undoLastCleanup`'s `erased`), and that write went on to every copy as well - so a trace
+         * reshaped and then erased put the killer's story onto the copies found before the
+         * reshape the moment the erase was rerolled. A trace the GM described, copied by the
+         * reshaper and a second student; the reshape approved; the reshaper's erase, then its
+         * Reroll to a miss. Read: whether the trace stands again, its words, and each copy.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture trace is placed on the scene on screen");
+        const [who, holder] = cast(2);
+        const { remnantPublic } = await import("./remnants.mjs");
+        const F = await reshapeCopiesFixture(who, [holder], "SUITE C9 a reshaped trace erased and rerolled");
+        try {
+            const found = [C9_FOUND.name, C9_FOUND.playerText, true];
+            const { applied } = await F.reshape();
+            must(applied === true, "the approval was refused - this would measure nothing");
+            const id = F.trace.id;
+            const erased = await F.scrub(30);
+            await settle();
+            must(erased?.removed === true && !F.scene.tokens.get(id), `the erase did not remove the trace - this would measure nothing: ${stableJson(erased)}`);
+            await F.scrub(0, { undo: true });
+            await settle();
+            const back = F.scene.tokens.get(id) ?? null;
+            const pub = back ? remnantPublic(back) : null;
+            equal(stableJson([Boolean(back), [pub?.name, pub?.playerText], F.copies.map(F.words)]),
+                stableJson([true, [C9_STORY.name, C9_STORY.text], [found, found]]),
+                "the erase's Reroll did not put the reshaped trace back, or wrote its words on a copy already held "
+                + "(the trace standing; its words; each copy's name, words and found description)");
         } finally {
             await F.putBack();
         }

@@ -1131,8 +1131,14 @@ export function publicOf(entry) {
  * object, one lab reading, however many people are carrying a copy - and that
  * is the same argument that put `playerText` here rather than on each bullet.
  * `propagateRemnantPublic` is where the two roads part.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.propagate=true]  `false` leaves the Truth Bullets already copied
+ *   from the trace as their finders found them: the ledger takes the patch, and the token is
+ *   still kept neutral (`propagatePublic`). A killer's reshape, approved, and the Reroll that
+ *   takes a clean-up back pass it (cleanup.mjs `reshapeTrace`, `undoLastCleanup`; E09 C9).
  */
-export async function setRemnantPublic(tokenDoc, patch = {}) {
+export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
     const key = keyOf(tokenDoc);
     if (!key || !remnantStore.has(key)) return null;
@@ -1144,7 +1150,7 @@ export async function setRemnantPublic(tokenDoc, patch = {}) {
        GM's write took the first one's back with it. */
     await setRemnantSecret(tokenDoc, { public: patch }, { ifLive: true });
     const merged = remnantPublic(tokenDoc);
-    await propagatePublic(tokenDoc, merged);
+    await propagatePublic(tokenDoc, merged, { copies: propagate });
     return merged;
 }
 
@@ -1165,13 +1171,24 @@ export async function setRemnantPublic(tokenDoc, patch = {}) {
  * an earlier build left on the token is put back, here and once for the whole world
  * by the clause `neutralTraceNames` - but for a token that still carries its answer
  * key (`saysMore`).
+ *
+ * THE COPIES ALREADY HELD ARE THEIR FINDERS' (E09 C9, 08.10.2026; audit S05-24). A Truth
+ * Bullet is what its holder found, and a killer's reshape, once a GM approved it, renamed
+ * and reworded every copy already on a sheet: an investigator who had found and analysed a
+ * trace read the killer's name and words on their own bullet (scenario 62's T6 at the code
+ * before C9, 08.10.2026: p1's copy and the reshaper's own). `copies: false`
+ * (`setRemnantPublic`'s `propagate`) leaves them and keeps the token's half below; whoever
+ * finds the trace afterwards is given the new words (observe.mjs `createFind` reads the
+ * ledger).
  */
-async function propagatePublic(tokenDoc, pub) {
-    try {
-        const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
-        await propagateRemnantPublic(tokenDoc.id, pub);
-    } catch (err) {
-        error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
+async function propagatePublic(tokenDoc, pub, { copies = true } = {}) {
+    if (copies) {
+        try {
+            const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
+            await propagateRemnantPublic(tokenDoc.id, pub);
+        } catch (err) {
+            error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
+        }
     }
 
     if (!saysMore(tokenDoc)) return;

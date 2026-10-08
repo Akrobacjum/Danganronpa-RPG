@@ -76,13 +76,13 @@ import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // What this character has copied into their inventory as a Truth Bullet, which
 // is this module's only record of "they know this trace is there".
-import { copiedRemnants, bulletsOf, secretOf } from "./truth-bullets.mjs";
+import { copiedRemnants, bulletsOf, secretOf, heldCopiesOf } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { trustedWrite } from "./resource-guard.mjs";
 import {
     announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
-    dialogContent, log, error, cardHead, isPrimaryGm } from "./utils.mjs";
+    dialogContent, log, error, cardHead, isPrimaryGm, plural } from "./utils.mjs";
 
 // Veiled, every one of them: a Stage 6 card's speaker is the killer and its
 // audience is the incident, and the document must not say so. See murder.mjs.
@@ -804,6 +804,16 @@ export function plainText(value, max) {
  *
  * The undo snapshot carries both, or a Reroll would put the type back and leave
  * the killer's sentence standing on a roll that no longer produced it.
+ *
+ * THE TRACE, NOT THE COPIES ALREADY HELD (E09 C9, 08.10.2026; audit S05-24). The words
+ * went on through `propagateRemnantPublic` to every Truth Bullet copied from the trace,
+ * so an approved reshape renamed and reworded what other players had found and read -
+ * measured in scenario 62's phase T at the code before C9 (08.10.2026): p1's copy, found
+ * and analysed before p2's reshape, read the reshaped name and words, and so did p2's own.
+ * A copy is what its finder found; the reshape is what the next finder finds. The ledger
+ * takes the story, the copies keep theirs (`propagate: false`), and the card the GMs
+ * approve says how many that is (`reshapeCardParts`). Tier 2 "a reshape leaves the copies
+ * already held".
  */
 async function reshapeTrace(token, data, {
     name = "", text = "", softer = null, tie = false, receipt = null, done = []
@@ -859,7 +869,7 @@ async function reshapeTrace(token, data, {
     const story = {};
     if (name) story.name = name;
     if (text) story.playerText = text;
-    if (Object.keys(story).length) await setRemnantPublic(token, story);
+    if (Object.keys(story).length) await setRemnantPublic(token, story, { propagate: false });
 
     done.push(game.i18n.format("DRPG.Cleanup.reshaped", {
         from: `${data.visibilityLabel} ${data.typeLabel}`,
@@ -887,10 +897,12 @@ async function reshapeTrace(token, data, {
  * and a line about them in the third person meant for the GM. They are `gmBody` now,
  * which the card on a player's screen leaves out (COMM-06) - and since E06 C7b is not
  * sent to that player's browser at all. Since E06 C8 the card is veiled (`callGm`'s
- * `veiled`): its document names neither the thread nor the player (S05-15). Pure, for
- * the suite.
+ * `veiled`): its document names neither the thread nor the player (S05-15). Since E09 C9
+ * the GMs' part also counts the Truth Bullets already copied from the trace (`copies`,
+ * truth-bullets.mjs `heldCopiesOf`), which an approval leaves as they were found: how many
+ * others hold a copy is the answer key's, not the player's. Pure, for the suite.
  */
-export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false } = {}) {
+export function reshapeCardParts(data, { name = "", text = "", softer = null, tie = false, copies = 0 } = {}) {
     const esc = foundry.utils.escapeHTML;
     const becomes = CLEANUP.transformAction?.becomes ?? "resolution";
     const was = `${data.visibilityLabel} ${data.typeLabel}`;
@@ -902,7 +914,8 @@ export function reshapeCardParts(data, { name = "", text = "", softer = null, ti
         softer ? `<br>${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingQuieter"))}` : ""
     ].join("");
     const gmBody = `<p>${esc(game.i18n.format("DRPG.Cleanup.reshapeRulingWas", { was, now }))}${
-        tie ? `<br><span class="drpg-warning">${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""}</p>`;
+        tie ? `<br><span class="drpg-warning">${esc(game.i18n.localize("DRPG.Cleanup.reshapeRulingTies"))}</span>` : ""}${
+        copies > 0 ? `<br>${esc(plural("DRPG.Cleanup.reshapeRulingCopies", { n: copies }))}` : ""}</p>`;
     return { body, gmBody };
 }
 
@@ -933,7 +946,7 @@ export function reshapeCardParts(data, { name = "", text = "", softer = null, ti
 async function proposeReshape(actor, token, data, {
     name = "", text = "", softer = null, tie = false, done = [], erases = false, attempt = ""
 } = {}) {
-    const { body, gmBody } = reshapeCardParts(data, { name, text, softer, tie });
+    const { body, gmBody } = reshapeCardParts(data, { name, text, softer, tie, copies: heldCopiesOf(token.id) });
 
     const { callGm } = await import("./gm-bridge.mjs");
     const sent = await callGm(actor, {
@@ -2526,7 +2539,9 @@ async function undoLastCleanup(actor, tokenId) {
             data.tiedToCrime = receiptTie(actor.id, "erased", data.tiedToCrime);
             // Under the id it had (`recreationDataFor`).
             const back = await placeRemnant(data, { keepId: true });
-            if (back && pub) await setRemnantPublic(back, pub);
+            // The words it had, onto the ledger alone: the copies already held kept theirs
+            // through the erase, and through a reshape before it (E09 C9, `reshapeTrace`).
+            if (back && pub) await setRemnantPublic(back, pub, { propagate: false });
             // Marked as put back: a later Reroll does not lift or retune it, found
             // or not (`removalRefusal`, asked by reroll.mjs `traceKept`).
             if (back) {
@@ -2563,10 +2578,14 @@ async function undoLastCleanup(actor, tokenId) {
                 ? game.scenes.get(receipt.transformed.sceneId) : canvas?.scene;
             const tokenDoc = scene?.tokens?.get(receipt.transformed.id);
             if (tokenDoc) {
+                // The ledger alone (E09 C9): the reshape left the copies already held as they
+                // were found, so there is nothing on them to take back. A copy found between the
+                // reshape and this Reroll keeps the words its finder read (tier 2 "the Undo
+                // restores the trace and leaves the copies").
                 await setRemnantPublic(tokenDoc, {
                     name: back?.name ?? game.i18n.localize("DRPG.Remnant.tokenName"),
                     playerText: back?.playerText ?? ""
-                });
+                }, { propagate: false });
             }
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up rewrote", err);

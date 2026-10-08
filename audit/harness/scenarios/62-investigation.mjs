@@ -16,8 +16,10 @@
  *      no GM body (S05-34, asserted closed).
  *   N  p1 Analyzes the copy: read on p1, it shows its type and the reading the GM wrote.
  *   T  p2 finds the same trace (a general Observe) and reshapes it (Tamper, "transform");
- *      the GM approves the card, and p1's copy is renamed with it - today's behaviour, the
- *      line E09 C9 flips (a reshape leaves the copies already held).
+ *      the GM's card counts the two copies already held, the GM approves it, the GMs' ledger
+ *      takes the story, and p1's and p2's copies keep the name and words they were found with
+ *      (E09 C9: a reshape leaves the copies already held). On the code before C9 (08.10.2026)
+ *      both copies read the reshaped name and words, and the card counted nothing.
  *   V  (E09 C2) the GM's verdicts on the tied trace reach the copies: a Faint reaches both
  *      copies' answer keys on both GMs and the item of p1's analysed copy, not p2's; and p2's
  *      console gives its unanalysed copy `analyzed`, the GM rewrites the trace's reading as
@@ -74,7 +76,9 @@
  * C3's phase D, 28 in 8.9 s (the same count, one run, 08.10.2026); with E09 C7's phase K, 31 in
  * 11.8 s (17.6 s with the cluster's start, one run, 08.10.2026); with E09 C8's reveal half of
  * phase E, 33 in 13.1 s (20 s with the cluster's start, one run, 08.10.2026); with E09 fix r1-G3's
- * phase P, 36 in 17.6 s (24.7 s with the cluster's start, one run, 08.10.2026).
+ * phase P, 36 in 17.6 s (24.7 s with the cluster's start, one run, 08.10.2026); with E09 C9's
+ * phase T, 38 in 21.0 s (the cluster's own count, one run, 08.10.2026), two 3-second waits of
+ * it for a renaming of p1's and p2's copies that no longer comes.
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -249,8 +253,10 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         const approved = await gm.eval(`${until}
             const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
             const { wireCallActions } = await import("${repoUrl}/scripts/messenger-app.mjs");
+            const { plural } = await import("${repoUrl}/scripts/utils.mjs");
             const find = () => game.messages.contents.find(m => !globalThis.__s62had.has(m.id) && String(contentOf(m) ?? "").includes('data-drpg-call="approveReshape"'));
             const card = await until(find, 20000);
+            const counted = Boolean(card) && String(contentOf(card) ?? "").includes(foundry.utils.escapeHTML(plural("DRPG.Cleanup.reshapeRulingCopies", { n: 2 })));
             let clicked = false;
             if (card) {
                 const body = document.createElement("div");
@@ -260,17 +266,25 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
                 button?.click();
                 clicked = Boolean(button);
             }
-            return { card: Boolean(card), clicked };`, { timeout: 60000 });
+            return { card: Boolean(card), clicked, counted };`, { timeout: 60000 });
         verdict("the GM is shown the reshape and approves it from the card", approved.card && approved.clicked, J(approved));
+        verdict("the card tells the GM that the two copies already held, p1's and p2's, keep their words", approved.counted, J(approved));
 
-        const renamed = await p1.eval(`${until} ${TB}
-            const copy = TB.bulletsOf(game.actors.get("${IDS.aiko}"))[0];
-            await until(() => copy?.name === ${J(MARK.reshapedName)}, 15000);
+        const ledger = await gm.eval(`${until}
+            const R = await import("${repoUrl}/scripts/remnants.mjs");
+            const pub = () => R.remnantPublic(game.scenes.get("${IDS.scene}").tokens.get("${ids.tied}"));
+            await until(() => pub()?.name === ${J(MARK.reshapedName)}, 15000);
+            return { name: pub()?.name ?? null, playerText: pub()?.playerText ?? null };`, { timeout: 30000 });
+        verdict("the GMs' ledger takes the reshaped name and words", ledger.name === MARK.reshapedName && ledger.playerText === MARK.reshapedText, J(ledger));
+        // Nothing should move on the copies: a bounded wait for the renaming the code before C9 made.
+        const keptBy = (client, actor) => client.eval(`${until} ${TB}
+            const copy = TB.bulletsOf(game.actors.get("${actor}"))[0];
+            await until(() => copy?.name === ${J(MARK.reshapedName)}, 3000);
             const data = copy ? TB.truthBulletData(copy) : null;
             return { name: data?.name ?? null, playerText: data?.playerText ?? null };`, { timeout: 30000 });
-        // Today's renaming (propagateRemnantPublic): E09 C9 flips this to "a reshape leaves the copies already held".
-        verdict("p1's copy, found before the reshape, now reads the reshaped name and words (today's renaming; C9 flips it)",
-            renamed.name === MARK.reshapedName && renamed.playerText === MARK.reshapedText, J(renamed));
+        const kept = { p1: await keptBy(p1, IDS.aiko), p2: await keptBy(p2, IDS.botan) };
+        verdict("p1's copy, found and analysed before the reshape, and p2's own keep the name and words they were found with",
+            ["p1", "p2"].every(side => kept[side].name === MARK.name && kept[side].playerText === MARK.playerText), J(kept));
         const thread = await p2.eval(`const { contentOf } = await import("${repoUrl}/scripts/secret.mjs");
             const fresh = game.messages.contents.filter(m => !globalThis.__s62had.has(m.id));
             return { fresh: fresh.length, gmBodies: fresh.filter(m => String(contentOf(m) ?? "").includes("drpg-gm-only")).length };`);

@@ -266,6 +266,17 @@ function copiesInKey(matches) {
 }
 
 /**
+ * How many copies of a trace the answer key lists (E09 C9, 08.10.2026; audit S05-24): the number
+ * the reshape card gives the GMs, of the copies an approval leaves as their finders found them
+ * (cleanup.mjs `reshapeCardParts`). Counted as `copiesInKey` finds them, so a copy whose category
+ * its holder took off counts. GM-side, like the key: 0 anywhere else.
+ */
+export function heldCopiesOf(remnantTokenId) {
+    if (!game.user.isGM || !remnantTokenId) return 0;
+    return copiesInKey(row => row.remnantId === remnantTokenId).length;
+}
+
+/**
  * Can this bullet still be analysed, by whoever is holding it?
  *
  * Two ways to be out: it is already identified, or this copy was burned on a

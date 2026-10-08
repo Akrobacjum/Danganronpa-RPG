@@ -1266,6 +1266,12 @@
       "reshapeRulingWas": "{was} stanie się {now}.",
       "reshapeRulingQuieter": "Rzut był na tyle dobry, że ślad będzie też o jeden stopień trudniejszy do zauważenia.",
       "reshapeRulingTies": "Ta osoba to zabójca, więc zgoda oznaczy też ślad jako powiązany z morderstwem.",
+      "reshapeRulingCopies": {
+        "one": "Zgoda nie zmienia {n} Truth Bulleta skopiowanego już z tego śladu: czyta się tak, jak go znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa.",
+        "few": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego śladu: czytają się tak, jak je znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa.",
+        "many": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego śladu: czytają się tak, jak je znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa.",
+        "other": "Zgoda nie zmienia {n} Truth Bulletów skopiowanych już z tego śladu: czytają się tak, jak je znaleziono. Kto znajdzie ślad później, przeczyta nowe słowa."
+      },
       "reshapeApprove": "Niech tak się czyta",
       "reshapeDecline": "Zostaje, jak jest",
       "reshapeWaiting": "Ślad przerobiony na „{name}”. Dopóki GM nie zdecyduje inaczej, czyta się tak jak przedtem.",
