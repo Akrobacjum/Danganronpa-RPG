@@ -1571,7 +1571,7 @@
       "leftoverKeys": "{n} Key Remnant(s) from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.",
       "finalFoundBy": "Found by",
       "finalNobody": "Nobody has found it",
-      "chargeTooLate": "The clock has already moved to chapter {now}, and the last case was closed in chapter {was}: this chapter has no case of its own to count unfound Key Remnants against, so nothing was charged.",
+      "chargeTooLate": "The clock has already moved to chapter {now}, and the last case was chapter {was}'s: this chapter has no case of its own to count unfound Key Remnants against, so nothing was charged.",
       "traceAnalysis": "What analysis reveals"
     },
     "Live": {
@@ -2487,6 +2487,7 @@
         "roll.draw": "A roll for the GM to throw",
         "roll.grant": "A grant of rolls thrown with no GM connected",
         "audit.decide": "A GM's decision on a sheet change flagged to the GMs",
+        "keys.charge": "The Key fee charged as a Class Trial opens",
         "reroll.ask": "Reroll",
         "card.post": "A card for the GM to post",
         "searchTokens.spend": "Spend a search token",

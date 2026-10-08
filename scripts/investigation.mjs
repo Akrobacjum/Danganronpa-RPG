@@ -33,7 +33,7 @@ import {
     confirmClearFaint,
     traceContextLine
 } from "./remnants.mjs";
-import { bulletsOf, isTruthBullet, secretOf, truthBulletData, TRUTH_BULLET_FLAGS } from "./truth-bullets.mjs";
+import { bulletsOf, isTruthBullet, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { livingStudentsForGm, sweepPlan, sweepTruthBullets } from "./chapter.mjs";
 import {
@@ -42,6 +42,7 @@ import {
 import { alreadyOpen, keepLive, keepFresh, drawnOf, heldIn, isDirty } from "./live.mjs";
 import { keyPlanStore, remnantStore } from "./gm-stores.mjs";
 import { murderState } from "./incident-store.mjs";
+import { bridgeRequest } from "./bridge-guards.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -77,8 +78,8 @@ function chapterRows(chapter) {
 }
 
 /**
- * Every chapter a case was closed in, as this GM's browser holds their case rows
- * (`recordCaseKeys`), newest first. What `chargeForUnfoundKeys` asks whether the trial
+ * Every chapter a case was closed for - the one it opened in since E09 fix r1-G3 - as
+ * this GM's browser holds their case rows (`recordCaseKeys`), newest first. What `chargeForUnfoundKeys` asks whether the trial
  * opening now is too late for (E09 C7): the slots' chapters, which it asked until then
  * (`plannedChapters`, gone with C7), were written by any Save of the planner.
  */
@@ -276,12 +277,19 @@ export async function clearKeyPlan() {
  * clock back to 1 - the chapter the season was ending on, shown again once a new season's
  * clock reaches that number, exactly as 1.2.63's did. Called on the primary alone
  * (`wipeSeason` is), so `dropMany` needs no `clearKeyPlan`-style branch for another GM.
- * The kept chapter's case row (`recordCaseKeys`, E09 C6) is kept with its slots: it is the
- * size of the case those slots were planned for.
+ *
+ * THE KEPT CHAPTER'S CASE ROW GOES WITH THE SEASON (E09 fix r1-G3, 08.10.2026; the round-1
+ * correctness review's F8). E09 C6 kept it with the slots, as the size of the case they were
+ * planned for - but that case is the old season's, and `caseKeyCount` reads the row before a
+ * running incident's own count: a new season's case in the kept chapter read the old one's
+ * (tier 2, "a season reset clears the case's Key count whether it keeps the plan or not ...",
+ * red before this fix on 08.10.2026: the kept chapter's dashboard still drew the old case's limit
+ * of three, and a new case of five there read 3). The slots stay; the next case's close writes
+ * its own row.
  */
 export async function keepOnlyKeyPlanChapter(chapter) {
     if (!game.user.isGM) return 0;
-    const drop = Object.keys(keyPlanStore.entries()).filter(key => Number(key.split(":")[0]) !== Number(chapter));
+    const drop = Object.keys(keyPlanStore.entries()).filter(key => isCaseKey(key) || Number(key.split(":")[0]) !== Number(chapter));
     if (drop.length) await keyPlanStore.dropMany(drop);
     return drop.length;
 }
@@ -295,10 +303,13 @@ export async function keepOnlyKeyPlanChapter(chapter) {
  * limit any more and let the GM plan five. The close keeps the number here, a row of the Key
  * Remnant plan's store beside the chapter's slots, `${chapter}:case` - a GM store, on GM
  * browsers only, and written by the GM who closes. The slot readers do not take it
- * (`chapterRows` reads integer slots; `plannedChapters`, until E09 C7, skipped it), a season reset that keeps
- * the plan keeps it with its chapter, and one that does not clears it with the rest.
+ * (`chapterRows` reads integer slots; `plannedChapters`, until E09 C7, skipped it), and a
+ * season reset takes it whether it keeps the plan or not (`keepOnlyKeyPlanChapter`, since
+ * E09 fix r1-G3). Kept under the chapter the incident opened in since that fix
+ * (murder-rules.mjs `closeIncident` reads the state's `chapter`): the clock's at the close
+ * until then, so a case closed once the clock had moved on was kept under the next chapter.
  *
- * @param {number} chapter  The chapter the case was closed in.
+ * @param {number} chapter  The chapter the case was opened in (an incident opened before E09 fix r1-G3: the clock's at its close).
  * @param {number} keys     The incident's `keyRemnants`.
  * @returns {Promise<boolean>} Whether a row was written.
  */
@@ -313,7 +324,11 @@ export async function recordCaseKeys(chapter, keys) {
  * while an incident runs and before its close the incident's own count, or null - no case yet,
  * "plan freely". The row first: once a case is closed its count is the one its opening roll
  * gave, and the incident state is empty, or a later incident's of the same chapter (a
- * betrayal's), whose own close writes the row again.
+ * betrayal's), whose own close writes the row again. The running incident's count is the
+ * chapter's it opened in alone since E09 fix r1-G3 (the state's `chapter`, murder-rules.mjs
+ * `freshIncidentState`): until then a clock moved on while it ran handed the next chapter
+ * the case's count - its planner's limit and its trial's bar. An incident opened before that
+ * fix names no chapter and counts for the one asked, as before.
  *
  * @param {number} [chapter]  The clock's chapter by default.
  * @returns {number|null}
@@ -321,8 +336,10 @@ export async function recordCaseKeys(chapter, keys) {
 export function caseKeyCount(chapter = getClock().chapter) {
     const kept = game.user?.isGM ? keyPlanStore.get(caseKey(chapter))?.keys : null;
     if (Number.isFinite(kept)) return kept;
-    const live = murderState()?.keyRemnants;
-    return Number.isFinite(live) ? live : null;
+    const live = murderState();
+    if (!Number.isFinite(live?.keyRemnants)) return null;
+    const own = live.chapter === undefined || live.chapter === null || Number(live.chapter) === Number(chapter);
+    return own ? live.keyRemnants : null;
 }
 
 /** Every Key Remnant currently on the map, across every scene. */
@@ -345,10 +362,17 @@ function placedKeyRemnants() {
  * arrives identified, but a GM who issued one by hand as "unidentified" would
  * otherwise vanish from this count - and this count is what decides whether the
  * trial is solvable.
+ *
+ * THE LIVING, FOR THE GMS (E09 fix r1-G3, 08.10.2026; the round-1 goal review's S05-16,
+ * decision Q2 (a)): what reached the trial, as the fee counts it (`keyFeeOf`) and "Who has
+ * what" lists it (`evidenceByStudent`). Every student was walked until then, so the find of
+ * a student dead for the GMs was "found" through `keyPlanStatus` - on the Key tab (its
+ * "Found by", its summary, the thin-case warning), on the GM's line of a body's discovery
+ * (events.mjs) and in the panel's "start the trial" (gm-panel.mjs) - while the fee charged for it.
  */
 function findersByRemnant() {
     const map = new Map();
-    for (const actor of studentActors()) {
+    for (const actor of livingStudentsForGm()) {
         for (const item of bulletsOf(actor)) {
             const secret = secretOf(item.uuid);
             if (secret.realType !== "key" || !secret.remnantId) continue;
@@ -435,7 +459,13 @@ export function keyPlanStatus() {
  *          type and the trace), and the chapter's by its trace's row (`remnantStore`, an
  *          unstamped row is the clock's chapter, as the planner's off-plan count reads it) or,
  *          where the trace is gone - wiped, or deleted by a GM after it was found - by the
- *          chapter the copy was found in, its own stamp.
+ *          chapter its answer key names (`chapter`, written with it: truth-bullets.mjs
+ *          `createTruthBullet`, `foundIn`). Until E09 fix r1-G3 (the round-1 reviews' F2)
+ *          that was the item's own stamp, a flag its holder writes and no audit judges:
+ *          rewritten to the clock's chapter, or removed - an unstamped copy read as the
+ *          clock's - it made an earlier chapter's Key one found in this chapter. A copy
+ *          whose answer key names no chapter, made before that fix, is found in none once
+ *          its trace is gone.
  *   held   copies the GMs hold whose answer key this browser lacks: the count would come out
  *          short, so the charge holds (E04, `bulletsWithoutAnswer`'s rule on the GMs' items).
  *
@@ -444,9 +474,10 @@ export function keyPlanStatus() {
  * (`itemsHeldNow`), so a Key copy a player's write made, which the GMs do not hold, counts
  * nothing and holds nothing while its judgement is on its way. The wait holds up nothing that
  * holds it up: the charge starts from a phase change (clock.mjs `reconcilePhase`), and no
- * judgement waits for one. The marks are the primary GM's: on another GM (an assistant who
- * moved the phase, which `reconcilePhase` lets any GM do) `itemsHeldNow` reads the documents,
- * as every road through it does there.
+ * judgement waits for one. The marks are the primary GM's, and since E09 fix r1-G3 the
+ * charge is made there whichever GM moved the phase (`askToChargeForUnfoundKeys`); asked on
+ * another GM - a console's call - `itemsHeldNow` reads the documents, as every road through
+ * it does there.
  *
  * @param {number} [chapter]  The clock's chapter by default.
  * @returns {Promise<{chapter: number, bar: number, found: number, short: number, held: number}|null>}
@@ -470,8 +501,8 @@ export async function keyFeeOf(chapter = getClock().chapter) {
             }
             if (secret.realType !== "key" || !secret.remnantId || !living.has(actor.id)) continue;
             const trace = remnantStore.get(`${secret.sceneId}.${secret.remnantId}`);
-            const stamp = trace ? trace.chapter : item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter);
-            if (Number(stamp ?? now) === now) found.add(secret.remnantId);
+            const foundIn = trace ? trace.chapter ?? now : secret.chapter ?? null;
+            if (foundIn !== null && Number(foundIn) === now) found.add(secret.remnantId);
         }
     }
     const count = caseKeyCount(now);
@@ -503,6 +534,9 @@ export async function keyFeeOf(chapter = getClock().chapter) {
  * much the table missed, and telling them at the top of the trial would hand
  * them a number they were supposed to earn by arguing.
  *
+ * ON THE PRIMARY GM since E09 fix r1-G3: a trial's opening asks it there
+ * (`askToChargeForUnfoundKeys`, below), so another GM runs this only from a console.
+ *
  * @returns {Promise<object|null>} what was paid, or null when nothing was.
  */
 export async function chargeForUnfoundKeys() {
@@ -524,7 +558,8 @@ export async function chargeForUnfoundKeys() {
        while another had some, was too late. But any Save of the planner writes a row (of
        every slot, until E09 C3), so a chapter-2 trial after a chapter-1 plan charged nothing
        without a Save and charged after one. Too late is now what the case says: the newest
-       chapter a case was closed in (`recordCaseKeys`, E09 C6) is earlier than the clock's,
+       chapter a case was closed for (`recordCaseKeys`, E09 C6; the chapter it opened in
+       since E09 fix r1-G3, whatever the clock read at its close) is earlier than the clock's,
        and the clock's chapter has no case of its own, closed or running (`caseKeyCount`).
        A world where no case has been closed is charged against the bar, as it always was. */
     const now = Number(getClock().chapter);
@@ -575,6 +610,23 @@ export async function chargeForUnfoundKeys() {
     }
     log(`G-32: ${short} Key Remnant(s) unfound of ${fee.bar} - ${amount} Despair to each of ${paid.length} pool(s).`);
     return { short, amount, pools: paid };
+}
+
+/**
+ * THE KEY FEE, CHARGED ON THE PRIMARY GM (E09 fix r1-G3, 08.10.2026; the round-1 goal review's
+ * G3a). A trial opens through `setClock` on whichever GM moved the phase (clock.mjs
+ * `reconcilePhase`), and the charge ran there until this fix - while `keyFeeOf` reads the
+ * GMs' marks on the primary alone (sheet-audit.mjs `itemsHeldNow`) and the documents on any
+ * other GM. Measured in scenario 62's phase P (08.10.2026): beside two finds of a case of three,
+ * a Key copy the GMs' mark does not hold, and gm2 opens the trial - before this fix the pools
+ * moved by 0 in each of three runs, because gm2 counted that copy as a bullet with no answer
+ * key and held the charge (its `keyFeeOf` held 1, the primary's 0); with it, by 3. Here when
+ * this is the primary, asked of it otherwise (`keys.charge`, gm-bridge.mjs) - the shape
+ * `askToDecideWrite` gives a flagged write's decision. Answers what was paid, or null.
+ */
+export async function askToChargeForUnfoundKeys() {
+    const res = await bridgeRequest("keys.charge", {}, { settle: "reply", onPrimary: true, local: () => chargeForUnfoundKeys() });
+    return res.ok ? res.value ?? null : null;
 }
 
 /**

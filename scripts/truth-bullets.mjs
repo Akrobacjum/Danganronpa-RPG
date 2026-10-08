@@ -534,6 +534,11 @@ const READ_ON_ANALYZE = ["key", "final"];
  *   handing over identified evidence hands over what the giver knows.
  * @param {object} [data.stamp]        `{chapter, day, timeOfDay}` override. A
  *   copy records the discovery it documents, not the moment it was copied.
+ * @param {number|null} [data.foundIn] The chapter of the find, kept in the answer key
+ *   (E09 fix r1-G3): what the Key fee reads once the trace is gone (investigation.mjs
+ *   `keyFeeOf`), because the item's stamp is its holder's to rewrite. The stamp's
+ *   chapter, or the clock's, unless the caller names it: a handover names its giver's
+ *   answer key's, never the giver's item.
  * @param {string} [data.sourceAction] Which action left the source trace.
  *   Secret until the bullet is identified - see TRUTH_BULLET_FLAGS.
  * @param {boolean} [data.tiedToCrime] Whether the source trace belongs to the
@@ -572,7 +577,7 @@ export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
     faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",
     remnantId = null, sceneId = null,
-    room = null, analyzed = null, stamp = null,
+    room = null, analyzed = null, stamp = null, foundIn = undefined,
     sourceAction = null, tiedToCrime = null
 } = {}) {
     if (!actor || !name) return null;
@@ -656,7 +661,8 @@ export async function createTruthBullet(actor, {
     // Remnant, and what lets a trace the killer has since wiped still pay out.
     await setSecret(item.uuid, {
         realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analyzedText,
-        faint: !!faint
+        faint: !!faint,
+        chapter: foundIn !== undefined ? foundIn : (stamp?.chapter ?? clock.chapter)
     });
 
     // Its owners' copy of which trace it came from (E05 C13), before the trace is

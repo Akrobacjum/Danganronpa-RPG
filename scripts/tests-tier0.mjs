@@ -2027,6 +2027,16 @@ const REGRESSIONS = [
          * four, and the charge's "too late" reads the closed cases - so a Save of the planner
          * decides nothing (tier 2's "the Key fee is the same with Save and without"). The
          * planner's own table still scores its rows (`keyPlanStatus`, a display).
+         *
+         * E09 fix r1-G3 (08.10.2026; the round-1 reviews' F2 and the goal review's S05-16): a
+         * copy whose trace is gone is dated by the chapter its answer key names, not by the
+         * item's stamp, which its holder writes and no audit judges (tier 2, "a Key copy whose
+         * trace is gone counts in the chapter its answer key names ..."), which a handover's copy
+         * takes from the giver's answer key (handover.mjs `shareBullet`), not from the giver's
+         * item; and the planner's finders are the living for the GMs, as the fee's are (tier 2,
+         * "a dead student's find is not found on the Key tab"). Red before the fix: the fee read
+         * the item's flag, `shareBullet` named no `foundIn`, and `findersByRemnant` walked
+         * `studentActors`.
          */
         const inv = stripComments(new Map(await otherSources()).get("investigation.mjs") ?? "");
         const status = bodyOf(inv, "export function keyPlanStatus", { until: "export async function keyFeeOf" });
@@ -2038,6 +2048,14 @@ const REGRESSIONS = [
             "the fee counts off the documents or the planner's rows again instead of the items the GMs hold");
         ok(/Math\.min\(KEY_REMNANTS\.unfoundBar/.test(fee) && /caseKeyCount\(/.test(fee),
             "the fee's bar is four again whatever the case's own count");
+        ok(!/TRUTH_BULLET_FLAGS\.chapter|\.getFlag\(/.test(fee) && /secret\.chapter\b/.test(fee),
+            "the fee dates a copy whose trace is gone by the item's own stamp again, which its holder writes, not by its answer key");
+        const finders = topLevelFunction(inv, "findersByRemnant") ?? "";
+        ok(/\blivingStudentsForGm\(/.test(finders) && !/\bstudentActors\(/.test(finders),
+            "the planner's finders walk every student again, the dead for the GMs among them, while the fee counts the living");
+        const share = topLevelFunction(stripComments(new Map(await otherSources()).get("handover.mjs") ?? ""), "shareBullet") ?? "";
+        ok(/\bfoundIn:\s*secret\.chapter\b/.test(share),
+            "a handover's copy is dated by the giver's item, which the giver writes, and not by the giver's answer key");
         const charge = topLevelFunction(inv, "chargeForUnfoundKeys") ?? "";
         ok(/keyFeeOf\(/.test(charge) && !/\b(?:keyPlanStatus|plannedChapters|chapterRows|keyPlan)\(/.test(charge),
             "the charge reads the planner again, so a Save of it decides what is billed");
@@ -5924,7 +5942,8 @@ const REGRESSIONS = [
         equal(sorted(W.WORLD_SECRET_RULES.settings.murderState?.only ?? []), sorted(listed),
             "the world-secrets rule for murderState and murder.mjs's PUBLIC_INCIDENT are not the same list");
         const method = S.INCIDENT_METHOD.filter(key => !S.CAST_FIELDS.includes(key) || listed.includes(key));
-        ok(S.INCIDENT_METHOD.length === 5 && !method.length, `the incident's method is not the cast's alone: ${method.join(", ")}`);
+        // Six since E09 fix r1-G3: the chapter it opened in, under which its close keeps the case's Key count.
+        ok(S.INCIDENT_METHOD.length === 6 && !method.length, `the incident's method is not the cast's alone: ${method.join(", ")}`);
 
         const split = M.splitIncident({ ...Object.fromEntries(listed.map(key => [key, 1])), ...Object.fromEntries(S.CAST_FIELDS.map(key => [key, 2])), R191planted: 3 });
         equal(JSON.stringify([sorted(Object.keys(split.world)), sorted(Object.keys(split.cast)), split.neither]),
@@ -7219,8 +7238,8 @@ const REGRESSIONS = [
             ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
             ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
             ["ITEM handover.mjs#shareBullet", "judged: the copy is built from bulletAsHeld (E29); the answer key copied by copiedRemnants"],
-            ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf"],
-            ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there"],
+            ["ITEM investigation.mjs#findersByRemnant", "a display since C7: the planner's table (keyPlanStatus) reads it off the documents; the fee counts in keyFeeOf; the living for the GMs since fix r1-G3, as the fee's"],
+            ["ITEM investigation.mjs#keyFeeOf", "judged: one await judgedFor, then itemsHeldNow per student in one synchronous pass (H3); the marks on the primary, the documents on another GM, as every itemsHeldNow road there; a trial's opening asks it on the primary since fix r1-G3 (askToChargeForUnfoundKeys), and a copy whose trace is gone is dated by its answer key, not its stamp"],
             ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
             ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
             ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
@@ -7236,7 +7255,7 @@ const REGRESSIONS = [
             ["CARD messenger-app.mjs#observeMiss", "judged: a GM's card (callGm, posted from the GM's client); chargeObserveMiss reads the actor on the GM (H24); E09 adds no read"],
             ["CARD messenger-app.mjs#keyRemnantHere", "out of scope: opens the GM's own placement dialog with the player's room and note as a suggestion the GM confirms"],
             ["STORE gm-stores.mjs#remnantStore", "not a source: a GM store on GM browsers (plan 1b a); C3's Save writes it only where `drawn` equals the ledger"],
-            ["STORE gm-stores.mjs#keyPlanStore", "not a source: a GM store (1b e); since C6 also each chapter's `:case` row, the closed case's Key count, written by closeIncident on the closing GM (recordCaseKeys) and read by caseKeyCount"],
+            ["STORE gm-stores.mjs#keyPlanStore", "not a source: a GM store (1b e); since C6 also each chapter's `:case` row, the closed case's Key count, written by closeIncident on the closing GM (recordCaseKeys) and read by caseKeyCount; under the chapter the case opened in, and dropped by a reset that keeps the plan, since fix r1-G3"],
             ["STORE gm-stores.mjs#cleanupAttemptStore", "not a source: a GM store (1b a); C10 adds the proposal and `ruled`"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (1b e); C7 leaves keysCharged as it is (E10 inherits)"],
             ["STORE settings.mjs#observePending", "not a source: a client setting on the primary (1b f); C12 writes it only from a recomputed pick"],

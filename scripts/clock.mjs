@@ -526,9 +526,11 @@ async function reconcilePhase(from, to) {
                record and the "already charged" stamp lives in it, so charging first
                would have the stamp wiped a line later and the next trial opened in
                this chapter would pay Monokuma twice. It whispers the GMs whatever it
-               charged - see `chargeForUnfoundKeys`. */
-            const { chargeForUnfoundKeys } = await import("./investigation.mjs");
-            await chargeForUnfoundKeys();
+               charged - see `chargeForUnfoundKeys` - and is made on the primary GM
+               whichever GM moved the phase (E09 fix r1-G3, `askToChargeForUnfoundKeys`):
+               the GMs' marks it counts by are the primary's. */
+            const { askToChargeForUnfoundKeys } = await import("./investigation.mjs");
+            await askToChargeForUnfoundKeys();
         } catch (err) {
             error("Could not charge for the Key Remnants nobody found", err);
         }

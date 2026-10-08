@@ -55,7 +55,9 @@ export function uuidInThisWorld(uuid) {
 /**
  * THE TRUTH BULLET ANSWER KEY (E04 C2; audit S05-01). Keyed by item uuid, one row
  * per bullet: realType, remnantId, sceneId, sourceAction, tiedToCrime, faint,
- * gmNote, analyzedText, analysedFrom, analysedChapter. The old rows are claimed
+ * gmNote, analyzedText, analysedFrom, analysedChapter, and since E09 fix r1-G3
+ * chapter - the find's, which the Key fee reads once the trace is gone
+ * (truth-bullets.mjs `createTruthBullet`). The old rows are claimed
  * per world by uuid, live and tombstoned, at their own `updated` (or weak, with
  * none); a row of another world stays in the old key.
  */
@@ -226,13 +228,14 @@ export const doorCopy = defineGmCopy({
 /**
  * HOW THE INCIDENT HAPPENED (E05 C8; audit S04-08): whether it is a trap, whether the
  * killer and the victim are one person, whether a reversal left the Key Remnant plan
- * to be written again, when it opened and how it ended. Until 1.2.64 these sat in the
+ * to be written again, when it opened - and since E09 fix r1-G3 in which chapter, the
+ * one its close keeps the case's Key count under - and how it ended. Until 1.2.64 these sat in the
  * world half of `murderState`, which every browser holds: through the whole of Stage 6
  * a console read `selfInflicted: true` - the answer to the Class Trial - and a trap's
  * builder read `indirect` at the moment it went off, which `castOwners` withholds the
  * cast to keep from them. They are the cast's now, and reach only its participants.
  */
-export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy"]);
+export const INCIDENT_METHOD = Object.freeze(["indirect", "selfInflicted", "keyRemnantsStale", "openedAt", "endedBy", "chapter"]);
 
 /**
  * THE FIGHT (E32 C2, 28.09.2026; E05's Q8, the owner's Q1 (a) of 28.09): the round and
@@ -962,7 +965,9 @@ export const sheetWriteStore = defineGmStore({
  * until E09 C7, the case rows since). No old key: the first
  * rows come out of the world by `liftKeyPlan`. Beside a chapter's slots, one case row since
  * E09 C6, `${chapter}:case`: `{ keys }`, the closed case's Key Remnant count
- * (investigation.mjs `recordCaseKeys`), which no slot reader takes.
+ * (investigation.mjs `recordCaseKeys`), which no slot reader takes - kept under the
+ * chapter the case opened in, and dropped by a reset that keeps the plan, since E09 fix
+ * r1-G3.
  */
 export const keyPlanStore = defineGmStore({
     name: "keyPlan", key: SETTINGS.gmKeyPlan,

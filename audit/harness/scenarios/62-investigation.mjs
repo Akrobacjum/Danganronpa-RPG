@@ -34,6 +34,13 @@
  *      twice - without a Save of the planner for chapter 2, then after one - moves both GMs'
  *      Monokuma pools by 3 each time. Before C7 the first charged nothing (the plan's rows were
  *      another chapter's: too late) and the second 6 (a bar of four).
+ *   P  (E09 fix r1-G3) gm2 opens a chapter-3 trial on K's case - three Keys, two found by the
+ *      living - with a third Key copy beside the finds that the GMs do not hold (tier 2's made
+ *      Key: a copy of p1's student's find under a new id, made where the audit has not judged
+ *      it): the fee is charged on the primary, by the copies the GMs hold, and moves both GMs'
+ *      Monokuma pools by 3. On the code before the fix (08.10.2026) it was charged on gm2, whose
+ *      count reads the documents: the made copy, with no answer key, held the charge (`keyFeeOf`
+ *      held 1 on gm2 and 0 on the primary), and the pools moved by 0 in each of three runs.
  *   E  (E09 C1) the chapter ends: the GM gives p1's student an unanalysed Faint, a Neutral and
  *      a Final; the Investigation Dashboard's "Sweep Truth Bullets" confirm (answered no) and
  *      the End of chapter panel (its sweep alone ticked) each give the number the sweep then
@@ -64,7 +71,8 @@
  * With E09 C2's phase V, 23 checks in 6.6 s (the cluster's own count, 08.10.2026); with E09
  * C3's phase D, 28 in 8.9 s (the same count, one run, 08.10.2026); with E09 C7's phase K, 31 in
  * 11.8 s (17.6 s with the cluster's start, one run, 08.10.2026); with E09 C8's reveal half of
- * phase E, 33 in 13.1 s (20 s with the cluster's start, one run, 08.10.2026).
+ * phase E, 33 in 13.1 s (20 s with the cluster's start, one run, 08.10.2026); with E09 fix r1-G3's
+ * phase P, 36 in 17.6 s (24.7 s with the cluster's start, one run, 08.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -458,6 +466,100 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     verdict("the pools, the clock and the scene are as they were before the two trials",
         fee.after.pools && J(fee.after.clock) === J(fee.from) && fee.after.left === 0 && fee.from[1] !== "classTrial", J(fee));
 
+    /* ------------------------------ P. the Key fee, on the primary ------------------------------ */
+
+    begin("P", "gm2 opens a trial, and the Key fee is charged on the primary by the copies the GMs hold", "class-trial");
+    // K's case of three, two found, on a chapter of its own; beside the finds tier 2's made Key ("a made Key bullet and a
+    // forged Key copy ..."), a copy of the first find under a new id that the audit has not judged (`AUDIT_ASIDE`), so
+    // the GMs' mark does not hold it. Then gm2 moves the phase, as any GM may (clock.mjs `reconcilePhase`).
+    const P_CHAPTER = 3;
+    const P_IMPORTS = `${TB} const I = await import("${repoUrl}/scripts/investigation.mjs");
+        const R = await import("${repoUrl}/scripts/remnants.mjs"), V = await import("${repoUrl}/scripts/vote.mjs");
+        const D = await import("${repoUrl}/scripts/despair.mjs"), { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");
+        const A = await import("${repoUrl}/scripts/sheet-audit.mjs"), { keyPlanStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const scene = game.scenes.get("${IDS.scene}"), users = D.monokumas(), pools = () => users.map(u => D.getDespair(u.id));`;
+    const staged = await gm.eval(`${P_IMPORTS} const { CAP_OVERRIDE } = await import("${repoUrl}/scripts/inventory.mjs");
+        const clock = getClock(), aiko = game.actors.get("${IDS.aiko}");
+        const out = { from: [clock.chapter, clock.phase], start: pools(), tokens: [], copies: [], made: null };
+        await setClock({ chapter: ${P_CHAPTER} });
+        await I.recordCaseKeys(${P_CHAPTER}, 3);
+        for (const [i, actorId] of ${J([IDS.aiko, IDS.botan])}.entries()) {
+            const token = await R.placeRemnant({ type: "key", visibility: "evident", scene, chapter: ${P_CHAPTER}, x: 700 + 100 * i, y: 650, sourceName: "S62" });
+            const copy = await TB.createTruthBullet(game.actors.get(actorId), { name: "S62 P Key " + (i + 1), realType: "key",
+                playerText: ${J(MARK.playerText)}, remnantId: token?.id ?? null, sceneId: scene.id });
+            out.tokens.push(token?.id ?? null);
+            out.copies.push(copy ? [actorId, copy.id] : null);
+        }
+        const find = aiko.items.get(out.copies[0]?.[1] ?? "");
+        if (find) {
+            const { _id, ...data } = find.toObject();
+            const [made] = await aiko.createEmbeddedDocuments("Item", [{ ...data, name: "S62 P a made Key" }],
+                { [A.AUDIT_ASIDE]: true, [CAP_OVERRIDE]: true });
+            out.made = made && !Object.keys(TB.secretOf(made.uuid)).length ? made.id : null;
+        }
+        await A.sheetAuditIdle();
+        await V.setTrialProgress({ keysCharged: false });
+        return out;`, { timeout: 60000 });
+    await settle(600);
+    let opened;
+    try {
+        opened = await gm2.eval(`const { getClock, setClock } = await import("${repoUrl}/scripts/clock.mjs");
+            const t0 = Date.now();
+            await setClock({ phase: "classTrial" });
+            return { ms: Date.now() - t0, clock: [getClock().chapter, getClock().phase] };`, { timeout: 60000 });
+    } catch (err) {
+        opened = { error: String(err?.message ?? err) };
+    }
+    // How each GM counts the fee now (`keyFeeOf`), for the details.
+    const fees = {};
+    for (const [who, client] of [["gm", gm], ["gm2", gm2]]) {
+        try {
+            fees[who] = await client.eval(`const I = await import("${repoUrl}/scripts/investigation.mjs"); return await I.keyFeeOf(${P_CHAPTER});`,
+                { timeout: 30000 });
+        } catch (err) {
+            fees[who] = { error: String(err?.message ?? err) };
+        }
+    }
+    // Read on the primary; then everything staged goes, and the clock goes back.
+    const charged = await gm.eval(`${until} ${P_IMPORTS} const staged = ${J(staged)}, start = staged.start;
+        const aiko = game.actors.get("${IDS.aiko}"), out = {};
+        try {
+            await until(() => pools().some((n, i) => n !== start[i]), 3000);
+            out.moved = pools().map((n, i) => n - start[i]);
+            out.stamped = V.trialProgress().keysCharged === true;
+        } finally {
+            const made = staged.made ? aiko.items.get(staged.made) : null;
+            if (made) await made.delete({ [A.AUDIT_ASIDE]: true });
+            for (const [actorId, id] of staged.copies.filter(Boolean)) {
+                const copy = game.actors.get(actorId)?.items.get(id);
+                if (copy) { const uuid = copy.uuid; await copy.delete(); await TB.dropSecret(uuid); }
+            }
+            for (const id of staged.tokens.filter(Boolean)) {
+                const token = scene.tokens.get(id);
+                if (!token) continue;
+                await R.dropRemnantSecret(token);
+                await scene.deleteEmbeddedDocuments("Token", [id]);
+            }
+            if (keyPlanStore.get("${P_CHAPTER}:case")) await keyPlanStore.dropMany(["${P_CHAPTER}:case"]);
+            for (const [i, u] of users.entries()) if (D.getDespair(u.id) !== start[i]) await D.setDespair(u.id, start[i]);
+            await V.setTrialProgress({ keysCharged: false });
+            await setClock({ chapter: staged.from[0], phase: staged.from[1] });
+            await A.sheetAuditIdle();
+        }
+        const now = getClock();
+        out.after = { pools: JSON.stringify(pools()) === JSON.stringify(start), clock: [now.chapter, now.phase],
+            caseRow: Boolean(keyPlanStore.get("${P_CHAPTER}:case")),
+            left: [staged.made, ...staged.copies.filter(Boolean).map(([, id]) => id)].filter(id => id && game.actors.some(a => a.items.has(id))).length
+                + staged.tokens.filter(id => id && scene.tokens.has(id)).length };
+        return out;`, { timeout: 120000 });
+    verdict("gm2's trial moves each of the two Monokumas' pools by 3, charged on the primary: two of a case of three found, and the made Key neither counts nor holds the charge",
+        staged.start.length === 2 && staged.copies.every(Boolean) && staged.tokens.every(Boolean) && Boolean(staged.made)
+            && !opened.error && J(opened.clock) === J([P_CHAPTER, "classTrial"]) && J(charged.moved) === J([3, 3]) && charged.stamped,
+        J({ staged, opened, fees, charged }));
+    verdict("the pools, the clock, the case's row and the scene are as they were before the trial",
+        charged.after.pools && J(charged.after.clock) === J(staged.from) && staged.from[1] !== "classTrial" && !charged.after.caseRow
+            && charged.after.left === 0, J({ staged, charged }));
+
     /* ------------------------------ E. the chapter's end ------------------------------ */
 
     begin("E", "the chapter ends with an unanalysed Faint, a Neutral and a Final on p1's student", "truth-bullets");
@@ -543,7 +645,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
 
     /* ------------------------------ every phase measured ------------------------------ */
 
-    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "E"]) {
+    for (const letter of ["A", "O", "N", "T", "V", "D", "K", "P", "E"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
     await disconnect("gm2");

@@ -1586,7 +1586,7 @@
       "leftoverKeys": "Na mapie wciąż jest {n} Key Remnant(s) z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
       "finalFoundBy": "Znalazł",
       "finalNobody": "Nikt go nie znalazł",
-      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}, a ostatnią sprawę zamknięto w rozdziale {was}: ten rozdział nie ma własnej sprawy, wobec której można policzyć nieznalezione Key Remnants, więc nic nie policzono.",
+      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}, a ostatnia sprawa należała do rozdziału {was}: ten rozdział nie ma własnej sprawy, wobec której można policzyć nieznalezione Key Remnants, więc nic nie policzono.",
       "traceAnalysis": "Co ujawnia analiza",
       "keyOffPlan": {
         "one": "Jeszcze jeden znaleziony Key Remnant jest spoza planu i wlicza się do progu czterech znalezionych: {names}.",
@@ -2577,6 +2577,7 @@
         "roll.draw": "Rzut do wykonania przez GM-a",
         "roll.grant": "Przyznanie rzutów rzuconych bez GM-a",
         "audit.decide": "Decyzja GM-a o zmianie karty zgłoszonej GM-om",
+        "keys.charge": "Opłata za Key Remnants pobierana przy otwarciu Class Trial",
         "reroll.ask": "Reroll",
         "card.post": "Karta do wystawienia przez GM-a",
         "searchTokens.spend": "Wydanie Search Tokena",

@@ -47,6 +47,8 @@ const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
 /** GM -> primary GM: Undo or Keep on the GMs' card of a player's write (E29 C5; sheet-audit.mjs). */
 const ACTION_AUDIT_DECIDE = "audit.decide";
+/** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; investigation.mjs `askToChargeForUnfoundKeys`). */
+const ACTION_KEYS_CHARGE = "keys.charge";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
 const ACTION_TRAIT_RULING = "trait.ruling";
 /** player -> GM: "may I spend this Call, and here is what for". */
@@ -1365,6 +1367,12 @@ async function handleAuditDecide(payload, sender) {
     return { reply: await decideWrite(payload.rowId, payload.keep, sender.id) };
 }
 
+/** The run of `keys.charge` (E09 fix r1-G3): the primary's own charge (investigation.mjs `chargeForUnfoundKeys`), what was paid or null. */
+async function handleKeysCharge() {
+    const { chargeForUnfoundKeys } = await import("./investigation.mjs");
+    return { reply: await chargeForUnfoundKeys() };
+}
+
 /** The run of `card.post` (E08+E28 fix r2-H5): the sender's card, posted by this GM (secret.mjs `postAsked`), or why not. */
 async function handleCardPost(payload, sender) {
     const { postAsked, cardTooLong } = await import("./secret.mjs");
@@ -1969,6 +1977,20 @@ export const BRIDGE_ACTIONS = table({
         run: handleAuditDecide,
         answer: "reply",
         claims: { rowId: "decideWrite (sheet-audit.mjs) decides only a row the GMs flagged and nobody has decided, once, on the primary" }
+    },
+    /*
+     * THE KEY FEE, CHARGED ON THE PRIMARY GM (E09 fix r1-G3, 08.10.2026; the round-1 goal
+     * review's G3a). A Class Trial opens on whichever GM moved the phase (clock.mjs
+     * `reconcilePhase`); the fee counts the Key copies by the GMs' marks, which are the
+     * primary's, so another GM asks it here (investigation.mjs `askToChargeForUnfoundKeys`).
+     * Carries nothing: the charge reads the clock, the trial's stamp and the case on this side.
+     */
+    [ACTION_KEYS_CHARGE]: {
+        label: "DRPG.Bridge.what.keys.charge",
+        guards: [gmOnly("only a GM opens a Class Trial, and the Key fee is charged as one opens")],
+        sanitize: pick({}),
+        run: handleKeysCharge,
+        answer: "reply"
     },
     [ACTION_CARD]: {
         label: "DRPG.Bridge.what.card.post",

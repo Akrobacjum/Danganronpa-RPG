@@ -5299,15 +5299,16 @@ const INVARIANTS = [
          */
         const M = await import("./murder.mjs");
         const S = await import("./gm-stores.mjs");
-        const args = { killerId: "R206KILLER000001", victimId: "R206VICTIM000001", indirect: true, openedAt: 206 };
+        // `chapter` since E09 fix r1-G3: the one the incident opened in, the clock's unless the caller names it.
+        const args = { killerId: "R206KILLER000001", victimId: "R206VICTIM000001", indirect: true, openedAt: 206, chapter: 7 };
         const fresh = M.freshIncidentState(args);
         const sorted = list => [...list].sort();
         const due = sorted([...Object.keys(M.PUBLIC_INCIDENT), ...S.CAST_FIELDS.filter(f => f !== "betrayal")]);
         equal(JSON.stringify(sorted(Object.keys(fresh))), JSON.stringify(due),
             "a new incident's values do not name exactly the world half's and the cast's fields but the betrayal offer");
-        equal(JSON.stringify([fresh.active, fresh.stage, fresh.killerId, fresh.victimId, fresh.killerTurnId, fresh.indirect, fresh.selfInflicted, fresh.openedAt]),
-            JSON.stringify([true, "openingRoll", args.killerId, args.victimId, args.killerId, true, false, 206]),
-            "a new incident does not open at the opening roll with its killer's turn, its kind and the time it was handed");
+        equal(JSON.stringify([fresh.active, fresh.stage, fresh.killerId, fresh.victimId, fresh.killerTurnId, fresh.indirect, fresh.selfInflicted, fresh.openedAt, fresh.chapter]),
+            JSON.stringify([true, "openingRoll", args.killerId, args.victimId, args.killerId, true, false, 206, 7]),
+            "a new incident does not open at the opening roll with its killer's turn, its kind and the time and the chapter it was handed");
         const again = M.freshIncidentState(args);
         const same = JSON.stringify(again) === JSON.stringify(fresh);
         fresh.spent.push("strike");
@@ -5648,6 +5649,12 @@ const INVARIANTS = [
          * that must carry the option are read in their source, and the card's click in its own.
          * Red before the fix: the assistant GM ran `local` and sent nothing, and neither request
          * named `onPrimary`.
+         *
+         * E09 fix r1-G3 (08.10.2026; the round-1 goal review's G3a): the Key fee. A trial opens
+         * on whichever GM moved the phase (clock.mjs `reconcilePhase`), and the fee counts by the
+         * GMs' marks, which are the primary's: the opening asks the charge of the primary
+         * (investigation.mjs `askToChargeForUnfoundKeys`). Red before the fix: no such request,
+         * and the phase change charged on its own GM (scenario 62's phase P drives it on gm2).
          */
         const { createWaiter } = await import("./bridge-guards.mjs");
         const run = async who => {
@@ -5670,6 +5677,10 @@ const INVARIANTS = [
         const named = [["gm-bridge.mjs", "requestReroll"], ["roll-draw.mjs", "askToDecide"]]
             .filter(([file, fn]) => !/\bonPrimary:\s*true\b/.test(fnSource(stripComments(sources.get(file) ?? ""), fn)));
         ok(!named.length, `these are decided on whichever GM asks, not on the primary: ${named.map(([f, fn]) => `${f} ${fn}`).join(", ")}`);
+        const feeAsk = topLevelFunction(stripComments(sources.get("investigation.mjs") ?? ""), "askToChargeForUnfoundKeys") ?? "";
+        const opening = fnSource(stripComments(sources.get("clock.mjs") ?? ""), "reconcilePhase");
+        ok(/\bonPrimary:\s*true\b/.test(feeAsk) && /\baskToChargeForUnfoundKeys\(/.test(opening) && !/\bchargeForUnfoundKeys\(/.test(opening),
+            "a trial's opening charges the Key fee on the GM who moved the phase, not on the primary (investigation.mjs askToChargeForUnfoundKeys, clock.mjs reconcilePhase)");
         const click = fnSource(stripComments(sources.get("roll-draw.mjs") ?? ""), "onRenderUnwitnessed");
         ok(/\baskToDecide\(/.test(click) && !/\bdecideUnwitnessed\(/.test(click), "the GMs' card's buttons decide on the GM who clicked, not through askToDecide");
     }],

@@ -291,6 +291,10 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         // The copy documents the original discovery, not the moment of copying.
         room: data.room,
         stamp: { chapter: data.chapter, day: data.day, timeOfDay: data.timeOfDay },
+        // The find's chapter for the Key fee from the giver's ANSWER KEY (E09 fix r1-G3): the
+        // stamp above is the giver's item flag, which the giver writes. A copy made before that
+        // fix names none, and neither does this one.
+        foundIn: secret.chapter ?? null,
         // From the SECRET, not the item: `createTruthBullet` publishes these
         // onto the copy only if it is born identified, so handing over an
         // unidentified bullet still hands over nothing the giver cannot see.

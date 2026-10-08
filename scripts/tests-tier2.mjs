@@ -991,33 +991,52 @@ async function closedCriticalCase(M, killer, victim, { body = true } = {}) {
 
 /**
  * THE KEY FEE, ASKED AND READ (E09 C7): the trial's "already charged" stamp cleared, the charge
- * asked as a trial's opening asks it (investigation.mjs `chargeForUnfoundKeys`), and what it moved
- * each Monokuma's pool by - one number when every pool moved alike, else each pool's, in
- * `monokumas()` order. The pools are then put back by value and the stamp cleared again, so the
- * next ask starts where this one did.
+ * asked as a trial's opening asks it on the primary GM (investigation.mjs `chargeForUnfoundKeys`),
+ * and what it moved each Monokuma's pool by - one number when every pool moved alike, else each
+ * pool's, in `monokumas()` order. The pools are then put back by value and the stamp cleared
+ * again, so the next ask starts where this one did. With `stamp`, `{ moved, charged }`: also
+ * whether the ask stamped the trial charged, read before the stamp is cleared.
+ *
+ * FROM EMPTY POOLS, AND PUT BACK WHATEVER THE ASK THREW (E09 fix r1-G3, 08.10.2026; k1's fee
+ * tests). The pools were read as they stood, and a pool stops at its cap (`despairMax`, 12 here)
+ * and spills the rest into the overflow: after 01-runtests's preamble, whose trial opening
+ * charges a bar of four with nothing found - the harness's one pool went from 0 to 12 - every
+ * pool stood at the cap, and three of C7's tests read 0 where they meant 3 ([0,0], 0 and
+ * [0,0,0], in each of three rounds of the three after the preamble, one probe, 08.10.2026;
+ * without the preamble they passed). Each pool is set to 0 for the ask, and a charge of at
+ * most 12 moves it whole.
  */
-async function keyFeeCharged() {
+async function keyFeeCharged({ stamp = false } = {}) {
     const V = await import("./vote.mjs");
     const I = await import("./investigation.mjs");
     const { monokumas, getDespair, setDespair } = await import("./despair.mjs");
     const users = monokumas();
     must(users.length > 0, "no Monokuma has a pool to charge - this would measure nothing");
-    await V.setTrialProgress({ keysCharged: false });
-    must(!V.trialProgress().keysCharged, "the trial's progress still reads charged - the charge would ask nothing");
-    const before = users.map(user => getDespair(user.id));
-    await I.chargeForUnfoundKeys();
-    const moved = users.map((user, i) => getDespair(user.id) - before[i]);
-    for (const [i, user] of users.entries()) if (getDespair(user.id) !== before[i]) await setDespair(user.id, before[i]);
-    await V.setTrialProgress({ keysCharged: false });
-    return moved.every(n => n === moved[0]) ? moved[0] : moved;
+    const start = users.map(user => getDespair(user.id));
+    let moved = null, charged = null;
+    try {
+        for (const user of users) if (getDespair(user.id) !== 0) await setDespair(user.id, 0);
+        await V.setTrialProgress({ keysCharged: false });
+        must(!V.trialProgress().keysCharged && users.every(user => getDespair(user.id) === 0),
+            "the trial's progress still reads charged, or a pool is not empty - the charge would measure nothing");
+        await I.chargeForUnfoundKeys();
+        moved = users.map(user => getDespair(user.id));
+        charged = Boolean(V.trialProgress().keysCharged);
+    } finally {
+        for (const [i, user] of users.entries()) if (getDespair(user.id) !== start[i]) await setDespair(user.id, start[i]);
+        await V.setTrialProgress({ keysCharged: false });
+    }
+    const one = moved.every(n => n === moved[0]) ? moved[0] : moved;
+    return stamp ? { moved: one, charged } : one;
 }
 
 /**
  * KEY REMNANTS OF A CHAPTER, FOUND (E09 C7): for each finder, one Key trace the GM places on the
  * scene on screen, stamped with `chapter`, and a copy of it the GM gives the finder
- * (`createTruthBullet`, whose answer key names the trace), each in the GMs' mark before this
- * answers. Answers the copies in the finders' order and `remove()`, which takes the copies and
- * the traces away again.
+ * (`createTruthBullet`, whose answer key names the trace - and, since E09 fix r1-G3, the clock's
+ * chapter as the find's), each in the GMs' mark before this answers. Answers the copies and the
+ * traces in the finders' order and `remove()`, which takes the copies and the traces away again
+ * (`goneTrace` takes one trace away before that).
  */
 async function foundKeyRemnants(finders, chapter) {
     const remnants = await import("./remnants.mjs");
@@ -1028,8 +1047,9 @@ async function foundKeyRemnants(finders, chapter) {
     const remove = async () => {
         for (const copy of copies) if (copy.actor?.items?.has(copy.id)) await copy.actor.items.get(copy.id).delete();
         for (const token of tokens) {
+            if (!scene.tokens.has(token.id)) continue;
             await remnants.dropRemnantSecret(token);
-            if (scene.tokens.has(token.id)) await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            await scene.deleteEmbeddedDocuments("Token", [token.id]);
         }
         await settle();
         await sheetAuditIdle();
@@ -1054,7 +1074,22 @@ async function foundKeyRemnants(finders, chapter) {
         await remove();
         throw err;
     }
-    return { copies, remove };
+    return { copies, tokens, remove };
+}
+
+/**
+ * A FOUND TRACE GONE (E09 fix r1-G3): one of `foundKeyRemnants`' traces taken off the GMs' ledger
+ * and the scene, as a GM's delete of a found trace leaves it - the copies stay. Checked gone from
+ * the ledger, the row the fee dates a copy by.
+ */
+async function goneTrace(token) {
+    const { dropRemnantSecret } = await import("./remnants.mjs");
+    const { remnantStore } = await import("./gm-stores.mjs");
+    const scene = token.parent;
+    await dropRemnantSecret(token);
+    await scene.deleteEmbeddedDocuments("Token", [token.id]);
+    await settle();
+    must(!remnantStore.get(`${scene.id}.${token.id}`) && !scene.tokens.has(token.id), "the trace is still on the ledger or the scene - this would measure nothing");
 }
 
 /** A chapter after every chapter the Key Remnant plan holds a row of, and the clock's (E09 C6's and C7's fixtures). */
@@ -16827,17 +16862,22 @@ const SCENARIOS = [
         }
     }],
 
-    ["a season reset keeps the case's Key count with a kept plan and clears it with a cleared one", async () => {
+    ["a season reset clears the case's Key count whether it keeps the plan or not", async () => {
         /*
          * E09 C6, 08.10.2026; audit S05-17, beside E05 fix r1-G5's reset test above. The case's
-         * count is kept with the Key Remnant plan (`recordCaseKeys`), so it goes where the plan
-         * goes: a reset that keeps the plan keeps one chapter's rows (`keepOnlyKeyPlanChapter`)
-         * and the count with them, and one that clears the plan (`clearKeyPlan`) clears it. A
-         * direct murder opened on a critical is closed with its victim dead, on a chapter nobody
-         * has planned; then the reset's kept-plan step for that chapter runs, the dashboard is
-         * drawn, the plan is cleared and the dashboard is drawn again. Measured against the
+         * count is kept with the Key Remnant plan (`recordCaseKeys`), and C6 kept it where the plan
+         * goes: a reset that keeps the plan kept one chapter's rows (`keepOnlyKeyPlanChapter`) and
+         * the count with them. E09 fix r1-G3 (08.10.2026; the round-1 correctness review's F8)
+         * takes it either way: that count is the old season's case, and it is read before a
+         * running incident's own (`caseKeyCount`), so a new season's case in the kept chapter read
+         * the old one's. A direct murder opened on a critical is closed with its victim dead, on a
+         * chapter nobody has planned; the reset's kept-plan step for that chapter runs and the
+         * dashboard is drawn; a case opened in that chapter on a roll with Hope is read and closed
+         * with nobody dead; the plan is cleared and the dashboard drawn again. Read: the limit each
+         * time, and the running case's own count beside the chapter's. Measured against the
          * store's functions, as the test above, not through the reset dialog. Red at the parent:
-         * <measured by A2>.
+         * [{over: [room:3, room:4], override: true}, [5, 3], {over: [], override: false}] (08.10.2026:
+         * the kept chapter's dashboard still drew the old case's limit of three, and the new case of five read 3).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         needs(env.dialogs(), "the dashboard is read off its drawn window");
@@ -16853,14 +16893,23 @@ const SCENARIOS = [
         try {
             await setClock({ chapter: fresh });
             await closedCriticalCase(M, killer, victim);
+            await reviveCharacter(victim, { quiet: true });
             await I.keepOnlyKeyPlanChapter(fresh);
             await gmStoresIdle();
             const kept = await keyLimitDrawn();
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+            await settle();
+            const live = M.murderState()?.keyRemnants;
+            must(Number.isFinite(live) && live !== 3, `the new case's opening left no count of its own, or the old case's three - this would measure nothing: ${stableJson(M.murderState())}`);
+            const running = [live, I.caseKeyCount(fresh)];
+            await M.endMurder({ reason: "test", followUp: false });
+            await settle();
             await I.clearKeyPlan();
             await gmStoresIdle();
             const cleared = await keyLimitDrawn();
-            equal(stableJson([kept, cleared]), stableJson([{ override: true, over: ["room:3", "room:4"] }, { override: false, over: [] }]),
-                "the case's limit of three did not survive a reset that kept its chapter's plan, or survived one that cleared the plan (kept, cleared)");
+            equal(stableJson([kept, running, cleared]), stableJson([{ override: false, over: [] }, [live, live], { override: false, over: [] }]),
+                "the old case's limit of three survived a reset that kept its chapter's plan, a new case in that chapter read the old count, or a cleared plan kept a limit (kept, the running case's count and the chapter's, cleared)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
@@ -16879,7 +16928,9 @@ const SCENARIOS = [
          * planner's limit, and whether the charge stamped itself as made. Red at the parent:
          * <measured by A2> (its limit). Since E09 C7 the charge reads the closed cases, not the
          * plan (`keyFeeOf`): the case's own chapter is the live one, so the charge is made -
-         * until C7 it was refused, the stamp left unset.
+         * until C7 it was refused, the stamp left unset. Asked through `keyFeeCharged` since E09
+         * fix r1-G3 (k1's fee tests): asked directly, the charge it makes stayed in every
+         * Monokuma's pool for the tests after it.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         needs(env.dialogs(), "the dashboard is read off its drawn window");
@@ -16900,14 +16951,63 @@ const SCENARIOS = [
             must(!V.trialProgress().keysCharged, "the fixture's trial progress still reads charged");
             await closedCriticalCase(M, killer, victim);
             const limit = await keyLimitDrawn();
-            await I.chargeForUnfoundKeys();
-            equal(stableJson([limit, Boolean(V.trialProgress().keysCharged)]), stableJson([{ override: true, over: ["room:3", "room:4"] }, true]),
+            const { charged } = await keyFeeCharged({ stamp: true });
+            equal(stableJson([limit, charged]), stableJson([{ override: true, over: ["room:3", "room:4"] }, true]),
                 "the closed case's limit of three is lost, or the charge refused its chapter as another's (limit, charged)");
         } finally {
             if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
             if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
             await setClock(clock);
         }
+    }],
+
+    ["a case closed after the clock left its chapter keeps its Key count under its own chapter", async () => {
+        /*
+         * E09 fix r1-G3, 08.10.2026; the round-1 goal review's G3b. The close kept the case's count under the clock's
+         * chapter (murder-rules.mjs `closeIncident`), and a running incident's count was the count of whatever chapter
+         * was asked (`caseKeyCount`): a clock moved on while the case ran handed the next chapter the case - its
+         * planner's limit and its trial's bar. On a chapter nobody has planned, a direct murder is opened on a critical
+         * (three Key Remnants) and the clock moved to the next chapter while it runs; its victim is killed into Stage 6
+         * and the GM closes it; then the next chapter's trial is charged. Read: the count of the case's chapter and of
+         * the next while it runs and after the close, and what the charge moved every Monokuma's pool by - nothing:
+         * the next chapter has no case, and the charge says it is too late. Red at the parent: [[3, 3], [null, 3], 9]
+         * (08.10.2026: the next chapter read the case's three while it ran and kept them after the close, and its trial
+         * charged 9).
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        const M = await import("./murder.mjs");
+        const I = await import("./investigation.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(player);
+        const clock = getClock();
+        const chapter = await freshKeyChapter();
+        const counts = () => [I.caseKeyCount(chapter), I.caseKeyCount(chapter + 1)];
+        let running = null, closed = null, fee = null;
+        try {
+            await setClock({ chapter });
+            await M.openMurder({ killerId: killer.id, victimId: victim.id, openingTrait: "body" });
+            if (M.murderState()?.stage === "openingRoll") await M.resolveKillerOpening({ total: 24, isCritical: true, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "incident" && M.murderState()?.keyRemnants === 3,
+                `the critical opening did not leave a fight with three Key Remnants: ${stableJson(M.murderState())}`);
+            await setClock({ chapter: chapter + 1 });
+            running = counts();
+            const unanswered = await killedIntoStageSix(victim);
+            must(M.murderState()?.stage === "resolution" && !unanswered.length,
+                `the body did not take the fight to Stage 6: ${stableJson({ stage: M.murderState()?.stage ?? null, unanswered })}`);
+            await M.endMurder({ reason: "closed", followUp: false });
+            await settle();
+            must(!M.murderState(), `the incident is still running after the close: ${stableJson(M.murderState())}`);
+            closed = counts();
+            fee = await keyFeeCharged();
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            await setClock(clock);
+        }
+        equal(stableJson([running, closed, fee]), stableJson([[3, null], [3, null], 0]),
+            "a case the clock left counted for the next chapter while it ran or after its close, or the next chapter's trial was charged for it (its chapter's count and the next's while it ran, after the close; Despair to each pool)");
     }],
 
     ["the Key fee is the same with Save and without", async () => {
@@ -17017,6 +17117,102 @@ const SCENARIOS = [
             await setClock(clock);
         }
         equal(fee, 3, "a dead student's Key counted toward the fee, or the living students' did not (Despair to each pool)");
+    }],
+
+    ["a dead student's find is not found on the Key tab", async () => {
+        /*
+         * E09 fix r1-G3, 08.10.2026; the round-1 goal review's S05-16, decision Q2 (a), beside C7's test above. The
+         * fee counts what reached the trial - the finds of the students living for the GMs - and the Key tab read
+         * every student's (`findersByRemnant`, through `keyPlanStatus`): its "Found by", its summary and its thin-case
+         * warning, the GM's line of a body's discovery (events.mjs) and the panel's "start the trial" (gm-panel.mjs)
+         * counted a find the fee does not pay for. On a chapter nobody else has used, a student finds a Key whose
+         * trace a planned slot names, and dies in secret keeping their Truth Bullets (`killCharacter`, `keepBullets`).
+         * Read: whether the slot is found and its finders, and the tab's found and found-any counts. Red at the
+         * parent: [true, [Aiko Hoshino], 1, 1] (08.10.2026: the dead student's find was found, by them, in both counts).
+         */
+        needs(world.atLeast("sceneOnScreen"), "the Key trace stands on the scene on screen");
+        const I = await import("./investigation.mjs");
+        const C = await import("./chapter.mjs");
+        const [finder] = cast(1);
+        const clock = getClock();
+        const chapter = await freshKeyChapter();
+        let keys = null, read = null;
+        try {
+            await setClock({ chapter });
+            keys = await foundKeyRemnants([finder], chapter);
+            const [token] = keys.tokens;
+            await I.setKeyPlan({ chapter, entries: [{ name: "SUITE r1-G3 the dead finder's clue", tokenId: token.id, sceneId: token.parent.id }] });
+            must(I.keyPlanStatus().entries[0]?.found === true, "the planned slot is not found while its finder lives - this would measure nothing");
+            must(await C.killCharacter(finder, { secret: true, keepBullets: true }), `${finder.name}'s death was not recorded`);
+            must(C.isDeadForGm(finder) && finder.items.has(keys.copies[0].id),
+                "the student is not dead for the GMs, or their Key went with the death - this would measure nothing");
+            const status = I.keyPlanStatus();
+            read = [status.entries[0].found, status.entries[0].finders, status.found, status.foundAny];
+        } finally {
+            if (C.isDeadForGm(finder)) await C.reviveCharacter(finder, { quiet: true });
+            await keys?.remove();
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson([false, [], 0, 0]),
+            "the Key tab counts a find of a student dead for the GMs, which the fee does not (the slot found, its finders, found, found with the off-plan ones)");
+    }],
+
+    ["a Key copy whose trace is gone counts in the chapter its answer key names and not in the one its holder writes", async () => {
+        /*
+         * E09 fix r1-G3, 08.10.2026; the round-1 reviews' F2 (correctness and security). The fee dates a Key copy by its
+         * trace's row and, where the trace is gone, by the chapter of the find - the item's own stamp until this fix, a
+         * flag its holder writes and no audit judges; the answer key's since (truth-bullets.mjs `createTruthBullet`).
+         * A student with a player holds a Key found in a chapter nobody else has used, whose trace is gone; in the
+         * next chapter a case of five is closed (its row) and two living students find three of its Keys, the third's
+         * trace gone too. The charge is asked; then the player rewrites their old copy's chapter to the clock's
+         * (a player's write, judged: `asPlayerItemWrite`), and the charge is asked again; then the player takes the
+         * chapter off it, and it is asked again. Read: what each ask moved every Monokuma's pool by - three of a bar of
+         * four found, 3 each time. Red at the parent: [3, 0, 0] (08.10.2026: rewritten or taken off, the holder's
+         * chapter made the old copy this chapter's fourth find, and the trial charged nothing).
+         */
+        needs(world.atLeast("playerAccounts", 1), "a player account whose writes are judged");
+        needs(world.atLeast("sceneOnScreen"), "the Key traces stand on the scene on screen");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this client is not the primary GM, whose mark the fee reads - this would measure nothing");
+        const I = await import("./investigation.mjs");
+        const { TRUTH_BULLET_FLAGS } = await import("./truth-bullets.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && a.testUserPermission(u, "OWNER"));
+        const students = cast(3);
+        const owner = students.find(playerOf);
+        must(owner, "none of the three students has a player whose writes could be judged");
+        const [one, two] = students.filter(a => a.id !== owner.id);
+        const flag = `flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.chapter}`;
+        const clock = getClock();
+        const old = await freshKeyChapter();
+        const read = [], verdicts = [];
+        let oldKeys = null, keys = null;
+        try {
+            await setClock({ chapter: old });
+            oldKeys = await foundKeyRemnants([owner], old);
+            await goneTrace(oldKeys.tokens[0]);
+            await setClock({ chapter: old + 1 });
+            await I.recordCaseKeys(old + 1, 5);
+            keys = await foundKeyRemnants([one, two, one], old + 1);
+            await goneTrace(keys.tokens[2]);
+            read.push(await keyFeeCharged());
+            const copy = oldKeys.copies[0];
+            for (const value of [old + 1, forcedDeletion()]) {
+                const { verdict } = await asPlayerItemWrite("updateItem", owner, copy, playerOf(owner), null, { [flag]: value });
+                await sheetAuditIdle();
+                verdicts.push(verdict);
+                const now = owner.items.get(copy.id)?.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter);
+                must(owner.items.has(copy.id) && now === (typeof value === "number" ? value : undefined),
+                    `the player's write of the old copy's chapter did not stand (${verdict}, ${stableJson(now)}) - this would measure nothing`);
+                read.push(await keyFeeCharged());
+            }
+        } finally {
+            await keys?.remove();
+            await oldKeys?.remove();
+            await setClock(clock);
+        }
+        equal(stableJson(read), stableJson([3, 3, 3]),
+            `a Key copy whose trace is gone counted in the chapter its holder wrote on it, or in the clock's once they took it off (Despair to each pool: before, after the rewrite, after the removal; the writes judged ${stableJson(verdicts)})`);
     }],
 
     ["a made Key bullet and a forged Key copy count nothing toward the Key fee and a deleted find stops counting", async () => {

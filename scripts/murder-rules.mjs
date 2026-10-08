@@ -319,11 +319,12 @@ export function atNight() {
  * outlives its incident (D18) and is kept, not decided, when the next one opens. The one
  * list of a new incident's values - `openMurder` writes it whole, and R206 holds it to the
  * two lists, so the next field an incident gains is added here or fails there (C9, C10,
- * C11c, C13 and C17 add theirs here and to the grid's `FRESH`). Pure but for `openedAt`,
- * the clock's reading unless the caller names one.
+ * C11c, C13 and C17 add theirs here and to the grid's `FRESH`). Pure but for `openedAt`
+ * and `chapter`, the clock's readings unless the caller names them (`chapter` since E09
+ * fix r1-G3: the close keeps the case's Key count under it, `closeIncident`).
  */
 export function freshIncidentState({ killerId, victimId, indirect = false, selfInflicted = false, openingTrait = null,
-    openedAt = Date.now() } = {}) {
+    openedAt = Date.now(), chapter = getClock()?.chapter ?? null } = {}) {
     // `const fresh`, read by R191's census of the fields an incident's writes name.
     const fresh = {
         active: true,
@@ -359,6 +360,7 @@ export function freshIncidentState({ killerId, victimId, indirect = false, selfI
         recent: [],
         thirdActed: null,
         openedAt,
+        chapter,
         keyRemnantsStale: null,
         endedBy: null
     };
@@ -3282,14 +3284,19 @@ async function closeIncident(state, { reason, followUp }) {
     /* THE CASE'S KEY COUNT, BEFORE THE WIPE TAKES IT (E09 C6, 08.10.2026; audit S05-17). The
        opening roll's count of Key Remnants lived in the state alone: the checklist below said
        "3 Key Remnants still to place", and the planner, opened after the close, had no limit
-       and let the GM plan five. Kept in the Key Remnant plan's store under the clock's chapter
-       (investigation.mjs `recordCaseKeys`, read by `caseKeyCount`) for a case that left a body
-       (`leftABody`) - a failed opening or a fight crowded out has no case to plan. A dynamic
-       import, because investigation.mjs reaches this file through its static imports. */
+       and let the GM plan five. Kept in the Key Remnant plan's store (investigation.mjs
+       `recordCaseKeys`, read by `caseKeyCount`) for a case that left a body (`leftABody`) - a
+       failed opening or a fight crowded out has no case to plan. Under the chapter the
+       incident opened in since E09 fix r1-G3 (the round-1 goal review's G3b): under the
+       clock's until then, so a case closed once the clock had moved on was the next chapter's
+       case, its planner's limit and its trial's bar (tier 2, "a case closed after the clock
+       left its chapter ..."). An incident opened before that fix names no chapter: the
+       clock's, as before. A dynamic import, because investigation.mjs reaches this file
+       through its static imports. */
     if (Number.isFinite(state?.keyRemnants) && leftABody(state)) {
         try {
             const { recordCaseKeys } = await import("./investigation.mjs");
-            await recordCaseKeys(getClock()?.chapter, state.keyRemnants);
+            await recordCaseKeys(state.chapter ?? getClock()?.chapter, state.keyRemnants);
         } catch (err) {
             error("Could not keep the case's Key Remnant count", err);
         }

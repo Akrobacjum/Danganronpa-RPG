@@ -142,7 +142,9 @@ const FRESH = Object.freeze({
     keyRemnantsStale: none,
     indirect: (v, m) => Boolean(v) === (m.kind === "trap"),
     selfInflicted: (v, m) => Boolean(v) === (m.kind === "self"),
-    openedAt: (v, m, run) => typeof v === "number" && v >= run.stepStarted
+    openedAt: (v, m, run) => typeof v === "number" && v >= run.stepStarted,
+    // The chapter it opened in (E09 fix r1-G3): the clock's, which the grid does not move.
+    chapter: v => v === (getClock()?.chapter ?? null)
 });
 
 /** Kept across an open on purpose: the betrayal offer outlives its incident until the day turns (D18). */
@@ -611,12 +613,22 @@ const STEPS = {
            newcomer in 55 ms (a probe of every TP case that day), and in the next whole suite
            TP12's crowd settled in 95 ms; it passed in 43 of the 44 results files of the E08+E28
            runs that hold it. The longer wait is only where a close is due:
-           a third who walks back in (TP08) changes nothing and waits the whole bound. */
+           a third who walks back in (TP08) changes nothing and waits the whole bound.
+           AND FOR THE WHOLE CLOSE, NOT ITS FIRST HALF (E09 fix r1-G3, 08.10.2026; k1's TP12).
+           The wait ended on "the third changed", and the close wipes the cast first and the
+           world half after it (incident-store.mjs `restoreState`): a probe of TP12, three times
+           after 01-runtests's preamble, failed once with the wait ending 108 ms after "made a
+           fourth" on the state between the two writes - third null, stage "incident" - and the
+           close logged 3 ms later; the passing two closed 4 and 10 ms after the wait began.
+           Holding every write of the world half that ends an incident 300 ms on the GM (a probe,
+           scratchpad e09run/scratch/r1g3tp12-par and -fix, 08.10.2026) failed TP12 in 3 runs of
+           3 on the parent's grid, each with that I10 at step 5, and in none of 3 with this wait:
+           a crowd waits for no incident at all. */
         const crowding = Boolean(m.thirdId) && !m.departed.includes(actor.id);
         await placeIn(run, actor, run.room, positionIn);
         await until(() => {
             const now = run.M.murderState();
-            return !now || now.thirdId !== before?.thirdId;
+            return crowding ? !now : (!now || now.thirdId !== before?.thirdId);
         }, crowding ? 4000 : 1500);
         if (m.departed.includes(actor.id)) {
             if (run.M.murderState()?.thirdId === actor.id) run.violate("I13", `${actor.name} left the incident and walked back into it`);
