@@ -7105,6 +7105,180 @@ const REGRESSIONS = [
         ok(!unjudged.length, `${unjudged.length} write(s) or row(s) the census cannot judge: ${unjudged.slice(0, 12).join("; ")}`);
     }],
 
+    ["R304 - an investigation road has a census row, and every row judges a road", async () => {
+        /*
+         * E09 C0, 08.10.2026; the plan's METHOD change 1 (census-1c). E09 moves what a GM decides
+         * about a Remnant, a Truth Bullet or a key off what a player's browser can write, and this
+         * test keeps the list of those places closed: a new one fails until it has a row and a
+         * verdict, a row whose place is gone fails until it is struck. Four kinds, read live:
+         * PACKET - every field of a BRIDGE_ACTIONS declaration whose action is an investigation
+         * road (ROADS), read off the `fields` its picked sanitizer lists; ITEM - every top-level
+         * function, class or binding outside the suite that reads a Truth Bullet item (through the
+         * held-bullet readers, or raw: the item's flag, `bulletsOf`, `copiedRemnants` and kin) and
+         * names one of the ledger's fields (FIELDS); CARD - every investigation key of
+         * messenger-app.mjs's CARD_ACTIONS (a button on a chat card a click runs); STORE - the six
+         * places the fields live, each found by its name in its file. A verdict says what judges
+         * the place today; one that names "C<n>" names the E09 commit that changes it, and that
+         * commit rewrites the row with the code. It reads names and text, not data flow: a reader
+         * reached through a helper this list does not name is not seen. Measured 08.10.2026 at
+         * 7bbcdb8: the ITEM and CARD keys of this reader and of the parse-only census
+         * (an acorn reading of the same tree, kept with the E09 plan outside the repository) were
+         * the same 26 - 22 ITEM,
+         * 4 CARD - and the census's 47 PACKET and 6 STORE rows are the rest of the 79 below (read
+         * live in the headless harness the same day: 47, 22, 4 and 6, none without a row). Its 13
+         * PLANNED rows (places E09's commits will add) are left to the commits that add them. The
+         * reader is run first on a fixture with a judged reader, a reader whose field is only in a
+         * comment, an unjudged one, a road and a non-road declaration, a card and a stale row.
+         */
+        const INVESTIGATION_CENSUS = [
+            ["PACKET gm-bridge.mjs#observe.target#actorId", "judged: knownSender + owns(actorId); C12 moves the specific branch to every GM's card and a GM-only observe.pick, the asker stays judged here"],
+            ["PACKET gm-bridge.mjs#observe.target#declaration", "judged: chooseObserveTarget compares it to DECLARATIONS, an unknown one answered with a reason"],
+            ["PACKET gm-bridge.mjs#observe.target#request", "judged: read only as the asker's word for 'focus'; the candidates are recomputed on the primary from C12 (observeCandidates), never taken from it"],
+            ["PACKET gm-bridge.mjs#cleanup.traces#actorId", "judged: knownSender + owns(actorId); lists the traces of the cleaner's own room; E09 adds no read"],
+            ["PACKET gm-bridge.mjs#cleanup.traces#mine", "judged: a filter over the cleaner's own room's list; widens nothing"],
+            ["PACKET gm-bridge.mjs#observe.resolve#actorId", "judged: knownSender + owns(actorId) (E28)"],
+            ["PACKET gm-bridge.mjs#observe.resolve#key", "judged: must be the asker's pending row (F7, gmObservePending on the primary); from C12 that row is written only by the primary after a GM's pick it recomputed"],
+            ["PACKET gm-bridge.mjs#observe.resolve#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#observe.resolve#isCritical", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#observe.resolve#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
+            ["PACKET gm-bridge.mjs#observe.resolve#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#actorId", "judged: knownSender + owns(actorId) (E28)"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#itemId", "judged: resolveAnalyze looks it up on that one character and decides on bulletAsHeld (E29); C8 moves identify's write into publishReading and keeps the held read"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#isCritical", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
+            ["PACKET gm-bridge.mjs#analyze.resolve#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#handover.bullet#fromId", "judged: knownSender + owns(fromId) (E29 handover)"],
+            ["PACKET gm-bridge.mjs#handover.bullet#toId", "judged: handover's verify - a living recipient in the giver's room"],
+            ["PACKET gm-bridge.mjs#handover.bullet#itemId", "judged: handover's verify - an item of the giver's; the copy is written from bulletAsHeld (shareBullet)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#actorId", "judged: knownSender + owns(actorId); C11 makes the !viaAction && !isCleaner branch (cleanup.mjs resolveCleanup) whisper blocked.* to the owner instead of a silent null"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#tokenId", "judged: resolveCleanup finds the trace in the cleaner's room or refuses; C9 keeps the reshape off held copies, C10 keys the proposal's attempt row by it"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#key", "judged: resolveCleanup's road table; E09 adds no read"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#targetId", "judged: resolveStageSix (who may be framed, where the body lies); C11's stuck body returns before dropRemnant"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#total", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#isCritical", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#withHope", "out of scope: the asker's own Hope within its bounds (D2 layer two, E28/E29)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#viaAction", "judged: the !viaAction branch requires isCleaner on the GM; C11 makes its refusal speak"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#undo", "judged: guardUndoIsTheGms - an undo from a player is refused (E28)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#grant", "judged: the grant is looked up in the incident, the packet's extras never read (gm-bridge.mjs 647, 1193)"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#price", "judged: bounded against PRICE_CHAINS (T-1); C11's refund on a GM's refusal gives back what validPrice(price) names - the asker's own Hope within its bounds (D2 layer two), named in C11's prep"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#transform", "judged: bounded against CLEANUP.transform; C10 stores the proposal on the attempt row (the card carries only the tag), C11 refuses a proposal without both fields"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#change", "judged: bounded against CLEANUP.transform (Z5); C11's askTransformChange reopens an incomplete form"],
+            ["PACKET gm-bridge.mjs#murder.cleanup#rollId", "judged: bridge-guards.mjs rollRefusal reads the result from the GMs' roll row (E28); the packet's number is a claim"],
+            ["PACKET gm-bridge.mjs#remnant.place#data", "judged: narrowPlayerRemnant rebuilds a player's trace from a whitelist; C5 decides a Sabotage trace's tie by worksOwnMurder from the GMs' roll row, never the packet"],
+            ["PACKET gm-bridge.mjs#remnant.place#rollId", "judged: the GMs' roll row (noteFactOfRoll) gives the band (traceBandOf) and, from C5, the sabotaged project and its actor"],
+            ["PACKET gm-bridge.mjs#remnant.tieForItem#identity", "judged: guardTieTraceHolder - only the holder, in the fight; remnants.mjs tieTraceForItem writes the tie, and C4's prep checks it keeps the three states (read in the code)"],
+            ["PACKET gm-bridge.mjs#remnant.edit#sceneId", "judged: remnant.edit's guards (E08+E28 C8: the GM re-rates on its own client); E09 adds no read"],
+            ["PACKET gm-bridge.mjs#remnant.edit#tokenId", "judged: remnant.edit's guards; E09 adds no read"],
+            ["PACKET gm-bridge.mjs#remnant.edit#patch", "judged: narrowed in the run - remove as a flag, a visibility from REMNANT_VISIBILITY_LABELS, a type from a GM only"],
+            ["PACKET gm-bridge.mjs#project.sabotage#targetId", "judged: the sender must see the project; handleSabotage notes targetProjectId on the GMs' row, which C5 reads (never the packet)"],
+            ["PACKET gm-bridge.mjs#project.sabotage#difficulty", "judged: handleSabotage's bounds (E28); E09 adds no read"],
+            ["PACKET gm-bridge.mjs#project.sabotage#actorId", "judged: owns(actorId); C5 requires the row's actor to be the sender's character"],
+            ["PACKET gm-bridge.mjs#project.sabotage#rollId", "judged: the GMs' roll row (repairOf); C5 reads its noted targetProjectId"],
+            ["PACKET gm-bridge.mjs#project.sabotage#penalty", "judged: held by repairOf to [SABOTAGE_CONCEAL.despairPenalty, 0] (E28)"],
+            ["PACKET gm-bridge.mjs#project.sabotage#relief", "judged: held by repairOf to the tools the GM sees (E28)"],
+            ["PACKET gm-bridge.mjs#reroll.ask#actorId", "judged: knownSender + owns(actorId); the Reroll receipt (E28); C9's Undo is a GM's"],
+            ["ITEM analyze.mjs#resolveAnalyze", "judged: reads bulletAsHeld (E29); unchanged by E09"],
+            ["ITEM analyze.mjs#identify", "judged: reads bulletAsHeld; C8 extracts its write into truth-bullets.mjs publishReading with the held copy passed in, and moves E33 C1a's GM_ROADS row"],
+            ["ITEM chapter.mjs#revealAllBulletTypes", "judged from C8: each decision on bulletAsHeld, the set from allBullets by design (H22); at base it decides on the document"],
+            ["ITEM chapter.mjs#sweepTruthBullets", "judged: bulletsHeldBy at base; C1 routes it through sweepPlan (bulletsHeldBy + bulletAsHeld, one synchronous pass)"],
+            ["ITEM chapter.mjs#openChapterEndDialog", "judged from C1: the confirm count is sweepPlan's remove.length; at base it counts documents (a forged faint in the window changes the number)"],
+            ["ITEM gm-stores.mjs#bulletsWithoutAnswer", "out of scope: a GM's diagnostic of answer keys, writes nothing a player sees"],
+            ["ITEM gm-stores.mjs#fillsFromTraces", "out of scope: fills a missing answer key's realType from the GMs' stores (bulletStore, remnantStore); the item is only the list"],
+            ["ITEM gm-stores.mjs#gmStoreHealth", "out of scope: a GM's diagnostic count"],
+            ["ITEM handover.mjs#shareBullet", "judged: the copy is built from bulletAsHeld (E29); the answer key copied by copiedRemnants"],
+            ["ITEM investigation.mjs#findersByRemnant", "judged from C7 for the fee: keyFeeOf counts with judgedFor + itemsHeldNow; the planner's display (keyPlanStatus) keeps this document read, a display"],
+            ["ITEM investigation.mjs#evidenceByStudent", "out of scope: 'Who has what', a GM's display (plan 1b); C7 shares livingStudents with it"],
+            ["ITEM investigation.mjs#confirmSweepBullets", "judged from C1: uses sweepPlan; at base it reads documents"],
+            ["ITEM reroll.mjs#settleSearch", "judged: itemsAsHeld (E29)"],
+            ["ITEM sheet.mjs#buildBulletRow", "out of scope: the owner's own sheet drawing their own item on their own client"],
+            ["ITEM truth-bullets.mjs#publishLootSource", "judged from C2 (census-found, not in plan.md): isIdentified(item) on the document decides a GM's write of sourceAction 'loot' - a forged analyzed earns it; C2 reads bulletAsHeld as for the propagate* rows"],
+            ["ITEM truth-bullets.mjs#truthBulletData", "not a sink: the accessor; each caller is its own row"],
+            ["ITEM truth-bullets.mjs#propagateRemnantPublic", "judged from C2: hasReading, name and img off bulletAsHeld; at base a forged analyzed earns analyzedText (plan 2.3)"],
+            ["ITEM truth-bullets.mjs#propagateCrimeTie", "judged from C2: folded into propagateVerdicts, the flag only where isIdentified(bulletAsHeld(item))"],
+            ["ITEM truth-bullets.mjs#propagateCrimeTieMany", "judged from C2: as propagateCrimeTie"],
+            ["ITEM truth-bullets.mjs#propagateRealType", "judged from C2: as propagateCrimeTie; C13 sends type and Faint together through it"],
+            ["ITEM truth-bullets.mjs#migrateTruthBullets", "out of scope: a one-time shape migration on a GM, writes the legacy fields back to their new names and decides no verdict"],
+            ["ITEM truth-bullets.mjs#onBulletWrite", "put back: E29's put-back on the primary (judgedFor)"],
+            ["CARD messenger-app.mjs#approveReshape", "refused and told from C10: the card carries only the tag, the proposal is read off the attempt row, `ruled` set before the first await, a second ruling refused; the card is the GM's (posted from the GM's client - a player cannot update a message they did not author: Foundry's permission, read not measured)"],
+            ["CARD messenger-app.mjs#declineReshape", "refused and told from C10: as approveReshape"],
+            ["CARD messenger-app.mjs#observeMiss", "judged: a GM's card (callGm, posted from the GM's client); chargeObserveMiss reads the actor on the GM (H24); E09 adds no read"],
+            ["CARD messenger-app.mjs#keyRemnantHere", "out of scope: opens the GM's own placement dialog with the player's room and note as a suggestion the GM confirms"],
+            ["STORE gm-stores.mjs#remnantStore", "not a source: a GM store on GM browsers (plan 1b a); C3's Save writes it only where `drawn` equals the ledger"],
+            ["STORE gm-stores.mjs#keyPlanStore", "not a source: a GM store (1b e); C6 adds the `:case` row"],
+            ["STORE gm-stores.mjs#cleanupAttemptStore", "not a source: a GM store (1b a); C10 adds the proposal and `ruled`"],
+            ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (1b e); C7 leaves keysCharged as it is (E10 inherits)"],
+            ["STORE settings.mjs#observePending", "not a source: a client setting on the primary (1b f); C12 writes it only from a recomputed pick"],
+            ["STORE remnants.mjs#TOKEN_KEEPS", "not a source: the token keeps no ledger field (1b a)"]
+        ];
+        const ROADS = /remnant\.|observe\.|cleanup\.|analyze\.|murder\.cleanup|project\.sabotage|handover\.bullet|tieForItem|reroll\.ask/;
+        const FIELDS = new RegExp(`\\b(?:${["tiedToCrime", "faint", "realType", "shownType", "analyzed", "analyzedText", "playerText", "sourceAction"].join("|")})\\b`);
+        const HELD = /\b(?:bulletAsHeld|bulletsHeldBy|itemsHeldNow|itemsAsHeld|judgedFor)\s*\(/;
+        const RAW = /\b(?:truthBulletData|bulletsOf|allBullets|copiedRemnants|findersByRemnant)\s*\(|\.items\b[^;\n]{0,80}\btruthBullet\b|getFlag\(\s*MODULE_ID\s*,\s*["']truthBullet/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(?:const|let|var)\s+([\w$]+))?/gm;
+        const CARD = /Reshape|observe|Remnant|Observe|keyRemnant/;
+        const STORES = [["gm-stores.mjs", "remnantStore"], ["gm-stores.mjs", "keyPlanStore"], ["gm-stores.mjs", "cleanupAttemptStore"],
+            ["vote.mjs", "trialProgress"], ["settings.mjs", "observePending"], ["remnants.mjs", "TOKEN_KEEPS"]];
+        const censusOf = (bridge, sources) => {
+            const found = [];
+            for (const [action, decl] of Object.entries(bridge)) {
+                if (!ROADS.test(action)) continue;
+                const fields = Object.keys(decl?.sanitize?.fields ?? {});
+                // A road whose sanitizer lists no fields cannot be read here, so it is a key no row can hold.
+                for (const field of fields.length ? fields : ["?"]) found.push(`PACKET gm-bridge.mjs#${action}#${field}`);
+            }
+            const files = new Map(sources);
+            for (const [file, raw] of files) {
+                const code = blankComments(raw);
+                const tops = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[3] ?? null }));
+                tops.forEach((top, i) => {
+                    if (!top.name) return;
+                    const text = code.slice(top.at, tops[i + 1]?.at ?? code.length);
+                    if ((HELD.test(text) || RAW.test(text)) && FIELDS.test(text)) found.push(`ITEM ${file}#${top.name}`);
+                    if (file !== "messenger-app.mjs" || top.name !== "CARD_ACTIONS") return;
+                    for (const m of text.matchAll(/^\s+([\w$]+)\s*:\s*[\w$]+\s*,?\s*$/gm)) if (CARD.test(m[1])) found.push(`CARD messenger-app.mjs#${m[1]}`);
+                });
+            }
+            for (const [file, name] of STORES) {
+                if (files.has(file) && new RegExp(`\\b${name}\\b`).test(blankComments(files.get(file)))) found.push(`STORE ${file}#${name}`);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+
+        const planted = censusOf({
+            "observe.planted": { sanitize: { fields: { actorId: "id" } } },
+            "vote.planted": { sanitize: { fields: { choice: "id" } } }
+        }, [
+            ["planted.mjs", "export function judged(item) {\n    return bulletAsHeld(item).analyzed;\n}\n"
+                + "function unread(actor) {\n    // its analyzed flag is read elsewhere\n    return bulletsOf(actor).length;\n}\n"
+                + "const forged = actor => bulletsOf(actor).filter(b => b.tiedToCrime);\n"],
+            ["messenger-app.mjs", "const CARD_ACTIONS = {\n    approveReshape: ruleApproveReshape,\n    reply: ruleReply\n};\n"],
+            ["gm-stores.mjs", "export const remnantStore = gmStore(\"gmRemnants\");\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#observe.planted#actorId", "ITEM planted.mjs#judged",
+            "ITEM planted.mjs#forged", "CARD messenger-app.mjs#approveReshape", "STORE gm-stores.mjs#remnantStore"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
+        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#observe.planted#actorId", ""], ["ITEM planted.mjs#judged", ""],
+            ["ITEM planted.mjs#gone", ""], ["CARD messenger-app.mjs#approveReshape", ""], ["STORE gm-stores.mjs#remnantStore", ""]])),
+            JSON.stringify({ unclassified: ["ITEM planted.mjs#forged"], stale: ["ITEM planted.mjs#gone"] }),
+            "the census judge does not tell a planted reader without a row, or a row without its reader");
+
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const found = censusOf(BRIDGE_ACTIONS, await otherSources());
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(["PACKET", "ITEM", "CARD", "STORE"].every(kind => count(kind) > 0),
+            `the census read ${["PACKET", "ITEM", "CARD", "STORE"].map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, INVESTIGATION_CENSUS);
+        log(`R304: the census read ${found.length} place(s) (${["PACKET", "ITEM", "CARD", "STORE"].map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${INVESTIGATION_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "an investigation road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E09 commit that will) and strike the gone one");
+    }],
+
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
         /*
          * E29 C2, 05.10.2026; audit S03-45 (its code part). `initCharacter` writes a student's

@@ -104,7 +104,8 @@ release or stage the status belongs to.
 | 51 | scenarios/51-lang-mixed.mjs | ci | planned | E57 | English and Polish browsers at one table |
 | 60 | scenarios/60-ledger.mjs | ci, local-gate | exists | <=1.2.50 | the discovery ledger is a secret per player |
 | 61 | scenarios/61-gmstore-case.mjs | ci | exists | E04 | the GM store with a second GM: a late empty browser, backup and restore, tombstones, the reset's cuts |
-| 62 | scenarios/62-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56) |
+| 62 | scenarios/62-investigation.mjs | ci | exists | E09 | the investigation as it is today, with a second GM: three traces, an Observe the GM picks, an Analyze read on the player, a Tamper reshape the GM approves |
+| 63 | scenarios/63-migration-drill.mjs | local-gate | planned | E38 | migrations on copies of real worlds (v1.1.0, 1.2.13, the table's 1.2.56); planned as 62 until E09 C0 took the number the E09 plan had given its investigation scenario |
 | 70 | scenarios/70-movement.mjs | ci | planned | E39 | the movement rules end to end |
 | 71 | scenarios/71-sheet.mjs | local-gate | planned | E45 | the sheet on two accounts on a real v14 |
 | 72 | scenarios/72-canary.mjs | ci | exists | E30 | what a player's browser holds: the canary's self-test, planted secrets at rest, and (E05) a chapter, scanned after every phase with the world-secrets rule, and (E06) the chat each phase's bystanders hold, read for the cast and the secret actions' titles; E43 takes it to the season |
