@@ -201,8 +201,9 @@ function glyph(action) {
  * NOT A SECOND WRITE PATH. Every field goes through `setRemnantPublic`, which is
  * the same function the dashboard's Traces tab and `observe.mjs`'s first find
  * already call - one record, so the two screens cannot disagree and nothing has
- * to be synchronised between them. `setRemnantPublic` also propagates: the
- * token's own name and every Truth Bullet copied from this trace move with it.
+ * to be synchronised between them. `setRemnantPublic` also propagates: every
+ * Truth Bullet copied from this trace takes the field changed here, and only
+ * that one (E09 fix r2-G1), while the token keeps its neutral name.
  *
  * SAVES ON BLUR, with a brief mark rather than a Save button. The window is 380
  * wide and has no footer to put one in, and there is nothing here worth a

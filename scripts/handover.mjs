@@ -705,9 +705,9 @@ async function mintLootBullet(taker, body, loot) {
          * copy of it, this one included: the neutral word and no words, for a trace no
          * GM has described. Measured on e47a5d5: the first loot's bullet read "Trace" on
          * the GM (tier 2) and on p1 (72-canary), and said nothing of what was taken or off
-         * whom; only a later loot's kept its words. Revealed here first, the record goes
-         * onto the copies there were before, and this one says what the loot says, as
-         * every later one does - once the death is the table's (`lootBody`). The owners'
+         * whom; only a later loot's kept its words. Revealed here first, this one says what
+         * the loot says, as every later one does - once the death is the table's (`lootBody`);
+         * since E09 fix r2-G1 a reveal writes on no copy at all. The owners'
          * copy of the trace comes a moment after the reveal and redraws their map when it
          * arrives (visibility.mjs, on `drpgBulletRefsChanged`); the drawing needs a canvas,
          * which the harness has not, so that order is read in the code, not seen.

@@ -1146,6 +1146,7 @@ export function publicOf(entry) {
  *   from the trace as their finders found them: the ledger takes the patch, and the token is
  *   still kept neutral (`propagatePublic`). A killer's reshape, approved, and the Reroll that
  *   takes a clean-up back pass it (cleanup.mjs `reshapeTrace`, `undoLastCleanup`; E09 C9).
+ *   `true` sends the copies the fields this write changed, and nothing else (E09 fix r2-G1).
  */
 export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
@@ -1157,9 +1158,25 @@ export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true 
        named: two GMs - one renaming the trace, one rewriting its reading - both keep
        theirs. Writing the whole merged object stamped every field, so the second
        GM's write took the first one's back with it. */
+    const before = remnantPublic(tokenDoc) ?? {};
     await setRemnantSecret(tokenDoc, { public: patch }, { ifLive: true });
     const merged = remnantPublic(tokenDoc);
-    await propagatePublic(tokenDoc, merged, { copies: propagate });
+
+    /* AND THE COPIES TAKE WHAT THIS WRITE CHANGED, NOT THE RECORD (E09 fix r2-G1, 08.10.2026; the
+       owner's rule of the same day). Since C9 a reshape leaves the copies already held as they were
+       found, and every later write here sent them the whole merged record - the reshaped name and
+       words with it: a GM's rewrite of the reading, a dashboard Save of one field, the Remnant
+       card's rename, a critical find's new description each put the killer's story on an
+       investigator's bullet (tier 2 "a Save of a reshaped trace's reading sends the copies the
+       reading alone" and its three neighbours, scenario 62's V3; red on the code before it,
+       08.10.2026). A field the caller named and the ledger now holds differently is one the GM
+       changed; one named and left equal - the critical find's dialog sends all three back - is not,
+       and a field the stamps refused did not change. */
+    const changed = {};
+    for (const field of Object.keys(patch)) {
+        if ((merged?.[field] ?? "") !== (before[field] ?? "")) changed[field] = merged?.[field] ?? "";
+    }
+    await propagatePublic(tokenDoc, changed, { copies: propagate });
     return merged;
 }
 
@@ -1188,13 +1205,14 @@ export async function setRemnantPublic(tokenDoc, patch = {}, { propagate = true 
  * before C9, 08.10.2026: p1's copy and the reshaper's own). `copies: false`
  * (`setRemnantPublic`'s `propagate`) leaves them and keeps the token's half below; whoever
  * finds the trace afterwards is given the new words (observe.mjs `createFind` reads the
- * ledger).
+ * ledger). `changed` is what a GM's write changed (E09 fix r2-G1), and only that goes to the
+ * copies: a later write of another field leaves a reshaped trace's copies their own words.
  */
-async function propagatePublic(tokenDoc, pub, { copies = true } = {}) {
-    if (copies) {
+async function propagatePublic(tokenDoc, changed, { copies = true } = {}) {
+    if (copies && Object.keys(changed ?? {}).length) {
         try {
             const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
-            await propagateRemnantPublic(tokenDoc.id, pub);
+            await propagateRemnantPublic(tokenDoc.id, changed);
         } catch (err) {
             error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
         }
@@ -1282,8 +1300,15 @@ export async function revealRemnantToFinder(tokenDoc) {
     if (!tokenDoc.hidden) return tokenDoc;
 
     await tokenDoc.update({ hidden: false });
+    /* THE TOKEN KEPT NEUTRAL, AND THE COPIES LEFT (E09 fix r2-G1, 08.10.2026). A reveal changes
+       no word of the trace, and it sent every copy the whole record: a trace hidden again with
+       copies held - an erase's Reroll places it back hidden - put a reshape's words on the copies
+       found before it at its next find (tier 2 "a reshaped trace hidden again and found leaves
+       the copies held", red on the code before it, 08.10.2026). A copy made now is made from the
+       record (observe.mjs `createFind`, gm-items.mjs `bulletFromRemnant`) or is a holder's own
+       (handover.mjs). */
     const pub = remnantPublic(tokenDoc);
-    if (pub) await propagatePublic(tokenDoc, pub);
+    if (pub) await propagatePublic(tokenDoc, {}, { copies: false });
 
     /*
      * THE DIGEST'S ONE EXCEPTION (E7; Dawid, 03.09).

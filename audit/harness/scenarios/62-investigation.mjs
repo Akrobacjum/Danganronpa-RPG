@@ -33,7 +33,9 @@
  *      it hears that, and the primary's put-back is held until the edit has run - p2 reads no
  *      reading, both GMs' copies hold none, the answer key and p1's copy hold it. On the code
  *      before C2 (08.10.2026) both failed: the Faint reached no key, and p2's copy read the
- *      new reading, put back to unanalysed, with both GMs' copies holding it.
+ *      new reading, put back to unanalysed, with both GMs' copies holding it. (E09 fix r2-G1) That
+ *      rewrite is a GM's later write to the trace T reshaped: p1's and p2's copies keep the name and
+ *      words they were found with (V3; on the code before the fix both read the reshaped ones).
  *   D  (E09 C3) the Investigation Dashboard stands open on the GM with a name typed into the
  *      Faint trace's row when gm2 approves a reshape of that trace (since E09 C10 on a proposal
  *      gm2 writes on the attempt's row first): the GM's window redraws
@@ -97,7 +99,8 @@
  * the cluster's start, one run, 08.10.2026), and 42.8 s on the code before C12, where gm2 waits out
  * 20 s for a card that never comes; with E09 C14's phase L, 43 in 22.7 s (28.3 s with the cluster's
  * start, one run, 08.10.2026); with E09 C17's L2, 44 in 29.3 s with the cluster's start (one run,
- * 08.10.2026).
+ * 08.10.2026); with E09 fix r2-G1's V3, 45 in 30.5 s (the fast set's `[cluster]` line, beside two
+ * other lanes, one run, 08.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -460,6 +463,18 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         armed.primary === true && armed.analyzed !== true && forged.done.held && forged.done.edited
             && J(forged.p2) === J([false, "", false]) && J(forged.gm) === J([false, "", MARK.rewritten]) && J(forged.gm2) === J([false, "", MARK.rewritten])
             && forged.p1 === MARK.rewritten, J(forged));
+
+    // V3 (E09 fix r2-G1): V2's rewrite of the reading is a GM's later write to the trace T reshaped, and sends the copies
+    // the reading alone - p1's and p2's keep the name and words they were found with, read on p1 and p2 (a bounded wait
+    // for the renaming the code before the fix made).
+    const wordsOn = (client, actor, id) => client.eval(`${until} ${TB}
+        const copy = game.actors.get("${actor}")?.items.get("${id}");
+        await until(() => copy?.name === ${J(MARK.reshapedName)}, 3000);
+        const data = copy ? TB.truthBulletData(copy) : null;
+        return [data?.name ?? null, data?.playerText ?? null];`, { timeout: 30000 });
+    const heldWords = { p1: await wordsOn(p1, IDS.aiko, copies.aiko), p2: await wordsOn(p2, IDS.botan, copies.botan) };
+    verdict("the GM's rewrite of the reshaped trace's reading leaves p1's and p2's copies the name and words they were found with",
+        ["p1", "p2"].every(side => J(heldWords[side]) === J([MARK.name, MARK.playerText])), J(heldWords));
 
     /* ------------------------------ D. the dashboard under a ruling ------------------------------ */
 

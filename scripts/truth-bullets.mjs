@@ -558,20 +558,14 @@ const READ_ON_ANALYZE = ["key", "final"];
  *   the secret at creation and written onto the item only once the bullet is
  *   identified - see TRUTH_BULLET_FLAGS.analyzedText.
  *
- *   THE TRACE OUTRANKS THIS ARGUMENT WHEN THERE IS A TRACE. A bullet with a
- *   `remnantId` is reconciled to its Remnant's record moments later, by the
- *   `revealSourceOf` call at the bottom of this function: revealing a trace
- *   propagates its `public` block onto every copy, and that includes the
- *   analysis half. So passing a reading the trace does not have does not
- *   create one - it is overwritten with the trace's, which is empty.
- *
- *   That is the right way round and not a wrinkle to route past: one object,
- *   one lab reading, however many copies (see `setRemnantPublic`). Every real
- *   caller already writes the trace first and then reads it back - observe.mjs
- *   does it explicitly, gm-items.mjs passes `pub.analyzedText`, and a handover
- *   passes a secret that was itself filled from the trace. A bullet with NO
- *   trace keeps whatever it is given, because there is nothing to disagree
- *   with.
+ *   THE CALLER READS IT OFF THE TRACE. Every real caller writes the trace
+ *   first and then reads it back - observe.mjs does it explicitly, gm-items.mjs
+ *   passes `pub.analyzedText`, and a handover passes a secret that was itself
+ *   filled from the trace: one object, one lab reading (see `setRemnantPublic`).
+ *   Until E09 fix r2-G1 the `revealSourceOf` call at the bottom of this function
+ *   also overwrote a hidden trace's copies with its whole record, this one
+ *   included; a reveal changes no word now and leaves every copy as it was made
+ *   (remnants.mjs `revealRemnantToFinder`), so a reading passed here stays.
  * @param {string} [data.img]          Portrait. Defaults to the category icon.
  * @param {string} [data.gmNote]       Note for the GM. Never leaves the ledger.
  * @param {string} [data.remnantId]    Source token id, when there is one.
@@ -857,36 +851,47 @@ export function faintOf(item) {
  *
  * @returns {Promise<number>} how many bullets were updated.
  */
-export async function propagateRemnantPublic(remnantTokenId, pub) {
-    if (!game.user.isGM || !remnantTokenId || !pub) return 0;
+export async function propagateRemnantPublic(remnantTokenId, changed) {
+    if (!game.user.isGM || !remnantTokenId || !changed) return 0;
+    /* ONLY WHAT THE GM'S WRITE CHANGED (E09 fix r2-G1, 08.10.2026). `changed` names the fields
+       `setRemnantPublic` moved, and a field it does not name is the copy's own: a reshaped trace's
+       copies found before the reshape keep their name and words through a later rewrite of the
+       reading, and take the reading (tier 2 "a Save of a reshaped trace's reading sends the copies
+       the reading alone"). The description is made of two of the fields, so the half not named
+       is read off the copy as the GMs hold it, as `hasReading` is. */
+    const has = field => Object.hasOwn(changed, field);
+    const words = has("playerText"), reading = has("analyzedText");
+    if (!words && !reading && !has("name") && !has("img")) return 0;
 
     let touched = 0;
     // The copies the answer key lists (`copiesInKey`), not the sheets' (E09 fix r1-G4).
     for (const { item, held } of copiesInKey(row => row.remnantId === remnantTokenId)) {
-        const analyzedText = pub.analyzedText ?? "";
+        const analyzedText = changed.analyzedText ?? "";
         try {
             // The road that reaches every copy, analysed or not. Filed first
             // so that a failure on the item below cannot leave the ledger
             // holding the older sentence. `ifLive`: it amends a row this GM
             // holds (the line above found it), and never starts one.
-            await setSecret(item.uuid, { analyzedText }, { ifLive: true });
+            if (reading) await setSecret(item.uuid, { analyzedText }, { ifLive: true });
 
             // And this holder's own half. `hasReading` is the whole gate: a
             // bullet still showing Neutral - or a Key or a Final nobody has
             // analysed yet - gets the Observe text and an empty second tier,
             // which is what its flags already said.
-            const earned = hasReading(held) ? analyzedText : "";
+            const own = key => held.getFlag(MODULE_ID, key) ?? "";
+            const earned = reading ? (hasReading(held) ? analyzedText : "") : own(TRUTH_BULLET_FLAGS.analyzedText);
+            const playerText = words ? (changed.playerText ?? "") : own(TRUTH_BULLET_FLAGS.playerText);
 
             // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
             // where this write came from, not about the bullet. `watchBulletEdits`
             // below reads it to know this is the trace talking and not a GM,
             // which is the whole of the loop guard.
             await item.update({
-                name: pub.name || held.name,
-                img: pub.img || held.img,
-                "system.description": bulletDescription(pub.playerText ?? "", earned),
-                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
-                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned
+                ...(has("name") ? { name: changed.name || held.name } : {}),
+                ...(has("img") ? { img: changed.img || held.img } : {}),
+                ...(words || reading ? { "system.description": bulletDescription(playerText, earned) } : {}),
+                ...(words ? { [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: playerText } : {}),
+                ...(reading ? { [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned } : {})
             }, { [FROM_REMNANT]: true });
             touched++;
         } catch (err) {
