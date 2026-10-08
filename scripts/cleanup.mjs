@@ -67,7 +67,7 @@ import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY, REMNANT
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { murderState, killerIds, blackenedIds, refOf, swungWeaponOf, spendFreeCleanup } from "./murder.mjs";
-import { usedToolStore, blackenedStore, cleanupAttemptStore } from "./gm-stores.mjs";
+import { usedToolStore, blackenedStore, cleanupAttemptStore, caseMark } from "./gm-stores.mjs";
 import {
     remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic, tieState
 } from "./remnants.mjs";
@@ -2462,6 +2462,26 @@ function recreationDataFor(token) {
     };
 }
 
+/*
+ * A RECEIPT'S "NOT TIED" FROM BEFORE THE THIRD STATE (E09 fix r1-G2, 08.10.2026; the round-1
+ * correctness review's F5). A receipt holds the trace's tie as it stood (`erased`, the reshape's
+ * `transformed.from`) - through `Boolean()` until E09 C4, so a receipt kept from before the upgrade
+ * says "not tied" for a trace nobody had decided, and gm-stores.mjs `settleTieStates` reads the
+ * ledger's rows only: its undo wrote the old `false` back as a GM's "not tied" after the step, and
+ * a death then left the trace alone. A `false` in a receipt field stamped before the step's mark
+ * (`caseMark().tiesSettledAt`, a store stamp), or in a world whose step has not run, goes back
+ * undecided; one stamped since is a GM's of today and goes back as it was (tier 2 "a clean-up
+ * receipt's not tied from before the upgrade goes back undecided"). A receipt written in the
+ * seconds between a load and its step reads as old - read in the code, not measured at a table.
+ * Anything but `false` goes back as the receipt holds it: a receipt from before E08+E28 C3 has no
+ * tie in `from`, and `retuneRemnant` leaves the tie alone for an `undefined`.
+ */
+function receiptTie(actorId, field, tie) {
+    if (tie !== false) return tie;
+    const settledAt = caseMark().tiesSettledAt;
+    return Number.isFinite(settledAt) && cleanupAttemptStore.stampOf(actorId, field) >= settledAt ? false : null;
+}
+
 /**
  * Put the room back the way it was before this actor's last clean-up attempt.
  *
@@ -2503,6 +2523,7 @@ async function undoLastCleanup(actor, tokenId) {
         try {
             const { placeRemnant } = await import("./remnants.mjs");
             const { public: pub, ...data } = receipt.erased;
+            data.tiedToCrime = receiptTie(actor.id, "erased", data.tiedToCrime);
             // Under the id it had (`recreationDataFor`).
             const back = await placeRemnant(data, { keepId: true });
             if (back && pub) await setRemnantPublic(back, pub);
@@ -2530,8 +2551,9 @@ async function undoLastCleanup(actor, tokenId) {
         try {
             const { retuneRemnant, setRemnantPublic } = await import("./remnants.mjs");
             // `from` carries the tie (E08+E28 C3), so a reshape's tie goes back with it.
+            const from = receipt.transformed.from;
             await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
-                receipt.transformed.from);
+                { ...from, tiedToCrime: receiptTie(actor.id, "transformed", from.tiedToCrime) });
 
             // `publicFrom` is null when nothing had ever been written for a
             // finder, and that is a real state rather than a missing one: the

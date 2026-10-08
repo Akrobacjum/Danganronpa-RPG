@@ -29980,6 +29980,12 @@ const SCENARIOS = [
          * rows written `false`, the second after the step's `before`; the step; then the first
          * written `false` again and the step again. Read: what each run moved, the rows after it,
          * and the mark. Red at 8003b86 (A1, 08.10.2026), which has no step.
+         *
+         * AND THE WORLD'S OWN "NOT TIED" IS LEFT ALONE (E09 fix r1-G2, 08.10.2026; the round-1 security
+         * review's F3). The step walked the whole ledger, so this test - run at a table, as GM - made
+         * every "not tied" a GM had given before the run undecided, and a death in that chapter then
+         * tied them. A third trace stands for them: "not tied" before the run, outside the step's
+         * `keys`, read after both runs; the first run moves exactly the one old fixture row.
          */
         needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
         const { isPrimaryGm } = await import("./utils.mjs");
@@ -29989,34 +29995,184 @@ const SCENARIOS = [
         const mark = S.caseMark();
         const placed = [];
         try {
-            for (const name of ["old", "today's"]) {
+            for (const name of ["old", "today's", "world's"]) {
                 const token = await R.placeRemnant({ type: "prep", visibility: "evident", x: 0, y: 0, scene: canvas.scene, note: `SUITE E09 C4 an ${name} not tied` });
                 must(token, "a fixture trace was not placed - this would measure nothing");
                 placed.push(token);
             }
-            const [old, today] = placed.map(token => R.keyOf(token));
+            const [old, today, worlds] = placed.map(token => R.keyOf(token));
             const { tiesSettledAt, ...unmarked } = mark;
             await game.settings.set(MODULE_ID, SETTINGS.caseMark, unmarked);
+            await S.remnantStore.patch(worlds, { tiedToCrime: false }, { ifLive: true });
             await S.remnantStore.patch(old, { tiedToCrime: false }, { ifLive: true });
             const before = S.remnantStore.stampOf(old, "tiedToCrime") + 1;
             await S.remnantStore.patch(today, { tiedToCrime: false }, { ifLive: true });
             // `null` is a reading here, so a missing row reads "absent" rather than through `??`.
             const rowTie = key => { const row = S.remnantStore.get(key); return row ? row.tiedToCrime : "absent"; };
-            must(rowTie(old) === false && rowTie(today) === false && S.remnantStore.stampOf(today, "tiedToCrime") >= before && !S.caseMark().tiesSettledAt,
-                "the two `false`s, the second after `before`, or the unmarked case were not set - this would measure nothing");
-            const first = await S.settleTieStates?.({ before });
-            const settled = [first >= 1, rowTie(old), rowTie(today), Number.isFinite(S.caseMark().tiesSettledAt)];
+            must(rowTie(old) === false && rowTie(today) === false && rowTie(worlds) === false
+                && S.remnantStore.stampOf(worlds, "tiedToCrime") < before
+                && S.remnantStore.stampOf(today, "tiedToCrime") >= before && !S.caseMark().tiesSettledAt,
+                "the three `false`s, the world's before `before` and today's after it, or the unmarked case were not set - this would measure nothing");
+            const keys = [old, today];
+            const first = await S.settleTieStates?.({ before, keys });
+            const settled = [first, rowTie(old), rowTie(today), Number.isFinite(S.caseMark().tiesSettledAt)];
             await S.remnantStore.patch(old, { tiedToCrime: false }, { ifLive: true });
-            const second = await S.settleTieStates?.({ before: Infinity });
-            equal(stableJson([settled, [second, rowTie(old)]]), stableJson([[true, null, false, true], [0, false]]),
+            const second = await S.settleTieStates?.({ before: Infinity, keys });
+            equal(stableJson([settled, [second, rowTie(old)], rowTie(worlds)]), stableJson([[1, null, false, true], [0, false], false]),
                 "the settle step did not read the old `false` as undecided and mark the case, took back a `false` written after the load, "
-                + "or ran again (first run: moved, the old row, today's row, marked; second run: moved, the old row)");
+                + "ran again, or the suite's run moved a row of the world it was not given "
+                + "(first run: moved, the old row, today's row, marked; second run: moved, the old row; the world's row)");
         } finally {
             await game.settings.set(MODULE_ID, SETTINGS.caseMark, mark);
             for (const token of placed) {
                 await R.dropRemnantSecret(token).catch(() => {});
                 await token.delete().catch(() => {});
             }
+        }
+    }],
+
+    ["an old token's not tied reaches the ledger undecided whether moved in or filled in", async () => {
+        /*
+         * E09 fix r1-G2, 08.10.2026; the round-1 reviews' cor F4 = sec F9. A trace from before the
+         * ledger (1.2.62) carries its answer key in its token's flags, the tie written through
+         * `Boolean()`, so a `false` there is as often "nobody said" as a GM's "not tied". The
+         * migration (remnants.mjs `migrateRemnantToken`, from the health check's "move") runs after
+         * the settle step has marked the case, and it wrote the token's `false` into the ledger as it
+         * stood: a "not tied" a death leaves alone, so such a trace was never tied. Three fixture
+         * tokens from before the ledger: `false` with no row (moved in), `false` under a live row
+         * that names no tie (filled in), and `true` with no row. Read: each run's answer and the
+         * rows' tie after it.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const remnants = await import("./remnants.mjs");
+        const { remnantStore } = await import("./gm-stores.mjs");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const placed = [];
+        try {
+            if (!game.actors.getName("Remnant")) {
+                const first = await remnants.placeRemnant({ type: "prep", visibility: "subtle", x: 0, y: 0, scene,
+                    note: "test fixture - makes the Remnant actor" });
+                if (first) placed.push(first);
+            }
+            const oldTrace = async (tiedToCrime, note) => {
+                const [t] = await scene.createEmbeddedDocuments("Token", [{
+                    name: "SUITE Subtle Prep Remnant", actorId: game.actors.getName("Remnant")?.id ?? null, actorLink: false,
+                    x: 0, y: 0, hidden: true,
+                    flags: { [MODULE_ID]: { isRemnant: true, remnantType: "prep", visibility: "subtle", tiedToCrime, note } }
+                }]);
+                must(t, "a fixture trace from before the ledger was not made - this would measure nothing");
+                placed.push(t);
+                return t;
+            };
+            const moved = await oldTrace(false, "SUITE E09 r1-G2 an old undecided, moved in");
+            const filled = await oldTrace(false, "SUITE E09 r1-G2 an old undecided, filled in");
+            const tied = await oldTrace(true, "SUITE E09 r1-G2 an old tied, moved in");
+            await remnantStore.patch(remnants.keyOf(filled), { type: "prep", visibility: "subtle", note: "SUITE E09 r1-G2 a live row with no tie" });
+            const tieOf = t => {
+                const row = remnantStore.get(remnants.keyOf(t));
+                return row ? (Object.hasOwn(row, "tiedToCrime") ? row.tiedToCrime : "missing") : "absent";
+            };
+            must(tieOf(moved) === "absent" && tieOf(tied) === "absent" && tieOf(filled) === "missing",
+                `the fixtures' rows are not what they stand for - this would measure nothing: ${stableJson([tieOf(moved), tieOf(filled), tieOf(tied)])}`);
+            const ran = [];
+            for (const t of [moved, filled, tied]) ran.push((await remnants.migrateRemnantToken(t))?.ledger ?? null);
+            equal(stableJson([ran, tieOf(moved), tieOf(filled), tieOf(tied)]), stableJson([["moved", "filled", "moved"], null, null, true]),
+                "a token's old tie reached the ledger as a GM's \"not tied\", or an old tie was lost "
+                + "(each run's answer; the tie of the trace moved in, of the one filled in, of the tied one)");
+        } finally {
+            for (const t of placed) {
+                await remnants.dropRemnantSecret(t).catch(() => {});
+                await t.delete().catch(() => {});
+            }
+        }
+    }],
+
+    ["a clean-up receipt's not tied from before the upgrade goes back undecided", async () => {
+        /*
+         * E09 fix r1-G2, 08.10.2026; the round-1 correctness review's F5. A clean-up's receipt holds
+         * the trace's tie as it stood - the erased trace's (`erased`) and the reshaped one's
+         * (`transformed.from`) - through `Boolean()` until E09 C4, so a receipt kept from before the
+         * upgrade says "not tied" for a trace nobody had decided. The settle step reads the ledger
+         * only, and the Reroll's undo wrote the old `false` back as a GM's "not tied", which a death
+         * leaves alone. Three Tamper clean-ups on fixture traces, each taken back by a Reroll that
+         * misses: an erase and an approved reshape of undecided traces whose receipt's tie is then
+         * written `false` under the step's mark (`tiesSettledAt` set past the receipt's stamp), as a
+         * receipt from before the upgrade holds it; and an approved reshape of a trace a GM marked
+         * "not tied" after the mark, whose receipt's `false` is that GM's. Read: each trace's tie
+         * after its Reroll. The case's mark is put back after.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const [a, b, c] = cast(3);
+        must(a && b && c, "three students are needed - this would measure nothing");
+        const cleanup = await import("./cleanup.mjs");
+        const R = await import("./remnants.mjs");
+        const S = await import("./gm-stores.mjs");
+        const E = await import("./gm-store.mjs");
+        const mark = S.caseMark();
+        const fixtures = [];
+        const change = { name: "SUITE E09 r1-G2 a kettle", text: "SUITE E09 r1-G2 it was always there" };
+        const markAt = at => game.settings.set(MODULE_ID, SETTINGS.caseMark, { ...mark, tiesSettledAt: at });
+        // The receipt's `field` with its tie written `false`, as Boolean() kept it, and the mark set past it.
+        const oldReceipt = async (who, field) => {
+            const row = foundry.utils.deepClone(S.cleanupAttemptStore.get(who.id) ?? null);
+            must(row?.[field], `the ${field} receipt was not kept - this would measure nothing`);
+            if (field === "erased") row.erased.tiedToCrime = false;
+            else row.transformed.from.tiedToCrime = false;
+            await S.cleanupAttemptStore.patch(who.id, { [field]: row[field] });
+            await markAt(S.cleanupAttemptStore.stampOf(who.id, field) + 1);
+        };
+        const tieOf = (F, id) => { const data = R.remnantData(F.scene.tokens.get(id)); return data ? data.tiedToCrime : "absent"; };
+        try {
+            const erased = await cleanupFixture(a, "SUITE E09 r1-G2 an old receipt's erase");
+            fixtures.push(erased);
+            must(erased.trace && erased.copy && tieOf(erased, erased.trace.id) === null,
+                "the erase's fixture trace or its copy was not made undecided - this would measure nothing");
+            const id = erased.trace.id;
+            const gone = await erased.scrub(30);
+            await settle();
+            must(gone?.removed === true, `the erase did not remove the trace: ${stableJson(gone)}`);
+            await oldReceipt(a, "erased");
+            await erased.scrub(0, { undo: true });
+            await settle();
+            const afterErase = tieOf(erased, id);
+
+            const reshape = async (who, note, before) => {
+                const F = await cleanupFixture(who, note);
+                fixtures.push(F);
+                must(F.trace && F.copy, "a reshape's fixture trace or its copy was not made - this would measure nothing");
+                await before(F);
+                await F.scrub(30, { mode: "transform", change });
+                await settle();
+                const applied = await cleanup.applyReshapeRuling({ actorId: who.id, tokenId: F.trace.id, ...change, tie: true });
+                await settle();
+                must(applied === true && tieOf(F, F.trace.id) === true, "the reshape was not approved with its tie - this would measure nothing");
+                return F;
+            };
+            const old = await reshape(b, "SUITE E09 r1-G2 an old receipt's reshape", async F => {
+                must(tieOf(F, F.trace.id) === null, "the reshape's fixture trace is decided - this would measure nothing");
+            });
+            await oldReceipt(b, "transformed");
+            await old.scrub(0, { mode: "transform", change, undo: true });
+            await settle();
+            const afterOld = tieOf(old, old.trace.id);
+
+            const today = await reshape(c, "SUITE E09 r1-G2 a receipt of today's not tied", async F => {
+                await markAt(E.gmStoreStamp());
+                await R.setRemnantFlags(F.trace, { tiedToCrime: false });
+                must(tieOf(F, F.trace.id) === false, "the GM's not tied was not set - this would measure nothing");
+            });
+            must(S.cleanupAttemptStore.get(c.id)?.transformed?.from?.tiedToCrime === false
+                && S.cleanupAttemptStore.stampOf(c.id, "transformed") >= S.caseMark().tiesSettledAt,
+                "today's receipt does not hold the GM's not tied after the mark - this would measure nothing");
+            await today.scrub(0, { mode: "transform", change, undo: true });
+            await settle();
+            const afterToday = tieOf(today, today.trace.id);
+            equal(stableJson([afterErase, afterOld, afterToday]), stableJson([null, null, false]),
+                "a receipt's not tied from before the upgrade came back as a GM's, or today's came back otherwise "
+                + "(the erased trace put back, the old reshape taken back, today's reshape taken back)");
+        } finally {
+            for (const F of fixtures.reverse()) await F.putBack();
+            await game.settings.set(MODULE_ID, SETTINGS.caseMark, mark);
         }
     }],
 

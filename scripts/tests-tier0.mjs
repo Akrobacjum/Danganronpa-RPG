@@ -7472,25 +7472,33 @@ const REGRESSIONS = [
          * E09 fix r1-G1 adds the two copy makers, observe.mjs `createFind` and gm-items.mjs
          * `bulletFromRemnant` (the round-1 goal review's G2a): both gave a new copy the ledger's tie
          * through `Boolean()` at f88133d, a death's kept tie included; they read `tieForCopy` now.
+         * E09 fix r1-G2 adds the legacy migration, remnants.mjs `moveIntoLedger` (the round-1 reviews'
+         * cor F4 = sec F9): its new row ran a token's tie through `Boolean(f("tiedToCrime"))`, a shape
+         * the reader did not know, and its live row's fill took the token's raw `false`; both read
+         * `oldTokenTie` now, and the reader knows the call shape.
          */
         const sources = new Map(await otherSources());
         const READS = [
             ["remnants.mjs", "placeRemnant"], ["remnants.mjs", "remnantData"], ["remnants.mjs", "setRemnantFlags"],
             ["remnants.mjs", "setRemnantFlagsMany"], ["remnants.mjs", "retuneRemnant"],
             ["cleanup.mjs", "reshapeTrace"], ["cleanup.mjs", "recreationDataFor"],
-            ["observe.mjs", "createFind"], ["gm-items.mjs", "bulletFromRemnant"]
+            ["observe.mjs", "createFind"], ["gm-items.mjs", "bulletFromRemnant"], ["remnants.mjs", "moveIntoLedger"]
         ];
-        const FLAT = /\bBoolean\(\s*[\w.?]*tiedToCrime\s*\)/;
+        const FLAT = /\bBoolean\(\s*(?:[\w.?]*tiedToCrime|\w+\(\s*["']tiedToCrime["']\s*\))\s*\)/;
+        // A token's flag passed on as it stands: the old `false` is a GM's "not tied" in the ledger.
+        const RAW = /tiedToCrime:\s*f\(\s*["']tiedToCrime["']\s*\)/;
         const empty = [], flat = [];
         for (const [file, fn] of READS) {
             const body = fnSource(stripComments(sources.get(file) ?? ""), fn);
             if (body.length < 40) empty.push(`${file} ${fn}`);
-            if (FLAT.test(body)) flat.push(`${file} ${fn}`);
+            if (FLAT.test(body) || RAW.test(body)) flat.push(`${file} ${fn}`);
         }
-        ok(FLAT.test("tiedToCrime: Boolean(entry.tiedToCrime),") && !FLAT.test("tiedToCrime: tieState(entry.tiedToCrime),"),
-            "the reader does not tell the flattened tie from the kept one");
+        ok(FLAT.test("tiedToCrime: Boolean(entry.tiedToCrime),") && !FLAT.test("tiedToCrime: tieState(entry.tiedToCrime),")
+            && FLAT.test('tiedToCrime: Boolean(f("tiedToCrime")),') && RAW.test('tiedToCrime: f("tiedToCrime"),')
+            && !RAW.test('tiedToCrime: oldTokenTie(f("tiedToCrime")),'),
+            "the reader does not tell the flattened or raw tie from the kept one");
         equal(JSON.stringify([empty, flat]), JSON.stringify([[], []]),
-            "a writer or reader of the tie was not found, or flattens it to two states with Boolean() (not found; flattens)");
+            "a writer or reader of the tie was not found, flattens it to two states with Boolean() or passes an old token's flag on raw (not found; flattens)");
     }]
 ];
 

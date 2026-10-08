@@ -1458,6 +1458,20 @@ export function tieState(value) {
     return value === true || value === false ? value : null;
 }
 
+/**
+ * A TIE READ OFF A TOKEN FROM BEFORE THE LEDGER (E09 fix r1-G2, 08.10.2026; the round-1 reviews'
+ * cor F4 = sec F9). Those flags were written before the third state, through `Boolean()`, so their
+ * `false` is as often "nobody said" as a GM's "not tied" - and `moveIntoLedger` runs from the
+ * health check's "move", after gm-stores.mjs `settleTieStates` has marked the case, so the step
+ * never reads what it writes. Read as the step reads an old row's: `true` stays, anything else is
+ * undecided; no flag at all stays `undefined`, which a live row's fill skips (tier 2 "an old
+ * token's not tied reaches the ledger undecided whether moved in or filled in").
+ */
+function oldTokenTie(value) {
+    if (value === undefined) return undefined;
+    return value === true ? true : null;
+}
+
 export function remnantData(tokenDoc) {
     if (!tokenDoc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
 
@@ -2451,7 +2465,7 @@ async function moveIntoLedger(token, live, typed) {
         const onToken = {
             type: f("type"), visibility: f("visibility"), faint: f("faint"), reinforced: f("reinforced"),
             note: f("note"), action: f("action"), subject: f("subject"), pointsAt: f("pointsAt"),
-            tiedToCrime: f("tiedToCrime"), sourceActor: f("sourceActor"), sourceName: f("sourceName"),
+            tiedToCrime: oldTokenTie(f("tiedToCrime")), sourceActor: f("sourceActor"), sourceName: f("sourceName"),
             room: f("room"), chapter: f("chapter"), day: f("day"), timeOfDay: f("timeOfDay"), label
         };
         const fields = Object.fromEntries(Object.entries(onToken)
@@ -2479,7 +2493,7 @@ async function moveIntoLedger(token, live, typed) {
         type: f("type"), visibility: f("visibility"),
         faint: Boolean(f("faint")), reinforced: Boolean(f("reinforced")),
         note: f("note"), action: f("action"), subject: f("subject"),
-        pointsAt: f("pointsAt"), tiedToCrime: Boolean(f("tiedToCrime")),
+        pointsAt: f("pointsAt"), tiedToCrime: oldTokenTie(f("tiedToCrime")) ?? null,
         sourceActor: f("sourceActor"), sourceName: f("sourceName"),
         room: f("room"), chapter: f("chapter"), day: f("day"),
         timeOfDay: f("timeOfDay"),

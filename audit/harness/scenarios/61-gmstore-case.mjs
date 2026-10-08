@@ -166,9 +166,17 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
        hydrated and written what they write then: since E29 C3 the primary fills the marks of a sheet as its
        stores hydrate (sheet-audit.mjs), and the seed GM's had not yet when this ran (measured 05.10.2026,
        e29run/scratch/c3/a5probe.mjs: hydrated false, no marks, the copy without the key; A5 then saw a state
-       exchanged for them). */
-    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const end = Date.now() + 10000;
+       exchanged for them). And once its load's own writes are done (gm-stores.mjs `whenGmStoresLoaded`, the
+       suite's wait): since E09 C4 the primary's load reads this world's 1.2.62 "not tied" as undecided
+       (`settleTieStates`, D1 below) and writes it to the traces' store after the stores hydrate. Waited for
+       hydration and idle only, the copy could be taken before the load's marks were done (E09 fix r1-G2,
+       08.10.2026, e09run/scratch/r1g2/p61a: `tiesSettledAt` still unset at the copy), and A5 saw the primary
+       send the copy a `gms.state` in every whole run of 61 since C4 (e09run/k1-ci/61.log, scratch/r1g3s61-par
+       and -fix). */
+    await gm.eval(`const E = await import("${repoUrl}/scripts/gm-store.mjs"); const S = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const end = Date.now() + 10000;
         while (!E.gmStoresHydrated() && Date.now() < end) await new Promise(r => setTimeout(r, 100));
+        if (E.gmStoresHydrated()) await S.whenGmStoresLoaded();
         await E.gmStoresIdle(); return E.gmStoresHydrated();`);
     await connect("gm2", { storage: { ...(await storageOf("gm")), [PROBE_KEY]: probe } });
     await settle(400);
@@ -374,7 +382,11 @@ export async function run({ gm, gm2, gm3, gma, gmb, gmc, p1, p2, p3, p4, check, 
             const t = game.scenes.get(sceneId)?.tokens?.get(tokenId); const d = t ? R.remnantData(t) : null;
             return d ? [d.type, d.note ?? "", d.tiedToCrime] : null; });`;
     const seedKey = `${IDS.annex}.${IDS.trace}`;
-    const seedRow = ["prep", "", false];
+    /* The seed's row is a 1.2.62 world's (lib/seed.mjs), whose `false` was written through `Boolean()`: the
+       primary's load reads it as undecided once (gm-stores.mjs `settleTieStates`, E09 C4; the owner's D14),
+       so the trace survives undecided. `false` until C4 (E09 fix r1-G2, 08.10.2026: e09run/scratch/r1g2/p61a
+       read the seed's tie stamped 14 ms before the mark, null). */
+    const seedRow = ["prep", "", null];
     const expectD = [seedRow, ["incident", "E04 trace 1", true], ["prep", "E04 trace 2", false]];
     const idsD = [seedKey, ...placedD.map(id => `${IDS.scene}.${id}`)];
     await connect("gm2");

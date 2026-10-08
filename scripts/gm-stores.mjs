@@ -1347,18 +1347,28 @@ const TIES_LOADED_AT = Date.now();
  * So the tie's own stamp is asked (`stampOf`, per field in the ledger) against the moment this
  * module was loaded (`TIES_LOADED_AT`); `before` is the suite's.
  *
- * @param {{before?: number}} [options]
+ * THE SUITE'S RUN READS ITS OWN ROWS (E09 fix r1-G2, 08.10.2026; the round-1 security review's F3).
+ * The tier-2 test took the mark out and ran the step over the whole ledger, so a GM who ran the
+ * suite at a table had every "not tied" of the world made undecided, silently, and a death in that
+ * chapter then tied them. `keys` limits the walk to the rows named; only the suite passes it.
+ *
+ * The mark is a store stamp (`gmStoreStamp`, the server's clock as the rows' stamps are), since
+ * fix r1-G2: cleanup.mjs `receiptTie` holds a receipt's stamp against it.
+ *
+ * @param {{before?: number, keys?: string[]|null}} [options]
  * @returns {Promise<number>} how many rows moved
  */
-export async function settleTieStates({ before = TIES_LOADED_AT } = {}) {
+export async function settleTieStates({ before = TIES_LOADED_AT, keys = null } = {}) {
     if (!isPrimaryGm() || caseMark().tiesSettledAt || !remnantStore.isHydrated()) return 0;
+    const only = keys ? new Set(keys) : null;
     const undecided = {};
     for (const [key, row] of Object.entries(remnantStore.entries())) {
+        if (only && !only.has(key)) continue;
         if (row?.tiedToCrime === false && remnantStore.stampOf(key, "tiedToCrime") < before) undecided[key] = { tiedToCrime: null };
     }
     const moved = Object.keys(undecided).length;
     if (moved) await remnantStore.patchMany(undecided, { ifLive: true });
-    await markCase({ tiesSettledAt: Date.now() });
+    await markCase({ tiesSettledAt: gmStoreStamp() });
     return moved;
 }
 
