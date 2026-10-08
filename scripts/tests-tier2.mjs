@@ -18952,6 +18952,93 @@ const SCENARIOS = [
         }
     }],
 
+    ["a trace's when and what read in the client's language on every screen that shows them", async () => {
+        /*
+         * E09 C15, 08.10.2026; audit S05-30. A trace's chapter, day and time of day were typed into four
+         * screens four ways: "Ch 1 · D 11" under every dashboard row (remnants.mjs `traceContextLine`) and on
+         * the GM's card of a trace (remnant-ring.mjs `gmRemnantCard`), "Chapter 1 · Day 11" in the GMs' digest
+         * (`traceCard`) - English in every language - and the report's own key over the time of day in
+         * `reportRemnants`; the time of day the stored key on three of them, and the context line and the
+         * report printed the actions `ACTIONS` does not name ("loot", "incident", ...) as they are stored.
+         *
+         * The screens: the context line, the digest's card, the GM's card of the trace and the report's row.
+         *
+         * IN POLISH, WHATEVER THE CLIENT RUNS. The harness's clients load en.json alone, where the English
+         * typed into the code is close to what the language file says; so for its own length the test lays
+         * pl.json's strings for the trace's chapter, day and action over this client's translations, and
+         * puts them back after. The time of day is config.mjs's table, translated once at load (i18n.mjs),
+         * so it is read off the table as it stands. One looted trace, chapter 7, day 11, evening. Read: the
+         * context line whole; whether the digest's card for it, the GM's card (drawn through the sheet's
+         * render hook, the road a double-click takes) and its row of the report carry the same "when" - the
+         * card and the report the action's name too.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the trace stands on the scene on screen");
+        needs(world.atLeast("occupiedRooms", 1), "the trace is left in a room with a token in it");
+        const [who] = cast(1);
+        const remnants = await import("./remnants.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { MODULE_ID, TIME_OF_DAY_LABELS } = await import("./config.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const scene = canvas?.scene;
+        const anchor = Array.from(scene.tokens).find(t => roomOfToken(t));
+        must(anchor, "no token stands in a room on the scene on screen");
+        const room = roomOfToken(anchor);
+        const response = await fetch(`modules/${MODULE_ID}/lang/pl.json`);
+        must(response.ok, `pl.json: HTTP ${response.status}`);
+        const pl = foundry.utils.expandObject(await response.json());
+        // Each key as its family and its leaf, so it can be laid over and taken off again where it sits.
+        const KEYS = [["DRPG.TruthBullet", "chapterShort"], ["DRPG.Remnant", "dayShort"], ["DRPG.Remnant.action", "loot"]];
+        const T = game.i18n.translations;
+        const had = KEYS.map(([family, leaf]) => foundry.utils.getProperty(T, family)?.[leaf]);
+        const put = ([family, leaf], value) => {
+            const parent = foundry.utils.getProperty(T, family);
+            if (value === undefined) delete parent[leaf];
+            else parent[leaf] = value;
+        };
+        const note = "test fixture - when and what";
+        let token = null;
+        try {
+            for (const key of KEYS) {
+                const value = foundry.utils.getProperty(pl, key[0])?.[key[1]];
+                if (typeof value === "string") put(key, value);
+            }
+            const before = new Set(game.messages.map(m => m.id));
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", scene, x: anchor.x, y: anchor.y,
+                sourceActor: who.id, sourceName: who.name, room,
+                chapter: 7, day: 11, timeOfDay: "evening", action: "loot", note
+            });
+            must(token, "could not place the trace");
+            const when = [game.i18n.format("DRPG.TruthBullet.chapterShort", { n: 7 }),
+                game.i18n.format("DRPG.Remnant.dayShort", { n: 11 }), TIME_OF_DAY_LABELS.evening].join(" · ");
+            const what = game.i18n.localize("DRPG.Remnant.action.loot");
+
+            const line = remnants.traceContextLine(remnants.remnantData(token));
+            await remnants.flushTraceDigest();
+            const said = (await Promise.all(game.messages.filter(m => !before.has(m.id)).map(m => wordsOf(m, 2000))))
+                .map(words => String(words ?? ""));
+            const digest = said.flatMap(words => words.split("<hr>")).find(one => one.includes(note)) ?? "";
+            const element = document.createElement("div");
+            element.innerHTML = `<div class="window-content"></div>`;
+            Hooks.callAll("renderActorSheetV2", { document: { token }, setPosition: () => {} }, element);
+            const card = element.textContent;
+            const report = String(await wordsOf(await remnants.reportRemnants(scene), 2000) ?? "");
+            const row = report.split("<tr").find(one => one.includes(when)) ?? "";
+
+            equal(JSON.stringify([line, digest.includes(when), card.includes(when) && card.includes(what),
+                row.includes(what)]),
+            JSON.stringify([[who.name, room, when, what].join(" · "), true, true, true]),
+            "a trace's when or what is not what the client's language says (the context line; the digest's card, "
+                + "the GM's card and the report's row carrying the same when - the card and the row the action)");
+        } finally {
+            KEYS.forEach((key, i) => put(key, had[i]));
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) await scene.deleteEmbeddedDocuments("Token", [token.id]);
+            }
+        }
+    }],
+
     ["a reshape approved under an open dashboard survives Save", async () => {
         /*
          * E09 C3, V1 (S05-26). The dashboard listened for actors, items and world settings,
@@ -19932,7 +20019,8 @@ const SCENARIOS = [
             equal(rows(), all, "ordering dropped rows; it is an order, not a filter");
             const first = dialog.element
                 .querySelector('[data-drpg-panel="traces"] tbody tr')?.textContent ?? "";
-            ok(/D\s*3/.test(first),
+            // The day as `traceWhen` prints it in the client's language (E09 C15: it was "D 3" in every one).
+            ok(first.includes(game.i18n.format("DRPG.Remnant.dayShort", { n: 3 })),
                 `newest first put "${first.replace(/\s+/g, " ").trim().slice(0, 60)}" at the top`);
         } finally {
             if (dialog) await dialog.close();

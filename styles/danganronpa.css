@@ -11646,12 +11646,24 @@ body.drpg-theme-stained-glass .application.dialog:is(.drpg-window-murder, .drpg-
 
 /* One line of context under a row's main field - who left this trace, where,
    when, doing what. Reads as a caption, not as a second field: the row's
-   subject is the input above it. See `traceContextLine` in remnants.mjs. */
+   subject is the input above it. See `traceContextLine` in remnants.mjs.
+
+   IN THE PALETTE'S DIM INK, NOT AT THREE-QUARTER OPACITY (E09 C15, 08.10.2026;
+   audit S05-30, whose fix names the token). The audit read the caption, 11 px of
+   VT323 at opacity 0.75, as below legible; an opacity fades whatever ink the cell
+   happens to inherit and nothing lifts it, where the token is one colour the
+   palette chose, a re-hue moves, and `body.drpg-high-contrast` raises to #cfc9d6
+   for the 11 px `.notes` lines. NOT A CONTRAST GAIN in the default palette,
+   computed (WCAG, 08.10) over `--drpg-ink` #1d1a21: `--drpg-bone` at 0.75 reads
+   7.7:1, `--drpg-dim` 4.7:1 - so if these cells inherit bone the line is quieter
+   than before, not louder. Which ink a table cell inherits in the dashboard was
+   not measured: the harness draws no CSS, and a table at a real client is where
+   to look (`.dialog-form .notes` already takes the dim ink outside a table). */
 .drpg-trace-context {
     display: block;
     margin-top: 2px;
     font-size: var(--drpg-text-xs, 0.7rem);
-    opacity: 0.75;
+    color: var(--drpg-dim);
     overflow-wrap: anywhere;
 }
 

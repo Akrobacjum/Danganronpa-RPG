@@ -551,6 +551,27 @@ function actionLabel(action) {
     return label === key ? action : label;
 }
 
+/**
+ * The action that left a trace, as every screen that shows a trace names it: the
+ * action's own name where it is a tile (`ACTIONS`), the Remnant table's for the ones
+ * that are not (a thrown-away item, a body looted, an incident, a clean-up, a trace the
+ * GM placed), and the bare key only for an action neither names.
+ *
+ * ONE READ, IN THE FILE THAT OWNS THE TRACE (E09 C15, 08.10.2026; audit S05-30). This
+ * lived in remnant-ring.mjs for the GM's card alone, and `traceContextLine` read
+ * `ACTIONS` and fell back to the key - so the line under every dashboard row printed
+ * "dynamic", "incident", "loot", "discard" and "resolution" as they are stored (none
+ * is a key of `ACTIONS`), the same mistake the "manual" note in it records, while the
+ * card beside it named them. The ledger's own `label` (`placeRemnant`) keeps
+ * `actionLabel` above: it is written into the row when the trace is placed, and of the
+ * nine actions the two tables name, they disagree on one, a project ("Project" there,
+ * `ACTIONS.project`'s "Projects" here; read in en.json and config.mjs, not changed).
+ */
+export function actionLabelOf(action) {
+    if (!action) return null;
+    return ACTIONS[action]?.label ?? actionLabel(action);
+}
+
 /* ==========================================================================
  * THE TRACE DIGEST
  * --------------------------------------------------------------------------
@@ -585,11 +606,7 @@ const tombstoning = new Map();
 
 /** The card one trace gets, whether it goes out alone or in the digest. */
 function traceCard(data, { heading = true } = {}) {
-    const when = [
-        data.chapter ? `Chapter ${data.chapter}` : null,
-        data.day ? `Day ${data.day}` : null,
-        data.timeOfDay
-    ].filter(Boolean).join(" · ");
+    const when = traceWhen(data);
 
     const title = `${esc(data.visibilityLabel)} ${esc(data.typeLabel)}${
         data.faint ? " (Faint)" : ""}`;
@@ -1609,22 +1626,44 @@ export function remnantData(tokenDoc) {
  */
 export function traceContextLine(data) {
     if (!data) return "";
-    const timeOfDay = data.timeOfDay
-        ? (TIME_OF_DAY_LABELS[data.timeOfDay] ?? data.timeOfDay) : null;
     return [
         data.sourceName || null,
         data.room || null,
-        data.chapter ? `Ch ${data.chapter}` : null,
-        data.day ? `D ${data.day}` : null,
-        timeOfDay,
+        traceWhen(data) || null,
         /* "manual" IS THE ABSENCE OF AN ACTION, NOT AN ACTION. It is `placeRemnant`'s own
            default for a trace nobody performed anything to leave - a GM-placed clue, a planned
            Key Remnant - and it is not a key in `ACTIONS` at all (the `manual` in config.mjs is
            a project trigger). So the fallback printed the raw word and every planned clue read
            "Main Hall - manual" in the dashboard. The ledger's own `label` builder three hundred
            lines up has skipped it since it was written; this line simply never learned. */
-        data.action && data.action !== "manual"
-            ? (ACTIONS[data.action]?.label ?? data.action) : null
+        data.action && data.action !== "manual" ? actionLabelOf(data.action) : null
+    ].filter(Boolean).join(" · ");
+}
+
+/**
+ * When a trace was left, as one line: the chapter, the day and the time of day, each
+ * in the reader's language, empty ones dropped (as `traceContextLine` drops them).
+ *
+ * ONE LINE FOR FOUR SCREENS (E09 C15, 08.10.2026; audit S05-30). The same three facts
+ * were written four ways: "Ch 1 · D 11 · Evening" under a dashboard row, "Chapter 1 ·
+ * Day 11 · evening" in the GMs' digest, "Ch 1 · D 11 · evening" on the GM's card of a
+ * trace, and its own key's "Ch 1 · D 11" over "evening" in `reportRemnants` - the
+ * chapter and the day typed in English in three, the time of day the stored key in
+ * three. The chapter
+ * takes the Truth Bullet badge's own key (sheet.mjs, trial.mjs), so a GM and a player
+ * read one trace's chapter alike. Measured by the tier-2 test "a trace's when and what
+ * read in the client's language on every screen that shows them" (the context line,
+ * the digest, the GM's card and the report, with pl.json's strings laid over).
+ *
+ * @param {object} data  A `remnantData()` record.
+ * @returns {string}  Plain text, unescaped - the caller escapes it.
+ */
+export function traceWhen(data) {
+    if (!data) return "";
+    return [
+        data.chapter ? game.i18n.format("DRPG.TruthBullet.chapterShort", { n: data.chapter }) : null,
+        data.day ? game.i18n.format("DRPG.Remnant.dayShort", { n: data.day }) : null,
+        data.timeOfDay ? (TIME_OF_DAY_LABELS[data.timeOfDay] ?? data.timeOfDay) : null
     ].filter(Boolean).join(" · ");
 }
 
@@ -1647,10 +1686,8 @@ export async function reportRemnants(scene = null) {
             <td>${foundry.utils.escapeHTML(r.visibilityLabel)} ${foundry.utils.escapeHTML(r.typeLabel)}${r.faint ? ` ${game.i18n.localize("DRPG.Remnant.report.faintTag")}` : ""}${r.reinforced ? " ★" : ""}</td>
             ${multi ? `<td>${foundry.utils.escapeHTML(s.name)}</td>` : ""}
             <td>${foundry.utils.escapeHTML(r.room ?? "-")}</td>
-            <td>${foundry.utils.escapeHTML(r.sourceName ?? "-")}<br><small>${foundry.utils.escapeHTML(r.action ?? "")}${r.subject ? `: ${foundry.utils.escapeHTML(r.subject)}` : ""}</small></td>
-            <td>${game.i18n.format("DRPG.Remnant.report.stamp", {
-                chapter: r.chapter ?? "?", day: r.day ?? "?"
-            })}<br><small>${foundry.utils.escapeHTML(r.timeOfDay ?? "")}</small></td>
+            <td>${foundry.utils.escapeHTML(r.sourceName ?? "-")}<br><small>${foundry.utils.escapeHTML(actionLabelOf(r.action) ?? "")}${r.subject ? `: ${foundry.utils.escapeHTML(r.subject)}` : ""}</small></td>
+            <td>${foundry.utils.escapeHTML(traceWhen(r) || "-")}</td>
             <td>${game.i18n.localize(r.hidden
                 ? "DRPG.Remnant.report.hidden" : "DRPG.Remnant.report.revealed")}</td>
         </tr>`)

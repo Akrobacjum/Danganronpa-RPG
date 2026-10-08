@@ -7553,6 +7553,24 @@ const REGRESSIONS = [
         JSON.stringify([true, false, true, true, ["cleanupAttemptStore.whenHydrated"], ["cleanupAttemptStore.whenHydrated"]]),
         "a reshape's ruling can wait before it claims the proposal (claimRuling a plain function, an await in it, its read of "
             + "`ruled`, its mark; the awaits before the claim in applyReshapeRuling and in declineReshapeRuling)");
+    }],
+
+    ["R308 - a trace's context line is drawn in the palette's dim ink, not at an opacity", async () => {
+        /*
+         * E09 C15, 08.10.2026; audit S05-30. The caption under a dashboard row (`.drpg-trace-context`)
+         * was the cell's own ink at opacity 0.75, which nothing lifts - `body.drpg-high-contrast` raises
+         * `--drpg-dim`, not an opacity - and the audit read it as below legible. Read off every stylesheet
+         * the manifest loads, comments stripped: each rule that names the class, whether one sets an
+         * opacity, and whether one takes `--drpg-dim`. No browser draws the line in the harness, so what
+         * it looks like is not measured here (the comment over the rule has the computed contrasts).
+         */
+        const css = await moduleStyles();
+        const bodies = [...css.matchAll(/([^{}]*)\{([^{}]*)\}/g)]
+            .filter(m => /\.drpg-trace-context\b/.test(m[1])).map(m => m[2]);
+        equal(JSON.stringify([bodies.length > 0, bodies.some(b => /\bopacity\s*:/.test(b)),
+            bodies.some(b => /\bcolor\s*:\s*var\(--drpg-dim\)/.test(b))]),
+        JSON.stringify([true, false, true]),
+        "the trace's context line (a rule naming .drpg-trace-context; one setting an opacity; one in var(--drpg-dim))");
     }]
 ];
 
