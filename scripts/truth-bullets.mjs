@@ -399,22 +399,34 @@ export function bulletDescription(playerText, analyzedText = "") {
  * browser may not have reached this one, so a secret can hold "" while the trace holds the GM's words: one lookup of
  * the trace's `public` record here instead of an audit of every creation site. A bullet with no trace behind it keeps
  * whatever its secret was given.
+ *
+ * `kindOnly`: THE KIND, NOT THE READING (E09 fix r1-G5, the owner's Q1 (c), 08.10.2026) - what the chapter's reveal
+ * gives a Final. The kind and the three facts that come with knowing it, and not `analyzed`, the reading or the
+ * description: the state a Final is born in when nobody withholds its kind (`createTruthBullet`: `SELF_EVIDENT`,
+ * `READ_ON_ANALYZE`), so it can still be analysed (`isAnalysable` takes a Final showing its kind). Answers "".
  */
-export async function publishReading(item, secret, { held = bulletAsHeld(item) } = {}) {
-    const { remnantPublicById } = await import("./remnants.mjs");
-    const analyzedText = secret.analyzedText
-        || remnantPublicById(secret.sceneId, secret.remnantId)?.analyzedText
-        || "";
-    await item.update({
+export async function publishReading(item, secret, { held = bulletAsHeld(item), kindOnly = false } = {}) {
+    const known = {
         [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: secret.realType ?? "neutral",
-        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
         // A loot's, not while its death is the GMs' alone (`shownSourceAction`).
         [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: await shownSourceAction(secret),
         [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null,
         /* Faint joined this list in 1.2.47. It used to sit on the item from creation, so the badge announced a
            doubtful trace to somebody who had not analysed it - `faintOf` knows both roads for a world made before
            that. */
-        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(held),
+        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(held)
+    };
+    if (kindOnly) {
+        await item.update(known, { [NOT_AN_EDIT]: true });
+        return "";
+    }
+    const { remnantPublicById } = await import("./remnants.mjs");
+    const analyzedText = secret.analyzedText
+        || remnantPublicById(secret.sceneId, secret.remnantId)?.analyzedText
+        || "";
+    await item.update({
+        ...known,
+        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
         [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: analyzedText,
         // Rebuilt from the FLAG rather than patched onto whatever the description currently holds: a GM may have
         // rewritten the Observe half since this bullet was created, and the flag is the copy that followed that edit.

@@ -1140,21 +1140,26 @@ function allBullets(actors = null) {
 
 /*
  * WHAT THE CHAPTER'S REVEAL WOULD WRITE, AND THE NUMBER THE END OF CHAPTER PANEL SHOWS FOR IT (E09 C8, S05-18; the
- * owner's Q1, answer (a), 08.10.2026). Until C8 the reveal wrote the kind, `analyzed` and Faint on every bullet not
- * already showing its kind as analysed, and the sweep after it keeps Faint and Final (`sparedBySweep`): so a Faint
- * bullet the chapter carried over came out analysed, and `isAnalysable` refuses an analysed bullet - the guide's
- * second life of a Faint trace ("można je przeanalizować ponownie") never came; a Final carried over the same way was
- * spent; and a Key or a Final revealed showed its kind without its reading, which only Analyze wrote. Measured with tier
- * 2's "a Faint the sweep keeps stays analysable", "the chapter's reveal leaves a Final unread and analysable" and "a
- * revealed Key carries its reading" on the code before C8 (scratchpad/c8run/red.log, 08.10.2026): the Faint and the
- * Final analysed and not analysable, the Key's reading "". Now the reveal leaves what the sweep spares, as it is, to be
- * analysed in the next chapter, and gives every other bullet the whole of what an Analyze gives (truth-bullets.mjs
- * `publishReading`). Each decision reads the bullet as the GMs hold it (`bulletAsHeld`; `sparedBySweep` reads Faint
- * so), every one in this one synchronous pass before the first write. The set is every character's bullets on this
- * browser (`allBullets`), by design: a bullet whose answer key names no kind is passed over, so an item a player made,
- * which has no answer key, is never revealed (read in the code). Answers `reveal` (the item, its answer key and the
- * held copy, for `publishReading`) and `typeless`, the bullets still unanalysed whose answer key names no kind, which
- * the panel warns of.
+ * owner's Q1, answer (c), 08.10.2026, since E09 fix r1-G5). Until C8 the reveal wrote the kind, `analyzed` and Faint on
+ * every bullet not already showing its kind as analysed, and the sweep after it keeps Faint and Final
+ * (`sparedBySweep`): so a Faint bullet the chapter carried over came out analysed, and `isAnalysable` refuses an
+ * analysed bullet - the guide's second life of a Faint trace ("można je przeanalizować ponownie") never came; a Final
+ * carried over the same way was spent; and a Key or a Final revealed showed its kind without its reading, which only
+ * Analyze wrote. Measured with tier 2's "a Faint the sweep keeps stays analysable", "the chapter's reveal leaves a
+ * Final unread and analysable" (C8's name for the test fix r1-G5 rewrote) and "a revealed Key carries its reading" on
+ * the code before C8 (scratchpad/c8run/red.log, 08.10.2026): the Faint and the Final analysed and not analysable, the
+ * Key's reading "". Now the reveal leaves a Faint as it is, to be analysed in the next chapter; shows a Final its kind
+ * and not its reading (`kindOnly`), so it too stays to be analysed; and gives every other bullet the whole of what an
+ * Analyze gives (truth-bullets.mjs `publishReading`). C8 spared a Final like a Faint (Q1 (a), the default taken while
+ * the question was open); the owner answered (c). A Final is born showing its kind unless the GM handed it over as
+ * Neutral (gm-items.mjs), so that withheld Final is the one this shows: tier 2 "the chapter's reveal shows a Final's
+ * type without its reading and leaves it analysable", red on C8's code (08.10.2026) with the withheld Final still
+ * Neutral. Each decision reads the bullet as the GMs hold it (`bulletAsHeld`; `sparedBySweep` reads Faint so), every
+ * one in this one synchronous pass before the first write. The set is every character's bullets on this browser
+ * (`allBullets`), by design: a bullet whose answer key names no kind is passed over, so an item a player made, which
+ * has no answer key, is never revealed (read in the code). Answers `reveal` (the item, its answer key and the held
+ * copy, for `publishReading`) and `typeless`, the bullets still unanalysed whose answer key names no kind, which the
+ * panel warns of.
  */
 export function revealPlan({ actors = null } = {}) {
     if (!game.user.isGM) return { reveal: [], typeless: 0 };
@@ -1164,6 +1169,10 @@ export function revealPlan({ actors = null } = {}) {
         const held = bulletAsHeld(item), secret = secretOf(item.uuid);
         if (!secret.realType) {
             if (!held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) typeless++;
+            continue;
+        }
+        if (secret.realType === "final") {
+            if (held.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) !== "final") reveal.push({ item, secret, held, kindOnly: true });
             continue;
         }
         if (sparedBySweep(item)) continue;
@@ -1185,9 +1194,9 @@ export async function revealAllBulletTypes({ actors = null } = {}) {
     if (!game.user.isGM) return 0;
 
     let revealed = 0;
-    for (const { item, secret, held } of revealPlan({ actors }).reveal) {
+    for (const { item, secret, held, kindOnly = false } of revealPlan({ actors }).reveal) {
         try {
-            await publishReading(item, secret, { held });
+            await publishReading(item, secret, { held, kindOnly });
             revealed++;
         } catch (err) {
             error(`Could not reveal the type of "${item.name}"`, err);
@@ -1525,9 +1534,9 @@ export async function applyChapterEnd(choices = {}) {
     }
 
     /* THE THREE CLEAN-UPS, IN THE ORDER THEY HAVE TO HAPPEN.
-       Reveal first (above) - it publishes the bullets the sweep is about to take, and leaves
-       the ones it spares (`revealPlan`, E09 C8). Then the sweep, then the Remnants, and
-       only then the clock, because everything here is scoped to the chapter that is
+       Reveal first (above) - it publishes the bullets the sweep is about to take, shows a Final
+       its kind, and leaves a Faint (`revealPlan`, E09 C8 and fix r1-G5). Then the sweep, then
+       the Remnants, and only then the clock, because everything here is scoped to the chapter that is
        ENDING and the moment the clock moves, "this chapter" means the next one. Measured
        on 10.09: crossing a chapter with none of this wired left the map holding the
        previous case's five clues and the players holding its Truth Bullets, while the plan

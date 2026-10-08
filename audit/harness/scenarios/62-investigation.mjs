@@ -42,7 +42,7 @@
  *      count reads the documents: the made copy, with no answer key, held the charge (`keyFeeOf`
  *      held 1 on gm2 and 0 on the primary), and the pools moved by 0 in each of three runs.
  *   E  (E09 C1) the chapter ends: the GM gives p1's student an unanalysed Faint, a Neutral and
- *      a Final; the Investigation Dashboard's "Sweep Truth Bullets" confirm (answered no) and
+ *      a Final handed over as Neutral; the Investigation Dashboard's "Sweep Truth Bullets" confirm (answered no) and
  *      the End of chapter panel (its sweep alone ticked) each give the number the sweep then
  *      takes, counted over every student's bullets on the GM, and the Faint and the Final stay.
  *      (E09 C8) Then a Key with a reading joins them, and the panel is answered with its reveal
@@ -50,7 +50,9 @@
  *      Faint and the Final stay unanalysed and analysable in the next chapter, and each time the
  *      panel's reveal line gives the number the reveal writes. On the code before C8 (08.10.2026)
  *      both failed: the panel said 3 and the reveal wrote 3, p1's Key analysed without its
- *      reading, and the Faint and the Final analysed and not analysable.
+ *      reading, and the Faint and the Final analysed and not analysable. (E09 fix r1-G5, the owner's
+ *      Q1 (c)) The reveal shows the Final its kind and not its reading: on C8's code, which spared
+ *      a Final like a Faint, p1's Final still showed Neutral (08.10.2026).
  * Each phase counts its own checks, and a closing check per phase fails one that measured
  * nothing (CLAUDE.md: a test can pass by measuring nothing).
  *
@@ -86,7 +88,7 @@ const MARK = {
     name: "S62 found name", playerText: "S62 seen words", analyzed: "S62 reading",
     request: "S62 the cup on the desk", reshapedName: "S62 reshaped name", reshapedText: "S62 reshaped words",
     rewritten: "S62 rewritten reading", typed: "S62 typed name", dName: "S62 D reshaped name", dText: "S62 D reshaped words",
-    eKeyReading: "S62 E key reading"
+    eKeyReading: "S62 E key reading", eFinalReading: "S62 E final reading"
 };
 const NOT_CRITICAL = { hope: 11, fear: 9 };
 
@@ -567,7 +569,7 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
     const ended = await gm.eval(`${TB} const C = await import("${repoUrl}/scripts/chapter.mjs");
         const I = await import("${repoUrl}/scripts/investigation.mjs"), { getClock } = await import("${repoUrl}/scripts/clock.mjs");
         const actor = game.actors.get("${IDS.aiko}"), made = [];
-        for (const [name, data] of [["Faint", { faint: true }], ["Neutral", {}], ["Final", { realType: "final" }]]) {
+        for (const [name, data] of [["Faint", { faint: true }], ["Neutral", {}], ["Final", { realType: "final", shownType: "neutral", analyzed: false, analyzedText: ${J(MARK.eFinalReading)} }]]) {
             made.push((await TB.createTruthBullet(actor, { name: "S62 " + name, playerText: ${J(MARK.playerText)}, ...data }))?.id ?? null);
         }
         const held = () => game.actors.filter(a => a.type === "character").reduce((n, a) => n + TB.bulletsOf(a).length, 0);
@@ -608,16 +610,18 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         return { key: key?.id ?? null, shown, done: numberIn(done[0]), chapter: getClock().chapter };`, { timeout: 60000 });
     const p1Reads = `${until} ${TB} const actor = game.actors.get("${IDS.aiko}"), next = ${panelled.chapter} + 1;
         const of = id => actor.items.get(id) ?? null;
-        const unread = id => { const b = of(id); return b && [b.getFlag("danganronpa-rpg", "analyzed") === true, TB.isAnalysable(b, next)]; };`;
+        const unread = id => { const b = of(id); return b && [b.getFlag("danganronpa-rpg", "analyzed") === true, TB.isAnalysable(b, next)]; };
+        const kindOnly = id => { const b = of(id); return b && [...unread(id), b.getFlag("danganronpa-rpg", "shownType"),
+            b.getFlag("danganronpa-rpg", "analyzedText") ?? "", String(b.system?.description ?? "").includes(${J(MARK.eFinalReading)})]; };`;
     const keyOnP1 = await p1.eval(`${p1Reads}
         await until(() => of("${panelled.key}")?.getFlag("danganronpa-rpg", "analyzed"), 8000);
         const key = of("${panelled.key}");
         return { key: key && [key.getFlag("danganronpa-rpg", "analyzed") === true, key.getFlag("danganronpa-rpg", "analyzedText") ?? "",
-            String(key.system?.description ?? "").includes(${J(MARK.eKeyReading)})], faint: unread("${eFaint}"), final: unread("${eFinal}") };`,
+            String(key.system?.description ?? "").includes(${J(MARK.eKeyReading)})], faint: unread("${eFaint}"), final: kindOnly("${eFinal}") };`,
         { timeout: 20000 });
-    verdict("the reveal gives p1 the Key with its reading and leaves the Faint and the Final unread, as many as the panel said",
+    verdict("the reveal gives p1 the Key with its reading, the Final its kind without its reading, and leaves the Faint and the Final unread, as many as the panel said",
         Boolean(panelled.key) && J(keyOnP1.key) === J([true, MARK.eKeyReading, true]) && J(keyOnP1.faint) === J([false, true])
-            && J(keyOnP1.final) === J([false, true]) && panelled.shown[0] === panelled.done && panelled.done > 0, J({ panelled, keyOnP1 }));
+            && J(keyOnP1.final) === J([false, true, "final", "", false]) && panelled.shown[0] === panelled.done && panelled.done > 0, J({ panelled, keyOnP1 }));
     const swept = await gm.eval(`${TB} const C = await import("${repoUrl}/scripts/chapter.mjs");
         const { getClock } = await import("${repoUrl}/scripts/clock.mjs");
         const numberIn = text => Number(/\\d+/.exec(text ?? "")?.[0] ?? NaN);
@@ -631,9 +635,9 @@ export async function run({ gm, gm2, p1, p2, check, phase, settle, connect, disc
         return { shown };`, { timeout: 60000 });
     const afterOnP1 = await p1.eval(`${p1Reads}
         await until(() => !of("${panelled.key}"), 8000);
-        return { key: Boolean(of("${panelled.key}")), faint: unread("${eFaint}"), final: unread("${eFinal}") };`, { timeout: 20000 });
-    verdict("after the reveal and the sweep, p1 still holds the Faint and the Final unread, and can analyse both in the next chapter",
-        !afterOnP1.key && J(afterOnP1.faint) === J([false, true]) && J(afterOnP1.final) === J([false, true]) && swept.shown[0] === 0,
+        return { key: Boolean(of("${panelled.key}")), faint: unread("${eFaint}"), final: kindOnly("${eFinal}") };`, { timeout: 20000 });
+    verdict("after the reveal and the sweep, p1 still holds the Faint and the Final unread, the Final showing its kind, and can analyse both in the next chapter",
+        !afterOnP1.key && J(afterOnP1.faint) === J([false, true]) && J(afterOnP1.final) === J([false, true, "final", "", false]) && swept.shown[0] === 0,
         J({ swept, afterOnP1 }));
     // The scenario's bullets go, with their answer keys.
     await gm.eval(`${TB} const actor = game.actors.get("${IDS.aiko}");

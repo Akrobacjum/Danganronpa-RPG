@@ -1768,7 +1768,7 @@
       "endTitle": "Zakończ rozdział",
       "endIntro": "Rozdział {chapter} dobiega końca. Zaznacz, co ma się stać.",
       "optReveal": "Ujawnij, czym naprawdę są Truth Bullets, razem z ich odczytami ({n} do ujawnienia)",
-      "revealKeeps": "Truth Bullets Faint i Final nie są ujawniane: zostają takie, jakie mają je gracze, wciąż do przeanalizowania, także w następnym rozdziale.",
+      "revealKeeps": "Truth Bullets Faint nie są ujawniane, a Final pokazuje swój rodzaj bez odczytu: oba zostają u graczy, wciąż do przeanalizowania, także w następnym rozdziale.",
       "endNote": "Ujawnienie typów jest trwałe, tak samo jak trzy porządki powyżej. Nic innego tutaj niczego nie usuwa.",
       "endConfirm": "Zrób to",
       "doneReveal": {

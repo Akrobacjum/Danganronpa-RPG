@@ -17435,13 +17435,15 @@ const SCENARIOS = [
             "the chapter's end left a Faint bullet that cannot be analysed in the next chapter (still held; analysed as the GMs hold it; analysable next chapter)");
     }],
 
-    ["the chapter's reveal leaves a Final unread and analysable", async () => {
+    ["the chapter's reveal shows a Final's type without its reading and leaves it analysable", async () => {
         /*
-         * E09 C8, 08.10.2026; S05-18 and the owner's Q1, answer (a): the reveal spares a Final as the sweep does (guide
-         * p. 32: a Final Truth Bullet is outside the sweep), so it is not read for its holder by the chapter's end and
-         * stays theirs to analyse. The GM gives a student a Final with a reading; the student is revealed and swept
-         * alone. Read: still held, its kind, analysed, the reading on the item, analysable in the next chapter. Before C8
-         * (scratchpad/c8run/red.log, 08.10.2026) [true,"final",true,"",false]: analysed by the reveal, without its reading, and spent.
+         * E09 fix r1-G5, 08.10.2026; S05-18 and the owner's Q1, answer (c): the chapter's reveal shows a Final its kind
+         * and not its reading, and the sweep leaves it (guide p. 32: a Final Truth Bullet is outside the sweep), so it
+         * stays its holder's to analyse in the next chapter. A Final is born showing its kind (`SELF_EVIDENT`) unless
+         * the GM hands it over as Neutral (gm-items.mjs: shown "neutral", `analyzed` false); the GM gives a student one
+         * of each, with a reading, and the student is revealed and swept alone. Read, per Final: still held, its kind,
+         * analysed, the reading on the item, the description holding it, analysable in the next chapter. On C8's code
+         * (Q1 (a), the reveal spared a Final; 08.10.2026) the withheld Final came out still Neutral.
          */
         const { isPrimaryGm } = await import("./utils.mjs");
         must(isPrimaryGm(), "this client is not the primary GM, whose mark the sweep reads - this would measure nothing");
@@ -17450,18 +17452,24 @@ const SCENARIOS = [
         const F = T.TRUTH_BULLET_FLAGS;
         const [student] = cast(1);
         const next = getClock().chapter + 1;
-        const READING = "SUITE E09 C8 the Final reading";
-        const read = await revealedBullets(student, [{ name: "a Final", realType: "final", analyzedText: READING }], async ([final]) => {
-            must(!final.getFlag(MODULE_ID, F.analyzed) && T.isAnalysable(final), "the Final is analysed before the chapter ends - this would measure nothing");
+        const READING = "SUITE E09 r1-G5 the Final reading";
+        const read = await revealedBullets(student, [
+            { name: "a Final handed over as Neutral", realType: "final", shownType: "neutral", analyzed: false, analyzedText: READING },
+            { name: "a Final", realType: "final", analyzedText: READING }
+        ], async ([withheld, final]) => {
+            must(withheld.getFlag(MODULE_ID, F.shownType) === "neutral" && final.getFlag(MODULE_ID, F.shownType) === "final"
+                && [withheld, final].every(b => !b.getFlag(MODULE_ID, F.analyzed) && T.isAnalysable(b)),
+                "the Finals are not one withheld and one showing its kind, both unread and analysable, before the chapter ends - this would measure nothing");
             await C.revealAllBulletTypes({ actors: [student] });
             await C.sweepTruthBullets({ actors: [student] });
-        }, ([final]) => {
-            const held = final && T.bulletAsHeld(final);
+        }, made => made.map(b => {
+            const held = b && T.bulletAsHeld(b);
             return held ? [true, held.getFlag(MODULE_ID, F.shownType), held.getFlag(MODULE_ID, F.analyzed) === true,
-                held.getFlag(MODULE_ID, F.analyzedText) ?? "", T.isAnalysable(held, next)] : [false];
-        });
-        equal(stableJson(read), stableJson([true, "final", false, "", true]),
-            "the chapter's end read a Final for its holder or took it (still held; its kind; analysed; the reading on the item; analysable next chapter)");
+                held.getFlag(MODULE_ID, F.analyzedText) ?? "", String(b.system?.description ?? "").includes(READING),
+                T.isAnalysable(held, next)] : [false];
+        }));
+        equal(stableJson(read), stableJson([[true, "final", false, "", false, true], [true, "final", false, "", false, true]]),
+            "the chapter's end did not show a Final its kind, read it for its holder, or took it (per Final, withheld and not: still held; its kind; analysed; the reading on the item; the description holding it; analysable next chapter)");
     }],
 
     ["a revealed Key carries its reading", async () => {
