@@ -18547,6 +18547,72 @@ const SCENARIOS = [
         }
     }],
 
+    ["a second name short of the majority is accused of nothing and the count's card says there is no majority", async () => {
+        /*
+         * E10 C3, 1.2.71; audit S06-12 (its count half), S06-10, S06-32. Until 1.2.71 the count asked
+         * the majority of the top name alone: on a two-Blackened night the second name was accused with
+         * whatever it had - 2 of 6 ballots beside a first name's 4 - and the card printed the votes in
+         * the Vault's table with the bar and the count three times over and no sentence saying whether
+         * the room convicted anybody. Driven on a blank record with the ballots caught and never sent: a
+         * two-name vote opened, its record's `issued` widened to six (three more user ids, as a remind
+         * or an ask adds a player) and four rows put in the GMs' store as the primary records them -
+         * A on all four, B on two, C and D on one; two ballots never come back - then Close and count. The rows and the record
+         * are put back after. Red at E10 C2's tree (A1, 09.10.2026): B accused beside A, not tied, and
+         * the card a table naming both.
+         */
+        const [a, b, c, d] = cast(4);
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which counts the ballots");
+        const V = await import("./vote.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const before = new Set(game.messages.map(m => m.id));
+        let voters = [];
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") return true;
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await V.openVote({ picks: 2 });
+            const progress = V.trialProgress();
+            const vote = progress.vote ?? {};
+            must(vote.open === true && vote.picks === 2, `the vote did not open asking for two names: ${stableJson(vote)}`);
+            const silent = ["SuiteSilentVtr01", "SuiteSilentVtr02", "SuiteSilentVtr03"];
+            await V.setTrialProgress({ vote: { ...vote, issued: [...vote.issued, ...silent].slice(0, 6) } });
+            const issued = V.trialProgress().vote.issued.length;
+            must(issued === 6, `${issued} ballot(s) issued - the case needs six`);
+            voters = [...vote.issued, ...silent].slice(0, 4);
+            const choices = [[a.id, b.id], [a.id, b.id], [a.id, c.id], [a.id, d.id]];
+            for (const [i, userId] of voters.entries()) {
+                await ballotStore.patch(userId, { chapter: progress.chapter, round: vote.round, actorId: a.id, choice: choices[i], at: Date.now() });
+            }
+            await V.closeVote();
+            await settle();
+            const after = V.trialProgress();
+            equal(stableJson([after.voteClosed, after.noMajority, after.tied, after.accusedIds, after.majority, after.total,
+                (after.accused ?? []).map(({ id, n }) => `${id}:${n}`).sort()]),
+            stableJson([true, true, true, [], 4, 6, [`${a.id}:4`, `${b.id}:2`, `${c.id}:1`, `${d.id}:1`].sort()]),
+            "the count accused a second name short of the majority (4 of 6), or did not record that the room has no majority");
+
+            const banner = game.i18n.localize("DRPG.Vote.resultBanner");
+            const card = game.messages.find(m => !before.has(m.id) && String(m.content ?? "").includes(banner));
+            const el = document.createElement("div");
+            el.innerHTML = String(card?.content ?? "");
+            equal(stableJson([Boolean(card), el.querySelectorAll(".drpg-vote-row").length, Boolean(el.querySelector("table")),
+                el.querySelector(".drpg-vote-sentence")?.textContent ?? null]),
+            stableJson([true, 4, false, game.i18n.format("DRPG.Vote.noMajority", { majority: 4, total: 6 })]),
+            "the count's card is not one row per name and the one sentence that the room has no majority");
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            await ballotStore?.dropMany?.(voters);
+            await V.closeVote();
+            await settle();
+        }
+    }],
+
     ["revive drops a pending death, and writes nothing on the living student", async () => {
         /* E05 C10. A death kept by the GMs is a row and nothing on the actor, so taking it back
            is a stamped drop - an unset flag on a student nobody saw die would tell every console

@@ -314,7 +314,7 @@ export async function closeTrial() {
  * opened it. Measured before this: the whole window byte-identical across an
  * Eclipse starting and ending underneath it.
  */
-function readTrial({ inFinalTrial, pendingVoters, trialProgress }) {
+function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress }) {
         const floor = trialFloor();
         const running = getClock().phase === "classTrial";
         const progress = trialProgress();
@@ -323,6 +323,7 @@ function readTrial({ inFinalTrial, pendingVoters, trialProgress }) {
             restrictive: Boolean(floor) && floor.mode !== FLOOR_MODES.debate,
             finalNow: inFinalTrial(),
             pending: pendingVoters(),
+            bar: voteBar(),
             // THE LAST THREE STEPS OUTLIVE THE TRIAL, and they have to: ending
             // the trial puts the campaign back into Daily Life, and a GM who
             // does that before delivering the verdict must not find that the
@@ -333,7 +334,7 @@ function readTrial({ inFinalTrial, pendingVoters, trialProgress }) {
 
 /** The console's three sections, from one reading of the floor. */
 function trialConsoleHtml(view) {
-    const { floor, running, restrictive, finalNow, progress, pending, afterwards } = view;
+    const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards } = view;
         const left = floor ? secondsLeft(floor) : 0;
 
         /*
@@ -383,6 +384,12 @@ function trialConsoleHtml(view) {
                     n: pending.length, who: esc(pending.map(v => v.name).join(", "))
                 })}</p>`
                 : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
+        // How many are back and the bar a conviction needs, as the vote window
+        // prints it (E10 C3): a player who joins mid-vote raises it, and this
+        // region is redrawn when they do - on the world's record and on
+        // `drpgBallotsChanged` (the vote window's redraw is 63's C3; this one's
+        // is read in the code, not measured).
+        const barLine = bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : "";
 
         // What the two gated steps are waiting for, said out loud. A disabled
         // button with no explanation is a bug report.
@@ -406,6 +413,7 @@ function trialConsoleHtml(view) {
 
             <h4>${game.i18n.localize("DRPG.Floor.sectionVote")}</h4>
             ${voteLine}
+            ${barLine}
             ${afterwards ? gateLine : ""}
         </div>`;
 }
@@ -520,9 +528,9 @@ export async function manageClassTrial() {
     }
 
     const { inFinalTrial } = await import("./mastermind.mjs");
-    const { pendingVoters, trialProgress } = await import("./vote.mjs");
+    const { pendingVoters, voteBar, trialProgress } = await import("./vote.mjs");
 
-    const deps = { inFinalTrial, pendingVoters, trialProgress };
+    const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress };
     const read = () => readTrial(deps);
     const buildConsole = () => trialConsoleHtml(read());
     const signature = () => trialSignature(read());
@@ -666,7 +674,7 @@ export async function openVoteDialog() {
         return null;
     }
 
-    const { openVote, closeVote, pendingVoters, remindVoters, votesIn, ballotCopyStatus, trialProgress } =
+    const { openVote, closeVote, pendingVoters, remindVoters, votesIn, voteBar, ballotCopyStatus, trialProgress } =
         await import("./vote.mjs");
 
     // Who is still outstanding, while a vote is running.
@@ -682,33 +690,45 @@ export async function openVoteDialog() {
        is the same question - asked once here rather than three times below. */
     const running = pending !== null;
     const returned = votesIn() ?? 0;
-    /* THIS BROWSER'S COPY OF THE BALLOTS (E10 C1). They are counted on the primary GM, and a
+    /* THE STATUS IS LIVE (E10 C3, 1.2.71). A player who joins mid-vote and asks for a ballot raises
+       how many went out, and with it the bar a conviction needs (`voteBar`, `DRPG.Vote.barLine`): the
+       window drawn before says so when it happens, redrawn as the trial console is - on the world's
+       record and on `drpgBallotsChanged`. Only this block: the buttons are drawn once, as the
+       console's are, so Send another ballot's count is the one read when the window opened.
+
+       THIS BROWSER'S COPY OF THE BALLOTS (E10 C1). They are counted on the primary GM, and a
        GM's window shows the copy the GMs' store keeps here: until it has arrived the window says
        so rather than naming every voter as outstanding, and a vote opened before this browser
        loaded, with none of its ballots here, says that the count is the primary's to make. */
-    const copy = ballotCopyStatus();
-    const outstanding = pending?.length
-        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
-            n: pending.length,
-            who: foundry.utils.escapeHTML(pending.map(p => p.name).join(", "))
-        })}</p>`
-        : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
-    const status = pending === null
-        ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>`
-        : copy === "notReady"
-            ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Vote.storeNotReady")}</p>`
-            : copy === "none"
-                ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.openNoBallots", {
-                    n: trialProgress().vote.round
-                })}</p>${outstanding}`
-                : outstanding;
+    const statusHtml = () => {
+        const waiting = pendingVoters();
+        const copy = ballotCopyStatus();
+        const bar = voteBar();
+        const outstanding = waiting?.length
+            ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
+                n: waiting.length,
+                who: foundry.utils.escapeHTML(waiting.map(p => p.name).join(", "))
+            })}</p>`
+            : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
+        const status = waiting === null
+            ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>`
+            : copy === "notReady"
+                ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Vote.storeNotReady")}</p>`
+                : copy === "none"
+                    ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.openNoBallots", {
+                        n: trialProgress().vote.round
+                    })}</p>${outstanding}`
+                    : outstanding;
+        return `<div class="drpg-vote-status">${status}${
+            bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : ""}</div>`;
+    };
 
     const action = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vote.openTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>
             <p>${game.i18n.localize("DRPG.Vote.openIntro")}</p>
-            ${status}
+            ${statusHtml()}
             <p class="notes">${game.i18n.localize("DRPG.Vote.privacyNote")}</p>
         </div>`),
         buttons: [
@@ -741,6 +761,9 @@ export async function openVoteDialog() {
             { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), default: running },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-vote-status", build: statusHtml, watch: { hooks: ["drpgBallotsChanged"] }
+        }),
         rejectClose: false
     });
 

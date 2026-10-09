@@ -1053,7 +1053,10 @@
         "other": "{n} ballots have already come back. Starting over throws them away and hands everybody a fresh one. To chase the people who have not answered, use Remind instead."
       },
       "banner": "THE VOTE IS OPEN",
-      "opened": "{n} ballots are out. Name who you believe is the Blackened.",
+      "opened": {
+        "one": "One ballot is out. Name who you believe is the Blackened.",
+        "other": "{n} ballots are out. Name who you believe is the Blackened."
+      },
       "noVoters": "No player is connected with a character to vote.",
       "notOpen": "No vote is open.",
       "nobodyVoted": "No ballots came back.",
@@ -1075,10 +1078,12 @@
         "other": "{n} players have a fresh ballot."
       },
       "monokuma": "Monokuma",
-      "majorityLine": "A conviction needs {n} of {issued} votes - more than half the room.",
       "resultBanner": "THE VOTE IS IN",
-      "accused": "{name} - {n} of {total} votes.",
       "tied": "A tie. Unless the table settles it, that counts as a wrong vote.",
+      "noMajority": "No majority - a conviction needs {majority} of {total} votes. Unless the table settles it, that counts as a wrong vote.",
+      "accusesLine": "The class accuses {names} ({n} of {total} - a majority).",
+      "accusesLineMany": "The class accuses {names} - each named on at least {n} of {total} ballots, a majority.",
+      "barLine": "{returned} of {issued} returned - a conviction needs {majority}.",
       "verdictTitle": "The verdict",
       "verdictAlreadyApplied": "The verdict for this trial is already in. End the chapter to go on.",
       "verdictIntro": "Only you know whether they got it right. Name who is executed and who the Blackened really was, then pick the outcome.",
@@ -1116,7 +1121,6 @@
       },
       "executedIfWrong": "Executed instead, if the table got it wrong",
       "verdictNoteKnown": "Getting it right executes the Blackened above - you do not have to name anybody. Getting it wrong executes whoever the table accused, and every Blackened walks away with a Reinforced Level Up. A tie counts as wrong.",
-      "accusedMany": "Named by the table: {names}.",
       "verdictIntroKnown": "Only you know whether they got it right. The module remembers who killed - all you have to say is whether the table found them.",
       "counted": "The vote has been counted.",
       "tiedVerdictNote": "The vote was tied. A tie is not an answer, so unless something else settled it at the table, this counts as getting it wrong.",

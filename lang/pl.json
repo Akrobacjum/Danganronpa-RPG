@@ -1046,7 +1046,12 @@
         "other": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij."
       },
       "banner": "GŁOSOWANIE OTWARTE",
-      "opened": "Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened.",
+      "opened": {
+        "one": "Rozesłano jedną kartę. Wskażcie, kto waszym zdaniem jest Blackened.",
+        "few": "Rozesłano {n} karty. Wskażcie, kto waszym zdaniem jest Blackened.",
+        "many": "Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened.",
+        "other": "Rozesłano {n} kart. Wskażcie, kto waszym zdaniem jest Blackened."
+      },
       "noVoters": "Żaden gracz z postacią nie jest połączony, by głosować.",
       "notOpen": "Żadne głosowanie nie jest otwarte.",
       "nobodyVoted": "Żadna karta nie wróciła.",
@@ -1070,10 +1075,12 @@
         "other": "{n} graczy ma świeżą kartę."
       },
       "monokuma": "Monokuma",
-      "majorityLine": "Skazanie wymaga {n} z {issued} głosów - więcej niż połowy sali.",
       "resultBanner": "GŁOSY POLICZONE",
-      "accused": "{name} - {n} z {total} głosów.",
       "tied": "Remis. O ile stół tego nie rozstrzygnie, liczy się jak błędny głos.",
+      "noMajority": "Brak większości - skazanie wymaga {majority} z {total} głosów. O ile stół tego nie rozstrzygnie, liczy się jak błędny głos.",
+      "accusesLine": "Klasa oskarża: {names} ({n} z {total} - większość).",
+      "accusesLineMany": "Klasa oskarża: {names} - każde nazwisko na co najmniej {n} z {total} kart, większość.",
+      "barLine": "Wróciło kart: {returned} z {issued} - do skazania potrzeba {majority}.",
       "verdictTitle": "Werdykt",
       "verdictIntro": "Tylko ty wiesz, czy trafili. Wskaż, kto zostaje stracony i kto naprawdę był Blackened, potem wybierz wynik.",
       "executed": "Kto zostaje stracony",
@@ -1118,7 +1125,6 @@
       },
       "executedIfWrong": "Stracony zamiast, jeśli stół się pomylił",
       "verdictNoteKnown": "Trafienie straca Blackened powyżej - nikogo nie musisz wskazywać. Pomyłka straca tego, kogo oskarżył stół, a każdy Blackened odchodzi z Reinforced Level Up. Remis liczy się jak pomyłka.",
-      "accusedMany": "Wskazani przez stół: {names}.",
       "verdictIntroKnown": "Tylko ty wiesz, czy trafili. Moduł pamięta, kto zabił - musisz tylko powiedzieć, czy stół go znalazł.",
       "counted": "Głosy policzone.",
       "tiedVerdictNote": "Głosowanie zakończyło się remisem. Remis to nie odpowiedź, więc o ile coś innego nie rozstrzygnęło tego przy stole, liczy się jak pomyłka.",

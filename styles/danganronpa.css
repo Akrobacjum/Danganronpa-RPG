@@ -4428,6 +4428,59 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
    the whole strip across the card with a hole under the name. */
 .drpg-evidence-card .drpg-tb-badges { margin-left: 0; }
 
+/* THE VOTE'S COUNT AS ROWS (E10 C3, 1.2.71; audit S06-32). It was a
+   `.drpg-vault-table`, the Vault's, whose cells fall apart in a narrow chat
+   tile. A row is the name, which takes what is left and wraps, the count, and
+   a bar of the ballots that went out - its fill the name's votes, its tick the
+   majority (vote.mjs `closeRound` writes both widths). No layout here to
+   measure it in: the harness has no widths (the plan's LIVE-E10-03). */
+.drpg-vote-count {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.drpg-vote-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.drpg-vote-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.drpg-vote-n {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.drpg-vote-bar {
+    position: relative;
+    flex: 0 0 40%;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(var(--drpg-crimson-rgb), 0.15);
+}
+
+.drpg-vote-bar > span {
+    display: block;
+    height: 100%;
+    background: var(--drpg-crimson);
+}
+
+.drpg-vote-bar > i {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: currentColor;
+}
+
 /* On the stage the card is the middle of the screen and the name is what the
    table is arguing about, so it is sized like a heading rather than like a line
    of a receipt. In the corner and in the chat log it stays as it was. */

@@ -12,18 +12,22 @@
  * rewrites the check with the code - E10 C1 (1.2.71) rewrote B, D, E, F and H: the vote's state
  * is in the world and the ballots in the GMs' store; E10 C2 (1.2.71) rewrote B to F: a ballot is
  * cast on the bridge and judged by the primary GM, the player is told what the primary answered,
- * and a player who loads while a vote is open asks for theirs. Phases are letters, so a later
- * commit adds one without renumbering:
+ * and a player who loads while a vote is open asks for theirs; E10 C3 (1.2.71) added B4, B5, C3 and E4:
+ * the vote window's bar, the vote's card and the count's card. Phases are letters, so a later commit adds one
+ * without renumbering:
  *   A  setup through the GM's API (not under test): a fifth student, the victim, killed publicly;
  *      the register's row naming Chie the Blackened; p4 OWNER of Daichi. Start the Class Trial:
  *      every player holds the trial's card.
  *   B  Send the ballots: three issued (p1-p3), and the world's trial record holds the vote - open,
  *      round 1, one name, the three handed one (C1). p1 casts Botan and is told its vote is in once
- *      the primary has recorded it (C2); p2 and p3 hold their windows open.
+ *      the primary has recorded it (C2); p2 and p3 hold their windows open. The GM's vote window,
+ *      drawn and left open, says 1 of 3 ballots are back and a conviction needs 2, and every
+ *      player's card says three ballots are out, in the plural family's form (C3).
  *   C  p4 connects after the ballots went out, heard connecting before its world has loaded
  *      (`announceFirst`): it asks the GM for its ballot at load and is handed one, and the record
  *      issues a fourth (C2). The harness's default press dismisses that window, so p4 asks again
- *      as its next load would, casts Botan and is told it is in.
+ *      as its next load would, casts Botan and is told it is in. The window B drew says 2 of 4 and
+ *      needs 3 without being opened again - p4 raised the bar (C3) - and is cancelled.
  *   D  the GM's browser closes (the reload, modelled: `gm2` connects with the seeded GM's
  *      localStorage and a fresh module). p2 casts Botan with no GM connected and is told no GM has
  *      it yet and this browser keeps it (C2); gm2 finds the vote open in the world and p1's and
@@ -32,7 +36,8 @@
  *      no ballot window, and told once that its vote is already in (C2).
  *   E  p3 dismisses its ballot and is warned; gm2's Close and count counts p1's, p2's and p4's
  *      ballots - Botan 3 of 4 issued, the majority, accused (C2; C1 counted p1's alone, a tie) -
- *      and writes it to the world (C1); every player reads the vote closed.
+ *      and writes it to the world (C1); every player reads the vote closed, and holds the count's
+ *      card: a row per name and the one sentence that the class accuses Botan (C3).
  *   F  the verdict's window drawn on gm2 (`__dialogWindows`): the executed select opens on the
  *      first student, the dead victim is listed with " - dead", the first footer button is the
  *      right verdict, E's count accusing Botan (C4: "Nobody is executed" first, Q-E10-1 (c), and
@@ -65,6 +70,8 @@
  * (one run alone, 09.10.2026) - a twelfth of run-all's shared five minutes, so it states no `timeoutMs` of its own.
  * E10 C1 added H's check of the vote's reset: 34 checks in 26.5 s (one run, 09.10.2026).
  * E10 C2 split C's check in two, the ask at load and the cast: 35 checks in 23.0 s (two runs, 22.6 and 23.0 s, 09.10.2026).
+ * E10 C3 added B4, B5, C3 and E4, the vote window, the vote's card and the count's card: 39 checks in 27.6 s (two runs,
+ * 27.6 and 24.3 s, 09.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -155,12 +162,33 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         sent.issued === 3 && sent.vote?.open === true && sent.vote.round === 1 && sent.vote.picks === 1 && sent.players.length === 3
             && J([...(sent.vote.issued ?? [])].sort()) === J(sent.players), J(sent));
     const counted = await gm.eval(`${until} ${V} return await until(() => V.votesIn() === 1 ? 1 : null, 8000) ?? V.votesIn();`, { timeout: 20000 });
-    const p1Told = await p1.eval(`return { seen: globalThis.__s63seen, confirmed: globalThis.__notifications.slice(globalThis.__s63n)
-        .filter(n => n.msg === ${text("DRPG.Vote.castConfirmed")}).length };`);
+    /* Told once the primary's reply has come back, which is after the GM's row: read at once, p1's
+       notification landed just after the read in E10 C3's A1's first run (09.10.2026; C2's three
+       runs had passed), so it is waited for as the other phases wait for theirs. */
+    const p1Told = { seen: await p1.eval(`return globalThis.__s63seen;`), confirmed: await toldOf(p1, "DRPG.Vote.castConfirmed") };
     verdict("p1's ballot lists the five students and Monokuma, the GM counts it, and p1 is told once, on the primary's reply (C2)",
         counted === 1 && p1Told.confirmed === 1 && (p1Told.seen ?? []).length === 6 && p1Told.seen.includes(victimId), J({ counted, p1Told }));
     const holding = [await p2.eval(`return globalThis.__s63ballots ?? 0;`), await p3.eval(`return globalThis.__s63ballots ?? 0;`)];
     verdict("p2 and p3 each hold one ballot window open", J(holding) === J([1, 1]), J(holding));
+    /* The GM's vote window, drawn (`__dialogWindows`) and left open into C, where it is read again
+       once p4 has been handed a ballot and closed. */
+    const voteWindow = `const bar = (r, i, m) => game.i18n.format("DRPG.Vote.barLine", { returned: r, issued: i, majority: m });
+        const voteWindow = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === ${text("DRPG.Vote.openTitle")});
+        const status = () => voteWindow()?.element?.querySelector(".drpg-vote-status")?.textContent ?? null;`;
+    const bar1 = await gm.eval(`${until} ${voteWindow}
+        globalThis.__s63windows = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        globalThis.__s63vote = (await import("${repoUrl}/scripts/trial-floor-ui.mjs")).openVoteDialog();
+        await until(() => voteWindow()?.element, 8000);
+        globalThis.__s63voteId = voteWindow()?.id ?? null;
+        return { status: status(), want: bar(1, 3, 2), drawn: globalThis.__s63voteId !== null };`, { timeout: 20000 });
+    verdict("the GM's vote window says one of three ballots is back and a conviction needs two (C3)",
+        bar1.drawn && typeof bar1.status === "string" && bar1.status.includes(bar1.want), J(bar1));
+    const openedCards = [];
+    for (const c of [p1, p2, p3]) openedCards.push(await c.eval(`const banner = ${text("DRPG.Vote.banner")};
+        const card = game.messages.filter(m => String(m.content ?? "").includes(banner)).at(-1);
+        return String(card?.content ?? "").includes(game.i18n.format("DRPG.Vote.opened.other", { n: 3 }));`));
+    verdict("p1-p3 each hold the vote's card saying three ballots are out, in the counted sentence's form for three (C3: `DRPG.Vote.opened` is a plural family)",
+        J(openedCards) === J([true, true, true]), J(openedCards));
 
     /* ------------------------------ C. a late joiner ------------------------------ */
 
@@ -184,6 +212,16 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     p4Cast.seen = await p4.eval(`return globalThis.__s63seen ?? null;`);
     verdict("p4 asks again, as its next load would (`askForBallot`), and casts Botan: its ballot lists the five students and Monokuma, the GM counts it (2), and p4 is told once (C2)",
         p4Cast.told === 1 && (p4Cast.seen ?? []).length === 6 && p4Cast.seen.includes(victimId) && p4Cast.counted === 2, J(p4Cast));
+    const bar2 = await gm.eval(`${until} ${voteWindow}
+        const want = bar(2, 4, 3);
+        await until(() => (status() ?? "").includes(want) || null, 5000);
+        const read = { status: status(), want, same: Boolean(voteWindow()) && voteWindow().id === globalThis.__s63voteId };
+        voteWindow()?.element?.querySelector('footer button[data-action="cancel"]')?.click();
+        read.result = await Promise.race([globalThis.__s63vote, new Promise(r => setTimeout(() => r("hung"), 5000))]);
+        globalThis.__dialogWindows = globalThis.__s63windows;
+        return read;`, { timeout: 30000 });
+    verdict("the window B drew, never reopened, now says two of four are back and a conviction needs three - p4's ballot raised the bar (C3); Cancel closes it",
+        bar2.same && typeof bar2.status === "string" && bar2.status.includes(bar2.want) && bar2.result === null, J(bar2));
 
     /* ------------------------------ D. the GM's reload ------------------------------ */
 
@@ -241,6 +279,15 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         return [p.voteClosed, p.vote?.open ?? null, card?.title === ${text("DRPG.Events.voteTitle")}];`));
     verdict("p1-p4 read the vote closed in the world's record, and no panel shows the vote (C1)",
         J(panels) === J([[true, false, false], [true, false, false], [true, false, false], [true, false, false]]), J(panels));
+    const accuses = await gm2.eval(`return game.i18n.format("DRPG.Vote.accusesLine", { names: game.actors.get("${IDS.botan}")?.name, n: 3, total: 4 });`);
+    const results = [];
+    for (const c of [p1, p2, p3, p4]) results.push(await c.eval(`const banner = ${text("DRPG.Vote.resultBanner")};
+        const card = game.messages.filter(m => String(m.content ?? "").includes(banner)).at(-1);
+        const el = document.createElement("div"); el.innerHTML = String(card?.content ?? "");
+        return [el.querySelectorAll(".drpg-vote-row").length, Boolean(el.querySelector("table")),
+            el.querySelector(".drpg-vote-sentence")?.textContent ?? null];`));
+    verdict("p1-p4 each hold the count's card: one row for Botan, no table, and the one sentence that the class accuses Botan, 3 of 4, a majority (C3)",
+        J(results) === J(Array(4).fill([1, false, accuses])), J({ results, accuses }));
 
     /* ------------------------------ F. the verdict's window ------------------------------ */
 

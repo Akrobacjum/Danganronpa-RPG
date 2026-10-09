@@ -5921,6 +5921,41 @@ const INVARIANTS = [
         equal(JSON.stringify(lines), JSON.stringify([[true, false], [false, true], [false, true], [false, true]]),
             "a reshape's card says one band quieter when it is not, or does not name the band it set (each: the quieter "
             + "sentence, the band named; an Evident trace made Subtle, Hidden, Evident, Obvious)");
+    }],
+
+    ["R314 - the count asks the majority of every name it accuses, and fewer names than asked for is no majority", async () => {
+        /*
+         * E10 C3, 09.10.2026; audit S06-12 (its count half), S06-10; the ledger's guard for the count. Until 1.2.71
+         * the majority was asked of the top name alone: on a two-Blackened vote a second name with 2 of 6 ballots
+         * was accused beside a first name's 4, and one name for two Blackened passed as the whole answer.
+         * `countBallots` (vote.mjs) is the count alone, read on five sets of ballots: one name exactly at the bar
+         * (3 of 4); three names level above the bar on a two-name vote (a tie, with a majority); the second name
+         * below the bar (A 4, B 2, C and D 1, of 6); one name for two; nobody. Each reading is the counts, then
+         * [noMajority, tied, accusedIds, majority]. The same harm on the GMs' store and the card is the tier-2
+         * test "a second name short of the majority is accused of nothing ...".
+         */
+        const { countBallots } = await import("./vote.mjs");
+        const read = (lists, wanted, issued) => {
+            const count = countBallots(lists.map(choice => ({ choice })), { wanted, issued });
+            return [count.counts.map(({ id, n }) => `${id}${n}`).join(" "),
+                count.noMajority, count.tied, count.accusedIds, count.majority];
+        };
+        const readings = [
+            read([["A"], ["A"], ["A"], ["B"]], 1, 4),
+            read([["A", "B"], ["A", "B"], ["A", "C"], ["A", "C"], ["B", "C"], ["B", "C"]], 2, 6),
+            read([["A", "B"], ["A", "B"], ["A", "C"], ["A", "D"]], 2, 6),
+            read([["A"], ["A"], ["A"]], 2, 3),
+            read([], 1, 3)
+        ];
+        equal(JSON.stringify(readings), JSON.stringify([
+            ["A3 B1", false, false, ["A"], 3],
+            ["A4 B4 C4", false, true, [], 4],
+            ["A4 B2 C1 D1", true, true, [], 4],
+            ["A3", true, true, [], 2],
+            ["", true, true, [], 2]
+        ]), "the count convicts a name short of the majority, calls a tie among names that carried the room a missing "
+            + "majority, takes one name for two, or accuses somebody with nobody's ballot (each: the counts, "
+            + "noMajority, tied, the accused, the majority)");
     }]
 ];
 

@@ -522,7 +522,7 @@ async function openRound(progress, op, picks) {
         flags: { [MODULE_ID]: { sfx: { key: "voteOpen", gm: true } } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.banner")}</div>
-            <p>${game.i18n.format("DRPG.Vote.opened", { n: voters.length })}</p>
+            <p>${plural("DRPG.Vote.opened", { n: voters.length })}</p>
         </div>`
     });
 
@@ -662,6 +662,40 @@ export function pendingVoters() {
     return eligibleVoters()
         .filter(({ user }) => !back.has(user.id))
         .map(({ user, actor }) => ({ user, actor, name: actor.name }));
+}
+
+/**
+ * THE BAR, WHILE THE VOTE IS OPEN (E10 C3, 1.2.71; the plan's C3): `{ returned, issued, majority }` - the
+ * ballots back, out of the base the close will count from (`ballotBase`), and the votes a conviction needs
+ * of that base - or null with no vote open, as on a player's browser. A player who joins mid-vote and is
+ * handed a ballot raises `issued`, and with it the bar: the vote window and the trial console print this
+ * (`DRPG.Vote.barLine`) and are redrawn on `drpgBallotsChanged` and on the world's record, so the bar a
+ * GM reads before Close and count is the one the count will use. Read from this browser's copy of the
+ * ballots, as `votesIn` is.
+ */
+export function voteBar() {
+    if (!game.user.isGM) return null;
+    const progress = trialProgress();
+    if (!progress.vote.open) return null;
+    const cast = roundBallots(progress);
+    const issued = ballotBase(progress.vote, cast);
+    return { returned: cast.length, issued, majority: majorityOf(issued) };
+}
+
+/**
+ * How many ballots WENT OUT, which is what a count is out of: everybody handed one at the open, by a remind
+ * or on asking (`vote.issued`), everybody entitled now, and everybody who answered - the union the count
+ * made of its Map, the recipients it froze and the voters it could still see before 1.2.71. Silence is not
+ * agreement (D6): a base of the ballots returned would call four of five a landslide in a room of sixteen.
+ */
+function ballotBase(vote, cast) {
+    return new Set([...vote.issued, ...eligibleVoters().map(({ user }) => user.id),
+        ...cast.map(([userId]) => userId)]).size;
+}
+
+/** More than half the ballots that went out (D6): the votes a conviction needs. */
+function majorityOf(issued) {
+    return Math.floor(issued / 2) + 1;
 }
 
 /**
@@ -898,6 +932,54 @@ async function askBallot() {
 }
 
 /**
+ * THE COUNT, AND NOTHING ELSE (E10 C3, 1.2.71; audit S06-12, S06-10): the ballots' rows (`{ choice: [id] }`,
+ * the store's) counted for a vote asking for `wanted` names out of `issued` ballots. Pure - it reads no
+ * world and no store - so the rule below is tested on its own (R314) and `closeRound` is its one caller.
+ * Returns `counts` (`[{ id, n }]`, most votes first), `accused` (the names at or above the `wanted`-th
+ * count), `majority`, `noMajority`, `tied` and `accusedIds` (empty unless the room settled).
+ *
+ * A CONVICTION NEEDS MORE THAN HALF THE ROOM (D6). The class used to convict on a plurality: whoever led
+ * the count was the answer, however thin the lead. Measured over a season that made the trial almost
+ * unloseable - nine wrong votes scattered across seven names still left the real killer on top with four,
+ * and four out of sixteen decided a life. So a name has to carry the ROOM, out of the ballots issued and
+ * not returned: silence is not agreement. Short of that the accusation fails and the class fails with it.
+ *
+ * FOR EVERY NAME THE VOTE ASKS FOR (E10 C3). Until 1.2.71 the majority was asked of the top name alone, so
+ * on a two-Blackened night the second name was accused with whatever it had - 2 of 6 ballots beside a
+ * first name's 4 (audit S06-12) - and a ballot naming one person for two Blackened passed as a whole
+ * answer, against "half an answer is not one". Now each of the first `wanted` names needs the majority,
+ * and fewer names than asked for is no majority either.
+ *
+ * A TIE AT THE LINE: more names clear the cut than there are Blackened to name - one Blackened and two
+ * people level on votes is the old tie exactly. FOLDED INTO `tied` WITH THE MISSING MAJORITY, which is
+ * G-31 widened rather than a second concept (D6): both are the room not settling on an answer and both
+ * end the same way, so everything downstream that knows what to do with a tie needs no second branch.
+ * `noMajority` stays apart for the words: the card says "no majority" for it and "a tie" only for names
+ * level above the bar (S06-10: it said "A tie." for 3 of 7 on one name).
+ */
+export function countBallots(rows, { wanted = 1, issued = 0 } = {}) {
+    const tally = new Map();
+    for (const row of rows ?? []) {
+        // Every name on the ballot counts. A two-Blackened night puts two names
+        // on each, and both of them are the voter's answer.
+        for (const id of Array.isArray(row?.choice) ? row.choice : []) {
+            if (!id) continue;
+            tally.set(id, (tally.get(id) ?? 0) + 1);
+        }
+    }
+    const counts = Array.from(tally.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([id, n]) => ({ id, n }));
+    const want = Math.max(1, Math.trunc(Number(wanted)) || 1);
+    const cut = counts[want - 1]?.n ?? 0;
+    const accused = counts.filter(r => r.n >= cut && r.n > 0);
+    const majority = majorityOf(issued);
+    const noMajority = accused.slice(0, want).some(r => r.n < majority) || accused.length < want;
+    const tied = accused.length > want || noMajority;
+    return { counts, accused, majority, noMajority, tied, accusedIds: tied ? [] : accused.map(r => r.id) };
+}
+
+/**
  * The count, on the primary's own copy of the ballots (E10 C1). The counts, and
  * only the counts: the rows stay in the GMs' store until the next round opens or
  * the trial's reset cuts them, and nothing of who voted how reaches the world or
@@ -915,78 +997,27 @@ async function closeRound(progress) {
     Hooks.callAll("drpgBallotsChanged");
 
     const cast = roundBallots(progress);
-    const tally = new Map();
-    for (const [, row] of cast) {
-        // Every name on the ballot counts. A two-Blackened night puts two names
-        // on each, and both of them are the voter's answer.
-        for (const id of row.choice) {
-            if (!id) continue;
-            tally.set(id, (tally.get(id) ?? 0) + 1);
-        }
-    }
-
-    // Out of how many ballots WENT OUT, not how many came back.
+    // Out of how many ballots WENT OUT, not how many came back (`ballotBase`).
     //
     // The denominator used to be the votes cast, so one vote out of three
     // issued printed as "1 of 1 votes", which reads as a unanimous table rather
     // than as two people who never answered. Whether the accusation carries the
-    // room is the whole question the card is trying to settle. Went out: to
-    // everybody handed one at the open or by a remind, everybody entitled now,
-    // and everybody who answered - the union the old count made of its Map, the
-    // recipients it froze and the voters it could still see.
+    // room is the whole question the card is trying to settle.
     const returned = cast.length;
-    const issued = new Set([...vote.issued, ...eligibleVoters().map(({ user }) => user.id),
-        ...cast.map(([userId]) => userId)]).size;
+    const issued = ballotBase(vote, cast);
     const silent = issued - returned;
 
     const named = id => id === "monokuma"
         ? game.i18n.localize("DRPG.Vote.monokuma")
         : (game.actors.get(id)?.name ?? "?");
 
-    const rows = Array.from(tally.entries())
-        .sort((a, b) => b[1] - a[1])
-        .map(([id, n]) => ({ id, name: named(id), n }));
-
     // As many names as the night asked for. A two-Blackened vote whose card
     // announces one accusation has answered half the question and said so as
     // though it were the whole answer.
     const wanted = Math.max(1, vote.picks);
-    const cut = rows[wanted - 1]?.n ?? 0;
-    const accused = rows.filter(r => r.n >= cut && r.n > 0);
-    const top = rows[0];
-
-    /*
-     * A CONVICTION NEEDS MORE THAN HALF THE ROOM (D6).
-     *
-     * The class used to convict on a plurality: whoever led the count was the
-     * answer, however thin the lead. Measured over a season that made the trial
-     * almost unloseable - nine wrong votes scattered across seven names still
-     * left the real killer on top with four, and four out of sixteen decided a
-     * life. The class was winning by being the largest minority.
-     *
-     * So a name has to carry the ROOM. Short of that, the accusation fails and
-     * the class fails with it - which is the honest reading of a hung jury in a
-     * game where an unanswered murder is a win for the killer.
-     *
-     * OUT OF BALLOTS ISSUED, NOT RETURNED, and for the same reason the card
-     * below already counts that way: silence is not agreement. A room of
-     * sixteen where five people vote and four of them agree has not decided
-     * anything, and a denominator of five would call that a landslide.
-     */
-    const majority = Math.floor(issued / 2) + 1;
-    const noMajority = !top || top.n < majority;
-
-    /*
-     * A tie at the line: more names clear the bar than there are Blackened to
-     * name. One Blackened and two people level on votes is the old tie exactly.
-     *
-     * FOLDED IN WITH THE MISSING MAJORITY, which is G-31 widened rather than a
-     * second concept (D6). Both are the same event - the room did not settle on
-     * an answer - and both end the same way, so everything downstream that
-     * already knows what to do with a tie needs no second branch to learn.
-     */
-    const tied = accused.length > wanted || noMajority;
-    const accusedIds = tied ? [] : accused.map(r => r.id);
+    const { counts, accused, majority, noMajority, tied, accusedIds } =
+        countBallots(cast.map(([, row]) => row), { wanted, issued });
+    const rows = counts.map(({ id, n }) => ({ id, name: named(id), n }));
 
     // THE COUNT IN ONE WRITE (G-31; E10 C1). The verdict window needs it, and by
     // the time it opens the tally has scrolled away: every name's votes, out of
@@ -995,7 +1026,7 @@ async function closeRound(progress) {
     // verdict opens on "wrong" as after a tie. Until 1.2.71 that close returned
     // before writing anything, and the console went on offering the vote.
     await setTrialProgress({
-        voteClosed: true, accused: rows.map(({ id, n }) => ({ id, n })), total: issued,
+        voteClosed: true, accused: counts, total: issued,
         accusedIds, tied, majority, noMajority
     });
 
@@ -1004,33 +1035,42 @@ async function closeRound(progress) {
         return { status: "nobodyVoted" };
     }
 
+    /* A ROW PER NAME AND ONE SENTENCE (E10 C3, 1.2.71; audit S06-32, S06-10). The card was a
+       `drpg-vault-table` - the Vault's, which falls apart in a narrow chat tile - and printed the
+       same number three times (the row, "needs 3 of 4", "Botan - 3 of 4 votes") without saying
+       whether the room had convicted anybody; a vote short of a majority read "A tie." though
+       nobody was level. Now: each name, its votes and a bar of the ballots that went out with the
+       majority marked on it, then the one sentence - the class accuses, no majority, or a tie
+       among names that each carried the room (`countBallots`). The bar is drawn, not read: it is
+       hidden from a screen reader, which has the count beside it. */
+    const share = n => Math.round(100 * n / Math.max(1, issued));
+    const esc = foundry.utils.escapeHTML;
+    const sentence = noMajority
+        ? game.i18n.format("DRPG.Vote.noMajority", { majority, total: issued })
+        : tied
+            ? game.i18n.localize("DRPG.Vote.tied")
+            : game.i18n.format(accused.length > 1 ? "DRPG.Vote.accusesLineMany" : "DRPG.Vote.accusesLine", {
+                names: accused.map(r => esc(named(r.id))).join(", "),
+                n: Math.min(...accused.map(r => r.n)), total: issued
+            });
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.resultBanner")}</div>
-            <table class="drpg-vault-table"><tbody>${rows.map(r => `<tr>
-                <td>${foundry.utils.escapeHTML(r.name)}</td>
-                <td style="text-align:right">${r.n}</td>
-            </tr>`).join("")}</tbody></table>
-            <p><em>${game.i18n.format("DRPG.Vote.majorityLine",
-                { n: majority, issued })}</em></p>
-            <p>${tied
-                ? game.i18n.localize("DRPG.Vote.tied")
-                : wanted > 1
-                    ? game.i18n.format("DRPG.Vote.accusedMany", {
-                        names: accused.map(r => foundry.utils.escapeHTML(r.name)).join(", ")
-                    })
-                    : game.i18n.format("DRPG.Vote.accused", {
-                        name: foundry.utils.escapeHTML(top.name), n: top.n, total: issued
-                    })}</p>
+            <div class="drpg-vote-count">${rows.map(r => `<div class="drpg-vote-row">
+                <span class="drpg-vote-name">${esc(r.name)}</span>
+                <span class="drpg-vote-n">${r.n}</span>
+                <span class="drpg-vote-bar" aria-hidden="true"><span style="width: ${share(r.n)}%"></span><i style="left: ${share(majority)}%"></i></span>
+            </div>`).join("")}</div>
+            <p class="drpg-vote-sentence">${sentence}</p>
             ${silent ? `<p class="notes">${
                 plural("DRPG.Vote.silent", { n: silent })}</p>` : ""}
         </div>`
     });
 
-    log(`Vote closed: ${returned} of ${issued} ballot(s) returned, ${
-        tied ? "tied" : `${accused.map(r => r.name).join(", ")} accused`}.`);
-    return { rows, total: issued, tied, accusedId: tied ? null : top?.id ?? null, accusedIds };
+    log(`Vote closed: ${returned} of ${issued} ballot(s) returned, ${noMajority ? "no majority"
+        : tied ? "tied" : `${accused.map(r => named(r.id)).join(", ")} accused`}.`);
+    return { rows, total: issued, tied, accusedId: tied ? null : rows[0]?.id ?? null, accusedIds };
 }
 
 /* ==========================================================================
