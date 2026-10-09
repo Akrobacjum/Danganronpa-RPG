@@ -1220,6 +1220,7 @@
         "other": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała."
       },
       "stressBack": "Odzyskujesz {n} Sanity.",
+      "refundUnheld": "Sprzątanie postaci {name} prosiło o zwrot: {what}. Audyt MG nie miał tu zapisu, by sprawdzić, czy to zapłacono, więc nic nie wróciło. Jeśli zapłacono, oddaj to ręcznie.",
       "freeAttempt": "Ta próba nie kosztuje Sanity: zapłacił za nią krytyczny Finishing blow.",
       "trailPlanted": "Podłożono Prep Remnant ({visibility}) wskazujący na: {name}.",
       "trailNote": "Podłożony przez {by}, by obciążyć: {name}. {visibility}.",

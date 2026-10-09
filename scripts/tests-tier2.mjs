@@ -14640,6 +14640,193 @@ const SCENARIOS = [
                 + "and three trails refused at once; what those three answered; refund lines for a Sanity step, for an action)");
     }],
 
+    ["a critical's give-back and the free attempt's waiver give back only what the GMs saw paid", async () => {
+        /*
+         * E09 fix r2-G8, 09.10.2026; r2-G3's open roads 1 and 2. Since T-1 a critical clean-up hands back the step its
+         * packet says the killer's browser paid (cleanup.mjs `handBack`), and the free attempt a critical Finishing blow
+         * leaves lifts the Sanity step its packet says was paid (`waivePrice`), and nothing on the GM tied either step
+         * to a payment. Two students with players: the killer's critical blow opens Stage 6 with the free attempt
+         * theirs, and an action spent and two Sanity steps marked - by the GM, the GMs' credit then emptied
+         * (`auditFromScratch`), so no payment the GMs saw stands. Then five scrubs as the killer's browser sends them,
+         * each of a trace and on a clean-up roll of its own the GMs hold: the free attempt, saying it paid the Sanity
+         * step; a critical saying the same; a critical saying it paid the action; the Sanity step paid as their browser
+         * pays it (the player's write, judged) and a critical saying so; and that critical once more, the payment given
+         * back already. Read: the codes the bridge told, and after each scrub the marks, the actions left and whether a
+         * card said something came back. Until this fix the free attempt lifted the step and every critical handed its
+         * step back.
+         * Red at 8303625 (its runtime with these tests): the numbers are in fix r2-G8's commit message.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the scrubbed traces are placed on the scene on screen");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const remnants = await import("./remnants.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { actionsMax } = await import("./actions.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { plural } = await import("./utils.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(playerOf);
+        must(killer && victim, "no two living students with players");
+        const player = playerOf(killer), step = PRICE_CHAINS.tamper.steps.find(s => s.pay === "stress");
+        const scene = game.scenes.active ?? canvas?.scene;
+        const anchor = scene?.tokens?.find(t => t.x || t.y);
+        const ACTIONS = "system.resources.actions.value", STRESS = "system.resources.stress.value";
+        const value = path => Number(foundry.utils.getProperty(killer._source, path));
+        const top = actionsMax(killer);
+        must(step && top >= 1 && Number(killer.system.resources?.stress?.max) >= 3 * step.amount,
+            `${killer.name} has no action to have spent or no room for three Sanity steps, or the chain no Sanity step - this would measure nothing`);
+        const had = { [ACTIONS]: value(ACTIONS), [STRESS]: value(STRESS) };
+        const backs = [game.i18n.format("DRPG.Cleanup.stressBack", { n: step.amount }), plural("DRPG.Cleanup.actionBack", { n: 1 })];
+        const said = since => [...game.messages].slice(since).some(m => backs.some(line => contentOf(m).includes(line)));
+        const rolls = [], records = [], traces = [], told = [], after = [];
+        let read = null;
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: true, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && M.murderState()?.freeCleanup === killer.id,
+                `the fixture's critical blow left no Stage 6 or no free attempt: ${stableJson(M.murderState())}`);
+            await killer.update({ [ACTIONS]: top - 1, [STRESS]: 2 * step.amount });
+            await auditFromScratch(killer);
+            for (const [n, price, isCritical, paid] of [[1, "stress", false, false], [2, "stress", true, false], [3, "action", true, false],
+                [4, "stress", true, true], [5, "stress", true, false]]) {
+                if (paid) await asPlayerWrite(killer, { [STRESS]: value(STRESS) + step.amount }, player, { reason: "price" });
+                await sheetAuditIdle();
+                const trace = await remnants.placeRemnant({ type: "prep", visibility: "evident", x: anchor?.x ?? 0, y: anchor?.y ?? 0, scene,
+                    note: `SUITE r2-G8 a trace the killer scrubs, ${n}` });
+                must(trace, "the fixture's trace was not placed");
+                traces.push(trace);
+                const { message } = await neutralRoll(killer);
+                must(message, `no roll of ${killer.name} was thrown - this would measure nothing`);
+                rolls.push(message);
+                records.push(await recordFor(message, player, killer, "cleanup", { total: 30, isCritical }));
+                const since = game.messages.size;
+                await G.judge(BRIDGE_ACTIONS, { action: "murder.cleanup", requestId: `suite-r2g8-scrub-${n}`, actorId: killer.id,
+                    key: "eraseTrace", tokenId: trace.id, total: 30, isCritical, withHope: true, viaAction: false, price, grant: false,
+                    rollId: message.id },
+                player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                await settle();
+                await sheetAuditIdle();
+                after.push([value(STRESS), value(ACTIONS), said(since)]);
+            }
+            read = [told, after];
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            for (const kept of records) await kept.putBack();
+            for (const message of rolls) await game.messages.get(message.id)?.delete();
+            for (const trace of traces) {
+                const live = trace.parent?.tokens?.get(trace.id);
+                if (!live) continue;
+                try { await remnants.dropRemnantSecret(live); } catch { /* nothing filed */ }
+                try { await live.delete(); } catch { /* already gone */ }
+            }
+            await killer.update(had);
+        }
+        const kept = [2 * step.amount, top - 1, false];
+        equal(stableJson(read), stableJson([[], [kept, kept, kept, [2 * step.amount, top - 1, true], kept]]),
+            "a critical clean-up or the free attempt gave back a step the GMs did not see paid, kept one they did, or a card said one came back "
+                + "(codes told; after the free attempt, the critical saying Sanity, the one saying an action, the one paid and the one paid already: "
+                + "marks, actions left, a give-back said)");
+    }],
+
+    ["a give-back the GMs cannot check against a payment is not made on a player's word and the GMs are told", async () => {
+        /*
+         * E09 fix r2-G8, 09.10.2026; the fix list's (b). Where this browser holds no mark of the student - not the
+         * primary, its stores not hydrated (sheet-audit.mjs `heldMark`) - the GMs' credit cannot be asked, and a
+         * clean-up's give-back gave back the step its packet named whoever had sent it (cleanup.mjs `paidBack`). A
+         * player's packet reaches that branch by reading (`paidBack`'s note); the harness runs one GM, primary and
+         * hydrated before the suite, so the student's mark is dropped before each packet here, as tier 2 drops it for
+         * "a player's write on a student the GMs hold no mark of is recorded as it becomes the mark". The player's
+         * character with an action spent and a Sanity step marked, no incident running; then two packets as that
+         * player's browser sends them, each on a clean-up roll of its own the GMs hold: a clean-up the GM refuses
+         * (`blockedOnGm`) saying it paid the Sanity step, and a critical Tamper of a trace they found saying it paid the
+         * action; last the GM's own critical Tamper saying the same (`requestCleanup`'s local road), which keeps the
+         * fallback. Read: the codes the bridge told, the marks and the actions left after the player's two, the GMs'
+         * whispers naming each claim, and the actions after the GM's own. Until this fix the player's two had the
+         * Sanity step and the action given back on their word.
+         * Red at 8303625 (its runtime with these tests): the numbers are in fix r2-G8's commit message.
+         */
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the packets are a connected player's, as Foundry names only those");
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const M = await import("./murder.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { actionsMax } = await import("./actions.mjs");
+        const { priceLabel } = await import("./price.mjs");
+        const { contentOf } = await import("./secret.mjs");
+        const { player, theirs: actor } = playerAndCharacters();
+        must(!M.murderState()?.active, "an incident is running - the clean-up would be the killer's to make");
+        const ACTIONS = "system.resources.actions.value", STRESS = "system.resources.stress.value";
+        const value = path => Number(foundry.utils.getProperty(actor._source, path));
+        const step = pay => PRICE_CHAINS.tamper.steps.find(s => s.pay === pay)?.amount;
+        const top = actionsMax(actor);
+        must(top >= 1 && step("stress") && step("action") && Number(actor.system.resources?.stress?.max) >= step("stress"),
+            `${actor.name} has no action or Sanity to have spent, or the chain no Sanity or action step - this would measure nothing`);
+        const had = { [ACTIONS]: value(ACTIONS), [STRESS]: value(STRESS) };
+        const paid = { [ACTIONS]: top - 1, [STRESS]: step("stress") };
+        const unheld = pay => game.i18n.format("DRPG.Cleanup.refundUnheld", { name: foundry.utils.escapeHTML(actor.name),
+            what: priceLabel({ pay, amount: step(pay), grant: false }) });
+        const drop = async () => {
+            await sheetAuditIdle();
+            if (sheetMarkStore.has(actor.id)) await sheetMarkStore.drop(actor.id);
+        };
+        const fixtures = [], rolls = [], records = [], told = [];
+        let held = null, read = null;
+        try {
+            for (const n of [1, 2]) fixtures.push(await cleanupFixture(actor, `SUITE r2-G8 a trace found, ${n}`));
+            must(fixtures.every(F => F.trace && F.copy), "a fixture's trace or its copy was not made - this would measure nothing");
+            await actor.update(paid);
+            await sheetAuditIdle();
+            held = foundry.utils.deepClone(sheetMarkStore.get(actor.id) ?? null);
+            must(held, `${actor.name} has no mark before the test - this would measure nothing`);
+            const since = game.messages.size;
+            for (const [n, price, viaAction, tokenId] of [[1, "stress", false, "SUITER2G8NOTRACE"], [2, "action", true, fixtures[0].trace.id]]) {
+                const { message } = await neutralRoll(actor);
+                must(message, `no roll of ${actor.name} was thrown - this would measure nothing`);
+                rolls.push(message);
+                records.push(await recordFor(message, player, actor, "cleanup", { total: 30, isCritical: true }));
+                await drop();
+                await G.judge(BRIDGE_ACTIONS, { action: "murder.cleanup", requestId: `suite-r2g8-unheld-${n}`, actorId: actor.id,
+                    key: "eraseTrace", tokenId, total: 30, isCritical: true, withHope: true, viaAction, price, grant: false, rollId: message.id },
+                player.id, { send: (to, reply) => { if (reply?.action === "bridge.refused") told.push(reply.reason); } });
+                await settle();
+            }
+            await sheetAuditIdle();
+            const theirs = [value(STRESS), value(ACTIONS)];
+            const whispered = ["stress", "action"].map(pay => [...game.messages].slice(since).filter(m => contentOf(m).includes(unheld(pay))).length);
+            await drop();
+            await fixtures[1].scrub(30, { isCritical: true, price: "action" });
+            await settle();
+            await sheetAuditIdle();
+            read = [told, theirs, whispered, value(ACTIONS)];
+        } finally {
+            for (const kept of records) await kept.putBack();
+            for (const message of rolls) await game.messages.get(message.id)?.delete();
+            // The mark put back as it was taken, over the values it was taken at, so the writes below move both together.
+            if (held) {
+                await actor.update(paid);
+                await drop();
+                await sheetMarkStore.patch(actor.id, held);
+            }
+            for (const F of fixtures.reverse()) await F.putBack();
+            await actor.update(had);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[], [step("stress"), top - 1], [1, 1], top]),
+            "a give-back the GMs' audit could not check was made on a player's word, the GMs were not told what it claimed, "
+                + "or the GM's own lost the fallback (codes told; marks and actions left after the player's two; whispers for the Sanity "
+                + "step, for the action; actions after the GM's own)");
+    }],
+
     ["a body that would not move leaves no trail of being dragged", async () => {
         /*
          * E09 C11, 08.10.2026; audit S05-47. Move the body's success teleports the victim's token into
@@ -27189,11 +27376,18 @@ const SCENARIOS = [
         };
 
         try {
+            /*
+             * Each step paid as a GM pays it, in a write of its own (E09 fix r2-G8, 09.10.2026): a critical gives
+             * back what the GMs' credit holds of the step its packet names (cleanup.mjs `paidBack`), and a value
+             * the sheet already held when it was written paid nothing - the action came back or not by what the
+             * test before this one left.
+             */
             await who.update({
                 "system.resources.actions.max": 2,
-                "system.resources.actions.value": 1,
+                "system.resources.actions.value": 2,
                 "system.resources.stress.value": 2
             });
+            await who.update({ "system.resources.actions.value": 1 });
             await settle();
 
             // ---- paid with an action --------------------------------------
@@ -27210,8 +27404,9 @@ const SCENARIOS = [
             // ---- paid with a Sanity mark ----------------------------------
             await who.update({
                 "system.resources.actions.value": 1,
-                "system.resources.stress.value": 2
+                "system.resources.stress.value": 1
             });
+            await who.update({ "system.resources.stress.value": 2 });
             await settle();
             token = await fixture();
             await cleanup.resolveCleanup({
@@ -36436,6 +36631,66 @@ const SCENARIOS = [
         }
         equal(stableJson(read), stableJson([0, "flagged"]),
             "a clean-up's Sanity given back by its Reroll left the price in the credit, or the player's refund of the same stood on it (the credit left, the verdict)");
+    }],
+
+    ["a Reroll of a critical clean-up neither mints nor loses the step its give-back handed over", async () => {
+        /*
+         * E09 fix r2-G8, 09.10.2026. A critical clean-up's give-back is held to the GMs' credit since this fix
+         * (cleanup.mjs `handBack`), and a Reroll replays the attempt over a rewind (`undoLastCleanup`) that takes back
+         * what the give-back handed over - the marks through `stressBefore`, an action or a Burst through the receipt's
+         * `handedBack` - before the replay's own give-back asks the credit again. Four critical Tampers, each of a
+         * fixture's trace and each Rerolled, the GMs' credit emptied before each (`auditFromScratch`): the Sanity step
+         * paid as the player's browser pays it (the player's write, judged) and claimed, Rerolled into a critical again,
+         * so the replay's give-back needs the step the rewind's rise put back in the credit; the action paid and
+         * claimed, Rerolled into a plain success; the action claimed and not paid, Rerolled the same way, where nothing
+         * came back for the Reroll to take; and a Burst paid and claimed, Rerolled the same way, where a Burst came back
+         * and the Reroll takes the Burst. Read: each one's means after the critical and after its Reroll.
+         * Red at 8303625 (its runtime with these tests): the numbers are in fix r2-G8's commit message.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose writes are judged");
+        const [who] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { actionsMax } = await import("./actions.mjs");
+        const ACTIONS = "system.resources.actions.value", STRESS = "system.resources.stress.value";
+        const GRANTS = `flags.${MODULE_ID}.${FLAGS.freeActionGrants}`;
+        const value = path => Number(foundry.utils.getProperty(who._source, path)) || 0;
+        const step = pay => PRICE_CHAINS.tamper.steps.find(s => s.pay === pay)?.amount;
+        await actionsReach(who, 2);
+        const top = actionsMax(who);
+        must(step("stress") === 1 && step("action") === 1 && Number(who.system.resources?.stress?.max) >= 2,
+            `the chain's two steps do not cost one each, or ${who.name}'s Sanity cannot take two marks - this would measure nothing`);
+        const had = { [ACTIONS]: value(ACTIONS), [STRESS]: value(STRESS), [GRANTS]: value(GRANTS) };
+        const fixtures = [], read = [];
+        try {
+            for (const [label, path, start, paid, price, grant, again] of [["sanity", STRESS, 1, 2, "stress", false, true],
+                ["action", ACTIONS, top, top - 1, "action", false, false], ["unpaid", ACTIONS, top - 1, null, "action", false, false],
+                ["burst", GRANTS, 1, 0, "action", true, false]]) {
+                const F = await cleanupFixture(who, `SUITE r2-G8 a critical rerolled, ${label}`);
+                fixtures.push(F);
+                must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+                await who.update({ [path]: start });
+                await auditFromScratch(who);
+                if (paid !== null) await asPlayerWrite(who, { [path]: paid }, player, { reason: path === STRESS ? "price" : "spend" });
+                await sheetAuditIdle();
+                await F.scrub(30, { isCritical: true, price, grant });
+                await settle();
+                await sheetAuditIdle();
+                const once = value(path);
+                await F.scrub(30, { isCritical: again, price, grant, undo: true });
+                await settle();
+                await sheetAuditIdle();
+                read.push([once, value(path)]);
+            }
+        } finally {
+            for (const F of fixtures.reverse()) await F.putBack();
+            await who.update(had);
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[1, 1], [top, top - 1], [top - 1, top - 1], [1, 0]]),
+            "a Reroll of a critical clean-up minted the step its give-back handed over, lost it, or took one nothing gave "
+                + "(the marks paid and Rerolled into a critical, the actions paid, the actions not paid, the Bursts paid: after the critical, after the Reroll)");
     }],
 
     ["a Reroll's take-backs read the Hope and the maxima the GMs hold, not a player's write the audit has not put back", async () => {

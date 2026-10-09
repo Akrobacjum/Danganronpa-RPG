@@ -1332,9 +1332,10 @@ export async function askTransformChange(actor) {
  * charges anything. Answers the result object to hand back, or null when the
  * attempt may go ahead. `price` is the step the player's browser says it paid
  * (T-1), and `grant` whether a Burst paid it: a refusal gives back what of it the
- * GMs saw paid and says so (`refundRefused`).
+ * GMs saw paid and says so (`refundRefused`). `by` is who sent the packet, null for a
+ * GM's own attempt (`paidBack`).
  */
-async function cleanupRefusal(actor, token, data, viaAction, price = null, grant = false) {
+async function cleanupRefusal(actor, token, data, viaAction, price = null, grant = false, by = null) {
     /*
      * NOT "ONLY YOUR OWN" ANY MORE (ACT-02, 17.09).
      *
@@ -1368,7 +1369,7 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null, grant
     if (viaAction && !watchedItHappen && !copiedRemnants(actor).has(token.id)) {
         error(`Refused a Tamper by ${actor.name}: they have not found that trace.`);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>${
-            await refundRefused(actor, price, grant)}`);
+            await refundRefused(actor, price, grant, by)}`);
         return { removed: false, notFound: true };
     }
 
@@ -1379,7 +1380,7 @@ async function cleanupRefusal(actor, token, data, viaAction, price = null, grant
     if (data.reinforced) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.reinforced", {
             what: foundry.utils.escapeHTML(`${data.visibilityLabel} ${data.typeLabel}`)
-        })}</p>${await refundRefused(actor, price, grant)}`);
+        })}</p>${await refundRefused(actor, price, grant, by)}`);
         return { removed: false, reinforced: true };
     }
     return null;
@@ -1449,7 +1450,7 @@ function cleanupVerdict(held, data, { total, isCritical, withHope, mode }) {
      * and left signs of the disturbing (D8).
      */
 async function resolveTransformRoad(actor, token, data, verdict, {
-    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null
+    change, isCritical, total, viaAction, receipt, done, paidStep = null, charged = null, grant = false, by = null
 }) {
     const { band, success, dc } = verdict;
     const byTheKiller = isCleaner(actor);
@@ -1496,12 +1497,11 @@ async function resolveTransformRoad(actor, token, data, verdict, {
         }
     }
 
-    // The critical hands back the step that paid, not "a Sanity mark" (T-1).
+    // The critical hands back the step that paid, not "a Sanity mark" (T-1), as far as the GMs saw it paid (`handBack`).
     const back = CLEANUP.transformAction?.refundStress?.[band];
     if (back) {
-        const gave = await handBack(actor, paidStep?.pay ?? null, back, receipt);
-        done.push(game.i18n.format(gave === "action"
-            ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: back }));
+        const line = backLine(await handBack(actor, paidStep, back, { receipt, grant, by }));
+        if (line) done.push(line);
     }
 
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
@@ -1691,7 +1691,8 @@ export async function resolveCleanup({
     // string, and only a step the table knows is honoured.
     price = null, grant = false,
     // The roll it was thrown with and who threw it, for the GMs' fact of the attempt (fix
-    // r1-G2): action-rolls.mjs `rollOfFact`.
+    // r1-G2): action-rolls.mjs `rollOfFact`. `by` is the bridge's sender, null for a GM's own
+    // attempt, and a give-back the GMs' audit cannot check is not made on a player's word (`paidBack`).
     rollId = null, by = null
 } = {}) {
     if (!game.user.isGM) return null;
@@ -1699,7 +1700,7 @@ export async function resolveCleanup({
     const actor = game.actors.get(actorId);
     if (!actor) return null;
     // Said and paid back (`blockedOnGm`); a GM's Reroll of an attempt that stands is refused as before.
-    if (!viaAction && !isCleaner(actor)) return undo ? null : blockedOnGm(actor, price, grant);
+    if (!viaAction && !isCleaner(actor)) return undo ? null : blockedOnGm(actor, price, grant, by);
 
     // A Reroll: put the scene back the way it was before scoring the new number,
     // or the second attempt would be measured against a room the first one had
@@ -1730,7 +1731,7 @@ export async function resolveCleanup({
         // is spent on it too: an attempt, hit or miss (`consumeFreeCleanup`).
         const free = replayFree || await consumeFreeCleanup(actor);
         if (!validPrice(price) && !free) await spendStress(actor);
-        if (free) await waivePrice(actor, validPrice(price));
+        if (free) await waivePrice(actor, validPrice(price), by);
         // An attempt that kept no receipt, as the refusal below (E08+E28 C3; audit S05-44).
         await forgetAttempt(actorId);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
@@ -1744,7 +1745,7 @@ export async function resolveCleanup({
      * its Sanity - and scored the new number on top. With no row, the Reroll is not replayed
      * and the GMs are told (`undoLastCleanup`).
      */
-    const refused = await cleanupRefusal(actor, token, data, viaAction, price, grant);
+    const refused = await cleanupRefusal(actor, token, data, viaAction, price, grant, by);
     if (refused) {
         await forgetAttempt(actorId);
         return refused;
@@ -1792,7 +1793,7 @@ export async function resolveCleanup({
     const free = replayFree || await consumeFreeCleanup(actor);
     receipt.free = free;
     if (!paidStep && !free) await spendStress(actor);
-    if (free) await waivePrice(actor, paidStep);
+    if (free) await waivePrice(actor, paidStep, by);
     // What the report says was paid: the step the client claimed, with the
     // amount read off the table rather than off the packet - and nothing for
     // the free attempt, which says so instead.
@@ -1803,7 +1804,7 @@ export async function resolveCleanup({
 
     if (transforming && success) {
         const road = await resolveTransformRoad(actor, token, data, verdict,
-            { change, isCritical, total, viaAction, receipt, done, paidStep, charged });
+            { change, isCritical, total, viaAction, receipt, done, paidStep, charged, grant, by });
         await keepAttemptFact(rolls, roll, actorId, receipt);
         return road;
     }
@@ -1817,11 +1818,11 @@ export async function resolveCleanup({
     // rather than instead of it, so the receipt's `stressBefore` still describes
     // the state a Reroll has to restore.
     // Handed back on both roads now, because both roads paid - and as the step
-    // that paid, which is an action as often as a mark since T-1 (`handBack`).
+    // that paid, which is an action as often as a mark since T-1, as far as the
+    // GMs saw it paid, and said only where something came back (`handBack`).
     if (outcome.refundStress) {
-        const gave = await handBack(actor, paidStep?.pay ?? null, outcome.refundStress, receipt);
-        done.push(game.i18n.format(gave === "action"
-            ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: outcome.refundStress }));
+        const line = backLine(await handBack(actor, paidStep, outcome.refundStress, { receipt, grant, by }));
+        if (line) done.push(line);
     }
 
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
@@ -2292,13 +2293,15 @@ export async function resolveStageSix({
     viaAction = false,
     // Which step of the chain the client says it paid, and whether a Burst paid
     // it. Bounded here, like every other field that crossed a socket (T-1).
-    price = null, grant = false
+    price = null, grant = false,
+    // Who sent it, as `resolveCleanup` is told: null for a GM's own (fix r2-G8, `paidBack`).
+    by = null
 } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
     const def = CLEANUP.actions?.[key];
     if (!actor || !def) return null;
-    if (!viaAction && !isCleaner(actor)) return blockedOnGm(actor, price, grant);
+    if (!viaAction && !isCleaner(actor)) return blockedOnGm(actor, price, grant, by);
 
     /*
      * ONE OF THE THREE IS STAGE 6 ONLY, AND IT IS THE OBVIOUS ONE.
@@ -2341,11 +2344,11 @@ export async function resolveStageSix({
      * with.
      */
     if (key === "misleadingTrail" && !(await framingCandidates(actor)).some(a => a.id === targetId)) {
-        await refundStageSix(actor, "cannotFrame", price, grant);
+        await refundStageSix(actor, "cannotFrame", price, grant, by);
         return { refused: "that student cannot be framed" };
     }
     if (key === "moveBody" && !bodyIsHere(actor)) {
-        await refundStageSix(actor, "notThere", price, grant);
+        await refundStageSix(actor, "notThere", price, grant, by);
         return { refused: "the body is not in the killer's room" };
     }
     // The tool written down and the tier of its relief, as the GMs hold them (`resolveCleanup`'s note, fix r2-H20).
@@ -2372,7 +2375,7 @@ export async function resolveStageSix({
     const paidStep = validPrice(price);
     const free = await consumeFreeCleanup(actor);
     if (!paidStep && !free) await spendStress(actor);
-    if (free) await waivePrice(actor, paidStep);
+    if (free) await waivePrice(actor, paidStep, by);
     const done = [];
     if (free) done.push(game.i18n.localize("DRPG.Cleanup.freeAttempt"));
 
@@ -2381,9 +2384,8 @@ export async function resolveStageSix({
 
     const refund = success ? def.refundStress?.[band] : null;
     if (refund) {
-        const gave = await handBack(actor, paidStep?.pay ?? null, refund);
-        done.push(game.i18n.format(gave === "action"
-            ? "DRPG.Cleanup.actionBack" : "DRPG.Cleanup.stressBack", { n: refund }));
+        const line = backLine(await handBack(actor, paidStep, refund, { grant, by }));
+        if (line) done.push(line);
     }
 
     // Three shapes for one idea lived here: this card led with an `<h3>`, the
@@ -2803,18 +2805,33 @@ async function undoLastCleanup(actor, tokenId) {
                wait holds up nothing that holds it up, by reading: all a judgement
                waits for that it does not do itself is its own writer's consumption
                of an item or roll card, and this rewind writes as a GM;
-               `resolveCleanup` waits on the same queue after it (`actorAsHeld`). */
+               `resolveCleanup` waits on the same queue after it (`actorAsHeld`).
+               A RISE PUTS A PAYMENT BACK, AND IS NO GIVE-BACK (E09 fix r2-G8, 09.10.2026).
+               Where the attempt's critical or the free attempt's waiver gave its step
+               back, `moved` is below 0 and the rewind raises the marks. Written as a
+               give-back, that rise is a spend the audit banks nothing for (fix r2-H8,
+               sheet-audit.mjs `gmLedger`), so the payment stood again with nothing in
+               the credit for it, and the replay's give-back, held to the credit since
+               this fix (`paidBack`), found none: measured on this fix by tier 2's "a
+               Reroll of a critical clean-up neither mints nor loses the step its
+               give-back handed over" with the rise written so (e09run/r2g8m, m6), a
+               Sanity step paid, handed back by a critical and Rerolled into a critical
+               again left 2 marks where 1 was owed. A rise is written as the GM's own
+               charge now, which banks the credit again, as the action's take-back
+               below (`takeBackRefund`, a GM's spend) always has; a fall is still a
+               give-back, as fix r2-H6 made it. */
             const moved = typeof receipt.stressAfter === "number"
                 ? receipt.stressAfter - receipt.stressBefore : null;
             const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
             await gmMeansWrite(actor, async () => {
                 const ceiling = meansMaxHeld(actor, "stress") || Infinity;
+                const marks = resourceValue(actor, "stress");
                 const value = moved === null
                     ? receipt.stressBefore
-                    : Math.min(ceiling, Math.max(0, resourceValue(actor, "stress") - moved));
+                    : Math.min(ceiling, Math.max(0, marks - moved));
                 await trustedWrite(actor, {
                     "system.resources.stress.value": value
-                }, { reason: "reroll", giveBack: true });
+                }, { reason: "reroll", giveBack: value < marks });
             });
         } catch (err) {
             error("Could not refund the Sanity a rerolled clean-up spent", err);
@@ -2866,29 +2883,59 @@ function validPrice(price) {
  * names - the table's amount, but the packet's step - and nothing on the GM ties a drawn clean-up roll to a payment:
  * measured at 97e0eef by tier 2 ("a clean-up the GM refuses gives back no price the GMs did not see paid"), a student
  * who paid nothing had the action and the Sanity step given back for two packets saying they were paid. The step now
- * comes back only as far as the GMs' audit holds credit for it - what the payment the GMs saw left - and the credit is
- * taken, so one payment comes back once (sheet-audit.mjs `creditRefund`). A Burst claimed is asked of a Burst's credit
- * and comes back as a Burst, as `refundAction` gives one back; the line says "action", as the price's lines do. Where
- * this browser holds no mark of the student - a GM's own clean-up run on a GM who is not the primary, the stores not
- * hydrated yet, a Monokuma - the document is the record, as `meansHeld` says, and the step named comes back as C11
- * gave it, a Burst as an action (`handBack`'s reason). Quiet, because the line goes into the refusal's own whisper
- * rather than a second card.
+ * comes back only as far as the GMs' audit holds credit for it, and the credit is taken (`paidBack`, which since fix
+ * r2-G8 holds the rest of this note and is the road of a critical's give-back and the free attempt's waiver too).
+ * Quiet, because the line goes into the refusal's own whisper rather than a second card.
  */
-async function refundRefused(actor, price, grant = false) {
+async function refundRefused(actor, price, grant = false, by = null) {
     const step = validPrice(price);
     if (!step) return "";
+    const back = await paidBack(actor, step, { grant, by });
+    return back.amount ? `<p>${game.i18n.format("DRPG.Price.refunded", { what: priceLabel(back) })}</p>` : "";
+}
+
+/*
+ * A STEP A PACKET SAYS WAS PAID, GIVEN BACK AS FAR AS THE GMS SAW IT PAID: a refusal's give-back (`refundRefused`), a
+ * critical's (`handBack`) and the free attempt's waiver (`waivePrice`), one road since E09 fix r2-G8 (09.10.2026).
+ * `step` is `{ pay, amount }`, `grant` whether a Burst paid it, `by` who sent the packet (null for a GM's own). Answers
+ * what came back as a price receipt, `amount` 0 for nothing.
+ *
+ * The step comes back as far as the GMs' audit holds credit for it - what the payment the GMs saw left - and the credit
+ * is taken, so one payment comes back once (sheet-audit.mjs `creditRefund`, fix r2-G3). A Burst claimed is asked of a
+ * Burst's credit and comes back as a Burst, as `refundAction` gives one back; its line says "action", as the price's
+ * lines do.
+ *
+ * WHERE THIS BROWSER HOLDS NO MARK OF THE STUDENT (`creditRefund`'s null: not the primary, the stores not hydrated, no
+ * mark, a Monokuma) nothing checks a claim. The step named came back there, a Burst as an action, whoever had sent it
+ * (C11's give-back, kept by fix r2-G3). It still does for a GM's own attempt - a GM is trusted with their own - and for
+ * an actor the audit keeps no student's mark of, a Monokuma or no character, whose document is the record
+ * (`meansHeld`). A player's packet on a student gets nothing there, and the GMs are told what it claimed, so a GM can
+ * hand it back by hand. A player's packet reaches that branch, by reading (fix r2-G8; not measured - the harness runs
+ * one GM, its stores hydrated before the suite): the primary judges a packet without waiting for its stores where the
+ * GM-side draw is not in force (bridge-guards.mjs `rollsFor` returns before `whenHydrated`, and nothing else in `judge`
+ * waits), and asks whether it is the primary as the packet arrives (gm-bridge.mjs `onSocket`), not when the give-back
+ * runs. Tier 2 reaches the branch by dropping the student's mark before each packet: measured at 8303625 by "a give-back
+ * the GMs cannot check against a payment is not made on a player's word and the GMs are told", a player who had paid
+ * neither had the Sanity step and the action two packets claimed given back, and the GMs were told nothing.
+ */
+async function paidBack(actor, step, { grant = false, by = null } = {}) {
     const burst = step.pay === "action" && Boolean(grant);
     const { creditRefund } = await import("./sheet-audit.mjs");
     const back = await creditRefund(actor, step.pay === "stress" ? "stress" : burst ? "freeActionGrants" : "actions", burst ? 1 : step.amount);
+    if (back !== null) return { pay: step.pay, amount: burst && back > 0 ? step.amount : back, grant: burst };
     const named = { pay: step.pay, amount: step.amount, grant: false };
-    const landed = back === null ? await refundPrice(actor, named, { quiet: true }) : back > 0;
-    const what = back === null || burst ? named : { ...named, amount: back };
-    return landed ? `<p>${game.i18n.format("DRPG.Price.refunded", { what: priceLabel(what) })}</p>` : "";
+    if (by && !game.users.get(by)?.isGM && actor.type === "character" && !isMonokuma(actor)) {
+        log(`Gave ${actor.name} nothing back for a claimed ${step.pay}: this client holds no mark of them.`);
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Cleanup.refundUnheld", {
+            name: foundry.utils.escapeHTML(actor.name), what: priceLabel(named) })}</p>`);
+        return { ...named, amount: 0 };
+    }
+    return { ...named, amount: await refundPrice(actor, named, { quiet: true }) ? step.amount : 0 };
 }
 
 /** Before one of Stage 6's own refusals (`resolveStageSix`): what the killer paid given back as far as the GMs saw it, said with the bridge's reason (`why`) where any came back. */
-async function refundStageSix(actor, why, price, grant) {
-    const line = await refundRefused(actor, price, grant);
+async function refundStageSix(actor, why, price, grant, by = null) {
+    const line = await refundRefused(actor, price, grant, by);
     if (line) await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Bridge.why.${why}`)}</p>${line}`);
 }
 
@@ -2900,11 +2947,11 @@ async function refundStageSix(actor, why, price, grant) {
  * heard nothing. The reason is `cleanupBlocker`'s, in the words the sheet uses before the dice (`refuseCleanup`).
  * Not null, so the bridge does not add a refusal of its own to the whisper.
  */
-async function blockedOnGm(actor, price, grant = false) {
+async function blockedOnGm(actor, price, grant = false, by = null) {
     const why = cleanupBlocker(actor) ?? "notYours";
     log(`Refused a clean-up by ${actor.name} on the GM: ${why}.`);
     await whisperToOwner(actor, `<p>${game.i18n.localize(`DRPG.Cleanup.blocked.${why}`)}</p>${
-        await refundRefused(actor, price, grant)}`);
+        await refundRefused(actor, price, grant, by)}`);
     return { removed: false, success: false, blocked: why };
 }
 
@@ -2917,27 +2964,60 @@ async function blockedOnGm(actor, price, grant = false) {
  *
  * WRITTEN FOR A BAND TABLE, not for `critical`. Two of the three callers read
  * `refundStress?.[band]`, so a rebalance that hands something back on an ordinary
- * success arrives here unchanged.
+ * success arrives here unchanged. Read on fix r2-G8 (09.10.2026): each band the
+ * callers read that hands anything back hands back 1 - the erase road's critical
+ * outcome, `transformAction`'s and Stage 6's misleading trail's and body's
+ * (config.mjs `CLEANUP`) - and each of Tamper's two steps costs 1, so none hands
+ * back more than the step paid.
  *
- * A BURST COMES BACK AS AN ACTION, not as a Burst. This runs on the GM's client
- * on a claim it cannot verify, and a Burst pays for a whole call however much it
- * costs - so it is worth more than the action it replaced. The exposure is capped
- * at one action per critical, which is the cheaper of the two mistakes.
+ * ON THE PACKET'S WORD UNTIL E09 FIX r2-G8 (09.10.2026; r2-G3's open road 1). The
+ * step the packet claims (`paidStep`) came back - an action through `refundAction`,
+ * a mark through `restoreStress` - whether anything was paid or not: measured at
+ * 8303625 by tier 2's "a critical's give-back and the free attempt's waiver give
+ * back only what the GMs saw paid", a killer the GMs held at 2 marks and 2 actions,
+ * who had paid nothing, was left at 0 marks and 3 actions by the free attempt and
+ * two criticals, one saying it paid the Sanity step and one the action. It comes
+ * back now as a refusal's does (`paidBack`).
+ * WHERE THE PACKET CLAIMS NO STEP the Sanity is asked of the credit as the GM's own
+ * give-back: the mark `spendStress` charged - and for the free attempt, which was
+ * charged nothing and whose browser claims no step (`chargeTamper`), whatever the
+ * credit still holds of the student's Sanity within a Reroll's window (sheet-audit.mjs
+ * `CREDIT_KEPT_MS`: a mark a payment or any GM's write left), or nothing.
+ * Until this fix a mark came back there whatever had been paid. Read in the code, not
+ * measured; whether the free attempt's critical should hand anything back is a
+ * question of the rules this fix does not decide.
+ * A BURST COMES BACK AS A BURST since then, asked of a Burst's credit. It came back
+ * as an action while nothing checked the claim - a Burst pays for a whole call
+ * however much it costs, so an action was the cheaper mistake - and still does
+ * where the GMs hold no mark to ask and the attempt is a GM's own or no student's
+ * (`paidBack`).
  *
- * @returns {Promise<"action"|"stress">} what was handed back.
+ * @returns {Promise<{pay: string, amount: number, grant: boolean}>} what came back,
+ *   `amount` 0 for nothing.
  */
-async function handBack(actor, price, amount = 1, receipt = null) {
-    if (price === "action") {
-        const { refundAction } = await import("./actions.mjs");
-        await refundAction(actor, amount);
-        // Recorded so a Reroll can take it back: `stressBefore` rewinds Sanity
-        // and nothing else, so an action handed back once per replay would be
-        // minted out of nothing.
-        if (receipt) receipt.handedBack = { pay: "action", amount, grant: false };
-        return "action";
-    }
-    await restoreStress(actor, amount);
-    return "stress";
+async function handBack(actor, paidStep, amount = 1, { receipt = null, grant = false, by = null } = {}) {
+    const back = paidStep
+        ? await paidBack(actor, { pay: paidStep.pay, amount }, { grant, by })
+        : await paidBack(actor, { pay: "stress", amount });
+    // Recorded so a Reroll can take it back: `stressBefore` rewinds Sanity
+    // and nothing else, so an action handed back once per replay would be
+    // minted out of nothing. What came back, not what was asked: a Reroll
+    // of a critical that gave nothing back took an action nobody had been given.
+    if (receipt && back.pay === "action" && back.amount) receipt.handedBack = back;
+    return back;
+}
+
+/**
+ * The card's line for what a give-back handed over (`handBack`), or null where nothing came back - the line used to be
+ * said whatever came back. An action's line is a plural pair (`DRPG.Cleanup.actionBack`), read through `plural`; the
+ * three callers had handed the pair's key to `game.i18n.format` - at 8303625, by the test above, the action came back
+ * and no card said so in the harness, whose `format` answers such a key with the key's own name (client-entry.mjs);
+ * Foundry is not measured.
+ */
+function backLine(back) {
+    if (!back?.amount) return null;
+    return back.pay === "action" ? plural("DRPG.Cleanup.actionBack", { n: back.amount })
+        : game.i18n.format("DRPG.Cleanup.stressBack", { n: back.amount });
 }
 
 /**
@@ -2997,17 +3077,24 @@ export async function consumeFreeCleanup(actor) {
 
 /**
  * The price the free attempt does not owe (E32+E07 C13). The GM's side charges it nothing -
- * a packet that claims no step skips `spendStress` - but a legitimate client has already paid
+ * a packet that claims no step skips `spendStress` - but a legitimate client had already paid
  * its mark before the dice (`chargeTamper`: the killer's own chain starts at the Sanity), and
- * it cannot know the mark is not owed, since the grant is the GMs'. So that mark is lifted
- * again. Only a Sanity step: an action is never the killer's price in their own Stage 6
- * (`tamperPriceSkip`), and handing an action back on a claim nobody can check is what
- * `handBack` already weighs for the critical. Lifted after `stressBefore` is read, so a
- * Reroll's rewind puts the mark back and the replay, told by its receipt that it was the
- * free one, lifts it again.
+ * could not know the mark was not owed while the grant was the GMs' alone. So that mark is
+ * lifted again. Since E32+E07 fix r2-G3 the killer's copy of the cast carries the grant and
+ * their browser claims no step for the free attempt (`chargeTamper`), so, by reading, an honest
+ * packet claims one only where that copy had not heard of the grant yet. Only a Sanity
+ * step: an action is never the killer's price in their own Stage 6 (`tamperPriceSkip`).
+ * Lifted after `stressBefore` is read, so a Reroll's rewind puts the mark back and the
+ * replay, told by its receipt that it was the free one, lifts it again.
+ * AS FAR AS THE GMS SAW IT PAID (E09 fix r2-G8, 09.10.2026; r2-G3's open road 2). The mark
+ * the packet claimed was lifted whether it had been paid or not: measured at 8303625 by
+ * tier 2's "a critical's give-back and the free attempt's waiver give back only what the
+ * GMs saw paid", the free attempt saying it paid a Sanity step nobody paid took the killer
+ * from 2 marks to 1. It comes back now as a refusal's step does (`paidBack`), and the
+ * rewind's rise banks the credit the replay's waiver takes (`undoLastCleanup`).
  */
-async function waivePrice(actor, paidStep) {
-    if (paidStep?.pay === "stress") await restoreStress(actor, paidStep.amount);
+async function waivePrice(actor, paidStep, by = null) {
+    if (paidStep?.pay === "stress") await paidBack(actor, paidStep, { by });
 }
 
 /**

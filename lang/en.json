@@ -1219,6 +1219,7 @@
         "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you close the murder - closing destroys the crime tool that was used; the cleaning tool goes when the body is found."
       },
       "stressBack": "You get {n} Sanity back.",
+      "refundUnheld": "{name}'s clean-up asked for {what} back, and the GMs' audit held no record here to check it was paid: nothing was given back. If it was paid, give it back by hand.",
       "freeAttempt": "This attempt costs no Sanity: the critical Finishing blow paid for it.",
       "trailPlanted": "Planted a Prep Remnant ({visibility}) pointing at {name}.",
       "trailNote": "Planted by {by} to implicate {name}. {visibility}.",

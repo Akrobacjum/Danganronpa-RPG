@@ -742,7 +742,10 @@ async function handleCleanup(payload, sender, ctx, prepared) {
             // Which step the client paid. Bounded on arrival against
             // PRICE_CHAINS, like `transform` and `change` (T-1).
             price: payload.price ?? null,
-            grant: payload.grant
+            grant: payload.grant,
+            // Who sent it, as below: a give-back the GMs' audit cannot check is not
+            // made on a player's word (cleanup.mjs `paidBack`, fix r2-G8).
+            by: sender.id
         });
         // Not a guard: who may be framed and where the body lies are the
         // resolver's own rules, asked of a GM's Stage 6 too (cleanup.mjs).
@@ -1629,7 +1632,7 @@ export const BRIDGE_ACTIONS = table({
         claims: {
             tokenId: "resolveCleanup (cleanup.mjs) finds the trace in the cleaner's room and judges it, or refuses",
             targetId: "resolveStageSix (cleanup.mjs) judges who may be framed and where the body lies",
-            price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1)",
+            price: "bounded on arrival against PRICE_CHAINS by the resolvers (T-1), and given back no further than the GMs' credit holds it (cleanup.mjs paidBack)",
             transform: "bounded on arrival against CLEANUP.transform by resolveCleanup (G-20)",
             change: "bounded on arrival against CLEANUP.transform by resolveCleanup (Z5)",
             rollId: "the roll the result is read from (bridge-guards.mjs rollRefusal), and written on only by noteFactOfRoll (action-rolls.mjs): the sender's own row of that message, its character and a clean-up"
