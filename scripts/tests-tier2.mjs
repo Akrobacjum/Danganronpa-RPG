@@ -14302,6 +14302,102 @@ const SCENARIOS = [
             await F.putBack();
         }
     }],
+    ["a GM's write of a held copy compares its words with the ones before it and not with a write queued ahead or a player's awaiting its put-back", async () => {
+        /*
+         * E09 fix r2-G11, 09.10.2026; r2-G10's open items 2 and 3, read in the code there and measured here. A GM's
+         * write that reaches a held copy's description and its module flags at once compares the words, for a field this
+         * browser holds no record of, with the GMs' mark's copy of the item before it (truth-bullets.mjs
+         * `onBulletWrite`, sheet-audit.mjs `itemMarkedBefore`). The mark holds the item as of the last write the audit
+         * judged, so it could hold words the copy no longer did: a player's write of the words that the audit let stand
+         * (a bullet's words are truth-bullets', sheet-audit.mjs `ITEM_JUDGED`) while truth-bullets' put-back of it
+         * waits, and a GM's write still queued ahead of this one. r2-G10's fixture, on the second student's copy. First,
+         * the GMs' record of the copy kept and the mark's copy of the item holding a player's words, as such a write
+         * leaves it: the GM restyles the description and writes the module flags whole, keeping the copy's words. Then
+         * the record forgotten (`forgetBulletGuard`) and the student's audit queue held (`gmMeansWrite` waiting), two
+         * writes of both fields, the first changing the words, the second changing them back, the second heard while
+         * the mark still holds the words before the first. A second write that kept the first's words could at most
+         * carry them again, which changes nothing; one that changes them back is the one a stale "before" would lose.
+         * Read after each: the ledger's name, words and reading, the copy found after the reshape, and the reshaper's
+         * copy with its found description.
+         * Green at 193236b (r2-G10), the code it was written against: neither state is read as the words before. A GM's
+         * write records on the primary what it touched as its hook hears it (`refreshGuard`), before any later write's
+         * hook runs, and a field the record holds is decided by the record and never compared with the mark; the
+         * put-back writes only fields the record holds. Its mutants (e09run/r2g11m) - a GM's write leaving no record,
+         * a field or the description's words compared with the mark - each carry words up.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const students = cast(3);
+        const { player, actor: finder, where } = await playerInRoom();
+        const [who, holder] = students.filter(a => a.id !== finder.id);
+        const R = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const A = await import("./sheet-audit.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const WORDS = "SUITE r2-G11 the GM's own words for it";
+        const READING = "SUITE r2-G11 the lab's reading of it";
+        const PLAYERS = "SUITE r2-G11 a player's words waiting for their put-back";
+        const TEXT = `flags.${MODULE_ID}.${T.TRUTH_BULLET_FLAGS.playerText}`;
+        const F = await reshapeCopiesFixture(who, [holder], "SUITE r2-G11 a held copy's words before a GM's write",
+            { scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, sourceActor: finder.id });
+        let open = () => {}, held = null;
+        try {
+            const { applied } = await F.reshape();
+            must(applied === true, "the approval was refused - this would measure nothing");
+            await R.setRemnantPublic(F.trace, { analyzedText: READING });
+            const after = await F.find(player, finder);
+            must(after, "the finder's Observe made no copy of the fixture's trace - this would measure nothing");
+            const copy = holder.items.get(F.copies[1].id);
+            const read = () => {
+                const pub = R.remnantPublic(F.trace);
+                return [[pub?.name, pub?.playerText, pub?.analyzedText], F.words(after)?.slice(0, 2) ?? null, F.words(F.copy)];
+            };
+            const marked = () => foundry.utils.getProperty(A.itemMarkedBefore(holder, copy.id) ?? {}, TEXT) ?? null;
+            const both = words => {
+                const scope = foundry.utils.deepClone(copy.flags?.[MODULE_ID] ?? {});
+                scope[T.TRUTH_BULLET_FLAGS.playerText] = words;
+                return copy.update({ "system.description": `<p><em>${words}</em></p>`, flags: { [MODULE_ID]: replaced(scope) } });
+            };
+            await A.sheetAuditIdle();
+            const mark = sheetMarkStore.get(holder.id);
+            must(mark?.items?.[copy.id] && T.bulletGuardStatus(copy.uuid).copy, "the GMs hold no mark or no record of the copy - this would measure nothing");
+            const items = foundry.utils.deepClone(mark.items);
+            foundry.utils.setProperty(items[copy.id], TEXT, PLAYERS);
+            await sheetMarkStore.patch(holder.id, { items });
+            must(marked() === PLAYERS, "the GMs' mark does not hold the player's words - this would measure nothing");
+            await both(C9_FOUND.playerText);
+            await settle();
+            await A.sheetAuditIdle();
+            const waiting = read();
+            T.forgetBulletGuard(copy.uuid);
+            must(T.bulletGuardStatus(copy.uuid).copy === null, "the GM's record of the copy stayed - this would measure nothing");
+            const gate = new Promise(resolve => { open = resolve; });
+            held = A.gmMeansWrite(holder, () => gate);
+            await both(WORDS);
+            await settle();
+            await both(C9_FOUND.playerText);
+            await settle();
+            const stale = marked();
+            open();
+            await held;
+            await settle();
+            await A.sheetAuditIdle();
+            must(stale === C9_FOUND.playerText, `the GMs' mark had heard the write ahead before the second was - this would measure nothing: ${stale}`);
+            const queued = read();
+            const story = [[C9_STORY.name, C9_STORY.text, READING], [C9_STORY.name, C9_STORY.text], [C9_FOUND.name, C9_FOUND.playerText, true]];
+            equal(stableJson([waiting, queued]), stableJson([story,
+                [[C9_STORY.name, C9_FOUND.playerText, READING], [C9_STORY.name, C9_FOUND.playerText], [C9_FOUND.name, C9_FOUND.playerText, true]]]),
+                "a GM's write of a held copy took a player's words awaiting their put-back, or a GM's write queued ahead of it, for the words before "
+                + "it (after the GM kept the copy's words over a player's in the GMs' mark; after two GM writes, the words changed and changed back, "
+                + "the second heard before the audit judged the first: the ledger's name, words and reading; the copy found after the reshape; the "
+                + "reshaper's copy with its found description)");
+        } finally {
+            open();
+            await held;
+            await F.putBack();
+        }
+    }],
 
     ["two rulings of one reshape at once run once, and the second is told it was ruled", async () => {
         /*
@@ -36881,6 +36977,70 @@ const SCENARIOS = [
                 + "(the step paid and a mark cleared, Rerolled into a critical; the same with a mark added; the GM's charge and a mark cleared, "
                 + "Rerolled; the step paid and handed back by a critical and a mark cleared, Rerolled into a success: the marks after the attempt, "
                 + "after the Reroll, the Sanity the GMs' credit holds)");
+    }],
+    ["a Reroll of the free clean-up attempt that claimed its Sanity step gives the step back once", async () => {
+        /*
+         * E09 fix r2-G11, 09.10.2026; r2-G10's open item 1. The free attempt a critical Finishing blow leaves gives back
+         * the Sanity step its packet says was paid, as far as the GMs saw it paid (cleanup.mjs `waivePrice`), and its
+         * receipt counts that give-back (`stressMoved`), so a Reroll's rewind raises the marks by it, banking the credit
+         * the replay's waiver then takes (`undoLastCleanup`). No test Rerolled such an attempt. The killer's critical
+         * blow opens Stage 6 with the free attempt theirs; a fixture's trace, the killer at 1 Sanity mark with the GMs'
+         * credit emptied (`auditFromScratch`), and the step paid as the killer's browser pays it (the player's write,
+         * judged); then a missed clean-up of the trace that claims the step, and its Reroll into a success. Read after
+         * the attempt and after the Reroll: the marks and the Sanity the GMs' credit holds. The free attempt costs
+         * nothing, Rerolled or not: the marks stay where they were before the step was paid, and no credit is left.
+         * Green at 193236b (r2-G10), the code it was written against: [[1, 0], [1, 0]]. Its mutants (e09run/r2g11m) -
+         * the receipt counting the waiver twice, the replay not told it was the free one - each leave a step paid.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
+        needs(world.atLeast("sceneOnScreen"), "the fixture's trace is placed on the scene on screen");
+        const M = await import("./murder.mjs");
+        const S = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { livingStudents, isDeadForGm, reviveCharacter } = await import("./chapter.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [killer, victim] = livingStudents().filter(playerOf);
+        must(killer && victim, "no two living students with players");
+        const player = playerOf(killer);
+        const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(killer._source, STRESS)) || 0;
+        must(PRICE_CHAINS.tamper.steps.find(s => s.pay === "stress")?.amount === 1 && Number(killer.system.resources?.stress?.max) >= 2,
+            `the chain's Sanity step does not cost one, or ${killer.name}'s Sanity cannot take two marks - this would measure nothing`);
+        const had = marks(), read = [];
+        let F = null;
+        try {
+            await fightOpen(M, killer, victim);
+            await turnFor(M, killer, "finishingBlow");
+            await M.resolveCrisisAction({ actorId: killer.id, key: "finishingBlow", total: 99, isCritical: true, withHope: true });
+            await settle();
+            must(M.murderState()?.stage === "resolution" && M.murderState()?.freeCleanup === killer.id,
+                `the fixture's critical blow left no Stage 6 or no free attempt: ${stableJson(M.murderState())}`);
+            F = await cleanupFixture(killer, "SUITE r2-G11 the free attempt Rerolled");
+            must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+            await killer.update({ [STRESS]: 1 });
+            await auditFromScratch(killer);
+            await asPlayerWrite(killer, { [STRESS]: 2 }, player, { reason: "price" });
+            await sheetAuditIdle();
+            must(marks() === 2 && await creditHeld(killer, "stress") === 1, "the player's payment of the step was not judged a payment - this would measure nothing");
+            await F.scrub(0, { viaAction: false });
+            await settle();
+            await sheetAuditIdle();
+            must(!M.murderState()?.freeCleanup, "the attempt did not spend the free attempt - this would measure nothing");
+            read.push([marks(), await creditHeld(killer, "stress")]);
+            await F.scrub(30, { viaAction: false, undo: true });
+            await settle();
+            await sheetAuditIdle();
+            read.push([marks(), await creditHeld(killer, "stress")]);
+        } finally {
+            if (M.murderState()) await M.endMurder({ reason: "test", followUp: false });
+            if (isDeadForGm(victim)) await reviveCharacter(victim, { quiet: true });
+            if (S.usedToolStore?.has(killer.id)) await S.usedToolStore.drop(killer.id);
+            await F?.putBack();
+            await killer.update({ [STRESS]: had });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[1, 0], [1, 0]]),
+            "the free clean-up attempt, its Sanity step paid and claimed, cost a step or gave one back twice once Rerolled "
+                + "(after the missed attempt, after its Reroll into a success: the marks, the Sanity the GMs' credit holds)");
     }],
 
     ["a Reroll's take-backs read the Hope and the maxima the GMs hold, not a player's write the audit has not put back", async () => {
