@@ -7356,6 +7356,174 @@ const REGRESSIONS = [
             "an investigation road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E09 commit that will) and strike the gone one");
     }],
 
+    ["R311 - a trial road has a census row, and every row judges a road", async () => {
+        /*
+         * E10 C0, 09.10.2026; the plan's METHOD change 1 (census-1c), R304's twin for the Class
+         * Trial. E10 moves the vote, the verdict and the Level Up off what a player's browser can
+         * write, and this test keeps the list of the places that read it closed: a new one fails
+         * until it has a row and a verdict, a row whose place is gone fails until it is struck.
+         * Five kinds, read live: PACKET - every field of a BRIDGE_ACTIONS declaration whose action
+         * is `vote.*` or `advancement.*`, read off the `fields` its picked sanitizer lists ("-" for
+         * a declaration that lists none: the packet itself is the claim); SOCKET - every raw socket
+         * handler the trial's files register (`game.socket.on(event, handler)`, or a dispatch's
+         * `return handler(payload`), gm-bridge.mjs's own only where the handler is a Level Up's,
+         * one row per `payload.<field>` it reads; CHAT - every top-level declaration of those
+         * files that reads a chat message's module flags or its speaker's actor (any user can
+         * create a message with any flags); SHEET - every one that reads a student's death,
+         * advances, traits, experiences or resources, held or off the document, or is one of the
+         * named few (NAMED) whatever it reads; STORE - the five places the trial's fields live,
+         * each found by its name in its file. The files are the trial's seven and the named
+         * declarations of six others (FILES, NAMED). A verdict says what judges the place today;
+         * one that names "C<n>" names the E10 commit that changes it, and that commit rewrites the
+         * row with the code. It reads names and text, not data flow: a reader in another file, or
+         * reached through a helper this list does not name, is not seen. Measured 09.10.2026 at
+         * 1e9871c: the SOCKET, CHAT, SHEET and STORE keys of this reader (run in Node on the tree's
+         * files) and of the parse-only census (an espree reading of the same tree, kept with the
+         * E10 plan outside the repository) were the same 31 - 6 SOCKET, 5 CHAT, 15 SHEET,
+         * 5 STORE - and the census's 5 PACKET rows are the rest of the 36 below. Its 10 PLANNED
+         * rows (places E10's commits will add: `vote.run`, `vote.cast`, `vote.ask`, the offer's
+         * `op` and `offerId`, `ballotStore`, the objector's death in `seizeFloor`) are left to the
+         * commits that add them. The reader is run first on a fixture with a socket handler, a
+         * judged reader, a reader whose field is only in a comment, a chat reader without a row, a
+         * declaration of a named file that is not named, a store and a stale row.
+         */
+        const TRIAL_CENSUS = [
+            ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged in part: `handleAdvancement` checks the standing offer, the count its kind buys, each option, and `experienceNew`'s name; an `experienceUp` id and a trait are not checked against the sheet (S03-22) - C8 adds the existence checks on the held sheet (`numberHeld`/`actorHeldNow`), refused and told [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#actorId", "judged: gmOnly + owns (a GM sender); C6 adds `op` and `offerId` beside it [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.offer#kind", "judged: gmOnly - only a GM hands out a Level Up; the kind is the GM's choice [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.ask#-", "judged: knownSender + playersOnly; quiet; the answer is addressed to the asker (`replyForMe`) [F7]"],
+            ["SOCKET vote.mjs#onBallotOpened#candidates", "out of scope: a GM -> player packet; `onBallotOpened` returns on a GM and unless the sender is a GM (vote.mjs:156-157). C2 moves the ballot onto the bridge (`vote.ask`'s reply) and retires this handler [F5]"],
+            ["SOCKET vote.mjs#onBallotOpened#voterActorId", "out of scope: a GM -> player packet; `onBallotOpened` returns on a GM and unless the sender is a GM (vote.mjs:156-157). C2 moves the ballot onto the bridge (`vote.ask`'s reply) and retires this handler [F5]"],
+            ["SOCKET vote.mjs#onBallotOpened#picks", "out of scope: a GM -> player packet; `onBallotOpened` returns on a GM and unless the sender is a GM (vote.mjs:156-157). C2 moves the ballot onto the bridge (`vote.ask`'s reply) and retires this handler [F5]"],
+            ["SOCKET vote.mjs#onBallotCast#choice", "OPEN at base: a player sender, the voter's living student (`voterActorFor`, document) and the candidate filter; no dedup, no length, no round, lost on a reload (S06-12, V3). C2 retires the raw handler for the bridge's `vote.cast` (knownSender + playersOnly; round, picks, dedup, the voter judged on `judgedFor` + `flagsHeldNow`), refused and told; the tier-0 source test 'the ballot reaches the GMs only through the bridge' fails while `registerVote` keeps an ACTION_BALLOT handler [F1]"],
+            ["SOCKET gm-bridge.mjs#onAdvancementOffers#offers", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
+            ["SOCKET gm-bridge.mjs#onAdvancementOffers#stamps", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
+            ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~501-520); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card. C16 adds the dead objector (`flagsAsHeld`) [F4 read road]"],
+            ["CHAT trial.mjs#seizeFloor", "judged: the item through `itemAsHeld` (E29); the card's flag is a claim; C16 keeps it and adds the dead objector (`await flagsAsHeld`, then the synchronous refusals) [1b.2]"],
+            ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:731, 751, GM only); a display, feeds no write"],
+            ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
+            ["CHAT events.mjs#voteIsOpen", "OPEN at base: a player-created chat message flagged `voteOpen` for this chapter makes every panel say the vote is open (events.mjs:298; a display, no write) [F6]. C1 reads the world `trialProgress` instead, and this row goes stale (C1 removes its verdict)"],
+            ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters` [F1]"],
+            ["SHEET vote.mjs#eligibleVoters", "OPEN at base (R1, document `isDeceased`): C2 decides on `await judgedFor(...ids)` then `flagsHeldNow` in one pass, at open, ask and cast [1b.2]"],
+            ["SHEET vote.mjs#openVerdictDialog", "out of scope: the \" - dead\" marks are a display (R4); C4 preselects the accused from the world's `accusedIds` and Q-E10-1 (c) lets the GM pick a living student"],
+            ["SHEET vote.mjs#applyVerdict", "OPEN at base (R1, document `isDeadForGm`, `livingStudents`): C5 reads one `judgedFor(...executed, ...students)` then `flagsHeldNow` for all in one synchronous pass; `killCharacter` keeps its own head check [1b.2]"],
+            ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
+            ["SHEET level-up.mjs#applyAdvancement", "held: one `meansWrite` from `numberHeld` (E29 r2-H24/H25, in the tree before E10); the `actor.system.experiences[id].name` read is a label in the GM's summary. C8's fnSource test pins it [1b.2]"],
+            ["SHEET trial.mjs#presentDialog", "out of scope: the Present dialog's target list on the presenter's own browser (R4); `seizeFloor` judges on the primary"],
+            ["SHEET trial-floor-ui.mjs#startClassTrial", "OPEN (not in plan 1b.2): a GM's button counts `livingStudents` from documents; a player's own `deceased` write is put back (GM_FLAGS) but a GM's click inside the window reads it. C12's door ('nobody for the trial') rests on this count - C12 reads it through `judgedFor` or says why not"],
+            ["SHEET mastermind.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; C10 adds only `finalTrial` to the trial's progress"],
+            ["SHEET mastermind.mjs#applyFinalVerdict", "out of scope: E10 changes no line of it (C10 writes `finalTrial` beside it); `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40"],
+            ["SHEET character.mjs#stampStartingSheet", "OPEN at base (R2, derived `actor.system`): C8 reads the held sheet (`numberHeld`) [1b.2]"],
+            ["SHEET gm-bridge.mjs#handleAdvancement", "OPEN at base (R1, reads no sheet): S03-22 - C8 checks an `experienceUp` id and a trait on the held sheet before applying, refused and told [F7, 1b.2]"],
+            ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stops using it for survivors in C5 [1b.2]"],
+            ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220's census), its head check `isDeadForGm`; E10 changes no line [F4]"],
+            ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (season, `seasonStartedAt`, `finalTrial`)"],
+            ["STORE vote.mjs#ballots", "not a source: GM memory; C1 replaces it with `ballotStore` (rows only between GMs) [F1/F2]"],
+            ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes; C1 adds `vote`, `accusedIds`, `verdict`; C10 `finalTrial` [F3/F4/F6]"],
+            ["STORE gm-stores.mjs#offerStore", "not a source: a GM store; C6 makes its row a list per character [F7]"],
+            ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
+            ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; C16 reads `trialQueue.active` on render and on change"]
+        ];
+        const ROADS = /^(?:vote|advancement)\./;
+        const FILES = ["vote.mjs", "level-up.mjs", "trial.mjs", "trial-floor.mjs", "trial-floor-ui.mjs", "events.mjs", "mastermind.mjs"];
+        const NAMED = { "character.mjs": ["stampStartingSheet"], "gm-bridge.mjs": ["handleAdvancement", "handleAdvancementOffer", "askForOffers", "onAdvancementOffers"],
+            "sheet.mjs": ["addPresentButton", "injectAdvanceButton"], "chapter.mjs": ["livingStudents", "killCharacter", "openChapterEndDialog"],
+            "season-setup.mjs": ["wipeSeason"], "clock.mjs": ["reconcilePhase"] };
+        // Where gm-bridge.mjs registers its sockets and answers an owner: read for handlers, never a row of their own.
+        const BRIDGE_TOPS = /^(?:BRIDGE_ACTIONS|ACTION_\w*|registerGmBridge|replyForMe)$/;
+        const SHEET = [/\bisDeceased\(|\bisDeadForGm\(|\blivingStudents\(|\bdeceased\b/, /\badvances\b/, /system\.traits\b|\bTRAITS\b/,
+            /system\.experiences\b|\bexperiences?(?:New|Up)\b/, /system\.resources\b|\bresourceMax\(|hitPoints|stress\.max/];
+        const HELD = /\b(?:judgedFor|flagsAsHeld|flagsHeldNow|actorHeldNow|actorAsHeld|numberHeld|meansWrite|gmMeansWrite|itemAsHeld|meansHeld|heldMark)\s*\(/;
+        const RAW = /\b(?:isDeceased|isDeadForGm|livingStudents|resourceMax)\s*\(|\bactor\.system\b|\.system\.(?:traits|experiences|resources|levelData)\b|getFlag\(\s*MODULE_ID\s*,\s*FLAGS\.(?:deceased|advances)/;
+        const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
+        const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
+        const STORES = [["vote.mjs", "ballots"], ["vote.mjs", "trialProgress"], ["gm-stores.mjs", "offerStore"],
+            ["gm-stores.mjs", "deferredOfferStore"], ["settings.mjs", "trialQueue"]];
+        const censusOf = (bridge, sources) => {
+            const found = [];
+            for (const [action, decl] of Object.entries(bridge)) {
+                if (!ROADS.test(action)) continue;
+                const fields = Object.keys(decl?.sanitize?.fields ?? {});
+                for (const field of fields.length ? fields : ["-"]) found.push(`PACKET gm-bridge.mjs#${action}#${field}`);
+            }
+            const files = new Map(sources);
+            const tops = [];
+            for (const file of [...FILES, ...Object.keys(NAMED)]) {
+                if (!files.has(file)) continue;
+                const code = blankComments(files.get(file));
+                const at = [...blankLiterals(code).matchAll(TOP)].map(m => ({ at: m.index, name: m[1] ?? m[2] ?? m[4] ?? null, binding: Boolean(m[3]) }));
+                at.forEach((top, i) => {
+                    if (!top.name) return;
+                    if (NAMED[file] && !NAMED[file].includes(top.name) && !(file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name))) return;
+                    tops.push({ file, ...top, text: code.slice(top.at, at[i + 1]?.at ?? code.length) });
+                });
+            }
+            const handlers = new Set();
+            for (const top of tops) {
+                for (const m of top.text.matchAll(/game\.socket\.on\(\s*[\w.]+\s*,\s*([A-Za-z_]\w*)\s*\)/g)) handlers.add(`${top.file}#${m[1]}`);
+                for (const m of top.text.matchAll(/return\s+([A-Za-z_]\w*)\(\s*payload/g)) handlers.add(`${top.file}#${m[1]}`);
+            }
+            for (const handler of handlers) {
+                const [file, name] = handler.split("#");
+                // The bridge's own sockets are E28's (R1b and the bridge's tables); its Level Up ones are the trial's.
+                if (file === "gm-bridge.mjs" && !/Advancement/.test(name)) continue;
+                const top = tops.find(t => t.file === file && t.name === name);
+                // A handler this reader cannot find is a key no row can hold.
+                const fields = top ? [...new Set([...top.text.matchAll(/\bpayload\??\.(\w+)/g)].map(m => m[1]).filter(f => f !== "action"))] : ["?"];
+                for (const field of fields.length ? fields : ["-"]) found.push(`SOCKET ${handler}#${field}`);
+            }
+            for (const top of tops) if (CHAT.test(top.text)) found.push(`CHAT ${top.file}#${top.name}`);
+            for (const top of tops) {
+                if (top.file === "gm-bridge.mjs" && BRIDGE_TOPS.test(top.name)) continue;
+                // A table or a constant reads no sheet.
+                if (top.binding && !/=>|function/.test(top.text)) continue;
+                if (!SHEET.some(re => re.test(top.text))) continue;
+                if (HELD.test(top.text) || RAW.test(top.text) || NAMED[top.file]?.includes(top.name)) found.push(`SHEET ${top.file}#${top.name}`);
+            }
+            for (const [file, name] of STORES) {
+                if (files.has(file) && new RegExp(`\\b${name}\\b`).test(blankComments(files.get(file)))) found.push(`STORE ${file}#${name}`);
+            }
+            return found;
+        };
+        const judge = (found, table) => {
+            const rows = new Set(table.map(([key]) => key)), seen = new Set(found);
+            return { unclassified: found.filter(key => !rows.has(key)), stale: [...rows].filter(key => !seen.has(key)) };
+        };
+        const KINDS = ["PACKET", "SOCKET", "CHAT", "SHEET", "STORE"];
+
+        const planted = censusOf({
+            "vote.planted": { sanitize: { fields: { choice: "id" } } },
+            "observe.planted": { sanitize: { fields: { actorId: "id" } } }
+        }, [
+            ["vote.mjs", "function registerPlanted() {\n    game.socket.on(EVENT, (payload, senderId) => {\n        if (payload?.action === \"x\") return onPlanted(payload, senderId);\n    });\n}\n"
+                + "function onPlanted(payload) {\n    return payload.choice;\n}\n"
+                + "export function judged(actor) {\n    return isDeceased(actor);\n}\n"
+                + "function unread(actor) {\n    // its deceased flag is read elsewhere\n    return actor.name;\n}\n"
+                + "const forged = msg => msg.getFlag(MODULE_ID, \"voteOpen\");\n"
+                + "let ballots = null;\n"],
+            ["chapter.mjs", "export function notNamed(actor) {\n    return isDeceased(actor);\n}\n"]
+        ]);
+        equal(JSON.stringify(planted), JSON.stringify(["PACKET gm-bridge.mjs#vote.planted#choice", "SOCKET vote.mjs#onPlanted#choice",
+            "CHAT vote.mjs#forged", "SHEET vote.mjs#judged", "STORE vote.mjs#ballots"]),
+            "the census reader does not read the planted fixture as planted - the live census below would measure the wrong places");
+        equal(JSON.stringify(judge(planted, [["PACKET gm-bridge.mjs#vote.planted#choice", ""], ["SOCKET vote.mjs#onPlanted#choice", ""],
+            ["SHEET vote.mjs#judged", ""], ["SHEET vote.mjs#gone", ""], ["STORE vote.mjs#ballots", ""]])),
+            JSON.stringify({ unclassified: ["CHAT vote.mjs#forged"], stale: ["SHEET vote.mjs#gone"] }),
+            "the census judge does not tell a planted reader without a row, or a row without its reader");
+
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const found = censusOf(BRIDGE_ACTIONS, await otherSources());
+        const count = kind => found.filter(key => key.startsWith(`${kind} `)).length;
+        must(KINDS.every(kind => count(kind) > 0),
+            `the census read ${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")} - a kind it reads none of would measure nothing`);
+        const verdict = judge(found, TRIAL_CENSUS);
+        log(`R311: the census read ${found.length} place(s) (${KINDS.map(kind => `${count(kind)} ${kind}`).join(", ")}) `
+            + `against ${TRIAL_CENSUS.length} row(s); ${verdict.unclassified.length} without a row, ${verdict.stale.length} row(s) without a place`);
+        equal(JSON.stringify(verdict), JSON.stringify({ unclassified: [], stale: [] }),
+            "a trial road without a census row, or a row whose road is gone: give the new one a verdict (what judges it, or the E10 commit that will) and strike the gone one");
+    }],
+
     ["R221 - the starting sheet is written only on a GM's browser", async () => {
         /*
          * E29 C2, 05.10.2026; audit S03-45 (its code part). `initCharacter` writes a student's

@@ -75,9 +75,11 @@ export const FLOWS = Object.freeze([
     // p2's Experience on his own character and his Support on Aiko, and reads the rolls that spend them clean.
     { id: "call-arm", what: "A Call armed on a character: a player's - for somebody else or their own - paid and armed by the GM",
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
+    // E10 C0 (09.10.2026): 63 drives the trial from Start to a correct verdict's Level Up - a late joiner, a GM's reload
+    // in the vote, the verdict's window - as it is at 1e9871c; each of its checks names the E10 commit that changes it.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
         entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge"], sockets: ["vote.mjs"] },
-        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case"], status: "partial", stage: "E40" },
+        scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],
         status: "partial", stage: "E37" },
