@@ -315,6 +315,14 @@ export const SETTINGS = {
      */
     gmDeferredOffers: "gmDeferredOffers",
     /**
+     * THE BALLOTS OF THE VOTE (E10 C1, 1.2.71; audit S06-17): a GM store (gm-stores.mjs
+     * `ballotStore`), a row per voter `{ chapter, round, actorId, choice, at }`, keyed by the
+     * user who sent it. Until 1.2.71 a Map in the collecting GM's memory, which a reload of that
+     * browser emptied. No player copy: how anybody voted is the one thing the guide keeps
+     * ("wyniki są jawne, ale głosy - nie").
+     */
+    gmBallots: "gmBallots",
+    /**
      * THE DESPAIR COUNTERS ON THE GMS' SIDE (E05 C12, 27.09.2026; audit S01-60, S09-28). Two GM
      * stores, synced and backed up, with no player copy: `gmOverflow` (gm-stores.mjs
      * `overflowStore`) is the overflow's count, a record `{ count }` - the world setting
@@ -598,14 +606,17 @@ export const SETTINGS = {
      *
      * World-scoped for the same reason as `murderState` - every player has to
      * see the same countdown, and a shared clock cannot live on one browser.
-     * Nothing secret is in it. **Votes are not here**: they travel by
-     * recipient-addressed socket and are tallied in memory, because "wyniki są
-     * jawne, ale głosy - nie" and world data is not private (D6).
+     * Nothing secret is in it. **Ballots are not here**: they travel by
+     * recipient-addressed socket to the GMs and are kept in the GMs' store
+     * (`gmBallots`), because "wyniki są jawne, ale głosy - nie" and world data
+     * is not private (D6).
      */
     trialQueue: "trialQueue",
     /**
-     * How far through the trial the table has got: `{ chapter, seconds,
-     * voteClosed, verdictApplied }`.
+     * How far through the trial the table has got (vote.mjs `trialProgress`):
+     * `{ chapter, seconds, keysCharged, voteClosed, verdictApplied, tied,
+     * majority, noMajority, vote: { open, round, picks, issued, openedAt,
+     * closedAt }, accused: [{ id, n }], total, accusedIds, verdict }`.
      *
      * Separate from `trialQueue` because it outlives it. The floor is closed
      * and reopened several times in a trial and cleared entirely when the
@@ -618,8 +629,17 @@ export const SETTINGS = {
      * to reset - or a GM who nudges the chapter by hand - gets a fresh trial
      * rather than one that believes its vote was counted last week.
      *
-     * Nothing secret: it is three booleans about whether a screen has been
-     * opened. The votes themselves never enter world data at all (see vote.mjs).
+     * THE VOTE'S STATE IS HERE SINCE 1.2.71 (E10 C1; audit S06-17), written on
+     * the primary GM alone (vote.mjs `runVoteOp`): whether a vote is open, its
+     * round, how many names it asks for and who was handed a ballot; after the
+     * count, every name's votes, out of how many, the accused and whether the
+     * room failed to settle. "Is a vote open" is read here and nowhere else -
+     * the Event panel read it off a flagged chat message until then, which any
+     * player could post. `verdict` stays null until the verdict's record (E10 C5).
+     *
+     * Nothing secret: no ballot and no Blackened. All of it is what the table
+     * is shown - the result card prints the counts, and who got a ballot is
+     * plain at the table. The ballots are in the GMs' store (`gmBallots`).
      */
     trialProgress: "trialProgress",
     /**
@@ -1318,6 +1338,17 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+    /* The ballots (E10 C1). A change - the primary's record of one, or the primary's row merged
+       into another GM's copy - tells the vote's windows, which watch `drpgBallotsChanged`
+       (trial-floor-ui.mjs `manageClassTrial`): a client setting's write fires no `updateSetting`
+       for their watches. */
+    game.settings.register(MODULE_ID, SETTINGS.gmBallots, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => Hooks.callAll("drpgBallotsChanged")
     });
     /* The Despair counters (E05 C12). A change - this GM's write or another GM's merged in -
        redraws what the world setting's change redrew (the caption, the HUD row, the sheets;

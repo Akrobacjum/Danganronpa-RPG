@@ -641,6 +641,23 @@ export const deferredOfferStore = defineGmStore({
 });
 
 /**
+ * THE BALLOTS OF THE VOTE (E10 C1, 1.2.71; audit S06-17, S06-04; the plan's V1 and V3). A row per
+ * voter, keyed by the user Foundry says sent the ballot: `{ chapter, round, actorId, choice: [id],
+ * at }` - the names on it, the student it was cast with, and the chapter and round of the vote in
+ * the world's trial record (vote.mjs `trialProgress`). Until 1.2.71 the ballots were a Map in the
+ * collecting GM's memory, and a reload of that browser lost them: the GM who came back counted
+ * none (scenario 63's D and E at 1e9871c). Written by the primary alone (`onBallotCast`), synced
+ * between the GMs and never sent to a player - how anybody voted stays on the GMs' side, as the
+ * guide keeps it. A count reads only the rows of the world's chapter and round (`roundBallots`);
+ * the next open drops the rest, and the reset's "trialProgress" group cuts every row (D12). Not
+ * backed up: a ballot means nothing once its vote is counted.
+ */
+export const ballotStore = defineGmStore({
+    name: "ballots", key: SETTINGS.gmBallots,
+    kind: "ledger", resetGroup: "trialProgress", backup: false, sync: true
+});
+
+/**
  * THE DESPAIR OVERFLOW'S COUNT (E05 C12, 27.09.2026; audit S01-60). A record, `{ count }`: the
  * spilled Despair waiting to be spent - half of the world setting `overflow` until 1.2.64, which
  * every browser held while a player's caption masked it as "?". The other half, the darkening's

@@ -560,9 +560,14 @@ export async function manageClassTrial() {
                 build: buildConsole,
                 /*
                  * A BALLOT IS NOT IN THE WORLD, so `updateSetting` cannot report
-                 * one (F8). Ballots travel by socket and land in a Map in this
-                 * GM's memory on purpose - see `onBallotCast` in vote.mjs - and
-                 * this hook is the only thing that says the tally moved.
+                 * one (F8). Ballots travel by socket to the GMs and are kept in
+                 * the GMs' store on purpose - see `onBallotCast` in vote.mjs - a
+                 * client setting, whose change fires no `updateSetting` either,
+                 * and this hook is the only thing that says the tally moved: the
+                 * primary's record calls it, and so does the store's setting as a
+                 * row is merged into another GM's copy or dropped from it
+                 * (settings.mjs, E10 C1; measured on the headless harness with a
+                 * second GM, 09.10.2026: one row merged, then dropped, each heard).
                  *
                  * AND NOTHING IS NARROWED BY ADDING IT. Naming `settings` here
                  * would turn "every setting of ours, plus this hook" into "this
@@ -661,7 +666,8 @@ export async function openVoteDialog() {
         return null;
     }
 
-    const { openVote, closeVote, pendingVoters, remindVoters, votesIn } = await import("./vote.mjs");
+    const { openVote, closeVote, pendingVoters, remindVoters, votesIn, ballotCopyStatus, trialProgress } =
+        await import("./vote.mjs");
 
     // Who is still outstanding, while a vote is running.
     //
@@ -676,14 +682,26 @@ export async function openVoteDialog() {
        is the same question - asked once here rather than three times below. */
     const running = pending !== null;
     const returned = votesIn() ?? 0;
+    /* THIS BROWSER'S COPY OF THE BALLOTS (E10 C1). They are counted on the primary GM, and a
+       GM's window shows the copy the GMs' store keeps here: until it has arrived the window says
+       so rather than naming every voter as outstanding, and a vote opened before this browser
+       loaded, with none of its ballots here, says that the count is the primary's to make. */
+    const copy = ballotCopyStatus();
+    const outstanding = pending?.length
+        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
+            n: pending.length,
+            who: foundry.utils.escapeHTML(pending.map(p => p.name).join(", "))
+        })}</p>`
+        : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
     const status = pending === null
         ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>`
-        : pending.length
-            ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
-                n: pending.length,
-                who: foundry.utils.escapeHTML(pending.map(p => p.name).join(", "))
-            })}</p>`
-            : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
+        : copy === "notReady"
+            ? `<p class="drpg-warning">${game.i18n.localize("DRPG.Vote.storeNotReady")}</p>`
+            : copy === "none"
+                ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.openNoBallots", {
+                    n: trialProgress().vote.round
+                })}</p>${outstanding}`
+                : outstanding;
 
     const action = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vote.openTitle") },
@@ -729,10 +747,11 @@ export async function openVoteDialog() {
     if (action === "open") {
         /* RE-SENDING IS STARTING OVER, so somebody has to say so out loud.
 
-           `openVote` opens with `ballots = new Map()` - it has to, it is how a vote
-           begins - and this button calls it whether or not one is already running.
-           Measured: one ballot in, press it, and that ballot is gone with no warning
-           and no card. It used to be the DEFAULT button on this window, so the way to
+           With a vote running this button starts it over - a new round on the primary
+           GM, and no ballot of the old one counts (`openVote({ restart })`, E10 C1) - and
+           it has to, it is how a vote begins again. Measured when the ballots were a Map
+           this button emptied: one ballot in, press it, and that ballot is gone with no
+           warning and no card. It used to be the DEFAULT button on this window, so the way to
            lose the room's votes was to open this screen to see who was still out and
            press Enter.
 
@@ -749,10 +768,10 @@ export async function openVoteDialog() {
             });
             if (!sure) return openVoteDialog();
         }
-        return openVote();
+        return openVote({ restart: running });
     }
     if (action === "remind") {
-        ui.notifications.info(plural("DRPG.Vote.reminded", { n: remindVoters() }));
+        ui.notifications.info(plural("DRPG.Vote.reminded", { n: await remindVoters() }));
         return openVoteDialog();
     }
     if (action === "tally") return closeVote();

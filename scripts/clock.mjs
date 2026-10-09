@@ -481,7 +481,7 @@ export function refreshSheets() {
  * So the reconciliation lives where the phase is actually written, and the two
  * doors keep only what is theirs: the confirmation, and the card the table
  * reads. Every step here is idempotent - `endFloor` writes an empty queue,
- * `resetTrialProgress` writes the same four fields, `chargeForUnfoundKeys`
+ * `resetTrialProgress` writes the same fields each time, `chargeForUnfoundKeys`
  * stamps `keysCharged` and refuses to run twice in one chapter - so a door that
  * comes through here is not doing its own work a second time.
  */

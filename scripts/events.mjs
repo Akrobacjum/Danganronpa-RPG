@@ -32,7 +32,7 @@ import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentSeat
     incidentWitness } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
 import { SAFEWORD_FLAG } from "./safeword.mjs";
-import { trialProgress, VOTE_OPEN_FLAG, votesIn, pendingVoters } from "./vote.mjs";
+import { trialProgress, votesIn, pendingVoters } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
 
 const WIDGET_ID = "drpg-events";
@@ -284,23 +284,24 @@ export function safewordCard(clock) {
 }
 
 /**
- * IS THERE A VOTE OPEN, asked without inventing anywhere new to keep it.
+ * IS THERE A VOTE OPEN: the world's trial record says (vote.mjs `trialProgress().vote.open`).
  *
- * `ballots` lives on the GM's client and nowhere else, so a player's browser
- * cannot answer this at all - which is the gap `pendingVoters` exists for: a
- * player who dismissed their ballot by accident had nothing on screen telling
- * them the table was waiting. Two facts that are already shared answer it:
- * the flagged announcement `openVote` posts (the log is the record), and
- * `voteClosed` in `trialProgress`, which is a world setting and is what
- * `closeVote` writes. Both are chapter-stamped, because the log outlives the
- * trial and a record from another chapter describes another vote.
+ * The ballots are on the GMs' side and nowhere else, so a player's browser
+ * cannot count them - which is the gap `pendingVoters` exists for: a player
+ * who dismissed their ballot by accident had nothing on screen telling them
+ * the table was waiting. Whether a vote is open is a world setting since
+ * 1.2.71 (E10 C1; audit S06-17), written on the primary GM as it opens and
+ * counts, so every browser reads the same answer and a reload changes none of
+ * it. Until then this read the flagged announcement `openVote` posted, and a
+ * chat message carrying that flag is one any player can post: every panel
+ * then said the vote was open (the census's F6). The record is
+ * chapter-stamped and reads blank for another chapter; the clock's chapter is
+ * compared as well, because the panel describes the clock's trial.
  */
 function voteIsOpen(clock) {
     try {
-        if (trialProgress().voteClosed) return false;
-        return (game.messages ?? []).some(m =>
-            m.getFlag(MODULE_ID, VOTE_OPEN_FLAG)
-            && m.getFlag(MODULE_ID, "voteChapter") === clock.chapter);
+        const progress = trialProgress();
+        return Boolean(progress.vote?.open) && progress.chapter === clock.chapter;
     } catch {
         return false;
     }

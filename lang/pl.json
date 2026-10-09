@@ -1120,7 +1120,10 @@
       "verdictIntroKnown": "Tylko ty wiesz, czy trafili. Moduł pamięta, kto zabił - musisz tylko powiedzieć, czy stół go znalazł.",
       "counted": "Głosy policzone.",
       "tiedVerdictNote": "Głosowanie zakończyło się remisem. Remis to nie odpowiedź, więc o ile coś innego nie rozstrzygnęło tego przy stole, liczy się jak pomyłka.",
-      "verdictAlreadyApplied": "Werdykt tego Class Trial już zapadł. Zakończ rozdział, by iść dalej."
+      "verdictAlreadyApplied": "Werdykt tego Class Trial już zapadł. Zakończ rozdział, by iść dalej.",
+      "storeNotReady": "Ta przeglądarka nie ma jeszcze kopii kart do głosowania od GM-ów.",
+      "movedOn": "Głosowanie poszło dalej - to okno było nieaktualne.",
+      "openNoBallots": "Głosowanie jest otwarte, runda {n}, ale ta przeglądarka nie ma żadnej z jego kart - zaczekaj na głównego GM-a albo zacznij głosowanie od nowa."
     },
     "Music": {
       "intro": "Wybierz, która playlista gra kiedy. Moduł nigdy nie uruchamia playlisty, której tu nie wybrano, i nie zawiera własnej muzyki.",
@@ -2608,7 +2611,8 @@
         "card.post": "Karta do wystawienia przez GM-a",
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
-        "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu"
+        "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
+        "vote.run": "Krok głosowania, wykonywany przez głównego GM-a"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -4879,7 +4883,8 @@
         "rolls": "Rzuty graczy wykonane przez GM-a, z kośćmi i wynikami, dla rozstrzygnięć i Rerolli, które z nich korzystają",
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
         "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
-        "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę"
+        "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
+        "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów"
       },
       "row": {
         "traces": {

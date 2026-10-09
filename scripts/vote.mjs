@@ -12,11 +12,15 @@
  * problem: nothing in Foundry's world data is private, so a ballot written to a
  * setting, a flag or a whisper is a ballot anybody can read from the console.
  *
- * So a vote never enters world data at all. It travels on the module socket
+ * So a ballot never enters world data at all. It travels on the module socket
  * addressed to the GMs - the server delivers those only to the named users -
- * and is tallied in a plain Map on the collecting GM's client. When the count
- * is published, only the count is published. Nothing is stored afterwards,
- * which also means nothing can be dug up afterwards.
+ * and is kept in the GMs' store (gm-stores.mjs `ballotStore`), which lives in
+ * the GMs' browsers and is synced between them alone. When the count is
+ * published, only the count is published. What the world holds is the vote's
+ * state, every part of it shown at the table anyway: open or closed, the round,
+ * who was handed a ballot, and after the count the totals and the accused
+ * (`trialProgress`; E10 C1, 1.2.71). Until 1.2.71 the ballots were a Map in the
+ * collecting GM's memory, and a reload of that browser lost the vote.
  *
  * The consequences are the other half of this file, and the guide is blunt
  * about them: getting it right executes the Blackened and levels everybody up.
@@ -33,7 +37,9 @@ import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
 import { isDeceased, isDeadForGm, livingStudents, killCharacter } from "./chapter.mjs";
 import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
-import { announce, dialogContent, whisperToGms, log, warn, error, plural } from "./utils.mjs";
+import { ballotStore } from "./gm-stores.mjs";
+import { bridgeRequest } from "./bridge-guards.mjs";
+import { announce, dialogContent, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -42,18 +48,34 @@ const ACTION_BALLOT = "vote.ballot";
 const ACTION_OPEN = "vote.open";
 
 /**
- * Ballots for the vote in progress, on the collecting GM's client only.
- *
- * A Map, not a setting. It is deliberately impossible to persist: the ballots
- * exist for the five minutes of the vote and then stop existing.
+ * THE STEPS OF A VOTE, each run on the primary GM (E10 C1, 1.2.71; `runVoteOp`). A window on
+ * any GM asks for one through `vote.run` (gm-bridge.mjs), whose sanitize names the same five:
+ * "open" and "restart" begin a round, "close" counts it, "remind" hands a ballot to everybody
+ * entitled who has not returned one - a player who joined since included - and "resend" to the
+ * ones already handed one.
  */
-let ballots = null;
+export const VOTE_OPS = Object.freeze(["open", "restart", "remind", "resend", "close"]);
 
-/** Who the ballots went out to, frozen at `openVote` (CASE-14). */
-let issuedTo = null;
+/** What `askVote` tells the GM who asked, by the status the primary answered. */
+const VOTE_STATUS = Object.freeze({
+    noVoters: "DRPG.Vote.noVoters", nobodyVoted: "DRPG.Vote.nobodyVoted",
+    notOpen: "DRPG.Vote.notOpen", movedOn: "DRPG.Vote.movedOn"
+});
 
-/** The flag on the "a vote is open" announcement. Read by events.mjs. */
-export const VOTE_OPEN_FLAG = "voteOpen";
+/**
+ * ONE STEP AT A TIME ON THE PRIMARY. A step reads the trial's record, then writes it, and the
+ * write lands a server round trip later: two GMs pressing Send the ballots at once would each
+ * read a closed vote and open the same round twice (read in the code; the harness does not press
+ * twice at once). Queued, each step reads the record when its turn comes, after the step before
+ * it has written.
+ */
+let voteTurn = Promise.resolve();
+
+/** When this browser loaded the module: a vote opened before then may have ballots it never held (`ballotCopyStatus`). */
+const LOADED_AT = Date.now();
+
+/** A vote nobody has opened in this trial: the blank of `trialProgress().vote`. */
+const blankVote = () => ({ open: false, round: 0, picks: 1, issued: [], openedAt: null, closedAt: null });
 /* ==========================================================================
  * HOW FAR THROUGH THE TRIAL THE TABLE HAS GOT
  * --------------------------------------------------------------------------
@@ -65,8 +87,9 @@ export const VOTE_OPEN_FLAG = "voteOpen";
  * empty trial as on a finished one.
  *
  * The two writers are both in this file, which is why the record lives here
- * rather than with the floor: `closeVote` is the only thing that produces a
- * count, and `applyVerdict` the only thing that acts on one.
+ * rather than with the floor: `runVoteOp`, on the primary GM, is the only thing
+ * that opens a vote or produces a count, and `applyVerdict` the only thing that
+ * acts on one.
  * ========================================================================== */
 
 /** What has happened in THIS chapter's trial. Never throws; never null. */
@@ -78,10 +101,14 @@ export function trialProgress() {
        whole job is to be read by somebody deciding whether to move Despair. Reading
        `undefined` happened to be falsy and therefore happened to be right, which is
        the kind of correctness that stops being correct the first time anyone writes
-       `!== false`. */
+       `!== false`. The vote's fields are in it for the same reason (E10 C1), and
+       `vote` is merged one level down, so a record written before 1.2.71 reads a
+       closed vote of round 0 rather than a `vote` that is not there. */
     const blank = {
         chapter, seconds: TRIAL.speakSeconds,
-        voteClosed: false, verdictApplied: false, keysCharged: false
+        voteClosed: false, verdictApplied: false, keysCharged: false,
+        tied: false, majority: 0, noMajority: false,
+        vote: blankVote(), accused: [], total: 0, accusedIds: [], verdict: null
     };
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
@@ -89,7 +116,7 @@ export function trialProgress() {
         // rather than migrated: the alternative is a fresh trial that thinks
         // its vote is already in.
         if (stored.chapter !== chapter) return blank;
-        return { ...blank, ...stored };
+        return { ...blank, ...stored, vote: { ...blank.vote, ...(stored.vote ?? {}) } };
     } catch {
         return blank;
     }
@@ -128,7 +155,17 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
     if (!game.user.isGM) return null;
     // `tied` goes with them: a trial re-opened in the same chapter must not
     // inherit the previous vote's tie and quietly default its verdict to wrong.
-    return setTrialProgress({ seconds, voteClosed: false, verdictApplied: false, tied: false });
+    //
+    // AND THE VOTE, BUT NOT ITS ROUND (E10 C1). A second trial in the chapter
+    // (D17) starts with no vote open, nobody handed a ballot and nobody accused,
+    // and numbers its first vote after the last one: a ballot of the first trial
+    // is of an older round, so no count of the second can read it. `keysCharged`
+    // is not named, so the merge keeps it - the Key fee is the chapter's (E09 C7).
+    const { round } = trialProgress().vote;
+    return setTrialProgress({
+        seconds, voteClosed: false, verdictApplied: false, tied: false, majority: 0, noMajority: false,
+        vote: { ...blankVote(), round }, accused: [], total: 0, accusedIds: [], verdict: null
+    });
 }
 
 /* ==========================================================================
@@ -172,10 +209,18 @@ function onBallotOpened(payload, senderId) {
  * The choice is checked against the candidate list this side computes for that
  * voter, which is also what enforces the guide's "nie można głosować na siebie"
  * rather than trusting a `<select>` on a client to have offered honest options.
+ *
+ * RECORDED BY THE PRIMARY GM ALONE, IN THE GMS' STORE (E10 C1, 1.2.71). Every GM
+ * hears the packet; the primary keeps it as a row of the vote's round in the
+ * world (`ballotStore`), and the store syncs the row to the other GMs - so the
+ * count, which runs on the primary too, reads the copy the ballot was written to.
+ * A ballot for no open vote is refused, as a Map that was null dropped it.
  */
 function onBallotCast(payload, senderId) {
     if (!game.user?.isGM) return;
-    if (!ballots) return;
+    if (!isPrimaryGm()) return;
+    const progress = trialProgress();
+    if (!progress.vote.open) return refuseBallot(senderId, "no vote is open");
 
     const sender = game.users.get(senderId);
     if (!sender || sender.isGM) return refuseBallot(senderId, "not a player");
@@ -195,17 +240,21 @@ function onBallotCast(payload, senderId) {
     if (!clean.length) return refuseBallot(senderId, `nothing on "${picked.join(", ")}" is on their ballot`);
 
     // One ballot per voter. A second arrival replaces the first rather than
-    // adding to the tally - a resend must never double a vote.
-    ballots.set(senderId, clean);
-    log(`Ballot received with ${clean.length} name(s) (${ballots.size} so far).`);
-    // A ballot is neither a document nor a setting, so nothing that keeps a
+    // adding to the tally - a resend must never double a vote. The row is in
+    // memory when `patch` returns; its write to this browser's storage follows.
+    ballotStore.patch(senderId, {
+        chapter: progress.chapter, round: progress.vote.round, actorId: actor.id, choice: clean, at: Date.now()
+    }).catch(err => error("Could not keep a ballot in the GMs' store", err));
+    log(`Ballot received with ${clean.length} name(s) (${roundBallots(progress).length} so far).`);
+    // A ballot is not a world document or setting, so nothing that keeps a
     // window live would notice it. The trial console's "still to vote" line is
     // the one thing a GM opens that window to read during a vote.
     //
-    // LAST, after the Map has the ballot in it: a listener that read
+    // LAST, after the store has the ballot in it: a listener that read
     // `pendingVoters()` first would redraw the same stale list (F8). A hook and
-    // not a socket, because `Hooks.callAll` runs on this client only - the names
-    // never leave the GM's browser, the same reason the tally is a Map.
+    // not a socket, because `Hooks.callAll` runs on this client only; another
+    // GM hears of the row when it merges into their copy (the store's setting's
+    // `onChange`, settings.mjs).
     Hooks.callAll("drpgBallotsChanged");
 }
 
@@ -237,6 +286,11 @@ function candidatesFor(voterActorId) {
 /**
  * Open the vote. Every player with a living or dead student gets a ballot; the
  * Blackened votes too, and nothing here knows or cares which of them that is.
+ *
+ * THE ASKER, NOT THE WORK (E10 C1, 1.2.71). The round, the ballots and the card
+ * are the primary GM's (`runVoteOp`): this asks for them through `vote.run` and
+ * tells the GM who pressed what came of it. Answers how many ballots went out,
+ * or null.
  */
 /**
  * @param {object} [options]
@@ -246,12 +300,67 @@ function candidatesFor(voterActorId) {
  *   took the second kill - and then a ballot naming one of them is not an
  *   answer. The GM says how many the night produced; everything downstream
  *   counts names rather than ballots, so the tally needs no special case.
+ * @param {boolean} [options.restart]  Start the vote over: a new round, every
+ *   ballot handed out again and the ones returned not counted (the vote window's
+ *   "Start the vote over", which asks first when any came back).
  */
-export async function openVote({ picks = null } = {}) {
+export async function openVote({ picks = null, restart = false } = {}) {
+    const reply = await askVote(restart ? "restart" : "open", picks);
+    return reply?.issued ?? null;
+}
+
+/**
+ * Close the vote and publish the counts - asked of the primary GM, which counts
+ * its own copy of the ballots (`closeRound`). Answers the count, or null when
+ * there was none to publish.
+ */
+export async function closeVote() {
+    const reply = await askVote("close");
+    return reply && !reply.status ? reply : null;
+}
+
+/**
+ * Hand a fresh ballot to everyone who has not returned one, a player who joined
+ * since the vote opened included. Safe to run repeatedly: a resend replaces a
+ * ballot rather than adding one, and anybody who has already voted is skipped so
+ * their answer cannot be disturbed. Answers how many were sent.
+ */
+export async function remindVoters() {
+    const reply = await askVote("remind");
+    return reply?.sent ?? 0;
+}
+
+/** A step of the vote asked of the primary GM - run here when this is it - and what came of it told to this GM. */
+async function askVote(op, picks = null) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
+    const asked = { op, picks: Number(picks) || 0 };
+    const res = await bridgeRequest("vote.run", asked,
+        { settle: "reply", onPrimary: true, local: () => runVoteOp(op, { picks: asked.picks }) });
+    if (!res.ok) return null;
+    const reply = res.value ?? null;
+    if (VOTE_STATUS[reply?.status]) ui.notifications.warn(game.i18n.localize(VOTE_STATUS[reply.status]));
+    return reply;
+}
+
+/**
+ * A STEP OF THE VOTE, RUN ON THE PRIMARY GM (E10 C1, 1.2.71; audit S06-17; the plan's section
+ * 3). Until 1.2.71 the GM who pressed opened, counted and forgot the vote in their own memory:
+ * every GM heard the ballots and only that one kept them, another GM's console knew of none,
+ * and a reload of it lost them (scenario 63's D and E at 1e9871c). Every step is taken here
+ * now, on the one browser that records the ballots (`onBallotCast`) - asked by `openVote`,
+ * `closeVote` and `remindVoters` on any GM through `vote.run` (gm-bridge.mjs, gmOnly), or run
+ * in place when the asker is the primary. Answers the step's reply, `{ status }` when it was
+ * refused or found nothing to do, or null on a browser that is not the primary's.
+ */
+export async function runVoteOp(op, { picks = 0 } = {}) {
+    if (!game.user.isGM || !isPrimaryGm()) {
+        warn(`The vote's "${op}" reached a browser that is not the primary GM's; nothing was done.`);
+        return null;
+    }
+    if (!VOTE_OPS.includes(op)) return null;
 
     // How many names the night demands, taken from the register rather than
     // from an argument nobody was passing.
@@ -267,63 +376,132 @@ export async function openVote({ picks = null } = {}) {
     // published and one not, every ballot asked for two names (measured on the harness),
     // which is how each player learnt of the second. A death counts nowhere until it is
     // made known (the owner's Q3) - see `trialBlackenedIds`. Counted once the stores hold the
-    // other GMs' rows (fix r2-G2, `whenTrialReadable`).
+    // other GMs' rows (fix r2-G2, `whenTrialReadable`), and every step reads the ballots once
+    // this browser's copy of them holds the other GMs' rows too (E10 C1). The waits are outside
+    // the turn: a step waiting for its stores does not hold up a step that is not.
     await whenTrialReadable();
+    await ballotStore.whenHydrated();
     const recorded = trialBlackenedIds().length;
-    picksRequired = Math.max(1, Math.trunc(picks ?? recorded) || 1);
-    ballots = new Map();
+    const turn = voteTurn.then(() => voteStep(op, picksFor(picks, recorded)));
+    voteTurn = turn.catch(() => null);
+    return turn;
+}
 
-    const voters = eligibleVoters();
-
-    if (!voters.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vote.noVoters"));
-        ballots = null;
-        return null;
+/**
+ * The step in its turn, judged against the record as it stands now. A step the record has moved
+ * past - Send the ballots on a vote that is open, Start the vote over on one that is closed - was
+ * pressed in a window drawn before the change, and is refused as "movedOn" and told. The two
+ * buttons a window offers either way (Close and count, Remind) find "notOpen" on a closed vote,
+ * as Close and count always did. The packet carries no round (`vote.run` takes the step and the
+ * picks), so a window drawn over an earlier round of a vote that is open again is not told apart.
+ */
+async function voteStep(op, picks) {
+    const progress = trialProgress();
+    const { open, round } = progress.vote;
+    if (op === "open" ? open : op === "restart" && !open) {
+        log(`The vote's "${op}" was asked of a vote that is ${open ? "open" : "closed"} (round ${round}): `
+            + "the window that asked is out of date; nothing was done.");
+        return { status: "movedOn" };
     }
-    // Frozen at the moment they go out (CASE-14): a player who drops after
-    // the ballots are issued is no longer "eligible", and the count then read
-    // "3 of 3" for a room that was told four ballots were out. Remind still
-    // reaches anyone who joins mid-vote; the two lists are unioned at close.
-    issuedTo = new Set(voters.map(({ user }) => user.id));
+    if (op === "open" || op === "restart") return openRound(progress, op, picks);
+    if (!open) {
+        log(`The vote's "${op}" was asked with no vote open; nothing was done.`);
+        return { status: "notOpen" };
+    }
+    return op === "close" ? closeRound(progress) : sendAgain(progress, op);
+}
 
-    sendBallots(voters);
+/**
+ * How many names the ballots ask for: the GM's number when one was given, else the trial's
+ * Blackened in the register - at least one, and never more than there are students to name.
+ */
+function picksFor(asked, recorded) {
+    const wanted = Math.trunc(Number(asked)) > 0 ? Math.trunc(Number(asked)) : recorded;
+    return Math.min(Math.max(1, wanted), Math.max(1, studentActors().length));
+}
+
+/**
+ * A round begins: "open", or "restart" over a running vote. Its number is the last one's plus
+ * one, so no ballot of an earlier round - this trial's, or the chapter's first trial's (D17) -
+ * can be counted in it: the rows of every other round are dropped here, and the last count is
+ * cleared from the record in the same write that opens this one. Until 1.2.71 an open cleared
+ * neither `voteClosed` nor `tied`: a vote opened again after a count read as counted until it
+ * was counted again.
+ */
+async function openRound(progress, op, picks) {
+    const voters = eligibleVoters();
+    if (!voters.length) {
+        log(`The vote was not ${op === "restart" ? "started over" : "opened"}: `
+            + "no player is connected with a student to vote with.");
+        return { status: "noVoters" };
+    }
+    const round = progress.vote.round + 1;
+    // Frozen at the moment they go out (CASE-14): a player who drops after the
+    // ballots are issued is no longer "eligible", and the count then read
+    // "3 of 3" for a room that was told four ballots were out. A remind adds
+    // anyone who joins mid-vote; the close counts the union.
+    await setTrialProgress({
+        vote: { open: true, round, picks, issued: voters.map(({ user }) => user.id),
+            openedAt: Date.now(), closedAt: null },
+        voteClosed: false, tied: false, majority: 0, noMajority: false, accused: [], total: 0, accusedIds: []
+    });
+    const older = Object.entries(ballotStore.entries())
+        .filter(([, row]) => row?.chapter !== progress.chapter || row?.round !== round)
+        .map(([userId]) => userId);
+    if (older.length) await ballotStore.dropMany(older);
+
+    sendBallots(voters, picks);
     // After the emit, so a send that threw for one player is still reported as a
     // vote that is now running - and before the card, so the console is true by
     // the time it lands (F8).
     Hooks.callAll("drpgBallotsChanged");
 
-    /* FLAGGED, SO THE EVENT PANEL CAN SEE IT (1.2.47).
-       `ballots` is a module-level Map on the GM's client and nothing else - a
-       player's browser cannot tell a vote is running at all, which is exactly
-       the gap `pendingVoters` was written for: somebody who dismissed their
-       ballot by accident had nothing anywhere to tell them so. The message is
-       the record, the way the safeword's is: this flag plus `voteClosed` in
-       `trialProgress` (a world setting everybody reads) is "a vote is open" with
-       no new state to keep in step. The chapter rides along because the log
-       outlives the trial. */
+    /* NO FLAG ON THE CARD SAYS THE VOTE IS OPEN (E10 C1; the census's F6). It carried
+       `voteOpen` and the chapter from 1.2.47, and the Event panel read "a vote is open" off
+       any message so flagged - a chat message any client can create, flags and all. The
+       record written above says it now (events.mjs `voteIsOpen`). */
     await announce({
-        flags: { [MODULE_ID]: {
-            sfx: { key: "voteOpen", gm: true },
-            [VOTE_OPEN_FLAG]: true,
-            voteChapter: getClock().chapter
-        } },
+        flags: { [MODULE_ID]: { sfx: { key: "voteOpen", gm: true } } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.banner")}</div>
             <p>${game.i18n.format("DRPG.Vote.opened", { n: voters.length })}</p>
         </div>`
     });
 
-    log(`Vote opened to ${voters.length} player(s).`);
-    return voters.length;
+    log(`Vote ${op === "restart" ? "started over" : "opened"}: round ${round}, ${voters.length} player(s), `
+        + `${picks} name(s) on each ballot.`);
+    return { issued: voters.length, round };
 }
 
-function sendBallots(voters) {
+/**
+ * "remind": a ballot to everybody entitled who has not returned one this round, a player who
+ * joined since included - added to the record's `issued`, so the majority's base grows with
+ * them, as the close's union already counted them. "resend": the same, to the ones handed one.
+ */
+async function sendAgain(progress, op) {
+    const back = new Set(roundBallots(progress).map(([userId]) => userId));
+    const handed = new Set(progress.vote.issued);
+    const voters = eligibleVoters()
+        .filter(({ user }) => !back.has(user.id) && (op === "remind" || handed.has(user.id)));
+    const joined = voters.map(({ user }) => user.id).filter(userId => !handed.has(userId));
+    if (joined.length) {
+        await setTrialProgress({ vote: { ...progress.vote, issued: [...progress.vote.issued, ...joined] } });
+    }
+    if (!voters.length) return { sent: 0 };
+
+    sendBallots(voters, progress.vote.picks);
+    Hooks.callAll("drpgBallotsChanged");
+    log(`Sent a fresh ballot to ${voters.length} player(s) in round ${progress.vote.round}.`);
+    return { sent: voters.length };
+}
+
+function sendBallots(voters, picks) {
     for (const { user, actor } of voters) {
         try {
             game.socket.emit(SOCKET_EVENT, {
                 action: ACTION_OPEN,
                 voterActorId: actor.id,
-                picks: picksRequired,
+                picks,
                 candidates: candidatesFor(actor.id)
             }, { recipients: [user.id] });
         } catch (err) {
@@ -374,10 +552,12 @@ function voterActorFor(user) {
     return eligibleVoters().find(v => v.user.id === user.id)?.actor ?? null;
 }
 
-/** How many ballots have come back, or null when no vote is running. */
+/** How many ballots of the open vote this browser holds, or null when no vote is open. GM only. */
 export function votesIn() {
-    if (!game.user.isGM || !ballots) return null;
-    return ballots.size;
+    if (!game.user.isGM) return null;
+    const progress = trialProgress();
+    if (!progress.vote.open) return null;
+    return roundBallots(progress).length;
 }
 
 /**
@@ -389,38 +569,45 @@ export function votesIn() {
  * by accident was simply not counted, and nobody could tell.
  *
  * Names only: WHO has voted is not the same as HOW they voted, and the second is
- * the thing the guide keeps secret.
+ * the thing the guide keeps secret. Read from the world's round and this
+ * browser's copy of the GMs' store (E10 C1): another GM's console names the same
+ * people once the primary's rows have merged into it.
  */
 export function pendingVoters() {
-    if (!game.user.isGM || !ballots) return null;
+    if (!game.user.isGM) return null;
+    const progress = trialProgress();
+    if (!progress.vote.open) return null;
+    const back = new Set(roundBallots(progress).map(([userId]) => userId));
     return eligibleVoters()
-        .filter(({ user }) => !ballots.has(user.id))
+        .filter(({ user }) => !back.has(user.id))
         .map(({ user, actor }) => ({ user, actor, name: actor.name }));
 }
 
 /**
- * Hand a fresh ballot to everyone who has not returned one.
- *
- * Safe to run repeatedly: a resend replaces a ballot rather than adding one, and
- * anybody who has already voted is skipped so their answer cannot be disturbed.
+ * The ballots of the world's vote in this browser's copy of the GMs' store, `[userId, row]`, of
+ * the record's chapter and round only (E10 C1): a row of an earlier round, or of another
+ * chapter's trial, is not this vote's, and nothing that counts or lists reads it.
  */
-export function remindVoters() {
-    if (!game.user.isGM) return 0;
-    const pending = pendingVoters();
-    if (!pending?.length) return 0;
-
-    sendBallots(pending);
-    Hooks.callAll("drpgBallotsChanged");
-    log(`Re-sent ballots to ${pending.length} player(s).`);
-    return pending.length;
+function roundBallots(progress) {
+    return Object.entries(ballotStore.entries()).filter(([, row]) => row?.chapter === progress.chapter
+        && row?.round === progress.vote.round && Array.isArray(row?.choice));
 }
 
 /**
- * How many names this vote asks for. Set by `openVote`, read by `sendBallots`.
- * Module-level rather than per-ballot because it is a property of the NIGHT,
- * not of the voter.
+ * What the vote window says of this browser's copy of the ballots (E10 C1; the plan's section
+ * 3): "notReady" until the GMs' store holds the other GMs' rows; "none" when it holds no ballot
+ * of an open vote that was opened before this browser loaded - its ballots may be on another
+ * GM's browser, on none, or not cast yet, and this browser cannot tell which; otherwise null,
+ * as on a player's browser and with no vote open.
  */
-let picksRequired = 1;
+export function ballotCopyStatus() {
+    if (!game.user.isGM) return null;
+    const progress = trialProgress();
+    if (!progress.vote.open) return null;
+    if (!ballotStore.isHydrated()) return "notReady";
+    if (!roundBallots(progress).length && (progress.vote.openedAt ?? 0) < LOADED_AT) return "none";
+    return null;
+}
 
 /** The ballot itself, on a player's screen. */
 async function castBallot(candidates, voterActorId, picks = 1) {
@@ -509,22 +696,27 @@ async function castBallot(candidates, voterActorId, picks = 1) {
 }
 
 /**
- * Close the vote and publish the counts.
- *
- * The counts, and only the counts. The Map is dropped on the way out.
+ * The count, on the primary's own copy of the ballots (E10 C1). The counts, and
+ * only the counts: the rows stay in the GMs' store until the next round opens or
+ * the trial's reset cuts them, and nothing of who voted how reaches the world or
+ * the card.
  */
-export async function closeVote() {
-    if (!game.user.isGM) return null;
-    if (!ballots) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vote.notOpen"));
-        return null;
-    }
+async function closeRound(progress) {
+    // CLOSED FIRST, THEN COUNTED. A ballot that lands while the close is being
+    // written is a row before the count reads the store; one that lands after it
+    // finds no vote open and is refused - never recorded after the count was read.
+    const vote = { ...progress.vote, open: false, closedAt: Date.now() };
+    await setTrialProgress({ vote });
+    // ABOVE the nobody-answered return: a hook placed after it would leave the
+    // console printing a list of voters for a vote that no longer exists (F8).
+    Hooks.callAll("drpgBallotsChanged");
 
+    const cast = roundBallots(progress);
     const tally = new Map();
-    for (const choice of ballots.values()) {
+    for (const [, row] of cast) {
         // Every name on the ballot counts. A two-Blackened night puts two names
         // on each, and both of them are the voter's answer.
-        for (const id of (Array.isArray(choice) ? choice : [choice])) {
+        for (const id of row.choice) {
             if (!id) continue;
             tally.set(id, (tally.get(id) ?? 0) + 1);
         }
@@ -532,32 +724,17 @@ export async function closeVote() {
 
     // Out of how many ballots WENT OUT, not how many came back.
     //
-    // The denominator used to be `ballots.size` - the votes cast - so one vote
-    // out of three issued printed as "1 of 1 votes", which reads as a unanimous
-    // table rather than as two people who never answered. Whether the accusation
-    // carries the room is the whole question the card is trying to settle.
-    const returned = ballots.size;
-    const stillPending = new Set((pendingVoters() ?? []).map(({ user }) => user.id));
-    for (const id of issuedTo ?? []) if (!ballots.has(id)) stillPending.add(id);
-    const silent = stillPending.size;
-    const issued = returned + silent;
-    ballots = null;
-    issuedTo = null;
-    // ABOVE the nobody-answered return, which writes no setting at all: a hook
-    // placed after it would leave the console printing a list of voters for a
-    // vote that no longer exists (F8).
-    Hooks.callAll("drpgBallotsChanged");
-
-    if (!returned) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vote.nobodyVoted"));
-        return null;
-    }
-
-    // There is a count now, so the verdict becomes pressable. Below both early
-    // returns on purpose: a vote that was never opened and a vote nobody
-    // answered are not results, and a verdict on either would be the GM
-    // executing somebody on the strength of an empty room.
-    await setTrialProgress({ voteClosed: true });
+    // The denominator used to be the votes cast, so one vote out of three
+    // issued printed as "1 of 1 votes", which reads as a unanimous table rather
+    // than as two people who never answered. Whether the accusation carries the
+    // room is the whole question the card is trying to settle. Went out: to
+    // everybody handed one at the open or by a remind, everybody entitled now,
+    // and everybody who answered - the union the old count made of its Map, the
+    // recipients it froze and the voters it could still see.
+    const returned = cast.length;
+    const issued = new Set([...vote.issued, ...eligibleVoters().map(({ user }) => user.id),
+        ...cast.map(([userId]) => userId)]).size;
+    const silent = issued - returned;
 
     const named = id => id === "monokuma"
         ? game.i18n.localize("DRPG.Vote.monokuma")
@@ -570,7 +747,7 @@ export async function closeVote() {
     // As many names as the night asked for. A two-Blackened vote whose card
     // announces one accusation has answered half the question and said so as
     // though it were the whole answer.
-    const wanted = Math.max(1, picksRequired);
+    const wanted = Math.max(1, vote.picks);
     const cut = rows[wanted - 1]?.n ?? 0;
     const accused = rows.filter(r => r.n >= cut && r.n > 0);
     const top = rows[0];
@@ -606,12 +783,23 @@ export async function closeVote() {
      * already knows what to do with a tie needs no second branch to learn.
      */
     const tied = accused.length > wanted || noMajority;
+    const accusedIds = tied ? [] : accused.map(r => r.id);
 
-    // G-31: the verdict window needs to know, and by the time it opens the
-    // tally has scrolled away. Recorded here, where the tie is actually
-    // established, rather than folded into the `voteClosed` write above - that
-    // one happens before anything has been counted.
-    await setTrialProgress({ tied, majority, noMajority });
+    // THE COUNT IN ONE WRITE (G-31; E10 C1). The verdict window needs it, and by
+    // the time it opens the tally has scrolled away: every name's votes, out of
+    // how many, who is accused and whether the room settled. A close with no
+    // ballot writes it too: the vote is over and nobody was accused, so the
+    // verdict opens on "wrong" as after a tie. Until 1.2.71 that close returned
+    // before writing anything, and the console went on offering the vote.
+    await setTrialProgress({
+        voteClosed: true, accused: rows.map(({ id, n }) => ({ id, n })), total: issued,
+        accusedIds, tied, majority, noMajority
+    });
+
+    if (!returned) {
+        log(`Vote closed in round ${vote.round} with none of ${issued} ballot(s) returned.`);
+        return { status: "nobodyVoted" };
+    }
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } },
@@ -639,11 +827,7 @@ export async function closeVote() {
 
     log(`Vote closed: ${returned} of ${issued} ballot(s) returned, ${
         tied ? "tied" : `${accused.map(r => r.name).join(", ")} accused`}.`);
-    return {
-        rows, total: issued, tied,
-        accusedId: tied ? null : top?.id ?? null,
-        accusedIds: tied ? [] : accused.map(r => r.id)
-    };
+    return { rows, total: issued, tied, accusedId: tied ? null : top?.id ?? null, accusedIds };
 }
 
 /* ==========================================================================
@@ -687,8 +871,9 @@ export async function openVerdictDialog() {
     await whenTrialReadable();
     const known = trialBlackenedActors();
     const students = studentActors();
-    // Recorded by `closeVote`, because by the time this window opens the tally
-    // has scrolled away and the GM is being asked to remember it.
+    // Recorded by the count (`closeRound`, on the primary GM), because by the time
+    // this window opens the tally has scrolled away and the GM is being asked to
+    // remember it. A close with no ballot records a tie too (E10 C1).
     const tiedVote = Boolean(trialProgress().tied);
     const options = students
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}${

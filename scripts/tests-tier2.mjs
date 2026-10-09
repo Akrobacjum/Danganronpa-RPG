@@ -18248,6 +18248,139 @@ const SCENARIOS = [
         }
     }],
 
+    ["the vote's state is in the world and the ballots in the GMs' store", async () => {
+        /*
+         * E10 C1, 1.2.71; audit S06-17 (its state half) and S06-04 (its store half); the plan's V1.
+         * Until 1.2.71 the ballots were a Map in the collecting GM's memory and their recipients
+         * another, and the world held only whether a count had been made: no round, no recipients,
+         * no accused - and a reload of that browser counted nothing. Now the world's trial record
+         * holds the vote (open, its round, how many names it asks for, who was handed a ballot) and
+         * a ballot is a row of the GMs' store, keyed by the user Foundry says sent it, stamped with
+         * the record's chapter and round. Opened here on a blank record with the ballots caught and
+         * never sent; two voters' ballots are then handed to this GM's socket listeners as Foundry
+         * hands a packet, each with its player's id. The rows are dropped and the vote closed after.
+         * Red at 1f26a0c: the record holds no vote.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two voters, each a connected player's");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which records the ballots");
+        const V = await import("./vote.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const { trialBlackenedIds } = await import("./incident-store.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const handed = [];
+        let voters = [];
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    handed.push(...(options?.recipients ?? []));
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            const issued = await V.openVote();
+            const vote = V.trialProgress().vote ?? {};
+            equal(stableJson([vote.open ?? null, vote.round ?? null, vote.picks ?? null, [...(vote.issued ?? [])].sort(), issued]),
+                stableJson([true, 1, Math.max(1, trialBlackenedIds().length), [...handed].sort(), handed.length]),
+                "the world's trial record does not hold an open vote of round 1 asking for the register's names, "
+                + "handed to the players the ballots went to");
+            ok(handed.length >= 2, `${handed.length} ballot(s) went out - two voters' rows would measure nothing`);
+
+            voters = vote.issued.slice(0, 2);
+            const [named] = livingStudents();
+            for (const userId of voters) {
+                for (const listener of [...socket.listeners(`module.${MODULE_ID}`)]) {
+                    listener({ action: "vote.ballot", choice: [named.id] }, userId);
+                }
+            }
+            await settle();
+            const rows = Object.entries(ballotStore.entries())
+                .filter(([, row]) => row.chapter === getClock().chapter && row.round === 1)
+                .map(([userId, row]) => [userId, row.choice]).sort();
+            equal(stableJson([rows, V.votesIn()]), stableJson([voters.map(id => [id, [named.id]]).sort(), 2]),
+                "the two ballots are not two rows of the GMs' store keyed by their senders, for this chapter's round 1, "
+                + "or the count does not read them");
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            await ballotStore?.dropMany?.(voters);
+            await V.closeVote();
+            await settle();
+        }
+    }],
+
+    ["a reopened vote starts clean and a close with no ballot closes", async () => {
+        /*
+         * E10 C1, 1.2.71; audit S06-17. Until 1.2.71 a close with no ballot back returned before it
+         * wrote anything, so the console went on offering the vote it had just closed; and an open
+         * reset neither `voteClosed` nor `tied`, so a vote opened again after a count read as
+         * counted until it was counted again. Driven on a blank record with the ballots caught and
+         * never sent: open, close with nothing back, open again. Then the two presses the record now
+         * answers: Send the ballots pressed in a window drawn before the vote opened is told the
+         * vote has moved on and changes nothing, and a player's `vote.run`, handed to this GM's
+         * socket listeners with the player's id as Foundry hands it, is refused, told to that player
+         * and changes nothing. Red at 1f26a0c: the close with no ballot leaves the vote unclosed.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a voter with a connected player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which runs the vote");
+        const V = await import("./vote.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const warn = ui.notifications.warn;
+        const warned = [], told = [];
+        const read = () => {
+            const progress = V.trialProgress();
+            return [progress.voteClosed, progress.vote?.open ?? null, progress.vote?.round ?? null, progress.tied,
+                progress.accusedIds ?? null];
+        };
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") return true;
+                if (packet?.action === "bridge.refused" && packet.what === "vote.run") {
+                    told.push(packet.userId);
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+
+            await V.openVote();
+            const closed = await V.closeVote();
+            equal(stableJson([closed, ...read()]), stableJson([null, true, false, 1, true, []]),
+                "a close with no ballot back does not close the vote, or does not record it as a tie with nobody accused");
+            ok(warned.includes(game.i18n.localize("DRPG.Vote.nobodyVoted")), "a close with no ballot back is not told");
+
+            await V.openVote();
+            equal(stableJson(read()), stableJson([false, true, 2, false, []]),
+                "a vote opened again reads as counted, tied or accusing, or does not start a round of its own");
+
+            const stale = await V.openVote();
+            equal(stableJson([stale, ...read()]), stableJson([null, false, true, 2, false, []]),
+                "Send the ballots pressed on an open vote answered, or changed the vote");
+            ok(warned.includes(game.i18n.localize("DRPG.Vote.movedOn")), "a press the vote has moved past is not told so");
+
+            const player = game.users.find(u => !u.isGM && u.active);
+            for (const listener of [...socket.listeners(`module.${MODULE_ID}`)]) {
+                listener({ action: "vote.run", op: "close", picks: 0, requestId: "suite-vote-run" }, player.id);
+            }
+            await until(() => told.length > 0, 3000);
+            await settle();
+            equal(stableJson([told, ...read()]), stableJson([[player.id], false, true, 2, false, []]),
+                "a player's vote.run is not refused and told to that player, or it changed the vote");
+        } finally {
+            ui.notifications.warn = warn;
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            await V.closeVote();
+            await settle();
+        }
+    }],
+
     ["revive drops a pending death, and writes nothing on the living student", async () => {
         /* E05 C10. A death kept by the GMs is a row and nothing on the actor, so taking it back
            is a stamped drop - an unset flag on a student nobody saw die would tell every console
@@ -25488,9 +25621,12 @@ const SCENARIOS = [
          *   safeword   the game is paused (`game.paused`), the clock stamped
          *              when (`pausedAt`), and the announcement in the log
          *              carries the flag. An ordinary pause gets no card.
-         *   vote       the flagged `openVote` announcement for THIS chapter,
-         *              and `voteClosed` in `trialProgress` saying it is still
-         *              running.
+         *   vote       the world's trial record for THIS chapter saying a
+         *              vote is open (`trialProgress().vote.open`, E10 C1).
+         *              Until 1.2.71 the flagged `openVote` announcement
+         *              decided it, and a chat message carrying that flag is
+         *              one any player can post: it is measured below as a
+         *              negative.
          *
          * Both builders take a clock, so the world's own clock is not moved to
          * run this: the only real state touched is the pause, and it is put
@@ -25500,10 +25636,11 @@ const SCENARIOS = [
          */
         const events = await import("./events.mjs");
         const { SAFEWORD_FLAG } = await import("./safeword.mjs");
-        const { VOTE_OPEN_FLAG } = await import("./vote.mjs");
+        const { trialProgress } = await import("./vote.mjs");
 
         const chapter = getClock().chapter;
         const wasPaused = game.paused;
+        const storedTrial = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
         const made = [];
         try {
             /* ---- the safeword ---------------------------------------------- */
@@ -25532,15 +25669,25 @@ const SCENARIOS = [
 
             /* ---- the vote --------------------------------------------------- */
             const trial = { phase: "classTrial", chapter };
+            const voteTitle = game.i18n.localize("DRPG.Events.voteTitle");
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { chapter, vote: { open: false, round: 1 } });
             const before = events.trialCard(trial);
-            ok(!before || before.title !== game.i18n.localize("DRPG.Events.voteTitle"),
+            ok(!before || before.title !== voteTitle,
                 "the trial card was already showing a vote before one was opened");
 
-            const opened = await ChatMessage.create({
+            /* The flag the vote's announcement carried until 1.2.71, on a message of this
+               chapter: the road a player's console had to every panel (the census's F6). */
+            const flagged = await ChatMessage.create({
                 content: "<p>suite ballots</p>",
-                flags: { [MODULE_ID]: { [VOTE_OPEN_FLAG]: true, voteChapter: chapter } }
+                flags: { [MODULE_ID]: { voteOpen: true, voteChapter: chapter } }
             });
-            made.push(opened);
+            made.push(flagged);
+            const forged = events.trialCard(trial);
+            ok(!forged || forged.title !== voteTitle,
+                "a chat message flagged as the vote's announcement opened the vote on the panel");
+
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress,
+                { ...trialProgress(), chapter, vote: { ...trialProgress().vote, open: true, round: 1 } });
             const voting = events.trialCard(trial);
             ok(voting, "no trial card during an open vote");
             equal(voting.kind, "trial",
@@ -25549,7 +25696,7 @@ const SCENARIOS = [
                 "the trial card did not switch to the vote");
             ok(voting.due === true, "an open vote is waiting on people and does not say so");
 
-            /* A ballot from another chapter is another trial's. */
+            /* A vote recorded for another chapter is another trial's. */
             ok(!events.trialCard({ phase: "classTrial", chapter: chapter + 1 })
                 || events.trialCard({ phase: "classTrial", chapter: chapter + 1 }).title
                    !== game.i18n.localize("DRPG.Events.voteTitle"),
@@ -25560,6 +25707,7 @@ const SCENARIOS = [
                 "the trial card is showing in Daily Life");
         } finally {
             for (const m of made) { try { await m.delete(); } catch { /* already gone */ } }
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, storedTrial);
             if (game.paused !== wasPaused) await game.togglePause(wasPaused);
         }
     }],

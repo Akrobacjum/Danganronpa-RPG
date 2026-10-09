@@ -1639,7 +1639,8 @@ export function countsAtTrial(row, untold) {
  * both stores' hydration): read before, a vote opened moments after a load counted from this
  * browser's rows alone - a killer another GM recorded was missing from the ballot's count,
  * and a death another GM still kept secret was not yet there to hold its killer back.
- * `openVote` and `openVerdictDialog` wait on this before they count. (Since E05 fix r2-G3
+ * The vote's steps (vote.mjs `runVoteOp`, on the primary GM since E10 C1) and `openVerdictDialog`
+ * wait on this before they count. (Since E05 fix r2-G3
  * the killer is held back by the victim's flag, not by the row - `untoldDeath` - so only the
  * register's wait still counts there; the deaths' wait stays for the verdict, which asks
  * who is dead to the GMs - `isDeadForGm` - before it executes or rewards anybody.)

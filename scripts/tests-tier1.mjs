@@ -5139,7 +5139,8 @@ const INVARIANTS = [
             ["overflow.mjs", "addOverflow", "await overflowStore.whenHydrated();", "state()"],
             ["overflow.mjs", "checkOverflow", "await overflowStore.whenHydrated();", "state()"],
             ["overflow.mjs", "resetOverflow", "await overflowStore.whenHydrated();", "overflowStore.patch("],
-            ["vote.mjs", "openVote", "await whenTrialReadable();", "trialBlackenedIds("],
+            // E10 C1: the vote opens on the primary GM, in `runVoteOp` (`openVote` asks it).
+            ["vote.mjs", "runVoteOp", "await whenTrialReadable();", "trialBlackenedIds("],
             ["vote.mjs", "openVerdictDialog", "await whenTrialReadable();", "trialBlackenedActors("]
         ];
         const early = WAITS.filter(([file, name, wait, read]) => {

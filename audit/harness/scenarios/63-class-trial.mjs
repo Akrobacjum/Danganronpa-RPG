@@ -9,32 +9,37 @@
  *
  * Every check below is a reading of the code at 1e9871c, written as what happens today; where an
  * E10 commit changes the answer the check's text names it ("C1 flips it"), and that commit
- * rewrites the check with the code. Phases are letters, so a later commit adds one without
- * renumbering:
+ * rewrites the check with the code - E10 C1 (1.2.71) rewrote B, D, E, F and H: the vote's state
+ * is in the world and the ballots in the GMs' store. Phases are letters, so a later commit adds
+ * one without renumbering:
  *   A  setup through the GM's API (not under test): a fifth student, the victim, killed publicly;
  *      the register's row naming Chie the Blackened; p4 OWNER of Daichi. Start the Class Trial:
  *      every player holds the trial's card.
- *   B  Send the ballots: three issued (p1-p3); the world records no vote (C1). p1 casts Botan and
- *      is told its vote is in as soon as the packet left (C2: only on the primary's reply); p2 and
- *      p3 hold their windows open.
+ *   B  Send the ballots: three issued (p1-p3), and the world's trial record holds the vote - open,
+ *      round 1, one name, the three handed one (C1). p1 casts Botan and is told its vote is in as
+ *      soon as the packet left (C2: only on the primary's reply); p2 and p3 hold their windows open.
  *   C  p4 connects after the ballots went out: no ballot reaches it (C2).
  *   D  the GM's browser closes (the reload, modelled: `gm2` connects with the seeded GM's
  *      localStorage and a fresh module). p2 casts Botan with no GM connected and is told its vote
- *      is in (C2); gm2 holds no vote - `votesIn()` null (C1 keeps the ballots; C2 re-asks p2's,
- *      which today would be dropped on arrival, `onBallotCast` with no vote open). p4 closes and
- *      comes back with its storage: still no ballot, and nothing told (C2).
- *   E  p3 dismisses its ballot and is warned; gm2's Close and count finds no vote open and warns
- *      (C1, C3); the world's `voteClosed` stays false on every player.
+ *      is in (C2); gm2 finds the vote open in the world and p1's ballot in its copy of the GMs'
+ *      store, and counts one (C1; C2 re-asks p2's, which today went to no GM and is lost). p4
+ *      closes and comes back with its storage: still no ballot, and nothing told (C2).
+ *   E  p3 dismisses its ballot and is warned; gm2's Close and count counts p1's ballot - Botan 1 of
+ *      4 issued, short of the majority, so a tie with nobody accused - and writes it to the world
+ *      (C1; C2 brings p2's and p4's in: Botan 3 of 4, accused); every player reads the vote closed.
  *   F  the verdict's window drawn on gm2 (`__dialogWindows`): the executed select opens on the
  *      first student, the dead victim is listed with " - dead", the first footer button is the
- *      correct verdict (C4: "Nobody is executed" first, Q-E10-1 (c), and Cancel first); Cancel.
+ *      wrong verdict, E's count being a tie (C4: "Nobody is executed" first, Q-E10-1 (c), and
+ *      Cancel first); Cancel.
  *   G  a wrong verdict executing Botan while p2's forged `deceased: true` on Botan waits for the
  *      sheet audit (the window, made deterministic: gm2's queue on Botan is held by a job, so the
  *      write is heard and not yet judged when the verdict reads it): the verdict skips the
  *      execution and Botan is alive once the audit puts the flag back (C5); no player holds a
  *      verdict card (C5), and nothing a player who does not own Chie holds names her.
  *   H  End the trial, Start it again: only the Start window is asked (C11: a confirmation, Cancel
- *      the default); `verdictApplied` is cleared and `keysCharged` kept.
+ *      the default); `verdictApplied` is cleared and `keysCharged` kept; the vote, its count and
+ *      the tie are cleared and its round number carried on, so no ballot of the first trial counts
+ *      in the second (C1, D17).
  *   I  a second vote names Chie and the verdict is correct: one Level Up window per survivor on
  *      gm2 (C7: one window); gm2 offers Aiko a Level Up, p1's sheet sees it, p1 picks +1 Health
  *      through the bridge and Aiko's `advances` rise by one (C6-C8 read it again).
@@ -48,6 +53,7 @@
  *
  * Its bound (the plan's M4: set from C0's first reading): 33 checks in 24.0 s, the cluster's own count, at 1e9871c
  * (one run alone, 09.10.2026) - a twelfth of run-all's shared five minutes, so it states no `timeoutMs` of its own.
+ * E10 C1 added H's check of the vote's reset: 34 checks in 26.5 s (one run, 09.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -127,9 +133,11 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     await p3.eval(ballot(null, "__s63goP3"));
     for (const c of [p1, p2, p3]) await mark(c);
     const sent = await gm.eval(`${V} const issued = await game.drpg.openVote();
-        return { issued, vote: V.trialProgress().vote ?? null };`, { timeout: 60000 });
-    verdict("openVote issues three ballots (p1-p3), and the world's trial record holds no vote (C1 records it as `vote`)",
-        sent.issued === 3 && sent.vote === null, J(sent));
+        return { issued, vote: V.trialProgress().vote ?? null, players: game.users.filter(u => !u.isGM && u.active).map(u => u.id).sort() };`,
+    { timeout: 60000 });
+    verdict("openVote issues three ballots (p1-p3), and the world's trial record holds the vote: open, round 1, one name, the three handed one (C1)",
+        sent.issued === 3 && sent.vote?.open === true && sent.vote.round === 1 && sent.vote.picks === 1 && sent.players.length === 3
+            && J([...(sent.vote.issued ?? [])].sort()) === J(sent.players), J(sent));
     const counted = await gm.eval(`${until} ${V} return await until(() => V.votesIn() === 1 ? 1 : null, 8000) ?? V.votesIn();`, { timeout: 20000 });
     const p1Told = await p1.eval(`return { seen: globalThis.__s63seen, confirmed: globalThis.__notifications.slice(globalThis.__s63n)
         .filter(n => n.msg === ${text("DRPG.Vote.castConfirmed")}).length };`);
@@ -166,9 +174,11 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     const reloaded = await gm2.eval(`${until} ${V} const E = await import("${repoUrl}/scripts/gm-store.mjs");
         await until(() => E.gmStoresHydrated(), 10000);
         await new Promise(r => setTimeout(r, 1500));
-        return { hydrated: E.gmStoresHydrated(), votesIn: V.votesIn(), primary: game.users.filter(u => u.isGM && u.active).map(u => u.id) };`, { timeout: 30000 });
-    verdict("gm2, the seeded GM's browser reloaded, holds no vote: votesIn() is null (C1 keeps the ballots, C2 re-asks p2's)",
-        reloaded.hydrated && reloaded.votesIn === null && J(reloaded.primary) === J(["USERGM2000000000"]), J(reloaded));
+        return { hydrated: E.gmStoresHydrated(), votesIn: V.votesIn(), open: V.trialProgress().vote?.open ?? null,
+            copy: typeof V.ballotCopyStatus === "function" ? V.ballotCopyStatus() : "no ballotCopyStatus", primary: game.users.filter(u => u.isGM && u.active).map(u => u.id) };`, { timeout: 30000 });
+    verdict("gm2, the seeded GM's browser reloaded, finds the vote open in the world and p1's ballot in its store: votesIn() 1, its copy not flagged (C1; C2 re-asks p2's)",
+        reloaded.hydrated && reloaded.open === true && reloaded.votesIn === 1 && reloaded.copy === null
+            && J(reloaded.primary) === J(["USERGM2000000000"]), J(reloaded));
     const p4Storage = await (async () => { await disconnect("p4"); return storageOf("p4"); })();
     await connect("p4", { storage: p4Storage });
     await settle(1500);
@@ -188,13 +198,20 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     const closed = await gm2.eval(`${V} const r = await V.closeVote();
         return { r, notes: globalThis.__notifications.slice(globalThis.__s63n).map(n => n.level + ":" + n.msg),
             notOpen: ${text("DRPG.Vote.notOpen")}, progress: V.trialProgress() };`, { timeout: 30000 });
-    verdict("gm2's Close and count finds no vote open and says so; no `accusedIds` in the world (C1 counts Botan 3 of 4, C3)",
-        closed.r === null && closed.notes.includes("warn:" + closed.notOpen) && closed.progress.voteClosed === false
-            && !("accusedIds" in closed.progress), J(closed));
+    const tally = (closed.r?.rows ?? []).map(row => [row.id, row.n]), world = closed.progress;
+    verdict("gm2's Close and count counts p1's ballot: Botan 1 of 4 issued, short of the majority of 3 - a tie, nobody accused - and the world holds the count (C1; C2: Botan 3 of 4)",
+        J(tally) === J([[IDS.botan, 1]]) && closed.r?.total === 4 && closed.r.tied === true && J(closed.r.accusedIds) === J([])
+            && !closed.notes.includes("warn:" + closed.notOpen) && world.voteClosed === true && world.vote?.open === false
+            && J(world.accused) === J([{ id: IDS.botan, n: 1 }]) && world.total === 4 && world.majority === 3 && world.noMajority === true
+            && world.tied === true && J(world.accusedIds) === J([]), J(closed));
     await settle(500);
     const panels = [];
-    for (const c of [p1, p2, p3, p4]) panels.push(await c.eval(`${V} return V.trialProgress().voteClosed;`));
-    verdict("p1-p4 read the vote as not closed (C1, C3: closed, on every player)", J(panels) === J([false, false, false, false]), J(panels));
+    for (const c of [p1, p2, p3, p4]) panels.push(await c.eval(`${V} const ev = await import("${repoUrl}/scripts/events.mjs");
+        const { getClock } = await import("${repoUrl}/scripts/settings.mjs");
+        const p = V.trialProgress(), card = ev.trialCard(getClock());
+        return [p.voteClosed, p.vote?.open ?? null, card?.title === ${text("DRPG.Events.voteTitle")}];`));
+    verdict("p1-p4 read the vote closed in the world's record, and no panel shows the vote (C1)",
+        J(panels) === J([[true, false, false], [true, false, false], [true, false, false], [true, false, false]]), J(panels));
 
     /* ------------------------------ F. the verdict's window ------------------------------ */
 
@@ -223,8 +240,8 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         drawn.read?.value === firstStudent && drawn.read?.first === firstStudent && !drawn.read?.blackenedSelect, J({ drawn, firstStudent }));
     verdict("the dead victim is listed, marked \" - dead\"",
         drawn.read?.victim === `S63 Victim - ${drawn.read?.dead}`, J(drawn.read));
-    verdict("the footer reads correct, wrong, cancel - the correct verdict first (C4: Cancel first); Cancel closes it with nothing applied",
-        J(drawn.read?.buttons) === J(["correct", "wrong", "cancel"]) && drawn.result === null, J(drawn));
+    verdict("the footer reads wrong, correct, cancel - E's count is a tie, so the wrong verdict first (C4: Cancel first); Cancel closes it with nothing applied",
+        J(drawn.read?.buttons) === J(["wrong", "correct", "cancel"]) && drawn.result === null, J(drawn));
 
     /* ------------------------------ G. a wrong verdict in the audit's window ------------------------------ */
 
@@ -278,11 +295,17 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         const started = await UI.startClassTrial();
         const after = V.trialProgress();
         return { ended, started, asked: globalThis.__dialogLog.slice(from).map(d => d.kind + ":" + d.title),
-            startTitle: ${text("DRPG.Floor.startTrial")}, before: [before.verdictApplied, before.keysCharged], after: [after.verdictApplied, after.keysCharged] };`, { timeout: 60000 });
+            startTitle: ${text("DRPG.Floor.startTrial")}, before: [before.verdictApplied, before.keysCharged], after: [after.verdictApplied, after.keysCharged],
+            round: before.vote?.round ?? null, cleared: { vote: after.vote ?? null, voteClosed: after.voteClosed, tied: after.tied,
+                accused: after.accused ?? null, accusedIds: after.accusedIds ?? null, total: after.total ?? null } };`, { timeout: 60000 });
     verdict("the second Start asks only its own window (C11 asks first, Cancel the default)",
         again.ended === true && again.started === true && J(again.asked) === J([`wait:${again.startTitle}`]), J(again));
     verdict("the second trial clears `verdictApplied` and keeps `keysCharged`",
         again.before[0] === true && again.after[0] === false && again.after[1] === again.before[1], J(again));
+    const fresh = again.cleared;
+    verdict("the second trial clears the vote, its count and the tie, and carries the round number on (C1, D17)",
+        again.round === 1 && fresh.vote?.open === false && fresh.vote.round === 1 && J(fresh.vote.issued) === J([]) && fresh.voteClosed === false
+            && fresh.tied === false && J(fresh.accused) === J([]) && J(fresh.accusedIds) === J([]) && fresh.total === 0, J(again));
 
     /* ------------------------------ I. a correct verdict and its Level Ups ------------------------------ */
 

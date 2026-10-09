@@ -77,8 +77,9 @@ export const FLOWS = Object.freeze([
         entry: { bridge: ["call.arm"] }, scenarios: ["30-security", "40-flow", "33-bridge-paths", "83-roll-integrity"], status: "partial", stage: "E39" },
     // E10 C0 (09.10.2026): 63 drives the trial from Start to a correct verdict's Level Up - a late joiner, a GM's reload
     // in the vote, the verdict's window - as it is at 1e9871c; each of its checks names the E10 commit that changes it.
+    // E10 C1 (1.2.71): every step of the vote runs on the primary GM, asked through `vote.run`.
     { id: "class-trial", what: "The Class Trial: advancement offers and asks, the vote and its ballots",
-        entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge"], sockets: ["vote.mjs"] },
+        entry: { bridge: ["advancement.apply", "advancement.offer", "advancement.ask", "keys.charge", "vote.run"], sockets: ["vote.mjs"] },
         scenarios: ["10-murder", "11-killer-secrecy", "33-bridge-paths", "61-gmstore-case", "63-class-trial"], status: "partial", stage: "E40" },
     { id: "clock-day", what: "The clock: a GM moves the time of day or opens an Eclipse, every client redraws and refills",
         entry: { api: ["setClock", "advanceTimeOfDay", "startEclipse", "endEclipse"] }, scenarios: ["40-flow", "14-quiet"],

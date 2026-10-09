@@ -1117,7 +1117,10 @@
       "accusedMany": "Named by the table: {names}.",
       "verdictIntroKnown": "Only you know whether they got it right. The module remembers who killed - all you have to say is whether the table found them.",
       "counted": "The vote has been counted.",
-      "tiedVerdictNote": "The vote was tied. A tie is not an answer, so unless something else settled it at the table, this counts as getting it wrong."
+      "tiedVerdictNote": "The vote was tied. A tie is not an answer, so unless something else settled it at the table, this counts as getting it wrong.",
+      "storeNotReady": "This browser has not got the GMs' copy of the ballots yet.",
+      "movedOn": "The vote has moved on - this window was out of date.",
+      "openNoBallots": "The vote is open, round {n}, but this browser holds none of its ballots - wait for the primary GM or Start the vote over."
     },
     "Music": {
       "intro": "Pick which playlist plays when. The module never starts a playlist you have not chosen here, and ships no audio of its own.",
@@ -2516,7 +2519,8 @@
         "card.post": "A card for the GM to post",
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
-        "searchTokens.returnPlant": "Put a planted item back"
+        "searchTokens.returnPlant": "Put a planted item back",
+        "vote.run": "A step of the vote, run on the primary GM"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",
@@ -3636,7 +3640,8 @@
         "rolls": "The players' rolls the GM threw, with their dice and totals, for the resolutions and Rerolls that read them",
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
         "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
-        "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day"
+        "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day",
+        "ballots": "The ballots of the Class Trial's vote, kept by the GMs"
       },
       "row": {
         "traces": {

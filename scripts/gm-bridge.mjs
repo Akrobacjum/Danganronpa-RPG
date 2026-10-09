@@ -49,6 +49,8 @@ const ACTION_DIFFICULTY = "dynamic.difficulty";
 const ACTION_AUDIT_DECIDE = "audit.decide";
 /** GM -> primary GM: charge the Key fee as a Class Trial opens (E09 fix r1-G3; investigation.mjs `askToChargeForUnfoundKeys`). */
 const ACTION_KEYS_CHARGE = "keys.charge";
+/** GM -> primary GM: a step of the vote - open, close, restart, resend or remind (E10 C1; vote.mjs `runVoteOp`). */
+const ACTION_VOTE_RUN = "vote.run";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
@@ -1387,6 +1389,12 @@ async function handleKeysCharge() {
     return { reply: await chargeForUnfoundKeys() };
 }
 
+/** The run of `vote.run` (E10 C1): the primary's own step of the vote (vote.mjs `runVoteOp`), its reply or status. */
+async function handleVoteRun(payload) {
+    const { runVoteOp } = await import("./vote.mjs");
+    return { reply: await runVoteOp(payload.op, { picks: payload.picks }) };
+}
+
 /** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
 async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
@@ -2017,6 +2025,22 @@ export const BRIDGE_ACTIONS = table({
         guards: [gmOnly("only a GM opens a Class Trial, and the Key fee is charged as one opens")],
         sanitize: pick({}),
         run: handleKeysCharge,
+        answer: "reply"
+    },
+    /*
+     * THE VOTE, RUN ON THE PRIMARY GM (E10 C1, 1.2.71; audit S06-17). The ballots are recorded
+     * on the primary (vote.mjs `onBallotCast`, into the GMs' store), so the steps that read or
+     * reset them are taken there too: another GM's Send the ballots, Start the vote over,
+     * Remind and Close and count ask it here (vote.mjs `askVote`, `onPrimary`). A GM's request
+     * only: no player opens or counts a vote. `op` is one of the five steps or nothing; `picks`
+     * is a number the primary bounds by the students enrolled (`picksFor`). The primary judges
+     * the step against the trial's record and answers a status for one the record has moved past.
+     */
+    [ACTION_VOTE_RUN]: {
+        label: "DRPG.Bridge.what.vote.run",
+        guards: [gmOnly("only a GM runs the vote")],
+        sanitize: pick({ op: as.oneOf("open", "close", "restart", "resend", "remind"), picks: as.num }),
+        run: handleVoteRun,
         answer: "reply"
     },
     /*
