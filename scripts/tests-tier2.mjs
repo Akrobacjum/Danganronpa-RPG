@@ -14183,6 +14183,65 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM's write of a held copy's module flags whole that keeps its words leaves a reshaped trace's words", async () => {
+        /*
+         * E09 fix r2-G9, 09.10.2026 (r2-G5's open road). A GM's write that puts a held bullet's module flags in
+         * place whole repeats every flag it leaves as it was, and a browser that holds no record of the words
+         * (`forgetBulletGuard`: a bullet this GM never saw a GM write) counted the words as written: that
+         * copy's words - found before the reshape - and its empty reading went up to the trace, over the
+         * killer's words on the ledger and on the copy found after it, and over the trace's reading. The
+         * fixture of r2-G5's test above, the trace given a reading after the reshape; then, on the second
+         * student's copy, three whole writes: its flags as they stand with no record of them, the same with
+         * the record that write left (the GM's browser that holds one), and the words changed with no record,
+         * which still reach every copy (r2-G1's rule). Read after each: the ledger's name, words and reading,
+         * the copy found after the reshape, and the reshaper's copy.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const students = cast(3);
+        const { player, actor: finder, where } = await playerInRoom();
+        const [who, holder] = students.filter(a => a.id !== finder.id);
+        const R = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const WORDS = "SUITE r2-G9 the GM's own words for it";
+        const READING = "SUITE r2-G9 the lab's reading of it";
+        const F = await reshapeCopiesFixture(who, [holder], "SUITE r2-G9 a held copy's module flags written whole",
+            { scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, sourceActor: finder.id });
+        try {
+            const { applied } = await F.reshape();
+            must(applied === true, "the approval was refused - this would measure nothing");
+            await R.setRemnantPublic(F.trace, { analyzedText: READING });
+            const after = await F.find(player, finder);
+            must(after, "the finder's Observe made no copy of the fixture's trace - this would measure nothing");
+            const read = () => {
+                const pub = R.remnantPublic(F.trace);
+                return [[pub?.name, pub?.playerText, pub?.analyzedText], F.words(after)?.slice(0, 2) ?? null, F.words(F.copy)];
+            };
+            const whole = async ({ forget, words = null }) => {
+                const copy = holder.items.get(F.copies[1].id);
+                if (forget) T.forgetBulletGuard(copy.uuid);
+                must(!forget || T.bulletGuardStatus(copy.uuid).copy === null, "the GM's record of the copy stayed - this would measure nothing");
+                const scope = foundry.utils.deepClone(copy.flags?.[MODULE_ID] ?? {});
+                if (words) scope[T.TRUTH_BULLET_FLAGS.playerText] = words;
+                await copy.update({ flags: { [MODULE_ID]: replaced(scope) } });
+                await settle();
+                return read();
+            };
+            const kept = await whole({ forget: true });
+            const held = await whole({ forget: false });
+            const ruled = await whole({ forget: true, words: WORDS });
+            const story = [[C9_STORY.name, C9_STORY.text, READING], [C9_STORY.name, C9_STORY.text], [C9_FOUND.name, C9_FOUND.playerText, true]];
+            equal(stableJson([kept, held, ruled]), stableJson([story, story,
+                [[C9_STORY.name, WORDS, READING], [C9_STORY.name, WORDS], [C9_FOUND.name, WORDS, false]]]),
+                "a GM's write of one held copy's module flags whole wrote its words or its reading over a reshaped trace's when it kept them, "
+                + "or a change of the words missed a copy (after each write - no record, the record, the words changed with no record: the "
+                + "ledger's name, words and reading; the copy found after the reshape; the reshaper's copy with its found description)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
     ["two rulings of one reshape at once run once, and the second is told it was ruled", async () => {
         /*
          * E09 C10, 08.10.2026. Nothing marked a reshape's proposal as ruled: each ruling read the

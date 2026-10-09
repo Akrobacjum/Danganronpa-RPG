@@ -1533,11 +1533,33 @@ async function onBulletWrite(item, changes, options, userId) {
         // (fix r2-H13: the module's flags replaced whole carry theirs too).
         const patch = {};
         const wrote = path => touched.includes(path);
+        /*
+         * AND WORDS NO RECORD HELD, ONLY WHEN THEY MOVED (E09 fix r2-G9, 09.10.2026; r2-G5's open road). A
+         * flag this browser holds a record of is touched only when the write moved it (`guardedPathsIn`).
+         * One it holds none of - a bullet this GM never saw a GM write (`forgetBulletGuard`) - is touched
+         * by any write that reaches under it, so a GM's write that put a held copy's module flags in place
+         * whole, keeping them, sent up that copy's words and its reading: a reshaped trace's copy found before
+         * the reshape wrote its words over the killer's on the ledger and on the copy found after it, and an
+         * unanalysed copy's empty reading wiped the trace's (tier 2 "a GM's write of a held copy's module
+         * flags whole that keeps its words leaves a reshaped trace's words", red on the code before it,
+         * 09.10.2026). There such a flag goes up only when it differs from the copy's words as they stood
+         * before the write: its description, which a write that did not reach it still holds as
+         * `bulletDescription` made it of the two. A write that reached the description too leaves nothing
+         * to compare with, and its words go up as before (read in the code, not measured; whether any road
+         * of the module's writes both was not traced).
+         */
+        const shown = wrote("system.description") ? null : describedWords(item.system?.description);
+        const moved = key => {
+            const path = `flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS[key]}`;
+            if (!wrote(path)) return false;
+            if (!shown || (copy && path in copy)) return true;
+            return plainWords(item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS[key])) !== shown[key];
+        };
         if (wrote("name")) patch.name = item.name;
-        if (wrote(`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`)) {
+        if (moved("playerText")) {
             patch.playerText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "";
         }
-        if (wrote(`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`)) {
+        if (moved("analyzedText")) {
             patch.analyzedText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzedText) ?? "";
         }
         /*
@@ -1570,13 +1592,8 @@ async function onBulletWrite(item, changes, options, userId) {
          * it. A change of the words goes to every copy, as r2-G1's rule has it.
          */
         if (wrote("system.description") && patch.playerText === undefined) {
-            // A template, whose content is inert: read for its text, never run.
-            const wrap = document.createElement("template");
-            wrap.innerHTML = String(item.system?.description ?? "");
-            for (const block of wrap.content.querySelectorAll(".drpg-bullet-analysis")) block.remove();
-            const plain = text => String(text ?? "").replace(/\s+/g, " ").trim();
-            const words = plain(wrap.content.textContent);
-            if (words !== plain(bulletAsHeld(item).getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText))) patch.playerText = words;
+            const words = describedWords(item.system?.description).playerText;
+            if (words !== plainWords(bulletAsHeld(item).getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText))) patch.playerText = words;
         }
         if (!Object.keys(patch).length) return;
 
@@ -1585,6 +1602,28 @@ async function onBulletWrite(item, changes, options, userId) {
     } catch (err) {
         error("Could not carry a Truth Bullet's edit back to its trace", err);
     }
+}
+
+/** A text as words: its runs of white space one space, and none at either end. */
+function plainWords(text) {
+    return String(text ?? "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * The two halves of a bullet's description as words (`bulletDescription`): what Observe bought, and the reading
+ * in the paragraph `bulletDescription` stamps, its heading cut. Parsed in a template, whose content is inert: read
+ * for its text, never run.
+ */
+function describedWords(html) {
+    const wrap = document.createElement("template");
+    wrap.innerHTML = String(html ?? "");
+    const readings = [];
+    for (const block of wrap.content.querySelectorAll(".drpg-bullet-analysis")) {
+        block.querySelector("strong")?.remove();
+        readings.push(block.textContent);
+        block.remove();
+    }
+    return { playerText: plainWords(wrap.content.textContent), analyzedText: plainWords(readings.join(" ")) };
 }
 
 /*
