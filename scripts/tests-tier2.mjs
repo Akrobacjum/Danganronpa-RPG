@@ -2239,6 +2239,41 @@ async function withVerdictOpen(run) {
 }
 
 /**
+ * The verdict's window drawn on this GM (E10 C4) over the trial's record with `record` merged in and the verdict
+ * not given, `act(element)` run on it, and what the window answered: `{ reading, answer }`. The answer - the button's
+ * verdict, or its action - is held back from `applyVerdict`, so nothing is executed and no Level Up is asked; every
+ * other window `openVerdictDialog` would open is answered null. `answer` is "unanswered" when no button closed it,
+ * and the window is closed then. Needs `env.dialogs()`.
+ */
+async function verdictWindow(record, act) {
+    const V = await import("./vote.mjs");
+    const D = foundry.applications.api.DialogV2;
+    const title = game.i18n.localize("DRPG.Vote.verdictTitle");
+    const ownWait = Object.getOwnPropertyDescriptor(D, "wait");
+    const drawWait = D.wait;
+    const drawn = () => [...foundry.applications.instances.values()]
+        .find(a => a.rendered && a.element && a.options?.window?.title === title) ?? null;
+    let answer = "unanswered", reading = null;
+    D.wait = async function (cfg) {
+        if (cfg?.window?.title !== title) return null;
+        answer = await drawWait.call(this, cfg);
+        return null;
+    };
+    try {
+        await withVerdictOpen(async () => {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, { ...V.trialProgress(), ...record, verdictApplied: false });
+            const pending = V.openVerdictDialog();
+            if (await until(() => Boolean(drawn()), 8000)) reading = await act(drawn().element);
+            if (await until(() => !drawn(), 3000) === false) await drawn()?.close();
+            await Promise.race([pending, wait(4000)]);
+        });
+    } finally {
+        if (ownWait) Object.defineProperty(D, "wait", ownWait); else delete D.wait;
+    }
+    return { reading, answer };
+}
+
+/**
  * A safeword press measured on this GM's browser, and put back (E06 C9). `act(fresh)` presses;
  * `fresh()` is the safeword cards posted since; `read(cards)` turns them into plain readings
  * before they are deleted. The pause, the popups the press raised and `player`'s entry in the
@@ -18610,6 +18645,151 @@ const SCENARIOS = [
             await ballotStore?.dropMany?.(voters);
             await V.closeVote();
             await settle();
+        }
+    }],
+
+    ["the verdict window opens on the accused", async () => {
+        /*
+         * E10 C4, 1.2.71; audit S06-04; the stage's V4 ("werdykt ma zaznaczonego oskarżonego"). The count
+         * stores whom the class accused (`accusedIds`, E10 C1), and the verdict's window listed every
+         * student with the first one selected and no "nobody" - a GM who pressed a verdict without
+         * reading the select executed whoever sorted first. Drawn on this GM over a record whose count
+         * accused a student who is not the first: read, the executed select's value, its first option's
+         * value and words, and whether the window names the accused with the count; Cancel. Red at E10
+         * C3's tree (A1, 09.10.2026): the select opened on the first student and its first option was one.
+         */
+        needs(env.dialogs(), "the verdict's window is drawn and its select read");
+        const { studentActors } = await import("./monokuma.mjs");
+        const { trialBlackenedActors } = await import("./murder.mjs");
+        const known = new Set(trialBlackenedActors().map(a => a.id));
+        const first = studentActors()[0]?.id;
+        const [accused] = cast(3).filter(a => a.id !== first && !known.has(a.id));
+        must(accused, "no living student who is neither the first listed nor a known Blackened");
+        const named = game.i18n.format("DRPG.Vote.namedByTable", { names: accused.name, n: 3, total: 4 });
+        const { reading, answer } = await verdictWindow({ voteClosed: true, accused: [{ id: accused.id, n: 3 }], total: 4,
+            majority: 3, noMajority: false, tied: false, accusedIds: [accused.id] }, element => {
+            const select = element.querySelector('select[name="executed"]');
+            const out = [select?.value ?? null, select?.options[0]?.value ?? null, select?.options[0]?.textContent ?? null,
+                element.textContent.includes(named)];
+            element.querySelector('footer button[data-action="cancel"]')?.click();
+            return out;
+        });
+        equal(stableJson([reading, answer]),
+            stableJson([[accused.id, "", game.i18n.localize("DRPG.Vote.nobodyExecuted"), true], "cancel"]),
+            "the verdict window did not open on the accused, its first option is not \"Nobody is executed\", or it does not "
+            + "name the accused with the count (the select's value, its first option's value and words, the line; Cancel's answer)");
+    }],
+
+    ["Enter in the verdict window executes nobody", async () => {
+        /*
+         * E10 C4, 1.2.71; audit S06-04; the stage's V5 ("a Enter nie egzekwuje"). Enter in a form presses
+         * its first submit button in DOM order (HTML's implicit submission; the finding behind G-31's
+         * reordered footer), and that was the right verdict - after a tie the wrong one - so Enter with
+         * the window open executed the register's Blackened, or the select's student without a register.
+         * jsdom does not submit a form on a synthetic key, so the press is made as Enter makes it: the
+         * form submitted by its first submit button (`requestSubmit(first)`; with no button named the
+         * harness's window answers null whichever button is first, so that form measures nothing). Read:
+         * that button, the buttons marked default, and the answer the window gives. Red at E10 C3's tree
+         * (A1, 09.10.2026): the first button was "correct" and the answer a verdict executing somebody.
+         * The key itself in Foundry's window is the plan's LIVE-E10-02.
+         */
+        needs(env.dialogs(), "the verdict's window is drawn and its first button pressed");
+        const { trialBlackenedActors } = await import("./murder.mjs");
+        const known = new Set(trialBlackenedActors().map(a => a.id));
+        const [accused] = cast(3).filter(a => !known.has(a.id));
+        must(accused, "no living student who is not a known Blackened");
+        const { reading, answer } = await verdictWindow({ voteClosed: true, accused: [{ id: accused.id, n: 3 }], total: 4,
+            majority: 3, noMajority: false, tied: false, accusedIds: [accused.id] }, element => {
+            const form = element.querySelector("form");
+            const firstSubmit = element.querySelector('button[type="submit"]');
+            const defaults = [...element.querySelectorAll("footer button[data-action]")]
+                .filter(b => b.classList.contains("default") || b.hasAttribute("autofocus")).map(b => b.dataset.action);
+            const out = [firstSubmit?.dataset?.action ?? null, defaults];
+            if (form && firstSubmit) form.requestSubmit(firstSubmit);
+            return out;
+        });
+        equal(stableJson([reading, answer]), stableJson([["cancel", ["cancel"]], "cancel"]),
+            "Enter in the verdict window presses a verdict (the first submit button, the buttons marked default, the answer)");
+    }],
+
+    ["a right verdict without the register executes the Blackened the GM names", async () => {
+        /*
+         * E10 C4, 1.2.71; audit S06-04; the stage's doneWhen "Werdyktu nie da się wykonać na przypadkowej
+         * osobie". Without a register the window asks who is executed and who the Blackened really was,
+         * and the right verdict executed the first select's student - "who is executed if they got it
+         * wrong" - so the Blackened the GM named lived and somebody else died, and both selects opened on
+         * the first student. Drawn over a record accusing one student with no register: read, the
+         * Blackened select's value as drawn; then another student named the Blackened and the right
+         * verdict pressed. Red at E10 C3's tree (A1, 09.10.2026): the select opened on the first student
+         * and the verdict executed the executed select's.
+         */
+        needs(env.dialogs(), "the verdict's window is drawn and its selects used");
+        const { trialBlackenedActors } = await import("./murder.mjs");
+        must(trialBlackenedActors().length === 0, "the trial knows its Blackened here, so the window asks for none - the case needs no register");
+        const { studentActors } = await import("./monokuma.mjs");
+        const first = studentActors()[0]?.id;
+        const [accused, killer] = cast(3).filter(a => a.id !== first);
+        const { reading, answer } = await verdictWindow({ voteClosed: true, accused: [{ id: accused.id, n: 3 }], total: 4,
+            majority: 3, noMajority: false, tied: false, accusedIds: [accused.id] }, element => {
+            const blackened = element.querySelector('select[name="blackened"]');
+            const out = [blackened?.value ?? null, element.querySelector('select[name="executed"]')?.value ?? null];
+            if (blackened) blackened.value = killer.id;
+            element.querySelector('footer button[data-action="correct"]')?.click();
+            return out;
+        });
+        equal(stableJson([reading, answer]),
+            stableJson([[accused.id, accused.id], { correct: true, executedIds: [killer.id], blackenedIds: [killer.id] }]),
+            "a right verdict without the register did not execute the Blackened the GM named, or the Blackened's select "
+            + "did not open on the accused (the two selects as drawn; the verdict)");
+    }],
+
+    ["a dead accused opens the verdict on nobody and only a living student can be executed", async () => {
+        /*
+         * E10 C4, 1.2.71; Q-E10-1, the owner's answer (c) of 08.10.2026: the window opens on "Nobody is
+         * executed" and the GM may pick a living student. The class may vote for the dead (the amend of
+         * 27.09), so the count can accuse one, and the window opened on the first student whoever was
+         * accused. A death the GMs keep stands for one here (`killCharacter` secret: nothing written on
+         * the actor; revived after). Drawn twice over a record accusing the dead student: read the
+         * select's value, the dead one's option (disabled, " - dead") and the window's line that the
+         * accused is dead; then the dead one forced into the select as an edited form would and the wrong
+         * verdict pressed - refused, nobody executed; then a living student picked and the wrong verdict
+         * pressed - executed. Red at E10 C3's tree (A1, 09.10.2026): the first student selected, the dead
+         * one choosable and unmarked (a death nobody published), and executed when forced.
+         */
+        needs(env.dialogs(), "the verdict's window is drawn and its select used");
+        const { trialBlackenedActors } = await import("./murder.mjs");
+        const { killCharacter, reviveCharacter } = await import("./chapter.mjs");
+        const known = new Set(trialBlackenedActors().map(a => a.id));
+        const [corpse, living] = cast(3).filter(a => !known.has(a.id));
+        must(corpse && living, "two living students who are not known Blackened are needed");
+        const record = { voteClosed: true, accused: [{ id: corpse.id, n: 3 }], total: 4, majority: 3, noMajority: false,
+            tied: false, accusedIds: [corpse.id] };
+        const deadLine = game.i18n.format("DRPG.Vote.accusedDead", { names: corpse.name });
+        const deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
+        try {
+            ok(await killCharacter(corpse, { secret: true, keepBullets: true }), "the death was not kept by the GMs");
+            const forced = await verdictWindow(record, element => {
+                const select = element.querySelector('select[name="executed"]');
+                const option = [...(select?.options ?? [])].find(o => o.value === corpse.id);
+                const out = [select?.value ?? null, option?.disabled ?? null, option?.textContent ?? null, element.textContent.includes(deadLine)];
+                if (select) select.value = corpse.id;
+                out.push(select?.value ?? null);
+                element.querySelector('footer button[data-action="wrong"]')?.click();
+                return out;
+            });
+            const picked = await verdictWindow(record, element => {
+                const select = element.querySelector('select[name="executed"]');
+                if (select) select.value = living.id;
+                element.querySelector('footer button[data-action="wrong"]')?.click();
+                return select?.value ?? null;
+            });
+            equal(stableJson([forced.reading, forced.answer?.executedIds ?? forced.answer, picked.reading, picked.answer?.executedIds ?? picked.answer]),
+                stableJson([["", true, `${corpse.name} - ${deadShort}`, true, corpse.id], [], living.id, [living.id]]),
+                "a dead accused did not open the window on nobody, was choosable or unmarked, was executed when forced into the "
+                + "select, or a living student picked was not (the select, the dead one's option, the line, the forced value; "
+                + "the forced verdict's executed; the living pick and its executed)");
+        } finally {
+            await reviveCharacter(corpse, { quiet: true });
         }
     }],
 

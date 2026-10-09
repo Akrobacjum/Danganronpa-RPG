@@ -7404,6 +7404,8 @@ const REGRESSIONS = [
          * `voterActorId` nothing read, and rewrote the verdicts the bridge's ballot changes. Measured
          * on the harness on 09.10.2026 with C2 in the tree: 39 places against 39 rows - 10 PACKET,
          * 5 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
+         * E10 C4 (1.2.71) rewrote `openVerdictDialog`'s verdict: the dead are read as the GMs hold them,
+         * and only a living student can be picked; no place added or struck.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7427,7 +7429,7 @@ const REGRESSIONS = [
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
             ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
-            ["SHEET vote.mjs#openVerdictDialog", "out of scope: the \" - dead\" marks are a display (R4); C4 preselects the accused from the world's `accusedIds` and Q-E10-1 (c) lets the GM pick a living student"],
+            ["SHEET vote.mjs#openVerdictDialog", "judged (C4): who is dead is read once as the GMs hold it - `isDeadForGm(flagsHeldNow(actor))` after `judgedFor` of every student, in one synchronous pass; the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); the select opens on the world's `accusedIds` [1b.2]"],
             ["SHEET vote.mjs#applyVerdict", "OPEN at base (R1, document `isDeadForGm`, `livingStudents`): C5 reads one `judgedFor(...executed, ...students)` then `flagsHeldNow` for all in one synchronous pass; `killCharacter` keeps its own head check [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "held: one `meansWrite` from `numberHeld` (E29 r2-H24/H25, in the tree before E10); the `actor.system.experiences[id].name` read is a label in the GM's summary. C8's fnSource test pins it [1b.2]"],
@@ -7626,6 +7628,35 @@ const REGRESSIONS = [
         const answered = send.indexOf("requestBallotCast("), confirmed = send.indexOf("DRPG.Vote.castConfirmed");
         ok(answered > 0 && confirmed > answered && /requestBallotCast\((?:(?!DRPG\.Vote\.castConfirmed)[\s\S])*\bres\.ok\b/.test(send),
             "a player is told the vote is in before the primary has answered that it is");
+    }],
+
+    ["R315 - Enter in the verdict window presses Cancel, its executed select opens on nobody, and a right verdict executes the Blackened", async () => {
+        /*
+         * E10 C4, 1.2.71; audit S06-04; the guard of the stage's doneWhen "Werdyktu nie da się
+         * wykonać na przypadkowej osobie" (a verdict cannot be carried out on somebody by chance).
+         * Until C4 the window's footer put a verdict first - Enter in a DialogV2 presses the first
+         * submit button in DOM order - its executed select opened on the first student, and a right
+         * verdict without a register executed that select's student. Read in vote.mjs: the footer's
+         * actions in order and which carry `default`; that the executed select's first option is
+         * "Nobody is executed" with the value ""; that `read` returns a right verdict before it reads
+         * the executed select. Tier 2 drives the window ("the verdict window opens on the accused",
+         * "Enter in the verdict window executes nobody", "a right verdict without the register
+         * executes the Blackened the GM names"). Red at E10 C3's tree (A1, 09.10.2026): six actions
+         * (the tie's footer and the other), the right verdict first.
+         */
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        const win = fnSource(vote, "openVerdictDialog"), read = fnSource(vote, "read");
+        ok(win.length > 500 && read.length > 100, "openVerdictDialog or read is gone - the reads below would measure nothing");
+        const footer = bodyOf(win, "buttons:", { until: "rejectClose" });
+        equal(JSON.stringify([...footer.matchAll(/action:\s*"(\w+)"/g)].map(m => m[1])), JSON.stringify(["cancel", "correct", "wrong"]),
+            "the verdict window's footer is not Cancel, then the two verdicts - Enter presses its first button");
+        equal(JSON.stringify([...footer.matchAll(/action:\s*"(\w+)"[^{}]*\bdefault:\s*true/g)].map(m => m[1])), JSON.stringify(["cancel"]),
+            "a button other than Cancel is the verdict window's default");
+        ok(/<option value="">\$\{game\.i18n\.localize\("DRPG\.Vote\.nobodyExecuted"\)\}<\/option>/.test(win),
+            "the executed select's first option is not \"Nobody is executed\" with no value - it opens on a student");
+        const rightReturns = read.search(/if \(correct\) return \{ correct, executedIds: blackenedIdList\b/), selectRead = read.search(/\bf\.executed\b/);
+        ok(rightReturns > 0 && selectRead > rightReturns,
+            "a right verdict is not answered with the Blackened before `read` reads the executed select");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {

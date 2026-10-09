@@ -4481,6 +4481,17 @@ body.drpg-reduced-motion .application.sheet.actor .character-header-sheet .name-
     background: currentColor;
 }
 
+/* THE VERDICT WINDOW'S SELECTS UNDER THEIR LABELS (E10 C4, 1.2.71). The label
+   ran into its select on one line, so "Executed instead, if the table got it
+   wrong" pushed the list of names to whatever width was left. Stacked, each
+   select takes the window's width. Not measured: the harness has no layout
+   (the plan's LIVE-E10-03). */
+.drpg-verdict-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 /* On the stage the card is the middle of the screen and the name is what the
    table is arguing about, so it is sized like a heading rather than like a line
    of a receipt. In the corner and in the chat log it stays as it was. */

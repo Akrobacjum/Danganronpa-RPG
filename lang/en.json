@@ -1124,6 +1124,10 @@
       "verdictIntroKnown": "Only you know whether they got it right. The module remembers who killed - all you have to say is whether the table found them.",
       "counted": "The vote has been counted.",
       "tiedVerdictNote": "The vote was tied. A tie is not an answer, so unless something else settled it at the table, this counts as getting it wrong.",
+      "nobodyExecuted": "Nobody is executed",
+      "nobodyNamed": "Nobody named",
+      "namedByTable": "Named by the table: {names}, {n} of {total}.",
+      "accusedDead": "Already dead: {names}. Nobody is executed unless you pick a living student.",
       "storeNotReady": "This browser has not got the GMs' copy of the ballots yet.",
       "movedOn": "The vote has moved on - this window was out of date.",
       "openNoBallots": "The vote is open, round {n}, but this browser holds none of its ballots - wait for the primary GM or Start the vote over."

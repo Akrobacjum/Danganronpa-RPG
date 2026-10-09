@@ -13,7 +13,8 @@
  * is in the world and the ballots in the GMs' store; E10 C2 (1.2.71) rewrote B to F: a ballot is
  * cast on the bridge and judged by the primary GM, the player is told what the primary answered,
  * and a player who loads while a vote is open asks for theirs; E10 C3 (1.2.71) added B4, B5, C3 and E4:
- * the vote window's bar, the vote's card and the count's card. Phases are letters, so a later commit adds one
+ * the vote window's bar, the vote's card and the count's card; E10 C4 (1.2.71) rewrote F: the verdict's window
+ * opens on the accused, the dead cannot be picked and Enter presses Cancel. Phases are letters, so a later commit adds one
  * without renumbering:
  *   A  setup through the GM's API (not under test): a fifth student, the victim, killed publicly;
  *      the register's row naming Chie the Blackened; p4 OWNER of Daichi. Start the Class Trial:
@@ -38,10 +39,11 @@
  *      ballots - Botan 3 of 4 issued, the majority, accused (C2; C1 counted p1's alone, a tie) -
  *      and writes it to the world (C1); every player reads the vote closed, and holds the count's
  *      card: a row per name and the one sentence that the class accuses Botan (C3).
- *   F  the verdict's window drawn on gm2 (`__dialogWindows`): the executed select opens on the
- *      first student, the dead victim is listed with " - dead", the first footer button is the
- *      right verdict, E's count accusing Botan (C4: "Nobody is executed" first, Q-E10-1 (c), and
- *      Cancel first); Cancel.
+ *   F  the verdict's window drawn on gm2 (`__dialogWindows`): the executed select opens on Botan,
+ *      whom E's count accused, under the line naming him with his 3 of 4, and its first option is
+ *      "Nobody is executed"; the dead victim is listed with " - dead" and cannot be picked
+ *      (Q-E10-1 (c)); the footer reads Cancel, the right verdict, the wrong one, Cancel the only
+ *      default, so Enter closes the window (C4); Cancel.
  *   G  a wrong verdict executing Botan while p2's forged `deceased: true` on Botan waits for the
  *      sheet audit (the window, made deterministic: gm2's queue on Botan is held by a job, so the
  *      write is heard and not yet judged when the verdict reads it): the verdict skips the
@@ -72,6 +74,7 @@
  * E10 C2 split C's check in two, the ask at load and the cast: 35 checks in 23.0 s (two runs, 22.6 and 23.0 s, 09.10.2026).
  * E10 C3 added B4, B5, C3 and E4, the vote window, the vote's card and the count's card: 39 checks in 27.6 s (two runs,
  * 27.6 and 24.3 s, 09.10.2026).
+ * E10 C4 rewrote F's three checks, the verdict's window: 39 checks in 22.0 s (one run, 09.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -301,9 +304,16 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         try {
             const el = (await until(() => drawn()?.element, 8000)) ?? null;
             const select = el?.querySelector('select[name="executed"]');
+            const victim = [...(select?.options ?? [])].find(o => o.value === "${victimId}");
+            const named = game.i18n.format("DRPG.Vote.namedByTable", { names: game.actors.get("${IDS.botan}")?.name, n: 3, total: 4 });
             read = el ? { value: select?.value ?? null, first: select?.options[0]?.value ?? null,
-                victim: [...(select?.options ?? [])].find(o => o.value === "${victimId}")?.textContent ?? null, dead,
+                firstText: select?.options[0]?.textContent ?? null, nobody: ${text("DRPG.Vote.nobodyExecuted")},
+                named: el.textContent.includes(named),
+                victim: victim?.textContent ?? null, victimDisabled: victim?.disabled ?? null, dead,
                 buttons: [...el.querySelectorAll("footer button[data-action]")].map(b => b.dataset.action),
+                submitFirst: el.querySelector('button[type="submit"]')?.dataset?.action ?? null,
+                defaults: [...el.querySelectorAll("footer button[data-action]")]
+                    .filter(b => b.classList.contains("default") || b.hasAttribute("autofocus")).map(b => b.dataset.action),
                 blackenedSelect: Boolean(el.querySelector('select[name="blackened"]')) } : null;
             el?.querySelector('footer button[data-action="cancel"]')?.click();
             result = await Promise.race([pending, new Promise(r => setTimeout(() => r("hung"), 5000))]);
@@ -311,13 +321,14 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
             globalThis.__dialogWindows = was;
         }
         return { read, result };`, { timeout: 30000 });
-    const firstStudent = await gm2.eval(`return (await import("${repoUrl}/scripts/monokuma.mjs")).studentActors()[0]?.id ?? null;`);
-    verdict("the executed select opens on the first student and its first option is a student (C4: \"Nobody is executed\" first, Q-E10-1 (c))",
-        drawn.read?.value === firstStudent && drawn.read?.first === firstStudent && !drawn.read?.blackenedSelect, J({ drawn, firstStudent }));
-    verdict("the dead victim is listed, marked \" - dead\"",
-        drawn.read?.victim === `S63 Victim - ${drawn.read?.dead}`, J(drawn.read));
-    verdict("the footer reads correct, wrong, cancel - E's count accused Botan, so the right verdict first (C2; C4: Cancel first); Cancel closes it with nothing applied",
-        J(drawn.read?.buttons) === J(["correct", "wrong", "cancel"]) && drawn.result === null, J(drawn));
+    verdict("the executed select opens on Botan, whom the count accused, under the line naming him with 3 of 4, and its first option is \"Nobody is executed\" (C4)",
+        drawn.read?.value === IDS.botan && drawn.read?.first === "" && drawn.read?.firstText === drawn.read?.nobody
+            && drawn.read?.named === true && !drawn.read?.blackenedSelect, J(drawn.read));
+    verdict("the dead victim is listed, marked \" - dead\", and cannot be picked (C4, Q-E10-1 (c))",
+        drawn.read?.victim === `S63 Victim - ${drawn.read?.dead}` && drawn.read?.victimDisabled === true, J(drawn.read));
+    verdict("the footer reads cancel, correct, wrong: the first submit button, which Enter presses, is Cancel, the only default (C4); Cancel closes it with nothing applied",
+        J(drawn.read?.buttons) === J(["cancel", "correct", "wrong"]) && drawn.read?.submitFirst === "cancel"
+            && J(drawn.read?.defaults) === J(["cancel"]) && drawn.result === null, J(drawn));
 
     /* ------------------------------ G. a wrong verdict in the audit's window ------------------------------ */
 

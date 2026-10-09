@@ -1114,20 +1114,69 @@ export async function openVerdictDialog() {
     await whenTrialReadable();
     const known = trialBlackenedActors();
     const students = studentActors();
+    const progress = trialProgress();
     // Recorded by the count (`closeRound`, on the primary GM), because by the time
     // this window opens the tally has scrolled away and the GM is being asked to
     // remember it. A close with no ballot records a tie too (E10 C1).
-    const tiedVote = Boolean(trialProgress().tied);
-    const options = students
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}${
-            isDeceased(a) ? ` - ${game.i18n.localize("DRPG.Chapter.deadShort")}` : ""
-        }</option>`).join("");
+    const tiedVote = Boolean(progress.tied);
+    const esc = foundry.utils.escapeHTML;
+
+    /* WHO IS DEAD, AS THE GMS HOLD IT, READ ONCE (E10 C4, 1.2.71; Q-E10-1). The window marks the
+       dead " - dead" and they stay on its lists (the amend of 27.09: the class may vote for the
+       dead), but the owner's answer (c) of 08.10.2026 is that the GM may pick a LIVING student to
+       execute - so here a dead one is a disabled option, a display and not a choice, and `read`
+       refuses one that is submitted anyway. The disabled options and the refusal are one set,
+       read after every write queued on a student is judged (`judgedFor`) in one synchronous pass
+       off the primary's mark (`flagsHeldNow`, the GMs' copy - a death nobody has found included,
+       as `applyVerdict` skips one); a student who dies or comes back while the window is open is
+       `applyVerdict`'s to judge. */
+    await judgedFor(...students.map(a => a.id));
+    const dead = new Set(students.filter(a => isDeadForGm(flagsHeldNow(a))).map(a => a.id));
+    const knownIds = new Set(known.map(a => a.id));
+    const deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
+    const option = (a, chosen, { lockDead = false } = {}) => `<option value="${a.id}"${
+        a.id === chosen ? " selected" : ""}${lockDead && dead.has(a.id) ? " disabled" : ""}>${esc(a.name)}${
+        dead.has(a.id) ? ` - ${deadShort}` : ""}</option>`;
+
+    /* THE ACCUSED, SELECTED; NOBODY BY DEFAULT (E10 C4, 1.2.71; audit S06-04). The executed
+       select listed every student with the first one selected and no "nobody": the accused was
+       never stored, and a GM who pressed a verdict without touching it executed whoever sorted
+       first. It opens on the name the count accused now (`accusedIds`, written by `closeRound`)
+       and its first option is "Nobody is executed" (value ""), which is what it opens on after a
+       tie, with no majority, with nobody accused, or with an accused who is dead (Q-E10-1 (c)) -
+       the window says which. The register's Blackened are left out of "executed if wrong": a
+       table that named one of them got it right. Measured on the harness (tier 2, "the verdict
+       window opens on the accused"); at E10 C3's tree it opened on the first student. */
+    const accusedIds = (progress.accusedIds ?? []).filter(Boolean);
+    const named = id => id === "monokuma"
+        ? game.i18n.localize("DRPG.Vote.monokuma") : (game.actors.get(id)?.name ?? "?");
+    const accusedFirst = students.find(a => a.id === accusedIds[0]) ?? null;
+    const preselect = accusedFirst && !dead.has(accusedFirst.id) && !knownIds.has(accusedFirst.id) ? accusedFirst.id : "";
+    const votesFor = id => (progress.accused ?? []).find(r => r?.id === id)?.n ?? 0;
+    const namedLine = accusedIds.length
+        ? `<p>${game.i18n.format("DRPG.Vote.namedByTable", {
+            names: accusedIds.map(id => esc(named(id))).join(", "),
+            n: Math.min(...accusedIds.map(votesFor)), total: progress.total ?? 0 })}</p>`
+        : "";
+    const deadAccused = accusedIds.filter(id => dead.has(id));
+    const deadLine = deadAccused.length
+        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.accusedDead", {
+            names: deadAccused.map(id => esc(named(id))).join(", ") })}</p>`
+        : "";
+    const executedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyExecuted")}</option>${
+        students.filter(a => !knownIds.has(a.id)).map(a => option(a, preselect, { lockDead: true })).join("")}`;
+    // Without a register the right verdict executes the Blackened named here (`read`), so this
+    // select may not open on a student either: on the accused, whom a right verdict names, or on
+    // nobody. The dead stay choosable - the Blackened may be one of them; `applyVerdict` kills
+    // nobody twice.
+    const blackenedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyNamed")}</option>${
+        students.map(a => option(a, accusedFirst?.id ?? "")).join("")}`;
 
     // What the register says, stated rather than asked. Two names here is an
     // ordinary evening now: one incident, then the betrayal.
     const roster = known.length
         ? `<p><strong>${plural("DRPG.Vote.blackenedKnown", { n: known.length })}</strong>
-             ${known.map(a => foundry.utils.escapeHTML(a.name)).join(", ")}</p>`
+             ${known.map(a => esc(a.name)).join(", ")}</p>`
         : "";
 
     const result = await DialogV2.wait({
@@ -1137,55 +1186,45 @@ export async function openVerdictDialog() {
             <p>${game.i18n.localize(known.length
                 ? "DRPG.Vote.verdictIntroKnown" : "DRPG.Vote.verdictIntro")}</p>
             ${roster}
-            <label>${game.i18n.localize(known.length
+            ${namedLine}
+            ${deadLine}
+            <label class="drpg-verdict-field">${game.i18n.localize(known.length
                 ? "DRPG.Vote.executedIfWrong" : "DRPG.Vote.executed")}
-                <select name="executed">${options}</select></label>
-            ${known.length ? "" : `<label>${game.i18n.localize("DRPG.Vote.blackened")}
-                <select name="blackened">${options}</select></label>`}
+                <select name="executed">${executedOptions}</select></label>
+            ${known.length ? "" : `<label class="drpg-verdict-field">${game.i18n.localize("DRPG.Vote.blackened")}
+                <select name="blackened">${blackenedOptions}</select></label>`}
             <p class="notes">${game.i18n.localize(known.length
                 ? "DRPG.Vote.verdictNoteKnown" : "DRPG.Vote.verdictNote")}</p>
             ${tiedVote ? `<p class="drpg-warning">${
                 game.i18n.localize("DRPG.Vote.tiedVerdictNote")}</p>` : ""}
         </form>`),
-        buttons: tiedVote
-            /*
-             * G-31: A TIE COUNTS AS GETTING IT WRONG (guide p. 31), so after a
-             * tied vote that is the button under the GM's hand.
-             *
-             * REORDERED, NOT JUST RE-DEFAULTED. `default: true` styles a button
-             * and moves focus, but Enter in a DialogV2 presses the FIRST submit
-             * button in DOM order whatever carries the flag - the finding
-             * behind the per-tab footers in E3. Leaving "Got it right" first
-             * and merely flagging the other one would mean the keyboard and the
-             * highlight disagreed about the most consequential button in the
-             * game.
-             *
-             * Still a button rather than a reading off the tally: the tie is a
-             * fact the module knows, but whether the table got it right is the
-             * one thing only a human at that table can answer.
-             */
-            ? [
-                {
-                    action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"), default: true,
-                    callback: (e, b, d) => read(d, false, known)
-                },
-                {
-                    action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"),
-                    callback: (e, b, d) => read(d, true, known)
-                },
-                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-            ]
-            : [
-                {
-                    action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"), default: true,
-                    callback: (e, b, d) => read(d, true, known)
-                },
-                {
-                    action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"),
-                    callback: (e, b, d) => read(d, false, known)
-                },
-                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-            ],
+        /*
+         * CANCEL FIRST, AND THE ONLY DEFAULT (E10 C4, 1.2.71; audit S06-04). Enter in a DialogV2
+         * presses the FIRST submit button in DOM order whatever carries `default` - the finding
+         * behind the per-tab footers in E3, and why G-31 reordered this footer rather than only
+         * re-flagging it. G-31 put the verdict a tie stands for first ("Got it wrong"), and
+         * "Got it right" first otherwise, so Enter in this window executed somebody: the Blackened
+         * with a register, the executed select's first student without one. A verdict is the one
+         * press in the game that cannot be taken back, so Enter closes the window now, and the two
+         * verdicts follow in one order whatever the count said - the tie is said in the window
+         * (`tiedVerdictNote`), not by which button sits under the hand. Measured on the harness
+         * (tier 2, "Enter in the verdict window executes nobody": the first submit button pressed,
+         * as a browser's Enter presses it); the key itself in Foundry's window is LIVE-E10-02.
+         *
+         * Still a button rather than a reading off the tally: the count is a fact the module knows,
+         * but whether the table got it right is the one thing only a human at that table can answer.
+         */
+        buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
+            {
+                action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"),
+                callback: (e, b, d) => read(d, true, known, dead)
+            },
+            {
+                action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"),
+                callback: (e, b, d) => read(d, false, known, dead)
+            }
+        ],
         rejectClose: false
     });
 
@@ -1200,15 +1239,27 @@ export async function openVerdictDialog() {
  * the dropdown is ignored, because a table that named them right is not also
  * executing somebody else. A wrong one executes whoever the dropdown says and
  * leaves every killer standing.
+ *
+ * Without a register the right verdict executes the Blackened the GM names in
+ * the second select (E10 C4, 1.2.71; audit S06-04): it executed the first
+ * select's, which is "who is executed if they got it wrong" - so a table that
+ * named the killer could see somebody else die for it. And a student `dead`
+ * held when the window opened is refused as the executed one - the option is
+ * disabled, so only a form edited around it submits one (Q-E10-1 (c)): nobody
+ * is executed, and the GM is told.
  */
-function read(dialog, correct, known) {
+function read(dialog, correct, known, dead = new Set()) {
     const f = dialog.element.querySelector("form");
-    const blackenedIdList = known.length ? known.map(a => a.id) : [f.blackened.value];
-    return {
-        correct,
-        executedIds: correct && known.length ? blackenedIdList : [f.executed.value],
-        blackenedIds: blackenedIdList
-    };
+    const blackenedIdList = known.length ? known.map(a => a.id) : [f.blackened?.value].filter(Boolean);
+    if (correct) return { correct, executedIds: blackenedIdList, blackenedIds: blackenedIdList };
+    const executed = String(f.executed?.value ?? "");
+    if (executed && dead.has(executed)) {
+        const name = game.actors.get(executed)?.name ?? executed;
+        warn(`The verdict window named ${name}, who is dead, to execute - nobody is executed.`);
+        ui.notifications.warn(game.i18n.format("DRPG.Vote.accusedDead", { names: name }));
+        return { correct, executedIds: [], blackenedIds: blackenedIdList };
+    }
+    return { correct, executedIds: [executed].filter(Boolean), blackenedIds: blackenedIdList };
 }
 
 /**
