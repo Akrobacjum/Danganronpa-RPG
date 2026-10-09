@@ -5,7 +5,7 @@
  * tests.mjs; the tools are in tests-kit.mjs.
  */
 
-import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING, KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC } from "./config.mjs";
+import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, SFX_EVENTS, CRITICAL, CLEANUP, MURDER_OPENING, KEY_REMNANTS, OBSERVE_DC, ANALYZE_DC, REMNANT_TYPES, OBSERVE_TYPE_ALIAS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { log } from "./utils.mjs";
@@ -7618,6 +7618,12 @@ const REGRESSIONS = [
          * things with the options action-rolls.mjs `chooseTamper` offers before its Stage 6 row. The words
          * a handbook gives the bar are a table below with four alone: another bar has no words here and
          * fails until somebody writes them. Scenario 62's L2 reads the menus' labels against the same files.
+         * THE DAILY LIFE OBSERVE COLUMN (E09 fix r2-G7, 09.10.2026; review round 2's open item 12). Both
+         * handbooks printed OBSERVE_DC's Daily Life ladder beside the scored ones. No roll is scored on it -
+         * `observeDc` is asked a Remnant's kind, no kind (REMNANT_TYPES, OBSERVE_TYPE_ALIAS) is "dailyLife",
+         * and its one reader is Observe's briefing (action-rolls.mjs `thresholdFacts`, `dcObserveDaily`) -
+         * so each handbook now says what the ladder is for, and this reads that sentence and the two facts
+         * it rests on. A kind that is "dailyLife" fails here until the sentence is rewritten.
          */
         const VIS = ["obvious", "evident", "subtle", "hidden"];
         const ladder = (table, col) => VIS.map(v => table[v]?.[col] ?? "?").join(" / ");
@@ -7627,9 +7633,13 @@ const REGRESSIONS = [
         };
         const WORDS = {
             en: { three: { 2: "Two", 3: "Three", 4: "Four" }, bar: { 4: ["below four", "fewer than four"] },
-                tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a trace\.\*\*/, relief: n => `needs ${n} less`, found: "found" },
+                tile: /^\S+ things behind the tile\./, reshape: /^\*\*Reshape a trace\.\*\*/, relief: n => `needs ${n} less`, found: "found",
+                daily: { player: /No roll is scored on the Daily Life row either: no trace is of that kind\. It is the ladder your Observe briefing/,
+                    gm: /No roll is scored on the Daily Life column: no trace is of that kind\. It is the ladder Observe's briefing/ } },
             pl: { three: { 2: "Dwie", 3: "Trzy", 4: "Cztery" }, bar: { 4: ["poniżej czterech", "mniej niż cztery"] },
-                tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Przerób ślad\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych" }
+                tile: /^\S+ rzeczy za kafelkiem\./, reshape: /^\*\*Przerób ślad\.\*\*/, relief: n => `o ${n} mniej`, found: "znalezionych",
+                daily: { player: /Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/,
+                    gm: /Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju\. To drabina, którą briefing Observe/ } }
         };
         const rolls = stripComments(new Map(await otherSources()).get("action-rolls.mjs") ?? "");
         const menu = bodyOf(fnSource(rolls, "chooseTamper"), "options: [", { until: "...(stageSix" });
@@ -7637,6 +7647,8 @@ const REGRESSIONS = [
         ok(things > 0, "chooseTamper's menu was read and offers nothing - this test measured nothing");
         const { unfoundBar: bar, unfoundDespair: despair } = KEY_REMNANTS;
         const { dcRelief, limits } = CLEANUP.transformAction;
+        const dailyRead = [!("dailyLife" in REMNANT_TYPES) && !Object.values(OBSERVE_TYPE_ALIAS).includes("dailyLife"),
+            /"DRPG\.Action\.dcObserveDaily", \{ rows: ladderRows\(col\("dailyLife"\)\) \}/.test(fnSource(rolls, "thresholdFacts"))];
         for (const lang of ["en", "pl"]) {
             const W = WORDS[lang], lines = {};
             for (const book of ["player", "gm"]) {
@@ -7674,7 +7686,8 @@ const REGRESSIONS = [
                 ladder: [/Key Remnant, Final Truth \|/, /^\| Prep, Incident, Tamper \|/, /^\| Faint \|/, /Daily Life \| \d/]
                     .map(re => cells("player", re).slice(1)),
                 gmObserve: rowsAfter("gm", /^\| [^|]+ \| Daily Life \| Key \| Faint \|/),
-                gmAnalyze: rowsAfter("gm", /^\| [^|]+ \| Daily Life \| Faint \|/).map(row => row.slice(1))
+                gmAnalyze: rowsAfter("gm", /^\| [^|]+ \| Daily Life \| Faint \|/).map(row => row.slice(1)),
+                daily: [lineOf("player", W.daily.player) !== "", lineOf("gm", W.daily.gm) !== "", ...dailyRead]
             };
             const daily = VIS.some(v => "dailyLife" in (ANALYZE_DC[v] ?? {}));
             const expected = {
@@ -7687,7 +7700,8 @@ const REGRESSIONS = [
                 gmObserve: VIS.map((v, i) => [measured.gmObserve[i]?.[0] ?? v,
                     ...["dailyLife", "key", "faint"].map(c => String(OBSERVE_DC[v][c])), one(OBSERVE_DC, v, ["prep", "incident", "resolution"])]),
                 gmAnalyze: VIS.map(v => [daily ? String(ANALYZE_DC[v].dailyLife) : "-", String(ANALYZE_DC[v].faint),
-                    one(ANALYZE_DC, v, ["prep", "incident", "resolution"])])
+                    one(ANALYZE_DC, v, ["prep", "incident", "resolution"])]),
+                daily: [true, true, true, true]
             };
             equal(JSON.stringify(measured), JSON.stringify(expected), `the ${lang} handbooks state numbers the code does not have`);
         }

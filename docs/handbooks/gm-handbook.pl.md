@@ -736,7 +736,7 @@ Przy obu ostatnich rzut pada, zanim je zobaczysz: odmowa wyboru przy Skup wzrok,
 | Subtle | 18 | 12 | 18 | 15 |
 | Hidden | 21 | 15 | 21 | 18 |
 
-(DC Observe, `OBSERVE_DC`. Neutral wyceniany jak Prep; Final jak Key.)
+(DC Observe, `OBSERVE_DC`. Neutral wyceniany jak Prep; Final jak Key. Na kolumnie Daily Life nie jest liczony żaden rzut: żaden ślad nie jest tego rodzaju. To drabina, którą briefing Observe pokazuje graczowi dla czegoś bez śladu za sobą - skala, do której przykładasz **Zbadaj punkt zainteresowania**.)
 
 **Analyze.** Head przeciw prawdziwemu typowi bulleta i pierwotnej widoczności. Key i Final Truth Bullets pokazują swój rodzaj w chwili podniesienia, ale ich tekst analizy wciąż czeka na Analyze w najłatwiejszej kolumnie (6 / 9 / 12 / 15); tylko Autopsy Truth Bullet przychodzi w pełni odczytany. Sukces ujawnia prawdziwy typ (i czy jest powiązany ze zbrodnią); porażka blokuje ten bullet dla tego gracza do końca rozdziału - kopia przekazana komuś innemu to inny przedmiot i blokady nie niesie. Ten sam kafelek zawsze oferuje prośbę o wskazówkę do ciebie (**14** subtelna, **18** bezpośrednia, krytyk: jedno pytanie do wyboru gracza) i poszukiwanie ukrytej skrytki (**16**); gdy nie ma już bulleta do analizy, zostają tylko te dwie. Każde użycie Analyze wymaga GMa online i bez niego jest odrzucane, zanim cokolwiek zostanie opłacone.
 
@@ -778,7 +778,7 @@ Podczas **Final Trial** działa ta sama debata i to samo głosowanie; tylko werd
 
 **Zakończ rozdział** (Między sesjami albo konsola Class Trial po zastosowaniu werdyktu) to jeden ekran z polami wyboru, każde policzone, zanim je zaproponuje:
 
-- ujawnij, czym naprawdę jest każdy Truth Bullet, razem z odczytem, tak jak zrobiłby to Analyze (bullety bez zapisanego prawdziwego typu są wymieniane jako luźny koniec); Faint zostaje nieodczytany, a Final pokazuje swój rodzaj bez odczytu, oba wciąż do przeanalizowania w następnym rozdziale;
+- ujawnij, czym naprawdę jest każdy Truth Bullet, razem z odczytem, tak jak zrobiłby to Analyze (bullety bez zapisanego prawdziwego typu są wymieniane jako luźny koniec); Faint zostaje nieodczytany, z tym wyjątkiem, że każdy Final, Faint czy nie, pokazuje swój rodzaj bez odczytu; oba wciąż do przeanalizowania w następnym rozdziale;
 - zbierz Truth Bullets uczniów (Faint i Final zostają);
 - wyczyść Faint Remnants (Reinforced i powiązane ze zbrodnią zostają);
 - usuń Key Remnants postawione w tym rozdziale;

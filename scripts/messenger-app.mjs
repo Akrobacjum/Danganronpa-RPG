@@ -1060,11 +1060,22 @@ async function ruleDecline(action, data) {
            critical's hint card (analyze.mjs) - told the player the GM "turned the attempt down"
            and that their action was back, while nothing was given back; on the critical it read
            as a refused hint the critical had earned. It is the GM's ruling and is said as one,
-           the way `ruleObserveMiss` says its own, and the card settles as answered. */
+           the way `ruleObserveMiss` says its own, and the card settles as answered.
+           IN THE PRESSED BUTTON'S WORDS (E09 fix r2-G7, 09.10.2026; review round 2's open item 9).
+           C14 answered every such card "Nothing more to add.", and a free Search's "something
+           specific" card and a hint asked of the GM (`declineAction`) carry the button "Nothing
+           was there": the GM pressed one sentence and the thread read another. Measured with
+           tier 2's "a free card's Nothing was there and a critical's Nothing more to add each
+           answer in their own words" on the code before this: the Search's line read "Nothing
+           more to add.". The card names its button's sentence in `words` ("there" or "more");
+           a card that names none was posted before 1.2.71, when both cards' button read "Nothing
+           was there" (read in the code at 1.2.70). The card is the player's (see `declineAction`), so `words` picks between
+           these two sentences and nothing else. */
+        const words = data.words === "more" ? "DRPG.Bridge.nothingMore" : "DRPG.Bridge.nothingThere";
         if (owner) {
             await postToThread(owner.id, `<p><strong>${foundry.utils.escapeHTML(
                 game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
-                foundry.utils.escapeHTML(game.i18n.localize("DRPG.Bridge.nothingMore"))}</p>`);
+                foundry.utils.escapeHTML(game.i18n.localize(words))}</p>`);
         }
         return settled("DRPG.Bridge.settledAnswered");
     }

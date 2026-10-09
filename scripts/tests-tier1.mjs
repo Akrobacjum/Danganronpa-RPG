@@ -5849,7 +5849,8 @@ const INVARIANTS = [
          * band it set. Read from both lang files and config.mjs, every reading a text that must be there or a
          * phrase that must not, each named; then `reshapeCardParts` (pure) for a reshape one band quieter,
          * two, the same and louder; and, read in the source, the New trace dialog's room field and the leftover
-         * Keys' sentence counted with `plural`. Not this test: R1 (twins and plural forms), the four tier-2 tests of
+         * Keys' sentence counted with `plural`; and (E09 fix r2-G7, review round 2's N4) the chapter-end line
+         * on a Faint Final, against `revealPlan`'s order read in the source. Not this test: R1 (twins and plural forms), the four tier-2 tests of
          * E09 C14, which play the cards, and scenario 62 L, which reads a missed Final on a player.
          */
         const wrong = [];
@@ -5896,6 +5897,14 @@ const INVARIANTS = [
             wrong.push("investigation.mjs openNewTrace: the room field is not labelled Room");
         if (!/plural\("DRPG\.Investigation\.leftoverKeys", \{ n: old \}\)/.test(investigation)) wrong.push("investigation.mjs: leftoverKeys is not counted with plural()");
         both("DRPG.Bridge.nothingMore", w => w.length > 0, "missing");
+        // E09 fix r2-G7 (review round 2's N4): `revealPlan` decides a Final before it asks whether the sweep spares a
+        // Faint, so a Faint Final shows its kind (read in the source), and the chapter-end screen's line says so.
+        const plan = fnSource(stripComments(sources.get("chapter.mjs") ?? ""), "revealPlan");
+        const finalAt = plan.indexOf('realType === "final"'), faintAt = plan.indexOf("sparedBySweep(");
+        if (!(finalAt >= 0 && faintAt > finalAt)) wrong.push("chapter.mjs revealPlan: a Final is not decided before the Faint");
+        for (const [lang, phrase] of [["en", "every Final, Faint or not, shows its kind"], ["pl", "każdy Final, Faint czy nie, pokazuje swój rodzaj"]]) {
+            if (!said(lang, "DRPG.Chapter.revealKeeps")?.includes(phrase)) wrong.push(`${lang} DRPG.Chapter.revealKeeps: a Faint Final is said not to be revealed`);
+        }
         equal(JSON.stringify(wrong), JSON.stringify([]),
             "a Tamper, Analyze, Observe or Cleanup text says what the rules do not (each: the language, the key or the table, what it says)");
 

@@ -488,7 +488,7 @@ Przy rzucie nigdy nie widzisz trudności, ale kształt drabiny nie jest tajemnic
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
 | Coś z Daily Life | 8 / 12 / 18 / 21 | - |
 
-Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Life: Truth Bullet odczytuje się w wierszu tego, czym naprawdę jest. Wątpliwy ślad trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
+Kolumny to Obvious / Evident / Subtle / Hidden. Analyze nie ma drabiny Daily Life: Truth Bullet odczytuje się w wierszu tego, czym naprawdę jest. Na wierszu Daily Life nie jest też liczony żaden rzut: żaden ślad nie jest tego rodzaju. To drabina, którą briefing Observe pokazuje dla czegoś bez śladu za sobą, a orzeka o tym GM. Wątpliwy ślad trudno zauważyć, a w ręku jest oczywisty; przygotowany łatwo podnieść i trudno odczytać.
 
 ---
 

@@ -736,7 +736,7 @@ Both of the last two have rolled before you see them: refusing the Focus pick, a
 | Subtle | 18 | 12 | 18 | 15 |
 | Hidden | 21 | 15 | 21 | 18 |
 
-(Observe DCs, `OBSERVE_DC`. Neutral is priced as Prep; Final as Key.)
+(Observe DCs, `OBSERVE_DC`. Neutral is priced as Prep; Final as Key. No roll is scored on the Daily Life column: no trace is of that kind. It is the ladder Observe's briefing shows the player for something with no trace behind it - the scale to hold an **Examine point of interest** to.)
 
 **Analyze.** Head against the bullet's real type and original visibility. Key and Final Truth Bullets show their kind the moment they are picked up, but their analysis text still waits for an Analyze on the easiest column (6 / 9 / 12 / 15); only an Autopsy Truth Bullet arrives fully read. A success reveals the true type (and whether it is tied to the crime); a failure locks that bullet for this player until the chapter ends - a copy handed to somebody else is a different item and carries no lock. The same tile always offers a hint request to you (**14** subtle, **18** direct, critical: one question of their choosing) and the hunt for a hidden stash (**16**); with no bullet left to analyse, only those two remain. Every use of Analyze needs a GM online and is refused, before anything is paid, without one.
 
@@ -778,7 +778,7 @@ During a **Final Trial** the same floor and vote run; only the verdict is the Ma
 
 **End the chapter** (Between sessions, or the trial console once the verdict is applied) is one screen with checkboxes, each counted before it is offered:
 
-- reveal what every Truth Bullet really is, with its reading, as an Analyze would (bullets with no real type recorded are named as a loose end); a Faint stays unread and a Final shows its kind without its reading, both still to be analysed in the next chapter;
+- reveal what every Truth Bullet really is, with its reading, as an Analyze would (bullets with no real type recorded are named as a loose end); a Faint stays unread, except that every Final, Faint or not, shows its kind without its reading; both still to be analysed in the next chapter;
 - sweep the students' Truth Bullets (Faint and Final stay);
 - clear the Faint Remnants (reinforced traces and anything tied to the crime stay);
 - clear this chapter's planted Key Remnants;

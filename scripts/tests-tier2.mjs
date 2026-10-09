@@ -3143,7 +3143,9 @@ const SCENARIOS = [
          * Escape together failed first; a trap sprung on the victim with the third on their
          * side, the victim killed by the GM and Stage 6 taken (`killedIntoStageSix`). Read each
          * time: the stage, the body, the offer on record and the tile's answer. Red at 35bba6b:
-         * <measured by A2>.
+         * the second incident, whose third tried Escape together, read as the first: ["resolution", true, Chie, Aiko]
+         * where ["resolution", true, null, null] was expected; the first and the trap's read as expected
+         * (e32run/c6red/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
         const M = await import("./murder.mjs");
@@ -3197,7 +3199,10 @@ const SCENARIOS = [
          * chose nothing: the GM takes the first to Stage 6 with the victim alive and closes it;
          * the second is closed in the fight. Read: the offer at Stage 6, each close's checklist
          * (its title, its buttons, and its one sentence - the victim survived, or the incident
-         * was interrupted) and the Blackened grown. Red at 35bba6b: <measured by A2>.
+         * was interrupted) and the Blackened grown. Red at 35bba6b: the Stage 6 with the victim alive armed the
+         * betrayal (the offer on record), both closes showed the body's checklist (body, investigation, autopsy,
+         * betrayal, close) without the sentence, and the killer was recorded Blackened (e32run/c6red/named.json,
+         * 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
         const M = await import("./murder.mjs");
@@ -3255,7 +3260,8 @@ const SCENARIOS = [
          * the opening roll, where its victim holds no seat (D6); in the fight; and after the
          * killer's Finishing blow, whose victim is dead. Read off the `secret.card` packets the
          * GM sent (`wordsSent`): who was sent which words, and how many cards, each veiled.
-         * Red at 35bba6b: <measured by A2>.
+         * Red at 35bba6b: at each of the three closes nobody was sent words and no card was posted (measured [[], 0,
+         * true] three times) (e32run/c6red/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a bystander, each with a player");
         const M = await import("./murder.mjs");
@@ -3419,7 +3425,8 @@ const SCENARIOS = [
          * running out with Sanity full, and the killer's Strike runs them out; the GM closes.
          * Read: the stage after the blow, the ran-out cards, the victim dead, a second killing
          * that reached chapter.mjs's "already dead" warning, and the closes - one of each and
-         * none of the last but one. Red at f177726: <measured by A2>.
+         * none of the last but one. Red at f177726: the ran-out cards came twice (measured ["resolution", 2, true, 0,
+         * 1] against ["resolution", 1, true, 0, 1]) (e32run/c4red/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -5043,7 +5050,8 @@ const SCENARIOS = [
          * closes it twice at once. Read: the closes the hook counts; a second close that ran
          * its steps as far as the wipe and was refused there (`restoreState`'s `expect`, the
          * layer under this one - its warning, "... in the place of the one it closed"); and
-         * that nothing runs afterwards. Red at f177726: <measured by A2>.
+         * that nothing runs afterwards. Red at f177726: two closes where one was expected (measured [2, 0, null]
+         * against [1, 0, null]) (e32run/c4red/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -5081,7 +5089,8 @@ const SCENARIOS = [
          * students with players: the killer holds a knife and kills with a Finishing blow, which
          * swings nothing (no weapon in its definition); the accomplice stabs with their own knife
          * first. Read after the close: the accomplice's knife broken, the killer's whole. Red at
-         * 5c80c4d: <measured by A2>.
+         * 5c80c4d: the accomplice's swung knife whole and the killer's held one broken (measured [false, true] against
+         * [true, false]) (e32run/c12red/named.json, 03.10.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
         const M = await import("./murder.mjs");
@@ -5177,7 +5186,8 @@ const SCENARIOS = [
          * used up - the crime tool goes when Stage 6 closes (CLEANUP.destroysTools). `endMurder`
          * breaks only after Stage 6 now. The killer stabs the victim with a knife, who stands,
          * and the GM closes the fight. Read after the close: the knife whole (the grid's DM13 is
-         * the failed opening). Red at 5c80c4d: <measured by A2>.
+         * the failed opening). Red at 5c80c4d: the knife swung in the fight broken by the close (measured true,
+         * expected false) (e32run/c12red/named.json, 03.10.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -5214,7 +5224,9 @@ const SCENARIOS = [
          * (`resolveCleanup`, as the bridge calls it), puts them away - the flag the sheet's toggle
          * clears - and the body is found (`destroyCleaningTools`, the discovery's half). Read: the
          * row after the attempt, the gloves broken and named, the row gone; and the store's table
-         * (cut by the reset's "incident" group, backed up, synced). Red at 5c80c4d: <measured by A2>.
+         * (cut by the reset's "incident" group, backed up, synced). Red at 5c80c4d: the gloves not written down, not
+         * broken, not named (measured [false, false, false, false] against [true, true, true, false])
+         * (e32run/c12red/named.json, 03.10.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
@@ -5596,7 +5608,9 @@ const SCENARIOS = [
          * accomplice lays a misleading trail (`resolveStageSix`), each wearing gloves, and the
          * accomplice puts theirs away; the GM closes, then the body is found. Read: the GM's tracker heading a clean-up table for each of the two
          * in Stage 6 (`cleanupSection`, which showed the first killer's alone), no gloves broken by
-         * the close, both by the discovery, no row left. Red at 5c80c4d: <measured by A2>.
+         * the close, both by the discovery, no row left. Red at 5c80c4d: no clean-up table for either killer and no
+         * gloves broken at the discovery (measured [[false, false], [false, false], [false, false], 0] against [[true,
+         * true], [false, false], [true, true], 0]) (e32run/c12red/named.json, 03.10.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and a third, each with a player");
         needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
@@ -5657,7 +5671,8 @@ const SCENARIOS = [
          * Bullet copied off it, as the T-1 test finds one) with gloves in hand, the Tamper the bridge
          * scores: the trace goes, and no row is written. Green at 5c80c4d, which had no store; with
          * the killers' rule taken out of `noteCleaningTool` (the mutant c12-innocent-written):
-         * <measured by A2>.
+         * the trace scored and the gloves written down (measured [false, true] against [false, false])
+         * (e32run/c12m/c12-innocent-written.json, 03.10.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("sceneOnScreen"), "the scrubbed trace is placed on the scene on screen");
         const [who] = cast(1);
@@ -5804,7 +5819,9 @@ const SCENARIOS = [
          * players; a trace of this chapter laid before the fight; the victim marked dead from the
          * list, the GM's "Stage 6?" answered yes. Read: the windows asked, the stage and how it
          * ended, the death on the table, the trace tied, and no "a student is dead" card (F16
-         * stands). Red at 827f07b: <measured by A2>.
+         * stands). Red at 827f07b: no window asked, the incident left at "incident" with no ending, the trace untied
+         * (measured [[], "incident", null, true, false, 0]) (e32run/c13red/named.json, 03.10.2026; read there by E09
+         * fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "a killer and a victim, each with a player");
         needs(world.atLeast("sceneOnScreen"), "the chapter's trace is placed on the scene on screen");
@@ -5925,7 +5942,8 @@ const SCENARIOS = [
          * room (no concealment roll) works, free, on an indirect murder of their own made there
          * with a statistic; the cover roll's window is closed (`rollTrait` answers null for it, as
          * a closed window does). Read: the throws, the traces the project left, and the card's
-         * line. Red at 827f07b: <measured by A2>.
+         * line. Red at 827f07b: the project left no trace and its card no line (measured [["finesse", "closed"], [],
+         * false]) (e32run/c13red/named.json, 03.10.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
         needs(world.atLeast("namedRooms", 2), "a room is left to the worker alone");
@@ -5988,7 +6006,9 @@ const SCENARIOS = [
          * the tile's request runs on the GM); the new incident's opening succeeds. Read: the
          * closes, the Blackened grown by the first incident's killers, the new incident's two
          * names, and Self-defence among the new victim's actions, open. Red at 048332a:
-         * <measured by A2>.
+         * the first incident not closed and nobody recorded Blackened (measured [true, 0, false, [], ...] against
+         * [true, 1, true, [Aiko, Chie], ...]; the new incident's names, stage and Self-defence as expected)
+         * (e32run/c5ared/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
         const M = await import("./murder.mjs");
@@ -6031,7 +6051,9 @@ const SCENARIOS = [
          * close's own hook, the killer's on the third - and the betrayal finds a fight running.
          * Read: the betrayal's answer, the incident that runs, the offer back on the record,
          * the third's player sent the refusal's words, and one close. Red at 048332a:
-         * <measured by A2>.
+         * the betrayal answered with an incident's record, the incident that ran was Chie's on Aiko, the offer was not
+         * put back and nobody was told or closed (measured [<record>, Chie, Aiko, null, 0, 0] against [null, Aiko,
+         * Chie, "Chie>Aiko", 1, 1]) (e32run/c5ared/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
         const M = await import("./murder.mjs");
@@ -6078,7 +6100,8 @@ const SCENARIOS = [
          * Stage 6 itself now, and `openMurder` refuses while any incident runs. A direct
          * murder is taken to Stage 6 by the GM; a second is opened. Read: its answer, and the
          * incident afterwards - opened when, whose, at which stage. Red at 048332a:
-         * <measured by A2>.
+         * the second murder answered with its record and opened over the Stage 6, its own killer and victim at
+         * "openingRoll" (e32run/c5ared/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "two killers and a victim, each with a player");
         const M = await import("./murder.mjs");
@@ -6108,7 +6131,8 @@ const SCENARIOS = [
          * students with players: the accomplice's offer is armed by the killer's blow and the
          * GM closes the incident; the clock moves to the Class Trial and back. Read: the tile's
          * answer and the offer on the record in the trial, then the tile's answer after it.
-         * Red at 048332a: <measured by A2>.
+         * Red at 048332a: the tile answered in the Class Trial (measured [Aiko, Aiko, Aiko] against [null, Aiko, Aiko])
+         * (e32run/c5ared/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
         const M = await import("./murder.mjs");
@@ -6145,7 +6169,10 @@ const SCENARIOS = [
          * windows answered as their player would). Read in the Eclipse: the actions the third has
          * left, the GMs' row and the offer on the record, the incident's stage; at the lights: the
          * closes, both first killers Blackened, the new incident's two names, the row gone.
-         * Red at 821ec9e: <measured by A2>.
+         * Red at 821ec9e: in the dark nothing parked, no action spent, no row, the offer still on record; at the lights
+         * no close, nobody Blackened, the first incident still at Stage 6 (measured [[false, 0, null, null, <offer>,
+         * "resolution", []], [0, false, 0, Aiko, Botan, "resolution", false]]) (e32run/c5bred/named.json, 28.09.2026;
+         * read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
         const M = await import("./murder.mjs");
@@ -6209,7 +6236,9 @@ const SCENARIOS = [
          * incident, another is opened in its place from the close's own hook - the killer's on the
          * third - and the betrayal finds a fight running. Read: the incident that runs, the offer
          * back on the record, the third's player sent the refusal's words, one close, the row gone.
-         * Red at 821ec9e: <measured by A2>.
+         * Red at 821ec9e: not parked, the running incident's victim Botan, nobody told, nothing closed (measured
+         * [false, Aiko, Botan, "Chie>Aiko", 0, 0, false] against [true, Aiko, Chie, "Chie>Aiko", 1, 1, false])
+         * (e32run/c5bred/named.json, 28.09.2026; read there by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
         const M = await import("./murder.mjs");
@@ -6269,7 +6298,9 @@ const SCENARIOS = [
          * alone in a room before it all (the row written as the GMs hold an allowed one, declared first), and
          * then the accomplice declares the betrayal from the tile. Read: the incident that opened,
          * the betrayer's player sent the refusal's words, and the offer back on the record.
-         * Red at 821ec9e: <measured by A2>.
+         * Red at 821ec9e: the betrayal not parked and its refusal sent to nobody (measured [false, Aiko, Daichi, 0,
+         * "Chie>Aiko"] against [true, Aiko, Daichi, 1, "Chie>Aiko"]) (e32run/c5bred/named.json, 28.09.2026; read there
+         * by E09 fix r2-G7).
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 3), "a killer, a victim and an accomplice, each with a player");
         needs(world.atLeast("livingStudents", 4), "a fourth student, the direct murder's victim");
@@ -19484,6 +19515,96 @@ const SCENARIOS = [
             }
             await settle();
         }
+    }],
+    ["a free card's Nothing was there and a critical's Nothing more to add each answer in their own words", async () => {
+        /*
+         * E09 fix r2-G7, 09.10.2026; review round 2's open item 9 (C14's departure). E09 C14 had `ruleDecline`
+         * (messenger-app.mjs) answer every card with nothing paid "<GM> rules: Nothing more to add." - the words
+         * of the Analyze critical's hint card - and a free Search's "something specific" card, whose button
+         * reads "Nothing was there" (action-rolls.mjs `declineAction`), got the same line: the GM pressed one
+         * sentence and the thread read another. One student with a player, stood alone in a room
+         * (`standAlone`), searches free for something specific, the window answered as the player would and
+         * the roll a hit that `rollTrait` answers; then a bullet whose answer key says Prep is analysed on a
+         * critical. On each card the second button is pressed as a GM presses it (`wireCallActions`). Read
+         * per card: the button's words, whether the thread was sent the ruling in those words, whether in the
+         * other card's, and whether the card settled.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "each card goes to a player's thread");
+        needs(world.atLeast("studentTokensOnScreen", 1), "a student stood in a room by their token");
+        needs(world.atLeast("namedRooms", 2), "a room is left to the searcher alone");
+        const rolls = await import("./action-rolls.mjs");
+        const { resolveAnalyze } = await import("./analyze.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { ACTIONS } = await import("./config.mjs");
+        const { contentOf, cardFlag } = await import("./secret.mjs");
+        const { wireCallActions } = await import("./messenger-app.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const student = livingStudents().find(a => player(a) && canvas?.scene?.tokens?.some(t => t.actorId === a.id));
+        must(student, "no living student with a connected player has a token on the scene on screen");
+        const esc = foundry.utils.escapeHTML;
+        const line = key => `${esc(game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
+            esc(game.i18n.localize(key))}`;
+        const THERE = { button: "DRPG.Bridge.nothingThere", line: "DRPG.Bridge.nothingThere" };
+        const MORE = { button: "DRPG.Analyze.critNothingMore", line: "DRPG.Bridge.nothingMore" };
+        const pressDecline = async (had, own, other) => {
+            const withDecline = () => game.messages.contents.find(m => !had.has(m.id)
+                && String(contentOf(m) ?? "").includes('data-drpg-call="decline"'));
+            await until(withDecline, 8000);
+            const card = withDecline();
+            must(card, "the action put no card with a second button to the GMs");
+            const since = new Set(game.messages.contents.map(m => m.id));
+            const body = document.createElement("div");
+            body.innerHTML = contentOf(card);
+            wireCallActions(body, card);
+            const button = body.querySelector('[data-drpg-call="decline"]');
+            must(button, "the card's second button was not drawn");
+            const words = button.textContent.trim();
+            button.click();
+            await until(() => cardFlag(game.messages.get(card.id), "settled"), 8000);
+            await settle();
+            const said = game.messages.contents.filter(m => !since.has(m.id)).map(m => String(contentOf(m) ?? ""));
+            return [words === game.i18n.localize(own.button), said.some(w => w.includes(line(own.line))),
+                said.some(w => w.includes(line(other.line))), Boolean(cardFlag(game.messages.get(card.id), "settled"))];
+        };
+        const read = {};
+        const stood = await standAlone(student);
+        const windows = answerWindows((cfg, root) => {
+            const specific = root.querySelector('input[name="variant"][value="specific"]');
+            if (specific) {
+                for (const each of root.querySelectorAll('input[name="variant"]')) each.checked = each === specific;
+                const request = root.querySelector('[name="request"]');
+                if (request) request.value = "SUITE E09 r2-G7 a spare key";
+            }
+            return press(cfg, root);
+        });
+        let item = null;
+        try {
+            const total = Math.min(...ACTIONS.search.thresholds.map(t => t.min)) + 1;
+            student.rollTrait = async () => ({ roll: { total, isCritical: false, result: { duality: 1, total },
+                options: { roll: { trait: "instinct" } } } });
+            const beforeSearch = new Set(game.messages.contents.map(m => m.id));
+            await rolls.performAction(student, "search", { free: true });
+            read.search = await pressDecline(beforeSearch, THERE, MORE);
+            item = await bullets.createTruthBullet(student, { name: "SUITE E09 r2-G7 a critical's bullet", realType: "prep" });
+            must(item, "the fixture's bullet was not made");
+            const beforeCritical = new Set(game.messages.contents.map(m => m.id));
+            const verdict = await resolveAnalyze({ actorId: student.id, itemId: item.id, total: 40, isCritical: true });
+            must(verdict?.success, "the critical Analyze did not identify the bullet - its hint card would measure nothing");
+            read.critical = await pressDecline(beforeCritical, MORE, THERE);
+        } finally {
+            windows.restore();
+            delete student.rollTrait;
+            if (item) {
+                const uuid = item.uuid;
+                try { await item.delete(); } catch { /* already gone */ }
+                try { await bullets.dropSecret(uuid); } catch { /* nothing filed */ }
+            }
+            await stood.back();
+        }
+        equal(stableJson(read), stableJson({ search: [true, true, false, true], critical: [true, true, false, true] }),
+            "a free card's ruling was told to the thread in other words than its button's, or did not settle (per card: the "
+            + "button's words, the ruling in them, the ruling in the other card's, settled)");
     }],
 
     ["a misleading trail names its band as the table does, and the GMs' copy reads the roll against its threshold", async () => {

@@ -488,7 +488,7 @@ You are never shown a difficulty at the roll, but the shape of the ladder is not
 | Faint | 12 / 15 / 18 / 21 | 8 / 12 / 15 / 18 |
 | Something from Daily Life | 8 / 12 / 18 / 21 | - |
 
-Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladder: a Truth Bullet is read on the row of what it really is. A faint trace is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
+Columns are Obvious / Evident / Subtle / Hidden. Analyze has no Daily Life ladder: a Truth Bullet is read on the row of what it really is. No roll is scored on the Daily Life row either: no trace is of that kind. It is the ladder your Observe briefing shows for something with no trace behind it, which the GM rules on. A faint trace is hard to spot and obvious once in your hand; a prepared one is easy to pick up and hard to read.
 
 ---
 

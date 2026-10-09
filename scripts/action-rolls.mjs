@@ -4460,7 +4460,10 @@ function declineAction(actor, receipt = null) {
             amount: String(receipt?.amount ?? 0),
             // A Burst comes back as a Burst, which is the one thing the far side
             // cannot work out for itself.
-            grant: String(Boolean(receipt?.grant))
+            grant: String(Boolean(receipt?.grant)),
+            // The words the far side answers a free card with - this button's own
+            // (`ruleDecline`, E09 fix r2-G7).
+            words: "there"
         }
     };
 }

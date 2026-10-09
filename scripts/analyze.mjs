@@ -342,9 +342,10 @@ async function identify(item, actor, realType, isCritical, dc, total) {
                        down" and that their action was back - beside a critical that had just
                        identified the bullet and owed a hint. `paid: "none"` is `declineAction`'s
                        shape for a free card, and `ruleDecline` (messenger-app.mjs) answers a card
-                       with nothing to give back in the ruling's own words. */
+                       with nothing to give back in the words its `words` names - this button's
+                       own (E09 fix r2-G7). */
                     { action: "decline", label: game.i18n.localize("DRPG.Analyze.critNothingMore"),
-                      data: { by: actor.id, paid: "none" } }
+                      data: { by: actor.id, paid: "none", words: "more" } }
                 ]
             });
         } catch (err) {
