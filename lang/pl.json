@@ -1056,6 +1056,8 @@
       "who": "Twój głos",
       "cast": "Oddaj głos",
       "castConfirmed": "Twój głos oddany.",
+      "alreadyIn": "Twój głos jest już oddany.",
+      "notReceived": "Żaden GM nie ma jeszcze twojego głosu. Ta przeglądarka go zachowa i wyśle, gdy połączy się GM.",
       "dismissed": "Karta zamknięta bez głosu. Nic ci nie policzono - poproś GM-a, by wysłał ją ponownie.",
       "notRunning": "Żadne głosowanie nie jest teraz otwarte.",
       "stillOut": "Jeszcze nie głosowało: {n} - {who}",
@@ -2612,7 +2614,9 @@
         "searchTokens.spend": "Wydanie Search Tokena",
         "searchTokens.takePlant": "Szukanie podłożonego przedmiotu",
         "searchTokens.returnPlant": "Zwrot podłożonego przedmiotu",
-        "vote.run": "Krok głosowania, wykonywany przez głównego GM-a"
+        "vote.run": "Krok głosowania, wykonywany przez głównego GM-a",
+        "vote.cast": "Oddanie głosu",
+        "vote.ask": "Twoja karta do głosowania"
       },
       "notDone": "Prośba „{what}” nie została wykonana. {why}",
       "nothingSpent": "Nic nie wydano.",
@@ -2672,6 +2676,9 @@
         "callNotPaid": "Klient GM-a nie widział zapłaty Hope za ten Call.",
         "callNotApproved": "Klient GM-a nie ma zgody GM-a na ten Call. Poproś o nią jeszcze raz.",
         "itemNotDecided": "Żaden GM nie zdecydował jeszcze o tym przedmiocie, który gracz dodał do karty: do tego czasu nie zmienia właściciela.",
+        "notEligible": "Nie masz głosu w tym głosowaniu.",
+        "sameTwice": "Twoja karta do głosowania wskazuje kogoś dwa razy.",
+        "wrongCount": "Twoja karta do głosowania nie wskazuje tylu osób, ilu wymaga głosowanie.",
         "sheetPutBack": "Klient GM-a cofnął tę zmianę na twojej karcie: nic, o czym wie, jej nie pokrywa."
       },
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",

@@ -363,8 +363,9 @@ Hooks.once("ready", () => {
     // after the other socket listeners for the same reason they are ordered:
     // the GM-to-GM ledger sync is a socket conversation like any other.
     safely("Truth Bullets", registerTruthBullets);
-    // After the other socket listeners: a ballot is addressed to the GMs and
-    // tallied in memory, so it needs the socket up and nothing else.
+    // After the other socket listeners and the bridge: a GM hands a player a
+    // ballot on the socket, and a player who loads while a vote is open asks the
+    // primary GM for theirs on the bridge at once (vote.mjs `askForBallot`, E10 C2).
     safely("the vote", registerVote);
     // Same requirements as Truth Bullets: needs the socket and `game.users`
     // populated, and asks the other GMs for the pick if this browser has none.

@@ -18258,7 +18258,9 @@ const SCENARIOS = [
          * a ballot is a row of the GMs' store, keyed by the user Foundry says sent it, stamped with
          * the record's chapter and round. Opened here on a blank record with the ballots caught and
          * never sent; two voters' ballots are then handed to this GM's socket listeners as Foundry
-         * hands a packet, each with its player's id. The rows are dropped and the vote closed after.
+         * hands a packet, each with its player's id - since E10 C2 as the bridge's `vote.cast`, with
+         * the vote's round and as many names as it asks for, and the primary's answers to the two
+         * players caught. The rows are dropped and the vote closed after.
          * Red at 1f26a0c: the record holds no vote.
          */
         needs(world.atLeast("studentsWithConnectedPlayer", 2), "two voters, each a connected player's");
@@ -18270,7 +18272,7 @@ const SCENARIOS = [
         const { livingStudents } = await import("./chapter.mjs");
         const socket = game.socket;
         const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
-        const handed = [];
+        const handed = [], answered = [];
         let voters = [];
         try {
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
@@ -18278,6 +18280,11 @@ const SCENARIOS = [
             socket.emit = function (event, packet, options, ...rest) {
                 if (packet?.action === "vote.open") {
                     handed.push(...(options?.recipients ?? []));
+                    return true;
+                }
+                // The primary's answers to the two ballots below, which no player's browser is waiting on (E10 C2).
+                if (String(packet?.requestId ?? "").startsWith("suite-ballot-")) {
+                    if (packet.action !== "bridge.ack") answered.push([packet.userId, packet.action]);
                     return true;
                 }
                 return send.call(this, event, packet, options, ...rest);
@@ -18291,19 +18298,22 @@ const SCENARIOS = [
             ok(handed.length >= 2, `${handed.length} ballot(s) went out - two voters' rows would measure nothing`);
 
             voters = vote.issued.slice(0, 2);
-            const [named] = livingStudents();
+            const names = livingStudents().slice(0, vote.picks).map(actor => actor.id);
+            must(names.length === vote.picks, `${names.length} living student(s) for a vote that asks for ${vote.picks} - the ballots would be refused`);
             for (const userId of voters) {
                 for (const listener of [...socket.listeners(`module.${MODULE_ID}`)]) {
-                    listener({ action: "vote.ballot", choice: [named.id] }, userId);
+                    listener({ action: "vote.cast", requestId: `suite-ballot-${userId}`, round: vote.round, choice: names }, userId);
                 }
             }
+            await until(() => answered.length >= voters.length, 3000);
             await settle();
             const rows = Object.entries(ballotStore.entries())
                 .filter(([, row]) => row.chapter === getClock().chapter && row.round === 1)
                 .map(([userId, row]) => [userId, row.choice]).sort();
-            equal(stableJson([rows, V.votesIn()]), stableJson([voters.map(id => [id, [named.id]]).sort(), 2]),
+            equal(stableJson([rows, V.votesIn(), answered.sort()]),
+                stableJson([voters.map(id => [id, names]).sort(), 2, voters.map(id => [id, "bridge.done"]).sort()]),
                 "the two ballots are not two rows of the GMs' store keyed by their senders, for this chapter's round 1, "
-                + "or the count does not read them");
+                + "the count does not read them, or a player was not answered that theirs is in");
         } finally {
             if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
             await ballotStore?.dropMany?.(voters);
@@ -18377,6 +18387,162 @@ const SCENARIOS = [
             ui.notifications.warn = warn;
             if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
             await V.closeVote();
+            await settle();
+        }
+    }],
+
+    ["a ballot naming one student twice or too many or of a round gone is refused and told", async () => {
+        /*
+         * E10 C2, 1.2.71; audit S06-12, S06-17; the plan's V2. Until C2 a player's answer was a raw
+         * packet (`vote.ballot`) the primary recorded on a candidate filter alone: a ballot naming one
+         * student twice was a row that counted them twice, one naming more or fewer than the vote asks
+         * for counted as it stood, and a window of an earlier round counted in this one. Opened here on
+         * a blank record with the ballots caught and never sent - each voter's list read off the packet
+         * that would have carried it; one voter's answers are then handed to this GM's socket listeners
+         * as Foundry hands a packet, with the voter's id, and each answer to the voter is caught: the
+         * old packet and the bridge's `vote.cast` naming one student twice; then `vote.cast` naming one
+         * more than the vote asks for, a name not on the list, the right names for the round before,
+         * and the right names. Read: the voter's row after the first two (none), what each cast was
+         * answered, the row before the right names (none) and after them, and the count. The row is
+         * dropped and the vote closed after. Red at E10 C1's tree (A1, 09.10.2026): the old packet naming
+         * one student twice is a row that names them twice.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a voter with a connected player");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which records the ballots");
+        const V = await import("./vote.mjs");
+        const { ballotStore } = await import("./gm-stores.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const lists = new Map(), told = new Map();
+        let voter = null;
+        const rowOf = () => {
+            const row = ballotStore.get(voter);
+            return row && row.chapter === getClock().chapter && row.round === V.trialProgress().vote.round ? row.choice : null;
+        };
+        const hand = packet => {
+            for (const listener of [...socket.listeners(`module.${MODULE_ID}`)]) listener(packet, voter);
+        };
+        const castAs = async (requestId, round, choice) => {
+            hand({ action: "vote.cast", requestId, round, choice });
+            await until(() => told.has(requestId), 3000);
+            return told.get(requestId) ?? "unanswered";
+        };
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    for (const userId of options?.recipients ?? []) lists.set(userId, (packet.candidates ?? []).map(c => c.id));
+                    return true;
+                }
+                if (String(packet?.requestId ?? "").startsWith("suite-cast-")) {
+                    if (packet.action === "bridge.refused") told.set(packet.requestId, ["refused", packet.reason]);
+                    if (packet.action === "bridge.done") told.set(packet.requestId, ["done", packet.value ?? null]);
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await V.openVote();
+            const { round, picks, issued } = V.trialProgress().vote;
+            voter = issued?.[0] ?? null;
+            const list = lists.get(voter) ?? [];
+            must(voter && list.length > picks,
+                `the voter's ballot lists ${list.length} name(s) for a vote that asks for ${picks} - one more than it asks for cannot be named`);
+            const right = list.slice(0, picks);
+
+            hand({ action: "vote.ballot", choice: [list[0], list[0]] });
+            const twice = await castAs("suite-cast-twice", round, [list[0], list[0]]);
+            await settle();
+            equal(stableJson(rowOf()), stableJson(null),
+                "a ballot naming one student twice is a row of the GMs' store - the count reads the name twice");
+            const many = await castAs("suite-cast-many", round, list.slice(0, picks + 1));
+            const stranger = await castAs("suite-cast-stranger", round, [...list.slice(0, picks - 1), "suite-not-a-candidate"]);
+            const stale = await castAs("suite-cast-stale", round - 1, right);
+            const before = rowOf();
+            const done = await castAs("suite-cast-right", round, right);
+            await settle();
+            equal(stableJson([twice, many, stranger, stale, before, done, rowOf(), V.votesIn()]),
+                stableJson([["refused", "sameTwice"], ["refused", "wrongCount"], ["refused", "missing"], ["refused", "movedOn"], null,
+                    ["done", { round }], right, 1]),
+                "a ballot the vote did not ask for was recorded or not told why, or the right one was not recorded and answered "
+                + "(one name twice, one too many, a name not on the list, the round before; the row before the right one; its answer, row and count)");
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            if (voter) await ballotStore?.dropMany?.([voter]);
+            await V.closeVote();
+            await settle();
+        }
+    }],
+
+    ["a player whose students the GMs hold dead is handed no ballot and casts none though the sheets say alive", async () => {
+        /*
+         * E10 C2, 1.2.71; the plan's 1b.2 (R311's row SHEET vote.mjs#eligibleVoters). Who votes was read
+         * off each student's death flag on the document, which the student's owner can write: the owner
+         * of a dead student who wiped the flag from their console was handed a ballot, and it counted,
+         * for as long as the GMs' put-back took to land - or for good where it failed. Here every student
+         * a connected player owns is held dead in the GMs' marks (`sheetMarkStore`), as a put-back still
+         * on its way leaves them, while each sheet says alive; a vote is opened with the ballots caught,
+         * and that player's `vote.cast` and `vote.ask` are handed to this GM's socket listeners as
+         * Foundry hands a packet. Read: whether the player was handed a ballot or is on the record's
+         * list, what each request was answered, and that the sheets still say alive. The marks are put
+         * back and the vote closed after. Red at E10 C1's tree (A1, 09.10.2026): the player is handed a
+         * ballot.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 2), "two voters, so the vote opens with one of them held dead");
+        const { TRIAL } = await import("./config.mjs");
+        must(!TRIAL.deadCastBallots, "config.mjs lets the dead vote (TRIAL.deadCastBallots), so a student held dead is handed a ballot by design");
+        const { isPrimaryGm } = await import("./utils.mjs");
+        must(isPrimaryGm(), "this browser is not the primary GM, which holds the marks and decides who votes");
+        const V = await import("./vote.mjs");
+        const { sheetMarkStore } = await import("./gm-stores.mjs");
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const { isDeceased } = await import("./chapter.mjs");
+        const socket = game.socket;
+        const ownEmit = Object.getOwnPropertyDescriptor(socket, "emit");
+        const player = game.users.find(u => !u.isGM && u.active);
+        const theirs = game.actors.filter(a => a.type === "character" && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+            && a.testUserPermission(player, "OWNER"));
+        const held = new Map(), handed = [], told = new Map();
+        const hand = packet => {
+            for (const listener of [...socket.listeners(`module.${MODULE_ID}`)]) listener(packet, player.id);
+        };
+        try {
+            await sheetAuditIdle();
+            for (const actor of theirs) held.set(actor.id, foundry.utils.deepClone(sheetMarkStore.get(actor.id) ?? null));
+            must(theirs.length && [...held.values()].every(Boolean) && theirs.every(actor => !isDeceased(actor)),
+                "the player has no living student the GMs keep a mark of - this would measure nothing");
+            for (const actor of theirs) await sheetMarkStore.patch(actor.id, { flags: { ...held.get(actor.id).flags, [FLAGS.deceased]: true } });
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {});
+            const send = socket.emit;
+            socket.emit = function (event, packet, options, ...rest) {
+                if (packet?.action === "vote.open") {
+                    handed.push(...(options?.recipients ?? []));
+                    return true;
+                }
+                if (String(packet?.requestId ?? "").startsWith("suite-dead-")) {
+                    if (packet.action === "bridge.refused") told.set(packet.requestId, ["refused", packet.reason]);
+                    if (packet.action === "bridge.done") told.set(packet.requestId, ["done", packet.value ?? null]);
+                    return true;
+                }
+                return send.call(this, event, packet, options, ...rest);
+            };
+            await V.openVote();
+            const vote = V.trialProgress().vote;
+            must(vote.open, "the vote did not open - nobody but the player held dead could be handed a ballot");
+            hand({ action: "vote.cast", requestId: "suite-dead-cast", round: vote.round, choice: [theirs[0].id] });
+            hand({ action: "vote.ask", requestId: "suite-dead-ask" });
+            await until(() => told.size === 2, 3000);
+            equal(stableJson([handed.includes(player.id), vote.issued.includes(player.id), told.get("suite-dead-cast") ?? "unanswered",
+                told.get("suite-dead-ask") ?? "unanswered", theirs.map(actor => isDeceased(actor))]),
+                stableJson([false, false, ["refused", "notEligible"], ["done", null], theirs.map(() => false)]),
+                "a player whose students the GMs hold dead was handed a ballot, is on the vote's list, or was not refused a cast "
+                + "and answered no ballot - or a sheet changed (handed, issued, the cast, the ask, the sheets' deaths)");
+        } finally {
+            if (ownEmit) Object.defineProperty(socket, "emit", ownEmit); else delete socket.emit;
+            for (const [id, mark] of held) if (mark) await sheetMarkStore.patch(id, { flags: mark.flags });
+            await V.closeVote();
+            await sheetAuditIdle();
             await settle();
         }
     }],

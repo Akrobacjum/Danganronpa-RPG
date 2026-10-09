@@ -10,26 +10,32 @@
  * Every check below is a reading of the code at 1e9871c, written as what happens today; where an
  * E10 commit changes the answer the check's text names it ("C1 flips it"), and that commit
  * rewrites the check with the code - E10 C1 (1.2.71) rewrote B, D, E, F and H: the vote's state
- * is in the world and the ballots in the GMs' store. Phases are letters, so a later commit adds
- * one without renumbering:
+ * is in the world and the ballots in the GMs' store; E10 C2 (1.2.71) rewrote B to F: a ballot is
+ * cast on the bridge and judged by the primary GM, the player is told what the primary answered,
+ * and a player who loads while a vote is open asks for theirs. Phases are letters, so a later
+ * commit adds one without renumbering:
  *   A  setup through the GM's API (not under test): a fifth student, the victim, killed publicly;
  *      the register's row naming Chie the Blackened; p4 OWNER of Daichi. Start the Class Trial:
  *      every player holds the trial's card.
  *   B  Send the ballots: three issued (p1-p3), and the world's trial record holds the vote - open,
- *      round 1, one name, the three handed one (C1). p1 casts Botan and is told its vote is in as
- *      soon as the packet left (C2: only on the primary's reply); p2 and p3 hold their windows open.
- *   C  p4 connects after the ballots went out: no ballot reaches it (C2).
+ *      round 1, one name, the three handed one (C1). p1 casts Botan and is told its vote is in once
+ *      the primary has recorded it (C2); p2 and p3 hold their windows open.
+ *   C  p4 connects after the ballots went out, heard connecting before its world has loaded
+ *      (`announceFirst`): it asks the GM for its ballot at load and is handed one, and the record
+ *      issues a fourth (C2). The harness's default press dismisses that window, so p4 asks again
+ *      as its next load would, casts Botan and is told it is in.
  *   D  the GM's browser closes (the reload, modelled: `gm2` connects with the seeded GM's
- *      localStorage and a fresh module). p2 casts Botan with no GM connected and is told its vote
- *      is in (C2); gm2 finds the vote open in the world and p1's ballot in its copy of the GMs'
- *      store, and counts one (C1; C2 re-asks p2's, which today went to no GM and is lost). p4
- *      closes and comes back with its storage: still no ballot, and nothing told (C2).
- *   E  p3 dismisses its ballot and is warned; gm2's Close and count counts p1's ballot - Botan 1 of
- *      4 issued, short of the majority, so a tie with nobody accused - and writes it to the world
- *      (C1; C2 brings p2's and p4's in: Botan 3 of 4, accused); every player reads the vote closed.
+ *      localStorage and a fresh module). p2 casts Botan with no GM connected and is told no GM has
+ *      it yet and this browser keeps it (C2); gm2 finds the vote open in the world and p1's and
+ *      p4's ballots in its copy of the GMs' store (C1), and p2's kept ballot reaches it once its
+ *      world has loaded: three in, and p2 told (C2). p4 closes and comes back with its storage:
+ *      no ballot window, and told once that its vote is already in (C2).
+ *   E  p3 dismisses its ballot and is warned; gm2's Close and count counts p1's, p2's and p4's
+ *      ballots - Botan 3 of 4 issued, the majority, accused (C2; C1 counted p1's alone, a tie) -
+ *      and writes it to the world (C1); every player reads the vote closed.
  *   F  the verdict's window drawn on gm2 (`__dialogWindows`): the executed select opens on the
  *      first student, the dead victim is listed with " - dead", the first footer button is the
- *      wrong verdict, E's count being a tie (C4: "Nobody is executed" first, Q-E10-1 (c), and
+ *      right verdict, E's count accusing Botan (C4: "Nobody is executed" first, Q-E10-1 (c), and
  *      Cancel first); Cancel.
  *   G  a wrong verdict executing Botan while p2's forged `deceased: true` on Botan waits for the
  *      sheet audit (the window, made deterministic: gm2's queue on Botan is held by a job, so the
@@ -49,11 +55,16 @@
  * footer; the key press is LIVE-E10-02); no sound (an sfx is a message flag); no real reload (a
  * late GM with the seeded GM's storage models it; Foundry's own session restore is not modelled);
  * the seeded GM cannot connect again (cluster.mjs `connect`), so from D on gm2 is the only GM -
- * the primary. The three accounts from Start to End at a table are LIVE-E10-01.
+ * the primary. p4 connects heard before its world has loaded (`announceFirst`), as a browser's
+ * socket is (61's R1): in the harness's other order its ask at load reaches a GM that does not yet
+ * see it active and is refused as from an unknown sender, quietly, as the note's, the cast's and
+ * the deaths' asks are (read in the code) - which order v14 takes is LIVE-E04-12. The three
+ * accounts from Start to End at a table are LIVE-E10-01.
  *
  * Its bound (the plan's M4: set from C0's first reading): 33 checks in 24.0 s, the cluster's own count, at 1e9871c
  * (one run alone, 09.10.2026) - a twelfth of run-all's shared five minutes, so it states no `timeoutMs` of its own.
  * E10 C1 added H's check of the vote's reset: 34 checks in 26.5 s (one run, 09.10.2026).
+ * E10 C2 split C's check in two, the ask at load and the cast: 35 checks in 23.0 s (two runs, 22.6 and 23.0 s, 09.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -96,6 +107,11 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
             ballots: globalThis.__dialogLog.slice(globalThis.__s63d ?? 0).filter(d => d.title === ballotTitle).length,
             confirmed: ${text("DRPG.Vote.castConfirmed")} };`);
     const text = key => `game.i18n.localize(${J(key)})`;
+    /* How many times `client` has been told `key` since its `mark` (a fresh client: since it loaded), read
+       once it has been told it at least once or `ms` has passed - 0 reads it now. */
+    const toldOf = (client, key, ms = 5000) => client.eval(`${until} const words = ${text(key)};
+        const n = () => globalThis.__notifications.slice(globalThis.__s63n ?? 0).filter(note => note.msg === words).length;
+        await until(() => n() || null, ${ms}); return n();`, { timeout: ms + 15000 });
 
     /* ------------------------------ A. the trial opens ------------------------------ */
 
@@ -141,21 +157,33 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     const counted = await gm.eval(`${until} ${V} return await until(() => V.votesIn() === 1 ? 1 : null, 8000) ?? V.votesIn();`, { timeout: 20000 });
     const p1Told = await p1.eval(`return { seen: globalThis.__s63seen, confirmed: globalThis.__notifications.slice(globalThis.__s63n)
         .filter(n => n.msg === ${text("DRPG.Vote.castConfirmed")}).length };`);
-    verdict("p1's ballot lists the five students and Monokuma, the GM counts it, and p1 is told once (today as the packet leaves; C2 tells it on the primary's reply)",
+    verdict("p1's ballot lists the five students and Monokuma, the GM counts it, and p1 is told once, on the primary's reply (C2)",
         counted === 1 && p1Told.confirmed === 1 && (p1Told.seen ?? []).length === 6 && p1Told.seen.includes(victimId), J({ counted, p1Told }));
     const holding = [await p2.eval(`return globalThis.__s63ballots ?? 0;`), await p3.eval(`return globalThis.__s63ballots ?? 0;`)];
     verdict("p2 and p3 each hold one ballot window open", J(holding) === J([1, 1]), J(holding));
 
     /* ------------------------------ C. a late joiner ------------------------------ */
 
-    begin("C", "p4 joins after the ballots went out");
-    await connect("p4");
-    await settle(1500);
-    const p4Late = await p4.eval(`const ballotTitle = game.i18n.localize("DRPG.Vote.ballotTitle");
+    begin("C", "p4 joins after the ballots went out and asks for its own");
+    // Heard connecting before its world has loaded (the header's headless limits).
+    await connect("p4", { announceFirst: true });
+    // Its windows counted once it has been warned: the shim logs a window as it opens, before the press.
+    const p4Late = { warned: await toldOf(p4, "DRPG.Vote.dismissed", 10000) };
+    Object.assign(p4Late, await p4.eval(`const ballotTitle = game.i18n.localize("DRPG.Vote.ballotTitle");
         return { ballots: globalThis.__dialogLog.filter(d => d.title === ballotTitle).length,
-            owner: game.actors.get("${IDS.daichi}")?.isOwner === true };`);
-    verdict("p4, Daichi's owner, joins and is handed no ballot (C2 hands it one on joining)",
-        p4Late.owner && p4Late.ballots === 0, J(p4Late));
+            owner: game.actors.get("${IDS.daichi}")?.isOwner === true };`));
+    p4Late.issued = await gm.eval(`${V} return V.trialProgress().vote?.issued ?? null;`);
+    verdict("p4, Daichi's owner, asks at load and is handed a ballot: one window, and the world's record issues it a fourth (C2); the harness's default press dismisses it, and p4 is warned once",
+        p4Late.owner && p4Late.ballots === 1 && p4Late.warned === 1 && (p4Late.issued ?? []).length === 4 && p4Late.issued.includes(P4), J(p4Late));
+    await mark(p4);
+    await p4.eval(ballot(IDS.botan));
+    // Read as a type first: before C2 there is no `askForBallot`, and the checks below say so rather than the eval throwing.
+    const p4Cast = { ask: await p4.eval(`${V} if (typeof V.askForBallot === "function") V.askForBallot(); return typeof V.askForBallot;`) };
+    p4Cast.told = await toldOf(p4, "DRPG.Vote.castConfirmed", 10000);
+    p4Cast.counted = await gm.eval(`${until} ${V} return await until(() => V.votesIn() === 2 ? 2 : null, 8000) ?? V.votesIn();`, { timeout: 20000 });
+    p4Cast.seen = await p4.eval(`return globalThis.__s63seen ?? null;`);
+    verdict("p4 asks again, as its next load would (`askForBallot`), and casts Botan: its ballot lists the five students and Monokuma, the GM counts it (2), and p4 is told once (C2)",
+        p4Cast.told === 1 && (p4Cast.seen ?? []).length === 6 && p4Cast.seen.includes(victimId) && p4Cast.counted === 2, J(p4Cast));
 
     /* ------------------------------ D. the GM's reload ------------------------------ */
 
@@ -164,27 +192,28 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     await disconnect("gm");
     await mark(p2);
     await p2.eval(`globalThis.__s63goP2 = true; return true;`);
-    const p2Told = await p2.eval(`${until} const words = ${text("DRPG.Vote.castConfirmed")};
-        const told = () => globalThis.__notifications.slice(globalThis.__s63n).filter(n => n.msg === words).length || null;
-        return { told: await until(told, 5000) ?? 0, gms: game.users.filter(u => u.isGM && u.active).length };`, { timeout: 20000 });
-    verdict("p2 casts Botan with no GM connected and is told its vote is in (C2: told only when a primary has it)",
-        p2Told.gms === 0 && p2Told.told === 1, J(p2Told));
+    const p2Kept = { kept: await toldOf(p2, "DRPG.Vote.notReceived"), told: await toldOf(p2, "DRPG.Vote.castConfirmed", 0),
+        gms: await p2.eval(`return game.users.filter(u => u.isGM && u.active).length;`) };
+    verdict("p2 casts Botan with no GM connected: told once that no GM has it yet and this browser keeps it, and not that it is in (C2)",
+        p2Kept.gms === 0 && p2Kept.kept === 1 && p2Kept.told === 0, J(p2Kept));
     await connect("gm2", { storage: await storageOf("gm") });
     await settle(1500);
     const reloaded = await gm2.eval(`${until} ${V} const E = await import("${repoUrl}/scripts/gm-store.mjs");
         await until(() => E.gmStoresHydrated(), 10000);
-        await new Promise(r => setTimeout(r, 1500));
+        await until(() => V.votesIn() === 3 ? true : null, 10000);
         return { hydrated: E.gmStoresHydrated(), votesIn: V.votesIn(), open: V.trialProgress().vote?.open ?? null,
-            copy: typeof V.ballotCopyStatus === "function" ? V.ballotCopyStatus() : "no ballotCopyStatus", primary: game.users.filter(u => u.isGM && u.active).map(u => u.id) };`, { timeout: 30000 });
-    verdict("gm2, the seeded GM's browser reloaded, finds the vote open in the world and p1's ballot in its store: votesIn() 1, its copy not flagged (C1; C2 re-asks p2's)",
-        reloaded.hydrated && reloaded.open === true && reloaded.votesIn === 1 && reloaded.copy === null
-            && J(reloaded.primary) === J(["USERGM2000000000"]), J(reloaded));
+            copy: V.ballotCopyStatus(), primary: game.users.filter(u => u.isGM && u.active).map(u => u.id) };`, { timeout: 30000 });
+    reloaded.p2Told = await toldOf(p2, "DRPG.Vote.castConfirmed");
+    verdict("gm2, the seeded GM's browser reloaded, finds the vote open in the world and p1's and p4's ballots in its store (C1), and p2's kept ballot reaches it once its world has loaded: votesIn() 3, its copy not flagged, and p2 told once (C2)",
+        reloaded.hydrated && reloaded.open === true && reloaded.votesIn === 3 && reloaded.copy === null
+            && J(reloaded.primary) === J(["USERGM2000000000"]) && reloaded.p2Told === 1, J(reloaded));
     const p4Storage = await (async () => { await disconnect("p4"); return storageOf("p4"); })();
-    await connect("p4", { storage: p4Storage });
-    await settle(1500);
-    const p4Back = await since(p4);
-    verdict("p4 closes and comes back: no ballot, and nothing told of a vote (C2)",
-        p4Back.ballots === 0 && !p4Back.notes.some(n => n.endsWith(":" + p4Back.confirmed)), J(p4Back));
+    await connect("p4", { storage: p4Storage, announceFirst: true });
+    await toldOf(p4, "DRPG.Vote.alreadyIn", 10000);
+    await settle(1000);
+    const p4Back = { ...(await since(p4)), already: await toldOf(p4, "DRPG.Vote.alreadyIn", 0) };
+    verdict("p4 closes and comes back with its storage: no ballot window, and told once that its vote is already in - not that it is in (C2)",
+        p4Back.ballots === 0 && p4Back.already === 1 && !p4Back.notes.some(n => n.endsWith(":" + p4Back.confirmed)), J(p4Back));
 
     /* ------------------------------ E. the count ------------------------------ */
 
@@ -199,11 +228,11 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         return { r, notes: globalThis.__notifications.slice(globalThis.__s63n).map(n => n.level + ":" + n.msg),
             notOpen: ${text("DRPG.Vote.notOpen")}, progress: V.trialProgress() };`, { timeout: 30000 });
     const tally = (closed.r?.rows ?? []).map(row => [row.id, row.n]), world = closed.progress;
-    verdict("gm2's Close and count counts p1's ballot: Botan 1 of 4 issued, short of the majority of 3 - a tie, nobody accused - and the world holds the count (C1; C2: Botan 3 of 4)",
-        J(tally) === J([[IDS.botan, 1]]) && closed.r?.total === 4 && closed.r.tied === true && J(closed.r.accusedIds) === J([])
+    verdict("gm2's Close and count counts p1's, p2's and p4's ballots: Botan 3 of 4 issued, the majority of 3 - Botan accused (C2; until C2 p1's alone, a tie) - and the world holds the count (C1)",
+        J(tally) === J([[IDS.botan, 3]]) && closed.r?.total === 4 && closed.r.tied === false && J(closed.r.accusedIds) === J([IDS.botan])
             && !closed.notes.includes("warn:" + closed.notOpen) && world.voteClosed === true && world.vote?.open === false
-            && J(world.accused) === J([{ id: IDS.botan, n: 1 }]) && world.total === 4 && world.majority === 3 && world.noMajority === true
-            && world.tied === true && J(world.accusedIds) === J([]), J(closed));
+            && J(world.accused) === J([{ id: IDS.botan, n: 3 }]) && world.total === 4 && world.majority === 3 && world.noMajority === false
+            && world.tied === false && J(world.accusedIds) === J([IDS.botan]), J(closed));
     await settle(500);
     const panels = [];
     for (const c of [p1, p2, p3, p4]) panels.push(await c.eval(`${V} const ev = await import("${repoUrl}/scripts/events.mjs");
@@ -240,8 +269,8 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         drawn.read?.value === firstStudent && drawn.read?.first === firstStudent && !drawn.read?.blackenedSelect, J({ drawn, firstStudent }));
     verdict("the dead victim is listed, marked \" - dead\"",
         drawn.read?.victim === `S63 Victim - ${drawn.read?.dead}`, J(drawn.read));
-    verdict("the footer reads wrong, correct, cancel - E's count is a tie, so the wrong verdict first (C4: Cancel first); Cancel closes it with nothing applied",
-        J(drawn.read?.buttons) === J(["wrong", "correct", "cancel"]) && drawn.result === null, J(drawn));
+    verdict("the footer reads correct, wrong, cancel - E's count accused Botan, so the right verdict first (C2; C4: Cancel first); Cancel closes it with nothing applied",
+        J(drawn.read?.buttons) === J(["correct", "wrong", "cancel"]) && drawn.result === null, J(drawn));
 
     /* ------------------------------ G. a wrong verdict in the audit's window ------------------------------ */
 

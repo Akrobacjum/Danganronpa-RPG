@@ -560,8 +560,8 @@ export async function manageClassTrial() {
                 build: buildConsole,
                 /*
                  * A BALLOT IS NOT IN THE WORLD, so `updateSetting` cannot report
-                 * one (F8). Ballots travel by socket to the GMs and are kept in
-                 * the GMs' store on purpose - see `onBallotCast` in vote.mjs - a
+                 * one (F8). Ballots travel on the bridge to the primary GM and are
+                 * kept in the GMs' store on purpose - see `recordBallot` in vote.mjs - a
                  * client setting, whose change fires no `updateSetting` either,
                  * and this hook is the only thing that says the tally moved: the
                  * primary's record calls it, and so does the store's setting as a

@@ -369,7 +369,6 @@ const REGRESSIONS = [
          */
         const EXEMPT = {
             // Answers only to the sender's own id, never to an id in the packet.
-            "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
             "incident-store.mjs": "a participant's request is answered by the primary GM alone, from the sender's own seat in the cast; the cast copy is taken only from a GM, and only where newer, part by part; a player's ask for the deaths is answered by the primary GM alone, about Foundry's sender, and a copy of them or a finder's notice is taken only from a GM, addressed to this user",
             "mastermind.mjs": "the door request is answered by the primary GM alone, about Foundry's own sender and nobody in the packet; the door flag is taken only from a GM, and only where newer, part by part",
             "secret.mjs": "a card's words, taken from a player only for a message that player wrote, and cleaned; no character is acted on",
@@ -382,6 +381,8 @@ const REGRESSIONS = [
             "voice-client.mjs": "room membership, keyed by the sender",
             // E31 review: it passed on text elsewhere in the file (the runner, the guards); this is its own reason.
             "bridge-guards.mjs": "the answers to this client's own requests: taken only from a GM, for its own pending id; acts on no actor"
+            // E10 C2 (1.2.71): vote.mjs is off the list. A ballot reaches the GMs on the bridge (`vote.cast`), and
+            // the one packet its listener still takes, a GM's ballot, names no id.
         };
 
         const tableFiles = new Set(tables.map(t => t.file));
@@ -2902,13 +2903,14 @@ const REGRESSIONS = [
         // `drpgBallotsChanged` is 1.2.47's name for this event, fired where a
         // ballot is cast, a vote opens and voters are reminded; F8 adds the close.
         // Since E10 C1 (1.2.71) a ballot is a row of the GMs' store and the count is
-        // the primary's `closeRound`, which writes the vote closed before it counts.
+        // the primary's `closeRound`, which writes the vote closed before it counts;
+        // since E10 C2 a ballot is recorded by the bridge's run (`recordBallot`).
         const vote = stripComments(sources.get("vote.mjs") ?? "");
         const EMIT = 'Hooks.callAll("drpgBallotsChanged")';
         ok(vote.split(EMIT).length - 1 >= 4,
             "one of the four vote events stopped being reported");
-        const cast = bodyOf(vote, "function onBallotCast", { until: "function refuseBallot" });
-        ok(cast.length > 200 && cast.includes(EMIT), "onBallotCast is gone, or no longer reports a ballot");
+        const cast = fnSource(vote, "recordBallot");
+        ok(cast.length > 200 && cast.includes(EMIT), "recordBallot is gone, or no longer reports a ballot");
         ok(cast.includes("ballotStore.patch(") && cast.indexOf("ballotStore.patch(") < cast.indexOf(EMIT),
             "the ballot is reported before it is in the tally, so a listener redraws the stale list");
         const close = fnSource(vote, "closeRound");
@@ -5550,6 +5552,8 @@ const REGRESSIONS = [
             stealFromPerson: "refused", stealFromVault: "refused",
             // E33 C10: a Monocub's ability by key, the row, the Monocub and the choice (guardCubAbility asks it).
             cubAbilityRefusal: "returns",
+            // E10 C2: a ballot, judged on the primary (vote.mjs), whose run passes its `{ refused }` on.
+            recordBallot: "refused", ballotRefusal: "returns",
             resolveObserve: "passes", hopeCallRefusal: "wraps"
         };
         const sources = [...await otherSources()].map(([file, raw]) => [file, stripComments(raw)]);
@@ -7395,6 +7399,11 @@ const REGRESSIONS = [
          * `ballots`. The reader still looks for `ballots` in vote.mjs: a module Map of that name
          * coming back is a place without a row. Measured on the harness on 09.10.2026 with C1
          * in the tree: 37 places against 37 rows - 7 PACKET, 6 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
+         * E10 C2 (1.2.71) added `vote.cast`'s two PACKET rows, `vote.ask`'s one and the `round` the
+         * ballot's packet carries now, struck `onBallotCast` (the raw `vote.ballot`) and the
+         * `voterActorId` nothing read, and rewrote the verdicts the bridge's ballot changes. Measured
+         * on the harness on 09.10.2026 with C2 in the tree: 39 places against 39 rows - 10 PACKET,
+         * 5 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7404,18 +7413,20 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#advancement.ask#-", "judged: knownSender + playersOnly; quiet; the answer is addressed to the asker (`replyForMe`) [F7]"],
             ["PACKET gm-bridge.mjs#vote.run#op", "judged: gmOnly (C1) - only a GM opens, counts, restarts or reminds; a step not one of the five reads null and the primary runs nothing (`runVoteOp`), which answers `movedOn` or `notOpen` for a step the world's record has moved past [F3/F6]"],
             ["PACKET gm-bridge.mjs#vote.run#picks", "judged: gmOnly (C1); a number the primary bounds to one name and the students enrolled (`picksFor`), the register's count when it is not a positive integer [F3]"],
-            ["SOCKET vote.mjs#onBallotOpened#candidates", "out of scope: a GM -> player packet; `onBallotOpened` returns on a GM and unless the sender is a GM (vote.mjs:193-194). C2 moves the ballot onto the bridge (`vote.ask`'s reply) and retires this handler [F5]"],
-            ["SOCKET vote.mjs#onBallotOpened#voterActorId", "out of scope: a GM -> player packet; `onBallotOpened` returns on a GM and unless the sender is a GM (vote.mjs:193-194). C2 moves the ballot onto the bridge (`vote.ask`'s reply) and retires this handler [F5]"],
-            ["SOCKET vote.mjs#onBallotOpened#picks", "out of scope: a GM -> player packet; `onBallotOpened` returns on a GM and unless the sender is a GM (vote.mjs:193-194). C2 moves the ballot onto the bridge (`vote.ask`'s reply) and retires this handler [F5]"],
-            ["SOCKET vote.mjs#onBallotCast#choice", "OPEN at base: a player sender, the voter's living student (`voterActorFor`, document) and the candidate filter; no dedup, no length, no round, lost on a reload (S06-12, V3). C1 records it on the primary GM only, one row per sender in `ballotStore` for the world's open round (with no vote open it is refused), so a reload keeps it. C2 retires the raw handler for the bridge's `vote.cast` (knownSender + playersOnly; round, picks, dedup, the voter judged on `judgedFor` + `flagsHeldNow`), refused and told; the tier-0 source test 'the ballot reaches the GMs only through the bridge' fails while `registerVote` keeps an ACTION_BALLOT handler [F1]"],
+            ["PACKET gm-bridge.mjs#vote.cast#round", "judged (C2): knownSender + playersOnly; the primary holds it to the round of the vote open in the world (`recordBallot`, `ballotRefusal`) - a window of an earlier round is refused `movedOn`, told in the vote's words (`sendBallot`) [F1/F5]"],
+            ["PACKET gm-bridge.mjs#vote.cast#choice", "judged (C2): knownSender + playersOnly; the voter is found from the sender (`voterActorFor`: `eligibleVoters` after `studentsJudged`, on `flagsHeldNow`), and the names are held to the vote's picks, none twice, each on that voter's list (`ballotRefusal`: notEligible, sameTwice, wrongCount, missing), refused and told; one row per sender in `ballotStore`, written in the vote's turn. The raw `vote.ballot` is gone (R313) [F1]"],
+            ["PACKET gm-bridge.mjs#vote.ask#-", "judged (C2): knownSender + playersOnly; quiet; answers about the sender alone (`ballotFor`) - the ballot, that it is in, or null - and a sender the vote had not handed one is added to `issued` [F5]"],
+            ["SOCKET vote.mjs#onBallotOpened#candidates", "out of scope: a GM -> player packet; `onBallotOpened` returns on a GM and unless the sender is a GM (vote.mjs:214-215). C2 keeps it - the ballot handed out at the open, a remind and a resend - and adds `vote.ask`'s reply for a player who loads while the vote is open; whatever a window listed, the primary judges the answer (`recordBallot`) [F5]"],
+            ["SOCKET vote.mjs#onBallotOpened#round", "out of scope: a GM -> player packet (vote.mjs:214-215); C2 adds it - the round goes back with the answer, and the primary refuses an answer of a round the world has moved past (`ballotRefusal`, movedOn) [F5]"],
+            ["SOCKET vote.mjs#onBallotOpened#picks", "out of scope: a GM -> player packet (vote.mjs:214-215); the window draws as many lists as it says, and since C2 the primary holds the answer to the vote's own count (`ballotRefusal`, wrongCount) [F5]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#offers", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
             ["SOCKET gm-bridge.mjs#onAdvancementOffers#stamps", "out of scope: the primary's reply to an owner; `replyForMe` checks a GM sender and the address, and `receiveOffers` keeps only the receiver's own characters with a known kind (level-up.mjs:199) [F7]"],
             ["CHAT trial.mjs#registerTrial", "judged: a Present card's popup shows only when the author is a GM or owns the speaker and it holds the item (trial.mjs ~501-520); an objection acts on the primary only and `seizeFloor` re-judges it (author owns the objector, `itemAsHeld`, `floorRefusal`/`targetRefusal`), refused and told on the card. C16 adds the dead objector (`flagsAsHeld`) [F4 read road]"],
             ["CHAT trial.mjs#seizeFloor", "judged: the item through `itemAsHeld` (E29); the card's flag is a claim; C16 keeps it and adds the dead objector (`await flagsAsHeld`, then the synchronous refusals) [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:731, 751, GM only); a display, feeds no write"],
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
-            ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters` [F1]"],
-            ["SHEET vote.mjs#eligibleVoters", "OPEN at base (R1, document `isDeceased`): C2 decides on `await judgedFor(...ids)` then `flagsHeldNow` in one pass, at open, ask and cast [1b.2]"],
+            ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
+            ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET vote.mjs#openVerdictDialog", "out of scope: the \" - dead\" marks are a display (R4); C4 preselects the accused from the world's `accusedIds` and Q-E10-1 (c) lets the GM pick a living student"],
             ["SHEET vote.mjs#applyVerdict", "OPEN at base (R1, document `isDeadForGm`, `livingStudents`): C5 reads one `judgedFor(...executed, ...students)` then `flagsHeldNow` for all in one synchronous pass; `killCharacter` keeps its own head check [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
@@ -7430,7 +7441,7 @@ const REGRESSIONS = [
             ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220's census), its head check `isDeadForGm`; E10 changes no line [F4]"],
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (season, `seasonStartedAt`, `finalTrial`)"],
             ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict` (null until C5); C10 `finalTrial` [F3/F4/F6]"],
-            ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`onBallotCast`) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
+            ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store; C6 makes its row a list per character [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
             ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; C16 reads `trialQueue.active` on render and on change"]
@@ -7575,6 +7586,46 @@ const REGRESSIONS = [
             "a GM's console runs a step of the vote somewhere other than the primary");
         ok(/!isPrimaryGm\(\)/.test(step) && step.indexOf("isPrimaryGm()") < step.indexOf("voteStep("),
             "runVoteOp takes a step of the vote on a GM that is not the primary, against its own copy of the ballots");
+    }],
+
+    ["R313 - the ballot reaches the GMs only through the bridge", async () => {
+        /*
+         * E10 C2, 1.2.71; audit S06-12, S06-17; the plan's V2. Until C2 a player's answer to a ballot
+         * was a raw packet to every GM (`vote.ballot`), which the primary recorded on a candidate
+         * filter alone - a ballot naming one student twice counted twice, a window of an earlier
+         * round counted in this one - and the player was told the vote was in as the packet left,
+         * with a GM connected or none. It is the bridge's `vote.cast` now, a player's alone, judged
+         * on the primary (vote.mjs `recordBallot`), and a player who loads while a vote is open asks
+         * for their own ballot (`vote.ask`). Read here: the two rows (the first two guards, the
+         * packet, how each is answered); that the module's listener in vote.mjs takes one packet,
+         * the GM's ballot, and the source names no other; that a player's browser asks for its
+         * ballot at load and when a primary's world has loaded; and that "Your vote is in." is said
+         * after the primary's answer. What the primary refuses is tier 2's to drive. Red at
+         * E10 C1's tree (A1, 09.10.2026): the bridge has no `vote.cast`.
+         */
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const cast = BRIDGE_ACTIONS["vote.cast"], asked = BRIDGE_ACTIONS["vote.ask"];
+        ok(cast && asked, "the bridge has no `vote.cast` or no `vote.ask` - a ballot has no road to the primary but a raw packet");
+        const shape = decl => [decl.guards?.[0] === G.knownSender, decl.guards?.[1]?.factory ?? null, decl.sanitize?.fields ?? null,
+            decl.answer, Boolean(decl.patient), Boolean(decl.resend), Boolean(decl.quiet)];
+        equal(JSON.stringify(shape(cast)), JSON.stringify([true, "playersOnly", { round: "num", choice: "raw" }, "reply", true, true, false]),
+            "vote.cast is not a known player's alone, a round and a list, answered by the primary and asked again when a primary arrives");
+        equal(JSON.stringify(shape(asked)), JSON.stringify([true, "playersOnly", {}, "reply", false, false, true]),
+            "vote.ask is not a known player's alone, an empty packet answered by the primary, quietly");
+
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        const register = fnSource(vote, "registerVote"), send = fnSource(vote, "sendBallot");
+        ok(register.length > 100 && send.length > 100, "registerVote or sendBallot is gone - the reads below would measure nothing");
+        equal(JSON.stringify([...register.matchAll(/payload\??\.action\s*===\s*([\w$."]+)/g)].map(m => m[1])), JSON.stringify(["ACTION_OPEN"]),
+            "vote.mjs's socket listener takes a packet other than the GM's ballot - a ballot can reach a GM around the bridge");
+        ok(/const ACTION_OPEN = "vote\.open";/.test(vote) && !/vote\.ballot|ACTION_BALLOT/.test(vote),
+            "vote.mjs still names the raw ballot packet, or its GM's ballot is another packet");
+        ok(/\baskForBallot\(\)/.test(register) && /Hooks\.on\("drpgPrimaryReady",[^)]*askForBallot\(/.test(register),
+            "a player's browser does not ask for its ballot at load and when a primary GM's world has loaded");
+        const answered = send.indexOf("requestBallotCast("), confirmed = send.indexOf("DRPG.Vote.castConfirmed");
+        ok(answered > 0 && confirmed > answered && /requestBallotCast\((?:(?!DRPG\.Vote\.castConfirmed)[\s\S])*\bres\.ok\b/.test(send),
+            "a player is told the vote is in before the primary has answered that it is");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {

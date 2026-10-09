@@ -519,12 +519,12 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
      *
      * The real road: `openVote` on the GM sends each player with a living student a
      * `vote.open` packet; their client opens the ballot window (vote.mjs `castBallot`)
-     * with one radio per candidate; pressing the button sends `vote.ballot` to the
-     * GMs, who tally it by Foundry's sender id. So all three players get their socket
-     * handlers back, and p1 and p2 an answer queued that ticks Chie's radio IN THE
-     * WINDOW'S OWN CONTENT and presses its own button - a candidate missing from the
-     * list means no vote. p3 dismisses theirs, which the tally has to count as
-     * silence, not as a vote.
+     * with one radio per candidate; pressing the button sends the ballot on the bridge
+     * (`vote.cast`, since E10 C2) to the primary GM, who records it by Foundry's sender
+     * id and answers. So all three players get their socket handlers back, and p1 and
+     * p2 an answer queued that ticks Chie's radio IN THE WINDOW'S OWN CONTENT and
+     * presses its own button - a candidate missing from the list means no vote. p3
+     * dismisses theirs, which the tally has to count as silence, not as a vote.
      *
      * Expected, from vote.mjs as it stands: three ballots out (Aiko, Botan, Chie -
      * Daichi is dead and the dead do not vote), two returned for Chie, a majority
@@ -555,7 +555,7 @@ export async function run({ gm, p1, p2, p3, check, phase, settle, repoUrl, canar
     check("gm: the vote opens to the three players with a living student", voteOpen === 3, JSON.stringify(voteOpen));
     await settle(800);
 
-    // `castConfirmed` is raised only after the `vote.ballot` emit returned (vote.mjs `castBallot`).
+    // `castConfirmed` is raised only once the primary GM has recorded the ballot (vote.mjs `sendBallot`, E10 C2).
     const ballot1 = await p1.eval(`return { seen: globalThis.__ballotSeen, confirmed: game.i18n.localize("DRPG.Vote.castConfirmed"),
         notifs: globalThis.__notifications.slice(-3).map(n => n.level + ":" + n.msg) };`);
     check("p1: the ballot window listed Chie and p1's vote was sent", (ballot1.seen ?? []).includes(ids.chie)

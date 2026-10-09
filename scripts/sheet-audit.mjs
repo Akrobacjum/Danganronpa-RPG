@@ -789,9 +789,20 @@ export async function itemAsHeld(actor, id) {
  */
 export async function flagsAsHeld(actor) {
     await judgedFor(actor?.id);
-    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
-    // A Monokuma is no student (`judgeNow`): what it holds stands, so its document is the record.
-    const flags = mark && !mark.flags?.[FLAGS.monokuma] ? clone(mark.flags ?? {}) : null;
+    return flagsHeldNow(actor);
+}
+
+/*
+ * `flagsAsHeld` without its wait (E10 C2, 1.2.71), as `actorHeldNow` is `actorAsHeld`'s: for a GM's decision about
+ * several students at once, which waits once for all of them (`judgedFor(...ids)`) and then reads each in one
+ * synchronous pass - so no write is judged between two of the reads. The road: who is handed a ballot and whose
+ * ballot counts (vote.mjs `eligibleVoters`, behind `studentsJudged` at the open, a player's ask and a cast). The mark is
+ * `heldMark`'s, whose rules are the ones `flagsAsHeld` read inline until C2 - the primary's, of a student, not a
+ * Monokuma's - and its flags are taken in one step here, as they were there as the wait ended.
+ */
+export function flagsHeldNow(actor) {
+    const mark = heldMark(actor);
+    const flags = mark ? clone(mark.flags ?? {}) : null;
     return { id: actor?.id ?? null, name: actor?.name ?? null, type: actor?.type ?? null,
         getFlag: (scope, key) => flags && scope === MODULE_ID && MARKED_FLAGS.includes(key) ? flags[key] : actor?.getFlag?.(scope, key) };
 }

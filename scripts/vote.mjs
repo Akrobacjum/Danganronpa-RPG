@@ -12,12 +12,13 @@
  * problem: nothing in Foundry's world data is private, so a ballot written to a
  * setting, a flag or a whisper is a ballot anybody can read from the console.
  *
- * So a ballot never enters world data at all. It travels on the module socket
- * addressed to the GMs - the server delivers those only to the named users -
- * and is kept in the GMs' store (gm-stores.mjs `ballotStore`), which lives in
- * the GMs' browsers and is synced between them alone. When the count is
- * published, only the count is published. What the world holds is the vote's
- * state, every part of it shown at the table anyway: open or closed, the round,
+ * So a ballot never enters world data at all. It travels to the GMs on the
+ * bridge (`vote.cast`, gm-bridge.mjs; E10 C2, 1.2.71), addressed to them alone -
+ * the server delivers those only to the named users - is judged and recorded by
+ * the primary GM, and is kept in the GMs' store (gm-stores.mjs `ballotStore`),
+ * which lives in the GMs' browsers and is synced between them alone. When the
+ * count is published, only the count is published. What the world holds is the
+ * vote's state, every part of it shown at the table anyway: open or closed, the round,
  * who was handed a ballot, and after the count the totals and the accused
  * (`trialProgress`; E10 C1, 1.2.71). Until 1.2.71 the ballots were a Map in the
  * collecting GM's memory, and a reload of that browser lost the vote.
@@ -38,13 +39,14 @@ import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
 import { isDeceased, isDeadForGm, livingStudents, killCharacter } from "./chapter.mjs";
 import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
 import { ballotStore } from "./gm-stores.mjs";
-import { bridgeRequest } from "./bridge-guards.mjs";
-import { announce, dialogContent, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
+import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
+import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
+import { announce, dialogContent, whisperToGms, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
-const ACTION_BALLOT = "vote.ballot";
+/** GM -> player: a ballot, handed out at the open, a remind and a resend. The answer goes back on the bridge (`vote.cast`). */
 const ACTION_OPEN = "vote.open";
 
 /**
@@ -173,93 +175,147 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
  * ========================================================================== */
 
 export function registerVote() {
-    // `senderId` is Foundry's own second argument - who actually emitted this.
-    // Everything in here is decided from it and never from the payload, because
-    // the payload is a claim any player's console can make, and this is the one
-    // socket in the module where a forged claim decides who gets executed.
+    // `senderId` is Foundry's own second argument - who actually emitted this. The one
+    // packet left on this listener is a GM's, and it is taken from a GM alone.
     game.socket.on(SOCKET_EVENT, (payload, senderId) => {
         if (payload?.action === ACTION_OPEN) return onBallotOpened(payload, senderId);
-        if (payload?.action === ACTION_BALLOT) return onBallotCast(payload, senderId);
+    });
+    /* THE BALLOT REACHES THE GMS ONLY THROUGH THE BRIDGE (E10 C2, 1.2.71; audit S06-12, S06-17).
+       Until C2 an answer was a raw packet to every GM (`vote.ballot`), which the primary recorded
+       on a candidate filter alone: a ballot naming one student twice counted twice, an earlier
+       round's window counted in this one, and the player was told "Your vote is in." as the
+       packet left - with no GM connected, of a ballot nobody would ever count. It is the bridge's
+       `vote.cast` now (gm-bridge.mjs), judged on the primary (`recordBallot`), and the player is
+       told what the primary answered (`sendBallot`). A player who loads while a vote is open - who
+       joined after the ballots went out, or reloaded - asks for theirs (`vote.ask`,
+       `askForBallot`): at load, and when a primary GM's world has loaded (`drpgPrimaryReady`), as
+       the cast, the door and the note are asked for; and an answer kept here for want of a GM goes
+       then. One owed to a GM whose world said it had loaded before this browser saw it connect
+       waits for `userConnected`, as pre-session-note.mjs's `owedTo` does - which of the two comes
+       first on v14 is LIVE-E04-12. */
+    if (game.user.isGM) return;
+    askForBallot();
+    Hooks.on("drpgPrimaryReady", primary => askForBallot(primary));
+    Hooks.on("userConnected", (user, connected) => {
+        if (connected && owedTo && user?.id === owedTo) askForBallot(owedTo);
     });
 }
 
 /**
- * A GM has opened the vote and this client is being handed a ballot.
+ * A GM has handed this client a ballot: the vote opened, or a remind or a resend reached it.
  *
  * The GM check is the point: without it any player could push a ballot dialog
  * onto everybody else's screen, with a candidate list of their own choosing.
+ * The round goes back with the answer, so the primary can tell a window of an
+ * earlier round from one of this (E10 C2); no voter is named - the primary finds
+ * the voter from who sent the answer.
  */
 function onBallotOpened(payload, senderId) {
     if (!game.user || game.user.isGM) return;
     if (!game.users.get(senderId)?.isGM) return;
 
-    castBallot(payload.candidates, payload.voterActorId, Number(payload.picks) || 1)
+    castBallot({ round: Number(payload.round) || 0, picks: Number(payload.picks) || 1, candidates: payload.candidates })
         .catch(err => error("Could not open the ballot", err));
 }
 
 /**
- * A ballot arriving at a GM.
+ * A BALLOT, JUDGED AND RECORDED BY THE PRIMARY GM (E10 C2, 1.2.71; audit S06-12, S06-17): the run of the
+ * bridge's `vote.cast` (gm-bridge.mjs `handleBallot`), which reaches the primary alone, from a player alone
+ * (`playersOnly`). Answers `{ reply: { round } }` once the row is in the GMs' store, or `{ refused }` with
+ * the reason the player is told.
  *
- * Keyed by the SENDER's user id, not by the actor id the payload names. That one
+ * Keyed by the SENDER's user id, not by an actor id the packet names. That one
  * line is the whole secret ballot: the tally used to be keyed by whatever actor
  * id the packet claimed, so a single player could emit one ballot per student
  * and decide the entire Class Trial from their own console - replacing everyone
  * else's vote, since a repeat arrival overwrites rather than adds.
  *
- * The choice is checked against the candidate list this side computes for that
- * voter, which is also what enforces the guide's "nie można głosować na siebie"
- * rather than trusting a `<select>` on a client to have offered honest options.
+ * JUDGED ON WHAT THE PRIMARY HOLDS, NEVER ON THE PACKET (`ballotRefusal`): the round is the world's
+ * open round; the sender holds a ballot in it, by `eligibleVoters` read as the GMs hold the
+ * students; and the names are as many as the vote asks for, none twice, each on the list this side
+ * computes for that voter - which is also what holds a ballot to the guide's rules on whom one may
+ * name, rather than trusting a client to have offered honest options. Until C2 the names were only
+ * filtered: a ballot naming one student twice counted twice, a short one counted half an answer as
+ * a whole one, and one drawn in an earlier round counted in this one.
  *
- * RECORDED BY THE PRIMARY GM ALONE, IN THE GMS' STORE (E10 C1, 1.2.71). Every GM
- * hears the packet; the primary keeps it as a row of the vote's round in the
- * world (`ballotStore`), and the store syncs the row to the other GMs - so the
- * count, which runs on the primary too, reads the copy the ballot was written to.
- * A ballot for no open vote is refused, as a Map that was null dropped it.
+ * IN THE VOTE'S TURN (`voteTurn`), as every step is: a ballot that arrives while the vote is being
+ * closed waits for the close and is refused, and one that arrives first is a row before the count
+ * reads the store. The waits are outside the turn, as `runVoteOp`'s are. One ballot per voter: a
+ * second, before the close, replaces the first - a resend must never double a vote.
  */
-function onBallotCast(payload, senderId) {
-    if (!game.user?.isGM) return;
-    if (!isPrimaryGm()) return;
-    const progress = trialProgress();
-    if (!progress.vote.open) return refuseBallot(senderId, "no vote is open");
-
-    const sender = game.users.get(senderId);
-    if (!sender || sender.isGM) return refuseBallot(senderId, "not a player");
-
-    // The same answer `eligibleVoters` gave when the ballot went out - not the first
-    // student this person happens to own, which for somebody holding two was a coin flip
-    // over whose candidate list their answer would be checked against.
-    const actor = voterActorFor(sender);
-    if (!actor) return refuseBallot(senderId, "has no living student to vote with");
-
-    // A ballot is a LIST of names now - one for an ordinary night, two when the
-    // night produced two Blackened. Normalised here so a client on older code,
-    // or a hand-built packet, still lands somewhere sane.
-    const picked = Array.isArray(payload?.choice) ? payload.choice : [payload?.choice];
-    const allowedIds = new Set(candidatesFor(actor.id).map(c => c.id));
-    const clean = picked.filter(id => allowedIds.has(id));
-    if (!clean.length) return refuseBallot(senderId, `nothing on "${picked.join(", ")}" is on their ballot`);
-
-    // One ballot per voter. A second arrival replaces the first rather than
-    // adding to the tally - a resend must never double a vote. The row is in
-    // memory when `patch` returns; its write to this browser's storage follows.
-    ballotStore.patch(senderId, {
-        chapter: progress.chapter, round: progress.vote.round, actorId: actor.id, choice: clean, at: Date.now()
-    }).catch(err => error("Could not keep a ballot in the GMs' store", err));
-    log(`Ballot received with ${clean.length} name(s) (${roundBallots(progress).length} so far).`);
-    // A ballot is not a world document or setting, so nothing that keeps a
-    // window live would notice it. The trial console's "still to vote" line is
-    // the one thing a GM opens that window to read during a vote.
-    //
-    // LAST, after the store has the ballot in it: a listener that read
-    // `pendingVoters()` first would redraw the same stale list (F8). A hook and
-    // not a socket, because `Hooks.callAll` runs on this client only; another
-    // GM hears of the row when it merges into their copy (the store's setting's
-    // `onChange`, settings.mjs).
-    Hooks.callAll("drpgBallotsChanged");
+export async function recordBallot(sender, round, choice) {
+    await ballotStore.whenHydrated();
+    await studentsJudged();
+    const turn = voteTurn.then(() => {
+        const progress = trialProgress();
+        const actor = voterActorFor(sender);
+        const why = ballotRefusal(progress, actor, round, choice);
+        if (why) return { refused: why };
+        // The row is in memory when `patch` returns; its write to this browser's storage follows.
+        ballotStore.patch(sender.id, {
+            chapter: progress.chapter, round: progress.vote.round, actorId: actor.id, choice: [...choice], at: Date.now()
+        }).catch(err => error("Could not keep a ballot in the GMs' store", err));
+        log(`Ballot received with ${choice.length} name(s) (${roundBallots(progress).length} so far).`);
+        // A ballot is not a world document or setting, so nothing that keeps a
+        // window live would notice it. The trial console's "still to vote" line is
+        // the one thing a GM opens that window to read during a vote.
+        //
+        // LAST, after the store has the ballot in it: a listener that read
+        // `pendingVoters()` first would redraw the same stale list (F8). A hook and
+        // not a socket, because `Hooks.callAll` runs on this client only; another
+        // GM hears of the row when it merges into their copy (the store's setting's
+        // `onChange`, settings.mjs).
+        Hooks.callAll("drpgBallotsChanged");
+        return { reply: { round: progress.vote.round } };
+    });
+    voteTurn = turn.catch(() => null);
+    return turn;
 }
 
-function refuseBallot(senderId, why) {
-    warn(`Refused a ballot from ${game.users.get(senderId)?.name ?? senderId}: ${why}.`);
+/**
+ * Why the primary does not record a ballot, or null (E10 C2): the round, then the voter, then the names. Each
+ * reason is one of the bridge's (bridge-guards.mjs `REASON_PATTERNS`), and the player is told it in their language.
+ */
+function ballotRefusal(progress, actor, round, choice) {
+    if (!progress.vote.open || Number(round) !== progress.vote.round) return "the vote has moved on since that ballot was handed out";
+    if (!actor) return "the sender holds no ballot in this vote";
+    const names = Array.isArray(choice) ? choice : [];
+    if (new Set(names).size !== names.length) return "the ballot names somebody twice";
+    if (names.length !== progress.vote.picks) return `the ballot names ${names.length}, the vote asks for ${progress.vote.picks}`;
+    const listed = new Set(candidatesFor(actor.id).map(c => c.id));
+    return names.every(id => listed.has(id)) ? null : "the ballot names somebody who is not on it";
+}
+
+/**
+ * A PLAYER'S OWN BALLOT, ASKED FOR (E10 C2, 1.2.71; the plan's section 3, "A late joiner"): the run of the
+ * bridge's `vote.ask` (gm-bridge.mjs `handleBallotAsk`), on the primary, about the sender alone. Null when no
+ * vote is open or the sender holds no ballot in it (`eligibleVoters`, as the GMs hold the students); `{ cast:
+ * true, round }` when the sender's ballot of this round is in; otherwise the ballot, `{ round, picks,
+ * candidates }` - and a sender the vote had not handed one yet, a player who joined after the ballots went out,
+ * is added to the record's `issued` first, as a remind adds one: the world's record says who was handed a
+ * ballot, and the count's base keeps them should they no longer be entitled at the close (`closeRound` counts
+ * the entitled and the answered as well, which is why 63's count reads the same without this write - measured
+ * on a mutant, 09.10.2026). One ballot per person, as at the open (D17, S06-55): a player with two students is
+ * asked about once. In the vote's turn, so an ask and a step of the vote never write the record over each other.
+ */
+export async function ballotFor(sender) {
+    await ballotStore.whenHydrated();
+    await studentsJudged();
+    const turn = voteTurn.then(async () => {
+        const progress = trialProgress();
+        const actor = progress.vote.open ? voterActorFor(sender) : null;
+        if (!actor) return null;
+        const { round, picks, issued } = progress.vote;
+        if (roundBallots(progress).some(([userId]) => userId === sender.id)) return { cast: true, round };
+        if (!issued.includes(sender.id)) {
+            await setTrialProgress({ vote: { ...progress.vote, issued: [...issued, sender.id] } });
+            Hooks.callAll("drpgBallotsChanged");
+            log(`Handed ${sender.name} a ballot, asked for in round ${round} (${issued.length + 1} issued).`);
+        }
+        return { round, picks, candidates: candidatesFor(actor.id) };
+    });
+    voteTurn = turn.catch(() => null);
+    return turn;
 }
 
 /** Everyone who can be accused, from the perspective of one voter. */
@@ -350,7 +406,7 @@ async function askVote(op, picks = null) {
  * 3). Until 1.2.71 the GM who pressed opened, counted and forgot the vote in their own memory:
  * every GM heard the ballots and only that one kept them, another GM's console knew of none,
  * and a reload of it lost them (scenario 63's D and E at 1e9871c). Every step is taken here
- * now, on the one browser that records the ballots (`onBallotCast`) - asked by `openVote`,
+ * now, on the one browser that records the ballots (`recordBallot`) - asked by `openVote`,
  * `closeVote` and `remindVoters` on any GM through `vote.run` (gm-bridge.mjs, gmOnly), or run
  * in place when the asker is the primary. Answers the step's reply, `{ status }` when it was
  * refused or found nothing to do, or null on a browser that is not the primary's.
@@ -377,10 +433,12 @@ export async function runVoteOp(op, { picks = 0 } = {}) {
     // which is how each player learnt of the second. A death counts nowhere until it is
     // made known (the owner's Q3) - see `trialBlackenedIds`. Counted once the stores hold the
     // other GMs' rows (fix r2-G2, `whenTrialReadable`), and every step reads the ballots once
-    // this browser's copy of them holds the other GMs' rows too (E10 C1). The waits are outside
+    // this browser's copy of them holds the other GMs' rows too (E10 C1), and the students once
+    // every write queued on them is judged (E10 C2, `studentsJudged`). The waits are outside
     // the turn: a step waiting for its stores does not hold up a step that is not.
     await whenTrialReadable();
     await ballotStore.whenHydrated();
+    await studentsJudged();
     const recorded = trialBlackenedIds().length;
     const turn = voteTurn.then(() => voteStep(op, picksFor(picks, recorded)));
     voteTurn = turn.catch(() => null);
@@ -450,7 +508,7 @@ async function openRound(progress, op, picks) {
         .map(([userId]) => userId);
     if (older.length) await ballotStore.dropMany(older);
 
-    sendBallots(voters, picks);
+    sendBallots(voters, picks, round);
     // After the emit, so a send that threw for one player is still reported as a
     // vote that is now running - and before the card, so the console is true by
     // the time it lands (F8).
@@ -489,18 +547,23 @@ async function sendAgain(progress, op) {
     }
     if (!voters.length) return { sent: 0 };
 
-    sendBallots(voters, progress.vote.picks);
+    sendBallots(voters, progress.vote.picks, progress.vote.round);
     Hooks.callAll("drpgBallotsChanged");
     log(`Sent a fresh ballot to ${voters.length} player(s) in round ${progress.vote.round}.`);
     return { sent: voters.length };
 }
 
-function sendBallots(voters, picks) {
+/**
+ * The ballot, to each voter's browser alone, with the round it is of - which comes back with the answer
+ * (`recordBallot`). Until E10 C2 it named the voter's student, which nothing read: the primary finds the
+ * voter from who sent the answer.
+ */
+function sendBallots(voters, picks, round) {
     for (const { user, actor } of voters) {
         try {
             game.socket.emit(SOCKET_EVENT, {
                 action: ACTION_OPEN,
-                voterActorId: actor.id,
+                round,
                 picks,
                 candidates: candidatesFor(actor.id)
             }, { recipients: [user.id] });
@@ -516,7 +579,7 @@ function sendBallots(voters, picks) {
  * TWO RULES, AND A WHOLE CHAPTER RUN END TO END FOUND BOTH (11.09).
  *
  * ONE PER PERSON, NOT ONE PER STUDENT. The tally is keyed by the SENDER - it has to be,
- * see `onBallotCast` - so a user holding two students was handed two ballot windows and
+ * see `recordBallot` - so a user holding two students was handed two ballot windows and
  * exactly one of them could ever count. Measured: three players at the table, "4 ballots
  * are out" announced to the room, one player returned two and the second silently replaced
  * the first. `pendingVoters` filters by user as well, so that player also vanished off the
@@ -527,12 +590,21 @@ function sendBallots(voters, picks) {
  * means the murdered player votes in the trial about their own death. Voting FOR the dead
  * stays exactly as it was (`allowVotingForDead`, guide p. 32); this is the other half of
  * the sentence, and `TRIAL.deadCastBallots` is where to change your mind about it.
+ *
+ * DEAD AS THE GMS HOLD THEM (E10 C2, 1.2.71; the plan's 1b.2). The death was read off the
+ * document, which the student's owner can write: a dead student's owner who wiped the flag
+ * from their console was handed a ballot, and the put-back the GMs' audit sends lands a server
+ * round trip later, or never where it fails. It is read as the primary holds it now
+ * (sheet-audit.mjs `flagsHeldNow`), after every write queued on a student is judged
+ * (`studentsJudged`, which every road deciding who votes waits for first: a step of the vote,
+ * a cast and an ask) - on another GM's browser, which holds no mark of its own, the document's,
+ * as before.
  */
 function eligibleVoters() {
     const out = [];
     const seated = new Set();
     for (const actor of studentActors()) {
-        if (!TRIAL.deadCastBallots && isDeceased(actor)) continue;
+        if (!TRIAL.deadCastBallots && isDeceased(flagsHeldNow(actor))) continue;
         const user = game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
         if (!user || seated.has(user.id)) continue;
         seated.add(user.id);
@@ -542,11 +614,20 @@ function eligibleVoters() {
 }
 
 /**
+ * Every write queued on a student judged (sheet-audit.mjs `judgedFor`; E10 C2): waited for once, outside
+ * the vote's turn, by every road that decides who holds a ballot, so `eligibleVoters` then reads each
+ * student as the GMs hold it in one synchronous pass.
+ */
+function studentsJudged() {
+    return judgedFor(...studentActors().map(actor => actor.id));
+}
+
+/**
  * Which of a person's students is the one holding their ballot.
  *
- * Read from `eligibleVoters` rather than worked out again, so the client that SENT the
- * ballot and the client that COUNTS it cannot disagree about who it belongs to - which is
- * what decides whose candidate list the answer is checked against.
+ * Read from `eligibleVoters` rather than worked out again, so the step that hands the
+ * ballots out and the cast that records one cannot disagree about who it belongs to -
+ * which is what decides whose candidate list the answer is checked against.
  */
 function voterActorFor(user) {
     return eligibleVoters().find(v => v.user.id === user.id)?.actor ?? null;
@@ -609,9 +690,34 @@ export function ballotCopyStatus() {
     return null;
 }
 
-/** The ballot itself, on a player's screen. */
-async function castBallot(candidates, voterActorId, picks = 1) {
+/* ==========================================================================
+ * A PLAYER'S BALLOT (E10 C2, 1.2.71; audit S06-17)
+ * --------------------------------------------------------------------------
+ * The window, the answer sent on the bridge (`vote.cast`), and one thing said of
+ * it: "Your vote is in." once the primary GM has recorded it, the reason when it
+ * refused it, and that it is kept here when no GM could take it - and a kept answer
+ * goes again when a primary GM's world has loaded (`askForBallot`). Until C2 the
+ * player was told the vote was in as the packet left, GM or none. All of it is this
+ * browser's memory: a reload forgets a kept answer, and the ask at load hands the
+ * ballot back while its round is open (`ballotFor`).
+ * ========================================================================== */
+
+/** The ballot windows this browser has drawn: a newer one closes the one before, whose answer is then nobody's. */
+let ballotWindows = 0;
+/** The round of the ballot window open here, or null: a player holding one is not handed another by an ask. */
+let drawnRound = null;
+/** An answer no primary GM has recorded yet, `{ round, choice }`, and whether it is on its way now. */
+let unsent = null;
+let sending = false;
+/** The round of the last ballot the primary recorded from this browser, so an ask's answer does not say it twice. */
+let confirmedRound = null;
+/** A primary GM whose world said it had loaded before this browser saw it connect (pre-session-note.mjs `owedTo`). */
+let owedTo = null;
+
+/** The ballot itself, on a player's screen; the answer goes to the primary GM (`sendBallot`). */
+async function castBallot({ round = 0, picks = 1, candidates = [] } = {}) {
     if (!Array.isArray(candidates) || !candidates.length) return;
+    const wanted = Math.max(1, Math.trunc(Number(picks)) || 1);
 
     /* THE BALLOT IS A LIST OF PEOPLE, NOT A DROP-DOWN.
        It was one `select` per pick, which is the one control in this module that hides its
@@ -632,9 +738,9 @@ async function castBallot(candidates, voterActorId, picks = 1) {
 
     // One list per name the night demands. Two Blackened means two answers,
     // and the guide is explicit that half an answer is not one.
-    const fields = Array.from({ length: Math.max(1, picks) }, (_, i) => `
+    const fields = Array.from({ length: wanted }, (_, i) => `
             <fieldset class="drpg-ballot">
-                <legend>${picks > 1
+                <legend>${wanted > 1
                     ? game.i18n.format("DRPG.Vote.whoNth", { n: i + 1 })
                     : game.i18n.localize("DRPG.Vote.who")}</legend>
                 <div class="drpg-choice-list">${rows(i)}</div>
@@ -642,32 +748,43 @@ async function castBallot(candidates, voterActorId, picks = 1) {
 
     // One ballot window at a time (CASE-14): a Remind that reached a player
     // whose first window was still open stacked a second, and either counted.
+    // Counted before the close, so the window closed here goes without a word (below).
+    const drawn = ++ballotWindows;
     for (const app of foundry.applications?.instances?.values?.() ?? []) {
         if (app.rendered && app.options?.classes?.includes("drpg-ballot")) app.close();
     }
 
-    const choice = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Vote.ballotTitle") },
-        classes: ["drpg-panel", "drpg-ballot"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
-            ${picks > 1 ? `<p class="drpg-warning">${
-                game.i18n.format("DRPG.Vote.twoBlackened", { n: picks })}</p>` : ""}
-            ${fields}
-            <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Vote.cast"), default: true,
-                // `:checked`, because a list of radios has no value of its own - and an
-                // unanswered ballot must come back short rather than come back with the
-                // first name on it, which is what `sendBallots` checks below.
-                callback: (e, b, d) => Array.from({ length: Math.max(1, picks) }, (_, i) =>
-                    d.element.querySelector(`input[name="choice${i}"]:checked`)?.value).filter(Boolean)
-            }
-        ],
-        rejectClose: false
-    });
+    drawnRound = round;
+    let choice = null;
+    try {
+        choice = await DialogV2.wait({
+            window: { title: game.i18n.localize("DRPG.Vote.ballotTitle") },
+            classes: ["drpg-panel", "drpg-ballot"],
+            content: dialogContent(`<form>
+                <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
+                ${wanted > 1 ? `<p class="drpg-warning">${
+                    game.i18n.format("DRPG.Vote.twoBlackened", { n: wanted })}</p>` : ""}
+                ${fields}
+                <p class="notes">${game.i18n.localize("DRPG.Vote.ballotNote")}</p>
+            </form>`),
+            render: (event, dialog) => wireBallot(dialog?.element, wanted),
+            buttons: [
+                {
+                    action: "ok", label: game.i18n.localize("DRPG.Vote.cast"), default: true,
+                    // `:checked`, because a list of radios has no value of its own - and an
+                    // unanswered ballot must come back short rather than come back with the
+                    // first name on it, which the primary refuses (`ballotRefusal`).
+                    callback: (e, b, d) => Array.from({ length: wanted }, (_, i) =>
+                        d.element.querySelector(`input[name="choice${i}"]:checked`)?.value).filter(Boolean)
+                }
+            ],
+            rejectClose: false
+        });
+    } finally {
+        if (drawn === ballotWindows) drawnRound = null;
+    }
+    // Closed by a newer ballot - a remind, a resend, the vote started over - which is the one to answer.
+    if (drawn !== ballotWindows) return;
 
     // Dismissed rather than answered. Silence used to be the end of it - the
     // ballot was gone and there was no way to ask for another - so a misclick
@@ -677,22 +794,107 @@ async function castBallot(candidates, voterActorId, picks = 1) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vote.dismissed"));
         return;
     }
+    unsent = { round, choice };
+    await sendBallot();
+}
 
+/**
+ * The ballot's window, wired (E10 C2): Cast waits until every list has a name, and a name checked in
+ * one list cannot be checked in another. The primary refuses a ballot naming somebody twice or short
+ * of a name anyway (`ballotRefusal`); this keeps an honest player from sending one. Nothing here
+ * decides: a window that never rendered sends what was checked, and the primary judges it.
+ */
+function wireBallot(root, picks) {
+    if (!root) return;
+    const cast = root.querySelector('button[data-action="ok"]');
+    const lists = Array.from({ length: picks }, (_, i) => [...root.querySelectorAll(`input[name="choice${i}"]`)]);
+    const sync = () => {
+        const taken = lists.map(list => list.find(input => input.checked)?.value ?? null);
+        lists.forEach((list, i) => {
+            for (const input of list) input.disabled = !input.checked && taken.some((value, j) => j !== i && value === input.value);
+        });
+        if (cast) cast.disabled = taken.includes(null);
+    };
+    root.addEventListener("change", sync);
+    sync();
+}
+
+/**
+ * Player: the answer given here, to the primary GM (`vote.cast`), and what came of it said once: "Your
+ * vote is in." when the primary has recorded it; the reason when it refused it ("The vote has moved
+ * on" for a window of an earlier round); and that it is kept here when no GM could take it - none
+ * connected, or none answered in time. Kept, it goes again when a primary GM's world has loaded
+ * (`askForBallot`); one sent to a GM who left before answering is sent again by the bridge itself on
+ * the next primary's arrival (`resend`). One at a time: an answer given while the one before is on its
+ * way goes once that one is answered, and what came of the older one is not said.
+ */
+async function sendBallot() {
+    // No GM gets here (`onBallotOpened` and `askForBallot` return on one); the check stands over the
+    // request because R6 reads it there - a GM's request with no `local` is lost on the socket.
+    if (game.user.isGM || !unsent || sending) return;
+    const ballot = unsent;
+    sending = true;
     try {
-        // Addressed to the GMs and nobody else - the server delivers it only to
-        // them, so no other player's client ever sees this packet.
-        //
-        // No voter id in the payload: the GM keys the tally by who actually sent
-        // the packet. See `onBallotCast`.
-        const { gmIds } = await import("./utils.mjs");
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_BALLOT,
-            choice
-        }, { recipients: gmIds() });
-        ui.notifications.info(game.i18n.localize("DRPG.Vote.castConfirmed"));
-    } catch (err) {
-        error("Could not send the ballot", err);
+        const { requestBallotCast } = await import("./gm-bridge.mjs");
+        const res = await requestBallotCast(ballot.round, ballot.choice);
+        if (unsent === ballot) {
+            if (res.ok) {
+                unsent = null;
+                confirmedRound = ballot.round;
+                ui.notifications.info(game.i18n.localize("DRPG.Vote.castConfirmed"));
+            } else if (res.refused) {
+                unsent = null;
+                // The vote's own words for a window of an earlier round; the bridge's for the rest.
+                if (res.reason === "movedOn") ui.notifications.warn(game.i18n.localize("DRPG.Vote.movedOn"));
+                else sayNotDone("vote.cast", res.reason);
+            } else {
+                ui.notifications.warn(game.i18n.localize("DRPG.Vote.notReceived"));
+            }
+        }
+    } finally {
+        sending = false;
     }
+    if (unsent && unsent !== ballot) await sendBallot();
+}
+
+/**
+ * Player: what this browser owes a vote, asked of a primary GM (E10 C2) - at load, and when a primary
+ * GM's world has loaded (`registerVote`). An answer kept here goes to it (`sendBallot`); otherwise, while
+ * a vote is open and no ballot window is open here, the primary is asked for this player's own ballot
+ * (`vote.ask`, `askBallot`). With no GM this browser has seen connect, it waits for `primary` to.
+ */
+export function askForBallot(primary = primaryGmId()) {
+    if (game.user.isGM || sending) return;
+    if (!unsent && (drawnRound !== null || !trialProgress().vote.open)) return;
+    if (!activeGmIds().length) {
+        owedTo = primary;
+        return;
+    }
+    owedTo = null;
+    if (unsent) sendBallot().catch(err => error("Could not send the ballot", err));
+    else askBallot().catch(err => error("Could not ask the GM for a ballot", err));
+}
+
+/**
+ * Player: this player's own ballot, from the primary (`ballotFor`): drawn when it is one, "Your vote is
+ * already in." when the primary holds this player's ballot of the round - said once a round, and not
+ * after "Your vote is in." - and nothing when the vote holds no ballot for them. Asked quietly: a
+ * refusal or a GM who does not answer is the GM's log alone, and the next primary's arrival asks again.
+ */
+async function askBallot() {
+    if (game.user.isGM) return; // as in `sendBallot` (R6)
+    const { requestBallot } = await import("./gm-bridge.mjs");
+    const res = await requestBallot();
+    const reply = res.ok ? res.value : null;
+    // A window drawn or an answer given while the question travelled is newer than its answer.
+    if (!reply || drawnRound !== null || unsent) return;
+    const round = Number(reply.round) || 0;
+    if (reply.cast) {
+        if (round !== confirmedRound) ui.notifications.info(game.i18n.localize("DRPG.Vote.alreadyIn"));
+        confirmedRound = round;
+        return;
+    }
+    await castBallot({ round, picks: Number(reply.picks) || 1, candidates: reply.candidates });
 }
 
 /**
@@ -702,9 +904,10 @@ async function castBallot(candidates, voterActorId, picks = 1) {
  * the card.
  */
 async function closeRound(progress) {
-    // CLOSED FIRST, THEN COUNTED. A ballot that lands while the close is being
-    // written is a row before the count reads the store; one that lands after it
-    // finds no vote open and is refused - never recorded after the count was read.
+    // CLOSED FIRST, THEN COUNTED. A ballot is recorded in the vote's turn since
+    // E10 C2 (`recordBallot`): one that arrived before this step is a row before
+    // the count reads the store, and one that arrives during it waits for it and
+    // finds the vote closed - refused, never recorded after the count was read.
     const vote = { ...progress.vote, open: false, closedAt: Date.now() };
     await setTrialProgress({ vote });
     // ABOVE the nobody-answered return: a hook placed after it would leave the

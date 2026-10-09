@@ -1063,6 +1063,8 @@
       "who": "Your vote",
       "cast": "Cast it",
       "castConfirmed": "Your vote is in.",
+      "alreadyIn": "Your vote is already in.",
+      "notReceived": "No GM has your vote yet. This browser keeps it and sends it when a GM connects.",
       "dismissed": "Ballot closed without a vote. Nothing was counted for you - ask the GM to send it again.",
       "notRunning": "No vote is open right now.",
       "stillOut": "{n} still to vote: {who}",
@@ -2520,7 +2522,9 @@
         "searchTokens.spend": "Spend a search token",
         "searchTokens.takePlant": "Look for a planted item",
         "searchTokens.returnPlant": "Put a planted item back",
-        "vote.run": "A step of the vote, run on the primary GM"
+        "vote.run": "A step of the vote, run on the primary GM",
+        "vote.cast": "Cast your vote",
+        "vote.ask": "Your ballot"
       },
       "notDone": "“{what}” was not carried out. {why}",
       "nothingSpent": "Nothing was spent.",
@@ -2580,6 +2584,9 @@
         "callNotPaid": "The GM's client saw no Hope paid for that Call.",
         "callNotApproved": "The GM's client holds no GM's yes for that Call. Ask for it again.",
         "itemNotDecided": "No GM has decided yet on that item, which a player made on a sheet: it changes no hands until one does.",
+        "notEligible": "You hold no ballot in this vote.",
+        "sameTwice": "Your ballot names somebody twice.",
+        "wrongCount": "Your ballot does not name as many people as the vote asks for.",
         "sheetPutBack": "The GM's client put that change to your sheet back: nothing it knows of covers it."
       },
       "criticalHint": "Critical - this player is owed a substantial hint.",

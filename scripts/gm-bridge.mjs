@@ -51,6 +51,10 @@ const ACTION_AUDIT_DECIDE = "audit.decide";
 const ACTION_KEYS_CHARGE = "keys.charge";
 /** GM -> primary GM: a step of the vote - open, close, restart, resend or remind (E10 C1; vote.mjs `runVoteOp`). */
 const ACTION_VOTE_RUN = "vote.run";
+/** player -> primary GM: a ballot (E10 C2; vote.mjs `sendBallot`, `recordBallot`). */
+const ACTION_VOTE_CAST = "vote.cast";
+/** player -> primary GM: this player's own ballot, while a vote is open (E10 C2; vote.mjs `askForBallot`, `ballotFor`). */
+const ACTION_VOTE_ASK = "vote.ask";
 /** GM -> primary GM: Approve or Decline on a reshape card (E09 C10; cleanup.mjs `ruleReshape`, `askReshapeRuling`). */
 const ACTION_RESHAPE_RULING = "cleanup.ruling";
 /** player -> GM: "which of this roll's statistics?" (E32+E07 C11b; trait-ruling.mjs). */
@@ -1395,6 +1399,20 @@ async function handleVoteRun(payload) {
     return { reply: await runVoteOp(payload.op, { picks: payload.picks }) };
 }
 
+/** The run of `vote.cast` (E10 C2): the primary's own judgement and record of the sender's ballot (vote.mjs `recordBallot`). */
+async function handleBallot(payload, sender) {
+    const { recordBallot } = await import("./vote.mjs");
+    const out = await recordBallot(sender, payload.round, payload.choice);
+    if (out.refused) return { refused: out.refused };
+    return { reply: out.reply };
+}
+
+/** The run of `vote.ask` (E10 C2): the sender's own ballot, as the primary holds the vote (vote.mjs `ballotFor`), or null. */
+async function handleBallotAsk(payload, sender) {
+    const { ballotFor } = await import("./vote.mjs");
+    return { reply: await ballotFor(sender) };
+}
+
 /** The run of `cleanup.ruling` (E09 C10): the primary's own ruling (cleanup.mjs `ruleReshape`), recorded as the asking GM's. */
 async function handleReshapeRuling(payload, sender) {
     const { ruleReshape } = await import("./cleanup.mjs");
@@ -2029,7 +2047,7 @@ export const BRIDGE_ACTIONS = table({
     },
     /*
      * THE VOTE, RUN ON THE PRIMARY GM (E10 C1, 1.2.71; audit S06-17). The ballots are recorded
-     * on the primary (vote.mjs `onBallotCast`, into the GMs' store), so the steps that read or
+     * on the primary (vote.mjs `recordBallot`, into the GMs' store), so the steps that read or
      * reset them are taken there too: another GM's Send the ballots, Start the vote over,
      * Remind and Close and count ask it here (vote.mjs `askVote`, `onPrimary`). A GM's request
      * only: no player opens or counts a vote. `op` is one of the five steps or nothing; `picks`
@@ -2042,6 +2060,48 @@ export const BRIDGE_ACTIONS = table({
         sanitize: pick({ op: as.oneOf("open", "close", "restart", "resend", "remind"), picks: as.num }),
         run: handleVoteRun,
         answer: "reply"
+    },
+    /*
+     * A BALLOT, ON THE BRIDGE (E10 C2, 1.2.71; audit S06-12, S06-17). Until C2 a player's answer
+     * was a raw packet to every GM (`vote.ballot`), which the primary recorded on a candidate
+     * filter alone, and the player was told "Your vote is in." as it left - with no GM connected,
+     * of a ballot nobody would count. A request now, a player's alone (a GM casts no ballot),
+     * judged by the primary against the vote the world holds (vote.mjs `recordBallot`,
+     * `ballotRefusal`) and answered with the round it was recorded in, or refused with the reason
+     * the player is told. No voter travels: the primary finds the voter from the sender, as it
+     * did. `patient` and `resend`, though nobody decides: a primary that reloads while a ballot is
+     * on its way is asked again, with the same id, when its world has loaded, and the player is
+     * not told meanwhile that nothing reached it. Asked quietly (`requestBallotCast`): the vote
+     * says what came of a ballot in its own words (vote.mjs `sendBallot`).
+     */
+    [ACTION_VOTE_CAST]: {
+        label: "DRPG.Bridge.what.vote.cast",
+        guards: [knownSender, playersOnly("a GM casts no ballot")],
+        sanitize: pick({ round: as.num, choice: as.raw }),
+        run: handleBallot,
+        answer: "reply", patient: true, resend: true,
+        claims: {
+            round: "held by recordBallot (vote.mjs ballotRefusal) to the round of the vote open in the world; any other is refused as moved on",
+            choice: "held by recordBallot (vote.mjs ballotRefusal) to the vote's picks, none twice, each on the list the primary computes for the voter it finds from the sender"
+        }
+    },
+    /*
+     * A LATE JOINER'S BALLOT (E10 C2, 1.2.71). A player who loaded while a vote was open - who
+     * joined after the ballots went out, or reloaded with a window open - was handed nothing
+     * until a GM pressed Remind. Their browser asks now, at load and when a primary GM's world
+     * has loaded (vote.mjs `askForBallot`), and the primary answers about the sender alone
+     * (`ballotFor`): the ballot, that it is in, or null. A background question, so quiet, as
+     * `advancement.ask` is: a refusal is the GM's log alone, and the next primary's arrival asks
+     * again. Not patient: an answer is not a ruling, and a primary that has not acknowledged it
+     * within the clock for a "got it" is asked again when its world has loaded.
+     */
+    [ACTION_VOTE_ASK]: {
+        label: "DRPG.Bridge.what.vote.ask",
+        guards: [knownSender, playersOnly("a GM asks for nothing here")],
+        sanitize: pick({}),
+        run: handleBallotAsk,
+        answer: "reply", quiet: true,
+        why: "answers only about the sender's own ballot, found from the id Foundry gives"
     },
     /*
      * A RESHAPE RULED ON THE PRIMARY GM (E09 C10, 08.10.2026). Each GM has the card, and
@@ -2282,6 +2342,24 @@ export function requestNoteSave(text, { quiet = false } = {}) {
         quiet,
         local: () => import("./pre-session-note.mjs").then(m => m.writeNote(game.user.id, text, { byGm: false }))
     });
+}
+
+/**
+ * A player's ballot, to the primary GM (E10 C2; vote.mjs `sendBallot`): the round of the window it was
+ * given in and the names checked there. Its value is `{ round }`, the round it was recorded in. Quiet:
+ * the vote says what came of it in its own words - that it is in, why it was not, or that it is kept.
+ */
+export function requestBallotCast(round, choice) {
+    return ask(ACTION_VOTE_CAST, { round, choice }, { quiet: true });
+}
+
+/**
+ * This player's own ballot, asked of the primary GM (E10 C2; vote.mjs `askBallot`). Its value is the
+ * ballot, `{ round, picks, candidates }`; `{ cast: true, round }` when the primary holds this player's
+ * ballot of the round; or null.
+ */
+export function requestBallot() {
+    return ask(ACTION_VOTE_ASK, {});
 }
 
 /**
