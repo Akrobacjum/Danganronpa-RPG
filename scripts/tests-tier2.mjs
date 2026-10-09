@@ -18926,6 +18926,152 @@ const SCENARIOS = [
         }
     }],
 
+    ["a wrong verdict's card names the executed and never the Blackened", async () => {
+        /* E10 C5, 1.2.71; audit S06-06; ledger V6. The verdict was a whisper to the GMs and the
+           execution's card went to them alone as well: the class never read its own verdict, the
+           executed's player was told nothing, and the Event panel's trial card went on saying
+           "Everyone has the floor". One public card now, with the death's sound - who was executed
+           and that the class got it wrong, and of the Blackened no name and no id in its words, its
+           flags or its speaker; a note in the second person to the executed's owner, spoken by
+           their character; and the panel's trial card says the verdict is in. 63 G and 72-canary
+           read the same card on the players' browsers. Red at C4's tree (A1, 09.10.2026): no public
+           card. */
+        const [accused, killer] = cast(2);
+        const V = await import("./vote.mjs");
+        const { trialCard } = await import("./events.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { reviveCharacter } = await import("./chapter.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const esc = foundry.utils.escapeHTML;
+        const from = new Set(game.messages.map(m => m.id));
+        try {
+            const after = await withVerdictOpen(async () => {
+                await withAdvanceWindows(() => null,
+                    () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] }));
+                await settle();
+                return { panel: trialCard({ phase: "classTrial", chapter: getClock().chapter }), stage: V.trialProgress().verdict?.stage ?? null };
+            });
+            const fresh = game.messages.filter(m => !from.has(m.id));
+            const said = new Map(await Promise.all(fresh.map(async m => [m.id, String(await wordsOf(m, 1000) ?? "")])));
+            const cards = fresh.filter(m => said.get(m.id).includes(game.i18n.localize("DRPG.Vote.verdictCardTitle")));
+            const card = cards[0] ?? null, sfx = card?.getFlag(MODULE_ID, "sfx") ?? null;
+            equal(stableJson([cards.length, card?.whisper?.length ?? null, card?.getFlag(MODULE_ID, "verdictCard") ?? null, sfx?.key ?? sfx, after.stage]),
+                stableJson([1, 0, getClock().chapter ?? null, "death", "done"]),
+                "the verdict is not one public card of the chapter with the death's sound, or did not finish (cards, whispered to, chapter, sound, stage)");
+            const words = said.get(card?.id) ?? "";
+            ok(words.includes(game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(accused.name) }))
+                && words.includes(game.i18n.localize("DRPG.Vote.verdictWrong")),
+                "the verdict's card does not say who was executed and that the class got it wrong");
+            const told = fresh.filter(m => !m.whisper?.length)
+                .map(m => `${said.get(m.id)} ${JSON.stringify(m.flags ?? {})} ${JSON.stringify(m.speaker ?? {})}`);
+            equal(stableJson(told.filter(text => text.includes(killer.id) || text.includes(killer.name)).length), "0",
+                "a public card of the wrong verdict names the Blackened or carries their id");
+            const notes = fresh.filter(m => said.get(m.id).includes(game.i18n.format("DRPG.Vote.executedNote", { name: esc(accused.name) })));
+            const owners = game.users.filter(u => !u.isGM && accused.testUserPermission(u, "OWNER")).map(u => u.id);
+            equal(stableJson([notes.length, notes[0]?.speaker?.actor ?? null, (notes[0]?.whisper?.length ?? 0) > 0,
+                owners.every(id => notes[0]?.whisper?.includes(id))]), stableJson([1, accused.id, true, true]),
+                "the executed's owner is not told in the second person, once, in a whisper spoken by their character");
+            equal(stableJson([after.panel?.title ?? null, after.panel?.sub ?? null, String(after.panel?.meta ?? "").includes(accused.name)]),
+                stableJson([game.i18n.localize("DRPG.Events.afterVerdict"), game.i18n.localize("DRPG.Vote.verdictWrong"), true]),
+                "the Event panel's trial card does not say that the verdict is in, that the class got it wrong, and who was executed");
+        } finally {
+            await reviveCharacter(accused, { quiet: true });
+            await deferredOfferStore.drop(killer.id);
+        }
+    }],
+
+    ["a verdict that stops halfway is finished by Finish the verdict", async () => {
+        /* E10 C5, 1.2.71; audit S06-39. The verdict's lock was written first and again after the
+           last consequence, with nothing between the two to say how far it had got: a consequence
+           that threw reached the caller and left the lock standing, the rest undone and the
+           console's Verdict button closed by the lock - no way on. Each step runs in its own
+           try/catch now and the world's record says which are done. The Despair pools' write is
+           refused here once: the verdict executes the accused, posts its card, keeps the Blackened's
+           Level Up and stops at the pools, and the trial console names them beside Finish the
+           verdict, its next step; Finish fills them, and executes nobody twice, posts no second card
+           and keeps no second Level Up. A verdict whose GM is gone stopped as well. The console is
+           read as it opens (its `DialogV2.wait` answered null). Red at C4's tree (A1, 09.10.2026):
+           the throw reached the caller. */
+        const [accused, killer] = cast(2);
+        const V = await import("./vote.mjs");
+        const { wordsOf } = await import("./secret.mjs");
+        const { reviveCharacter } = await import("./chapter.mjs");
+        const { deferredOfferStore } = await import("./gm-stores.mjs");
+        const { manageClassTrial } = await import("./trial-floor-ui.mjs");
+        const label = game.i18n.localize("DRPG.Vote.verdictSteps.despair");
+        const from = new Set(game.messages.map(m => m.id));
+        const settings = game.settings, own = Object.getOwnPropertyDescriptor(settings, "set"), set = settings.set;
+        let refuse = true, fills = 0, deaths = 0;
+        settings.set = function (namespace, key, ...rest) {
+            if (namespace === MODULE_ID && key === SETTINGS.despairPools) {
+                if (refuse) throw new Error("the Despair pools are refused for this test");
+                fills++;
+            }
+            return set.call(this, namespace, key, ...rest);
+        };
+        // The death's record (`markDeceased`: its chapter, day and time of day) written on the accused.
+        const hook = Hooks.on("updateActor", (actor, change) => {
+            const path = `flags.${MODULE_ID}.${FLAGS.deceased}`;
+            if (actor.id === accused.id && foundry.utils.getProperty(foundry.utils.expandObject(change ?? {}), path)) deaths++;
+        });
+        const cards = async () => {
+            const said = await Promise.all(game.messages.filter(m => !from.has(m.id)).map(m => wordsOf(m, 1000)));
+            return said.filter(words => String(words ?? "").includes(game.i18n.localize("DRPG.Vote.verdictCardTitle"))).length;
+        };
+        const trialConsole = async () => {
+            const D = foundry.applications.api.DialogV2, kept = Object.getOwnPropertyDescriptor(D, "wait");
+            let opened = null;
+            D.wait = async cfg => {
+                if ((cfg?.classes ?? []).includes("drpg-window-trial")) opened = cfg;
+                return null;
+            };
+            try {
+                await manageClassTrial();
+            } finally {
+                if (kept) Object.defineProperty(D, "wait", kept);
+                else delete D.wait;
+            }
+            const finish = (opened?.buttons ?? []).find(b => b.action === "finishVerdict");
+            return [Boolean(finish), finish?.default === true,
+                String(opened?.content?.textContent ?? "").includes(game.i18n.format("DRPG.Vote.verdictStopped", { steps: label }))];
+        };
+        try {
+            await withVerdictOpen(async () => {
+                // After a counted vote, as at a table: the console's next step reads it.
+                await V.setTrialProgress({ voteClosed: true });
+                const threw = await thrown(() => withAdvanceWindows(() => null,
+                    () => V.applyVerdict({ correct: false, executedIds: [accused.id], blackenedIds: [killer.id] })));
+                await settle();
+                const stopped = V.trialProgress().verdict ?? null;
+                equal(stableJson([threw, stopped?.stage ?? null, stopped?.failed ?? null, deaths, await cards(), fills]),
+                    stableJson([null, "applying", ["despair"], 1, 1, 0]),
+                    "a verdict whose pools throw does not stop at them alone, with the accused executed and its card posted (threw, stage, failed, deaths, cards, fills)");
+                equal(V.verdictStopped?.() ?? null, label, "the verdict does not name the step it stopped at");
+                equal(stableJson(await trialConsole()), stableJson([true, true, true]),
+                    "the trial console does not offer Finish the verdict as its next step, or does not say where the verdict stopped (button, default, line)");
+                refuse = false;
+                await withAdvanceWindows(() => null, () => V.finishVerdict());
+                await settle();
+                const finished = V.trialProgress().verdict ?? null;
+                equal(stableJson([finished?.stage ?? null, finished?.failed ?? null, fills, deaths, await cards(),
+                    deferredOfferStore.get(killer.id)?.count ?? null, V.verdictStopped(), (await trialConsole())[0]]),
+                    stableJson(["done", [], 1, 1, 1, 1, null, false]),
+                    "Finish the verdict does not fill the pools once and finish, or executes, posts the card or keeps the Blackened's Level Up a second time, or the console still offers it (stage, failed, fills, deaths, cards, waiting, stopped, button)");
+                // And with nothing failed: a verdict whose GM is gone (their tab closed in a Level Up window) stopped too.
+                await V.setTrialProgress({ verdict: { ...finished, stage: "applying", by: "a GM who left", failed: [],
+                    done: (finished?.done ?? []).filter(step => step !== "overflow") } });
+                equal(V.verdictStopped(), game.i18n.localize("DRPG.Vote.verdictSteps.overflow"),
+                    "a verdict whose GM is gone, with a step not done, does not read as stopped");
+            });
+        } finally {
+            if (own) Object.defineProperty(settings, "set", own);
+            else delete settings.set;
+            Hooks.off("updateActor", hook);
+            await reviveCharacter(accused, { quiet: true });
+            await deferredOfferStore.drop(killer.id);
+        }
+    }],
+
     ["openMurder refuses during an Eclipse, but not once one has actually ended", async () => {
         // `judgePendingMurders` (eclipse.mjs) is the one legitimate call to
         // `openMurder` that happens WHILE an Eclipse is closing - a Direct

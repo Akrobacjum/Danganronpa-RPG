@@ -2891,7 +2891,9 @@ const REGRESSIONS = [
             "the console's tick outlives the window");
         ok(tick.includes("trialFloor()"), "the tick runs while no floor is open");
 
-        ok(/hooks: \["drpgBallotsChanged"\]/.test(manage), "the console stopped watching for a ballot");
+        // A list since E10 C5 (09.10.2026): the console also wakes on `userConnected`, the one thing
+        // that changes when the GM giving a verdict leaves (vote.mjs `verdictStopped`).
+        ok(/hooks: \[[^\]]*"drpgBallotsChanged"/.test(manage), "the console stopped watching for a ballot");
         ok(!/watch: \{[^}]*settings:/.test(manage),
             "the console's watch was narrowed to a list of settings, so the floor and the trial "
             + "record no longer wake it");
@@ -7406,6 +7408,10 @@ const REGRESSIONS = [
          * 5 SOCKET, 4 CHAT, 15 SHEET, 5 STORE.
          * E10 C4 (1.2.71) rewrote `openVerdictDialog`'s verdict: the dead are read as the GMs hold them,
          * and only a living student can be picked; no place added or struck.
+         * E10 C5 (1.2.71) struck `applyVerdict`'s SHEET row - it reads no death now - and added the two
+         * places the verdict reads them in, `verdictHeld` and `executeSentenced`. Measured on the harness
+         * on 09.10.2026 with C5 in the tree: 40 places against 40 rows - 10 PACKET, 5 SOCKET, 4 CHAT,
+         * 16 SHEET, 5 STORE.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7430,7 +7436,8 @@ const REGRESSIONS = [
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
             ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
             ["SHEET vote.mjs#openVerdictDialog", "judged (C4): who is dead is read once as the GMs hold it - `isDeadForGm(flagsHeldNow(actor))` after `judgedFor` of every student, in one synchronous pass; the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); the select opens on the world's `accusedIds` [1b.2]"],
-            ["SHEET vote.mjs#applyVerdict", "OPEN at base (R1, document `isDeadForGm`, `livingStudents`): C5 reads one `judgedFor(...executed, ...students)` then `flagsHeldNow` for all in one synchronous pass; `killCharacter` keeps its own head check [1b.2]"],
+            ["SHEET vote.mjs#verdictHeld", "judged (C5): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `isDeceased`/`isDeadForGm` of `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student [1b.2]"],
+            ["SHEET vote.mjs#executeSentenced", "judged (C5): each execution awaits `judgedFor(id)`, reads `isDeadForGm(flagsHeldNow(actor))` and calls `killCharacter`, whose own head check `isDeadForGm` runs with nothing awaited after that read (H3); a death the GMs hold is passed over, not killed twice [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "held: one `meansWrite` from `numberHeld` (E29 r2-H24/H25, in the tree before E10); the `actor.system.experiences[id].name` read is a label in the GM's summary. C8's fnSource test pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the Present dialog's target list on the presenter's own browser (R4); `seizeFloor` judges on the primary"],
@@ -7439,10 +7446,10 @@ const REGRESSIONS = [
             ["SHEET mastermind.mjs#applyFinalVerdict", "out of scope: E10 changes no line of it (C10 writes `finalTrial` beside it); `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40"],
             ["SHEET character.mjs#stampStartingSheet", "OPEN at base (R2, derived `actor.system`): C8 reads the held sheet (`numberHeld`) [1b.2]"],
             ["SHEET gm-bridge.mjs#handleAdvancement", "OPEN at base (R1, reads no sheet): S03-22 - C8 checks an `experienceUp` id and a trait on the held sheet before applying, refused and told [F7, 1b.2]"],
-            ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stops using it for survivors in C5 [1b.2]"],
+            ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
             ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220's census), its head check `isDeadForGm`; E10 changes no line [F4]"],
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (season, `seasonStartedAt`, `finalTrial`)"],
-            ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict` (null until C5); C10 `finalTrial` [F3/F4/F6]"],
+            ["STORE vote.mjs#trialProgress", "not a source: a world setting only a GM writes (`setTrialProgress`; the vote's fields on the primary GM, `runVoteOp`); C1 added `vote`, `accused`, `total`, `accusedIds` and `verdict`, which C5 writes: the stage, right or wrong, the executed, who gave it and when, the steps done and failed - never a Blackened; C10 `finalTrial` [F3/F4/F6]"],
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store; C6 makes its row a list per character [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
@@ -7657,6 +7664,32 @@ const REGRESSIONS = [
         const rightReturns = read.search(/if \(correct\) return \{ correct, executedIds: blackenedIdList\b/), selectRead = read.search(/\bf\.executed\b/);
         ok(rightReturns > 0 && selectRead > rightReturns,
             "a right verdict is not answered with the Blackened before `read` reads the executed select");
+    }],
+
+    ["R316 - a verdict writes its lock once, executes on the GMs' held reading, and its public card reads no Blackened", async () => {
+        /*
+         * E10 C5, 1.2.71; audit S06-39, S06-06; ledger G2. Until C5 `applyVerdict` wrote
+         * `verdictApplied: true` first and again after its last consequence - a consequence that
+         * threw left the lock standing and the rest undone, with nothing to say how far it had got -
+         * executed on the document's `isDeadForGm`, and gave the table no card. Read in vote.mjs: the
+         * lock is written once in the file; `executeSentenced` awaits the audit (`judgedFor`), reads
+         * the student held (`flagsHeldNow`) and only then calls `killCharacter`, and reads no
+         * document's death; `postVerdictCard`, the one public card, reads no Blackened. Tier 2 drives
+         * the card and a verdict that stops halfway ("a wrong verdict's card names the executed and
+         * never the Blackened", "a verdict that stops halfway is finished by Finish the verdict"), and
+         * 63 G the audit's window. Red at C4's tree (A1, 09.10.2026): the lock written twice.
+         */
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        ok(vote.length > 10000, "vote.mjs was not read - the reads below would measure nothing");
+        equal(vote.match(/verdictApplied:\s*true/g)?.length ?? 0, 1,
+            "the verdict's lock is written more than once in vote.mjs, or not at all (S06-39)");
+        const execute = fnSource(vote, "executeSentenced"), card = fnSource(vote, "postVerdictCard");
+        ok(execute.length > 200 && card.length > 200, "executeSentenced or postVerdictCard is cut short - the reads below would measure nothing");
+        const judged = execute.indexOf("judgedFor("), held = execute.indexOf("flagsHeldNow("), kill = execute.indexOf("killCharacter(");
+        ok(judged > 0 && held > judged && kill > held,
+            "an execution does not await the audit and read the student as the GMs hold them before `killCharacter`");
+        ok(!/\b(?:isDeceased|isDeadForGm)\(\s*actor\s*\)/.test(execute), "an execution reads the document's death, which a player's forged flag can be");
+        ok(!/blackened/i.test(card), "the verdict's public card reads a Blackened - a wrong verdict would name the student the class failed to");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {

@@ -967,7 +967,8 @@
       "voteSub": "Wskaż blackened.",
       "voteMeta": "Trial czeka na głosy.",
       "voteMetaGm": "{back} z {total} głosów wróciło",
-      "trialFloorOpen": "Wszyscy mają głos"
+      "trialFloorOpen": "Wszyscy mają głos",
+      "afterVerdict": "Werdykt zapadł"
     },
     "Handbooks": {
       "title": "Podręczniki",
@@ -1135,7 +1136,23 @@
       "verdictAlreadyApplied": "Werdykt tego Class Trial już zapadł. Zakończ rozdział, by iść dalej.",
       "storeNotReady": "Ta przeglądarka nie ma jeszcze kopii kart do głosowania od GM-ów.",
       "movedOn": "Głosowanie poszło dalej - to okno było nieaktualne.",
-      "openNoBallots": "Głosowanie jest otwarte, runda {n}, ale ta przeglądarka nie ma żadnej z jego kart - zaczekaj na głównego GM-a albo zacznij głosowanie od nowa."
+      "openNoBallots": "Głosowanie jest otwarte, runda {n}, ale ta przeglądarka nie ma żadnej z jego kart - zaczekaj na głównego GM-a albo zacznij głosowanie od nowa.",
+      "verdictCardTitle": "WERDYKT",
+      "verdictRight": "Klasa trafiła.",
+      "verdictWrong": "Klasa się pomyliła.",
+      "executedNote": "Wyrok wykonano na tobie, {name}. Twoja postać nie żyje.",
+      "verdictStopped": "Werdykt zatrzymał się na: {steps}. Przycisk Dokończ werdykt wykona resztę.",
+      "finishVerdict": "Dokończ werdykt",
+      "verdictSteps": {
+        "sentence": "kto zostaje stracony",
+        "executions": "egzekucje",
+        "card": "karta werdyktu",
+        "levelUps": "Level Up ocalałych",
+        "offers": "Level Up Blackened",
+        "despair": "pule Despair",
+        "rule": "zasada Blackened",
+        "overflow": "Despair overflow"
+      }
     },
     "Music": {
       "intro": "Wybierz, która playlista gra kiedy. Moduł nigdy nie uruchamia playlisty, której tu nie wybrano, i nie zawiera własnej muzyki.",

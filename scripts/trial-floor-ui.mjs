@@ -314,7 +314,7 @@ export async function closeTrial() {
  * opened it. Measured before this: the whole window byte-identical across an
  * Eclipse starting and ending underneath it.
  */
-function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress }) {
+function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped }) {
         const floor = trialFloor();
         const running = getClock().phase === "classTrial";
         const progress = trialProgress();
@@ -328,13 +328,16 @@ function readTrial({ inFinalTrial, pendingVoters, voteBar, trialProgress }) {
             // the trial puts the campaign back into Daily Life, and a GM who
             // does that before delivering the verdict must not find that the
             // buttons for it have gone with the phase.
-            afterwards: running || progress.voteClosed || progress.verdictApplied
+            afterwards: running || progress.voteClosed || progress.verdictApplied,
+            // A verdict that stopped halfway (E10 C5, S06-39): the steps it did
+            // not finish, named, or null - see `verdictStopped` in vote.mjs.
+            stopped: verdictStopped(progress)
         };
 }
 
 /** The console's three sections, from one reading of the floor. */
 function trialConsoleHtml(view) {
-    const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards } = view;
+    const { floor, running, restrictive, finalNow, progress, pending, bar, afterwards, stopped } = view;
         const left = floor ? secondsLeft(floor) : 0;
 
         /*
@@ -392,12 +395,15 @@ function trialConsoleHtml(view) {
         const barLine = bar ? `<p class="notes">${game.i18n.format("DRPG.Vote.barLine", bar)}</p>` : "";
 
         // What the two gated steps are waiting for, said out loud. A disabled
-        // button with no explanation is a bug report.
+        // button with no explanation is a bug report. And a verdict that stopped
+        // halfway says where, beside the button that finishes it (E10 C5).
         const gateLine = !progress.voteClosed
             ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVote")}</p>`
             : !progress.verdictApplied
                 ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVerdict")}</p>`
-                : `<p class="notes">${game.i18n.localize("DRPG.Floor.gateDone")}</p>`;
+                : stopped
+                    ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.verdictStopped", { steps: esc(stopped) })}</p>`
+                    : `<p class="notes">${game.i18n.localize("DRPG.Floor.gateDone")}</p>`;
 
         return `<div class="drpg-trial-console">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
@@ -433,13 +439,13 @@ function trialConsoleHtml(view) {
  * change arriving from somebody else behave the same as one they made.
  */
 function trialSignature(view) {
-    const { floor, running, restrictive, finalNow, progress, afterwards } = view;
+    const { floor, running, restrictive, finalNow, progress, afterwards, stopped } = view;
         return [running, Boolean(floor), restrictive, finalNow, afterwards,
-            progress.voteClosed, progress.verdictApplied].join("|");
+            progress.voteClosed, progress.verdictApplied, Boolean(stopped)].join("|");
 }
 
 /** The footer, by state: the debate toggle, the three closing steps, start or end, the Final Trial switch, close. */
-function trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, isDefault }) {
+function trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, stopped, isDefault }) {
     return [
         ...(running
             ? [
@@ -472,6 +478,13 @@ function trialButtons({ floor, running, restrictive, finalNow, progress, afterwa
                 { action: "verdict", label: game.i18n.localize("DRPG.Vote.verdictTitle"),
                   disabled: !progress.voteClosed || progress.verdictApplied,
                   default: isDefault("verdict") },
+                // Only while a verdict stands stopped halfway: the lock above
+                // keeps a second verdict out, and this runs the steps the first
+                // one did not finish (E10 C5, S06-39).
+                ...(stopped
+                    ? [{ action: "finishVerdict", label: game.i18n.localize("DRPG.Vote.finishVerdict"),
+                        default: isDefault("finishVerdict") }]
+                    : []),
                 // Reachable before the verdict (a chapter can end without
                 // one); only the DEFAULT waits for it.
                 { action: "chapterEnd", label: game.i18n.localize("DRPG.Chapter.endTitle"),
@@ -508,6 +521,10 @@ const TRIAL_ACTIONS = {
         const { openVerdictDialog } = await import("./vote.mjs");
         await openVerdictDialog();
     },
+    finishVerdict: async () => {
+        const { finishVerdict } = await import("./vote.mjs");
+        await finishVerdict();
+    },
     toggleFinal: async () => {
         const { toggleFinalTrialFlag } = await import("./mastermind.mjs");
         await toggleFinalTrialFlag();
@@ -528,15 +545,15 @@ export async function manageClassTrial() {
     }
 
     const { inFinalTrial } = await import("./mastermind.mjs");
-    const { pendingVoters, voteBar, trialProgress } = await import("./vote.mjs");
+    const { pendingVoters, voteBar, trialProgress, verdictStopped } = await import("./vote.mjs");
 
-    const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress };
+    const deps = { inFinalTrial, pendingVoters, voteBar, trialProgress, verdictStopped };
     const read = () => readTrial(deps);
     const buildConsole = () => trialConsoleHtml(read());
     const signature = () => trialSignature(read());
 
     const view = read();
-    const { floor, running, restrictive, finalNow, progress, afterwards } = view;
+    const { floor, running, restrictive, finalNow, progress, afterwards, stopped } = view;
 
     // WHICH BUTTON ENTER PRESSES, worked out once.
     //
@@ -551,7 +568,8 @@ export async function manageClassTrial() {
                 : (running && !floor) ? "openDebate"
                     : !progress.voteClosed ? "vote"
                         : !progress.verdictApplied ? "verdict"
-                            : "chapterEnd";
+                            : stopped ? "finishVerdict"
+                                : "chapterEnd";
     const isDefault = action => defaultAction === action;
 
     const openedWith = signature();
@@ -561,7 +579,7 @@ export async function manageClassTrial() {
         classes: ["drpg-panel", "drpg-window-trial"],
         window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
         content: dialogContent(buildConsole()),
-        buttons: trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, isDefault }),
+        buttons: trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, stopped, isDefault }),
         render: (event, dialog) => {
             const live = keepLive(dialog, {
                 region: ".drpg-trial-console",
@@ -582,8 +600,13 @@ export async function manageClassTrial() {
                  * hook and the settings I remembered" - and this console prints
                  * the floor, the trial record and the Final Trial flag, all of
                  * which are settings.
+                 *
+                 * `userConnected` because a verdict stops halfway when the GM giving
+                 * it leaves, and nothing in the world is written when they do: the
+                 * record still says "applying" and only the user list has changed
+                 * (`verdictStopped`; E10 C5, read in the code, not measured).
                  */
-                watch: { hooks: ["drpgBallotsChanged"] },
+                watch: { hooks: ["drpgBallotsChanged", "userConnected"] },
                 after: () => {
                     if (reopening || signature() === openedWith) return;
                     reopening = true;

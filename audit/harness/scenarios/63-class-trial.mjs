@@ -46,9 +46,10 @@
  *      default, so Enter closes the window (C4); Cancel.
  *   G  a wrong verdict executing Botan while p2's forged `deceased: true` on Botan waits for the
  *      sheet audit (the window, made deterministic: gm2's queue on Botan is held by a job, so the
- *      write is heard and not yet judged when the verdict reads it): the verdict skips the
- *      execution and Botan is alive once the audit puts the flag back (C5); no player holds a
- *      verdict card (C5), and nothing a player who does not own Chie holds names her.
+ *      write is heard and not yet judged when the verdict reads it): the verdict waits for the
+ *      audit, which puts the flag back, and executes Botan, and its record reads "done" (C5);
+ *      every player holds the verdict's one public card - Botan executed, the class got it wrong
+ *      (C5) - and nothing a player who does not own Chie holds names her.
  *   H  End the trial, Start it again: only the Start window is asked (C11: a confirmation, Cancel
  *      the default); `verdictApplied` is cleared and `keysCharged` kept; the vote, its count and
  *      the tie are cleared and its round number carried on, so no ballot of the first trial counts
@@ -75,6 +76,8 @@
  * E10 C3 added B4, B5, C3 and E4, the vote window, the vote's card and the count's card: 39 checks in 27.6 s (two runs,
  * 27.6 and 24.3 s, 09.10.2026).
  * E10 C4 rewrote F's three checks, the verdict's window: 39 checks in 22.0 s (one run, 09.10.2026).
+ * E10 C5 rewrote G2 and G3, the verdict executes Botan once the audit has put the flag back and every player holds its
+ * one public card: 39 checks in 25.4 s (one run, 09.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -349,25 +352,26 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
         globalThis.__s63hold?.();
         const done = await pending;
         await A.sheetAuditIdle();
-        await until(() => !game.drpg.isDeceased(botan), 5000);
         const executed = game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(botan.name) });
-        return { heard, done, executed, dead: game.drpg.isDeadForGm(botan), applied: (await import("${repoUrl}/scripts/vote.mjs")).trialProgress().verdictApplied };`, { timeout: 60000 });
+        const record = (await import("${repoUrl}/scripts/vote.mjs")).trialProgress();
+        return { heard, done, executed, dead: game.drpg.isDeadForGm(botan), applied: record.verdictApplied, stage: record.verdict?.stage ?? null };`, { timeout: 60000 });
     verdict("held: gm2 hears p2's forged death before the verdict reads it", held && wrong.heard, J({ held, wrong }));
-    verdict("the verdict skips Botan's execution on the forged flag and Botan is alive once the audit puts it back (C5 executes Botan)",
-        wrong.applied === true && wrong.dead === false && Array.isArray(wrong.done) && !wrong.done.includes(wrong.executed), J(wrong));
+    verdict("the verdict waits for the audit, which puts the forged flag back, and executes Botan; its record reads \"done\" (C5)",
+        wrong.applied === true && wrong.dead === true && wrong.stage === "done" && Array.isArray(wrong.done) && wrong.done.includes(wrong.executed), J(wrong));
     await settle(800);
     const verdictCards = [], namesChie = [];
     for (const c of [p1, p2, p3, p4]) {
-        const read = await c.eval(`const words = [${text("DRPG.Vote.verdictTitle")}, ${text("DRPG.Vote.wrongSummary")}];
+        const read = await c.eval(`const words = [${text("DRPG.Vote.verdictCardTitle")}, ${text("DRPG.Vote.verdictWrong")},
+                game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(game.actors.get("${IDS.botan}")?.name ?? "-") })];
             const fresh = game.messages.filter(m => !globalThis.__s63m.has(m.id));
-            return { cards: fresh.filter(m => words.some(w => String(m.content ?? "").includes(w))).length,
+            return { cards: fresh.filter(m => !m.whisper?.length && words.every(w => String(m.content ?? "").includes(w))).length,
                 chie: fresh.filter(m => { const s = String(m.content ?? "") + J(m.flags ?? {}); return s.includes("${IDS.chie}") || s.includes("Chie"); }).length };
             function J(v) { return JSON.stringify(v); }`);
         verdictCards.push(read.cards);
         if (c !== p3) namesChie.push(read.chie);
     }
-    verdict("no player holds a card of the verdict - it is whispered to the GMs (C5 posts one public card)",
-        J(verdictCards) === J([0, 0, 0, 0]), J(verdictCards));
+    verdict("every player holds the verdict's one public card: Botan executed, and the class got it wrong (C5)",
+        J(verdictCards) === J([1, 1, 1, 1]), J(verdictCards));
     verdict("nothing new on p1, p2 or p4 names Chie, the Blackened the wrong verdict spared", J(namesChie) === J([0, 0, 0]), J(namesChie));
 
     /* ------------------------------ H. a second trial in the chapter ------------------------------ */

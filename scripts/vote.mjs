@@ -36,12 +36,12 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
-import { isDeceased, isDeadForGm, livingStudents, killCharacter } from "./chapter.mjs";
+import { isDeceased, isDeadForGm, killCharacter } from "./chapter.mjs";
 import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
-import { ballotStore } from "./gm-stores.mjs";
+import { ballotStore, deferredOfferStore } from "./gm-stores.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
-import { announce, dialogContent, whisperToGms, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural } from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, whisperToOwner, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -1321,7 +1321,27 @@ async function askBlackenedRule() {
     return true;
 }
 
-/** Execute somebody, and hand out what the guide says the table has earned. */
+/*
+ * A verdict being given on this browser (`applyVerdict`, `finishVerdict`). The record's stage alone
+ * cannot tell a GM still in the verdict's windows from one whose browser was reloaded under it
+ * (`verdictStopped`), and it closes the door to a second verdict here while the first write is on its way.
+ */
+let verdictRunning = false;
+
+/**
+ * Execute somebody, and hand out what the guide says the table has earned.
+ *
+ * ONE RECORD, WRITTEN FIRST AND ONCE (E10 C5, 1.2.71; audit S06-39). The lock was written twice,
+ * first and again after the last consequence, and nothing between the two said how far the verdict
+ * had got: a throw in the pools or in the GMs' summary, or a GM closing the tab in a Level Up window,
+ * left the lock standing, the rest undone and the console with no way on - its Verdict button is
+ * closed by the lock. The world's record holds the verdict beside the lock now (`verdict`: its stage,
+ * right or wrong, who is executed, who gave it and when, the steps done), each consequence is a step
+ * of `runVerdict` in its own try/catch, and the stage reads "done" once every step is. A step that
+ * failed, or a GM who left, is the console's "The verdict stopped at" line and its Finish the verdict
+ * (`finishVerdict`). The record never holds a Blackened: a wrong verdict's killers are handed to the
+ * steps, and a Finish reads them from the register again.
+ */
 export async function applyVerdict({
     correct, executedIds, blackenedIds: named, executedId, blackenedId
 } = {}) {
@@ -1332,122 +1352,328 @@ export async function applyVerdict({
     // minutes in which the console, another GM or the API could start a second verdict.
     // Written first, the lock holds for the whole of it; the same check stands here for
     // every caller that does not come through `openVerdictDialog`.
-    if (trialProgress().verdictApplied) {
+    if (verdictRunning || trialProgress().verdictApplied) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
         return null;
     }
-    await setTrialProgress({ verdictApplied: true });
+    verdictRunning = true;
+    try {
+        // Both shapes accepted: the dialog sends lists, and anything older - a
+        // macro, the console - sends the single ids this used to take.
+        const record = {
+            stage: "applying", correct: Boolean(correct),
+            executedIds: (executedIds ?? [executedId]).filter(id => id && game.actors.get(id)),
+            by: game.user.id, at: Date.now(), done: [], failed: []
+        };
+        const blackenedIds = (named ?? [blackenedId]).filter(id => id && game.actors.get(id));
+        await setTrialProgress({ verdictApplied: true, verdict: record });
+        return await runVerdict(record, blackenedIds);
+    } finally {
+        verdictRunning = false;
+    }
+}
 
-    // Both shapes accepted: the dialog sends lists, and anything older - a
-    // macro, the console - sends the single ids this used to take.
-    const executed = (executedIds ?? [executedId]).filter(Boolean)
-        .map(id => game.actors.get(id)).filter(Boolean);
-    const blackened = (named ?? [blackenedId]).filter(Boolean)
-        .map(id => game.actors.get(id)).filter(Boolean);
-    const done = [];
+/*
+ * A VERDICT'S STEPS, IN THE ORDER THE TABLE MEETS THEM (E10 C5). Who is executed, read and written
+ * down before anybody dies; the executions; the card that tells the table, straight after them, so
+ * the class reads the verdict while the GM is still in the Level Up windows; what the guide gives a
+ * right verdict or a wrong one; and the overflow, on both. A step that needs another is not run
+ * until that one is done (`VERDICT_NEEDS`): the card does not say a student was executed whose
+ * execution failed.
+ */
+const VERDICT_STEPS = {
+    correct: ["sentence", "executions", "card", "levelUps", "overflow"],
+    wrong: ["sentence", "executions", "card", "offers", "despair", "rule", "overflow"]
+};
+const VERDICT_NEEDS = { executions: "sentence", card: "executions", levelUps: "sentence", offers: "sentence", rule: "sentence" };
+const VERDICT_STEP_LABELS = {
+    sentence: "DRPG.Vote.verdictSteps.sentence", executions: "DRPG.Vote.verdictSteps.executions",
+    card: "DRPG.Vote.verdictSteps.card", levelUps: "DRPG.Vote.verdictSteps.levelUps",
+    offers: "DRPG.Vote.verdictSteps.offers", despair: "DRPG.Vote.verdictSteps.despair",
+    rule: "DRPG.Vote.verdictSteps.rule", overflow: "DRPG.Vote.verdictSteps.overflow"
+};
 
-    for (const actor of executed) {
-        if (isDeadForGm(actor)) continue;
-        await killCharacter(actor);
-        done.push(game.i18n.format("DRPG.Vote.wasExecuted", {
+/** The steps of a verdict record (`trialProgress().verdict`), in order. */
+function verdictSteps(verdict) {
+    return VERDICT_STEPS[verdict?.correct ? "correct" : "wrong"];
+}
+
+/** The console's names for `steps`, in one line. */
+function stepLabels(steps) {
+    return steps.map(step => game.i18n.localize(VERDICT_STEP_LABELS[step] ?? step)).join(", ");
+}
+
+/**
+ * The steps of `record` not yet done, each in its own try/catch and the record written after each;
+ * then the stage - "done" once every step is, "applying" with the steps that failed - and the GMs'
+ * summary. Answers the summary's lines. `blackenedIds` are a wrong verdict's killers, which the
+ * world's record never holds.
+ */
+async function runVerdict(record, blackenedIds) {
+    const context = { record, blackenedIds, lines: [], reading: null };
+    const failed = [];
+    for (const step of verdictSteps(record)) {
+        const needs = VERDICT_NEEDS[step];
+        if (context.record.done.includes(step) || (needs && !context.record.done.includes(needs))) continue;
+        try {
+            await VERDICT_STEP[step](context);
+        } catch (err) {
+            error(`The verdict stopped at its step "${step}"`, err);
+            failed.push(step);
+            continue;
+        }
+        context.record = { ...context.record, done: [...context.record.done, step] };
+        await setTrialProgress({ verdict: context.record });
+    }
+    const left = verdictSteps(record).filter(step => !context.record.done.includes(step));
+    // Cleared before the last write, so the console that write redraws reads a verdict that stopped as stopped.
+    verdictRunning = false;
+    await setTrialProgress({ verdict: { ...context.record, stage: left.length ? "applying" : "done", failed } });
+
+    try {
+        await whisperToGms(`
+            <h3>${game.i18n.localize("DRPG.Vote.verdictTitle")}</h3>
+            <p>${game.i18n.localize(record.correct ? "DRPG.Vote.correctSummary" : "DRPG.Vote.wrongSummary")}</p>
+            <ul>${context.lines.map(line => `<li>${line}</li>`).join("")}</ul>
+            ${left.length ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.verdictStopped", {
+                steps: stepLabels(failed.length ? failed : left) })}</p>` : ""}`);
+    } catch (err) {
+        error("Could not tell the GMs what the verdict did", err);
+    }
+    log(`Verdict ${left.length ? "stopped" : "applied"}: ${record.correct ? "correct" : "wrong"}.`);
+    return context.lines;
+}
+
+/** The verdict's reading of who is alive (`verdictHeld`), once per run, after the audit of everybody it reads. */
+async function verdictReading(context) {
+    if (!context.reading) {
+        await judgedFor(...context.record.executedIds, ...context.blackenedIds, ...studentActors().map(actor => actor.id));
+        context.reading = verdictHeld(context.record, context.blackenedIds);
+    }
+    return context.reading;
+}
+
+/*
+ * ONE SYNCHRONOUS PASS (E10 C5; plan 1b.2, H3): every death the verdict decides by, read as the GMs
+ * hold it (`flagsHeldNow`) with nothing awaited between two reads, so no write is judged half-way
+ * through it. Until C5 the verdict read the documents (`isDeadForGm`, `livingStudents`).
+ *
+ * The executed: whoever the verdict named that the table does not know dead - one it does is nobody
+ * to execute, and the card would say they were.
+ *
+ * The survivors of a right verdict, ALIVE AS THE TABLE KNOWS IT (E05 fix r2-G1, 27.09.2026; review
+ * S2-m6, the plan's rule A). The list was the GMs' (`livingStudentsForGm`), so a student whose body
+ * nobody had found was passed over - no Level Up window for them, measured on the harness - and every
+ * console saw the class advance and one student not. A Level Up is a write every console reads: the
+ * table's list, less whoever this verdict named for execution - one already dead to the GMs is not
+ * killed twice (`executeSentenced` passes over them), and does not advance either.
+ *
+ * The killers of a wrong verdict: EVERY one who is still breathing, not just the first one named, and
+ * not one this verdict executes.
+ */
+function verdictHeld(record, blackenedIds) {
+    const named = new Set(record.executedIds);
+    const actors = ids => ids.map(id => game.actors.get(id)).filter(Boolean);
+    return {
+        sentenced: actors(record.executedIds).filter(actor => !isDeceased(flagsHeldNow(actor))).map(actor => actor.id),
+        survivors: studentActors().filter(actor => !named.has(actor.id) && !isDeceased(flagsHeldNow(actor))),
+        killers: actors(blackenedIds).filter(actor => !named.has(actor.id) && !isDeadForGm(flagsHeldNow(actor)))
+    };
+}
+
+/*
+ * WHO IS EXECUTED, WRITTEN DOWN BEFORE ANYBODY DIES (E10 C5; plan 1b.2). The executions read the
+ * document's `isDeadForGm`: a `deceased` a player's console had written, and the sheet audit had not
+ * yet put back (GM_FLAGS), read as a death - the accused was passed over, and alive once the flag went
+ * back. 63 G holds that window open. The list read held is the record's from here on, so a Finish
+ * executes and names the same students, and does not take one this verdict killed before it stopped
+ * for one the table knew dead before it.
+ */
+async function readSentence(context) {
+    const { sentenced } = await verdictReading(context);
+    context.record = { ...context.record, executedIds: sentenced };
+}
+
+/*
+ * THE EXECUTIONS (E10 C5; plan 1b.2, H3). Each waits for the audit of that student and reads them held
+ * again, and `killCharacter` is called with nothing awaited between that read and its own head check.
+ * A death the GMs hold and this verdict did not cause here - a body nobody has found, or one this
+ * verdict killed before it stopped - is passed over, not killed twice. A kill `killCharacter` refuses
+ * of a student the GMs hold alive fails the step, for Finish the verdict.
+ */
+async function executeSentenced(context) {
+    for (const actor of context.record.executedIds.map(id => game.actors.get(id)).filter(Boolean)) {
+        await judgedFor(actor.id);
+        if (isDeadForGm(flagsHeldNow(actor))) continue;
+        if (!await killCharacter(actor)) throw new Error(`${actor.name} could not be executed`);
+        context.lines.push(game.i18n.format("DRPG.Vote.wasExecuted", {
             name: foundry.utils.escapeHTML(actor.name)
         }));
     }
+}
 
-    if (correct) {
-        // Everyone still alive advances - unchanged, and deliberately: a right
-        // answer levels the table up. The Blackened have just been executed, so
-        // they are not in this list, which is what keeps that honest even when
-        // there were two of them.
-        //
-        // ALIVE AS THE TABLE KNOWS IT (E05 fix r2-G1, 27.09.2026; review S2-m6, the plan's
-        // rule A). The list was the GMs' (`livingStudentsForGm`), so a student whose body
-        // nobody had found was passed over - no Level Up window for them, measured on the
-        // harness - and every console saw the class advance and one student not. A Level
-        // Up is a write every console reads: the table's list, less
-        // whoever this verdict named for execution - one already dead to the GMs is not
-        // killed twice (the loop above passes over them), and does not advance either.
-        //
-        // A Reinforced Level Up a wrong verdict left waiting (E05 C11) is picked here, with
-        // its owner's Standard, in the same window - see `runAdvancementBatch`.
-        const sentenced = new Set(executed.map(a => a.id));
-        const survivors = livingStudents().filter(a => !sentenced.has(a.id));
-        done.push(plural("DRPG.Vote.levelUp", {
-            n: survivors.length,
-            kind: TRIAL.correct.levelUp
-        }));
-        await promptAdvancements(survivors, TRIAL.correct.levelUp);
-    } else {
-        // EVERY killer who is still breathing, not just the first one named.
-        //
-        // THEIR LEVEL UP WAITS FOR THE CLASS (E05 C11, 27.09.2026; D4; audit S03-01,
-        // S06-01). Applied here it wrote new maxima and `advances` on the Blackened and a
-        // card spoken by them, which every console receives - the student the class had
-        // just failed to name. It is a row of the GMs' store now, picked with the class's
-        // next Standard or at the Final Trial's verdict (level-up.mjs `deferAdvancement`).
-        const survivingKillers = blackened.filter(a => !isDeadForGm(a));
-        if (survivingKillers.length) {
-            const { deferAdvancement } = await import("./level-up.mjs");
-            let waiting = 0;
-            for (const actor of survivingKillers) {
-                try {
-                    if (await deferAdvancement(actor, TRIAL.wrong.blackenedLevelUp, getClock().chapter ?? null)) waiting++;
-                } catch (err) {
-                    error(`Could not keep ${actor.name}'s Level Up for the class`, err);
-                }
-            }
-            done.push(plural("DRPG.Vote.blackenedRewarded", {
-                n: waiting,
-                kind: TRIAL.wrong.blackenedLevelUp
-            }));
-        }
-        if (TRIAL.wrong.fillDespair) {
-            await fillAllDespair();
-            done.push(game.i18n.format("DRPG.Vote.despairFilled", {
-                who: monokumas().map(poolLabel).join(", ")
-            }));
-        }
-        // THE ONE LINE OF THE VERDICT TABLE THAT HAD NO PATH.
-        //
-        // This used to push a sentence into the GM's whisper and stop, so the
-        // rule the Blackened had just earned existed only if somebody
-        // remembered it. It is written down now, announced to the table, and
-        // announced WITHOUT A NAME: to everyone else it is simply another of
-        // Monokuma's rules, which is the whole point of surviving a wrong vote.
-        if (TRIAL.wrong.newRule && survivingKillers.length) {
-            const wrote = await askBlackenedRule();
-            done.push(game.i18n.localize(wrote
-                ? "DRPG.Vote.newRuleWritten"
-                : "DRPG.Vote.newRule"));
+/**
+ * THE VERDICT, TOLD TO THE TABLE (E10 C5, 1.2.71; audit S06-06). The verdict was a whisper to the GMs,
+ * and the executed's death card went to them alone too, so the one step of the trial with no public
+ * card was its last; the executed's player was told nothing, and the Event panel went on saying
+ * "Everyone has the floor". One public card now: who was executed and whether the class got it right,
+ * with the death's sound when somebody was - and of the Blackened nothing, no name and no id, in its
+ * words or its flags, so a wrong verdict gives nobody away. The executed's owner is told in the second
+ * person beside it; a note that does not arrive is logged and does not stop the verdict, whose card
+ * a Finish would post twice. The Event panel reads the record (events.mjs `afterVerdictCard`).
+ */
+export async function postVerdictCard(record) {
+    const executed = (record?.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+    const esc = foundry.utils.escapeHTML;
+    const lines = executed.length
+        ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(actor.name) }))
+        : [game.i18n.localize("DRPG.Vote.nobodyExecuted")];
+    await announce({
+        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, ...(executed.length ? { sfx: { key: "death", gm: true } } : {}) } },
+        content: `<div class="drpg-evidence-card">
+            <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.verdictCardTitle")}</div>
+            ${lines.map(line => `<p>${line}</p>`).join("")}
+            <p>${game.i18n.localize(record.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong")}</p>
+        </div>`
+    });
+    for (const actor of executed) {
+        try {
+            await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vote.executedNote", { name: esc(actor.name) })}</p>`);
+        } catch (err) {
+            error(`Could not tell ${actor.name}'s player of the execution`, err);
         }
     }
+}
 
-    /*
-     * THE OVERFLOW EMPTIES WITH THE VERDICT (Z10), on BOTH verdicts and not
-     * only the one that refills the pools.
-     *
-     * The counter measures pressure built up over a chapter, and a verdict ends
-     * the chapter however it goes. Clearing it only when the class guessed
-     * wrong would mean a class that guessed RIGHT carries the previous
-     * chapter's weather into the next one - punished for winning, by a rule
-     * whose whole subject is how much Despair went spare.
-     */
+/*
+ * A right verdict: everyone still alive advances - unchanged, and deliberately: a right answer levels
+ * the table up. The Blackened have just been executed, so they are not in this list (`verdictHeld`),
+ * which is what keeps that honest even when there were two of them. A Reinforced Level Up a wrong
+ * verdict left waiting (E05 C11) is picked here, with its owner's Standard, in the same window - see
+ * `runAdvancementBatch`. The windows not opening fails the step; a window the GM closes does not. A
+ * Finish after a GM left in these windows opens them all again: which were picked is not recorded,
+ * and the GM closes the windows of those who did.
+ */
+async function verdictLevelUps(context) {
+    const { survivors } = await verdictReading(context);
+    context.lines.push(plural("DRPG.Vote.levelUp", {
+        n: survivors.length,
+        kind: TRIAL.correct.levelUp
+    }));
+    if (await promptAdvancements(survivors, TRIAL.correct.levelUp) === null) throw new Error("the Level Ups did not open");
+}
+
+/*
+ * THEIR LEVEL UP WAITS FOR THE CLASS (E05 C11, 27.09.2026; D4; audit S03-01, S06-01). Applied here it
+ * wrote new maxima and `advances` on the Blackened and a card spoken by them, which every console
+ * receives - the student the class had just failed to name. It is a row of the GMs' store now, picked
+ * with the class's next Standard or at the Final Trial's verdict (level-up.mjs `deferAdvancement`).
+ * `deferAdvancement` counts up and stamps its row with the time, so a row this verdict wrote before it
+ * stopped is not written again by a Finish (E10 C5).
+ */
+async function verdictOffers(context) {
+    const { killers } = await verdictReading(context);
+    if (!killers.length) return;
+    const { deferAdvancement } = await import("./level-up.mjs");
+    await deferredOfferStore.whenHydrated();
+    let waiting = 0;
+    for (const actor of killers) {
+        if ((deferredOfferStore.get(actor.id)?.at ?? 0) >= context.record.at) waiting++;
+        else if (await deferAdvancement(actor, TRIAL.wrong.blackenedLevelUp, getClock().chapter ?? null)) waiting++;
+    }
+    context.lines.push(plural("DRPG.Vote.blackenedRewarded", {
+        n: waiting,
+        kind: TRIAL.wrong.blackenedLevelUp
+    }));
+}
+
+/* A wrong verdict: every Monokuma fills their Despair to maximum. */
+async function verdictDespair(context) {
+    if (!TRIAL.wrong.fillDespair) return;
+    await fillAllDespair();
+    context.lines.push(game.i18n.format("DRPG.Vote.despairFilled", {
+        who: monokumas().map(poolLabel).join(", ")
+    }));
+}
+
+/*
+ * THE ONE LINE OF THE VERDICT TABLE THAT HAD NO PATH.
+ *
+ * This used to push a sentence into the GM's whisper and stop, so the
+ * rule the Blackened had just earned existed only if somebody
+ * remembered it. It is written down now, announced to the table, and
+ * announced WITHOUT A NAME: to everyone else it is simply another of
+ * Monokuma's rules, which is the whole point of surviving a wrong vote.
+ */
+async function verdictRule(context) {
+    const { killers } = await verdictReading(context);
+    if (!TRIAL.wrong.newRule || !killers.length) return;
+    const wrote = await askBlackenedRule();
+    context.lines.push(game.i18n.localize(wrote
+        ? "DRPG.Vote.newRuleWritten"
+        : "DRPG.Vote.newRule"));
+}
+
+/*
+ * THE OVERFLOW EMPTIES WITH THE VERDICT (Z10), on BOTH verdicts and not
+ * only the one that refills the pools.
+ *
+ * The counter measures pressure built up over a chapter, and a verdict ends
+ * the chapter however it goes. Clearing it only when the class guessed
+ * wrong would mean a class that guessed RIGHT carries the previous
+ * chapter's weather into the next one - punished for winning, by a rule
+ * whose whole subject is how much Despair went spare.
+ */
+async function verdictOverflow() {
+    const { resetOverflow } = await import("./overflow.mjs");
+    await resetOverflow();
+}
+
+/** What each step of a verdict does; `runVerdict` runs them in `VERDICT_STEPS`'s order. */
+const VERDICT_STEP = {
+    sentence: readSentence, executions: executeSentenced, card: context => postVerdictCard(context.record),
+    levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, overflow: verdictOverflow
+};
+
+/**
+ * A VERDICT THAT STOPPED (E10 C5, 1.2.71; audit S06-39): its record still reads "applying" and nobody
+ * is giving it - a step failed, or the GM who gave it is gone (their tab closed, or this browser was
+ * reloaded under it). A verdict another GM is still giving is not one: they are in its windows.
+ * Answers the steps it stopped at, as the console names them, or null.
+ */
+export function verdictStopped(progress = trialProgress()) {
+    const verdict = progress?.verdict;
+    if (verdict?.stage !== "applying" || verdictRunning) return null;
+    const failed = Array.isArray(verdict.failed) ? verdict.failed : [];
+    const by = game.users.get(verdict.by);
+    if (!failed.length && by?.active && by.id !== game.user.id) return null;
+    const done = Array.isArray(verdict.done) ? verdict.done : [];
+    return stepLabels(failed.length ? failed : verdictSteps(verdict).filter(step => !done.includes(step)));
+}
+
+/**
+ * FINISH THE VERDICT (E10 C5, 1.2.71; audit S06-39): the steps a verdict that stopped had not done,
+ * given by this GM - what it had done is not done again (`runVerdict`). The Blackened are read from
+ * the register again, as the verdict's window reads them (`whenTrialReadable`, `trialBlackenedIds`),
+ * never from the world's record, which holds none: a Blackened the GM named by hand at a verdict the
+ * register did not know is unknown to a Finish, which then keeps nobody's Level Up and asks no rule.
+ */
+export async function finishVerdict() {
+    if (!game.user.isGM) return null;
+    const progress = trialProgress();
+    if (!verdictStopped(progress)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
+        return null;
+    }
+    verdictRunning = true;
     try {
-        const { resetOverflow } = await import("./overflow.mjs");
-        await resetOverflow();
-    } catch (err) {
-        warn("Could not clear the Despair overflow at the verdict", err);
+        await whenTrialReadable();
+        const record = { ...progress.verdict, done: [...(progress.verdict.done ?? [])], by: game.user.id, failed: [] };
+        await setTrialProgress({ verdict: record });
+        return await runVerdict(record, trialBlackenedIds());
+    } finally {
+        verdictRunning = false;
     }
-
-    await whisperToGms(`
-        <h3>${game.i18n.localize("DRPG.Vote.verdictTitle")}</h3>
-        <p>${game.i18n.localize(correct ? "DRPG.Vote.correctSummary" : "DRPG.Vote.wrongSummary")}</p>
-        <ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>`);
-
-    await setTrialProgress({ verdictApplied: true });
-
-    log(`Verdict applied: ${correct ? "correct" : "wrong"}.`);
-    return done;
 }
 
 /**

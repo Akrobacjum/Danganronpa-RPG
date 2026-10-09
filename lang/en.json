@@ -976,7 +976,8 @@
       "voteSub": "Name the blackened.",
       "voteMeta": "The trial waits on the ballots.",
       "voteMetaGm": "{back} of {total} ballots back",
-      "trialFloorOpen": "Everyone has the floor"
+      "trialFloorOpen": "Everyone has the floor",
+      "afterVerdict": "The verdict is in"
     },
     "Handbooks": {
       "title": "Handbooks",
@@ -1130,7 +1131,23 @@
       "accusedDead": "Already dead: {names}. Nobody is executed unless you pick a living student.",
       "storeNotReady": "This browser has not got the GMs' copy of the ballots yet.",
       "movedOn": "The vote has moved on - this window was out of date.",
-      "openNoBallots": "The vote is open, round {n}, but this browser holds none of its ballots - wait for the primary GM or Start the vote over."
+      "openNoBallots": "The vote is open, round {n}, but this browser holds none of its ballots - wait for the primary GM or Start the vote over.",
+      "verdictCardTitle": "THE VERDICT",
+      "verdictRight": "The class got it right.",
+      "verdictWrong": "The class got it wrong.",
+      "executedNote": "The verdict has been carried out on you, {name}. Your character is dead.",
+      "verdictStopped": "The verdict stopped at: {steps}. Finish the verdict does the rest.",
+      "finishVerdict": "Finish the verdict",
+      "verdictSteps": {
+        "sentence": "who is executed",
+        "executions": "the executions",
+        "card": "the verdict's card",
+        "levelUps": "the survivors' Level Ups",
+        "offers": "the Blackened's Level Up",
+        "despair": "the Despair pools",
+        "rule": "the Blackened's rule",
+        "overflow": "the Despair overflow"
+      }
     },
     "Music": {
       "intro": "Pick which playlist plays when. The module never starts a playlist you have not chosen here, and ships no audio of its own.",

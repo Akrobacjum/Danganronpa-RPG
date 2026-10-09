@@ -308,6 +308,37 @@ function voteIsOpen(clock) {
 }
 
 /**
+ * THE VERDICT IS IN (E10 C5, S06-06). Until 1.2.71 the trial card went back to
+ * "Everyone has the floor" the moment the verdict was given, and stayed there to
+ * the end of the phase: the one thing the whole class had just learnt was the
+ * one thing the panel did not say. It says it from the moment the verdict's
+ * public card is posted (`done` holds "card") - no earlier, so the panel cannot
+ * tell the table a sentence the chat has not shown yet - and it says what that
+ * card says and nothing more: who was executed and whether the class got it
+ * right. The record it reads (`trialProgress().verdict`) is the world's, and it
+ * never holds a Blackened the verdict did not reveal (vote.mjs `applyVerdict`).
+ */
+function afterVerdictCard(clock) {
+    try {
+        const progress = trialProgress();
+        const verdict = progress.chapter === clock.chapter ? progress.verdict : null;
+        if (!Array.isArray(verdict?.done) || !verdict.done.includes("card")) return null;
+        const executed = (verdict.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
+        return {
+            kind: "trial",
+            title: game.i18n.localize("DRPG.Events.afterVerdict"),
+            sub: game.i18n.localize(verdict.correct ? "DRPG.Vote.verdictRight" : "DRPG.Vote.verdictWrong"),
+            // `cardElement` writes text, not markup, so the names go in as they are.
+            meta: executed.length
+                ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: actor.name })).join(" ")
+                : game.i18n.localize("DRPG.Vote.nobodyExecuted")
+        };
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Whose floor it is in the Class Trial: the mode, the speaker, and who they
  * aimed at. The same reading hud.mjs `trialSlot` makes for the time row; here
  * it is a card, so the clock can stay a clock.
@@ -337,6 +368,9 @@ export function trialCard(clock) {
                     : game.i18n.format("DRPG.Events.voteMetaGm", { back, total: back + out })
             };
         }
+
+        const after = afterVerdictCard(clock);
+        if (after) return after;
 
         const floor = trialFloor();
         const key = floor ? floor.mode : "discussion";
