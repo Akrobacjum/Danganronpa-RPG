@@ -758,6 +758,19 @@ export function itemsHeldNow(actor) {
     });
 }
 
+/*
+ * A STUDENT'S ITEM AS THE MARK HELD IT BEFORE THE WRITE BEING HEARD (E09 fix r2-G10, 09.10.2026): the mark's whole copy
+ * of one module item, or null where this browser keeps no mark of the student (as `itemsHeldNow`) or none of the item.
+ * Read in the synchronous part of an item's update hook, this is the item before that write: the audit's judgement of
+ * the write, which moves the copy, is queued at its own hook and runs in a later job (`inOrder`). A write queued before
+ * it and not judged yet is not in it either. For truth-bullets.mjs `onBulletWrite`, whose write reached a bullet's
+ * description and its words at once.
+ */
+export function itemMarkedBefore(actor, id) {
+    const mark = actor?.type === "character" && isPrimaryGm() && gmStoresHydrated() ? sheetMarkStore.get(actor.id) : null;
+    return mark && !mark.flags?.[FLAGS.monokuma] ? clone(mark.items?.[id]) ?? null : null;
+}
+
 /** One of a student's items as the GMs hold it (`itemsAsHeld`), or null where it is no longer on the student. */
 export async function itemAsHeld(actor, id) {
     return (await itemsAsHeld(actor)).find(item => item.id === id) ?? null;

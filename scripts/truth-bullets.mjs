@@ -44,7 +44,7 @@ import { playSfxFor } from "./sfx.mjs";
 import { bulletStore, bulletRefCopy, backupCase, restoreCase, lootTraceStore, deathStore } from "./gm-stores.mjs";
 import { gmStoresQuiet, whenGmStoresAudible, stableJson } from "./gm-store.mjs";
 import { replyForMe } from "./bridge-guards.mjs";
-import { itemsWritten, judgedFor, reachOf } from "./sheet-audit.mjs";
+import { itemMarkedBefore, itemsWritten, judgedFor, reachOf } from "./sheet-audit.mjs";
 
 /** The one inventory category a Truth Bullet ever has. */
 export const BULLET_CATEGORY = "truthBullet";
@@ -1544,11 +1544,22 @@ async function onBulletWrite(item, changes, options, userId) {
          * flags whole that keeps its words leaves a reshaped trace's words", red on the code before it,
          * 09.10.2026). There such a flag goes up only when it differs from the copy's words as they stood
          * before the write: its description, which a write that did not reach it still holds as
-         * `bulletDescription` made it of the two. A write that reached the description too leaves nothing
-         * to compare with, and its words go up as before (read in the code, not measured; whether any road
-         * of the module's writes both was not traced).
+         * `bulletDescription` made it of the two.
+         * A WRITE THAT REACHED THE DESCRIPTION TOO (E09 fix r2-G10, 09.10.2026; r2-G9's open road) left
+         * nothing to compare with, and its words went up as before: a GM's write of a held copy's
+         * description restyled and its module flags whole, keeping both, sent that copy's words and its
+         * empty reading over a reshaped trace's (tier 2 "a GM's write of a held copy's description and
+         * module flags at once that keeps its words leaves a reshaped trace's words", red on the code
+         * before it, 09.10.2026). There the words before the write are the GMs' mark's copy of the item
+         * (sheet-audit.mjs `itemMarkedBefore`), read here before anything is awaited. Where the GMs keep
+         * no mark of the holder - a bullet no student holds, a Monokuma's, the stores not hydrated - the
+         * words still go up as before.
          */
-        const shown = wrote("system.description") ? null : describedWords(item.system?.description);
+        const prior = wrote("system.description") ? itemMarkedBefore(item.parent, item.id) : null;
+        const shown = !wrote("system.description") ? describedWords(item.system?.description) : prior ? {
+            playerText: plainWords(foundry.utils.getProperty(prior, `flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`)),
+            analyzedText: plainWords(foundry.utils.getProperty(prior, `flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`))
+        } : null;
         const moved = key => {
             const path = `flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS[key]}`;
             if (!wrote(path)) return false;

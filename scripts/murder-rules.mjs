@@ -2812,7 +2812,7 @@ async function clearAdvantage(side, key) {
 
 async function spendStress(actor, done) {
     // The same write the clean-up makes (cleanup.mjs `markResolutionStress`);
-    // `false` means the track was full, and the blood branch below pays instead.
+    // `0` (no marks added) means the track was full, and the blood branch below pays instead.
     // What it marked is read off the sheet before and after it (S04-05), not assumed.
     const { markResolutionStress } = await import("./cleanup.mjs");
     const before = reserveOf(actor, "stress").left;

@@ -14242,6 +14242,67 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM's write of a held copy's description and module flags at once that keeps its words leaves a reshaped trace's words", async () => {
+        /*
+         * E09 fix r2-G10, 09.10.2026 (r2-G9's open road). r2-G9's test above, with the write reaching the copy's
+         * description as well: a browser that holds no record of the words (`forgetBulletGuard`) compared them with the
+         * description the same write brought, so it compared with nothing and sent the copy's words - found before the
+         * reshape - and its empty reading up to the trace, over the killer's words and the trace's reading. On the
+         * second student's copy, three writes of its description restyled (its words in italics) and its module flags
+         * whole: as they stand with no record, the same with the record that write left (the GM's browser that holds
+         * one), and the words changed in both with no record, which still reach every copy (r2-G1's rule). Read after
+         * each: the ledger's name, words and reading, the copy found after the reshape, and the reshaper's copy.
+         */
+        needs(world.atLeast("playerCharactersInRooms"), "the trace lies where the finder's character stands");
+        needs(world.atLeast("connectedPlayersWithCharacter"), "the finder is a connected player's character");
+        const students = cast(3);
+        const { player, actor: finder, where } = await playerInRoom();
+        const [who, holder] = students.filter(a => a.id !== finder.id);
+        const R = await import("./remnants.mjs");
+        const T = await import("./truth-bullets.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const WORDS = "SUITE r2-G10 the GM's own words for it";
+        const READING = "SUITE r2-G10 the lab's reading of it";
+        const F = await reshapeCopiesFixture(who, [holder], "SUITE r2-G10 a held copy's description and module flags written at once",
+            { scene: where.scene, x: where.tokenDoc.x, y: where.tokenDoc.y, sourceActor: finder.id });
+        try {
+            const { applied } = await F.reshape();
+            must(applied === true, "the approval was refused - this would measure nothing");
+            await R.setRemnantPublic(F.trace, { analyzedText: READING });
+            const after = await F.find(player, finder);
+            must(after, "the finder's Observe made no copy of the fixture's trace - this would measure nothing");
+            const read = () => {
+                const pub = R.remnantPublic(F.trace);
+                return [[pub?.name, pub?.playerText, pub?.analyzedText], F.words(after)?.slice(0, 2) ?? null, F.words(F.copy)];
+            };
+            const both = async ({ forget, words = C9_FOUND.playerText }) => {
+                const copy = holder.items.get(F.copies[1].id);
+                if (forget) T.forgetBulletGuard(copy.uuid);
+                must(!forget || T.bulletGuardStatus(copy.uuid).copy === null, "the GM's record of the copy stayed - this would measure nothing");
+                const scope = foundry.utils.deepClone(copy.flags?.[MODULE_ID] ?? {});
+                scope[T.TRUTH_BULLET_FLAGS.playerText] = words;
+                const styled = `<p><em>${words}</em></p>`;
+                must(copy.system?.description !== styled, "the restyled description is the one the copy holds - the write would not reach it");
+                await copy.update({ "system.description": styled, flags: { [MODULE_ID]: replaced(scope) } });
+                await settle();
+                return read();
+            };
+            const kept = await both({ forget: true });
+            await F.copies[1].update({ "system.description": T.bulletDescription(C9_FOUND.playerText) });
+            await settle();
+            const held = await both({ forget: false });
+            const ruled = await both({ forget: true, words: WORDS });
+            const story = [[C9_STORY.name, C9_STORY.text, READING], [C9_STORY.name, C9_STORY.text], [C9_FOUND.name, C9_FOUND.playerText, true]];
+            equal(stableJson([kept, held, ruled]), stableJson([story, story,
+                [[C9_STORY.name, WORDS, READING], [C9_STORY.name, WORDS], [C9_FOUND.name, WORDS, false]]]),
+                "a GM's write of one held copy's description and module flags at once wrote its words or its reading over a reshaped trace's "
+                + "when it kept them, or a change of the words missed a copy (after each write - no record, the record, the words changed with "
+                + "no record: the ledger's name, words and reading; the copy found after the reshape; the reshaper's copy with its found description)");
+        } finally {
+            await F.putBack();
+        }
+    }],
+
     ["two rulings of one reshape at once run once, and the second is told it was ruled", async () => {
         /*
          * E09 C10, 08.10.2026. Nothing marked a reshape's proposal as ruled: each ruling read the
@@ -36750,6 +36811,76 @@ const SCENARIOS = [
         equal(stableJson(read), stableJson([[1, 1], [top, top - 1], [top - 1, top - 1], [1, 0]]),
             "a Reroll of a critical clean-up minted the step its give-back handed over, lost it, or took one nothing gave "
                 + "(the marks paid and Rerolled into a critical, the actions paid, the actions not paid, the Bursts paid: after the critical, after the Reroll)");
+    }],
+
+    ["a Reroll of a clean-up takes back the attempt's own Sanity and not a write that landed while it ran", async () => {
+        /*
+         * E09 fix r2-G10, 09.10.2026; r2-G8's open road 3. A clean-up's Reroll rewinds the Sanity track by what the
+         * attempt moved (cleanup.mjs `undoLastCleanup`), and that was read as the track's move from the attempt's start
+         * to its end - every write that landed in between counted as the attempt's. Four clean-ups, each of a
+         * fixture's trace at 1 Sanity mark with the GMs' credit emptied (`auditFromScratch`), during each of which - as
+         * its first card is posted - a GM clears one of the student's marks or marks one more; then its Reroll. The
+         * Sanity step paid as the player's browser pays it (the player's write, judged) and claimed, a miss, the GM
+         * clearing a mark, Rerolled into a critical whose give-back asks the credit for the step; the same with the GM
+         * marking one; a miss whose packet claims no step, so the GM charges it (`spendStress`), the GM clearing a mark,
+         * Rerolled the same way; and the step paid and claimed, a critical that hands it back, the GM clearing a mark,
+         * Rerolled into a plain success, so the step stands paid again. Read for each: the marks after the attempt and
+         * after the Reroll, and what the GMs' credit holds of Sanity then. The GM's write should stand, the attempt's
+         * own Sanity alone come and go, and the credit hold what was paid and no more.
+         */
+        needs(world.atLeast("sceneOnScreen"), "the fixture traces are placed on the scene on screen");
+        needs(world.atLeast("playerAccounts", 1), "a player account whose write is judged");
+        const [who] = cast(1);
+        const player = game.users.find(u => !u.isGM);
+        const { sheetAuditIdle } = await import("./sheet-audit.mjs");
+        const STRESS = "system.resources.stress.value", marks = () => Number(foundry.utils.getProperty(who._source, STRESS)) || 0;
+        must(Number(who.system.resources?.stress?.max) >= 4, `${who.name}'s Sanity cannot take three marks - this would measure nothing`);
+        const had = marks(), fixtures = [], read = [];
+        try {
+            for (const [label, by, price, critical, again] of [["cleared", -1, "stress", false, true], ["marked", 1, "stress", false, true],
+                ["charged", -1, null, false, false], ["handed back", -1, "stress", true, false]]) {
+                const F = await cleanupFixture(who, `SUITE r2-G10 a write while a clean-up runs, ${label}`);
+                fixtures.push(F);
+                must(F.trace && F.copy, "the fixture's trace or its copy was not made - this would measure nothing");
+                await who.update({ [STRESS]: 1 });
+                await auditFromScratch(who);
+                if (price) await asPlayerWrite(who, { [STRESS]: 2 }, player, { reason: "price" });
+                await sheetAuditIdle();
+                let landed = null;
+                const own = Object.getOwnPropertyDescriptor(ChatMessage, "create");
+                const create = ChatMessage.create;
+                ChatMessage.create = async function (data, ...rest) {
+                    if (landed === null) {
+                        landed = marks();
+                        await who.update({ [STRESS]: marks() + by });
+                    }
+                    return create.call(this, data, ...rest);
+                };
+                try {
+                    await F.scrub(critical ? 30 : 0, { isCritical: critical, price });
+                } finally {
+                    if (own) Object.defineProperty(ChatMessage, "create", own);
+                    else delete ChatMessage.create;
+                }
+                await settle();
+                await sheetAuditIdle();
+                must(landed !== null, `the GM's write did not land while the attempt ran (${label})`);
+                const once = marks();
+                await F.scrub(30, { isCritical: again, price, undo: true });
+                await settle();
+                await sheetAuditIdle();
+                read.push([once, marks(), await creditHeld(who, "stress")]);
+            }
+        } finally {
+            for (const F of fixtures.reverse()) await F.putBack();
+            await who.update({ [STRESS]: had });
+            await sheetAuditIdle();
+        }
+        equal(stableJson(read), stableJson([[1, 0, 0], [3, 2, 1], [1, 1, 1], [0, 1, 1]]),
+            "a clean-up's Reroll took back a GM's write that landed while the attempt ran, banked credit for it, or missed the attempt's own Sanity "
+                + "(the step paid and a mark cleared, Rerolled into a critical; the same with a mark added; the GM's charge and a mark cleared, "
+                + "Rerolled; the step paid and handed back by a critical and a mark cleared, Rerolled into a success: the marks after the attempt, "
+                + "after the Reroll, the Sanity the GMs' credit holds)");
     }],
 
     ["a Reroll's take-backs read the Hope and the maxima the GMs hold, not a player's write the audit has not put back", async () => {

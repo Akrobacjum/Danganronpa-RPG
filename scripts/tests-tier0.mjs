@@ -4988,6 +4988,9 @@ const REGRESSIONS = [
         ok(six.indexOf("bodyIsHere(actor)") > 0 && six.indexOf("bodyIsHere(actor)") < six.indexOf("spendStress("),
             "moving the body does not ask where the body is before it is paid for");
         ok(/receipt\.stressAfter - receipt\.stressBefore/.test(cleanup), "a clean-up's undo does not take back what it moved");
+        // E09 fix r2-G10: and only what the attempt's own writes moved, never a write that landed while it ran.
+        ok(/const moved = typeof receipt\.stressMoved === "number" \? receipt\.stressMoved\b/.test(cleanup),
+            "a clean-up's undo takes back the track's move while it ran, not the attempt's own writes");
     }],
 
     ["R146 - the stylesheet's resource lock follows the setting", async () => {

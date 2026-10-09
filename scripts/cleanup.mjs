@@ -1505,9 +1505,6 @@ async function resolveTransformRoad(actor, token, data, verdict, {
     }
 
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
-    // What this attempt left the Sanity track at, so a Reroll takes back what it
-    // moved and not everything since (E03; audit S05-40).
-    receipt.stressAfter = resourceValue(actor, "stress");
     await keepAttempt(receipt);
     log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
         data.visibility} ${data.type} - ${band}.`);
@@ -1775,6 +1772,8 @@ export async function resolveCleanup({
         actorId,
         tokenId,
         stressBefore: resourceValue(actor, "stress"),
+        // The marks this attempt's own writes moved, so a Reroll takes back those and no one else's (`undoLastCleanup`).
+        stressMoved: 0,
         erased: null,
         leftBehind: null,
         // G-20: what the trace was before it was relabelled. A Reroll putting
@@ -1792,8 +1791,8 @@ export async function resolveCleanup({
     const paidStep = validPrice(price);
     const free = replayFree || await consumeFreeCleanup(actor);
     receipt.free = free;
-    if (!paidStep && !free) await spendStress(actor);
-    if (free) await waivePrice(actor, paidStep, by);
+    if (!paidStep && !free) receipt.stressMoved += await spendStress(actor);
+    if (free) receipt.stressMoved -= await waivePrice(actor, paidStep, by);
     // What the report says was paid: the step the client claimed, with the
     // amount read off the table rather than off the packet - and nothing for
     // the free attempt, which says so instead.
@@ -1826,8 +1825,6 @@ export async function resolveCleanup({
     }
 
     await report(actor, data, { band, success, total, dc, done, viaAction, charged });
-    // What this attempt left the Sanity track at - see the transform road above.
-    receipt.stressAfter = resourceValue(actor, "stress");
     await keepAttempt(receipt);
     await keepAttemptFact(rolls, roll, actorId, receipt);
 
@@ -2569,7 +2566,7 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
  * `proposal` is a reshape's words as the card put them (`proposeReshape`); `ruled` is never on a
  * receipt - the ruling writes it (`claimRuling`) - and is listed so a new attempt clears it.
  */
-const RECEIPT_FIELDS = ["actorId", "tokenId", "attempt", "free", "stressBefore", "stressAfter",
+const RECEIPT_FIELDS = ["actorId", "tokenId", "attempt", "free", "stressBefore", "stressAfter", "stressMoved",
     "erased", "leftBehind", "transformed", "handedBack", "proposal", "ruled"];
 
 /**
@@ -2819,9 +2816,23 @@ async function undoLastCleanup(actor, tokenId) {
                again left 2 marks where 1 was owed. A rise is written as the GM's own
                charge now, which banks the credit again, as the action's take-back
                below (`takeBackRefund`, a GM's spend) always has; a fall is still a
-               give-back, as fix r2-H6 made it. */
-            const moved = typeof receipt.stressAfter === "number"
-                ? receipt.stressAfter - receipt.stressBefore : null;
+               give-back, as fix r2-H6 made it.
+               THE ATTEMPT'S OWN WRITES, NOT THE TRACK'S MOVE (E09 fix r2-G10, 09.10.2026; r2-G8's
+               open road 3). `moved` was the track's move between `stressBefore` and the
+               attempt's end (`stressAfter`), so any write landing while the attempt
+               ran - a GM's, a relay's, another road's - was taken back as the
+               attempt's, and a fall there was raised again as the GM's charge above,
+               banking credit nobody paid: measured on this fix by tier 2's "a Reroll
+               of a clean-up takes back the attempt's own Sanity and not a write that
+               landed while it ran", a GM's clear of one mark while the attempt's
+               card was being posted was undone by the Reroll and left one step in the
+               credit after the replay's give-back. The receipt now counts what the
+               attempt's own writes moved (`stressMoved`: `spendStress`'s charge,
+               `waivePrice`'s and `handBack`'s give-backs, as each answers it), and
+               the rewind takes back that. A row kept before this fix has no
+               `stressMoved` and is read as before. */
+            const moved = typeof receipt.stressMoved === "number" ? receipt.stressMoved
+                : typeof receipt.stressAfter === "number" ? receipt.stressAfter - receipt.stressBefore : null;
             const { gmMeansWrite, meansMaxHeld } = await import("./sheet-audit.mjs");
             await gmMeansWrite(actor, async () => {
                 const ceiling = meansMaxHeld(actor, "stress") || Infinity;
@@ -3004,6 +3015,7 @@ async function handBack(actor, paidStep, amount = 1, { receipt = null, grant = f
     // minted out of nothing. What came back, not what was asked: a Reroll
     // of a critical that gave nothing back took an action nobody had been given.
     if (receipt && back.pay === "action" && back.amount) receipt.handedBack = back;
+    if (receipt && back.pay === "stress") receipt.stressMoved -= back.amount;
     return back;
 }
 
@@ -3033,6 +3045,7 @@ function backLine(back) {
  * marks stands without a judge, so it names what it is, the action's price, which says
  * nothing of who is in the incident; from a GM no reason goes at all (resource-guard.mjs
  * `stampOf`).
+ * Answers the marks it added, 0 where the track was full: a clean-up's receipt counts them (E09 fix r2-G10).
  */
 export async function markResolutionStress(actor) {
     // Held to the marks and the maximum the GMs hold on a GM's client (sheet-audit.mjs `meansWrite`, E29 fix r2-H24): a
@@ -3041,19 +3054,20 @@ export async function markResolutionStress(actor) {
     const { meansWrite } = await import("./sheet-audit.mjs");
     return meansWrite(actor, async ({ stress: marks }, maxOf) => {
         const max = maxOf("stress") ?? 0;
-        if (marks >= max) return false;
-        await trustedWrite(actor, {
-            "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
-        }, { reason: "price" });
-        return true;
+        if (marks >= max) return 0;
+        const next = Math.min(max, marks + RESOLUTION_STRESS_COST);
+        await trustedWrite(actor, { "system.resources.stress.value": next }, { reason: "price" });
+        return next - marks;
     });
 }
 
+/** The clean-up's Sanity, charged on the GM; answers the marks it added (0 for none). */
 async function spendStress(actor) {
     try {
-        await markResolutionStress(actor);
+        return await markResolutionStress(actor);
     } catch (err) {
         error("Could not charge the Sanity for a clean-up", err);
+        return 0;
     }
 }
 
@@ -3094,7 +3108,7 @@ export async function consumeFreeCleanup(actor) {
  * rewind's rise banks the credit the replay's waiver takes (`undoLastCleanup`).
  */
 async function waivePrice(actor, paidStep, by = null) {
-    if (paidStep?.pay === "stress") await paidBack(actor, paidStep, { by });
+    return paidStep?.pay === "stress" ? (await paidBack(actor, paidStep, { by })).amount : 0;
 }
 
 /**
