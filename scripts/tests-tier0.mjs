@@ -7437,6 +7437,12 @@ const REGRESSIONS = [
          * the sheet's `addPresentButton`; it rewrote the verdicts of `registerTrial`, `seizeFloor`'s
          * card, `presentDialog` and `trialQueue`. Measured on the harness on 10.10.2026 with C16 in
          * the tree: 49 places against 49 rows - 15 PACKET, 5 SOCKET, 4 CHAT, 20 SHEET, 5 STORE.
+         * E10 fix r1-G1 (1.2.71) added two places: `verdictStore`, the Blackened a verdict was given with, kept
+         * for its Finish (STORE), and `verdictCardPosted`, the Finish's reading of the card already posted (CHAT).
+         * The table held 47 rows on its own line; merged beside C16 it holds 51 - 15 PACKET, 5 SOCKET,
+         * 5 CHAT, 20 SHEET, 6 STORE (counted in the source on 10.10.2026).
+         * E10 fix r1-G4 (1.2.71) rewrote the verdicts of `openVerdictDialog` and `executeSentenced`: a death nobody
+         * has found is not dead to the verdict, and executing that student makes it the table's; no place added or struck.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
@@ -7463,11 +7469,12 @@ const REGRESSIONS = [
             ["CHAT trial.mjs#seizeFloor", "judged: the card's flags are claims; the objector's death through `flagsAsHeld` (C16) and the item through `itemAsHeld` (E29), both before anything is paid, then the synchronous refusals [1b.2]"],
             ["CHAT trial.mjs#presentedThisChapter", "out of scope: a GM's log of the chapter's Present and Objection cards (trial.mjs:778, 798, GM only); a display, feeds no write"],
             ["CHAT events.mjs#safewordCard", "out of scope: the safeword card (E10 changes only its handbook line, C17); GM gate"],
+            ["CHAT vote.mjs#verdictCardPosted", "judged (fix r1-G1): a Finish posts no second card when the verdict's card is in the chat - its `verdictAt` the record's `at` and its author a GM (`message.author?.isGM`); a player's message with the flag counts for nothing"],
             ["SHEET vote.mjs#candidatesFor", "out of scope: a display and a list (R4 per 1b.2): `isDeceased` marks; the dead may be named (`allowVotingForDead`, guide p. 32), so a forged death names nobody new; the voter is decided by `eligibleVoters`, and since C2 a cast's names are held to this list on the primary (`ballotRefusal`) [F1]"],
             ["SHEET vote.mjs#eligibleVoters", "judged (C2): `isDeceased(flagsHeldNow(actor))` in one synchronous pass after `studentsJudged` (`judgedFor` of every student), which a step (`runVoteOp`), a cast (`recordBallot`) and an ask (`ballotFor`) each await outside the vote's turn; on a GM that is not the primary the document, as before [1b.2]"],
-            ["SHEET vote.mjs#openVerdictDialog", "judged (C4): who is dead is read once as the GMs hold it - `isDeadForGm(flagsHeldNow(actor))` after `judgedFor` of every student, in one synchronous pass; the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); the select opens on the world's `accusedIds` [1b.2]"],
+            ["SHEET vote.mjs#openVerdictDialog", "judged (C4, fix r1-G4): who is dead is read once as the GMs hold it - `flagsHeldNow(actor)` after `judgedFor` of every student, in one synchronous pass - and dead is the death the table knows (`isDeceased`; Q-E10-2 (a)): the dead stay listed with \" - dead\" as disabled options and `read` refuses one submitted anyway (Q-E10-1 (c)); a death the GMs hold and nobody has found is a living choice, named to the GM alone; the select opens on the world's `accusedIds` [1b.2]"],
             ["SHEET vote.mjs#verdictHeld", "judged (C5): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `isDeceased`/`isDeadForGm` of `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student [1b.2]"],
-            ["SHEET vote.mjs#executeSentenced", "judged (C5): each execution awaits `judgedFor(id)`, reads `isDeadForGm(flagsHeldNow(actor))` and calls `killCharacter`, whose own head check `isDeadForGm` runs with nothing awaited after that read (H3); a death the GMs hold is passed over, not killed twice [1b.2]"],
+            ["SHEET vote.mjs#executeSentenced", "judged (C5, fix r1-G4): each execution awaits `judgedFor(id)`, reads `flagsHeldNow(actor)` and, with nothing awaited after that read (H3), calls `killCharacter`, whose own head check is `isDeadForGm`, or for a death the GMs hold and nobody has found `publishDeath`, whose head reads the GMs' row (Q-E10-2 (a)); one the table knows dead is passed over, not killed twice [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
             ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the presenter's own browser (R4): the window's target list and, since C16, a dead presenter refused before it opens (document `isDeceased`, a courtesy); `seizeFloor` judges on the primary"],
@@ -7487,6 +7494,7 @@ const REGRESSIONS = [
             ["STORE gm-stores.mjs#ballotStore", "not a source: a GM store (`gmBallots`) the primary GM writes (`recordBallot`, the run of the bridge's `vote.cast` since C2) and syncs between the GMs only; a count reads the rows of the world's chapter and round (C1) [F1/F2]"],
             ["STORE gm-stores.mjs#offerStore", "not a source: a GM store the primary writes (`recordOffer`, `dropOffer`); a row is a list per character since C6, a 1.2.70 row read as a list of one (`offerList`) [F7]"],
             ["STORE gm-stores.mjs#deferredOfferStore", "not a source: a GM store [F7]"],
+            ["STORE gm-stores.mjs#verdictStore", "not a source (fix r1-G1): a GM store (`gmVerdict`) `applyVerdict` writes - the verdict's `at` and the Blackened its GM named - and `finishVerdict` reads; never sent to a player"],
             ["STORE settings.mjs#trialQueue", "not a source: a world setting only a GM writes; since C16 a sheet's Present reads `trialQueue.active` on render (`addPresentButton`) and on change (`repaintPresentButtons`, from `SYNC.trial`)"]
         ];
         const ROADS = /^(?:vote|advancement)\./;
@@ -7503,7 +7511,7 @@ const REGRESSIONS = [
         const CHAT = /\b(?:m|msg|message|chatMessage)\??\.getFlag\(\s*MODULE_ID\s*,|\b(?:m|msg|message)\??\.speaker\??\.actor\b/;
         const TOP = /^(?![\s}\])]|$)(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?\s*([\w$]+)|class\s+([\w$]+)|(const|let|var)\s+([\w$]+))?/gm;
         const STORES = [["vote.mjs", "ballots"], ["vote.mjs", "trialProgress"], ["gm-stores.mjs", "ballotStore"], ["gm-stores.mjs", "offerStore"],
-            ["gm-stores.mjs", "deferredOfferStore"], ["settings.mjs", "trialQueue"]];
+            ["gm-stores.mjs", "deferredOfferStore"], ["gm-stores.mjs", "verdictStore"], ["settings.mjs", "trialQueue"]];
         const censusOf = (bridge, sources) => {
             const found = [];
             for (const [action, decl] of Object.entries(bridge)) {

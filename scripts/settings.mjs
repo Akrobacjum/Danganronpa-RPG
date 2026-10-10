@@ -323,6 +323,12 @@ export const SETTINGS = {
      */
     gmBallots: "gmBallots",
     /**
+     * THE BLACKENED A VERDICT WAS GIVEN WITH (E10 fix r1-G1, 1.2.71): a GM store (gm-stores.mjs
+     * `verdictStore`), one record `{ at, blackenedIds }` a Finish of the verdict reads. No player
+     * copy: the world's trial record names no Blackened.
+     */
+    gmVerdict: "gmVerdict",
+    /**
      * THE DESPAIR COUNTERS ON THE GMS' SIDE (E05 C12, 27.09.2026; audit S01-60, S09-28). Two GM
      * stores, synced and backed up, with no player copy: `gmOverflow` (gm-stores.mjs
      * `overflowStore`) is the overflow's count, a record `{ count }` - the world setting
@@ -1355,6 +1361,13 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => Hooks.callAll("drpgBallotsChanged")
+    });
+    // The verdict's Blackened (E10 fix r1-G1): no `onChange`, as nothing on any screen shows them.
+    game.settings.register(MODULE_ID, SETTINGS.gmVerdict, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
     });
     /* The Despair counters (E05 C12). A change - this GM's write or another GM's merged in -
        redraws what the world setting's change redrew (the caption, the HUD row, the sheets;

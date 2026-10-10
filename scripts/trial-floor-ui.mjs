@@ -1071,12 +1071,21 @@ export async function openVoteDialog() {
            "Remind" is what a GM chasing stragglers actually wants and it is right
            there, so this stays available rather than being taken away: re-sending is a
            legitimate thing to do to a vote that has gone wrong. It just is not
-           something to do by accident. */
-        if (returned) {
+           something to do by accident.
+
+           AND IT ASKS WHERE THIS BROWSER CANNOT COUNT (E10 fix r1-G3; cor F3). `returned` is
+           this browser's copy, and the restart drops the rows the primary holds: on a GM whose
+           copy has not arrived, or holds none of a vote open when it loaded - the window that
+           names Start the vote over as the way out - it read 0 and the restart ran unasked
+           (the suite's "Start the vote over asks first on a GM whose copy of the ballots is
+           not ready", red at f9be27d). There the question says it cannot tell how many. */
+        const unseen = ballotCopyStatus() !== null;
+        if (returned || unseen) {
             const sure = await DialogV2.confirm({
                 classes: ["drpg-panel"],
                 window: { title: game.i18n.localize("DRPG.Vote.sendAgain") },
-                content: `<p>${plural("DRPG.Vote.resendWarning", { n: returned })}</p>`,
+                content: `<p>${unseen ? game.i18n.localize("DRPG.Vote.resendUnseen")
+                    : plural("DRPG.Vote.resendWarning", { n: returned })}</p>`,
                 rejectClose: false
             });
             if (!sure) return openVoteDialog();

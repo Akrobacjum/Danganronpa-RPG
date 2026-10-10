@@ -1084,6 +1084,7 @@
         "one": "One ballot has already come back. Starting over throws it away and hands everybody a fresh one. To chase the people who have not answered, use Send another ballot instead.",
         "other": "{n} ballots have already come back. Starting over throws them away and hands everybody a fresh one. To chase the people who have not answered, use Send another ballot instead."
       },
+      "resendUnseen": "This browser does not hold the GMs' copy of this vote's ballots, so it cannot tell how many have come back - the primary GM counts them. Starting over throws away any that have and hands everybody a fresh one. To chase the people who have not answered, use Remind instead.",
       "banner": "THE VOTE IS OPEN",
       "opened": {
         "one": "One ballot is out. Name who you believe is the Blackened.",
@@ -1163,6 +1164,7 @@
       "nobodyNamed": "Nobody named",
       "namedByTable": "Named by the table: {names}, {n} of {total}.",
       "accusedDead": "Already dead: {names}. Nobody is executed unless you pick a living student.",
+      "unfoundDead": "Dead, and nobody has found the body: {names}. Executing them makes that death the execution, and the table learns of it with the verdict.",
       "storeNotReady": "This browser has not got the GMs' copy of the ballots yet.",
       "movedOn": "The vote has moved on - this window was out of date.",
       "openNoBallots": "The vote is open, round {n}, but this browser holds none of its ballots - wait for the primary GM or Start the vote over.",
@@ -1172,6 +1174,7 @@
       "executedNote": "The verdict has been carried out on you, {name}. Your character is dead.",
       "verdictStopped": "The verdict stopped at: {steps}. Finish the verdict does the rest.",
       "finishVerdict": "Finish the verdict",
+      "finishPrimaryOnly": "Only the primary GM, {name}, can finish the verdict, so that each of its steps is done once. Ask {name}.",
       "verdictSteps": {
         "sentence": "who is executed",
         "executions": "the executions",
@@ -2912,6 +2915,8 @@
       "failed": "The Level Up could not be saved. See the console.",
       "takeBack": "Take back the offer: {kind}",
       "takenBack": "The offer to {name} is taken back: {kind}. The button on their sheet goes out.",
+      "takeBackBusy": "The Level Up of {name} is being written right now, so its offer cannot be taken back. Open the Level Up menu again in a moment: an offer that still stands can be taken back then.",
+      "offerStillStands": "The Level Up of {name} is written, but the offer it spent could not be withdrawn and still stands: take it back from the Level Up menu on the sheet.",
       "nobodyPlays": "Nobody plays {name} - pick for them instead.",
       "standing": {
         "one": "{n} Level Up on offer",
@@ -3732,7 +3737,8 @@
         "usedTools": "The Cleaning Tools each clean-up used, broken when the body is found",
         "sheetMarks": "What each character's sheet held when the GMs last judged a write on it",
         "sheetWrites": "The writes on a student's sheet the GMs put back, flagged or listed, kept a day",
-        "ballots": "The ballots of the Class Trial's vote, kept by the GMs"
+        "ballots": "The ballots of the Class Trial's vote, kept by the GMs",
+        "verdict": "The Blackened the last verdict was given with, kept by the GMs for its Finish"
       },
       "row": {
         "traces": {

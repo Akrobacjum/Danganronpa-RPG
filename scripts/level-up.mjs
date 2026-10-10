@@ -338,17 +338,42 @@ async function withdrawOffer(actorId, offerId) {
 }
 
 /**
+ * Characters whose Level Up is being written on this browser - the primary GM's, which judges a
+ * player's picks (gm-bridge.mjs `handleAdvancement` takes and lets go of the latch) and every
+ * take-back of an offer (`takeBackOffer` here, the bridge's `take` for another GM, which read it).
+ */
+export const advancing = new Set();
+
+/**
  * A GM takes one offer back (E10 C6; audit S03-17): the third choice of the sheet's Level Up
  * menu, one per standing offer. Its owner's button goes out with the set the primary sends.
  * An offer carrying a Reinforced that waited for the class (`deferred`, E10 C7) gives it back
  * to the GMs' store, waiting for the next batch as it was before the offer: taking the offer
  * back takes back the class's Standard, not what the Blackened earned. Answers whether it was
  * taken.
+ *
+ * NOT WHILE ITS LEVEL UP IS BEING WRITTEN (E10 fix r1-G2, 1.2.71; the round-1 security review's
+ * F1). A player's Level Up reads its offer, waits in the student's queue (`meansWrite`), writes,
+ * and only then spends the offer. A take-back in that wait found the offer standing and took it:
+ * the GM was told "taken back", the Level Up landed on the sheet anyway, and the Blackened's
+ * waiting Reinforced went back to the GMs' store to be given a second time. Measured on the
+ * harness at 1a9a07e (tier 2, "a take-back of an offer whose Level Up is being written is
+ * refused on both roads"): with the apply held in the queue, this road answered true and put the
+ * Reinforced back, and the Level Up was written as well. Refused now while that character's
+ * latch is held, and the GM told; on another GM the primary refuses the bridge's `take` the same
+ * way and the bridge tells it. A take holds no latch of its own: its drop is written in the same
+ * synchronous step as its check (gm-store.mjs `drop` writes the section before it awaits), so an
+ * apply after it finds no offer - read in the code.
  */
 export async function takeBackOffer(actor, offerId) {
     if (!game.user.isGM || !actor) return false;
     const offer = standingOffers(actor).find(standing => standing.id === offerId);
-    if (!offer || !await withdrawOffer(actor.id, offerId)) return false;
+    if (!offer) return false;
+    if (advancing.has(actor.id)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.takeBackBusy", { name: actor.name }));
+        return false;
+    }
+    if (!await withdrawOffer(actor.id, offerId)) return false;
     if (offer.deferred) {
         const kind = TRIAL.wrong.blackenedLevelUp;
         await deferAdvancement(actor, kind, null, { count: Math.max(1, Math.round(offer.deferred / (LEVEL_UP[kind]?.picks || 1))) });
@@ -790,6 +815,7 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         return null;
     }
 
+    let taken;
     try {
         // The one road, named `levelUp`. Until E29 C2 this said the road kept the
         // resource guard from stripping the trait rise and leaving a half-applied
@@ -824,7 +850,7 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         // write as its value, and stood from then on in the GMs' mark - an experience nobody named. Held means an
         // entry with a value: such a write, put back, leaves its entry in the mark empty ({}; read on 10.10.2026).
         // Nothing is written then, and the caller is told by the answer, null.
-        const taken = await meansWrite(actor, async () => {
+        taken = await meansWrite(actor, async () => {
             const from = path => numberHeld(actor, path) ?? 0;
             const held = numberHeld(actor, "system.experiences") ?? {};
             if (Object.keys(experienceDeltas).some(id => !(Object.hasOwn(held, id) && typeof held[id]?.value === "number"))) return null;
@@ -841,25 +867,42 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
             await trustedWrite(actor, update, { reason: "levelUp" });
             return taken;
         });
-        if (taken === null) {
-            ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
-            return null;
-        }
-        /* AN OFFER IS SPENT BY BEING TAKEN (N-2) - the one it names, and only that one
-           (E10 C6; audit S03-17). Every apply withdrew the character's offer, so a GM's own
-           Level Up of a student spent the player's standing one without a word; a GM's
-           picker names none now, and a player's picks name theirs (`handleAdvancement`).
-           Through the primary GM, which holds the offers. */
-        if (offerId) await withdrawOffer(actor.id, offerId);
-
-        log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
-        await tellPlayer(actor, Array.isArray(reasons) && reasons.length ? reasons : [`DRPG.Advance.reason.${kind}`], summary, taken);
-        return summary;
     } catch (err) {
         error("Could not apply the advancement", err);
         ui.notifications.error(game.i18n.localize("DRPG.Advance.failed"));
         return null;
     }
+    if (taken === null) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
+        return null;
+    }
+    /* WRITTEN IS WRITTEN (E10 fix r1-G1, 1.2.71; the round-1 correctness review's F4). The offer's
+       withdrawal, the log and the player's card sat in the try of the write, whose catch answers
+       null: a throw in any of them after the write read as a Level Up that failed - the GM told
+       "could not be saved", and a GM's row of the class's window, answered null, offered the same
+       student a second Level Up. The try ends at the write now; what follows has its own, and the
+       answer is the summary of what was written.
+
+       AN OFFER IS SPENT BY BEING TAKEN (N-2) - the one it names, and only that one
+       (E10 C6; audit S03-17). Every apply withdrew the character's offer, so a GM's own
+       Level Up of a student spent the player's standing one without a word; a GM's
+       picker names none now, and a player's picks name theirs (`handleAdvancement`).
+       Through the primary GM, which holds the offers. One that cannot be withdrawn still stands,
+       and the GM is told to take it back. One already gone is logged (E10 fix r1-G2): a take-back is
+       refused while this write is under way (`takeBackOffer`), so it would be news. */
+    if (offerId) await withdrawOffer(actor.id, offerId).then(stood => {
+        if (!stood) log(`The offer ${offerId} ${actor.name}'s Level Up spent no longer stood.`);
+    }).catch(err => {
+        error(`Could not withdraw the offer ${actor.name}'s Level Up spent`, err);
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.offerStillStands", { name: actor.name }));
+    });
+    try {
+        log(`Advancement (${kind}) applied to ${actor.name}: ${summary.join(", ")}`);
+        await tellPlayer(actor, Array.isArray(reasons) && reasons.length ? reasons : [`DRPG.Advance.reason.${kind}`], summary, taken);
+    } catch (err) {
+        error(`Could not tell ${actor.name}'s player of the Level Up written`, err);
+    }
+    return summary;
 }
 
 /** Private note to the player and the GMs. Advancement is not public knowledge. */
@@ -997,12 +1040,19 @@ export async function deferAdvancement(actor, kind = "reinforced", chapter = nul
  *
  * Answers `{ opened, applied, offered, notGiven, lapsed }`: the rows, how many the GM picked
  * and wrote, how many wait for their players, the names not yet given, the rows that lapsed.
+ *
+ * `given` are the students a verdict's batch gave one already before it stopped, and `onGiven`
+ * is told each row given here, written or offered, once its waiting row is gone (vote.mjs
+ * `verdictLevelUps`; E10 fix r1-G1). The given are still among the living: their rows are
+ * not drawn, and their waiting rows do not lapse.
  */
-export async function runAdvancementBatch(actors, kind = "standard") {
+export async function runAdvancementBatch(actors, kind = "standard", { given = [], onGiven = null } = {}) {
     if (!game.user.isGM) return null;
     await deferredOfferStore.whenHydrated();
     const byId = new Map((actors ?? []).filter(Boolean).map(a => [a.id, a]));
-    const { entries, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    const handled = new Set(given);
+    const { entries: planned, drop } = advancementPlan([...byId.keys()], deferredOfferStore.entries(), kind);
+    const entries = planned.filter(entry => !handled.has(entry.actorId));
     if (drop.length) await deferredOfferStore.dropMany(drop);
     const done = { opened: entries.length, applied: 0, offered: 0, notGiven: [], lapsed: drop.length };
     if (!entries.length) return done;
@@ -1018,6 +1068,7 @@ export async function runAdvancementBatch(actors, kind = "standard") {
             if (choice === "gm" && await openAdvancement(actor, entry.kind, { extraPicks: entry.extraPicks, reasons: entry.reasons })) {
                 done.applied++;
                 if (entry.deferred) await deferredOfferStore.drop(actor.id);
+                await onGiven?.(actor);
                 continue;
             }
             // The waited picks: all of them at the Final Trial (no kind of the batch's own), the extra otherwise.
@@ -1026,6 +1077,7 @@ export async function runAdvancementBatch(actors, kind = "standard") {
                 { extra: entry.extraPicks, deferred: waited, veiled: true, quiet: true })) {
                 done.offered++;
                 if (entry.deferred) await deferredOfferStore.drop(actor.id);
+                await onGiven?.(actor);
                 continue;
             }
             done.notGiven.push(actor.name);
@@ -1041,6 +1093,15 @@ export async function runAdvancementBatch(actors, kind = "standard") {
  * The class's one Level Up window (E10 C7): a row per entry, who picks it. Answers each row's
  * choice by actor id - "player" or "gm" - or null when the window is closed. A row with nobody
  * to hand it to reads "gm" whatever the form says.
+ *
+ * "HAND THEM OUT" FIRST (E10 fix r1-G2, 1.2.71; the round-1 goal verifier's item (b)). C7 marked
+ * it the default - the window's answer is what its rows say - but listed "All: the players pick"
+ * first, and Enter in a DialogV2 presses the first submit button in DOM order whatever carries
+ * `default` (vote.mjs `openVerdictDialog`, E10 C4): a GM who set rows to "I pick" and pressed
+ * Enter handed every row to its player. Measured on the harness at 1a9a07e (tier 2, "Enter in
+ * the class's Level Up window gives what its rows say"): every row "I pick", the form submitted
+ * by its first button, the answer was "player" for each. The key itself in Foundry's window is
+ * not measured here (the verdict window's is LIVE-E10-02).
  */
 async function askWhoPicks(rows) {
     const L = key => game.i18n.localize(key);
@@ -1062,8 +1123,8 @@ async function askWhoPicks(rows) {
         classes: ["drpg-panel", "drpg-advance-queue"],
         content: `<p>${L("DRPG.Advance.queueIntro")}</p><ul class="drpg-advance-queue-list">${items}</ul>`,
         buttons: [
-            { action: "allPlayers", label: L("DRPG.Advance.allPlayers"), callback: (event, button, dialog) => read(dialog, true) },
-            { action: "give", label: L("DRPG.Advance.queueGive"), default: true, callback: (event, button, dialog) => read(dialog, false) }
+            { action: "give", label: L("DRPG.Advance.queueGive"), default: true, callback: (event, button, dialog) => read(dialog, false) },
+            { action: "allPlayers", label: L("DRPG.Advance.allPlayers"), callback: (event, button, dialog) => read(dialog, true) }
         ],
         rejectClose: false
     });

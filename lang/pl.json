@@ -1081,6 +1081,7 @@
         "many": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie.",
         "other": "{n} kart już wróciło. Start od nowa je wyrzuca i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Wyślij kartę ponownie."
       },
+      "resendUnseen": "Ta przeglądarka nie ma kopii kart tego głosowania od GM-ów, więc nie wie, ile już wróciło - liczy je główny GM. Start od nowa wyrzuca te, które wróciły, i daje każdemu świeżą. By ponaglić tych, którzy nie odpowiedzieli, użyj Przypomnij.",
       "banner": "GŁOSOWANIE OTWARTE",
       "opened": {
         "one": "Rozesłano jedną kartę. Wskażcie, kto waszym zdaniem jest Blackened.",
@@ -1173,6 +1174,7 @@
       "nobodyNamed": "Nikt niewskazany",
       "namedByTable": "Wskazani przez stół: {names}, {n} z {total}.",
       "accusedDead": "Już nie żyje: {names}. Nikt nie zostaje stracony, chyba że wybierzesz żywego ucznia.",
+      "unfoundDead": "Nie żyje, a nikt nie znalazł ciała: {names}. Stracenie tej osoby czyni tę śmierć egzekucją, a stół dowiaduje się o niej wraz z werdyktem.",
       "verdictAlreadyApplied": "Werdykt tego Class Trial już zapadł. Zakończ rozdział, by iść dalej.",
       "storeNotReady": "Ta przeglądarka nie ma jeszcze kopii kart do głosowania od GM-ów.",
       "movedOn": "Głosowanie poszło dalej - to okno było nieaktualne.",
@@ -1183,6 +1185,7 @@
       "executedNote": "Wyrok wykonano na tobie, {name}. Twoja postać nie żyje.",
       "verdictStopped": "Werdykt zatrzymał się na: {steps}. Przycisk Dokończ werdykt wykona resztę.",
       "finishVerdict": "Dokończ werdykt",
+      "finishPrimaryOnly": "Werdykt dokańcza tylko główny GM, {name}, żeby każdy jego krok wykonał się raz. Poproś o to GM-a {name}.",
       "verdictSteps": {
         "sentence": "kto zostaje stracony",
         "executions": "egzekucje",
@@ -3030,6 +3033,8 @@
       "experienceNeedsNameKept": "Nowe doświadczenie potrzebuje nazwy. Nic nie wysłano - Level Up wciąż czeka na wykorzystanie.",
       "takeBack": "Cofnij ofertę: {kind}",
       "takenBack": "Oferta dla postaci {name} cofnięta: {kind}. Przycisk na jej arkuszu gaśnie.",
+      "takeBackBusy": "Level Up postaci {name} jest właśnie zapisywany, więc jego oferty nie można cofnąć. Otwórz menu Level Up za chwilę: ofertę, która wciąż stoi, będzie można wtedy cofnąć.",
+      "offerStillStands": "Level Up postaci {name} jest zapisany, ale oferty, którą wykorzystał, nie udało się wycofać i wciąż stoi: cofnij ją w menu Level Up na arkuszu.",
       "nobodyPlays": "Nikt nie gra postacią {name} - wybierz za nią.",
       "standing": {
         "one": "{n} oferta Level Up",
@@ -4987,7 +4992,8 @@
         "usedTools": "Narzędzia do sprzątania użyte przy każdym sprzątaniu, niszczone przy odkryciu ciała",
         "sheetMarks": "Co zawierała karta każdej postaci, gdy GM-owie ostatnio ocenili zapis na niej",
         "sheetWrites": "Zapisy na kartach postaci cofnięte, zgłoszone lub odnotowane przez GM-ów, trzymane przez dobę",
-        "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów"
+        "ballots": "Karty głosowania w Class Trial, przechowywane u GM-ów",
+        "verdict": "Blackened, z którymi wydano ostatni werdykt, przechowywani u GM-ów na jego dokończenie"
       },
       "row": {
         "traces": {

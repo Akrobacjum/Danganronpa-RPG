@@ -71,6 +71,10 @@
  *   J  (run between H and I) p4 comes back on a machine whose clock runs a minute fast (`clockSkewMs`:
  *      `Date.now` moves, the server's time does not); gm2 opens a five-minute debate in H's second trial,
  *      and p4's count of its seconds and its Event card's clock read what gm2's read (C13); gm2 closes it.
+ *   U  (run after the phases above are counted; fix r1-G4) gm2 kills Aiko where nobody finds the body and
+ *      draws the verdict's window on a count that accused her: it opens on Aiko, not listed " - dead", and
+ *      tells gm2 alone whose death that is; the wrong verdict executes her, p1 holds the card naming her
+ *      executed and reads her dead, and gm2 holds no row of her death (the owner's Q-E10-2 (a)).
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -106,6 +110,8 @@
  * runs, 10.10.2026).
  * E10 C14 added B6, E5 and I7, the second press on the vote window and its privacy note read against the GMs' store:
  * 49 checks in 22.8 and 22.5 s (two runs, 10.10.2026).
+ * E10 fix r1-G4 added U1 and U2 on the side line (from C8's 42): 44 checks in 23.8 and 24.0 s (two runs, 10.10.2026).
+ * Merged beside C9-C17: 51 checks in 27.8 s (one run, the merge's fast set beside two other lanes, 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -681,6 +687,58 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     for (const letter of ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]) {
         check(`${letter}0: phase ${letter} measured something`, (counts[letter] ?? 0) > 0, J(counts));
     }
+
+    /* ------------------------------ U. a verdict on a death nobody has found ------------------------------ */
+
+    /* E10 fix r1-G4 (1.2.71; round 1's cor F1 = sec F2; the owner's Q-E10-2 (a), 10.10.2026), run after the phases
+       above are counted, so their checks stay as they were. gm2 kills Aiko where nobody finds the body (`secret: true`),
+       records a count that accused her and draws the verdict's window: it opens on Aiko, who is not listed " - dead",
+       and tells gm2 alone whose death that is; its wrong verdict is pressed. p1, Aiko's player, then holds the card
+       naming her executed and reads her dead, and gm2 holds no row of her death: the card and every sheet agree. Before
+       it the window opened on "Nobody is executed", that verdict's card said so, and p1 read Aiko alive. */
+    begin("U", "a wrong verdict on an accused whose body nobody has found");
+    const errorsBefore = [await gm2.eval(`return globalThis.__errors.length;`), await p1.eval(`return globalThis.__errors.length;`)];
+    await mark(p1);
+    const unseen = await gm2.eval(`${until} ${V} const C = await import("${repoUrl}/scripts/chapter.mjs");
+        const { deathStore } = await import("${repoUrl}/scripts/gm-stores.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const kept = Boolean(await C.killCharacter(aiko, { secret: true, keepBullets: true }));
+        await V.setTrialProgress({ verdictApplied: false, verdict: null, voteClosed: true, accused: [{ id: aiko.id, n: 2 }],
+            accusedIds: [aiko.id], total: 3, majority: 2, noMajority: false, tied: false });
+        const was = globalThis.__dialogWindows; globalThis.__dialogWindows = true;
+        const title = ${text("DRPG.Vote.verdictTitle")};
+        const unfound = game.i18n.format("DRPG.Vote.unfoundDead", { names: aiko.name });
+        const drawn = () => [...foundry.applications.instances.values()].find(a => a.rendered && a.options?.window?.title === title);
+        const pending = game.drpg.verdictDialog();
+        let read = null, result = "hung";
+        try {
+            const el = (await until(() => drawn()?.element, 8000)) ?? null;
+            const select = el?.querySelector('select[name="executed"]');
+            const option = [...(select?.options ?? [])].find(o => o.value === aiko.id);
+            read = el ? { value: select?.value ?? null, disabled: option?.disabled ?? null, words: option?.textContent ?? null,
+                told: el.textContent.includes(unfound) } : null;
+            el?.querySelector('footer button[data-action="wrong"]')?.click();
+            result = await Promise.race([pending, new Promise(r => setTimeout(() => r("hung"), 30000))]);
+        } finally {
+            globalThis.__dialogWindows = was;
+        }
+        return { kept, read, name: aiko.name, hung: result === "hung", stage: V.trialProgress().verdict?.stage ?? null,
+            row: deathStore.has(aiko.id) };`, { timeout: 60000 });
+    verdict("the verdict's window opens on Aiko, whose body nobody has found, offers her as a living student and tells gm2 whose death that is (fix r1-G4)",
+        unseen.kept && unseen.read?.value === IDS.aiko && unseen.read?.disabled === false && unseen.read?.words === unseen.name
+            && unseen.read?.told === true, J(unseen));
+    await settle(800);
+    const onP1 = await p1.eval(`${until} const aiko = game.actors.get("${IDS.aiko}");
+        const dead = Boolean(await until(() => game.drpg.isDeceased(aiko), 5000));
+        const fresh = game.messages.filter(m => !globalThis.__s63m.has(m.id) && !m.whisper?.length);
+        const card = fresh.filter(m => String(m.content ?? "").includes(${text("DRPG.Vote.verdictCardTitle")}));
+        const executed = game.i18n.format("DRPG.Vote.wasExecuted", { name: foundry.utils.escapeHTML(aiko.name) });
+        return { dead, cards: card.length, executed: card.some(m => String(m.content).includes(executed)),
+            nobody: card.some(m => String(m.content).includes(${text("DRPG.Vote.nobodyExecuted")})) };`, { timeout: 20000 });
+    const errorsAfter = [await gm2.eval(`return globalThis.__errors.length;`), await p1.eval(`return globalThis.__errors.length;`)];
+    verdict("its wrong verdict executes Aiko: p1 holds the one card naming her executed and reads her dead, and gm2 holds no row of her death (fix r1-G4)",
+        !unseen.hung && unseen.stage === "done" && unseen.row === false && onP1.dead && onP1.cards === 1 && onP1.executed && !onP1.nobody
+            && J(errorsAfter) === J(errorsBefore), J({ unseen, onP1, errorsBefore, errorsAfter }));
     await disconnect("p4");
     await disconnect("gm2");
     return { phases: Object.keys(counts) };

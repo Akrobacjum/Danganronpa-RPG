@@ -451,6 +451,19 @@ const systemSheetsAvailable = () => Object.keys(CONFIG.Actor?.sheetClasses?.char
  */
 const dialogsDrawn = () => typeof foundry.applications.api.DialogV2?.prototype?.render === "function";
 
+/**
+ * Whether a document's data here is its source, unprepared - which a test can then prepare itself
+ * (tests-tier2.mjs `preparedAs`, E29 fix r2-H25). The headless harness prepares nothing; at a table
+ * Foundry prepares a character's `system` (Daggerheart's `prepareBaseData`, `prepareDerivedData`), a
+ * test's stand-in is not used, and a half of a test that reads its own preparation reads Daggerheart's
+ * instead (E10 fix r1-G3, 10.10.2026; the round-1 review's cor F5: two such halves passed measuring the
+ * opposite case). Read off the first character, as `preparedAs` reads the one it is given.
+ */
+const sourceUnprepared = () => {
+    const actor = game.actors?.find(a => a.type === "character");
+    return Boolean(actor) && actor.system === actor._source?.system;
+};
+
 /*
  * WHAT A SKIP MAY STAND ON (E30, 24.09.2026; audit S17-03, S14-24).
  *
@@ -479,6 +492,7 @@ const env = Object.freeze({
     canvas: () => probe("env.canvas", canvasAvailable(), "no canvas renderer here"),
     systemSheets: () => probe("env.systemSheets", systemSheetsAvailable(), "Daggerheart's sheets are not registered here"),
     dialogs: () => probe("env.dialogs", dialogsDrawn(), "DialogV2 draws no window here"),
+    unprepared: () => probe("env.unprepared", sourceUnprepared(), "Foundry prepares a character's data here, so a test cannot stand in for the preparation"),
     markdown: () => probe("env.markdown", Boolean(globalThis.showdown?.Converter), "no Markdown converter here"),
     /* jsdom answers every element's fontFamily with the words "depends on user agent" (the
        note in "the theme speaks two faces" has the story); a browser names a face. */

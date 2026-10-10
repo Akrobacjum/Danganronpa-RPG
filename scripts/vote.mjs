@@ -36,9 +36,10 @@ import { SETTINGS, isEclipse } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
-import { isDeceased, isDeadForGm, killCharacter } from "./chapter.mjs";
+import { isDeceased, isDeadForGm, killCharacter, publishDeath } from "./chapter.mjs";
 import { trialBlackenedIds, trialBlackenedActors, whenTrialReadable } from "./murder.mjs";
-import { ballotStore, deferredOfferStore } from "./gm-stores.mjs";
+import { ballotStore, deferredOfferStore, verdictStore } from "./gm-stores.mjs";
+import { RECORD } from "./gm-store.mjs";
 import { bridgeRequest, sayNotDone } from "./bridge-guards.mjs";
 import { judgedFor, flagsHeldNow } from "./sheet-audit.mjs";
 import { announce, dialogContent, whisperToGms, whisperToOwner, isPrimaryGm, primaryGmId, activeGmIds, log, warn, error, plural } from "./utils.mjs";
@@ -73,8 +74,18 @@ const VOTE_STATUS = Object.freeze({
  */
 let voteTurn = Promise.resolve();
 
-/** When this browser loaded the module: a vote opened before then may have ballots it never held (`ballotCopyStatus`). */
-const LOADED_AT = Date.now();
+/*
+ * THE VOTE THAT WAS OPEN WHEN THIS BROWSER'S WORLD LOADED, as `roundKey` names it, or null: its ballots may be on a GM's
+ * browser this one never heard (`ballotCopyStatus`). Marked at `ready` (`registerVote`). Until E10 fix r1-G3 (the
+ * round-1 review's cor F2) it was the module's load time, `Date.now()` here, set against the record's `openedAt`,
+ * `Date.now()` on the primary - two machines' clocks: a vote a primary whose clock ran an hour behind opened after
+ * this browser loaded read as opened before it (the suite's "the vote window says it holds none of the ballots only
+ * on a GM that is not the primary and of the vote open when it loaded", red at f9be27d), and a clock ahead missed the
+ * warning the other way. A round is the world's and reads the same on every browser; `openedAt` is still written,
+ * and nothing reads it since.
+ */
+let openAtLoad = null;
+const roundKey = progress => (progress.vote.open ? `${progress.chapter}:${progress.vote.round}` : null);
 
 /** A vote nobody has opened in this trial: the blank of `trialProgress().vote`. */
 const blankVote = () => ({ open: false, round: 0, picks: 1, issued: [], openedAt: null, closedAt: null });
@@ -195,7 +206,10 @@ export function registerVote() {
        then. One owed to a GM whose world said it had loaded before this browser saw it connect
        waits for `userConnected`, as pre-session-note.mjs's `owedTo` does - which of the two comes
        first on v14 is LIVE-E04-12. */
-    if (game.user.isGM) return;
+    if (game.user.isGM) {
+        openAtLoad = roundKey(trialProgress());
+        return;
+    }
     askForBallot();
     Hooks.on("drpgPrimaryReady", primary => askForBallot(primary));
     Hooks.on("userConnected", (user, connected) => {
@@ -731,18 +745,33 @@ function roundBallots(progress) {
 
 /**
  * What the vote window says of this browser's copy of the ballots (E10 C1; the plan's section
- * 3): "notReady" until the GMs' store holds the other GMs' rows; "none" when it holds no ballot
- * of an open vote that was opened before this browser loaded - its ballots may be on another
- * GM's browser, on none, or not cast yet, and this browser cannot tell which; otherwise null,
- * as on a player's browser and with no vote open.
+ * 3): "notReady" until the GMs' store holds the other GMs' rows; "none" on a GM that is not the
+ * primary when it holds no ballot of the vote that was already open when it loaded - its ballots
+ * may be on another GM's browser, on none, or not cast yet, and this browser cannot tell which;
+ * otherwise null, as on a player's browser and with no vote open. Not "none" on the primary
+ * (E10 fix r1-G3; cor F2): the ballots are recorded there (`recordBallot`), so none there is
+ * none cast yet, and the window's "wait for the primary GM" was the primary told to wait for
+ * itself. A primary that took over from a GM who left with the only copy names every voter as
+ * still out instead (read in the code; no scenario plays it).
  */
 export function ballotCopyStatus() {
     if (!game.user.isGM) return null;
     const progress = trialProgress();
     if (!progress.vote.open) return null;
     if (!ballotStore.isHydrated()) return "notReady";
-    if (!roundBallots(progress).length && (progress.vote.openedAt ?? 0) < LOADED_AT) return "none";
+    if (!roundBallots(progress).length && !isPrimaryGm() && roundKey(progress) === openAtLoad) return "none";
     return null;
+}
+
+/**
+ * THE MARK, STOOD IN FOR BY THE SUITE (E10 fix r1-G3). A test runs in a browser that loaded
+ * before the test opened its vote, so `openAtLoad` reads as the vote `progress` holds until the
+ * function answered is called, which puts the live mark back.
+ */
+export function standInOpenAtLoad(progress) {
+    const live = openAtLoad;
+    openAtLoad = roundKey(progress);
+    return () => { openAtLoad = live; };
 }
 
 /* ==========================================================================
@@ -1148,11 +1177,20 @@ export async function openVerdictDialog() {
        execute - so here a dead one is a disabled option, a display and not a choice, and `read`
        refuses one that is submitted anyway. The disabled options and the refusal are one set,
        read after every write queued on a student is judged (`judgedFor`) in one synchronous pass
-       off the primary's mark (`flagsHeldNow`, the GMs' copy - a death nobody has found included,
-       as `applyVerdict` skips one); a student who dies or comes back while the window is open is
-       `applyVerdict`'s to judge. */
+       off the primary's mark (`flagsHeldNow`, the GMs' copy); a student who dies or comes back
+       while the window is open is `applyVerdict`'s to judge.
+       DEAD AS THE TABLE KNOWS IT (E10 fix r1-G4, 1.2.71; round 1's cor F1 = sec F2; the owner's
+       Q-E10-2 (a), 10.10.2026). The set read the GMs' deaths store beside the flag, so a body nobody
+       had found counted as dead here while the public card counts the flag alone: the window opened on
+       "Nobody is executed" after the class had accused that student, said "Already dead" of them, and
+       a wrong verdict then told every console nobody was executed (measured by the review's scenario 91,
+       X2-X3). Such a death is not the table's yet, so it is not dead to the verdict: the student is a
+       choice like any other, and this GM alone is told whose death is held (`unfoundLine`) and that
+       executing them makes it the execution (`executeSentenced`). */
     await judgedFor(...students.map(a => a.id));
-    const dead = new Set(students.filter(a => isDeadForGm(flagsHeldNow(a))).map(a => a.id));
+    const held = new Map(students.map(a => [a.id, flagsHeldNow(a)]));
+    const dead = new Set(students.filter(a => isDeceased(held.get(a.id))).map(a => a.id));
+    const unfound = students.filter(a => !dead.has(a.id) && isDeadForGm(held.get(a.id)));
     const knownIds = new Set(known.map(a => a.id));
     const deadShort = game.i18n.localize("DRPG.Chapter.deadShort");
     const option = (a, chosen, { lockDead = false } = {}) => `<option value="${a.id}"${
@@ -1184,6 +1222,10 @@ export async function openVerdictDialog() {
         ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.accusedDead", {
             names: deadAccused.map(id => esc(named(id))).join(", ") })}</p>`
         : "";
+    const unfoundLine = unfound.length
+        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.unfoundDead", {
+            names: unfound.map(a => esc(a.name)).join(", ") })}</p>`
+        : "";
     const executedOptions = `<option value="">${game.i18n.localize("DRPG.Vote.nobodyExecuted")}</option>${
         students.filter(a => !knownIds.has(a.id)).map(a => option(a, preselect, { lockDead: true })).join("")}`;
     // Without a register the right verdict executes the Blackened named here (`read`), so this
@@ -1209,6 +1251,7 @@ export async function openVerdictDialog() {
             ${roster}
             ${namedLine}
             ${deadLine}
+            ${unfoundLine}
             <label class="drpg-verdict-field">${game.i18n.localize(known.length
                 ? "DRPG.Vote.executedIfWrong" : "DRPG.Vote.executed")}
                 <select name="executed">${executedOptions}</select></label>
@@ -1361,7 +1404,7 @@ let verdictRunning = false;
  * of `runVerdict` in its own try/catch, and the stage reads "done" once every step is. A step that
  * failed, or a GM who left, is the console's "The verdict stopped at" line and its Finish the verdict
  * (`finishVerdict`). The record never holds a Blackened: a wrong verdict's killers are handed to the
- * steps, and a Finish reads them from the register again.
+ * steps, and kept for a Finish in a GM store (`keepVerdictBlackened`).
  */
 export async function applyVerdict({
     correct, executedIds, blackenedIds: named, executedId, blackenedId
@@ -1388,9 +1431,28 @@ export async function applyVerdict({
         };
         const blackenedIds = (named ?? [blackenedId]).filter(id => id && game.actors.get(id));
         await setTrialProgress({ verdictApplied: true, verdict: record });
+        await keepVerdictBlackened(record.at, blackenedIds);
         return await runVerdict(record, blackenedIds);
     } finally {
         verdictRunning = false;
+    }
+}
+
+/*
+ * THE BLACKENED THE GM NAMED, KEPT FOR A FINISH (E10 fix r1-G1, 1.2.71; the round-1 security review's
+ * F3). A Finish read the Blackened from the register alone, which names nobody when the GM named them
+ * by hand in the verdict's window: a wrong verdict that stopped before its Level Up or its rule
+ * finished keeping nobody's Level Up and asking no rule. They are kept beside the verdict's `at` in a
+ * GM store (gm-stores.mjs `verdictStore`), never in the world's record, which every console reads.
+ * Written after the lock, so the lock is still the first write; a GM gone between the two leaves the
+ * register to the Finish, as before. A write that fails is logged and stops nothing.
+ */
+async function keepVerdictBlackened(at, blackenedIds) {
+    try {
+        await verdictStore.whenHydrated();
+        await verdictStore.patch(RECORD, { at, blackenedIds: [...blackenedIds] });
+    } catch (err) {
+        error("Could not keep the verdict's Blackened for a Finish", err);
     }
 }
 
@@ -1486,8 +1548,8 @@ async function verdictReading(context) {
  * S2-m6, the plan's rule A). The list was the GMs' (`livingStudentsForGm`), so a student whose body
  * nobody had found was passed over - no Level Up window for them, measured on the harness - and every
  * console saw the class advance and one student not. A Level Up is a write every console reads: the
- * table's list, less whoever this verdict named for execution - one already dead to the GMs is not
- * killed twice (`executeSentenced` passes over them), and does not advance either.
+ * table's list, less whoever this verdict named for execution - one whose body nobody has found is
+ * executed by making that death the table's (`executeSentenced`, fix r1-G4), and does not advance either.
  *
  * The killers of a wrong verdict: EVERY one who is still breathing, not just the first one named, and
  * not one this verdict executes.
@@ -1518,15 +1580,26 @@ async function readSentence(context) {
 /*
  * THE EXECUTIONS (E10 C5; plan 1b.2, H3). Each waits for the audit of that student and reads them held
  * again, and `killCharacter` is called with nothing awaited between that read and its own head check.
- * A death the GMs hold and this verdict did not cause here - a body nobody has found, or one this
- * verdict killed before it stopped - is passed over, not killed twice. A kill `killCharacter` refuses
- * of a student the GMs hold alive fails the step, for Finish the verdict.
+ * One the table knows dead - this verdict's own kill before it stopped, or one that died since it was
+ * read - is passed over, not killed twice. A kill `killCharacter` refuses of a student the GMs hold
+ * alive fails the step, for Finish the verdict.
+ *
+ * A BODY NOBODY HAS FOUND IS THE EXECUTION (E10 fix r1-G4, 1.2.71; round 1's cor F1 = sec F2; the
+ * owner's Q-E10-2 (a), 10.10.2026). Such a student was passed over as dead, and the card named them
+ * executed all the same: every console read an execution before anybody had found the body, every
+ * sheet read the student alive, and the GMs still held the death (the review's scenario 91, X4). The
+ * verdict counts them living (`verdictHeld`, `openVerdictDialog`), so the held death is made the
+ * table's here, as its discovery would make it (`publishDeath`: the flag with the kill's own record,
+ * the row dropped, the Truth Bullets and anything owed settled) before the card's line; one it cannot
+ * publish fails the step.
  */
 async function executeSentenced(context) {
     for (const actor of context.record.executedIds.map(id => game.actors.get(id)).filter(Boolean)) {
         await judgedFor(actor.id);
-        if (isDeadForGm(flagsHeldNow(actor))) continue;
-        if (!await killCharacter(actor)) throw new Error(`${actor.name} could not be executed`);
+        const held = flagsHeldNow(actor);
+        if (isDeceased(held)) continue;
+        const died = isDeadForGm(held) ? await publishDeath(actor) : await killCharacter(actor);
+        if (!died) throw new Error(`${actor.name} could not be executed`);
         context.lines.push(game.i18n.format("DRPG.Vote.wasExecuted", {
             name: foundry.utils.escapeHTML(actor.name)
         }));
@@ -1540,8 +1613,9 @@ async function executeSentenced(context) {
  * "Everyone has the floor". One public card now: who was executed and whether the class got it right,
  * with the death's sound when somebody was - and of the Blackened nothing, no name and no id, in its
  * words or its flags, so a wrong verdict gives nobody away. The executed's owner is told in the second
- * person beside it; a note that does not arrive is logged and does not stop the verdict, whose card
- * a Finish would post twice. The Event panel reads the record (events.mjs `afterVerdictCard`).
+ * person beside it; a note that does not arrive is logged and does not stop the verdict. The card
+ * carries the verdict's `at` (`verdictAt`), by which a Finish knows it was posted (`verdictCard`).
+ * The Event panel reads the record (events.mjs `afterVerdictCard`).
  */
 export async function postVerdictCard(record) {
     const executed = (record?.executedIds ?? []).map(id => game.actors.get(id)).filter(Boolean);
@@ -1550,7 +1624,7 @@ export async function postVerdictCard(record) {
         ? executed.map(actor => game.i18n.format("DRPG.Vote.wasExecuted", { name: esc(actor.name) }))
         : [game.i18n.localize("DRPG.Vote.nobodyExecuted")];
     await announce({
-        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, ...(executed.length ? { sfx: { key: "death", gm: true } } : {}) } },
+        flags: { [MODULE_ID]: { verdictCard: getClock().chapter ?? null, verdictAt: record?.at ?? null, ...(executed.length ? { sfx: { key: "death", gm: true } } : {}) } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.verdictCardTitle")}</div>
             ${lines.map(line => `<p>${line}</p>`).join("")}
@@ -1567,13 +1641,38 @@ export async function postVerdictCard(record) {
 }
 
 /*
+ * THE CARD, ONCE PER VERDICT (E10 fix r1-G1, 1.2.71; the round-1 goal verifier's (c)). The step is
+ * recorded done in the world after the card is posted, and a GM gone between the two left a verdict
+ * whose Finish posted the card a second time. The card carries the verdict's `at` (`verdictAt`), and
+ * the step posts none when a GM's card of this verdict is in the chat already. A GM's: anybody can
+ * post a message with any flags, and one a player made must not keep the table from its verdict.
+ */
+async function verdictCard(context) {
+    if (verdictCardPosted(context.record)) return;
+    await postVerdictCard(context.record);
+}
+
+/** Whether a GM posted the card of the verdict `record` (`postVerdictCard`'s `verdictAt`). */
+function verdictCardPosted(record) {
+    return game.messages.some(message => message.author?.isGM && message.getFlag(MODULE_ID, "verdictAt") === record.at);
+}
+
+/*
  * A right verdict: everyone still alive advances - unchanged, and deliberately: a right answer levels
  * the table up. The Blackened have just been executed, so they are not in this list (`verdictHeld`),
  * which is what keeps that honest even when there were two of them. A Reinforced Level Up a wrong
  * verdict left waiting (E05 C11) is picked here, with its owner's Standard, in the same row - see
- * `runAdvancementBatch`. The window not opening fails the step; a window the GM closes does not. A
- * Finish after a GM left in these windows opens the class's window again: which were picked or
- * offered is not recorded, and the GM gives those rows nothing.
+ * `runAdvancementBatch`. The window not opening fails the step; a window the GM closes does not.
+ *
+ * ONE LEVEL UP EACH, WHOEVER FINISHES (E10 fix r1-G1, 1.2.71; the round-1 goal verifier's S06-39).
+ * A Finish after a GM left inside the class's window ran the whole batch again, and each survivor
+ * already given a Level Up - written, or offered to the player - was given a second. The record
+ * says whom the batch has given one (`given`, written after each row), and a Finish hands the
+ * window only the rest. Character ids alone, in the world's record: the row of a surviving
+ * Blackened carries what waited for the class, and that stays on the GMs' side. A student whose row
+ * gave nothing - nobody plays them and the GM closed their picker - is not given, and is asked
+ * again. A GM gone between a row's Level Up and the write that records it leaves that one row to be
+ * given again: the one write between them is not closed (read in the code, not measured).
  *
  * SAID AFTER THE FACT (E10 C7; audit S06-25, S06-32). The line was written before the windows opened,
  * "N survivors take a standard Level Up", the kind the config's raw word: a picker closed on the way
@@ -1582,7 +1681,13 @@ export async function postVerdictCard(record) {
  */
 async function verdictLevelUps(context) {
     const { survivors } = await verdictReading(context);
-    const done = await promptAdvancements(survivors, TRIAL.correct.levelUp);
+    const done = await promptAdvancements(survivors, TRIAL.correct.levelUp, {
+        given: context.record.given ?? [],
+        onGiven: async actor => {
+            context.record = { ...context.record, given: [...(context.record.given ?? []), actor.id] };
+            await setTrialProgress({ verdict: context.record });
+        }
+    });
     if (done === null) throw new Error("the Level Ups did not open");
     const kind = game.i18n.localize(`DRPG.Advance.kind.${TRIAL.correct.levelUp}`);
     context.lines.push(plural("DRPG.Vote.levelUpGranted", { n: done.applied, kind }));
@@ -1660,7 +1765,7 @@ async function verdictOverflow() {
 
 /** What each step of a verdict does; `runVerdict` runs them in `VERDICT_STEPS`'s order. */
 const VERDICT_STEP = {
-    sentence: readSentence, executions: executeSentenced, card: context => postVerdictCard(context.record),
+    sentence: readSentence, executions: executeSentenced, card: verdictCard,
     levelUps: verdictLevelUps, offers: verdictOffers, despair: verdictDespair, rule: verdictRule, overflow: verdictOverflow
 };
 
@@ -1682,10 +1787,16 @@ export function verdictStopped(progress = trialProgress()) {
 
 /**
  * FINISH THE VERDICT (E10 C5, 1.2.71; audit S06-39): the steps a verdict that stopped had not done,
- * given by this GM - what it had done is not done again (`runVerdict`). The Blackened are read from
- * the register again, as the verdict's window reads them (`whenTrialReadable`, `trialBlackenedIds`),
- * never from the world's record, which holds none: a Blackened the GM named by hand at a verdict the
- * register did not know is unknown to a Finish, which then keeps nobody's Level Up and asks no rule.
+ * given by this GM - what it had done is not done again (`runVerdict`). The Blackened are the ones
+ * its GM named (`keepVerdictBlackened`), and the register's, as the verdict's window reads them
+ * (`whenTrialReadable`, `trialBlackenedIds`), only when the GMs' store holds none for this verdict -
+ * never the world's record, which holds none.
+ *
+ * ON THE PRIMARY GM ALONE (E10 fix r1-G1, 1.2.71; the round-1 goal verifier's S06-39, its doubt 2).
+ * Every GM is offered Finish once a step failed or the verdict's GM left, and this browser's latch
+ * (`verdictRunning`) is the only one: two GMs pressing it within one round trip both ran the steps
+ * left - two cards, two class windows. One browser runs it now, the primary, whose latch holds two
+ * presses apart; another GM is told whom to ask.
  */
 export async function finishVerdict() {
     if (!game.user.isGM) return null;
@@ -1694,12 +1805,19 @@ export async function finishVerdict() {
         ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
         return null;
     }
+    if (!isPrimaryGm()) {
+        ui.notifications.warn(game.i18n.format("DRPG.Vote.finishPrimaryOnly", { name: game.users.get(primaryGmId())?.name ?? "?" }));
+        return null;
+    }
     verdictRunning = true;
     try {
         await whenTrialReadable();
+        await verdictStore.whenHydrated();
+        const kept = verdictStore.record();
+        const named = kept.at === progress.verdict.at && Array.isArray(kept.blackenedIds) ? kept.blackenedIds : trialBlackenedIds();
         const record = { ...progress.verdict, done: [...(progress.verdict.done ?? [])], by: game.user.id, failed: [] };
         await setTrialProgress({ verdict: record });
-        return await runVerdict(record, trialBlackenedIds());
+        return await runVerdict(record, named.filter(id => game.actors.get(id)));
     } finally {
         verdictRunning = false;
     }
@@ -1712,10 +1830,10 @@ export async function finishVerdict() {
  * another. A survivor holding a Reinforced that waited for the class takes both
  * in one row (E05 C11). Answers the batch's counts, or null when it threw.
  */
-async function promptAdvancements(actors, kind) {
+async function promptAdvancements(actors, kind, options) {
     try {
         const { runAdvancementBatch } = await import("./level-up.mjs");
-        return await runAdvancementBatch(actors, kind);
+        return await runAdvancementBatch(actors, kind, options);
     } catch (err) {
         error("Could not open the verdict's Level Ups", err);
         return null;
