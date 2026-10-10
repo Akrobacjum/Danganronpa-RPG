@@ -137,17 +137,28 @@ export async function initCharacter(actor, {
  * locks: record the opening state next to the current one.
  */
 async function stampStartingSheet(actor) {
-    const traits = {};
-    for (const trait of Object.values(TRAITS)) {
-        traits[trait.dh] = actor.system?.traits?.[trait.dh]?.value ?? 0;
-    }
+    /* THE SHEET AS THE GMS HOLD IT, NOT AS IT IS PREPARED (E10 C8, 1.2.71; audit S03-23; the plan's
+       1b.2). The spread was read off `actor.system`, which Daggerheart prepares - an item's effect, a
+       Level Up's picks added on top - and which on the primary can hold a player's console write the
+       audit has not put back yet; the reset writes the stamp back into the sheet, so an effect's +1
+       stamped there came back as a +1 of the sheet's own, and a console's rise as the student's.
+       Read now as `applyAdvancement` reads what it adds to: the sheet's values as the GMs hold them
+       (`numberHeld`, the experiences at their root), in one job of the student's queue
+       (`meansWrite`), which writes the stamp and awaits nothing else. */
+    const { meansWrite, numberHeld } = await import("./sheet-audit.mjs");
+    await meansWrite(actor, async () => {
+        const traits = {};
+        for (const trait of Object.values(TRAITS)) {
+            traits[trait.dh] = numberHeld(actor, `system.traits.${trait.dh}.value`) ?? 0;
+        }
 
-    const experiences = {};
-    for (const [id, entry] of Object.entries(actor.system?.experiences ?? {})) {
-        experiences[id] = entry?.value ?? 0;
-    }
+        const experiences = {};
+        for (const [id, entry] of Object.entries(numberHeld(actor, "system.experiences") ?? {})) {
+            experiences[id] = entry?.value ?? 0;
+        }
 
-    await actor.setFlag(MODULE_ID, FLAGS.sheetAtStart, { traits, experiences, at: Date.now() });
+        await actor.setFlag(MODULE_ID, FLAGS.sheetAtStart, { traits, experiences, at: Date.now() });
+    });
 }
 
 /**

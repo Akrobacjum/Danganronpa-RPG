@@ -7429,10 +7429,13 @@ const REGRESSIONS = [
          * Standard's offer, from whichever GM applies the verdict. Measured with the census on the
          * working tree on 10.10.2026: 45 places against 45 rows - 15 PACKET, 5 SOCKET, 4 CHAT, 16 SHEET,
          * 5 STORE.
+         * E10 C8 (1.2.71) rewrote the verdicts of the spend's picks, `applyAdvancement`, `handleAdvancement` and
+         * `stampStartingSheet`: a pick the sheet cannot take is refused and told, the experiences and the starting
+         * spread read as the GMs hold them; no place added or struck.
          */
         const TRIAL_CENSUS = [
             ["PACKET gm-bridge.mjs#advancement.apply#actorId", "judged: knownSender + owns(actorId) (E28) [F7]"],
-            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged in part: `handleAdvancement` checks the offer `offerId` names (C6), the count it buys (`offerPicks`), each option, and `experienceNew`'s name; an `experienceUp` id and a trait are not checked against the sheet (S03-22) - C8 adds the existence checks on the held sheet (`numberHeld`/`actorHeldNow`), refused and told [F7]"],
+            ["PACKET gm-bridge.mjs#advancement.apply#picks", "judged (C8): `handleAdvancement` checks the offer `offerId` names (C6), the count it buys (`offerPicks`), each option, `experienceNew`'s name, a statistic among TRAITS and an `experienceUp` id on the sheet as the GMs hold it (`numberHeld`), all before its latch, else refused and told (`badRequest`, `missing`) [F7]"],
             ["PACKET gm-bridge.mjs#advancement.apply#offerId", "judged (C6): `handleAdvancement` finds it in the character's list as this GM holds it (`standingOffers`), else refused and told (`notOffered`); the picks are that offer's [F7]"],
             ["PACKET gm-bridge.mjs#advancement.offer#actorId", "judged: gmOnly + owns (a GM sender); C6 added `op` and `offerId` beside it [F7]"],
             ["PACKET gm-bridge.mjs#advancement.offer#op", "judged (C6): gmOnly; `as.oneOf(\"add\", \"take\")`, anything else refused by `handleAdvancementOffer` [F7]"],
@@ -7461,13 +7464,13 @@ const REGRESSIONS = [
             ["SHEET vote.mjs#verdictHeld", "judged (C5): who is executed, who advances and which Blackened a wrong verdict keeps, read once as the GMs hold them - `isDeceased`/`isDeadForGm` of `flagsHeldNow(actor)` in one synchronous pass, after `verdictReading` awaits `judgedFor` of the executed, the Blackened and every student [1b.2]"],
             ["SHEET vote.mjs#executeSentenced", "judged (C5): each execution awaits `judgedFor(id)`, reads `isDeadForGm(flagsHeldNow(actor))` and calls `killCharacter`, whose own head check `isDeadForGm` runs with nothing awaited after that read (H3); a death the GMs hold is passed over, not killed twice [1b.2]"],
             ["SHEET level-up.mjs#buildDetail", "out of scope: the picker's display on the player's own browser (R4); the GM decides in `handleAdvancement` [1b.2]"],
-            ["SHEET level-up.mjs#applyAdvancement", "held: one `meansWrite` from `numberHeld` (E29 r2-H24/H25, in the tree before E10); the `actor.system.experiences[id].name` read is a label in the GM's summary. C8's fnSource test pins it [1b.2]"],
+            ["SHEET level-up.mjs#applyAdvancement", "judged (C8): one `meansWrite` from `numberHeld` (E29 r2-H24/H25); a statistic not among TRAITS, an experience to raise with none named, or one not on the sheet the GMs hold (read in the job) stops the whole Level Up, nothing written; the `actor.system.experiences[id].name` read is a label in the GM's summary; R318 pins it [1b.2]"],
             ["SHEET trial.mjs#presentDialog", "out of scope: the Present dialog's target list on the presenter's own browser (R4); `seizeFloor` judges on the primary"],
             ["SHEET trial-floor-ui.mjs#startClassTrial", "OPEN (not in plan 1b.2): a GM's button counts `livingStudents` from documents; a player's own `deceased` write is put back (GM_FLAGS) but a GM's click inside the window reads it. C12's door ('nobody for the trial') rests on this count - C12 reads it through `judgedFor` or says why not"],
             ["SHEET mastermind.mjs#openFinalVerdictDialog", "out of scope: the Final Trial's window (display, GM only); `isDeadForGm` reads the GM deaths store beside the flag; C10 adds only `finalTrial` to the trial's progress"],
             ["SHEET mastermind.mjs#applyFinalVerdict", "out of scope: E10 changes no line of it (C10 writes `finalTrial` beside it); `isDeadForGm` = the document flag or the GM deaths store - the same class as `applyVerdict`'s, left to E40"],
-            ["SHEET character.mjs#stampStartingSheet", "OPEN at base (R2, derived `actor.system`): C8 reads the held sheet (`numberHeld`) [1b.2]"],
-            ["SHEET gm-bridge.mjs#handleAdvancement", "OPEN at base (R1, reads no sheet): S03-22 - C8 checks an `experienceUp` id and a trait on the held sheet before applying, refused and told [F7, 1b.2]"],
+            ["SHEET character.mjs#stampStartingSheet", "judged (C8): the spread read as the GMs hold it (`numberHeld`) in one `meansWrite` job of the student's queue, not off the prepared `actor.system`; R318 [1b.2]"],
+            ["SHEET gm-bridge.mjs#handleAdvancement", "judged (C8): S03-22 - a statistic among TRAITS and an `experienceUp` id on the held sheet (`numberHeld` at the experiences' root), read synchronously before the latch, else refused and told; `applyAdvancement` checks the experiences again in its job [F7, 1b.2]"],
             ["SHEET chapter.mjs#livingStudents", "out of scope as a function (document `isDeceased`); its R1 caller `applyVerdict` stopped using it in C5 (`verdictHeld`) [1b.2]"],
             ["SHEET chapter.mjs#killCharacter", "judged: GATED by E33 C1a (R220's census), its head check `isDeadForGm`; E10 changes no line [F4]"],
             ["SHEET season-setup.mjs#wipeSeason", "out of scope: on the primary, E33 C1a's GM-side rows; C10 changes only the clock step (season, `seasonStartedAt`, `finalTrial`)"],
@@ -7743,6 +7746,49 @@ const REGRESSIONS = [
         ok(prompted > 0 && granted > prompted && /DRPG\.Vote\.levelUpWaiting/.test(line),
             "the verdict's Level Up line is said before the batch ran, or does not say what waits for the players (S06-25)");
         ok(!/kind:\s*TRIAL\./.test(line), "the verdict's Level Up line carries the config's raw kind (S06-32)");
+    }],
+
+    ["R318 - a Level Up reads the sheet the GMs hold, writes it once, and refuses a pick the sheet cannot take", async () => {
+        /*
+         * E10 C8, 1.2.71; audit S03-23, S03-22; ledger G3 (the plan's "a Level Up reads the held sheet", a kept guard
+         * of E29 r2-H24/H25) and the plan's 1b.2 rows of `applyAdvancement`, `handleAdvancement` and
+         * `stampStartingSheet`. Read in the source: level-up.mjs `applyAdvancement` writes in one job of the student's
+         * queue (`meansWrite`) from the sheet's values as the GMs hold them (`numberHeld`), reads no prepared maximum
+         * (`resourceMax(`, `actor.system.resources`/`traits`), and refuses a statistic that is not one and an experience
+         * the GMs do not hold rather than skipping the pick; gm-bridge.mjs `handleAdvancement` refuses the same two
+         * before its latch and the apply, the experiences read held; `openAdvancement` refuses an experience to raise
+         * with none named before anything is sent or applied, and `buildContent` draws the option disabled where there
+         * is none; character.mjs `stampStartingSheet` reads the spread held, not off `actor.system`. Tier 2 drives them
+         * ("a Level Up pick the sheet cannot take is refused and told, and the offer stands", "a Level Up raises no
+         * experience a player's console made that the GMs' audit has not put back", "an experience to raise with none
+         * named is refused before the Level Up is written, and the picker cannot choose it", "a season's starting sheet
+         * is stamped as the GMs hold it, not from an effect's bonus or a console's write"), and 63 I5 from p1's browser.
+         */
+        const sources = new Map(await otherSources());
+        const level = stripComments(sources.get("level-up.mjs") ?? ""), bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const character = stripComments(sources.get("character.mjs") ?? "");
+        const apply = fnSource(level, "applyAdvancement"), picker = fnSource(level, "openAdvancement"), content = fnSource(level, "buildContent");
+        const handler = fnSource(bridge, "handleAdvancement"), stamp = fnSource(character, "stampStartingSheet");
+        ok(apply.length > 1000 && picker.length > 1000 && content.length > 300 && handler.length > 1000 && stamp.length > 200,
+            "applyAdvancement, openAdvancement, buildContent, handleAdvancement or stampStartingSheet is cut short - the reads below would measure nothing");
+        ok(/\bmeansWrite\(actor,/.test(apply) && /\bnumberHeld\(actor, path\)/.test(apply) && (apply.match(/\btrustedWrite\(/g) ?? []).length === 1,
+            "a Level Up no longer writes once, in the student's queue, from the numbers the GMs hold (E29 r2-H24/H25)");
+        ok(!/\bresourceMax\(|\bactor\.system\??\.(?:resources|traits)\b/.test(apply),
+            "a Level Up reads a maximum or a statistic as Daggerheart prepares it, an effect's bonus included (S03-23)");
+        ok(/statistics\.has\(pick\.trait\)/.test(apply) && /Object\.hasOwn\(held, id\) && typeof held\[id\]\?\.value === "number"/.test(apply) && !/if \(!(?:key|id)\) break;/.test(apply),
+            "a Level Up skips a pick the sheet cannot take and writes the rest (S03-22)");
+        const refusedTrait = handler.search(/statistics\.has\(p\.trait\)/), refusedExperience = handler.search(/Object\.hasOwn\(experiences, id\) && typeof experiences\[id\]\?\.value === "number"/);
+        const latch = handler.search(/advancing\.add\(actor\.id\)/);
+        ok(refusedTrait > 0 && refusedExperience > 0 && /numberHeld\(actor, "system\.experiences"\)/.test(handler) && latch > refusedTrait && latch > refusedExperience,
+            "the GM applies a player's pick of a statistic that is not one, or of an experience the GMs do not hold, and spends the offer (S03-22)");
+        const refusedEmpty = picker.search(/p\?\.option === "experienceUp" && !p\.experience/);
+        ok(refusedEmpty > 0 && refusedEmpty < picker.search(/requestAdvancement\(/) && refusedEmpty < picker.search(/return applyAdvancement\(/)
+            && /DRPG\.Advance\.noExperienceToRaise/.test(picker),
+            "an experience to raise with none named is sent or applied, untold (S03-22)");
+        ok(/key === "experienceUp" && !experiences\.length \? " disabled"/.test(content), "the picker offers an experience to raise where there is none (S03-22)");
+        ok(/\bmeansWrite\(actor,/.test(stamp) && /\bnumberHeld\(actor, `system\.traits\.\$\{trait\.dh\}\.value`\)/.test(stamp)
+            && /numberHeld\(actor, "system\.experiences"\)/.test(stamp) && !/\bactor\.system\b/.test(stamp),
+            "the season's starting sheet is stamped off the prepared sheet, not as the GMs hold it (S03-23; 1b.2)");
     }],
 
     ["R221 - the starting sheet is written only on a GM's browser", async () => {

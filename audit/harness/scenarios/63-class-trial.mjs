@@ -61,6 +61,8 @@
  *      read it again).
  *      Then (C6) gm2 offers Aiko two: p1's copy holds both, p1 spends the older and the other stays
  *      lit; gm2's own Level Up menu takes it back, and p1's copy empties and its lit button goes out.
+ *      Then (C8) gm2 offers Aiko one more, and p1's pick of an experience Aiko does not have is refused and
+ *      told on p1, the offer standing and nothing written; gm2 takes it back.
  *
  * Headless limits: no layout (the Objection card's stacking, the select widths, the text's
  * hierarchy - LIVE-E10-03); no real Enter on Foundry's DialogV2 (F reads the DOM order of the
@@ -86,6 +88,8 @@
  * (one run, 09.10.2026).
  * E10 C7 rewrote I1 and I2, the class's one Level Up window and the offer p1 spends from it: 41 checks in 17.2 s
  * (one run, 10.10.2026).
+ * E10 C8 added I5, p1's pick of an experience Aiko does not have, refused and told: 42 checks in 18.0 s (one run,
+ * 10.10.2026).
  */
 export const layers = ["ci"];
 export const accounts = [
@@ -523,6 +527,34 @@ export async function run({ gm, gm2, p1, p2, p3, p4, check, phase, settle, conne
     verdict("gm2's Level Up menu has a row taking the standing offer back; taken, gm2 holds none, p1's copy is empty and its lit button goes out (C6)",
         J(takenBack.rows) === J(["standard", "reinforced", `take:${twice[1]}`]) && takenBack.taken === true && takenBack.left === 0
             && outOnP1.left === 0 && outOnP1.lit === false, J({ takenBack, outOnP1 }));
+
+    /* E10 C8 (S03-22): a pick the sheet cannot take, from p1's browser through the bridge - an experience Aiko does
+       not have - is refused by gm2 and told on p1, and the offer stands, lit; it was applied before (a value written
+       under an experience nobody named, the advances raised, the offer spent). The request answers that it was sent
+       ({ ok, pending }); the refusal comes back as `bridge.refused`, told. gm2 takes the offer back after. */
+    const NOBODY = "E10C8NOSUCHEXP01";
+    const offeredAgain = await gm2.eval(`${offersHeld} const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        await L.offerAdvancement(aiko, "standard");
+        return heldOn(aiko).map(offer => offer.id ?? null);`, { timeout: 30000 });
+    const refusedOnP1 = await p1.eval(`${until} const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const B = await import("${repoUrl}/scripts/gm-bridge.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        const lit = Boolean(await until(() => L.pendingAdvance(aiko), 8000));
+        const before = aiko.getFlag("${MOD}", "advances") ?? 0, n = globalThis.__notifications.length;
+        const res = await B.requestAdvancement({ actorId: aiko.id, picks: [{ option: "experienceUp", experience: "${NOBODY}" }], kind: "standard" });
+        await new Promise(r => setTimeout(r, 1000));
+        const why = game.i18n.localize("DRPG.Bridge.why.missing");
+        return { lit, res: res ?? null, told: globalThis.__notifications.slice(n).some(note => String(note.msg).includes(why)),
+            still: Boolean(L.pendingAdvance(aiko)), rise: (aiko.getFlag("${MOD}", "advances") ?? 0) - before,
+            junk: aiko._source.system?.experiences?.["${NOBODY}"] !== undefined };`, { timeout: 30000 });
+    const backAgain = await gm2.eval(`${offersHeld} const L = await import("${repoUrl}/scripts/level-up.mjs");
+        const aiko = game.actors.get("${IDS.aiko}");
+        for (const offer of heldOn(aiko)) await L.takeBackOffer(aiko, offer.id);
+        return heldOn(aiko).length;`, { timeout: 30000 });
+    verdict("p1's pick of an experience Aiko does not have is refused by gm2 and told on p1; the offer stands, lit, and nothing is written (C8)",
+        offeredAgain.length === 1 && refusedOnP1.lit && refusedOnP1.res?.ok === true && refusedOnP1.told && refusedOnP1.still
+            && refusedOnP1.rise === 0 && refusedOnP1.junk === false && backAgain === 0, J({ offeredAgain, refusedOnP1, backAgain }));
 
     /* ------------------------------ every client clean, every phase measured ------------------------------ */
 

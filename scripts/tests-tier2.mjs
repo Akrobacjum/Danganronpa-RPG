@@ -38469,6 +38469,237 @@ const SCENARIOS = [
             "a GM's advancement rose from a prepared maximum or statistic and wrote it into the sheet (the sheet's Health maximum and statistic)");
     }],
 
+    /*
+     * A LEVEL UP'S PICKS AGAINST THE SHEET THE GMS HOLD (E10 C8, 1.2.71; audit S03-22, S03-23; the plan's 1b.2). The
+     * four tests below share a student a connected player owns, an offer the primary records, and a junk statistic or
+     * experience a broken road would leave on the sheet; each takes off what it made.
+     */
+    ["a Level Up pick the sheet cannot take is refused and told, and the offer stands", async () => {
+        /*
+         * E10 C8, 1.2.71; audit S03-22. A pick of an experience to raise with none named - what the picker sends where
+         * there is no experience - was skipped by `applyAdvancement` and the rest written; one the sheet did not have
+         * took a value of its own; a statistic that is not one was written under its name. Either way the offer was
+         * spent: a Reinforced's three picks became two. A Reinforced is offered to a student a connected player owns;
+         * the player's packets (`advancement.apply`, judged here as theirs) each carry +1 Health, +1 Sanity and one
+         * pick the sheet cannot take - an experience with none named, one the sheet does not have, a statistic that
+         * is not one, a statistic with none named. The GM's own Level Up - the road a GM's picker and console take,
+         * past the bridge - is given the statistic that is not one, and then the experience with none named. Then the
+         * player's packet with one the sheet can take: an experience it has. Read: the reason each packet is told;
+         * what the GM's two Level Ups answer; then the offers the owner is sent, the advances gained, and whether the
+         * experience or the statistic nobody has is on the sheet; then, after the good packet, its reasons, the
+         * offers, the advances gained and the experience's rise. At 2ad492e (10.10.2026, red first) the first packet
+         * was applied untold and spent the offer, and the three after it were refused as not offered.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player who spends the offer");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(playerOf);
+        const player = playerOf(student);
+        must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the one made here`);
+        const trait = Object.values(TRAITS)[0]?.dh, experience = Object.keys(student._source.system?.experiences ?? {})[0];
+        const R = "system.resources", HP_MAX = `${R}.hitPoints.max`, SAN_MAX = `${R}.stress.max`, TRAIT = `system.traits.${trait}.value`;
+        const EXP = `system.experiences.${experience}.value`, ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const at = path => foundry.utils.getProperty(student._source, path);
+        must(typeof at(EXP) === "number", `${student.name} has no experience to raise - this would measure nothing: ${stableJson(at(EXP))}`);
+        const NOBODY = "E10C8NOSUCHEXP01", NO_STAT = "e10c8NoStatistic";
+        const JUNK = [`system.experiences.${NOBODY}`, `system.traits.${NO_STAT}`];
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, TRAIT, EXP, ADVANCES]);
+        const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
+        const before = at(ADVANCES) ?? 0, exp = at(EXP);
+        const gained = () => (at(ADVANCES) ?? 0) - before;
+        const spend = async last => {
+            const refusals = [];
+            const [offer] = told();
+            await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C8${foundry.utils.randomID(8)}`, actorId: student.id,
+                picks: [{ option: "hp" }, { option: "stress" }, last], offerId: offer?.id ?? null }, player.id,
+            { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
+            return refusals;
+        };
+        let read = null;
+        try {
+            await L.offerAdvancement(student, "reinforced");
+            const bad = [];
+            for (const last of [{ option: "experienceUp" }, { option: "experienceUp", experience: NOBODY }, { option: "trait", trait: NO_STAT }, { option: "trait" }]) {
+                bad.push(await spend(last));
+            }
+            const gm = [];
+            for (const last of [{ option: "trait", trait: NO_STAT }, { option: "experienceUp" }]) {
+                gm.push(await L.applyAdvancement(student, [{ option: "hp" }, { option: "stress" }, last], "reinforced"));
+            }
+            const after = [told().length, gained(), JUNK.map(path => at(path) !== undefined)];
+            const good = await spend({ option: "experienceUp", experience });
+            read = [bad, gm, after, [good, told().length, gained(), at(EXP) - exp]];
+        } finally {
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            const junk = JUNK.filter(path => at(path) !== undefined);
+            if (junk.length) await trustedWrite(student, Object.fromEntries(junk.map(path => [path, forcedDeletion()])), { reason: "gmRuling" });
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[["missing"], ["missing"], ["badRequest"], ["badRequest"]], [null, null], [1, 0, [false, false]], [[], 0, 1, 1]]),
+            "a Level Up pick the sheet cannot take spent the offer, was written, or was not told; or a pick it can take was refused "
+            + "(the reasons told for an experience with none named, one the sheet lacks, a statistic that is not one, none named; the GM's two Level Ups; "
+            + "then the offers, the advances gained and the junk on the sheet; then the good packet's reasons, the offers, the advances gained and the "
+            + "experience's rise)");
+    }],
+
+    ["a Level Up raises no experience a player's console made that the GMs' audit has not put back", async () => {
+        /*
+         * E10 C8, 1.2.71; audit S03-22; the plan's 1b.2 (the existence checks read the sheet the GMs hold). An
+         * experience a player's console writes on their student stands on the sheet until the audit's put-back lands,
+         * and for good where it fails; a Level Up raising it wrote a GM's value under it, which the GMs' mark then took
+         * as theirs - an experience nobody named. The console makes one, its put-back refused (`inConsoleWindow`); a
+         * Standard stands for the student. Then the player's packet raises it (`advancement.apply`, judged as theirs),
+         * and the GM's own Level Up raises it beside +1 Health. Read: the experience on the sheet and in the GMs' mark,
+         * the offers the owner is sent, the reasons the player is told, what the GM's apply answers, and the advances
+         * gained. At 2ad492e (10.10.2026, red first) both raised it, untold: 2 on the sheet and in the mark, the offer
+         * spent, two advances. A console's value put back leaves the experience's entry in the mark empty ({}), so
+         * the experience the GMs hold is an entry with a value.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const L = await import("./level-up.mjs");
+        const S = await import("./gm-stores.mjs");
+        const G = await import("./bridge-guards.mjs");
+        const { BRIDGE_ACTIONS } = await import("./gm-bridge.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const { trustedWrite } = await import("./resource-guard.mjs");
+        const playerOf = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(playerOf);
+        const player = playerOf(student);
+        must(!S.offerStore.has(student.id), `${student.name} holds an offer already - this would read it, not the one made here`);
+        const FORGED = "E10C8FORGEDEXP01", PATH = `system.experiences.${FORGED}.value`;
+        const HP_MAX = "system.resources.hitPoints.max", ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const at = path => foundry.utils.getProperty(student._source, path);
+        const putBack = sheetAsFound(student, [HP_MAX, ADVANCES]);
+        const told = () => { const row = L.offersFor(player.id).offers[student.id]; return row?.offers ?? (row ? [row] : []); };
+        const before = at(ADVANCES) ?? 0;
+        const refusals = [];
+        let applied = "not run", read = null;
+        try {
+            await L.offerAdvancement(student, "standard");
+            const [held] = await inConsoleWindow(student, player, { forged: { [PATH]: 2 }, paths: [PATH] }, async () => {
+                const [offer] = told();
+                await G.judge(BRIDGE_ACTIONS, { action: "advancement.apply", requestId: `E10C8${foundry.utils.randomID(8)}`, actorId: student.id,
+                    picks: [{ option: "experienceUp", experience: FORGED }], offerId: offer?.id ?? null }, player.id,
+                { send: (to, reply) => { if (reply?.action === "bridge.refused") refusals.push(reply.reason ?? null); } });
+                applied = await L.applyAdvancement(student, [{ option: "hp" }, { option: "experienceUp", experience: FORGED }]);
+            });
+            read = [held, told().length, refusals, applied, (at(ADVANCES) ?? 0) - before];
+        } finally {
+            if (S.offerStore.has(student.id)) await S.offerStore.drop(student.id);
+            if (at(`system.experiences.${FORGED}`) !== undefined) {
+                await trustedWrite(student, { [`system.experiences.${FORGED}`]: forcedDeletion() }, { reason: "gmRuling" });
+            }
+            await putBack();
+        }
+        equal(stableJson(read), stableJson([[2, null], 1, ["missing"], null, 0]),
+            "a Level Up raised an experience a player's console made that the GMs' audit had not put back, or did not tell the player "
+            + "(the experience on the sheet and in the GMs' mark; the offers; the reasons told; the GM's apply; the advances gained)");
+    }],
+
+    ["an experience to raise with none named is refused before the Level Up is written, and the picker cannot choose it", async () => {
+        /*
+         * E10 C8, 1.2.71; audit S03-22. A character with no experience was warned in the picker that there was
+         * nothing to raise, and Apply went on: the pick went with no experience, the apply skipped it and wrote the
+         * rest - a Reinforced's three picks became two, in one write and a step of `advances`. The GM's picker for a
+         * Reinforced, the student prepared with no experience (`preparedAs`; at a table, whatever the student has),
+         * answered +1 Health, +1 Sanity and an experience to raise with none named. Read: what the picker answers,
+         * the advances gained and the Health maximum's rise, whether the GM was told, and each of the three
+         * selects' "Increase one experience" drawn disabled - which it is exactly where the student has none. At
+         * 2ad492e (10.10.2026, red first): +1 Health and +1 Sanity written, one advance, untold, the option enabled.
+         */
+        needs(world.atLeast("livingStudents"), "a living student to advance");
+        const L = await import("./level-up.mjs");
+        const { listExperiences } = await import("./character.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const [student] = livingStudents();
+        const R = "system.resources", HP_MAX = `${R}.hitPoints.max`, SAN_MAX = `${R}.stress.max`, ADVANCES = `flags.${MODULE_ID}.${FLAGS.advances}`;
+        const at = path => foundry.utils.getProperty(student._source, path);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, ADVANCES]);
+        const D = foundry.applications.api.DialogV2;
+        const own = Object.getOwnPropertyDescriptor(D, "wait");
+        const warn = ui.notifications.warn, warned = [];
+        const [hp, before] = [at(HP_MAX), at(ADVANCES) ?? 0];
+        let content = null, answered = "not run", none = null, written = null;
+        const unprepare = preparedAs(student, system => { system.experiences = {}; });
+        try {
+            none = listExperiences(student).length === 0;
+            D.wait = async cfg => {
+                if (!(cfg?.classes ?? []).includes("drpg-advance")) return null;
+                content = String(cfg?.content ?? "");
+                return [{ option: "hp" }, { option: "stress" }, { option: "experienceUp" }];
+            };
+            ui.notifications.warn = (text, ...rest) => { warned.push(String(text)); return warn.call(ui.notifications, text, ...rest); };
+            answered = await L.openAdvancement(student, "reinforced");
+            written = [(at(ADVANCES) ?? 0) - before, at(HP_MAX) - hp];
+        } finally {
+            ui.notifications.warn = warn;
+            if (own) Object.defineProperty(D, "wait", own);
+            else delete D.wait;
+            unprepare?.();
+            await putBack();
+        }
+        const form = document.createElement("div");
+        form.innerHTML = content ?? "";
+        const disabled = [...form.querySelectorAll('select[name$=".option"] option[value="experienceUp"]')].map(option => option.disabled);
+        must(disabled.length === 3, `the picker drew ${disabled.length} select(s) for a Reinforced's three picks - this would measure nothing: ${content}`);
+        equal(stableJson([answered, ...(written ?? []), warned.includes(game.i18n.localize("DRPG.Advance.noExperienceToRaise")), disabled]),
+            stableJson([null, 0, 0, true, [none, none, none]]),
+            "an experience to raise with none named was skipped and the rest of the Level Up written, untold, or the picker offered it where there is none "
+            + "(the picker's answer; advances gained; the Health maximum's rise; the GM told; the option drawn disabled in each select)");
+    }],
+
+    ["a season's starting sheet is stamped as the GMs hold it, not from an effect's bonus or a console's write", async () => {
+        /*
+         * E10 C8, 1.2.71; audit S03-23; the plan's 1b.2 (character.mjs `stampStartingSheet`). The season's starting
+         * spread was read off `actor.system`, which Daggerheart prepares - an item's effect added on top - and which on
+         * the primary holds a player's console write until the audit's put-back lands; a season reset writes the stamp
+         * back into the sheet (`restoreStartingSheet`), so the effect's bonus or the console's rise became the sheet's
+         * own. The console raises an experience by 2, its put-back refused (`inConsoleWindow`); the GM's copy of the
+         * student prepared with +1 to a statistic (`preparedAs`; at a table Daggerheart's own preparation); the GM sets
+         * the student up (`initCharacter`, the values kept). Read: the statistic and the experience in the stamp. At
+         * 2ad492e (10.10.2026, red first) both were stamped: 1 for 0 and 4 for 2.
+         */
+        needs(world.atLeast("studentsWithConnectedPlayer", 1), "a student with a player whose write is judged");
+        const { initCharacter } = await import("./character.mjs");
+        const { TRAITS } = await import("./config.mjs");
+        const { livingStudents } = await import("./chapter.mjs");
+        const player = a => game.users.find(u => !u.isGM && u.active && a.testUserPermission(u, "OWNER"));
+        const [student] = livingStudents().filter(player);
+        const trait = Object.values(TRAITS)[0]?.dh, experience = Object.keys(student._source.system?.experiences ?? {})[0];
+        const R = "system.resources", HP_MAX = `${R}.hitPoints.max`, SAN_MAX = `${R}.stress.max`, TRAIT = `system.traits.${trait}.value`;
+        const EXP = `system.experiences.${experience}.value`, STAMP = `flags.${MODULE_ID}.${FLAGS.sheetAtStart}`;
+        const at = path => foundry.utils.getProperty(student._source, path);
+        must(typeof at(TRAIT) === "number" && typeof at(EXP) === "number",
+            `${student.name} has no ${trait} or no experience to stamp - this would measure nothing: ${stableJson([at(TRAIT), at(EXP)])}`);
+        const putBack = sheetAsFound(student, [HP_MAX, SAN_MAX, EXP, STAMP]);
+        const [stat, exp] = [at(TRAIT), at(EXP)];
+        let stamped = null;
+        try {
+            await inConsoleWindow(student, player(student), { forged: { [EXP]: exp + 2 }, paths: [EXP] }, async () => {
+                const unprepare = preparedAs(student, system => { system.traits[trait].value += 1; });
+                try {
+                    if (unprepare) must(foundry.utils.getProperty(student.system, `traits.${trait}.value`) === stat + 1,
+                        `the preparation the test stands in for did not take - this would measure nothing: ${stableJson(student.system.traits?.[trait])}`);
+                    await initCharacter(student, { resetValues: false, quiet: true });
+                } finally {
+                    unprepare?.();
+                }
+                const stamp = student.getFlag(MODULE_ID, FLAGS.sheetAtStart);
+                stamped = [stamp?.traits?.[trait] ?? null, stamp?.experiences?.[experience] ?? null];
+            });
+        } finally {
+            await putBack();
+        }
+        equal(stableJson(stamped), stableJson([stat, exp]),
+            "the season's starting sheet was stamped with an effect's bonus or a console's write the GMs' audit had not put back (the statistic; the experience)");
+    }],
+
     ["a GM's take of Sanity is held to the maximum the GMs hold, not one a console wrote that the audit has not put back", async () => {
         /*
          * E29 fix r2-H24, 06.10.2026. A GM's write of a student's marks held to a maximum read off the sheet, where a

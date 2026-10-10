@@ -191,6 +191,8 @@ export const REASON_PATTERNS = Object.freeze([
     ["badRequest", /^that offer buys .+ pick\(s\), the packet carried .+$/],
     ["badRequest", /^a pick names something that is not an option$/],
     ["badRequest", /^a new experience has no name$/],
+    ["badRequest", /^a pick raises a statistic that is not one$/],
+    ["missing", /^a pick raises an experience the character does not have$/],
     ["badRequest", /^no such Level Up: /],
     ["badRequest", /^an offer is given or taken back, nothing else$/],
     ["badRequest", /^".*" does not grant ".*"$/],

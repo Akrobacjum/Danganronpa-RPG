@@ -2968,6 +2968,8 @@
       "newExperienceName": "Nowe doświadczenie",
       "newExperiencePlaceholder": "słowo albo zdanie o tym, kim są",
       "noExperiences": "Ta postać nie ma jeszcze doświadczeń, więc nie ma czego podnosić.",
+      "noExperienceToRaise": "Nie ma doświadczenia do podniesienia: wybierz inne ulepszenie. Nic nie zostało wykorzystane - Level Up wciąż czeka.",
+      "notOnSheet": "Wybór wskazuje statystykę albo doświadczenie, których {name} nie ma, więc nic nie zapisano.",
       "experienceNeedsName": "Nowe doświadczenie potrzebuje nazwy. Ten wybór pominięto.",
       "nothingToApply": "Nic nie wybrano, więc nic się nie zmieniło.",
       "unknownKind": "Nieznany typ Level Up: {kind}.",

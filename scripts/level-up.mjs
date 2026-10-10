@@ -523,6 +523,18 @@ export async function openAdvancement(actor, kind = "standard", { extraPicks = 0
 
     if (!result || result === "cancel") return null;
 
+    /* AN EXPERIENCE TO RAISE THAT IS NOT THERE is refused HERE, on the screen of the person who
+       picked it (E10 C8, 1.2.71; audit S03-22), a GM's as well as a player's. The window warned that
+       there was nothing to raise and applied all the same: the pick went with no experience, the
+       apply skipped it, and the rest were written - a Reinforced's three picks became two, and a
+       player's offer was spent on them. `buildContent` no longer lets the option be chosen with no
+       experience; this is for a form that sends it anyway. Nothing is written or sent: a player's
+       offer and its lit button stand, as for a new experience with no name below. */
+    if (result.some(p => p?.option === "experienceUp" && !p.experience)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Advance.noExperienceToRaise"));
+        return null;
+    }
+
     /*
      * A PLAYER'S PICKS GO TO THE GM, WHO CHECKS THEM AGAINST THE OFFER. The picks
      * are a claim: the count, the options and the character are all checked again
@@ -563,7 +575,7 @@ function buildContent(picks, experiences, reasons) {
             <legend>${game.i18n.format("DRPG.Advance.choice", { n: i + 1 })}</legend>
             <select name="pick.${i}.option" data-pick="${i}">
                 ${Object.entries(LEVEL_UP_OPTIONS)
-                    .map(([key, opt]) => `<option value="${key}">${opt.label}</option>`)
+                    .map(([key, opt]) => `<option value="${key}"${key === "experienceUp" && !experiences.length ? " disabled" : ""}>${opt.label}</option>`)
                     .join("")}
             </select>
             <div class="drpg-advance-detail" data-detail="${i}"></div>
@@ -687,6 +699,17 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
     const traitDeltas = {};
     const experienceDeltas = {};
     const newExperiences = {};
+    /* A PICK THIS SHEET CANNOT TAKE STOPS THE WHOLE LEVEL UP (E10 C8, 1.2.71; audit S03-22). A
+       statistic that is not one, or an experience to raise that is not named, was skipped and the
+       rest written - one write, one step of `advances`, a pick gone without a word; and an
+       experience the sheet did not have took a value of its own. A GM's console and any picker reach
+       this as well as the bridge, whose handler refuses the same picks first and tells the player. */
+    const statistics = new Set(Object.values(TRAITS).map(trait => trait.dh));
+    if (picks.some(pick => (pick?.option === "trait" && !statistics.has(pick.trait))
+        || (pick?.option === "experienceUp" && typeof pick.experience !== "string"))) {
+        ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
+        return null;
+    }
 
     for (const pick of picks) {
         switch (pick.option) {
@@ -702,7 +725,6 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
 
             case "trait": {
                 const key = pick.trait;
-                if (!key) break;
                 traitDeltas[key] = (traitDeltas[key] ?? 0) + 1;
                 const label = Object.values(TRAITS).find(t => t.dh === key)?.label ?? key;
                 summary.push(`+1 ${label}`);
@@ -711,7 +733,6 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
 
             case "experienceUp": {
                 const id = pick.experience;
-                if (!id) break;
                 experienceDeltas[id] = (experienceDeltas[id] ?? 0) + 1;
                 const name = actor.system.experiences?.[id]?.name ?? id;
                 summary.push(`+1 ${name}`);
@@ -773,8 +794,16 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
         // now rises from the sheet's value as the GMs hold it (`numberHeld`).
         const { trustedWrite } = await import("./resource-guard.mjs");
         const { meansWrite, numberHeld } = await import("./sheet-audit.mjs");
+        //
+        // THE EXPERIENCE RAISED IS ONE THE GMS HOLD (E10 C8, 1.2.71; audit S03-22), read in the same job as the
+        // numbers: one a player's console wrote on the sheet that the audit had not put back yet took this GM's
+        // write as its value, and stood from then on in the GMs' mark - an experience nobody named. Held means an
+        // entry with a value: such a write, put back, leaves its entry in the mark empty ({}; read on 10.10.2026).
+        // Nothing is written then, and the caller is told by the answer, null.
         const taken = await meansWrite(actor, async () => {
             const from = path => numberHeld(actor, path) ?? 0;
+            const held = numberHeld(actor, "system.experiences") ?? {};
+            if (Object.keys(experienceDeltas).some(id => !(Object.hasOwn(held, id) && typeof held[id]?.value === "number"))) return null;
             if (hpUp) update["system.resources.hitPoints.max"] = from("system.resources.hitPoints.max") + hpUp;
             if (stressUp) update["system.resources.stress.max"] = from("system.resources.stress.max") + stressUp;
             for (const [key, delta] of Object.entries(traitDeltas)) {
@@ -788,6 +817,10 @@ export async function applyAdvancement(actor, picks, kind = "standard", { reason
             await trustedWrite(actor, update, { reason: "levelUp" });
             return taken;
         });
+        if (taken === null) {
+            ui.notifications.warn(game.i18n.format("DRPG.Advance.notOnSheet", { name: actor.name }));
+            return null;
+        }
         /* AN OFFER IS SPENT BY BEING TAKEN (N-2) - the one it names, and only that one
            (E10 C6; audit S03-17). Every apply withdrew the character's offer, so a GM's own
            Level Up of a student spent the player's standing one without a word; a GM's

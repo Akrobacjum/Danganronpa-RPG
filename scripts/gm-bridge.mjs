@@ -365,6 +365,7 @@ async function handleAdvancement(payload, sender, ctx) {
     if (!actor) return { refused: "no such character" };
 
     const { standingOffers, offerPicks, applyAdvancement } = await import("./level-up.mjs");
+    const { numberHeld } = await import("./sheet-audit.mjs");
     const standing = standingOffers(actor);
     const offer = standing.find(held => held.id === payload.offerId) ?? null;
     if (!standing.length) {
@@ -398,6 +399,28 @@ async function handleAdvancement(payload, sender, ctx) {
        a new experience that has no name. */
     if (picks.some(p => p.option === "experienceNew" && !String(p.name ?? "").trim())) {
         return { refused: "a new experience has no name" };
+    }
+
+    /* A PICK THE SHEET CANNOT TAKE IS REFUSED, NOT SKIPPED (E10 C8, 1.2.71; audit S03-22). A statistic
+       that is not one of TRAITS, and an experience to raise that the character does not have - none
+       named, as a form with no experience to list sends it, or one not on the sheet as the GMs hold
+       it (`numberHeld` at the experiences' root: the primary's mark, the sheet elsewhere) - went to
+       `applyAdvancement`, which skipped the first kind and wrote a value under the second: the
+       offer was spent either way, a pick of a Reinforced's three lost or written on an experience
+       with no name. Refused here, before the latch, and told; the offer stands. An experience the
+       GMs hold is an entry with a value to add to: a console's write of a new experience's value,
+       put back, leaves the entry in the mark empty ({}; read on 10.10.2026 under tier 2's "a Level
+       Up raises no experience a player's console made"), and a check of the entry alone let it be
+       raised from 0. `applyAdvancement` checks the experiences again in its own job, where a write
+       heard meanwhile has been judged. */
+    const statistics = new Set(Object.values(TRAITS).map(trait => trait.dh));
+    if (picks.some(p => p.option === "trait" && !statistics.has(p.trait))) {
+        return { refused: "a pick raises a statistic that is not one" };
+    }
+    const experiences = numberHeld(actor, "system.experiences") ?? {};
+    const held = id => typeof id === "string" && Object.hasOwn(experiences, id) && typeof experiences[id]?.value === "number";
+    if (picks.some(p => p.option === "experienceUp" && !held(p.experience))) {
+        return { refused: "a pick raises an experience the character does not have" };
     }
 
     /* ONE AT A TIME PER CHARACTER. The offer is only withdrawn once

@@ -2869,6 +2869,8 @@
       "newExperienceName": "New experience",
       "newExperiencePlaceholder": "a word or a sentence about who they are",
       "noExperiences": "This character has no experiences yet, so there is nothing to raise.",
+      "noExperienceToRaise": "There is no experience to raise: choose another improvement. Nothing was taken - the Level Up still stands.",
+      "notOnSheet": "A pick names a statistic or an experience {name} does not have, so nothing was written.",
       "experienceNeedsName": "A new experience needs a name. That choice was skipped.",
       "nothingToApply": "Nothing was selected, so nothing changed.",
       "unknownKind": "Unknown Level Up type: {kind}.",
