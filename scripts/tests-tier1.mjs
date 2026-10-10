@@ -2655,7 +2655,8 @@ const INVARIANTS = [
             user: { documentName: "User", name: "Suite player" },
             knife: owns({ documentName: "Item", name: "Knife", parent: { documentName: "Actor" } }),
             party: not({ documentName: "Actor", type: "party", name: "Party", system: { partyMembers: ["mine"] } }),
-            scene: { documentName: "Scene", name: "Floor", flags: { daggerheart: { sceneEnvironments: ["a", "b"] } } }
+            scene: { documentName: "Scene", name: "Floor", flags: { daggerheart: { sceneEnvironments: ["a", "b"] } } },
+            oddScene: { documentName: "Scene", name: "Odd floor", flags: { daggerheart: { sceneEnvironments: [["a"], ["b"]] } } }
         };
         const countdowns = { countdowns: {
             P1: { name: "Project", progress: { current: 2, start: 6, type: "custom", looping: "noLooping" } },
@@ -2692,6 +2693,11 @@ const INVARIANTS = [
             "an item's name": doc("knife", { name: "Spoon" }),
             "a module flag on an item": doc("knife", { "flags.danganronpa-rpg.playerText": "x" }),
             "a scene's environments replaced": doc("scene", { "flags.daggerheart.sceneEnvironments": ["a", "z"] }),
+            // E75 fix r2-G1 (review cor F1, sec T3): the scene's own environments, as entries that are
+            // not plain identifiers, were compared as text and forwarded as a reordering.
+            "a scene's environments as entries that are not plain identifiers": doc("scene", { "flags.daggerheart.sceneEnvironments": [["b"], ["a"]] }),
+            "a scene's environments as entries nested deeper": doc("scene", { flags: { daggerheart: { sceneEnvironments: [[["a"]], "b"] } } }),
+            "a scene whose stored environments are not plain identifiers": doc("oddScene", { "flags.daggerheart.sceneEnvironments": ["b", "a"] }),
             "a setting": judge("DhGMUpdate", { action: "DhGMUpdateSetting", uuid: "Automation", data: {} }),
             "an effect": judge("DhGMUpdate", { action: "DhGMUpdateEffect", uuid: "mine", data: {} }),
             "Countdowns as {}": judge("DhGMUpdate", { action: "DhGMUpdateCountdowns", data: {} }),
@@ -2708,6 +2714,9 @@ const INVARIANTS = [
         };
         const let_through = Object.entries(refused).filter(([, v]) => v.verdict !== "refuse").map(([k, v]) => `${k} (${v.verdict})`);
         ok(!let_through.length, `the relay let these through: ${let_through.join("; ")}`);
+        for (const name of Object.keys(refused).filter(k => k.startsWith("a scene"))) {
+            ok(/which is not a reordering$/.test(refused[name].why ?? ""), `${name} is not refused as "not a reordering": ${refused[name].why}`);
+        }
         // What Daggerheart itself sends is REFUSED, never called forged (the E03 review:
         // a player's healing ability on a classmate was reported to the GM as a forgery).
         equal(refused["a Region"].kind, "refused", "a player's Region is called forged rather than kept to the GM");

@@ -60,8 +60,9 @@
  * project, and any change between 0 and its start to a countdown the player
  * owns; a save total for a token they play; the group-roll and tag-team data of
  * a party one of their characters is in; a new order for a scene's
- * environments. None has a limit on how often. Whether the roll behind any of
- * those was honest is the second layer of the trust model (E28, E29).
+ * environments, each a plain identifier. None has a limit on how often. Whether
+ * the roll behind any of those was honest is the second layer of the trust model
+ * (E28, E29).
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -624,7 +625,18 @@ function itemRefusal(doc, flat, sender, world = {}) {
     return null;
 }
 
-/** The scene's environments, put in another order - the one thing the scene bar asks. */
+/**
+ * The scene's environments, put in another order - the one thing the scene bar asks.
+ * Both lists are read as plain identifiers, each entry a string, and compared as they
+ * are (E75 fix r2-G1, 10.10.2026; review cor F1, sec T3). Until then the entries were
+ * compared as text, and the text of an array is its entries' own, so the scene's own
+ * identifiers each inside an array, once or twice, read as a reordering: `judgeRelay`
+ * forwarded that list (measured in node and end to end on the harness by the review,
+ * 10.10.2026; R133, red on it before this fix) and the GM's client wrote it, a stored
+ * value of another type on the GM's own scene. What Daggerheart 2.10.11 does with such
+ * a list was read there, not run. A stored list that is not plain identifiers is
+ * refused as well: no order of it is one the scene bar asks for.
+ */
 function sceneRefusal(doc, flat) {
     const entries = Object.entries(flat);
     if (entries.length !== 1 || entries[0][0] !== "flags.daggerheart.sceneEnvironments") {
@@ -632,8 +644,9 @@ function sceneRefusal(doc, flat) {
     }
     const next = entries[0][1];
     const current = doc.flags?.daggerheart?.sceneEnvironments ?? [];
-    const same = Array.isArray(next) && Array.isArray(current) && next.length === current.length
-        && [...next].map(textOf).sort().join("\n") === [...current].map(textOf).sort().join("\n");
+    const plain = list => Array.isArray(list) && list.every(entry => typeof entry === "string");
+    const same = plain(next) && plain(current) && next.length === current.length
+        && [...next].sort().join("\n") === [...current].sort().join("\n");
     return same ? null : `the environments of ${doc.name}, which is not a reordering`;
 }
 
