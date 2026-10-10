@@ -40,8 +40,8 @@ import {
 } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, setRemnantFlagsMany, publishTiesFor, handTiesOn, fightKey } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId }
-    from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error, plural, esc, isPrimaryGm, primaryGmId,
+    serverNow } from "./utils.mjs";
 import { caseMark, deathStore, deferredOfferStore, lootTraceStore } from "./gm-stores.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -913,8 +913,9 @@ async function runDiscovery({ room, victim = null, scene = null, by = "gm" } = {
        found before the trial again (65-season B4: a second card at 4aad1fd). The stamp outlives the
        hold; the watcher passes over a body it names (`bodiesToDiscover`). Written as soon as the
        deaths are the table's, before the gather and the card, so a failure in either leaves the
-       bodies known as found. */
-    await announceBody({ chapter: clock.chapter, epoch, at: Date.now(), room, sceneId: where?.id ?? null,
+       bodies known as found. Its `at` is the server's clock, as the trial's end it is compared
+       with is (`bodyFoundSinceTrial`; E11 fix r1-G3). */
+    await announceBody({ chapter: clock.chapter, epoch, at: serverNow(), room, sceneId: where?.id ?? null,
         victimIds: victims, deaths, by, day: clock.day ?? 1, timeOfDay: clock.timeOfDay });
 
     /* AND OF WHAT EACH OF THOSE DEATHS TIED, AND NOTHING ELSE (E09 fix r1-G1, 08.10.2026; the

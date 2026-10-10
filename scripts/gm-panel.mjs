@@ -17,7 +17,7 @@ import { keepLive, alreadyOpen, handOff } from "./live.mjs";
 import { bodyDiscovery, seasonEpoch } from "./settings.mjs";
 import { bodiesToDiscover, announcedIn } from "./chapter.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
-import { roomOfActor } from "./movement.mjs";
+import { roomOfToken } from "./movement.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { caseMark, caseWarning, healthLine } from "./gm-stores.mjs";
 
@@ -1179,20 +1179,30 @@ export function nextStep(clock) {
        counting actions while the victim lay unannounced, and nothing told a new GM the case was
        waiting on a discovery (tier 2 "the GM's next line names a body nobody has found yet";
        65-season B0). The bodies are the watcher's own (`bodiesToDiscover`, with the deaths the GMs
-       hold and the flags as the GMs hold them, `flagsHeldNow`), so the line names exactly a body two students
-       walking in would discover: this chapter's and season's, not an execution, not announced by
-       a discovery of this chapter. Only here, in Daily Life with no hold and no Eclipse, because
-       those are when a walk-in can find it (`checkBodyFound`). The room is the body's token's on
-       the scene this GM is viewing; a body elsewhere gets the line without the room. */
+       hold and the flags as the GMs hold them, `flagsHeldNow`), so the line names the bodies the
+       watcher would take: this chapter's and season's, not an execution, not announced by a
+       discovery of this chapter. Only here, in Daily Life with no hold and no Eclipse, because
+       those are when a walk-in can find it (`checkBodyFound`). A walk-in also needs the body's
+       token on the walk's scene, not hidden and in a room, which C2's line did not ask: a hidden or
+       token-less body was told "Two witnesses find it", which cannot happen (E11 fix r1-G3; early
+       review EARLY-C2-3). So the line reads the body's tokens on every scene: one a witness could
+       find on the scene this GM is viewing names its room; one only on another scene gets the line
+       without the room; none, the line without the witnesses (tier 2 "the GM's next line tells a
+       hidden body to be announced by hand"). */
     const waiting = bodyWaiting(clock);
     if (waiting) {
-        let room = null;
-        try { room = roomOfActor(waiting) ?? null; } catch { /* a body outside every room */ }
+        let findable = [];
+        try {
+            findable = (game.scenes?.contents ?? []).flatMap(scene => scene.tokens?.filter?.(t =>
+                t.actor?.id === waiting.id && !t.hidden && roomOfToken(t)) ?? []);
+        } catch { /* a scene not readable here: no witness road the line can name */ }
+        const here = findable.find(t => t.parent?.id === canvas?.scene?.id);
+        const room = here ? roomOfToken(here) : null;
         return {
             // Escaped: a room's name is the scene author's, and the panel is drawn with `innerHTML`.
             text: room
                 ? game.i18n.format("DRPG.Panel.nextBodyWaiting", { room: esc(room) })
-                : game.i18n.localize("DRPG.Panel.nextBodyWaitingNoRoom"),
+                : game.i18n.localize(findable.length ? "DRPG.Panel.nextBodyWaitingNoRoom" : "DRPG.Panel.nextBodyWaitingUnseen"),
             action: "bodyDialog"
         };
     }

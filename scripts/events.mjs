@@ -28,7 +28,7 @@ import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, secondsLeft, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
-import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodiesFoundIn, incidentCast, incidentSeats,
+import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, bodyFoundSinceTrial, incidentCast, incidentSeats,
     incidentWitness, isDeceased } from "./settings.mjs";
 import { flagsHeldNow } from "./sheet-audit.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
@@ -432,8 +432,9 @@ export function bodyCard(clock) {
      * (`restoreState({})`, murder.mjs) before the GM ever presses anything.
      *
      * Once the Investigation starts the record is cleared (see `setClock`), and
-     * the card reads the chapter's last discovery stamp instead (`bodiesFoundIn`,
-     * E11 C1), which names the room and every body that discovery found and
+     * the card reads the chapter's last discovery stamp instead (`bodyFoundSinceTrial`,
+     * E11 C1; since E11 fix r1-G3 only one made after the chapter's last Class Trial
+     * ended, early review EARLY-C2-1), which names the room and every body that discovery found and
      * outlives the hold. Until 1.2.73 it fell back to `murderState`, which
      * `endMurder` had already wiped, so the card - and the GM's count of Key
      * Remnants on it - went the moment the Investigation began (E11 C2; audit
@@ -451,7 +452,7 @@ export function bodyCard(clock) {
 
     if (!found) {
         if (clock.phase !== "investigation") return null;
-        const stamp = bodiesFoundIn(clock.chapter).at(-1) ?? null;
+        const stamp = bodyFoundSinceTrial(clock);
         if (!stamp) return null;
         victimIds = stamp.victimIds ?? [];
         room = stamp.room ?? null;
@@ -472,9 +473,10 @@ export function bodyCard(clock) {
     const names = victims.map(a => a.name).join(", ");
 
     // WHAT THE META SAYS DEPENDS ON WHO IS WAITING FOR WHAT. While the game is
-    // held, the players are told the room has stopped and the GM is told what
-    // to press; once the investigation is running it goes back to the count of
-    // Key Remnants for the GM, which is a number no player may read.
+    // held, the players are told the Investigation has not started yet (E11 C3,
+    // the owner's Q4: nothing else is held) and the GM is told what to press;
+    // once the investigation is running it goes back to the count of Key
+    // Remnants for the GM, which is a number no player may read.
     let meta;
     if (found) {
         meta = game.i18n.localize(game.user.isGM
@@ -500,7 +502,11 @@ export function bodyCard(clock) {
         // waiting on somebody, and `.due` is how this panel already says so.
         // The FRESH reader, not the standing one - the record outlives the hour
         // it was written in, and a card that pulses all evening is wallpaper.
-        due: Boolean(bodyDiscoveryFresh()),
+        // And only over a hold (`found`): a body announced in the Investigation
+        // writes the record too, and nobody is waiting on anything there (E11 fix
+        // r1-G3, measured by its tier 2 "a chapter's second Investigation reads
+        // its own body on the card and in a discard": the card pulsed).
+        due: Boolean(found && bodyDiscoveryFresh()),
         title: game.i18n.localize("DRPG.Events.bodyTitle"),
         sub: room && names
             ? game.i18n.format("DRPG.Events.bodySubRoom", { victim: names, room })

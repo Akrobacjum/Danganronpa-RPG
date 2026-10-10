@@ -2807,6 +2807,7 @@
       "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
       "nextBodyWaiting": "A body is waiting to be found in {room}. Two witnesses find it, or announce it yourself.",
       "nextBodyWaitingNoRoom": "A body is waiting to be found. Two witnesses find it, or announce it yourself.",
+      "nextBodyWaitingUnseen": "A body is waiting to be found, but its token is hidden or in no room, so no witness can find it. Announce it yourself.",
       "nextInvestigation": "Investigation. Check what has been found and what is still out there.",
       "nextStillActing": {
         "one": "{n} student still has actions to spend.",

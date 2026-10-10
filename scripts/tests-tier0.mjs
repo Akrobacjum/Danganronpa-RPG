@@ -7690,7 +7690,7 @@ const REGRESSIONS = [
             ["PACKET gm-bridge.mjs#call.arm#call", "out of scope: judged on the primary (E28/E29: `guardArm*`, `judgedFor` before the guards); it writes the `pendingCall` flag (put back by E29 when a player writes it). C10 only unsets the flag on every student in the reset's `seals` step and reads nothing [1b.1 pendingCall, 1b.2] (E11 C10)"],
             ["SOCKET eclipse.mjs#onMovesSocket#moves", "out of scope: a GM -> player packet (the Eclipse's placements); C3 touches only `startEclipse`'s guard; no E11 commit changes it"],
             ["SOCKET eclipse.mjs#onMovesSocket#stamps", "out of scope: a GM -> player packet (the Eclipse's placements); no E11 commit changes it"],
-            ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:131) and touches no actor. Since E11 C3 the gather's camera rides it: `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is the plan's `senderOf(senderId)?.isGM`, and a player's packet pans nobody (65 B1b)"],
+            ["SOCKET sync.mjs#registerSync#kind", "judged: the handler applies a packet only from a GM sender (`game.users.get(senderId)?.isGM`, sync.mjs:137) and touches no actor. Since E11 C3 the gather's camera rides it: `SYNC.gather` carries `{ room, scene, tokenIds }` and each client pans to its own student's token (call-world.mjs `panToGathered`, `canvas.animatePan`; none without a drawn canvas) - the GM-sender check is that one, not the plan's `senderOf(senderId)?.isGM` (it does not ask `active`; Foundry stamps `senderId`), and a player's packet pans nobody (65 B1b)"],
             ["SOCKET sync.mjs#registerSync#data", "judged: as `#kind` (a GM sender only); since E11 C3 `SYNC.gather`'s `tokenIds` are read only to find this client's own token on its canvas, and nothing is written"],
             ["CHAT season-setup.mjs#moduleMessages", "out of scope: the reset's `cards`/`chatRest` steps select the module's chat by its flag to delete it; a player's card carrying the flag is deleted with them, which is what the reset means. C9 moves the step into `RESET_STEPS` and 65 F reads a failing delete (`ChatMessage.deleteDocuments` stubbed to throw) (E11 C9)"],
             ["SHEET chapter.mjs#livingStudents", "out of scope: rule A, the table's fact (`isDeceased`, document): a display and a count; a player's own `deceased` write is put back (GM_FLAGS); no E11 commit changes it"],
@@ -8860,6 +8860,30 @@ const REGRESSIONS = [
             equal(JSON.stringify(measured), JSON.stringify(expected),
                 `the ${lang} handbooks' Class Trial says what the code does not do (each claim: [the code, ...its sentences])`);
         }
+    }],
+
+    ["R375 - the hold's words say the Investigation has not started, and not that anything stopped", async () => {
+        /*
+         * E11 fix r1-G3; goal S03-28 (a test gap); the owner's Q4 as corrected (09.10.2026): the
+         * actions are not held after a body's discovery, only during the Class Trial, so the players'
+         * line under the hold (`DRPG.Events.bodyHoldMeta`, events.mjs's body card) says only that the
+         * Investigation has not started. Until E11 C3 it read "Everything has stopped. Nobody is
+         * searching yet." beside action tiles that still worked, and nothing read the words after
+         * C3 changed them: an edit could bring them back. Read off both language files as they ship:
+         * each says the Investigation has not started, and neither says that everything, the actions
+         * or the searching stopped.
+         */
+        const meta = {};
+        for (const code of ["en", "pl"]) {
+            meta[code] = await fetch(`/modules/${MODULE_ID}/lang/${code}.json`).then(r => r.json()).then(j => j.DRPG?.Events?.bodyHoldMeta ?? null);
+        }
+        const says = { en: /Investigation has not started/, pl: /Investigation jeszcze nie trwa/ };
+        const stopped = { en: /stop|halt|frozen|everything|nobody|action/i, pl: /stanę|zatrzym|wstrzym|wszystk|nikt|akcj/i };
+        const read = Object.fromEntries(["en", "pl"].map(code =>
+            [code, [typeof meta[code] === "string", says[code].test(meta[code] ?? ""), stopped[code].test(meta[code] ?? "")]]));
+        equal(JSON.stringify(read), JSON.stringify({ en: [true, true, false], pl: [true, true, false] }),
+            "the hold's words are missing, do not say the Investigation has not started, or say that the game, the actions or the "
+            + "searching stopped (per language: [the line, says not started, says stopped])");
     }]
 ];
 

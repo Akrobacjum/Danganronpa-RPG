@@ -2913,6 +2913,7 @@
       "nextBodyFound": "Znaleziono ciało. Rozpocznij Investigation, gdy sala będzie gotowa.",
       "nextBodyWaiting": "Ciało czeka na odnalezienie w miejscu: {room}. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
       "nextBodyWaitingNoRoom": "Ciało czeka na odnalezienie. Odnajdzie je dwóch świadków albo ogłoś je samodzielnie.",
+      "nextBodyWaitingUnseen": "Ciało czeka na odnalezienie, ale jego żeton jest ukryty albo poza pokojami, więc żaden świadek go nie znajdzie. Ogłoś je samodzielnie.",
       "nextInvestigation": "Investigation. Sprawdź, co znaleziono, a co wciąż czeka.",
       "nextStillActing": {
         "one": "{n} uczeń ma jeszcze akcje do wydania.",

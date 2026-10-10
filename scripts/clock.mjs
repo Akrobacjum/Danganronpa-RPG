@@ -135,6 +135,11 @@ export async function setClock(patch = {}) {
         && patch.timeOfDayStartedAt === undefined) {
         next.timeOfDayStartedAt = serverNow();
     }
+    // The trial's end, for the discovery stamps read after it (settings.mjs `bodyFoundSinceTrial`,
+    // E11 fix r1-G3). `patch` wins here too, so a restored clock keeps its own.
+    if (trialEdge && before.phase === "classTrial" && patch.trialEndedAt === undefined) {
+        next.trialEndedAt = serverNow();
+    }
     /* NO TRIAL OPENS IN AN ECLIPSE, BY ANY DOOR (E10 fix r2-G5, 1.2.71; goal S06-18). C12 refused it at
        Start the Class Trial and the vote's open; Edit campaign, `setPhase`, a debate opened outside a
        trial (`startFloor` -> `setPhase`) and this function itself still opened one, with Analyze and the
